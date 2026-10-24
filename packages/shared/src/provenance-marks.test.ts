@@ -58,4 +58,11 @@ describe("what AI Activity calls a step while it runs (#328)", () => {
   it("has words in every interface language", () => {
     for (const locale of [fr, en]) for (const label of STEP_LABELS) expect(locale.aiActivity.steps[label], label).toEqual(expect.any(String));
   });
+
+  it("has its result in words in every interface language, one and many (« 1 page lue », « 12 pages lues »)", () => {
+    for (const locale of [fr, en]) {
+      const results: Record<string, string> = locale.aiActivity.live.result;
+      for (const label of STEP_LABELS) for (const plural of ["one", "other"]) expect(results[`${label}_${plural}`], `${label}_${plural}`).toContain("{{count}}");
+    }
+  });
 });

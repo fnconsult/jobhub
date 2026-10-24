@@ -16,7 +16,7 @@ export interface CoachReplyLive {
 }
 
 interface Live {
-  /** The Candidate's AI actions running, or stopped or failed lately (ai-activity/live). */
+  /** The Candidate's AI actions running, or done, stopped or failed lately (ai-activity/live). */
   actions: readonly LiveAction[];
   /** A Coach reply starts, asked from `href`; `stop` aborts it. */
   coachReply(href: string, stop: () => void): CoachReplyLive;
@@ -109,7 +109,7 @@ function LiveAnnouncer({ actions, coachPanelOpen }: { actions: readonly LiveActi
       if (!was && isRunning(action) && action.seenFromStart && (action.kind !== "coach_reply" || !coachPanelOpen)) {
         message = t(`aiActivity.live.announce.started.${action.kind}`);
       } else if (was && isRunning(was) && !isRunning(action) && told(action)) {
-        message = t(`aiActivity.live.announce.${action.status === "stopped" ? "stopped" : "failed"}.${action.kind}`);
+        message = t(`aiActivity.live.announce.${action.status === "done" || action.status === "stopped" ? action.status : "failed"}.${action.kind}`);
       }
     }
     for (const was of seen) if (!now.has(was.key) && isRunning(was) && told(was)) message = t(`aiActivity.live.announce.done.${was.kind}`);

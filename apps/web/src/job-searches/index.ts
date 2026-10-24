@@ -46,6 +46,7 @@ import {
   type MatchScore,
   type Provenance,
   type ProvenanceEvent,
+  type ProvenanceStep,
   type WeeklyQuota,
   type SearchCriteria,
 } from "@jobhub/shared";
@@ -145,7 +146,11 @@ export interface JobSearchNotification {
   jobSearchId: string;
   profile: { id: string; name: string };
   outcome:
-    | { status: "done"; found: number }
+    /**
+     * `at`: ISO, when it was done: with its start, AI Activity's wall-clock time (« ✓ Dernière recherche · 16 s »);
+     * `steps`: its Provenance's, folded (« Lecture · 12 pages lues »), the steps AI Activity shows it done with (none when it kept none).
+     */
+    | { status: "done"; at: string; found: number; steps: ProvenanceStep[] }
     /** `at`: ISO, when it stopped. */
     | { status: "stopped"; at: string; found: number }
     /** `at`: ISO, when it failed; `step`: the Activity of the last step that failed in its run, null when none did (or it kept no run). */
@@ -496,8 +501,8 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
 /** How a finished Job Search ended, as its notification tells it. */
 function outcomeOf(row: { status: JobSearchStatus; failure: string | null; found: number; finished_at: Date | null; provenance: unknown }): JobSearchNotification["outcome"] {
   const { found } = row;
-  if (row.status === "done") return { status: "done", found };
   const at = (row.finished_at ?? new Date(0)).toISOString();
+  if (row.status === "done") return { status: "done", at, found, steps: readProvenance(row.provenance)?.steps ?? [] };
   if (row.status === "stopped") return { status: "stopped", at, found };
   const step = (readProvenance(row.provenance)?.steps ?? []).filter((ran) => ran.outcome === "failed").at(-1)?.activity ?? null;
   return { status: "failed", failure: failureOf(row.failure), at, step, found };

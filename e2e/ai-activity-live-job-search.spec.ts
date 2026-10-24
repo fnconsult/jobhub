@@ -147,6 +147,9 @@ async function dangerSurface(locator: Locator): Promise<string> {
   });
 }
 
+/** The glyph's strokes as drawn: while its step runs they move, drawn from JavaScript (ActivityGlyph); still, they stay. */
+const strokesOf = (glyph: Locator) => glyph.evaluate((svg) => [...svg.querySelectorAll("path")].map((path) => path.getAttribute("d") ?? "").join("|"));
+
 async function expectNoAxeViolations(page: Page, selector: string) {
   const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
@@ -187,8 +190,9 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await expect(button).toContainText(new RegExp(STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")), { timeout: 30_000 });
     const glyph = button.locator("svg.activity-glyph");
     expect(await glyph.getAttribute("aria-hidden")).toBe("true");
-    // It breathes while the step runs.
-    expect(await glyph.evaluate((element) => element.getAnimations().length)).toBeGreaterThan(0);
+    // It moves while the step runs: its strokes are drawn anew, frame after frame.
+    const drawn = await strokesOf(glyph);
+    await expect.poll(() => strokesOf(glyph), { timeout: 5_000 }).not.toBe(drawn);
     const banner = page.getByRole("banner");
     const stopIcon = stopIconOf(banner);
     await expect(stopIcon).toBeVisible();
@@ -205,6 +209,8 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await expect(search).toContainText(`${fr.aiActivity.kinds.job_search} · `);
     await expect(search).toContainText(/En cours · \d/);
     await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).getByRole("listitem").first()).toBeVisible({ timeout: 30_000 });
+    // Each step shows its hour.
+    await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).getByRole("listitem").first().locator("time")).toHaveText(/^\d{2}:\d{2}$/);
     await expect(search.getByRole("link", { name: fr.aiActivity.live.open.job_search })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
     await expect(stopIconOf(search)).toBeVisible();
     await expectNoAxeViolations(page, "aside.ai-activity-pane");
@@ -235,6 +241,10 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
       const glyph = button.locator("svg.activity-glyph");
       await expect(glyph).toBeVisible({ timeout: 30_000 });
       expect(await glyph.evaluate((element) => element.getAnimations().length)).toBe(0);
+      // Its still drawing: React's paths, none drawn from JavaScript (those carry an opacity), even a while later.
+      expect(await strokesOf(glyph)).not.toMatch(/^\|*$/);
+      await page.waitForTimeout(800);
+      expect(await glyph.evaluate((svg) => svg.querySelectorAll("path[opacity], path:not([d])").length)).toBe(0);
 
       await button.click();
       // On its own page it is this page's action, not « En cours ailleurs ».
@@ -272,5 +282,38 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     } finally {
       rmSync(searchDownFlag, { force: true });
     }
+  });
+
+  test("done, « ✓ Dernière recherche » and its wall-clock time; each step with its result and its hour", async () => {
+    await freshWorker();
+    const jobSearchId = await startSearch(page);
+    await toApplications(page);
+    await listenToAnnouncements(page);
+    await aiActivityButton(page).click();
+    const search = paneOf(page).locator(".ai-activity-live");
+    await expect(search).toBeVisible({ timeout: 30_000 });
+
+    await expect.poll(() => statusOf(jobSearchId), { timeout: 120_000, message: workerOutput }).toBe("done");
+    const status = search.locator(".ai-activity-live-status");
+    await expect(status).toContainText(/Dernière recherche · \d+(,\d)? s/, { timeout: 10_000 });
+    // « ✓ »: a tick before it.
+    await expect(status.locator("svg.icon")).toBeVisible();
+    await expect(search).toHaveAttribute("data-status", "done");
+    await expect(stopIconOf(search)).toHaveCount(0);
+    // Done is not a failure: no light red.
+    expect(await search.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(await dangerSurface(search));
+    // Each ended step: its result in words (« 4 pages lues »), its hour.
+    const result = new RegExp(Object.values(fr.aiActivity.live.result as Record<string, string>).map((words) => words.replace("{{count}}", "\\d+")).join("|"));
+    const steps = search.locator(".ai-activity-live-step");
+    expect(await steps.count()).toBeGreaterThan(0);
+    for (const step of await steps.all()) {
+      await expect(step).toContainText(result);
+      await expect(step.locator("time")).toHaveText(/^\d{2}:\d{2}$/);
+    }
+    // On another page than its own, its end is its notification's to say, not AI Activity's; never a step.
+    const said = await announcements(page);
+    expect(said).not.toContain(fr.aiActivity.live.announce.done.job_search);
+    for (const text of said) expect(ANNOUNCEMENTS).toContain(text);
+    await expectNoAxeViolations(page, "aside.ai-activity-pane");
   });
 });

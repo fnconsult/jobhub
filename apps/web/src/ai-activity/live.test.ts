@@ -32,17 +32,29 @@ describe("AI Activity's live actions", () => {
 
     const [action] = actions;
     expect(action!.steps).toEqual([
-      { id: 1, activity: "think_write", label: "think_write", running: false, outcome: "ok", model: "Mistral Large", tool: null, tokens: 1500, ms: 2400 },
-      { id: 2, activity: "read", label: "read", running: false, outcome: "ok", model: null, tool: "Sites d'emploi", tokens: null, ms: 800 },
+      { id: 1, activity: "think_write", label: "think_write", running: false, outcome: "ok", model: "Mistral Large", tool: null, tokens: 1500, ms: 2400, at, count: 1 },
+      { id: 2, activity: "read", label: "read", running: false, outcome: "ok", model: null, tool: "Sites d'emploi", tokens: null, ms: 800, at, count: 1 },
     ]);
     expect(action!.current).toBeNull();
     expect(action!.tokens).toBe(1500);
   });
 
+  it("each step keeps its hour; an ended one, how many calls it folded (its result: « 12 pages lues »)", () => {
+    const reading = "2026-10-24T08:00:02.000Z";
+    const [action] = apply(
+      replyStarted,
+      step("coach_reply:1", { type: "step_started", id: 1, step: { kind: "tool", activity: "read", tool: "job-site", at: reading } }),
+    );
+    expect(action!.steps).toMatchObject([{ id: 1, running: true, at: reading, count: null }]);
+
+    const [ended] = nextLive([action!], step("coach_reply:1", { type: "step_ended", id: 1, step: { kind: "tool", activity: "read", tool: "job-site", ms: 800, at: reading, outcome: "ok", count: 12 } }));
+    expect(ended!.steps).toMatchObject([{ id: 1, running: false, at: reading, count: 12 }]);
+  });
+
   const thinking = step("coach_reply:1", { type: "step_started", id: 1, step: { kind: "ai", activity: "think_write", task: "coaching", at } });
   const ended = "2026-10-24T08:00:05.000Z";
 
-  it("a Coach reply given goes: the page's elements count it from then on", () => {
+  it("a Coach reply given goes: the page's elements count it from then on (its done line is the reply's own Provenance line)", () => {
     expect(apply(replyStarted, thinking, { type: "ended", key: "coach_reply:1", outcome: "done", at: ended })).toEqual([]);
   });
 
@@ -95,14 +107,32 @@ describe("AI Activity's live actions", () => {
       expect(action!.current).toBeNull();
     });
 
-    it("done, it leaves; stopped, it says so; failed, why and during which step", () => {
-      expect(apply(searching([webSearch]), over({ status: "done", found: 3 }))).toEqual([]);
+    it("done, it stays done with its wall-clock time (« ✓ Dernière recherche · 16 s »), its running steps ended; stopped, it says so; failed, why and during which step", () => {
+      const done = "2026-10-24T08:00:16.000Z";
+      const [finished] = apply(searching([webSearch]), over({ status: "done", at: done, found: 3, steps: [] }));
+      expect(finished).toMatchObject({ status: "done", startedAt: at, endedAt: done, current: null, failure: null });
+      expect(finished!.steps).toMatchObject([{ id: 1, running: false }]);
+      expect(liveView([finished!], "/").underWay).toBeNull();
       expect(apply(searching([webSearch]), over({ status: "stopped", at: ended, found: 1 }))[0]).toMatchObject({ status: "stopped", endedAt: ended });
       expect(apply(searching([webSearch]), over({ status: "failed", failure: "discovery_failed", at: ended, step: "web_search", found: 0 }))[0]).toMatchObject({
         status: "failed",
         endedAt: ended,
         failure: { reason: "jobSearch.failureReasons.discovery_failed", step: "web_search" },
       });
+    });
+
+    it("done, its steps are its Provenance's, folded: each ended, with its result, even the one still running at the last poll", () => {
+      const reading = "2026-10-24T08:00:06.000Z";
+      const final: ProvenanceStep[] = [
+        { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", model: "sonar", tokens: { input: 300, output: 800 }, ms: 4100, at, outcome: "ok", count: 3 },
+        { kind: "tool", activity: "read", tool: "job-site", ms: 9000, at: reading, outcome: "ok", count: 12 },
+      ];
+      const [finished] = apply(searching([webSearch]), over({ status: "done", at: "2026-10-24T08:00:16.000Z", found: 3, steps: final }));
+      expect(finished!.steps).toMatchObject([
+        { activity: "web_search", running: false, outcome: "ok", count: 3, at, model: "Perplexity", tokens: 1100 },
+        { activity: "read", running: false, outcome: "ok", count: 12, at: reading },
+      ]);
+      expect(finished!.tokens).toBe(1100);
     });
 
     it("its notification dismissed, or one never seen running, shows nothing", () => {

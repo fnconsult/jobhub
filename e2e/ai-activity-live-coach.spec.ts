@@ -78,7 +78,12 @@ test.describe("AI Activity live: an AI Coach reply (#333)", () => {
     // The closed button: the glyph and the step under way, a stop icon beside it.
     const button = aiActivityButton(page);
     await expect(button).toContainText(fr.aiActivity.steps.think_write);
-    await expect(button.locator("svg.activity-glyph")).toBeVisible();
+    const glyph = button.locator("svg.activity-glyph");
+    await expect(glyph).toBeVisible();
+    // Think then write: it moves, its strokes drawn anew frame after frame.
+    const strokesOf = () => glyph.evaluate((svg) => [...svg.querySelectorAll("path")].map((path) => path.getAttribute("d") ?? "").join("|"));
+    const drawn = await strokesOf();
+    await expect.poll(strokesOf, { timeout: 5_000 }).not.toBe(drawn);
     await expect(stopIconOf(page.getByRole("banner"))).toHaveAttribute("title", fr.aiActivity.live.stop.coach_reply);
     await expectNoAxeViolations(page, "header.topbar");
 

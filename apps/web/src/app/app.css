@@ -602,19 +602,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   stroke-linejoin: round;
 }
 
-/* It breathes while the step runs; it holds still for those who asked for less motion. */
-@media (prefers-reduced-motion: no-preference) {
-  .activity-glyph[data-live] {
-    animation: activity-breathe 1.2s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes activity-breathe {
-  from {
-    opacity: 0.45;
-    transform: scale(0.92);
-  }
-}
+/* While its step runs, its strokes move and morph, drawn from JavaScript (ActivityGlyph); still under reduced motion. */
 
 /* « Réponse arrêtée » (#328) and a failed reply's Failure Reason: very light red, said in words too. */
 .coach-panel .chat-stopped {
@@ -4069,6 +4057,11 @@ textarea.title-edit {
   flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.ai-activity-live-step-at {
+  flex: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-activity-live-step:not([data-running]) .activity-glyph {

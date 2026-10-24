@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay, formatTokens, PROVENANCE_GLYPHS, spokenMeasure, type Activity, type ProvenanceSite } from "@jobhub/shared";
-import { isRunning, liveView, type LiveAction, type LiveView } from "@/ai-activity/live";
+import { isRunning, liveView, type LiveAction, type LiveStep, type LiveView } from "@/ai-activity/live";
 import { activityElement, aiActivityPane, byRulesOnly, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive } from "@/components/AiActivityLive";
@@ -186,9 +186,10 @@ function useNow(ticking: boolean): number {
 const ENDED_STEPS_SHOWN = 4;
 
 /**
- * A live action in the pane (#333): its kind (and its Profile), its status in words (its time so far, or when it stopped or
- * failed, during which step and why, in light red), its tokens and time, its steps (each with its glyph, the model or Tool
- * that served, tokens and time) and, while it runs, its stop icon. « En cours ailleurs », a link to its page.
+ * A live action in the pane (#333): its kind (and its Profile), its status in words (its time so far; done, « ✓ Dernière
+ * recherche · 16 s », its wall-clock time; or when it stopped or failed, during which step and why, in light red), its
+ * tokens and time, its steps (each with its glyph, its result, the model or Tool that served, tokens · time and its hour)
+ * and, while it runs, its stop icon. « En cours ailleurs », a link to its page.
  */
 function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; elsewhere: boolean; stop: (key: string) => void; now: number }) {
   const { t } = useTranslation();
@@ -212,9 +213,14 @@ function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; els
       </div>
       <p className="ai-activity-row ai-activity-live-status">
         <span>
-          {action.status === "running"
-            ? t("aiActivity.live.running", { time: formatDuration(Math.max(0, ms), language) })
-            : action.status === "stopping"
+          {action.status === "running" ? (
+            t("aiActivity.live.running", { time: formatDuration(Math.max(0, ms), language) })
+          ) : action.status === "done" ? (
+            <>
+              <Icons.done />{" "}
+              {t(`aiActivity.live.done.${action.kind}`, { time: formatDuration(Math.max(0, ms), language) })}
+            </>
+          ) : action.status === "stopping"
               ? t("aiActivity.live.stopping")
               : action.status === "stopped"
                 ? t("aiActivity.live.stopped", { time: at })
@@ -222,7 +228,8 @@ function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; els
                   ? t("aiActivity.live.failedStep", { time: at, step: t(`aiActivity.steps.${action.failure.step}`) })
                   : t("aiActivity.live.failed", { time: at })}
         </span>
-        <Measure tokens={action.tokens} ms={running ? null : Math.max(0, ms)} withUnit />
+        {/* Done, its wall-clock time is in its words already. */}
+        <Measure tokens={action.tokens} ms={running || action.status === "done" ? null : Math.max(0, ms)} withUnit />
       </p>
       {action.status === "failed" ? <p className="ai-activity-live-reason">{action.failure?.reason ? t(action.failure.reason as ParseKeys) : t("aiActivity.live.unknownReason")}</p> : null}
       {action.steps.length > 0 ? (
@@ -234,11 +241,12 @@ function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; els
               <span className="ai-activity-live-step-words">
                 {t(`aiActivity.steps.${step.label}`)}
                 {step.model ?? step.tool ? <span className="ai-activity-meta"> · {step.model ?? step.tool}</span> : null}
-                {step.outcome === "stopped" || step.outcome === "failed" ? (
-                  <span className="ai-activity-meta"> · {t(step.outcome === "stopped" ? "aiActivity.live.stepStopped" : "aiActivity.live.stepFailed")}</span>
-                ) : null}
+                <StepResult step={step} />
               </span>
               <Measure tokens={step.tokens} ms={step.ms} />
+              <time className="ai-activity-meta ai-activity-live-step-at" dateTime={step.at}>
+                {formatTimeOfDay(new Date(step.at), new Date(now), language)}
+              </time>
             </li>
           ))}
         </ol>
@@ -249,6 +257,22 @@ function LiveSection({ action, elsewhere, stop, now }: { action: LiveAction; els
         </Link>
       ) : null}
     </article>
+  );
+}
+
+/** What an ended step came to: stopped or failed, in words; otherwise its calls (« 12 pages lues »), and a warning if it had one. */
+function StepResult({ step }: { step: LiveStep }) {
+  const { t } = useTranslation();
+  if (step.outcome === "stopped" || step.outcome === "failed") {
+    return <span className="ai-activity-meta"> · {t(step.outcome === "stopped" ? "aiActivity.live.stepStopped" : "aiActivity.live.stepFailed")}</span>;
+  }
+  if (step.count === null) return null;
+  return (
+    <span className="ai-activity-meta">
+      {" "}
+      · {t(`aiActivity.live.result.${step.label}`, { count: step.count })}
+      {step.outcome === "warning" ? ` · ${t("aiActivity.live.stepWarning")}` : null}
+    </span>
   );
 }
 

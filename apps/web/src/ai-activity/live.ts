@@ -32,6 +32,10 @@ export interface LiveStep {
   tokens: number | null;
   /** An ended step's time; null while it runs. */
   ms: number | null;
+  /** When it started (ISO): its hour in the pane (« 10:40 »). */
+  at: string;
+  /** An ended step's result: how many calls it folded (« 12 pages lues »); null while it runs. */
+  count: number | null;
 }
 
 export interface LiveAction {
@@ -43,13 +47,14 @@ export interface LiveAction {
   /** A Job Search's Profile; null for a Coach reply. */
   name: string | null;
   startedAt: string;
-  status: "running" | "stopping" | "stopped" | "failed";
+  /** Done: a Job Search's « ✓ Dernière recherche · 16 s », until its notification is dismissed. */
+  status: "running" | "stopping" | "done" | "stopped" | "failed";
   steps: LiveStep[];
   /** The step under way, the latest started; null before the first or once all ended. */
   current: LiveStep | null;
   /** Its ended steps' tokens; null while none spent any. */
   tokens: number | null;
-  /** When it was stopped or failed; null while it runs. */
+  /** When it was done, stopped or failed; null while it runs. */
   endedAt: string | null;
   /** This browser saw it start (a Coach reply sent here, a Job Search first polled within moments of its start): announced as starting. */
   seenFromStart: boolean;
@@ -65,7 +70,10 @@ export type LiveChange =
   | { type: "step"; key: string; event: ProvenanceEvent }
   /** The Candidate asked it to stop: it says so until it ends. */
   | { type: "stopping"; key: string }
-  /** It ended: done (it leaves, its result is the page's), stopped, or failed with its Failure Reason's i18n key and the step it failed in. */
+  /**
+   * It ended: done (a Coach reply leaves, its reply joins the page's elements with its own Provenance line; a Job Search
+   * stays done), stopped, or failed with its Failure Reason's i18n key and the step it failed in.
+   */
   | { type: "ended"; key: string; outcome: "done" | "stopped" | "failed"; at: string; reason?: string | null; step?: StepLabel | null }
   /** What the page's poll brought, `at` that time: the Candidate's Job Searches searching, with their Run progress, and those that stopped searching. */
   | { type: "job_searches"; running: readonly RunningJobSearch[]; ended: readonly LiveEnded[]; at: string };
@@ -87,9 +95,9 @@ const withSums = (action: LiveAction): LiveAction => ({
 
 function stepOf(event: ProvenanceEvent): LiveStep {
   const step = event.step;
-  const started = { id: event.id, activity: step.activity, label: stepLabel(step), model: null, tool: step.kind === "tool" ? (toolById(step.tool)?.name ?? null) : null, tokens: null, ms: null };
+  const started = { id: event.id, activity: step.activity, label: stepLabel(step), model: null, tool: step.kind === "tool" ? (toolById(step.tool)?.name ?? null) : null, tokens: null, ms: null, at: step.at, count: null };
   if (event.type === "step_started") return { ...started, running: true, outcome: null };
-  return { ...started, running: false, outcome: event.step.outcome, ms: event.step.ms, ...served(event.step) };
+  return { ...started, running: false, outcome: event.step.outcome, ms: event.step.ms, count: event.step.count, ...served(event.step) };
 }
 
 /** What served an ended AI step: its model for people, its tokens. */
@@ -108,14 +116,17 @@ function withEvent(action: LiveAction, event: ProvenanceEvent): LiveAction {
 export const isRunning = (action: LiveAction) => action.status === "running" || action.status === "stopping";
 const running = isRunning;
 
-/** It stopped or failed: the steps still running end so, and a failure names the step it failed in. */
+/**
+ * It ended: done, the steps still running end with it (how, the poll did not say); stopped or failed, they end so, and a
+ * failure names the step it failed in.
+ */
 function ended(action: LiveAction, change: Extract<LiveChange, { type: "ended" }>): LiveAction {
-  const outcome: Extract<StepOutcome, "stopped" | "failed"> = change.outcome === "stopped" ? "stopped" : "failed";
+  const outcome: Extract<StepOutcome, "stopped" | "failed"> | null = change.outcome === "done" ? null : change.outcome;
   const failedIn = change.step ?? lastOf(action.steps, (one) => one.outcome === "failed")?.label ?? action.current?.label ?? null;
   const steps = action.steps.map((one) => (one.running ? { ...one, running: false, outcome } : one));
   return {
     ...withSums({ ...action, steps }),
-    status: outcome,
+    status: change.outcome,
     endedAt: change.at,
     failure: outcome === "failed" ? { reason: change.reason ?? null, step: failedIn } : null,
   };
@@ -130,7 +141,7 @@ function started(change: { key: string; kind: LiveKind; href: string; at: string
 
 /**
  * The Job Searches as the poll tells them: each searching one with the steps written so far, the one asked to stop still
- * saying so; one seen searching that stopped or failed, so; one done, dismissed or never seen searching, nowhere.
+ * saying so; one seen searching that ended, done, stopped or failed; one dismissed or never seen searching, nowhere.
  */
 function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, { type: "job_searches" }>): LiveAction[] {
   const searching = new Map(poll.running.map((search) => [jobSearchKey(search.jobSearchId), search]));
@@ -138,8 +149,13 @@ function jobSearches(actions: readonly LiveAction[], poll: Extract<LiveChange, {
   const kept = actions.flatMap((action): LiveAction[] => {
     if (action.kind !== "job_search" || searching.has(action.key)) return [action];
     const outcome = endings.get(action.key);
-    if (!outcome || outcome.status === "done") return [];
+    if (!outcome) return [];
     if (!running(action)) return [action];
+    // Done, its Provenance's steps, folded, take the place of the live ones: the last poll may have left one running.
+    if (outcome.status === "done") {
+      const steps = outcome.steps.map((step, index) => stepOf({ type: "step_ended", id: index + 1, step }));
+      return [ended(steps.length > 0 ? withSums({ ...action, steps }) : action, { type: "ended", key: action.key, outcome: "done", at: outcome.at })];
+    }
     return [ended(action, { type: "ended", key: action.key, outcome: outcome.status, at: outcome.at, ...(outcome.status === "failed" ? { reason: `jobSearch.failureReasons.${outcome.failure}`, step: outcome.step } : {}) })];
   });
   const known = new Set(kept.map((action) => action.key));
@@ -168,8 +184,12 @@ export function nextLive(actions: readonly LiveAction[], change: LiveChange): Li
     case "stopping":
       return actions.map((action) => (action.key === change.key && action.status === "running" ? { ...action, status: "stopping" } : action));
     case "ended":
-      if (change.outcome === "done") return actions.filter((action) => action.key !== change.key);
-      return actions.map((action) => (action.key === change.key && running(action) ? ended(action, change) : action));
+      return actions.flatMap((action) => {
+        if (action.key !== change.key) return [action];
+        // A Coach reply given leaves: the reply itself shows, with its Provenance line, and joins the page's elements.
+        if (change.outcome === "done" && action.kind === "coach_reply") return [];
+        return [running(action) ? ended(action, change) : action];
+      });
     case "job_searches":
       return jobSearches(actions, change);
   }

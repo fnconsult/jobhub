@@ -1,6 +1,6 @@
 import { rulesProvenance, type Provenance } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
+import { applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
 import { aiActivityPane, byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */
@@ -191,5 +191,39 @@ describe("AI Activity's page loaders (#332)", () => {
     const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
 
     expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", served: null });
+  });
+});
+
+describe("the Application's Tailored Documents, as AI Activity reads them on its pages (#334)", () => {
+  const written = (model: string): Provenance => ({
+    v: 1,
+    steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", model, tokens: { input: 4000, output: 900 }, ms: 8200, at: "2026-10-23T10:40:00.000Z", outcome: "ok", count: 1 }],
+    sites: [],
+    startedAt: "2026-10-23T10:40:00.000Z",
+    wallMs: 8200,
+  });
+  const day = (hour: number) => new Date(Date.UTC(2026, 9, 23, hour));
+
+  it("is the saved Tailored CV, the proposal under review, the Cover Letter and the Outreach Message, each with its Provenance and when it was written", async () => {
+    const made = tailoredDocumentsMade(
+      { saved: { savedAt: day(9), provenance: written("mistral-large-latest") }, proposal: { proposedAt: day(10), provenance: written("mistral-medium-latest") } },
+      { coverLetter: { draftedAt: day(11), provenance: written("mistral-large-latest") }, outreachMessage: { draftedAt: day(12), provenance: null } },
+    );
+    expect(made.map(({ kind, at, provenance }) => ({ kind, at, model: provenance?.steps[0]?.kind === "ai" ? provenance.steps[0].model : null }))).toEqual([
+      { kind: "tailored_cv", at: day(9), model: "mistral-large-latest" },
+      { kind: "tailored_cv", at: day(10), model: "mistral-medium-latest" },
+      { kind: "tailored_documents", at: day(11), model: "mistral-large-latest" },
+      { kind: "tailored_documents", at: day(12), model: null },
+    ]);
+
+    // As the pane shows them: the models that wrote them, their tokens and time; one written before #334, « modèle non enregistré ».
+    const elements = await applicationPage(sources({ offers: {}, replies: [] }), "candidate-1", { id: "application-1", jobOffer: { id: "offer-1", title: "DAF" } }, made);
+    expect(elements.slice(1).map((element) => element.served?.models.map((model) => model.name) ?? null)).toEqual([["Mistral Large"], ["Mistral Medium"], ["Mistral Large"], null]);
+    expect(aiActivityPane(elements).total).toEqual({ tokens: 3 * 4900, ms: 3 * 8200 });
+  });
+
+  it("is nothing when none was written yet", () => {
+    expect(tailoredDocumentsMade(null, null)).toEqual([]);
+    expect(tailoredDocumentsMade({ saved: null, proposal: null }, { coverLetter: null, outreachMessage: null })).toEqual([]);
   });
 });

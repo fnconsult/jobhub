@@ -1,6 +1,6 @@
 import { readFileSync, statSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { renderedTexts } from "./support/accessibility";
+import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -164,7 +164,7 @@ test.describe("Tailored CV with change review", () => {
 
     // The section's text meets the accessibility floor (ADR-0009).
     for (const t of await renderedTexts(page)) {
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
   });
@@ -379,7 +379,8 @@ test.describe("Tailored CV: a refused AI Coach reply is logged and asked for onc
     const proposed = page.waitForResponse((response) => response.url().endsWith("/tailored-cv") && response.request().method() === "POST");
     await section(page).getByRole("button", { name: tc.propose }).click();
 
-    expect((await proposed).status()).toBe(503);
+    // Streamed (#334): the stream ends with the failure and its status.
+    expect((await (await proposed).text()).trim().split("\n").at(-1)).toContain('"type":"failed","status":503');
     await expect(section(page).getByRole("alert")).toHaveText(tc.unavailable);
     await expect(section(page).getByRole("button", { name: tc.propose })).toBeVisible();
     await expect.poll(() => s.refusals(lines()).length).toBe(2);

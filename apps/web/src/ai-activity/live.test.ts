@@ -78,6 +78,36 @@ describe("AI Activity's live actions", () => {
     expect(actions.map((action) => action.key)).toEqual(["coach_reply:2"]);
   });
 
+  describe("a Tailored CV proposed, a Cover Letter or Outreach Message drafted, in the page's own request (#334)", () => {
+    const documents = "/candidatures/1/documents";
+    const cvStarted: LiveChange = { type: "started", key: "tailored_cv:1", kind: "tailored_cv", href: documents, at };
+    const letterStarted: LiveChange = { type: "started", key: "tailored_documents:2", kind: "tailored_documents", href: documents, at };
+    const writing = (key: string) => step(key, { type: "step_started", id: 1, step: { kind: "ai", activity: "write", task: "writing", at } });
+
+    it("shows its step under way, on the documents page", () => {
+      const actions = apply(cvStarted, writing("tailored_cv:1"));
+      expect(actions[0]).toMatchObject({ kind: "tailored_cv", href: documents, status: "running", current: { activity: "write", label: "write" } });
+      expect(liveView(actions, documents).underWay?.key).toBe("tailored_cv:1");
+    });
+
+    it("written, it goes: the document joins the page's elements with its Provenance", () => {
+      expect(apply(letterStarted, writing("tailored_documents:2"), { type: "ended", key: "tailored_documents:2", outcome: "done", at: ended })).toEqual([]);
+    });
+
+    it("stopped, it stays, stopped, beside an action of another kind", () => {
+      const actions = apply(letterStarted, writing("tailored_documents:2"), { type: "ended", key: "tailored_documents:2", outcome: "stopped", at: ended }, cvStarted);
+      expect(actions.map(({ key, status }) => ({ key, status }))).toEqual([
+        { key: "tailored_documents:2", status: "stopped" },
+        { key: "tailored_cv:1", status: "running" },
+      ]);
+    });
+
+    it("the next one of its kind takes the place of the one stopped before it", () => {
+      const actions = apply(cvStarted, writing("tailored_cv:1"), { type: "ended", key: "tailored_cv:1", outcome: "stopped", at: ended }, { ...cvStarted, key: "tailored_cv:3" });
+      expect(actions.map((action) => action.key)).toEqual(["tailored_cv:3"]);
+    });
+  });
+
   describe("a Job Search, from the page's poll", () => {
     const id = "3f1c2a4e-0000-4000-8000-000000000001";
     const profile = { id: "p1", name: "DAF Lyon" };

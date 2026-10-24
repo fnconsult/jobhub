@@ -27,14 +27,15 @@
  * The AI Coach's instructions and the AI drafting are the "cover-letter" and "outreach-message"
  * task Playbooks' (ADR-0026); who may be named and each document's format stay here.
  */
-import type { AiLayer } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
+import { createProvenanceRecorder, type AiLayer, type ProvenanceRecorder } from "@jobhub/ai";
+import { DOCUMENT_LANGUAGES, failureOf, readProvenance, type DocumentLanguage, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
 import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
 import type { EnrichedContact, EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
+import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { fieldErrors, type FieldError } from "../validation";
 import { coverLetterBody } from "./cover-letter-body";
@@ -53,6 +54,8 @@ interface Draft {
   draftedAt: Date;
   /** When it was last changed, by the AI Coach or the Candidate. */
   updatedAt: Date;
+  /** What served its drafting (ADR-0034, #334): the model, its tokens and time, the pages it drew on; null for one drafted before it was kept. */
+  provenance: Provenance | null;
 }
 
 export type CoverLetter = Draft;
@@ -99,7 +102,18 @@ export type TailoredDocumentsResult =
   /** No such Application for this Candidate, or no draft to edit. */
   | { ok: false; error: "not_found" }
   /** The AI layer could not write it; nothing was changed. Try again later. */
-  | { ok: false; error: "unavailable" };
+  | { ok: false; error: "unavailable" }
+  /** The Candidate stopped it (#334): the half-written draft is discarded, nothing was changed. */
+  | { ok: false; error: "stopped" };
+
+/**
+ * How a drafting runs (#334): `signal`, the Candidate's Stop, aborts its AI call; `onEvent` hears each step start and end,
+ * as AI Activity shows them live.
+ */
+export interface DraftOptions {
+  signal?: AbortSignal;
+  onEvent?: (event: ProvenanceEvent) => void;
+}
 
 export interface TailoredDocuments {
   /** The Application's drafts, or null if it does not exist or belongs to someone else. */
@@ -107,8 +121,9 @@ export interface TailoredDocuments {
   /**
    * Has the AI Coach draft one document, replacing the stored one. `input`: { document, language?, channel? (Outreach Message: "email"
    * by default), contactId? (Outreach Message: the Enriched Contact it is for; "not_found" if not one of the Application's) }.
+   * Kept with its Provenance. Once `options.signal` aborts, "stopped": nothing is kept, the stored draft stays.
    */
-  draft(candidateId: string, applicationId: string, input: unknown): Promise<TailoredDocumentsResult>;
+  draft(candidateId: string, applicationId: string, input: unknown, options?: DraftOptions): Promise<TailoredDocumentsResult>;
   /**
    * The Candidate's edit of a draft the AI Coach wrote. `input`: { document, text, subject? (Outreach Message) }.
    * "not_found" also when there is no draft yet.
@@ -157,6 +172,7 @@ interface DraftRow {
   text: string;
   drafted_at: Date;
   updated_at: Date;
+  provenance: unknown;
 }
 
 /** The format of each document, in each Document Language: the Cover Letter's body only, in plain text (#162); the Outreach Message's JSON. */
@@ -258,9 +274,9 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   async function draftsOf(application: Application): Promise<ApplicationDrafts> {
     const [language, { rows }] = await Promise.all([
       documentLanguageOf(database, application),
-      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, contact, text, drafted_at, updated_at FROM tailored_document WHERE application_id = $1`, [application.id]),
+      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, contact, text, drafted_at, updated_at, provenance FROM tailored_document WHERE application_id = $1`, [application.id]),
     ]);
-    const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at });
+    const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at, provenance: readProvenance(row.provenance) });
     const letter = rows.find((row) => row.kind === "cover_letter");
     const message = rows.find((row) => row.kind === "outreach_message");
     return {
@@ -283,14 +299,22 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     }
   }
 
-  /** The AI Coach's draft, or null when it could not write one. */
+  /**
+   * The AI Coach's draft, its steps and pages kept by `recorder`; null when it could not write one, "stopped" when the
+   * Candidate stopped it.
+   */
   async function write(
     candidateId: string,
     application: Application,
     request: Request,
-  ): Promise<{ subject: string; text: string; contactRoles: string[] } | null> {
+    recorder: ProvenanceRecorder,
+  ): Promise<{ subject: string; text: string; contactRoles: string[] } | "stopped" | null> {
     const [profile, dossier] = await Promise.all([deps.profiles.get(candidateId, application.profile.id), dossierOf(candidateId, application.id)]);
     if (!profile) return null;
+    // The pages it draws on: the Job Offer's, the Master CV, and the Company Dossier when one is built.
+    if (application.jobOffer.source.url) recorder.site(application.jobOffer.source.url);
+    recorder.site(routes.editMasterCv(profile.id));
+    if (dossier) recorder.site(routes.applicationSection(application.id, "dossier"));
     const { language, document, channel, contact } = request;
     const { jobOffer } = application;
     const label = LABELS[language];
@@ -310,7 +334,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     const prompt = parts.join("\n\n");
     try {
       const run = await taskRun(deps.taskPlaybooks, TASK_PLAYBOOK[document], deps.ai);
-      const { text } = await deps.ai.generate({
+      const { text } = await recorder.ai.generate({
         task: "writing",
         candidateId,
         system: systemPrompt(run, language, document, channel, document === "outreach_message" && !!contact),
@@ -322,6 +346,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
       return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : null;
     } catch (error) {
+      if (failureOf(error).reason === "stopped") return "stopped";
       console.warn("[tailored-documents] the AI Coach could not write a draft:", error instanceof Error ? error.message : error);
       return null;
     }
@@ -333,7 +358,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       return application ? draftsOf(application) : null;
     },
 
-    async draft(candidateId, applicationId, input) {
+    async draft(candidateId, applicationId, input, options = {}) {
       const parsed = draftSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       const application = await deps.applications.get(candidateId, applicationId);
@@ -346,13 +371,17 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
         if (!enriched) return NOT_FOUND;
         contact = outreachContactOf(enriched);
       }
-      const written = await write(candidateId, application, { ...parsed.data, language, contact });
+      const { signal, onEvent } = options;
+      const recorder = createProvenanceRecorder(deps.ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
+      const written = await write(candidateId, application, { ...parsed.data, language, contact }, recorder);
+      // A Stop discards the half-written draft (#334): nothing is kept, even when the AI call had just ended.
+      if (written === "stopped" || signal?.aborted) return { ok: false, error: "stopped" };
       if (!written) return { ok: false, error: "unavailable" };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       await database.query(
-        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text, provenance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (application_id, kind) DO UPDATE
-           SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, drafted_at = now(), updated_at = now()`,
+           SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, provenance = $9, drafted_at = now(), updated_at = now()`,
         [
           application.id,
           document,
@@ -362,6 +391,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
           written.contactRoles,
           contact ? JSON.stringify(contact) : null,
           written.text,
+          JSON.stringify(recorder.provenance()),
         ],
       );
       return { ok: true, drafts: await draftsOf(application) };
@@ -405,5 +435,7 @@ export async function migrateTailoredDocuments(database: Pool): Promise<void> {
     );
     -- Outreach Messages only: the Enriched Contact it is addressed to (#23).
     ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS contact jsonb;
+    -- What served the drafting (ADR-0034, #334), null before: « modèle non enregistré ». A Candidate's edit keeps it.
+    ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS provenance jsonb;
   `);
 }

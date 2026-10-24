@@ -1,6 +1,6 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
-import type { MasterCvContent } from "@jobhub/shared";
+import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApplications, migrateApplications } from "../applications";
@@ -540,5 +540,73 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("a proposal keeps its Provenance (#334): the model that wrote it, its tokens and time, the Job Offer's page and the Master CV; the save copies it", async () => {
+    const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
+
+    const provenance = proposed.ok ? proposed.tailoredCv.proposal?.provenance : undefined;
+    expect(provenance).toMatchObject({
+      v: 1,
+      steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", model: "fake-mistral", tokens: { input: 10, output: 5 }, outcome: "ok", count: 1 }],
+      sites: [
+        { kind: "web", domain: "apec.fr", links: ["https://www.apec.fr/offre/daf"] },
+        { kind: "candidate", links: [expect.stringMatching(/^\/profils\/[^/]+\/cv$/)] },
+      ],
+    });
+    const reviewed = (await tailoredCvs.get(candidateId, applicationId))!.proposal!;
+    expect(reviewed.provenance).toEqual(provenance);
+
+    const saved = await tailoredCvs.save(candidateId, applicationId, { revision: reviewed.revision, accepted: allOf(reviewed) });
+
+    expect(saved.ok && saved.tailoredCv.saved?.provenance).toEqual(provenance);
+    expect((await tailoredCvs.get(candidateId, applicationId))?.saved?.provenance).toEqual(provenance);
+  });
+
+  it("in another Document Language, translating the Job Offer's words is a step of its own, a think (#334)", async () => {
+    const english = await saveApplication(ENGLISH_OFFER);
+    replies = [{ ...PROPOSAL, headline: "Chief Financial Officer" }];
+    reply = { chief: "directrice" };
+    const events: ProvenanceEvent[] = [];
+
+    const result = await tailoredCvs.propose(candidateId, english, { language: "en" }, { onEvent: (event) => events.push(event) });
+
+    expect(result.ok && result.tailoredCv.proposal?.provenance?.steps.map((step) => step.activity)).toEqual(["write", "think"]);
+    expect(events.map((event) => [event.type, event.step.activity])).toEqual([
+      ["step_started", "write"],
+      ["step_ended", "write"],
+      ["step_started", "think"],
+      ["step_ended", "think"],
+    ]);
+  });
+
+  it("stopped mid-writing (#334): the AI call is aborted and recorded stopped, no proposal is kept", async () => {
+    const pending = createFakeProvider({ id: "mistral", pending: true });
+    const stoppedUsage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [pending], routes: { writing: "mistral" }, usage: stoppedUsage });
+    const stoppable = createTailoredCvs(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+    const stop = new AbortController();
+    const events: ProvenanceEvent[] = [];
+
+    const proposing = stoppable.propose(candidateId, applicationId, {}, { signal: stop.signal, onEvent: (event) => events.push(event) });
+    await vi.waitFor(() => expect(pending.calls).toHaveLength(1));
+    stop.abort();
+
+    expect(await proposing).toEqual({ ok: false, error: "stopped" });
+    expect(pending.calls).toHaveLength(1);
+    await vi.waitFor(() => expect(stoppedUsage.entries).toEqual([expect.objectContaining({ task: "writing", outcome: "failed", reason: "stopped" })]));
+    expect(events.at(-1)).toMatchObject({ type: "step_ended", step: { task: "writing", outcome: "stopped" } });
+    const { rows } = await database.query(`SELECT 1 FROM tailored_cv WHERE application_id = $1`, [applicationId]);
+    expect(rows).toEqual([]);
+  });
+
+  it("stopped once the proposal is written but before its words are checked (#334): nothing is kept", async () => {
+    const english = await saveApplication(ENGLISH_OFFER);
+    const stop = new AbortController();
+
+    const result = await tailoredCvs.propose(candidateId, english, { language: "en" }, { signal: stop.signal, onEvent: (event) => void (event.type === "step_ended" && stop.abort()) });
+
+    expect(result).toEqual({ ok: false, error: "stopped" });
+    expect((await tailoredCvs.get(candidateId, english))?.proposal).toBeNull();
   });
 });

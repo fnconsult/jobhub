@@ -2973,6 +2973,8 @@
   },
   "aiActivity": {
     "modelNotRecorded": "model not recorded",
+    "stop": "Stop",
+    "stoppedAt": "Stopped at {{time}}",
     "steps": {
       "think": "Thinking",
       "think_write": "Thinking, then writing",
@@ -3028,7 +3030,9 @@
       "stepWarning": "with a warning",
       "done": {
         "job_search": "Last search · {{time}}",
-        "coach_reply": "Last reply · {{time}}"
+        "coach_reply": "Last reply · {{time}}",
+        "tailored_cv": "Tailored CV proposed · {{time}}",
+        "tailored_documents": "Document drafted · {{time}}"
       },
       "result": {
         "think_one": "{{count}} analysis",
@@ -3053,28 +3057,40 @@
       "steps": "Steps",
       "stop": {
         "job_search": "Stop the job search",
-        "coach_reply": "Stop the coach's reply"
+        "coach_reply": "Stop the coach's reply",
+        "tailored_cv": "Stop the Tailored CV proposal",
+        "tailored_documents": "Stop drafting the document"
       },
       "open": {
         "job_search": "Open the search",
-        "coach_reply": "Open the page"
+        "coach_reply": "Open the page",
+        "tailored_cv": "Open the documents",
+        "tailored_documents": "Open the documents"
       },
       "announce": {
         "started": {
           "job_search": "Job search started",
-          "coach_reply": "Coach reply on its way"
+          "coach_reply": "Coach reply on its way",
+          "tailored_cv": "Tailored CV proposal on its way",
+          "tailored_documents": "Document being drafted"
         },
         "done": {
           "job_search": "Job search finished",
-          "coach_reply": "Coach reply received"
+          "coach_reply": "Coach reply received",
+          "tailored_cv": "Tailored CV proposed",
+          "tailored_documents": "Document drafted"
         },
         "stopped": {
           "job_search": "Job search stopped",
-          "coach_reply": "Coach reply stopped"
+          "coach_reply": "Coach reply stopped",
+          "tailored_cv": "Tailored CV proposal stopped",
+          "tailored_documents": "Document drafting stopped"
         },
         "failed": {
           "job_search": "Job search failed",
-          "coach_reply": "Coach reply failed"
+          "coach_reply": "Coach reply failed",
+          "tailored_cv": "Tailored CV proposal failed",
+          "tailored_documents": "Document drafting failed"
         }
       }
     }

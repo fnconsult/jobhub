@@ -20,6 +20,8 @@ Two exceptions were also recorded:
 - **The Coach shows no author names.** « Votre coach » and « Vous » are read only by screen readers. Sighted readers tell the turns apart by alignment, by a background on the Candidate's messages at least 3:1 against the surface (the accent colour, 6.2:1 against the panel), and by the activity glyph before each Coach reply.
 - **The activity glyph is small (1.15em) and animated.** It is decorative (`aria-hidden`), since the step's text sits beside it. It stays still under `prefers-reduced-motion` and meets 3:1 as a graphic (`#d97757`, 3.1:1 on white). Screen readers hear when a task starts and when it ends or fails, not each step.
 
+- Provenance lines and the tokens and time spent of a stopped action are metadata: the e2e text floor is 13 px for them (#334).
+
 Every function keeps a visible label, on mobile too: an icon alone, even with an `aria-label` and a tooltip, does not meet the floor.
 
 ## Amendment: the AI Activity stop icon (issues #316 and #333, 2026-10-24)

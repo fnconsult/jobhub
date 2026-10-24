@@ -3800,16 +3800,21 @@ textarea.title-edit {
 /* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
    Everything in rem, so it follows the Text Size. The button sits left of « Aide et coach »; its frame holds an icon
    alone, as high: at rest the tasks icon, while an action runs its live Activity glyph, open a close icon. Closed, its
-   words sit just left of the frame, outside it (#369): the page's summary or the step under way, metadata (#317). They
-   are still inside the button, framed only around the icon, so clicking them opens the pane and Tab stops once.
-   Its label « Activité IA » is for screen readers and the tooltip only. */
-.topbar .ai-activity-toggle {
-  position: relative;
+   words sit left of the frame, outside the button (#369): the page's summary or the step under way, metadata (#317),
+   and while an action runs its stop icon between them and the frame. Clicking the words opens the pane; they are in
+   the button's name, not a tab stop of their own. Its label « Activité IA » is for screen readers and the tooltip only. */
+.topbar .ai-activity-control {
   display: inline-flex;
   flex: 0 1 auto;
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
+}
+
+.topbar .ai-activity-toggle {
+  position: relative;
+  display: inline-flex;
+  flex: none;
   padding: 0;
   font: inherit;
   color: inherit;
@@ -3845,6 +3850,7 @@ textarea.title-edit {
 
 .ai-activity-summary {
   min-width: 0;
+  cursor: pointer;
   max-width: 18rem;
   overflow: hidden;
   color: var(--color-text-meta);

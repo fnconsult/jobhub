@@ -109,7 +109,7 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(letterLine).toContainText(/· \d+(,\d)? s/);
 
     // AI Activity's pane, without loading the page again: each document with the model that wrote it, its tokens and time.
-    await expect(aiActivityButton(page)).toContainText(/\d+ modèles? · /);
+    await expect(aiActivityButton(page)).toHaveAccessibleName(/\d+ modèles? · /);
     await aiActivityButton(page).click();
     for (const kind of ["tailored_cv", "tailored_documents"] as const) {
       await expect(elementOf(page, kind)).toContainText("Mistral");
@@ -169,7 +169,7 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     const cv = await tab(page, tc.tailored);
     await cv.getByRole("button", { name: tc.propose, exact: true }).click();
     await expect(cv.locator(".live-action-step")).toContainText(fr.aiActivity.steps.write);
-    await expect(aiActivityButton(page)).toContainText(fr.aiActivity.steps.write);
+    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.write));
     await page.getByRole("banner").getByRole("button", { name: fr.aiActivity.live.stop.tailored_cv, exact: true }).click();
     await expect(cv.locator(".live-action-stopped")).toBeVisible();
     await expect(cv.getByText(tc.none)).toBeVisible();

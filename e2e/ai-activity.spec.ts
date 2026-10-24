@@ -95,7 +95,7 @@ test.describe("AI Activity (#332)", () => {
     const [mine, coach] = [(await frame.boundingBox())!, (await coachButton.boundingBox())!];
     expect(mine.x + mine.width).toBeLessThanOrEqual(coach.x);
     expect(mine.height).toBeCloseTo(coach.height, 0);
-    const words = button.locator(".ai-activity-summary");
+    const words = page.getByRole("banner").locator(".ai-activity-summary");
     await expect(words).toHaveText("2 modèles · 7,8k tokens · 9,1 s");
     const wordsBox = (await words.boundingBox())!;
     expect(wordsBox.x + wordsBox.width).toBeLessThanOrEqual(mine.x);
@@ -136,7 +136,7 @@ test.describe("AI Activity (#332)", () => {
 
     // Loaded again, the reply comes from the server, counted once.
     await page.reload();
-    await expect(button).toContainText("3 modèles · ");
+    await expect(button).toHaveAccessibleName(/3 modèles · /);
     await button.click();
     await expect(paneOf(page).locator(".ai-activity-element")).toHaveCount(2);
   });
@@ -185,7 +185,7 @@ test.describe("AI Activity (#332)", () => {
     await page.goto("/candidatures");
     const button = aiActivityButton(page);
     await expect(button).toHaveAttribute("aria-expanded", "false");
-    await expect(button.locator(".ai-activity-summary")).toHaveCount(0);
+    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toHaveCount(0);
     // ADR-0009's amendment: the label is never on screen, only in the button's name and its tooltip.
     await expect(button).toHaveAttribute("title", fr.aiActivity.label);
     const label = button.getByText(fr.aiActivity.label, { exact: true });
@@ -223,7 +223,7 @@ test.describe("AI Activity (#332)", () => {
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
     const button = aiActivityButton(page);
     expect(await button.getByText(fr.aiActivity.label, { exact: true }).evaluate((element) => getComputedStyle(element).clipPath)).not.toBe("none");
-    await expect(button.locator(".ai-activity-summary")).toBeHidden();
+    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toBeHidden();
 
     await button.click();
     const pane = paneOf(page);

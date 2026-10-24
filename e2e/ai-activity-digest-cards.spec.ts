@@ -113,7 +113,7 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
 
     // No model served this page: the closed button shows its label, never « 0 modèle ».
     const button = aiActivityButton(page);
-    await expect(button.locator(".ai-activity-summary")).toHaveCount(0);
+    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toHaveCount(0);
     await expect(button).toContainText(fr.aiActivity.label);
 
     await openPane(page);
@@ -145,7 +145,7 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     const before = await storedDigest(candidateId, profileId, offerId, "2026-10-14T06:00:00Z", null);
 
     await page.goto(`/job-digests/${fresh}`);
-    await expect(aiActivityButton(page).locator(".ai-activity-summary")).toHaveCount(0);
+    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toHaveCount(0);
     await openPane(page);
     const digest = elementOf(page, fr.aiActivity.kinds.job_digest);
     await expect(digest).toHaveCount(1);
@@ -180,7 +180,7 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     await page.goto(`/candidatures/${applicationId}`);
 
     // The Job Offer was read by Mistral when saved, the Follow-up card written by Claude: both count; the older card adds nothing.
-    await expect(aiActivityButton(page)).toContainText("2 modèles");
+    await expect(aiActivityButton(page)).toHaveAccessibleName(/2 modèles/);
     await openPane(page);
     await expect(paneOf(page).locator(".ai-activity-section").first()).toContainText("Claude Sonnet 5");
     const written = elementOf(page, "Relancer : nouvelle relance");

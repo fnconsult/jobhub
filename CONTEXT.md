@@ -702,6 +702,7 @@ The Provenance of content made by Jobbbox's rules alone: one compute step, no mo
 
 **AI Activity**:
 The button in the Candidate's top bar, left of « Aide et coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
+The button has a frame (the bordered square around its icon alone, as high as « Aide et coach ») and words (the page's summary or the step under way) left of the frame; the words are outside the frame but still part of the button.
 _Avoid_: Session pane, sources bar, tasks panel
 
 **AI Activity element**:

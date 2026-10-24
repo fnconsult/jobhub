@@ -316,6 +316,24 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
       expect(done.results.find((result) => result.case.id === interview.id)).toMatchObject({ score: 0, consulted: [] });
     });
+
+    it("has cases about using Jobbbox and about job-search advice, and scores 0 a case the AI Coach classes the wrong way (#344)", async () => {
+      const aboutJobbbox = AI_COACH_EVAL_CASES.filter((each) => each.aboutJobbbox === true);
+      const advice = AI_COACH_EVAL_CASES.filter((each) => each.aboutJobbbox === false);
+      expect(aboutJobbbox.length).toBeGreaterThanOrEqual(2);
+      expect(advice.length).toBeGreaterThanOrEqual(1);
+      // The AI Coach says every message is about using Jobbbox.
+      answers.reply = () => "Voici comment faire dans Jobbbox.\n[jobbbox:oui]";
+
+      const done = await evals.runAiCoach(claire);
+
+      for (const each of advice) {
+        expect(done.results.find((result) => result.case.id === each.id)).toMatchObject({ score: 0, reason: expect.stringMatching(/utiliser Jobbbox/) });
+      }
+      for (const each of aboutJobbbox) {
+        expect(done.results.find((result) => result.case.id === each.id)).toMatchObject({ score: 0.8, reply: "Voici comment faire dans Jobbbox." });
+      }
+    });
   });
 
   describe("a Guardrail setting's Eval Run", () => {

@@ -1,8 +1,8 @@
 import { AiConfigError, AiProviderError, createAiLayer, type AiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
-import { draftFromCv } from "./index";
-import { CvFileError } from "./index";
+import type { ProvenanceEvent } from "@jobhub/shared";
+import { CvFileError, CvReadingStopped, draftFromCv } from "./index";
 import { PROFILE_NAME_MAX_LENGTH } from "../profiles/limits";
 import { docxCv, MARIE_DUPONT_CV, pdfCv } from "./test-support";
 
@@ -198,7 +198,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
 
       const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "cand-42" });
 
-      expect(draft).toEqual({ ...aiReading, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"] } });
+      expect(draft).toEqual({ ...aiReading, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"] }, provenance: expect.objectContaining({ v: 1 }) });
       expect(provider.calls).toHaveLength(1);
       expect(provider.calls[0]!.messages.at(-1)!.content).toContain("Responsable du contrôle de gestion — Renault, Paris — 2005 – 2015");
     });
@@ -279,6 +279,7 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
           languages: [],
         },
         searchCriteria: { targetRole: "", locations: [] },
+        provenance: expect.objectContaining({ v: 1 }),
       });
     });
 
@@ -340,6 +341,68 @@ describe("drafting a Master CV and Search Criteria from an uploaded CV", () => {
       } finally {
         warn.mockRestore();
       }
+    });
+
+    describe("Provenance and Stop (ADR-0034, #335)", () => {
+      it("keeps what read the CV: one read step, its model, tokens and time, and the Candidate's own CV as its site", async () => {
+        const { ai } = aiReplying(JSON.stringify(aiReading));
+
+        const draft = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
+
+        expect(draft.provenance).toMatchObject({
+          v: 1,
+          steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "anthropic", model: expect.any(String), outcome: "ok", count: 1 }],
+          sites: [{ kind: "candidate", links: [] }],
+        });
+      });
+
+      it("keeps none for a CV read by rules alone: a Guest's, or one the AI could not read", async () => {
+        const { ai } = aiReplying("désolé, je ne peux pas");
+        const guest = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: null });
+        const outlined = await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1" });
+
+        expect(guest.provenance).toBeUndefined();
+        expect(outlined.provenance).toBeUndefined();
+      });
+
+      it("tells the reading step as it starts and ends", async () => {
+        const { ai } = aiReplying(JSON.stringify(aiReading));
+        const events: ProvenanceEvent[] = [];
+
+        await draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1", onEvent: (event) => events.push(event) });
+
+        expect(events.map((event) => [event.type, event.step.activity])).toEqual([
+          ["step_started", "read"],
+          ["step_ended", "read"],
+        ]);
+      });
+
+      it("stops the reading, and drafts nothing: no rule-based outline in its place", async () => {
+        const stop = new AbortController();
+        const provider = createFakeProvider();
+        provider.generate = async () => {
+          stop.abort();
+          throw stop.signal.reason;
+        };
+        const ai = createAiLayer({ providers: [provider], routes: { cv_parsing: "anthropic" }, usage: createMemoryUsageLog() });
+
+        const drafting = draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1", signal: stop.signal });
+
+        await expect(drafting).rejects.toThrow(CvReadingStopped);
+      });
+
+      it("drafts nothing once stopped, even when the reading had just ended", async () => {
+        const stop = new AbortController();
+        const provider = createFakeProvider({
+          reply: () => {
+            stop.abort();
+            return JSON.stringify(aiReading);
+          },
+        });
+        const ai = createAiLayer({ providers: [provider], routes: { cv_parsing: "anthropic" }, usage: createMemoryUsageLog() });
+
+        await expect(draftFromCv({ name: "cv.pdf", bytes: pdfCv(MARIE_DUPONT_CV) }, { ai: () => ai, candidateId: "c1", signal: stop.signal })).rejects.toThrow(CvReadingStopped);
+      });
     });
   });
 });

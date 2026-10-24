@@ -62,6 +62,15 @@ async function expectNoAxeViolations(page: Page, selector: string) {
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
 
+/** The closed button's words: `--font-size-meta` (0.8125rem) in `--color-text-meta`, on one line, cut with an ellipsis at their max-width. */
+async function expectOneLineMetadata(words: Locator) {
+  const style = await words.evaluate((element) => {
+    const css = getComputedStyle(element);
+    return { color: css.color, rem: parseFloat(css.fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize), whiteSpace: css.whiteSpace, textOverflow: css.textOverflow, overflow: css.overflowX, maxWidth: css.maxWidth };
+  });
+  expect(style).toEqual({ color: "rgb(107, 106, 103)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", maxWidth: expect.stringMatching(/px$/) });
+}
+
 /** Nothing the Candidate must never see: cost, prompt, AI task, Playbook Agent, Back Office setting, internal id or technical error. */
 async function expectNothingInternal(region: Locator) {
   const shown = await region.innerText();
@@ -74,28 +83,44 @@ test.describe("AI Activity (#332)", () => {
     const offerId = await storedJobOffer("DAF Lyon");
     await page.goto(`/offres/${offerId}`);
 
-    // At rest: the tasks icon and the page's summary, left of « Aide et coach », as high.
+    // At rest (#369): the tasks icon alone in the frame, left of « Aide et coach », as high; the page's summary just
+    // left of the frame, outside it, light grey metadata on one line. The words are still the button's: its name says them.
     const button = aiActivityButton(page);
     await expect(button).toHaveAttribute("aria-expanded", "false");
-    await expect(button).toContainText("2 modèles · 7,8k tokens · 9,1 s");
+    await expect(button).toHaveAccessibleName(`${fr.aiActivity.label} 2 modèles · 7,8k tokens · 9,1 s`);
     const coachButton = page.getByRole("button", { name: fr.coachPanel.open, exact: true });
-    const [mine, coach] = [(await button.boundingBox())!, (await coachButton.boundingBox())!];
+    const frame = button.locator(".ai-activity-frame");
+    await expect(frame.locator("svg")).toHaveCount(1);
+    await expect(frame).toHaveText("");
+    const [mine, coach] = [(await frame.boundingBox())!, (await coachButton.boundingBox())!];
     expect(mine.x + mine.width).toBeLessThanOrEqual(coach.x);
     expect(mine.height).toBeCloseTo(coach.height, 0);
     const words = button.locator(".ai-activity-summary");
-    expect(await words.evaluate((element) => getComputedStyle(element).color)).toBe("rgb(107, 106, 103)");
-    expect(await words.evaluate((element) => parseFloat(getComputedStyle(element).fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(0.8125);
+    await expect(words).toHaveText("2 modèles · 7,8k tokens · 9,1 s");
+    const wordsBox = (await words.boundingBox())!;
+    expect(wordsBox.x + wordsBox.width).toBeLessThanOrEqual(mine.x);
+    expect(wordsBox.height).toBeLessThan(mine.height);
+    await expectOneLineMetadata(words);
+    // A single tab stop: from the button, Tab goes straight on to « Aide et coach ».
+    await button.focus();
+    await page.keyboard.press("Tab");
+    await expect(coachButton).toBeFocused();
+    await expectNoAxeViolations(page, "header.topbar");
 
     // A Coach reply about the offer counts with the page at once.
     await askTheCoach(page, "Que pensez-vous de cette offre ?");
     await coachPanelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
-    await expect(button).toContainText(/3 modèles · \d+(,\d)?k tokens · \d+(,\d)? s/);
+    await expect(button).toHaveAccessibleName(new RegExp(`^${fr.aiActivity.label} 3 modèles · \\d+(,\\d)?k tokens · \\d+(,\\d)? s$`));
 
-    await button.click();
+    // Clicking the words opens the pane too. Open: the close icon alone in the frame, no words.
+    await words.click();
     const pane = paneOf(page);
     await expect(pane.getByRole("heading", { name: fr.aiActivity.title })).toBeVisible();
     await expect(button).toHaveAttribute("aria-expanded", "true");
     await expect(button).toHaveText(fr.aiActivity.label);
+    await expect(words).toHaveCount(0);
+    await expect(frame.locator("svg")).toHaveCount(1);
+    await expectNoAxeViolations(page, "header.topbar");
     const models = pane.locator(".ai-activity-section").first();
     await expect(models).toContainText("Perplexity");
     await expect(models).toContainText("Claude Haiku 4.5");

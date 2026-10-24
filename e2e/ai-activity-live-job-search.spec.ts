@@ -197,6 +197,13 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     const stopIcon = stopIconOf(banner);
     await expect(stopIcon).toBeVisible();
     await expect(stopIcon).toHaveAttribute("title", fr.aiActivity.live.stop.job_search);
+    // #369: the glyph alone in the frame, the step in words just left of it; the stop icon beside them, on their row.
+    await expect(button.locator(".ai-activity-frame svg.activity-glyph")).toBeVisible();
+    await expect(button.locator(".ai-activity-frame")).toHaveText("");
+    const [stepWords, frame, stopBox] = [(await button.locator(".ai-activity-summary").boundingBox())!, (await button.locator(".ai-activity-frame").boundingBox())!, (await stopIcon.boundingBox())!];
+    expect(stepWords.x + stepWords.width).toBeLessThanOrEqual(frame.x);
+    expect(stopBox.x).toBeGreaterThanOrEqual(frame.x + frame.width);
+    expect(stopBox.y + stopBox.height / 2).toBeCloseTo(frame.y + frame.height / 2, 0);
     // Start announced, never a step.
     await expect(announcerOf(page)).toHaveText(fr.aiActivity.live.announce.started.job_search);
 

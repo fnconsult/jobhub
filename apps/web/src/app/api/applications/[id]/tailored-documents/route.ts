@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: Context) {
 /**
  * The AI Coach drafts (again) the Cover Letter or the Outreach Message, replacing the stored one, with its Provenance.
  * Body: { document: "cover_letter" | "outreach_message", language?: "fr" | "en", channel?: "email" | "inmail", contactId? }.
- * Nothing is sent (ADR-0005). 200 · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped" } · 503 { error: "unavailable" }
+ * Nothing is sent (ADR-0005). 200 · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped" } · 503 { error: "unavailable", reason? }
  *
  * Live (#334), with `Accept: application/x-ndjson`: each step as it starts and ends, then { type: "done", ...drafts }
  * · { type: "stopped", error } · { type: "failed", status, ... } (see actionResponse). Aborting the request is the Stop:

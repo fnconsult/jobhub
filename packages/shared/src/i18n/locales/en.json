@@ -3012,7 +3012,8 @@
       "tailored_documents": "Tailored documents",
       "company_dossier": "Company dossier",
       "action_card": "Coach proposal",
-      "ats_score": "ATS Score"
+      "ats_score": "ATS Score",
+      "master_cv": "Master CV, read from your file"
     },
     "live": {
       "starting": "Starting",

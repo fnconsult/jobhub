@@ -442,7 +442,11 @@ function PaneSections({ pane }: { pane: AiActivityPane }) {
                   <Glyphs sites={element.served.sites} tools={element.served.tools} />
                 </>
               ) : (
-                <p className="ai-activity-meta">{t("aiActivity.modelNotRecorded")}</p>
+                <>
+                  <p className="ai-activity-meta">{t("aiActivity.modelNotRecorded")}</p>
+                  {/* What its own source names, though its model was not kept (#335: a Company Dossier built before). */}
+                  {element.sites ? <Glyphs sites={element.sites} tools={[]} /> : null}
+                </>
               )}
             </li>
           ))}

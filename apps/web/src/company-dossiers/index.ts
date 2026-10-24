@@ -38,10 +38,18 @@
  *  - The wording of both web searches is their task Playbook's ("company-facts-search",
  *    "company-news-search", ADR-0026); what they are sent about the employer, the JSON asked for and
  *    "name no person" stay in the AI layer.
+ *  - Each build keeps its Provenance (ADR-0034, #335): the offer read, the register and web searched, the
+ *    news searched, with its Provenance sites (the register's page of the company, the web pages and
+ *    articles read), each step told to `onEvent` as it starts and ends. A dossier built once the
+ *    Candidate confirmed a Presumed Employer joins the reading that presumed it. A dossier built before
+ *    has none (« modèle non enregistré »); `dossierSites` gives the sites its own source names.
+ *  - Stop (`signal`): the finished parts are kept. Stopped during the news search, the dossier is saved
+ *    with its facts and its news not searched (rebuilding searches them); stopped before its facts were
+ *    found, nothing changes. Counted against no Plan Quota.
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
-import { AiConfigError, AiProviderError, type AiLayer, type CompanyNewsArticle } from "@jobhub/ai";
-import { isPersonPage } from "@jobhub/shared";
+import { AiConfigError, AiProviderError, createProvenanceRecorder, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
+import { isPersonPage, joinProvenance, provenanceLink, readProvenance, siteDomainOf, type Provenance, type ProvenanceEvent, type ProvenanceSite } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
@@ -115,7 +123,8 @@ export type CompanyDossierState =
    * (e.g. "une entreprise spécialisée dans…, nom non précisé"), it is null and the description is given apart.
    */
   | { status: "awaiting_confirmation"; presumedEmployer: string | null; presumedEmployerDescription?: string; agency?: string }
-  | { status: "built"; dossier: CompanyDossier };
+  /** `provenance`: what served its build (ADR-0034); null (or absent) for a dossier built before it was kept. */
+  | { status: "built"; dossier: CompanyDossier; provenance?: Provenance | null };
 
 /** The employer the Candidate named is not a company: a sole trader (a private person), or a SIREN the register does not list. */
 export interface NotACompany {
@@ -129,15 +138,26 @@ export type CompanyDossierResult =
   /** No such Application for this Candidate. */
   | { ok: false; error: "not_found" }
   /** The register or the AI layer could not answer; nothing was changed. Try again later. */
-  | { ok: false; error: "unavailable" };
+  | { ok: false; error: "unavailable" }
+  /** The Candidate stopped it (#335): `state` is the dossier as now kept, its finished parts saved. */
+  | { ok: false; error: "stopped"; state: CompanyDossierState };
+
+/**
+ * How a build runs (#335): `signal`, the Candidate's Stop, stops its searches and AI calls; `onEvent` hears each step
+ * start and end, as AI Activity shows them live.
+ */
+export interface BuildOptions {
+  signal?: AbortSignal;
+  onEvent?: (event: ProvenanceEvent) => void;
+}
 
 export interface CompanyDossiers {
   /** The dossier state, or null if the Application does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<CompanyDossierState | null>;
   /** Builds the dossier for the employer the Candidate confirmed, else for the Job Offer's (unless it is a recruiting agency). */
-  build(candidateId: string, applicationId: string): Promise<CompanyDossierResult>;
+  build(candidateId: string, applicationId: string, options?: BuildOptions): Promise<CompanyDossierResult>;
   /** The Candidate names the employer (confirming the Presumed Employer or another); builds its dossier. `input`: { employer }. */
-  confirmEmployer(candidateId: string, applicationId: string, input: unknown): Promise<CompanyDossierResult>;
+  confirmEmployer(candidateId: string, applicationId: string, input: unknown, options?: BuildOptions): Promise<CompanyDossierResult>;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -350,6 +370,7 @@ interface Row {
   awaiting_confirmation: boolean;
   confirmed_employer: string | null;
   dossier: (Omit<CompanyDossier, "builtAt" | "news" | "newsSearched"> & { builtAt: string; news?: CompanyNewsArticle[] }) | null;
+  provenance: unknown;
 }
 
 function stateFrom(row: Row | undefined): CompanyDossierState {
@@ -359,6 +380,7 @@ function stateFrom(row: Row | undefined): CompanyDossierState {
     return {
       status: "built",
       dossier: { ...row.dossier, news: row.dossier.news ?? [], newsSearched: row.dossier.news !== undefined, builtAt: new Date(row.dossier.builtAt) } as CompanyDossier,
+      provenance: readProvenance(row.provenance),
     };
   if (row.awaiting_confirmation) {
     // Rows saved before descriptions were kept apart may hold one as the name.
@@ -370,6 +392,39 @@ function stateFrom(row: Row | undefined): CompanyDossierState {
   }
   return { status: "employer_unknown" };
 }
+
+/** The company's public page in the register, its Provenance site: Annuaire des Entreprises, by its SIREN. */
+const registerPage = (siren: string) => `https://annuaire-entreprises.data.gouv.fr/entreprise/${siren}`;
+
+/** The pages a dossier was built from: the company's register page, or the web pages its facts come from; and its articles. */
+function pagesOf(dossier: CompanyDossier): string[] {
+  return [...(dossier.source === "french_register" ? [registerPage(dossier.siren)] : dossier.sources), ...dossier.news.map((article) => article.url)];
+}
+
+/**
+ * The Provenance sites a dossier's own source names (#335): what AI Activity shows of a dossier built before its
+ * Provenance was kept, each link through the link filter (no person's page, no query string).
+ */
+export function dossierSites(dossier: CompanyDossier): ProvenanceSite[] {
+  const sites: ProvenanceSite[] = [];
+  for (const page of pagesOf(dossier)) {
+    const link = provenanceLink(page);
+    if (!link || link.startsWith("/")) continue;
+    const domain = siteDomainOf(link);
+    const site = sites.find((one) => one.kind === "web" && one.domain === domain);
+    if (!site) sites.push({ kind: "web", domain, links: [link] });
+    else if (!site.links.includes(link)) site.links.push(link);
+  }
+  return sites;
+}
+
+/** The Candidate stopped the build: what was finished is kept, the rest is not done. */
+class BuildStopped extends Error {
+  override name = "BuildStopped";
+}
+
+/** A dossier, and whether the Candidate stopped its build during the news search (its facts are then kept, without news). */
+type Built = { dossier: CompanyDossier; newsStopped: boolean };
 
 export function createCompanyDossiers(
   database: Pool,
@@ -390,13 +445,16 @@ export function createCompanyDossiers(
 ): CompanyDossiers {
   async function rowOf(applicationId: string): Promise<Row | undefined> {
     const { rows } = await database.query<Row>(
-      `SELECT presumed_employer, presumed_employer_description, agency, awaiting_confirmation, confirmed_employer, dossier FROM company_dossier WHERE application_id = $1`,
+      `SELECT presumed_employer, presumed_employer_description, agency, awaiting_confirmation, confirmed_employer, dossier, provenance FROM company_dossier WHERE application_id = $1`,
       [applicationId],
     );
     return rows[0];
   }
 
-  async function save(applicationId: string, fields: Partial<Omit<Row, "dossier">> & { dossier?: CompanyDossier | null }): Promise<CompanyDossierState> {
+  async function save(
+    applicationId: string,
+    fields: Partial<Omit<Row, "dossier" | "provenance">> & { dossier?: CompanyDossier | null; provenance: Provenance },
+  ): Promise<CompanyDossierState> {
     const row: Row = {
       presumed_employer: null,
       presumed_employer_description: null,
@@ -408,56 +466,79 @@ export function createCompanyDossiers(
       ...fields,
     } as Row;
     await database.query(
-      `INSERT INTO company_dossier (application_id, presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier, presumed_employer_description, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+      `INSERT INTO company_dossier (application_id, presumed_employer, agency, awaiting_confirmation, confirmed_employer, dossier, presumed_employer_description, provenance, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
        ON CONFLICT (application_id) DO UPDATE SET presumed_employer = $2, agency = $3, awaiting_confirmation = $4,
-         confirmed_employer = $5, dossier = $6, presumed_employer_description = $7, updated_at = now()`,
+         confirmed_employer = $5, dossier = $6, presumed_employer_description = $7, provenance = $8, updated_at = now()`,
       [
         applicationId,
         row.presumed_employer,
         row.agency,
         row.awaiting_confirmation,
         row.confirmed_employer,
-        row.dossier ? JSON.stringify(row.dossier) : null,
+        fields.dossier ? JSON.stringify(stored(fields.dossier)) : null,
         row.presumed_employer_description,
+        JSON.stringify(fields.provenance),
       ],
     );
     return stateFrom((await rowOf(applicationId))!);
   }
 
+  /** A dossier as its jsonb keeps it: news not searched (a Stop during their search) is kept as no `news` at all. */
+  function stored(dossier: CompanyDossier) {
+    const { newsSearched, ...kept } = dossier;
+    if (!newsSearched) delete (kept as Partial<CompanyDossier>).news;
+    return kept;
+  }
+
   /**
    * The dossier for `employer`, with its Company News: from the register when it lists the company, else from the web.
    * Null when `employer` is not a company (a sole trader, or a SIREN the register does not list): nothing is searched for it.
+   * Throws BuildStopped when stopped before its facts were found; stopped during the news search, its facts are kept.
    */
-  async function dossierFor(candidateId: string, employer: string): Promise<CompanyDossier | null> {
-    const dossier = await companyDossierFor(candidateId, employer);
+  async function dossierFor(candidateId: string, employer: string, recorder: ProvenanceRecorder, signal?: AbortSignal): Promise<Built | null> {
+    const dossier = await companyDossierFor(candidateId, employer, recorder, signal);
     if (!dossier) return null;
+    for (const page of pagesOf(dossier)) recorder.site(page);
     // The task Playbook's words, on the web-search provider it names (else the configured one).
     const run = await taskRun(taskPlaybooks, "company-news-search", ai);
-    const news = await ai.searchCompanyNews({
-      candidateId,
-      employer,
-      instructions: run.text(),
-      route: run.searchRoute,
-      warnings: run.warnings,
-      ...(dossier.source === "french_register" ? { registeredName: dossier.name } : {}),
-      ...(dossier.source === "web" && dossier.website ? { website: dossier.website } : {}),
-    });
+    let news: CompanyNewsArticle[];
+    try {
+      news = await recorder.ai.searchCompanyNews({
+        candidateId,
+        employer,
+        instructions: run.text(),
+        route: run.searchRoute,
+        warnings: run.warnings,
+        ...(dossier.source === "french_register" ? { registeredName: dossier.name } : {}),
+        ...(dossier.source === "web" && dossier.website ? { website: dossier.website } : {}),
+      });
+    } catch (error) {
+      if (signal?.aborted) return { dossier, newsStopped: true };
+      throw error;
+    }
     // The same net as for web facts, over what the AI layer already kept: no title with a person's role or honorific.
-    return { ...dossier, news: news.filter((article) => !PERSON_WORDS.test(article.title)), newsSearched: true };
+    const kept = news.filter((article) => !PERSON_WORDS.test(article.title));
+    for (const article of kept) recorder.site(article.url);
+    return { dossier: { ...dossier, news: kept, newsSearched: true }, newsStopped: false };
   }
 
-  async function companyDossierFor(candidateId: string, employer: string): Promise<CompanyDossier | null> {
+  async function companyDossierFor(candidateId: string, employer: string, recorder: ProvenanceRecorder, signal?: AbortSignal): Promise<CompanyDossier | null> {
     const builtAt = now();
-    const { companies, soleTraderNamed } = await register.search(employer);
+    const searchRegister = async (query: string) => {
+      const found = await recorder.step({ tool: "recherche-entreprises" }, () => register.search(query));
+      if (signal?.aborted) throw new BuildStopped();
+      return found;
+    };
+    const { companies, soleTraderNamed } = await searchRegister(employer);
     const match = matchIn(companies, employer);
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
     const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
-    const found = await ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute, warnings: run.warnings });
+    const found = await recorder.ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute, warnings: run.warnings });
     const webSiren = webSirenIn(found.answer);
     if (webSiren) {
-      const listed = (await register.search(webSiren)).companies.find((company) => company.siren === webSiren);
+      const listed = (await searchRegister(webSiren)).companies.find((company) => company.siren === webSiren);
       if (listed && bearsName(listed, employer)) return registerDossier(employer, listed, builtAt);
     }
     return webDossier(employer, found.answer, found.sources, builtAt);
@@ -467,9 +548,11 @@ export function createCompanyDossiers(
   async function analyse(
     candidateId: string,
     application: Application,
+    recorder: ProvenanceRecorder,
   ): Promise<{ recruitingAgency: boolean; presumedEmployer: { name: string | null; description: string | null } }> {
     const { jobOffer } = application;
-    const { text } = await ai.generate({
+    if (jobOffer.source.url) recorder.site(jobOffer.source.url);
+    const { text } = await recorder.aiFor("company_dossier_agency_check").generate({
       task: "offer_analysis",
       candidateId,
       system: ANALYSIS_SYSTEM,
@@ -487,15 +570,32 @@ export function createCompanyDossiers(
     return UUID.test(applicationId) ? applications.get(candidateId, applicationId) : null;
   }
 
-  /** Runs a build step; a register or AI outage leaves everything as it was. */
-  async function attempt(step: () => Promise<CompanyDossierState | CompanyDossierResult>): Promise<CompanyDossierResult> {
+  /**
+   * Runs a build, its steps kept by a recorder of its own: a register or AI outage leaves everything as it was; a Stop
+   * keeps what `step` saved, and says so with the state as now kept.
+   */
+  async function attempt(
+    applicationId: string,
+    options: BuildOptions,
+    step: (recorder: ProvenanceRecorder) => Promise<CompanyDossierState | CompanyDossierResult>,
+  ): Promise<CompanyDossierResult> {
+    const { signal, onEvent } = options;
+    const recorder = createProvenanceRecorder(ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
+    const stopped = async (): Promise<CompanyDossierResult> => ({ ok: false, error: "stopped", state: stateFrom(await rowOf(applicationId)) });
     try {
-      const outcome = await step();
+      const outcome = await step(recorder);
+      if (signal?.aborted) return stopped();
       return "ok" in outcome ? outcome : { ok: true, state: outcome };
     } catch (error) {
+      if (signal?.aborted || error instanceof BuildStopped) return stopped();
       if (error instanceof CompanyRegisterUnavailable || error instanceof AiProviderError || error instanceof AiConfigError) return UNAVAILABLE;
       throw error;
     }
+  }
+
+  /** Saves the dossier built (or none: the employer is not a company), its Provenance `before` this build's, if any. */
+  function saveBuilt(applicationId: string, built: Built | null, recorder: ProvenanceRecorder, fields: Partial<Omit<Row, "dossier" | "provenance">>, before: Provenance | null = null) {
+    return save(applicationId, { ...fields, dossier: built?.dossier ?? null, provenance: joinProvenance(before, recorder.provenance())! });
   }
 
   return {
@@ -504,13 +604,14 @@ export function createCompanyDossiers(
       return stateFrom(await rowOf(applicationId));
     },
 
-    async build(candidateId, applicationId) {
+    async build(candidateId, applicationId, options = {}) {
       const application = await ownApplication(candidateId, applicationId);
       if (!application) return NOT_FOUND;
-      return attempt(async () => {
+      return attempt(applicationId, options, async (recorder) => {
         const confirmed = (await rowOf(applicationId))?.confirmed_employer;
-        if (confirmed) return save(applicationId, { dossier: await dossierFor(candidateId, confirmed) });
-        const { recruitingAgency, presumedEmployer } = await analyse(candidateId, application);
+        if (confirmed) return saveBuilt(applicationId, await dossierFor(candidateId, confirmed, recorder, options.signal), recorder, {});
+        const { recruitingAgency, presumedEmployer } = await analyse(candidateId, application, recorder);
+        if (options.signal?.aborted) throw new BuildStopped();
         if (recruitingAgency) {
           // Only a guess: nothing is looked up for it until the Candidate confirms it.
           return save(applicationId, {
@@ -518,24 +619,28 @@ export function createCompanyDossiers(
             presumed_employer: presumedEmployer.name,
             presumed_employer_description: presumedEmployer.description,
             agency: application.jobOffer.employer ?? null,
+            provenance: recorder.provenance(),
           });
         }
         const employer = application.jobOffer.employer;
         // No employer named, or not a company: the Candidate is asked to name it.
-        const dossier = employer ? await dossierFor(candidateId, employer) : null;
-        return save(applicationId, { awaiting_confirmation: false, presumed_employer: null, presumed_employer_description: null, agency: null, dossier });
+        const built = employer ? await dossierFor(candidateId, employer, recorder, options.signal) : null;
+        return saveBuilt(applicationId, built, recorder, { awaiting_confirmation: false, presumed_employer: null, presumed_employer_description: null, agency: null });
       });
     },
 
-    async confirmEmployer(candidateId, applicationId, input) {
+    async confirmEmployer(candidateId, applicationId, input, options = {}) {
       const parsed = confirmSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!(await ownApplication(candidateId, applicationId))) return NOT_FOUND;
       const employer = parsed.data.employer;
-      return attempt(async () => {
-        const dossier = await dossierFor(candidateId, employer);
-        if (!dossier) return NOT_A_COMPANY;
-        return save(applicationId, { awaiting_confirmation: false, confirmed_employer: employer, dossier });
+      return attempt(applicationId, options, async (recorder) => {
+        const row = await rowOf(applicationId);
+        const built = await dossierFor(candidateId, employer, recorder, options.signal);
+        if (!built) return NOT_A_COMPANY;
+        // The reading of the offer that presumed this employer is part of how the dossier came about.
+        const presumed = row?.awaiting_confirmation ? readProvenance(row.provenance) : null;
+        return saveBuilt(applicationId, built, recorder, { awaiting_confirmation: false, confirmed_employer: employer }, presumed);
       });
     },
   };
@@ -554,5 +659,7 @@ export async function migrateCompanyDossiers(database: Pool): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
     ALTER TABLE company_dossier ADD COLUMN IF NOT EXISTS presumed_employer_description text;
+    -- What served the last build (ADR-0034, #335), null before: « modèle non enregistré ».
+    ALTER TABLE company_dossier ADD COLUMN IF NOT EXISTS provenance jsonb;
   `);
 }

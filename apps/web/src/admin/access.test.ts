@@ -70,6 +70,22 @@ describe("Back Office access", () => {
     expect(access.can("audit", "read")).toBe(false);
   });
 
+  it("only Help editors and super-admins act on the Unanswered Questions; Support reads them (#344)", () => {
+    const helpEditor = backOfficeAccess(["help-editor"]);
+
+    expect(helpEditor.isAdministrator).toBe(true);
+    expect(helpEditor.can("unansweredQuestions", "read")).toBe(true);
+    expect(helpEditor.can("unansweredQuestions", "write")).toBe(true);
+    expect(helpEditor.can("coachingPlaybooks", "read")).toBe(false);
+    expect(helpEditor.can("roles", "read")).toBe(false);
+    expect(backOfficeAccess(["super-admin"]).can("unansweredQuestions", "write")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("unansweredQuestions", "read")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("unansweredQuestions", "write")).toBe(false);
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) {
+      expect(backOfficeAccess([role]).can("unansweredQuestions", "read"), role).toBe(false);
+    }
+  });
+
   it("super-admins and Support read the AI consumption; only super-admins read the AI Message Log (#218)", () => {
     expect(backOfficeAccess(["super-admin"]).can("aiUsage", "read")).toBe(true);
     expect(backOfficeAccess(["super-admin"]).can("aiMessages", "read")).toBe(true);

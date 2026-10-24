@@ -42,6 +42,8 @@ const statements = {
   tools: ["read"],
   /** Eval Runs (#231, ADR-0023): write covers starting one, whose AI calls cost; a Guardrail setting's needs `guardrails` write too. */
   evalRuns: ["read", "write"],
+  /** Unanswered Questions (« Questions sans réponse », #344): write covers marking one « Article écrit » or « Écarter ». */
+  unansweredQuestions: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -49,7 +51,7 @@ export type BackOfficeResource = keyof typeof statements;
 const control = createAccessControl(statements);
 
 /** The Back Office Roles, as stored in `administrator_role.role`. */
-export const BACK_OFFICE_ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "support"] as const;
+export const BACK_OFFICE_ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "support"] as const;
 export type BackOfficeRole = (typeof BACK_OFFICE_ROLES)[number];
 
 export const isBackOfficeRole = (value: unknown): value is BackOfficeRole => BACK_OFFICE_ROLES.includes(value as BackOfficeRole);
@@ -61,6 +63,7 @@ const ROLES = {
   "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"], coupons: ["read", "write"] }),
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
   "playbook-editor": control.newRole({ coachingPlaybooks: ["read", "write"], evalRuns: ["read", "write"] }),
+  "help-editor": control.newRole({ unansweredQuestions: ["read", "write"] }),
   // Reads everything but Provider Secrets and the AI Message Log; the team's own sections (Administrateurs, Journal) stay with super-admins.
   support: control.newRole({
     planQuotas: READ,
@@ -76,6 +79,7 @@ const ROLES = {
     tools: READ,
     evalRuns: READ,
     platformSettings: READ,
+    unansweredQuestions: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

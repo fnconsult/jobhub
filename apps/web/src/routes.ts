@@ -84,6 +84,11 @@ export const routes = {
   adminEvalRun: (id: string) => `/admin/evaluations/${encodeURIComponent(id)}`,
   /** The Guardrails (Garde-fous, #228): settings and Guardrail messages for super-admins, read by Support, with their Guardrail Triggers. */
   adminGuardrails: "/admin/garde-fous",
+  /** « Questions sans réponse » (#344): the open Unanswered Questions, of one page (`route`, a route pattern) or language, or all. */
+  adminUnansweredQuestions: (filter: { route?: string; language?: string } = {}) => {
+    const query = new URLSearchParams({ ...(filter.route ? { page: filter.route } : {}), ...(filter.language ? { langue: filter.language } : {}) }).toString();
+    return `/admin/questions-sans-reponse${query ? `?${query}` : ""}`;
+  },
   /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
   adminSearchSites: "/admin/sites",
   /** The Tools (Outils, #233): every external tool the app calls, and one Tool's latest calls; super-admins and Support. */

@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: Context) {
 
 /**
  * The AI Coach proposes (again) a Tailored CV, replacing the proposal under review, with its Provenance.
- * Body: { language?: "fr" | "en" }. 200 · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped" } · 503 { error: "unavailable" }
+ * Body: { language?: "fr" | "en" }. 200 · 400 { errors } · 401 · 403 · 404 · 499 { error: "stopped" } · 503 { error: "unavailable", reason? }
  *
  * Live (#334), with `Accept: application/x-ndjson`: each step as it starts and ends, then { type: "done", ...tailoredCv }
  * · { type: "stopped", error } · { type: "failed", status, ... } (see actionResponse). Aborting the request is the Stop:

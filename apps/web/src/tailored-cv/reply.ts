@@ -1,13 +1,15 @@
 /**
  * The AI Coach's reply to a Tailored CV request: asked for, read, and asked for
  * once more when refused. Callers get `askForTailoredCv(ai, request)`: the reply,
- * or null when two replies in a row were refused (or the AI layer failed).
+ * or why none came, as a Failure Reason (#367): `tailored_cv_refused` when two
+ * replies in a row were refused, else the AI layer's own (`provider_unavailable`…).
  *
  * A refused reply is logged with why (`RefusalReason`), its length and the
  * provider and model, never its content: it holds the Candidate's CV and the
  * Job Offer. Each attempt is recorded in the usage log by the AI layer.
  */
 import type { AiLayer, GenerateRequest } from "@jobhub/ai";
+import { failureOf, type FailureReason } from "@jobhub/shared";
 import * as z from "zod";
 
 /**
@@ -61,8 +63,11 @@ export function replyIn(reply: string): ReadReply {
 /** Attempts per proposal: the first, and one more when it is refused. */
 const ATTEMPTS = 2;
 
-/** The AI Coach's Tailored CV reply to `request`, asked for once more if refused; null if none came. */
-export async function askForTailoredCv(ai: AiLayer, request: GenerateRequest): Promise<AiReply | null> {
+/** The AI Coach's Tailored CV reply, or why none came: its Failure Reason, never the provider's words. */
+export type AskedReply = { ok: true; reply: AiReply } | { ok: false; reason: FailureReason };
+
+/** The AI Coach's Tailored CV reply to `request`, asked for once more if refused. */
+export async function askForTailoredCv(ai: AiLayer, request: GenerateRequest): Promise<AskedReply> {
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     let generated;
     try {
@@ -76,13 +81,13 @@ export async function askForTailoredCv(ai: AiLayer, request: GenerateRequest): P
       });
     } catch (error) {
       console.warn("[tailored-cv] the AI Coach could not propose a Tailored CV:", error instanceof Error ? error.message : error);
-      return null;
+      return { ok: false, reason: failureOf(error).reason };
     }
     const read = replyIn(generated.text);
-    if (read.ok) return read.reply;
+    if (read.ok) return { ok: true, reply: read.reply };
     console.warn(
       `[tailored-cv] refused the AI Coach's Tailored CV reply (attempt ${attempt}/${ATTEMPTS}): reason=${read.reason} length=${generated.text.length} provider=${generated.provider} model=${generated.model}`,
     );
   }
-  return null;
+  return { ok: false, reason: "tailored_cv_refused" };
 }

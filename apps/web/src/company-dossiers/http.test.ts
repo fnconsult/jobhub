@@ -13,6 +13,10 @@ describe("a Company Dossier build, as its route answers", () => {
     expect(companyDossierOutcome({ ok: false, error: "unavailable" })).toEqual({ status: 503, body: { error: "unavailable" } });
   });
 
+  it("answers unavailable with its Failure Reason, for AI Activity to say why (#367)", () => {
+    expect(companyDossierOutcome({ ok: false, error: "unavailable", reason: "provider_unavailable" })).toEqual({ status: 503, body: { error: "unavailable", reason: "provider_unavailable" } });
+  });
+
   it("answers a Stop with the dossier as now kept, its finished parts in it (#335)", () => {
     expect(companyDossierOutcome({ ok: false, error: "stopped", state: { status: "not_built" } })).toEqual({ status: STOPPED, body: { error: "stopped", state: { status: "not_built" } } });
   });

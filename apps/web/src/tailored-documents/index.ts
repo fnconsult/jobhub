@@ -28,7 +28,7 @@
  * task Playbooks' (ADR-0026); who may be named and each document's format stay here.
  */
 import { createProvenanceRecorder, type AiLayer, type ProvenanceRecorder } from "@jobhub/ai";
-import { DOCUMENT_LANGUAGES, failureOf, readProvenance, type DocumentLanguage, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
+import { DOCUMENT_LANGUAGES, failureOf, readProvenance, type DocumentLanguage, type FailureReason, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
@@ -101,8 +101,8 @@ export type TailoredDocumentsResult =
   | { ok: false; errors: FieldError[] }
   /** No such Application for this Candidate, or no draft to edit. */
   | { ok: false; error: "not_found" }
-  /** The AI layer could not write it; nothing was changed. Try again later. */
-  | { ok: false; error: "unavailable" }
+  /** The AI layer could not write it; nothing was changed. Try again later. `reason`: its Failure Reason (#367). */
+  | { ok: false; error: "unavailable"; reason?: FailureReason }
   /** The Candidate stopped it (#334): the half-written draft is discarded, nothing was changed. */
   | { ok: false; error: "stopped" };
 
@@ -300,17 +300,17 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   }
 
   /**
-   * The AI Coach's draft, its steps and pages kept by `recorder`; null when it could not write one, "stopped" when the
-   * Candidate stopped it.
+   * The AI Coach's draft, its steps and pages kept by `recorder`; `unavailable` when it could not write one, with its
+   * Failure Reason when known (#367); "stopped" when the Candidate stopped it.
    */
   async function write(
     candidateId: string,
     application: Application,
     request: Request,
     recorder: ProvenanceRecorder,
-  ): Promise<{ subject: string; text: string; contactRoles: string[] } | "stopped" | null> {
+  ): Promise<{ subject: string; text: string; contactRoles: string[] } | "stopped" | { unavailable: FailureReason | null }> {
     const [profile, dossier] = await Promise.all([deps.profiles.get(candidateId, application.profile.id), dossierOf(candidateId, application.id)]);
-    if (!profile) return null;
+    if (!profile) return { unavailable: null };
     // The pages it draws on: the Job Offer's, the Master CV, and the Company Dossier when one is built.
     if (application.jobOffer.source.url) recorder.site(application.jobOffer.source.url);
     recorder.site(routes.editMasterCv(profile.id));
@@ -344,11 +344,12 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
         containsIdentity: true,
       });
       const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
-      return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : null;
+      return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : { unavailable: "invalid_reply" };
     } catch (error) {
-      if (failureOf(error).reason === "stopped") return "stopped";
+      const { reason } = failureOf(error);
+      if (reason === "stopped") return "stopped";
       console.warn("[tailored-documents] the AI Coach could not write a draft:", error instanceof Error ? error.message : error);
-      return null;
+      return { unavailable: reason };
     }
   }
 
@@ -376,7 +377,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const written = await write(candidateId, application, { ...parsed.data, language, contact }, recorder);
       // A Stop discards the half-written draft (#334): nothing is kept, even when the AI call had just ended.
       if (written === "stopped" || signal?.aborted) return { ok: false, error: "stopped" };
-      if (!written) return { ok: false, error: "unavailable" };
+      if ("unavailable" in written) return { ok: false, error: "unavailable", ...(written.unavailable ? { reason: written.unavailable } : {}) };
       if (parsed.data.language) await keepDocumentLanguage(database, application.id, language);
       await database.query(
         `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text, provenance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

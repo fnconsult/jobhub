@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/appl
 /**
  * Builds (again) the Company Dossier of one of the Candidate's Applications, with its Provenance. A recruiting
  * agency's posting only yields a Presumed Employer to confirm.
- * 200 CompanyDossierState · 401 · 403 · 404 · 499 { error: "stopped", state } · 503 { error: "unavailable" }
+ * 200 CompanyDossierState · 401 · 403 · 404 · 499 { error: "stopped", state } · 503 { error: "unavailable", reason? } (its Failure Reason, #367)
  *
  * Live (#335), with `Accept: application/x-ndjson`: each step as it starts and ends, then { type: "done", ...state }
  * · { type: "stopped", error, state } · { type: "failed", status, ... } (see actionResponse). Aborting the request is

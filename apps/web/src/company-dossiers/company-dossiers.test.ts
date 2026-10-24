@@ -1,4 +1,4 @@
-import { createAiLayer, type AiLayer } from "@jobhub/ai";
+import { AiProviderError, createAiLayer, type AiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
@@ -335,7 +335,18 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       const applicationId = await applicationFor({ employer: "Acme Industrie" });
       register.down = true;
 
-      expect(await dossiers.build(candidateId, applicationId)).toEqual({ ok: false, error: "unavailable" });
+      expect(await dossiers.build(candidateId, applicationId)).toEqual({ ok: false, error: "unavailable", reason: "provider_unavailable" });
+      expect(await dossiers.get(candidateId, applicationId)).toEqual({ status: "not_built" });
+    });
+
+    it("says why when the AI layer could not answer: its Failure Reason, never the provider's words (#367)", async () => {
+      const applicationId = await applicationFor({ employer: "Globex Robotics" });
+      register.companies = [];
+      perplexity.search = async () => {
+        throw new AiProviderError("perplexity", "429 Too Many Requests: slow down, Marie Dupont", 429);
+      };
+
+      expect(await dossiers.build(candidateId, applicationId)).toEqual({ ok: false, error: "unavailable", reason: "rate_limited" });
       expect(await dossiers.get(candidateId, applicationId)).toEqual({ status: "not_built" });
     });
   });

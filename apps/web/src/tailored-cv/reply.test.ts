@@ -1,4 +1,4 @@
-import { createAiLayer } from "@jobhub/ai";
+import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type MemoryUsageLog } from "@jobhub/ai/testing";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { askForTailoredCv } from "./reply";
@@ -12,7 +12,8 @@ describe("asking the AI Coach for a Tailored CV", () => {
   let replies: string[];
   let usage: MemoryUsageLog;
   let warn: MockInstance<typeof console.warn>;
-  const provider = () => createFakeProvider({ id: "mistral", reply: () => replies.shift() ?? "" });
+  let fail: Error | undefined;
+  const provider = () => createFakeProvider({ id: "mistral", reply: () => replies.shift() ?? "", ...(fail ? { fail } : {}) });
 
   async function ask() {
     const fake = provider();
@@ -24,6 +25,7 @@ describe("asking the AI Coach for a Tailored CV", () => {
   const warnings = () => warn.mock.calls.map((args) => args.map(String).join(" "));
 
   beforeEach(() => {
+    fail = undefined;
     warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   });
   afterEach(() => {
@@ -50,16 +52,16 @@ describe("asking the AI Coach for a Tailored CV", () => {
     const { reply, calls } = await ask();
 
     expect(calls).toBe(2);
-    expect(reply).toMatchObject({ headline: "Directrice administrative et financière", summary: CV_TEXT });
+    expect(reply).toMatchObject({ ok: true, reply: { headline: "Directrice administrative et financière", summary: CV_TEXT } });
     expect(usage.entries).toHaveLength(2);
   });
 
-  it("two refused replies are no proposal, with two warnings", async () => {
+  it("two refused replies are no proposal, refused (tailored_cv_refused), with two warnings", async () => {
     replies = [PROSE, TRUNCATED, VALID];
 
     const { reply, calls } = await ask();
 
-    expect(reply).toBeNull();
+    expect(reply).toEqual({ ok: false, reason: "tailored_cv_refused" });
     expect(calls).toBe(2);
     expect(warnings()).toHaveLength(2);
     expect(usage.entries).toHaveLength(2);
@@ -80,9 +82,21 @@ describe("asking the AI Coach for a Tailored CV", () => {
 
     const { reply, calls } = await ask();
 
-    expect(reply).toMatchObject({ headline: "Directrice administrative et financière" });
+    expect(reply).toMatchObject({ ok: true, reply: { headline: "Directrice administrative et financière" } });
     expect(calls).toBe(1);
     expect(warnings()).toEqual([]);
+  });
+
+  it.each([
+    [503, "provider_unavailable"],
+    [429, "rate_limited"],
+  ])("a provider failing with %i is no proposal, with its Failure Reason, never its words (#367)", async (status, reason) => {
+    replies = [VALID];
+    fail = new AiProviderError("mistral", `upstream said no to ${CV_TEXT}`, status);
+
+    const { reply } = await ask();
+
+    expect(reply).toEqual({ ok: false, reason });
   });
 
   it.each([

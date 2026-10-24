@@ -46,6 +46,7 @@ import {
   withoutIdentity,
   type CvContent,
   type DocumentLanguage,
+  type FailureReason,
   type Provenance,
   type ProvenanceEvent,
 } from "@jobhub/shared";
@@ -121,8 +122,8 @@ export type TailoredCvResult =
   | { ok: false; errors: FieldError[] }
   /** No such Application for this Candidate. */
   | { ok: false; error: "not_found" }
-  /** The AI layer could not write it; nothing was changed. Try again later. */
-  | { ok: false; error: "unavailable" }
+  /** The AI layer could not write it; nothing was changed. Try again later. `reason`: its Failure Reason (#367). */
+  | { ok: false; error: "unavailable"; reason?: FailureReason }
   /** The Master CV (or the Application's Profile) changed since the proposal: it must be proposed again. */
   | { ok: false; error: "master_cv_changed" }
   /** The proposal was proposed again or answered since the Candidate reviewed it: nothing was saved. */
@@ -458,9 +459,10 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       recorder.site(routes.editMasterCv(profile.id));
       const stopped = { ok: false, error: "stopped" } as const;
       const run = await taskRun(deps.taskPlaybooks, "tailored-cv", deps.ai);
-      const reply = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
+      const asked = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
       if (signal?.aborted) return stopped;
-      if (!reply) return { ok: false, error: "unavailable" };
+      if (!asked.ok) return { ok: false, error: "unavailable", reason: asked.reason };
+      const { reply } = asked;
       const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
       const proposal: ProposalRow = {
         language,

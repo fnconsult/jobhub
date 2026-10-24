@@ -127,6 +127,26 @@ describe("an AI action's route, streamed when asked for (#334)", () => {
     expect((await eventsOf(failed)).at(-1)).toEqual({ type: "failed", status: 503, error: "unavailable" });
   });
 
+  it("ends an action that throws with its failure: 500 and its Failure Reason, never the error's words (#367)", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const throwing = (thrown: Error) => async ({ onEvent }: { signal: AbortSignal; onEvent?: (event: ProvenanceEvent) => void }): Promise<ActionOutcome> => {
+      onEvent?.(started);
+      throw thrown;
+    };
+    const rateLimited = Object.assign(new Error("perplexity: 429 slow down, Marie Dupont"), { name: "AiProviderError", status: 429 });
+
+    const streamed = await actionResponse(post("application/x-ndjson"), throwing(rateLimited));
+    const answered = await actionResponse(post(), throwing(rateLimited));
+    const unknown = await actionResponse(post("application/x-ndjson"), throwing(new Error("disk full")));
+
+    expect(await eventsOf(streamed)).toEqual([{ ...started, label: "write" }, { type: "failed", status: 500, error: "failed", reason: "rate_limited" }]);
+    expect(answered.status).toBe(500);
+    expect(await answered.json()).toEqual({ error: "failed", reason: "rate_limited" });
+    expect((await eventsOf(unknown)).at(-1)).toEqual({ type: "failed", status: 500, error: "failed", reason: "other" });
+    expect(JSON.stringify(error.mock.calls)).not.toContain("Marie Dupont");
+    error.mockRestore();
+  });
+
   it("hands the action the request's abort: the Stop", async () => {
     const controller = new AbortController();
     let signal: AbortSignal | undefined;

@@ -10,7 +10,7 @@
  * The action's `signal` aborts when the request is aborted or the reader stops reading; nothing it sends after
  * that goes out. An action that throws ends the stream after what it sent, logged without its content.
  */
-import { stepLabel, type ProvenanceEvent } from "@jobhub/shared";
+import { failureOf, stepLabel, type ProvenanceEvent } from "@jobhub/shared";
 
 export const NDJSON_TYPE = "application/x-ndjson; charset=utf-8";
 
@@ -28,18 +28,27 @@ export interface ActionOutcome {
  *   { type: "step_started", id, step, label }   a step starts: its Activity and what AI Activity calls it (`stepLabel`)
  *   { type: "step_ended", id, step }            it ends: its model, tokens, time and Outcome
  * then { type: "done", ...body } · { type: "stopped", ...body } · { type: "failed", status, ...body }; otherwise its body as
- * JSON with its status. Either way the request's abort is the Stop, handed to `run` as `signal`.
+ * JSON with its status. Either way the request's abort is the Stop, handed to `run` as `signal`. A `run` that throws ends
+ * with 500 { error: "failed", reason }: its Failure Reason (#367), logged by its error's name, never its message.
  */
 export async function actionResponse(
   request: Request,
   run: (live: { signal: AbortSignal; onEvent?: (event: ProvenanceEvent) => void }) => Promise<ActionOutcome>,
 ): Promise<Response> {
+  const outcomeOf = async (live: Parameters<typeof run>[0]): Promise<ActionOutcome> => {
+    try {
+      return await run(live);
+    } catch (error) {
+      console.error("[ndjson] an AI action failed:", error instanceof Error ? error.name : "unknown");
+      return { status: 500, body: { error: "failed", reason: failureOf(error).reason } };
+    }
+  };
   if (!request.headers.get("accept")?.includes("application/x-ndjson")) {
-    const { status, body } = await run({ signal: request.signal });
+    const { status, body } = await outcomeOf({ signal: request.signal });
     return Response.json(body, { status });
   }
   return ndjsonResponse(request.signal, async (send, signal) => {
-    const { status, body } = await run({ signal, onEvent: (event) => send(event.type === "step_started" ? { ...event, label: stepLabel(event.step) } : event) });
+    const { status, body } = await outcomeOf({ signal, onEvent: (event) => send(event.type === "step_started" ? { ...event, label: stepLabel(event.step) } : event) });
     send(status < 300 ? { type: "done", ...body } : status === STOPPED ? { type: "stopped", ...body } : { type: "failed", status, ...body });
   });
 }

@@ -509,7 +509,8 @@
     "startOver": "Recommencer"
   },
   "coachPanel": {
-    "open": "Mon coach",
+    "open": "Aide et coach",
+    "openShort": "Aide",
     "title": "Coach IA",
     "badge": "Coach IA",
     "close": "Fermer",
@@ -524,7 +525,7 @@
     "welcome": "Bonjour, je suis votre coach. Comment puis-je vous aider ?",
     "aiDisclosure": "Je suis un coach IA, pas une personne : un programme d'intelligence artificielle de Jobbbox. Pour parler à une personne, vous pouvez réserver une séance avec un coach humain. Comment puis-je vous aider ?",
     "messageLabel": "Votre message",
-    "send": "Envoyer",
+    "send": "Envoyer au coach",
     "stop": "Arrêter",
     "stopped": "Réponse arrêtée",
     "failed": "Votre coach n'a pas pu répondre : {{reason}}. Réessayez dans quelques instants.",
@@ -570,6 +571,30 @@
       "toProcess": "À traiter",
       "followed": "Suivie",
       "open": "Ouvrir l'offre"
+    },
+    "help": {
+      "greeting": "Posez votre question : je cherche d'abord dans l'aide de Jobbbox, sans IA, et votre coach IA répond si l'aide n'a pas la réponse.",
+      "onThisPage": "Sur cette page",
+      "readMore": "Lire la suite",
+      "readMoreAbout": "Lire la suite : {{title}}",
+      "oftenAsked": "Souvent demandé",
+      "suggestions": "Dans l'aide, sans IA",
+      "found_one": "{{count}} article dans l'aide",
+      "found_other": "{{count}} articles dans l'aide",
+      "cardLabel": "Aide · écrit par l'équipe Jobbbox",
+      "answered": "Cela répond à votre question ?",
+      "yes": "Oui",
+      "no": "Non, demander au coach",
+      "thanks": "Merci ! Posez une autre question quand vous voulez.",
+      "askAbout": "À propos de « {{title}} » : ",
+      "unavailableHelp": "Voici ce que l'aide propose :",
+      "noHelp": "L'aide n'a pas d'article sur cette question. Pour joindre l'équipe Jobbbox, faites un signalement.",
+      "signalement": "Faire un signalement",
+      "kinds": {
+        "page": "Page",
+        "glossary": "Mot à connaître",
+        "faq": "Question fréquente"
+      }
     }
   },
   "provenanceLine": {
@@ -2029,7 +2054,8 @@
     "messagesLabel": "Vos échanges avec l'assistant",
     "author": "Assistant",
     "retention": "Vos conversations avec l'assistant sont conservées 12 mois après leur dernier message, puis supprimées. Personne d'autre ne les voit.",
-    "noConversations": "Vous n'avez pas encore de conversation avec l'assistant."
+    "noConversations": "Vous n'avez pas encore de conversation avec l'assistant.",
+    "send": "Envoyer"
   },
   "applicationStatuses": {
     "to_apply": "À postuler",

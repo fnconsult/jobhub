@@ -5,10 +5,11 @@
  * One deep module in front of Postgres. Callers get
  * `createCoachConversations(database, { coach, profiles })`:
  *  - `send` the Candidate's next message, untrusted input from the browser
- *    `{ conversationId?, message, focus? }`: the AI Coach answers the saved
+ *    `{ conversationId?, message, focus?, helpArticle? }`: the AI Coach answers the saved
  *    conversation (a new one without `conversationId`, attached to the Profile
  *    in view when it starts, or to the Profile the page in view shows: `focus.profileId`) and both messages are saved together. Nothing is
- *    saved when the AI Coach cannot answer, so the Candidate can send again;
+ *    saved when the AI Coach cannot answer, so the Candidate can send again. `helpArticle`, the Help Article the
+ *    Candidate read just before asking (#342), goes to the AI Coach by its id and is never saved (ADR-0035);
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it;
  *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
@@ -142,6 +143,8 @@ const sendSchema = z.object({
   message: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
   /** What is in view; `profileId`: the Profile a Job Search, Job Digest or Application page shows, to attach a new conversation to. */
   focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100), profileId: z.string().max(100).optional() }).optional(),
+  /** The Help Article read just before asking (#342): given to the AI Coach by its id, never saved (ADR-0035). */
+  helpArticle: z.object({ id: z.string().max(100), title: z.string().max(200).optional() }).optional(),
 });
 
 type FocusInput = z.infer<typeof sendSchema>["focus"];
@@ -274,7 +277,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async send(candidateId, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
-      const { conversationId, message, focus } = parsed.data;
+      const { conversationId, message, focus, helpArticle } = parsed.data;
       // A new conversation gets its id now, so a Stop keeps the message in the conversation the Candidate was told of.
       const id = conversationId ?? randomUUID();
       return inTurn(id, async (): Promise<SendResult> => {
@@ -299,6 +302,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           {
             messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
             ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
+            ...(helpArticle ? { helpArticle: { id: helpArticle.id } } : {}),
           },
           { ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
         );

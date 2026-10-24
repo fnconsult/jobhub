@@ -21,7 +21,7 @@ const lineOf = (message: Locator) => message.locator(".provenance-line");
 
 async function ask(panel: Locator, text: string) {
   await panel.getByLabel(fr.coachPanel.messageLabel).fill(text);
-  await panel.getByRole("button", { name: fr.coachPanel.send }).click();
+  await panel.getByRole("button", { name: new RegExp(`^(${fr.coachPanel.send}|${fr.backOfficeAssistant.send})$`) }).click();
 }
 
 /** Each of these words is there for screen readers only: clipped to a pixel, never seen. */

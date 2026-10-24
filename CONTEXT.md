@@ -701,7 +701,7 @@ _Avoid_: Computation, script, algorithm
 The Provenance of content made by Jobbbox's rules alone: one compute step, no model, naming the Candidate's own pages it read. ATS Score, an ATS Fix card and a Job Digest's Match Scores have one; AI Activity shows it as « Calcul » where a model would be named. An ATS Score's is not stored: it is read from when the score was computed, with its time unknown, so an ATS Score from before Provenance still shows « Calcul », not « modèle non enregistré ». A Job Digest's Provenance is its Match Scores step, joined with the run of Job discovery that topped it up, if one did and did not fail.
 
 **AI Activity**:
-The button in the Candidate's top bar, left of « Mon coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
+The button in the Candidate's top bar, left of « Aide et coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
 _Avoid_: Session pane, sources bar, tasks panel
 
 **AI Activity element**:
@@ -715,3 +715,13 @@ _Avoid_: Guardrail log, incident, alert
 **Back Office Assistant**:
 The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles; read-only, never sees Provider Secrets nor email addresses. Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
 _Avoid_: Admin bot, admin copilot
+
+**Help Article**:
+One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile).
+_Avoid_: Help page, KB article, doc
+
+**Article card**:
+A Help Article shown in the Coach panel's conversation, from the box's suggestions « Dans l'aide, sans IA », the page in view or « Souvent demandé ». Kept only in the browser: gone after a reload, never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.
+
+**Souvent demandé**:
+The three FAQ Help Articles an empty Coach Conversation offers, beside « Sur cette page », the page's article.

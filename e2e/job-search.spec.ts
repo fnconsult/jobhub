@@ -311,7 +311,7 @@ test.describe("On-demand AI Coach job search", () => {
   test("starts from the Coach Panel, for the Profile in view", async ({ page }) => {
     const profileId = await signInWithProfile(page);
     await page.goto(`/profils/${profileId}`);
-    await page.getByRole("button", { name: "Mon coach" }).click();
+    await page.getByRole("button", { name: "Aide et coach" }).click();
 
     // The search sits under the one line saying what the coach sees, opened on demand (ADR-0024).
     const panel = page.getByRole("complementary");

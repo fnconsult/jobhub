@@ -58,11 +58,14 @@ const TITLE_WEIGHT = 3;
 const BODY_WEIGHT = 1;
 const MINIMUM_SCORE = 2;
 
+/** The words of `query` the search looks for: accents folded, stop-words and words of 2 letters or fewer dropped, each once. */
+export function queryWords(query: string): string[] {
+  return words(query).filter((word) => word.length > 2 && !STOP_WORDS.has(word));
+}
+
 /** The articles matching `query`, best first (ties keep the index's order), `limit` at most. */
 export function searchIndex(index: readonly IndexedArticle[], query: string, limit: number): HelpArticle[] {
-  const stems = words(query)
-    .filter((word) => word.length > 2 && !STOP_WORDS.has(word))
-    .map(stem);
+  const stems = queryWords(query).map(stem);
   if (stems.length === 0) return [];
   const startsWith = (list: string[], prefix: string) => list.some((word) => word.startsWith(prefix));
   return index

@@ -715,3 +715,7 @@ _Avoid_: Guardrail log, incident, alert
 **Back Office Assistant**:
 The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles; read-only, never sees Provider Secrets nor email addresses. Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
 _Avoid_: Admin bot, admin copilot
+
+**Help Article**:
+One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile).
+_Avoid_: Help page, KB article, doc

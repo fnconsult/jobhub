@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { STOPPED, type ActionOutcome } from "@/ndjson";
+import { STOPPED, type ActionOutcome } from "../ndjson";
 import type { TailoredDocumentsResult } from "./index";
 
 /**

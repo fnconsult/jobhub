@@ -19,3 +19,34 @@ export function articles(locale: HelpLocale): readonly HelpArticle[] {
 export function article(id: string, locale: HelpLocale): HelpArticle | null {
   return ARTICLES[locale].find((entry) => entry.id === id) ?? null;
 }
+
+/**
+ * The page article of `route`: a route pattern (`/candidatures/[id]`) or the address of a page in view
+ * (`/candidatures/0b6c…/documents?vue=liste`). A page's Sections get the article of their page; when two
+ * patterns match, the one with more segments, then more fixed ones, wins (`/profils/nouveau` over `/profils/[id]`).
+ * Null for a page without an article.
+ */
+export function articleFor(route: string, locale: HelpLocale): HelpArticle | null {
+  const path = segments(route.split(/[?#]/)[0]!);
+  let best: { entry: HelpArticle; rank: [number, number] } | null = null;
+  for (const entry of ARTICLES[locale]) {
+    if (!entry.route) continue;
+    const pattern = segments(entry.route);
+    if (!patternMatches(pattern, path)) continue;
+    const rank: [number, number] = [pattern.length, pattern.filter((segment) => !isDynamic(segment)).length];
+    if (!best || rank[0] > best.rank[0] || (rank[0] === best.rank[0] && rank[1] > best.rank[1])) best = { entry, rank };
+  }
+  return best?.entry ?? null;
+}
+
+function segments(path: string): string[] {
+  return path.split("/").filter(Boolean);
+}
+
+const isDynamic = (segment: string) => /^\[.+\]$/.test(segment);
+
+/** `pattern` is the start of `path` (the home page `/` only matches itself). */
+function patternMatches(pattern: string[], path: string[]): boolean {
+  if (pattern.length === 0) return path.length === 0;
+  return pattern.length <= path.length && pattern.every((segment, index) => isDynamic(segment) || segment === path[index]);
+}

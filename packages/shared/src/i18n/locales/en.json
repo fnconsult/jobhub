@@ -3068,6 +3068,14 @@
   },
   "aiActivity": {
     "modelNotRecorded": "model not recorded",
+    "ended": {
+      "stopped": "Stopped at {{time}}",
+      "failed": "Failed at {{time}}",
+      "stoppedOn": "Stopped on {{time}}",
+      "failedOn": "Failed on {{time}}",
+      "stoppedUndated": "Stopped",
+      "failedUndated": "Failed"
+    },
     "stop": "Stop",
     "stoppedAt": "Stopped at {{time}}",
     "steps": {

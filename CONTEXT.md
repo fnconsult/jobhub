@@ -678,6 +678,10 @@ _Avoid_: Status, phase, stage
 What AI Activity calls a running step: its Activity, or « check » for a Guardrail's check. Worded in French and English.
 _Avoid_: Step name, status
 
+**Live action**:
+An AI action of the Candidate running now, or stopped or failed lately, as AI Activity shows it: running, stopping, stopped or failed. A finished action leaves, its result counting with the page. A stopped or failed action stays in the pane until the next Coach reply replaces it or, for a Job Search, until its notification is dismissed; only a Job Search this browser saw running is shown so. Only an action this browser saw start is announced as starting (a Job Search found running after a page reload is not). Its start and its end are announced once, by one polite live region above every Candidate page, so a page change neither loses nor repeats them; the Coach Panel and a Job Search's notification announce their own end.
+_Avoid_: Task, job, process
+
 **Stop**:
 The Candidate ends an AI Coach reply on its way with « Arrêter » (the « Envoyer » button, no confirmation). Every AI call of the reply is aborted (AI Usage `stopped`). The question is kept in the Coach Conversation, no reply is saved, and « Réponse arrêtée » shows the tokens and time spent. A stopped reply counts against no Plan Quota.
 _Avoid_: Cancel, abort

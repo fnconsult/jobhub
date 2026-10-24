@@ -46,6 +46,10 @@
 // every message. Asked what to remember from a conversation ("Tu relis une
 // conversation"), it proposes each Candidate message as a goal, in order.
 //
+// Asked to mark whether the Candidate's message asks how to use Jobbbox (#344, "Classement de la question"), the AI
+// Coach ends its reply with "[jobbbox:oui]" when the message speaks of being blocked or of quotas (a real model reads
+// the whole message), "[jobbbox:non]" otherwise; the app takes that line out before anyone sees it.
+//
 // For the Back Office Assistant (#205, "assistant du Back Office"), it says how many
 // messages it was sent; "E2E_SHOW_CONTEXT#<tag>" prints the whole system prompt to the
 // server log, so tests can check what the assistant is told for the asking Administrator's roles.
@@ -159,6 +163,9 @@ globalThis.fetch = async (input, init) => {
       const remembered = system.match(/^- (?:Objectif|Contrainte|Décision) : /gm)?.length ?? 0;
       if (remembered) content += ` Mémoire : ${remembered} élément${remembered > 1 ? "s" : ""}.`;
     }
+  }
+  if (system.includes("coach Jobbbox") && system.includes("Classement de la question")) {
+    content += /bloqu|quota/i.test(prompt) ? "\n[jobbbox:oui]" : "\n[jobbbox:non]";
   }
   if (system.includes("assistant du Back Office")) {
     const turns = body.messages.filter((message) => message.role !== "system").length;

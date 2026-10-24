@@ -414,7 +414,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
   }
 
   /** The AI Coach as an Eval Run plays it: on `served`, the Guardrails as they are, a fictional Coach context per case. */
-  async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string })[], served: ServedKnowledge, consult?: string) {
+  async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string; aboutJobbbox?: boolean })[], served: ServedKnowledge, consult?: string) {
     const guardrails = createGuardrails({ ai, config: deps.guardrails, triggers: { record: () => {} } });
     let judge: EvalRun["judge"] = null;
     const results = await playAll(cases, async (each): Promise<JudgedCaseResult> => {
@@ -435,6 +435,13 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       const replyCost = replied.cost?.eur ?? 0;
       if (each.consults && served.playbooks.some((playbook) => playbook.id === each.consults) && !consulted.includes(each.consults)) {
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason: `Le coach n'a pas consulté le playbook « ${each.consults} ».`, costEur: replyCost, responseMs };
+      }
+      // Whether the message asks how to use Jobbbox (#344) is the AI Coach's own mark, checked exactly, not judged.
+      if (each.aboutJobbbox !== undefined && (replied.aboutJobbbox ?? false) !== each.aboutJobbbox) {
+        const reason = each.aboutJobbbox
+          ? "Le coach n'a pas reconnu une question sur la façon d'utiliser Jobbbox."
+          : "Le coach a pris pour une question sur la façon d'utiliser Jobbbox une demande de conseil.";
+        return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
       }
       const call = await ai
         .generate({

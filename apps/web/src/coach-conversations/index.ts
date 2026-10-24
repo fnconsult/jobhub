@@ -33,6 +33,9 @@
  * A reply saved before Provenance was kept gets a partial one, read on the fly from its provider, model and tokens.
  * A reply to a Job Offer link is saved with its Job Offer card, which reopens with the conversation, `followed`
  * once the Candidate has saved that Job Offer as an Application; the AI Coach is only ever given the reply's text.
+ * Each reply is told to Unanswered Questions (#344, ADR-0035) with its question, the page it was asked from (`route`, the
+ * address of the page in view) and the Candidate's language: they keep, unlinked to the Candidate, the questions the help
+ * missed. A reply is never held back by it.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.
@@ -46,6 +49,7 @@ import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, 
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
+import type { UnansweredQuestions } from "../unanswered-questions";
 
 export interface CoachConversationSummary {
   id: string;
@@ -127,6 +131,8 @@ export interface ReplyAbout {
 export interface CoachConversationsDeps {
   coach: Pick<Coach, "reply">;
   profiles: Pick<Profiles, "get">;
+  /** Where each reply is told, for the questions the help missed (#344). Without it, nothing is. */
+  unansweredQuestions?: Pick<UnansweredQuestions, "notice">;
   /** When messages are sent. Default: the system clock. */
   now?: () => Date;
 }
@@ -145,6 +151,8 @@ const sendSchema = z.object({
   focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100), profileId: z.string().max(100).optional() }).optional(),
   /** The Help Article read just before asking (#342): given to the AI Coach by its id, never saved (ADR-0035). */
   helpArticle: z.object({ id: z.string().max(100), title: z.string().max(200).optional() }).optional(),
+  /** The address of the page in view (#344): only its route pattern is kept, with an Unanswered Question. */
+  route: z.string().max(300).optional(),
 });
 
 type FocusInput = z.infer<typeof sendSchema>["focus"];
@@ -277,7 +285,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async send(candidateId, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
-      const { conversationId, message, focus, helpArticle } = parsed.data;
+      const { conversationId, message, focus, helpArticle, route } = parsed.data;
       // A new conversation gets its id now, so a Stop keeps the message in the conversation the Candidate was told of.
       const id = conversationId ?? randomUUID();
       return inTurn(id, async (): Promise<SendResult> => {
@@ -321,6 +329,14 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: focusOf(focus) }, sentAt);
         const saved = await find(candidateId, conversation.id);
         if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
+        await deps.unansweredQuestions
+          ?.notice(candidateId, {
+            question: message,
+            reply: { text: answer.reply, outcome: answer.outcome, ...(answer.aboutJobbbox !== undefined ? { aboutJobbbox: answer.aboutJobbbox } : {}) },
+            ...(route !== undefined ? { route } : {}),
+            language: options.language ?? "fr",
+          })
+          .catch((error: unknown) => console.warn("[coach-conversations] an Unanswered Question could not be recorded:", error instanceof Error ? error.message : error));
         return {
           ok: true,
           conversation: saved,

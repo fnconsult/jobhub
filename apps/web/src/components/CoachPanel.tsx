@@ -672,6 +672,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
           ...(read ? { helpArticle: read } : {}),
+          // The page in view, for a question the help missed (#344): the server keeps its route pattern alone.
+          ...(help ? { route: pathname } : {}),
         }),
         signal: stop.signal,
       });

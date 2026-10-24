@@ -4,9 +4,10 @@
  *
  *   articleFor("/candidatures/abc/documents", "fr"); // the article of the Application's page
  *   search("comment relancer le recruteur", "fr");    // [the « Comment relancer un recruteur ? » question, …]
+ *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  */
 import { ARTICLES } from "./articles.generated";
-import { indexArticle, searchIndex, type IndexedArticle } from "./search";
+import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import type { HelpArticle, HelpLocale } from "./types";
 
 export { HELP_ARTICLE_KINDS, HELP_LOCALES, type HelpArticle, type HelpArticleKind, type HelpLocale } from "./types";
@@ -24,6 +25,14 @@ export function articles(locale: HelpLocale): readonly HelpArticle[] {
  */
 export function search(query: string, locale: HelpLocale, { limit = 4 }: { limit?: number } = {}): HelpArticle[] {
   return searchIndex(indexed(locale), query, limit);
+}
+
+/**
+ * A question's words as the search reads them, in alphabetical order, joined by spaces: the same question written
+ * with other accents, case, punctuation, stop-words or word order gets the same key. What groups Unanswered Questions (#344).
+ */
+export function questionKey(query: string): string {
+  return queryWords(query).sort().join(" ");
 }
 
 const indexes = new Map<HelpLocale, IndexedArticle[]>();

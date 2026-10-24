@@ -10,6 +10,7 @@ export const BACK_OFFICE_PAGES = {
   coachCost: { href: routes.adminCoachCost, resource: "coachMessageCost" },
   coachingPlaybooks: { href: routes.adminCoachingPlaybooks, resource: "coachingPlaybooks" },
   guardrails: { href: routes.adminGuardrails, resource: "guardrails" },
+  unansweredQuestions: { href: routes.adminUnansweredQuestions(), resource: "unansweredQuestions" },
   providerSecrets: { href: routes.adminProviderSecrets, resource: "providerSecrets" },
   platformSettings: { href: routes.adminPlatformSettings, resource: "platformSettings" },
   signInProviders: { href: routes.adminSignInProviders, resource: "ssoProviders" },
@@ -29,6 +30,7 @@ export type BackOfficePage = keyof typeof BACK_OFFICE_PAGES;
 const GROUPS = [
   { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost", "coachingPlaybooks", "guardrails"] },
+  { key: "content", sections: ["unansweredQuestions"] },
   { key: "platform", sections: ["providerSecrets", "platformSettings", "signInProviders", "aiUsage", "aiMessages", "searchSites", "tools"] },
   { key: "team", sections: ["administrators", "journal"] },
 ] as const satisfies ReadonlyArray<{ key: string; sections: readonly BackOfficePage[] }>;

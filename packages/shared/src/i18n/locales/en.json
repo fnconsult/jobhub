@@ -798,7 +798,8 @@
       "plans-manager": "Plans manager",
       "coach-manager": "Coach manager",
       "support": "Support",
-      "playbook-editor": "Playbook editor"
+      "playbook-editor": "Playbook editor",
+      "help-editor": "Help editor"
     },
     "nav": {
       "label": "Back office navigation",
@@ -806,6 +807,7 @@
       "groups": {
         "offer": "Offer",
         "coaching": "Coaching",
+        "content": "Content",
         "platform": "Platform",
         "team": "Team"
       }
@@ -826,7 +828,8 @@
       "aiMessages": "AI message logs",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Guardrails",
-      "tools": "Tools"
+      "tools": "Tools",
+      "unansweredQuestions": "Unanswered questions"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1366,7 +1369,8 @@
         "plans-manager": "Plans and their quotas.",
         "coach-manager": "Human Coaches; reads the AI Coach cost.",
         "support": "Reads everything except provider secrets, and changes nothing.",
-        "playbook-editor": "Writes, versions, validates and archives the Coaching Playbooks, the Core Digest and the Sources list."
+        "playbook-editor": "Writes, versions, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.",
+        "help-editor": "Reads the unanswered questions and marks them « Article written » or dismisses them."
       },
       "errors": {
         "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",
@@ -1404,7 +1408,8 @@
         "ai_usage": "AI consumption",
         "search_sites": "Search sites",
         "tool_pages": "Tools pages",
-        "journal": "Journal"
+        "journal": "Journal",
+        "unanswered_questions": "Unanswered questions"
       },
       "actions": {
         "added": "Added",
@@ -1861,6 +1866,46 @@
         "title": "Guardrails' Eval Runs",
         "intro": "Each new setting is first played on the Guardrails' Eval Cases, written by the engineering team and shipped with the app. Each case expects an exact verdict: let through, block or flag.",
         "played": "See the Eval Run played on this setting"
+      }
+    },
+    "unansweredQuestions": {
+      "title": "Unanswered questions",
+      "intro": "The questions asked to the AI Coach about using Jobbbox that no help article answered. Write the article or add a synonym in the help, then mark the question « Article written »; dismiss those that are not gaps in the help. An AI answer never becomes help by itself.",
+      "privacy": "Each question is kept redacted, with no link to the Candidate who asked it, 12 months at most after it was last asked, and 30 days once marked.",
+      "routeFilter": "Filter by page",
+      "allRoutes": "All pages",
+      "unknownRoute": "Unknown page",
+      "languageFilter": "Filter by language",
+      "allLanguages": "All languages",
+      "languages": {
+        "fr": "French",
+        "en": "English"
+      },
+      "caption": "Unanswered questions, most asked first",
+      "question": "Question",
+      "route": "Page",
+      "count": "Count",
+      "firstAskedAt": "First asked",
+      "lastAskedAt": "Last asked",
+      "answer": "The AI Coach's answer",
+      "actions": "Actions",
+      "markWritten": "Article written",
+      "markWrittenLabel": "Article written: {{question}}",
+      "dismiss": "Dismiss",
+      "dismissLabel": "Dismiss: {{question}}",
+      "marked": {
+        "written": "Question marked « Article written ».",
+        "dismissed": "Question dismissed."
+      },
+      "notMarked": "This question was already marked.",
+      "none": "No unanswered questions.",
+      "statuses": {
+        "open": "Open",
+        "written": "Article written",
+        "dismissed": "Dismissed"
+      },
+      "journalFields": {
+        "status": "Status"
       }
     },
     "evals": {

@@ -134,6 +134,7 @@ const ROLE_NAMES: Record<BackOfficeRole, string> = {
   "plans-manager": "Responsable des offres",
   "coach-manager": "Responsable coaching",
   "playbook-editor": "Rédacteur de playbooks",
+  "help-editor": "Rédacteur de l'aide",
   support: "Support",
 };
 
@@ -158,6 +159,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   guardrails: { name: "Garde-fous (Guardrails) et leurs déclenchements", page: routes.adminGuardrails },
   tools: { name: "Outils (Tools) : les outils externes que l'application appelle", page: routes.adminTools },
   evalRuns: { name: "Évaluations (Eval Runs) des playbooks, du coach IA et des garde-fous", page: routes.adminCoachingPlaybooks },
+  unansweredQuestions: { name: "Questions sans réponse (Unanswered Questions) : ce que l'aide n'a pas couvert", page: routes.adminUnansweredQuestions() },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -375,6 +377,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   coaching_playbooks: "playbooks de coaching",
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",
+  unanswered_questions: "questions sans réponse",
   eval_runs: "Eval Runs",
   coach_message_cost: "coût coach",
   ai_usage: "consommation IA",

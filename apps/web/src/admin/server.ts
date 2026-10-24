@@ -22,6 +22,8 @@ import { createEvalCasesBackOffice, type EvalCasesBackOffice } from "./eval-case
 import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
 import { createPlatformSettingsBackOffice, type PlatformSettingsBackOffice } from "./platform-settings-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
+import { createUnansweredQuestionsBackOffice, type UnansweredQuestionsBackOffice } from "./unanswered-questions-back-office";
+import { getUnansweredQuestions } from "@/unanswered-questions/server";
 
 let backOffice: BackOffice | undefined;
 let administrators: Administrators | undefined;
@@ -30,6 +32,7 @@ let coachingPlaybooksBackOffice: CoachingPlaybooksBackOffice | undefined;
 let guardrailsBackOffice: GuardrailsBackOffice | undefined;
 let evalCasesBackOffice: EvalCasesBackOffice | undefined;
 let platformSettingsBackOffice: PlatformSettingsBackOffice | undefined;
+let unansweredQuestionsBackOffice: UnansweredQuestionsBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -76,6 +79,12 @@ export function getPlatformSettingsBackOffice(): PlatformSettingsBackOffice {
   const check = aiRoutingCheck(() => getSecretResolver().current().env, { usage: getAiUsageLog() });
   platformSettingsBackOffice ??= createPlatformSettingsBackOffice(platformSettingsStore(sharedPool(), process.env, { check }), getBackOffice());
   return platformSettingsBackOffice;
+}
+
+/** « Questions sans réponse »: a Help editor's marks on the Unanswered Questions, each recorded in the Back Office Audit (#344). */
+export function getUnansweredQuestionsBackOffice(): UnansweredQuestionsBackOffice {
+  unansweredQuestionsBackOffice ??= createUnansweredQuestionsBackOffice(getUnansweredQuestions(), getBackOffice());
+  return unansweredQuestionsBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

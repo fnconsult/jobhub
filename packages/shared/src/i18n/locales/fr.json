@@ -798,7 +798,8 @@
       "plans-manager": "Responsable des offres",
       "coach-manager": "Responsable coaching",
       "support": "Support",
-      "playbook-editor": "Rédacteur de playbooks"
+      "playbook-editor": "Rédacteur de playbooks",
+      "help-editor": "Rédacteur de l'aide"
     },
     "nav": {
       "label": "Navigation du back office",
@@ -806,6 +807,7 @@
       "groups": {
         "offer": "Offre",
         "coaching": "Coaching",
+        "content": "Contenu",
         "platform": "Plateforme",
         "team": "Équipe"
       }
@@ -826,7 +828,8 @@
       "aiMessages": "Journaux IA",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Garde-fous",
-      "tools": "Outils"
+      "tools": "Outils",
+      "unansweredQuestions": "Questions sans réponse"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1366,7 +1369,8 @@
         "plans-manager": "Les offres et leurs quotas.",
         "coach-manager": "Les coachs humains ; consulte le coût de l'AI Coach.",
         "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier.",
-        "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources."
+        "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources.",
+        "help-editor": "Lit les questions sans réponse et les marque « Article écrit » ou les écarte."
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
@@ -1404,7 +1408,8 @@
         "ai_usage": "Consommation IA",
         "search_sites": "Sites de recherche",
         "tool_pages": "Pages Outils",
-        "journal": "Journal"
+        "journal": "Journal",
+        "unanswered_questions": "Questions sans réponse"
       },
       "actions": {
         "added": "Ajout",
@@ -1861,6 +1866,46 @@
         "title": "Évaluations des garde-fous",
         "intro": "Chaque nouveau réglage est d'abord évalué sur les cas d'évaluation des garde-fous, écrits par l'équipe technique et livrés avec l'application. Le verdict attendu de chaque cas est exact : laisser passer, bloquer ou signaler.",
         "played": "Voir l'évaluation jouée sur ce réglage"
+      }
+    },
+    "unansweredQuestions": {
+      "title": "Questions sans réponse",
+      "intro": "Les questions posées au coach IA sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu. Écrivez l'article ou ajoutez un synonyme dans l'aide, puis marquez la question « Article écrit » ; écartez celles qui ne sont pas des manques de l'aide. Une réponse de l'IA ne devient jamais de l'aide d'elle-même.",
+      "privacy": "Chaque question est gardée masquée, sans lien avec le candidat qui l'a posée, 12 mois au plus après la dernière fois qu'elle a été posée, et 30 jours après avoir été marquée.",
+      "routeFilter": "Filtrer par page",
+      "allRoutes": "Toutes les pages",
+      "unknownRoute": "Page inconnue",
+      "languageFilter": "Filtrer par langue",
+      "allLanguages": "Toutes les langues",
+      "languages": {
+        "fr": "Français",
+        "en": "Anglais"
+      },
+      "caption": "Questions sans réponse, les plus posées d'abord",
+      "question": "Question",
+      "route": "Page",
+      "count": "Nombre",
+      "firstAskedAt": "Première fois",
+      "lastAskedAt": "Dernière fois",
+      "answer": "Réponse du coach IA",
+      "actions": "Actions",
+      "markWritten": "Article écrit",
+      "markWrittenLabel": "Article écrit : {{question}}",
+      "dismiss": "Écarter",
+      "dismissLabel": "Écarter : {{question}}",
+      "marked": {
+        "written": "Question marquée « Article écrit ».",
+        "dismissed": "Question écartée."
+      },
+      "notMarked": "Cette question a déjà été marquée.",
+      "none": "Aucune question sans réponse.",
+      "statuses": {
+        "open": "Ouverte",
+        "written": "Article écrit",
+        "dismissed": "Écartée"
+      },
+      "journalFields": {
+        "status": "Statut"
       }
     },
     "evals": {

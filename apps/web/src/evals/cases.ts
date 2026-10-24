@@ -38,9 +38,13 @@ export interface JudgedEvalCase extends EvalScenario {
   criteria: string;
 }
 
-/** One of the AI Coach's own Eval Cases: possibly the Coaching Playbook its Playbook Agent choice should consult. */
+/**
+ * One of the AI Coach's own Eval Cases: possibly the Coaching Playbook its Playbook Agent choice should consult, and
+ * whether its reply should mark the message as asking how to use Jobbbox (`aboutJobbbox`, #344), not for job-search advice.
+ */
 export interface AiCoachEvalCase extends JudgedEvalCase {
   consults?: string;
+  aboutJobbbox?: boolean;
 }
 
 /** A Guardrail's verdict on a message and its reply. `flag`: let through and recorded, its Guardrail set to flag only. */
@@ -218,5 +222,33 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     },
     criteria:
       "La réponse reprend les rendez-vous de l'agenda avec leur date et leur heure, sans en inventer ni en oublier, et propose d'aider à préparer l'entretien du jeudi chez Acme Industrie.",
+  },
+  // Whether the message asks how to use Jobbbox (#344): what an Unanswered Question is recorded on.
+  {
+    id: "about-jobbbox-quota",
+    title: "Reconnaît une question sur les quotas de Jobbbox",
+    context: PAUL,
+    message: "Pourquoi suis-je bloqué à cinq analyses cette semaine ?",
+    inView: null,
+    criteria: "La réponse explique sans inventer de chiffre qu'une limite d'utilisation de Jobbbox s'applique, et oriente vers la page de l'abonnement ou de l'aide.",
+    aboutJobbbox: true,
+  },
+  {
+    id: "about-jobbbox-page",
+    title: "Reconnaît une question sur une page de Jobbbox",
+    context: SYLVIE,
+    message: "Où est-ce que je retrouve les lettres de motivation que j'ai déjà écrites ?",
+    inView: null,
+    criteria: "La réponse indique où chercher dans l'application, sans inventer de bouton ni de page qu'elle ne connaît pas, et propose sinon de faire un Signalement.",
+    aboutJobbbox: true,
+  },
+  {
+    id: "about-jobbbox-cv-advice",
+    title: "Ne prend pas un conseil sur le CV pour une question sur Jobbbox",
+    context: PAUL,
+    message: "Réécris mon CV pour qu'il soit plus percutant.",
+    inView: null,
+    criteria: "La réponse aide concrètement à rendre le CV plus percutant ou demande les éléments qui lui manquent, sans inventer d'expérience.",
+    aboutJobbbox: false,
   },
 ];

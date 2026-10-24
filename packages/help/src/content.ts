@@ -22,6 +22,28 @@ const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 /** This package's own articles directory. */
 export const articlesDir = path.join(packageDir, "articles");
 
+/** The module `index.ts` serves the articles from, written by `renderArticlesModule`. */
+export const generatedModulePath = path.join(packageDir, "src", "articles.generated.ts");
+
+const KIND_ORDER = Object.fromEntries(HELP_ARTICLE_KINDS.map((kind, index) => [kind, index]));
+
+/** The source of `articles.generated.ts`: every article, page articles first, then the glossary, then the questions, each by title. */
+export function renderArticlesModule(content: HelpContent): string {
+  const sorted = Object.fromEntries(
+    HELP_LOCALES.map((locale) => [
+      locale,
+      [...content[locale]].sort((a, b) => KIND_ORDER[a.kind]! - KIND_ORDER[b.kind]! || a.title.localeCompare(b.title, locale)),
+    ]),
+  );
+  return [
+    "// Written by `npm run build -w @jobhub/help` from articles/<locale>/<id>.md: edit those, never this file.",
+    'import type { HelpArticle, HelpLocale } from "./types";',
+    "",
+    `export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = ${JSON.stringify(sorted, null, 2)};`,
+    "",
+  ].join("\n");
+}
+
 /** Reads every article of `dir` (default: this package's `articles/`). Throws `HelpContentError` listing every problem. */
 export function readHelpContent(dir: string = articlesDir): HelpContent {
   const problems: string[] = [];

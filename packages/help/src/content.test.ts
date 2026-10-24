@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { HelpContentError, readHelpContent } from "./content";
+import { generatedModulePath, HelpContentError, readHelpContent, renderArticlesModule } from "./content";
 
 /** Writes `files` ({ "fr/faq-x.md": "…" }) into a fresh articles directory. */
 function articlesDir(files: Record<string, string>): string {
@@ -91,5 +91,15 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     expect(() =>
       readHelpContent(articlesDir({ "fr/page-a.md": twin, "en/page-a.md": twin, "fr/page-b.md": twin, "en/page-b.md": twin })),
     ).toThrow(/fr\/page-b\.md: page-a already explains \/candidatures/);
+  });
+});
+
+describe("this package's Help Articles", () => {
+  it("are all written in French and English, with valid front matter (a missing translation fails npm test)", () => {
+    expect(() => readHelpContent()).not.toThrow();
+  });
+
+  it("are the ones the app bundles: articles.generated.ts is rebuilt from them (npm run build -w @jobhub/help)", () => {
+    expect(readFileSync(generatedModulePath, "utf8")).toBe(renderArticlesModule(readHelpContent()));
   });
 });

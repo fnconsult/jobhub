@@ -2046,6 +2046,27 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   border: none;
 }
 
+/* A glossary term's first mention on a page (#343): text with a dotted accent underline, opening its Help Article in the
+   Coach Panel. The text keeps its own colour (4.5:1); the accent underline reaches 3:1 on every surface. */
+.help-term {
+  display: inline;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted var(--color-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.help-term:hover {
+  color: var(--color-accent);
+}
+
 @media (width < 64rem) {
   .app-shell,
   html[data-sidebar="closed"] .app-shell {

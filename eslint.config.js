@@ -30,7 +30,15 @@ export default tseslint.config(
     files: ["apps/*/src/**/*.tsx", "apps/extension/entrypoints/**/*.{ts,tsx}"],
     plugins: { i18next },
     rules: {
-      "i18next/no-literal-string": ["error", { mode: "jsx-only" }],
+      "i18next/no-literal-string": [
+        "error",
+        {
+          mode: "jsx-only",
+          // The plugin's own exclusions, plus the names help in pages is given (#343): `<HelpTerm term="matchScore">`,
+          // `<EmptyStateHelp of="proposals">` name a glossary term or an empty state, never text the Candidate reads.
+          "jsx-attributes": { include: [], exclude: ["className", "styleName", "style", "type", "key", "id", "width", "height", "term", "of"] },
+        },
+      ],
     },
   },
 );

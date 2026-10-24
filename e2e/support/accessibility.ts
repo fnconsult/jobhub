@@ -24,6 +24,7 @@ export const fontFloorOf = (text: RenderedText): number => (text.metadata ? 13 :
  * Collects every visible piece of text on the page as the browser rendered it:
  * computed font size, text colour, the effective background behind it, and the
  * WCAG 2.1 contrast ratio between the two (computed from the spec formula).
+ * A sentence whose glossary term is a HelpTerm button (#343) is one text, as the catalogue has it, not three pieces.
  * Metadata text is left out: the ADR-0009 amendment (#317) lets it be smaller than body text,
  * at least 13px in #6b6a67 (5.4:1), e.g. AI Activity's summary and the Provenance line. Smaller
  * text in that colour is still collected, and so held to the body-text floor.
@@ -55,10 +56,17 @@ export async function renderedTexts(page: Page): Promise<RenderedText[]> {
     };
 
     const results: RenderedText[] = [];
+    // The element holding a sentence cut by HelpTerms: read once, whole.
+    const sentences = new Set<Element>();
+    const sentenceOf = (el: Element | null): Element | null =>
+      !el ? null : el.classList.contains("help-term") ? el.parentElement : el.querySelector(":scope > .help-term") ? el : null;
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const text = node.textContent?.trim();
-      const el = node.parentElement;
+      const sentence = sentenceOf(node.parentElement);
+      if (sentence && sentences.has(sentence)) continue;
+      if (sentence) sentences.add(sentence);
+      const text = (sentence ? sentence.textContent : node.textContent)?.replace(/\s+/g, " ").trim();
+      const el = sentence ?? node.parentElement;
       if (!text || !el || el.closest("script, style, option, noscript")) continue;
       const style = getComputedStyle(el);
       const rect = el.getBoundingClientRect();

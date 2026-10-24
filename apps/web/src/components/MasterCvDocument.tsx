@@ -7,6 +7,7 @@ import { useEffect, useReducer, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { isDirty, nextDraft, saveRequest, startDraft, type CvDocumentFields } from "@/profiles/master-cv-draft";
 import { routes } from "@/routes";
+import { HelpText } from "./HelpTerm";
 import { GrowingTextarea } from "./InlineEdit";
 
 /**
@@ -105,7 +106,9 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
           <GrowingTextarea id="cv-skills" className="inline-edit" rows={6} value={fields.skills} onChange={(e) => edit({ skills: e.target.value })} />
         </div>
         <div className="doc-block">
-          <p>{t("profilePage.fullEditorHint")}</p>
+          <p>
+            <HelpText terms={{ masterCv: t("helpTerms.words.masterCv") }}>{t("profilePage.fullEditorHint")}</HelpText>
+          </p>
           <div className="btn-row">
             <Link className="button" href={routes.editMasterCv(props.profileId)}>
               {t("profile.editMasterCv")}

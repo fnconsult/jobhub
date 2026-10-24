@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentCandidate } from "@/auth/server";
+import { EmptyStateHelp } from "@/components/HelpTerm";
 import { getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -19,7 +20,9 @@ export default async function AccountProfilesPage() {
         <h2 id="profiles-title">{t("profiles.title")}</h2>
         {profiles.length === 0 ? (
           <>
-            <p>{t("profiles.none")}</p>
+            <p>
+              {t("profiles.none")} <EmptyStateHelp of="profiles" />
+            </p>
             <Link className="button button-primary" href={routes.newProfile}>
               {t("profiles.create")}
             </Link>

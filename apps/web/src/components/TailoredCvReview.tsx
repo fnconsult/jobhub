@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { APPLICATION_EXPORTS } from "@/application-exports/kinds";
 import type { CvChange } from "@/tailored-cv/changes";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { HelpText } from "./HelpTerm";
 import { LiveActionStatus, useLiveAction } from "./LiveAction";
 import { ProvenanceLine } from "./ProvenanceLine";
 import { SkillTags } from "@/components/SkillTags";
@@ -117,7 +118,9 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
 
   return (
     <div className="stack">
-      <p className="notice">{t("tailoredCv.factsOnly")}</p>
+      <p className="notice">
+        <HelpText terms={{ masterCv: t("helpTerms.words.masterCv") }}>{t("tailoredCv.factsOnly")}</HelpText>
+      </p>
 
       {saved ? (
         <div className="stack" role="group" aria-labelledby={`${id}-saved`}>
@@ -193,7 +196,13 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
         </div>
       ) : (
         <>
-          <p>{t(saved ? "tailoredCv.noneSinceSaved" : "tailoredCv.none")}</p>
+          <p>
+            {saved ? (
+              t("tailoredCv.noneSinceSaved")
+            ) : (
+              <HelpText terms={{ tailoredCv: t("helpTerms.words.tailoredCv") }}>{t("tailoredCv.none")}</HelpText>
+            )}
+          </p>
           <button className="button button-primary" type="button" onClick={propose} disabled={status === "proposing"}>
             {status === "proposing" ? t("tailoredCv.proposing") : t("tailoredCv.propose")}
           </button>

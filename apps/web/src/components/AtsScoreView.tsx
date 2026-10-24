@@ -1,6 +1,7 @@
 import type { KeptAtsScore } from "@/ats-score";
 import type { getServerT } from "@/i18n/server";
 import { AtsScoreButton } from "./AtsScoreButton";
+import { HelpText } from "./HelpTerm";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -29,8 +30,16 @@ export function AtsScoreView({
       <div className="section-head">
         <h2 id="ats-score-title">{t("atsScore.title")}</h2>
       </div>
-      <p>{t("atsScore.intro", { role: targetRole })}</p>
-      {atsScore ? <Breakdown atsScore={atsScore} currentVersion={currentVersion} t={t} /> : <p>{t("atsScore.notYet")}</p>}
+      <p>
+        <HelpText terms={{ atsScore: t("atsScore.title"), masterCv: t("helpTerms.words.masterCv") }}>{t("atsScore.intro", { role: targetRole })}</HelpText>
+      </p>
+      {atsScore ? (
+        <Breakdown atsScore={atsScore} currentVersion={currentVersion} t={t} />
+      ) : (
+        <p>
+          <HelpText terms={{ masterCv: t("helpTerms.words.masterCv") }}>{t("atsScore.notYet")}</HelpText>
+        </p>
+      )}
       <AtsScoreButton profileId={profileId} computed={atsScore !== null} proposalsHref={proposalsHref} />
     </section>
   );

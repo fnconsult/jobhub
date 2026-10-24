@@ -126,7 +126,7 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
   const { application, t, locale } = data;
   switch (section) {
     case "propositions":
-      return <ActionCardList key={application.id} cards={data.cards} />;
+      return <ActionCardList key={application.id} cards={data.cards} alone />;
     case "documents": {
       const { tailoredCv, drafts } = data;
       if (!tailoredCv && !drafts) return null;

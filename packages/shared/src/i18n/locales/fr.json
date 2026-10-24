@@ -149,6 +149,24 @@
     "valueText": "{{used}} sur {{allowed}} utilisés ({{percent}} %)",
     "subscription": "Voir mon abonnement"
   },
+  "helpTerms": {
+    "suffix": "(aide)",
+    "words": {
+      "followUp": "relance",
+      "planQuota": "quota",
+      "masterCv": "CV de référence",
+      "tailoredCv": "CV adapté",
+      "proposals": "proposition"
+    }
+  },
+  "emptyStateHelp": {
+    "proposals": "D'où viennent les propositions ?",
+    "followUps": "Comment marchent les relances ?",
+    "applications": "Comment suivre une candidature ?",
+    "jobSearches": "Comment marche une recherche d'offres ?",
+    "agenda": "Comment noter un entretien ?",
+    "profiles": "Comment créer un profil ?"
+  },
   "signIn": {
     "title": "Se connecter à Jobbbox",
     "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte {{providers}}. Si vous n'avez pas encore de compte, il sera créé.",
@@ -421,7 +439,7 @@
     "cvVersion": "Version {{version}} · enregistrée le {{date}}",
     "skills": "Compétences, une par ligne",
     "jobDescription": "Missions et réalisations : {{job}}",
-    "fullEditorHint": "Vos coordonnées, vos postes, vos formations et vos langues se modifient dans l'éditeur complet.",
+    "fullEditorHint": "Vos coordonnées, vos postes, vos formations et vos langues se modifient dans l'éditeur complet du CV de référence.",
     "unsaved": "Modifications non enregistrées",
     "savebarLabel": "Modifications du CV de référence",
     "cancel": "Annuler",
@@ -654,7 +672,9 @@
     "error": "Cette proposition n'a pas pu être appliquée. Réessayez ou rechargez la page.",
     "copyDraft": "Copier le brouillon",
     "copied": "Brouillon copié.",
-    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même."
+    "copyFailed": "La copie a échoué : sélectionnez le texte du brouillon et copiez-le vous-même.",
+    "none": "Aucune proposition pour l'instant.",
+    "intro": "Acceptez ou ignorez chaque proposition de votre coach : rien ne change sans votre accord."
   },
   "billing": {
     "plans": {
@@ -2293,7 +2313,7 @@
     "partialHint_one": "Score partiel : seul {{count}} critère sur 5 a pu être comparé. Il ne dit pas à lui seul si l'offre vous correspond.",
     "partialHint_other": "Score partiel : seuls {{count}} critères sur 5 ont pu être comparés. Il ne dit pas à lui seul si l'offre vous correspond.",
     "notComputableHint": "Aucun critère n'a pu être comparé : l'offre ne précise rien que l'on puisse rapprocher de votre CV ou de vos critères de recherche.",
-    "intro": "Le CV de référence du profil « {{profile}} » comparé à cette offre et à vos critères de recherche.",
+    "intro": "Le score de correspondance compare le CV de référence du profil « {{profile}} » à cette offre et à vos critères de recherche.",
     "unknownHint": "Les critères non comparables (l'offre ou vos critères n'en disent rien) ne comptent pas dans le score.",
     "criteria": {
       "skills": "Compétences",
@@ -2510,7 +2530,7 @@
   },
   "atsScore": {
     "title": "ATS Score",
-    "intro": "Comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
+    "intro": "L'ATS Score mesure comment les logiciels de recrutement (ATS) lisent votre CV de référence pour le poste « {{role}} ».",
     "score": "{{score}}/100",
     "scoreLabel": "ATS Score : {{score}} sur 100",
     "readability": "Lisibilité",
@@ -2766,7 +2786,9 @@
     "saveDelays": "Enregistrer les délais",
     "delaysSaved": "Délais enregistrés.",
     "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
-    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "noneWaiting": "Aucune relance à faire pour l'instant.",
+    "delaysIntro": "Votre coach propose une relance quand une candidature reste sans nouvelles après ces délais."
   },
   "humanCoaches": {
     "title": "Mes coachs humains",

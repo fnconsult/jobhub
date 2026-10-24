@@ -1,6 +1,6 @@
 import type { ProvenanceEvent, ProvenanceStep } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { liveView, nextLive, type LiveAction, type LiveChange, type LiveEnded } from "./live";
+import { failedReason, liveView, nextLive, type LiveAction, type LiveChange, type LiveEnded } from "./live";
 
 const at = "2026-10-24T08:00:00.000Z";
 const replyStarted: LiveChange = { type: "started", key: "coach_reply:1", kind: "coach_reply", href: "/offres/1", at };
@@ -222,5 +222,24 @@ describe("AI Activity's live actions", () => {
 
       expect(liveView(nextLive(actions, { type: "ended", key: "job_search:1", outcome: "stopped", at: ended }), "/").underWay).toBeNull();
     });
+  });
+});
+
+describe("the Failure Reason of a failed action, as its route answered it (#367)", () => {
+  it("is the Failure Reason's wording when the route gave a known one", () => {
+    expect(failedReason({ error: "unavailable", reason: "provider_unavailable" })).toBe("failureReasons.provider_unavailable");
+    expect(failedReason({ status: 503, error: "unavailable", reason: "rate_limited" })).toBe("failureReasons.rate_limited");
+    expect(failedReason({ error: "unavailable", reason: "guardrail_timeout" })).toBe("failureReasons.guardrail_timeout");
+  });
+
+  it("is none, which says « Elle n'a pas pu aboutir. », for a network cut, an unknown failure or anything that is not a Failure Reason", () => {
+    expect(failedReason({})).toBeNull();
+    expect(failedReason(undefined)).toBeNull();
+    expect(failedReason(null)).toBeNull();
+    expect(failedReason({ error: "unavailable" })).toBeNull();
+    expect(failedReason({ error: "unavailable", reason: "other" })).toBeNull();
+    expect(failedReason({ error: "unavailable", reason: "Perplexity: upstream timed out" })).toBeNull();
+    expect(failedReason({ error: "unavailable", reason: 503 })).toBeNull();
+    expect(failedReason({ error: "unsupported_format" })).toBeNull();
   });
 });

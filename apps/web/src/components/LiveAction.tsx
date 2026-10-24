@@ -4,7 +4,7 @@ import { formatDuration, formatTimeOfDay, formatTokens, type Activity, type Prov
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { RequestKind } from "@/ai-activity/live";
+import { failedReason, type RequestKind } from "@/ai-activity/live";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { readNdjson } from "@/ndjson";
@@ -23,7 +23,7 @@ import { readNdjson } from "@/ndjson";
  */
 
 /** How the action ended: what it made, its failure (the route's status and body), or the Candidate's Stop. */
-export type LiveOutcome<T> = { ok: true; body: T } | { ok: false; status: number; body: { error?: string; errors?: unknown } } | { ok: false; stopped: true };
+export type LiveOutcome<T> = { ok: true; body: T } | { ok: false; status: number; body: { error?: string; errors?: unknown; reason?: unknown } } | { ok: false; stopped: true };
 
 /** The action under way: the step it is on, and the tokens spent so far. */
 type Live = { step: { activity: Activity; label: StepLabel } | null; tokens: number };
@@ -37,7 +37,7 @@ type LiveEvent =
   | Extract<ProvenanceEvent, { type: "step_ended" }>
   | { type: "done"; [field: string]: unknown }
   | { type: "stopped" }
-  | { type: "failed"; status: number; error?: string; errors?: unknown };
+  | { type: "failed"; status: number; error?: string; errors?: unknown; reason?: unknown };
 
 /** An ending event's fields, as the route's JSON body would have them. */
 const fieldsOf = (event: object): Record<string, unknown> => Object.fromEntries(Object.entries(event).filter(([key]) => key !== "type"));
@@ -80,7 +80,10 @@ export function useLiveAction(kind: Exclude<RequestKind, "coach_reply">): LiveAc
       return { ok: false, stopped: true };
     };
     const ended = (outcome: LiveOutcome<T>): LiveOutcome<T> => {
-      shown?.end(outcome.ok ? "done" : "stopped" in outcome ? "stopped" : "failed");
+      // Failed, with the Failure Reason its route gave (#367), else « Elle n'a pas pu aboutir. ».
+      if (outcome.ok) shown?.end("done");
+      else if ("stopped" in outcome) shown?.end("stopped");
+      else shown?.end("failed", failedReason(outcome.body));
       // Done, what it made joins AI Activity's elements, read again from its stored Provenance.
       if (outcome.ok) router.refresh();
       return outcome;

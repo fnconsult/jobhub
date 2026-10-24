@@ -49,7 +49,7 @@
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
 import { AiConfigError, AiProviderError, createProvenanceRecorder, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
-import { isPersonPage, joinProvenance, provenanceLink, readProvenance, siteDomainOf, type Provenance, type ProvenanceEvent, type ProvenanceSite } from "@jobhub/shared";
+import { failureOf, isPersonPage, joinProvenance, provenanceLink, readProvenance, siteDomainOf, type FailureReason, type Provenance, type ProvenanceEvent, type ProvenanceSite } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
@@ -137,8 +137,11 @@ export type CompanyDossierResult =
   | { ok: false; errors: (FieldError | NotACompany)[] }
   /** No such Application for this Candidate. */
   | { ok: false; error: "not_found" }
-  /** The register or the AI layer could not answer; nothing was changed. Try again later. */
-  | { ok: false; error: "unavailable" }
+  /**
+   * The register or the AI layer could not answer; nothing was changed. Try again later. `reason`: its Failure Reason
+   * (#367), the register's outage being `provider_unavailable`; never the provider's words.
+   */
+  | { ok: false; error: "unavailable"; reason?: FailureReason }
   /** The Candidate stopped it (#335): `state` is the dossier as now kept, its finished parts saved. */
   | { ok: false; error: "stopped"; state: CompanyDossierState };
 
@@ -162,7 +165,7 @@ export interface CompanyDossiers {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
-const UNAVAILABLE = { ok: false, error: "unavailable" } as const;
+const unavailable = (reason: FailureReason) => ({ ok: false, error: "unavailable", reason }) as const;
 const NOT_A_COMPANY = { ok: false, errors: [{ field: "employer", code: "not_a_company" }] } satisfies CompanyDossierResult;
 
 const confirmSchema = z.object({ employer: z.string().trim().min(1).max(200) });
@@ -588,7 +591,8 @@ export function createCompanyDossiers(
       return "ok" in outcome ? outcome : { ok: true, state: outcome };
     } catch (error) {
       if (signal?.aborted || error instanceof BuildStopped) return stopped();
-      if (error instanceof CompanyRegisterUnavailable || error instanceof AiProviderError || error instanceof AiConfigError) return UNAVAILABLE;
+      if (error instanceof CompanyRegisterUnavailable) return unavailable("provider_unavailable");
+      if (error instanceof AiProviderError || error instanceof AiConfigError) return unavailable(failureOf(error).reason);
       throw error;
     }
   }

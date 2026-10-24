@@ -1,16 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { HelpText } from "@/components/HelpTerm";
 import { routes } from "@/routes";
 
 /**
- * The sidebar's Usage Meter (ADR-0032): one bar for the week's Plan Quotas, each
- * weighed by what the Plan grants. The button shows each quota's use, and the
- * Job Digest's frequency, under it; the link leads to the subscription page.
+ * The sidebar's Usage Meter (ADR-0032): « Hebdomadaire », one bar for the week's Plan Quotas, each
+ * weighed by what the Plan grants, and under it, on one line, when they renew. The button opens a
+ * small card above the meter (#321), so the sidebar's foot never moves: each quota's use, the Job
+ * Digest's frequency, and a link to the subscription page. Escape closes it, the focus back on the button.
  */
 export function UsageMeter({
   meter,
@@ -22,14 +23,22 @@ export function UsageMeter({
   const { t } = useTranslation();
   const id = useId();
   const [open, setOpen] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const closeOnEscape = (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || !open) return;
+    setOpen(false);
+    toggle.current?.focus();
+  };
   const summary =
     meter.percent === null
       ? t("usageMeter.unlimited")
       : t("usageMeter.percent", { percent: meter.percent });
 
   return (
-    <div className="usage-meter">
+    // While open, Escape closes the card first; the phone's drawer stays open (SidebarShell).
+    <div className="usage-meter" data-closes-on-escape={open ? "" : undefined} onKeyDown={closeOnEscape}>
       <button
+        ref={toggle}
         className="usage-meter-toggle"
         type="button"
         aria-expanded={open}
@@ -79,14 +88,17 @@ export function UsageMeter({
               <dd>{t(`billing.jobDigest.${meter.jobDigest}`)}</dd>
             </div>
           </dl>
-          <p className="hint">
-            <HelpText terms={{ planQuota: t("helpTerms.words.planQuota") }}>{t("billing.quotaReached.renews")}</HelpText>
-          </p>
           <Link href={routes.subscription} onClick={onNavigate}>
             {t("usageMeter.subscription")}
           </Link>
         </div>
       ) : null}
+      {/* Metadata (ADR-0009 amendment), cut with an ellipsis rather than wrapped. Its glossary term opens its Help
+          Article only while the card is open, as it did in the card (#343): the sidebar adds no stop to every page's
+          Tab order, and on a phone the drawer's meter, not the hidden docked one, holds the page's first mention. */}
+      <p className="usage-meter-renews">
+        {open ? <HelpText terms={{ planQuota: t("helpTerms.words.planQuota") }}>{t("usageMeter.renews")}</HelpText> : t("usageMeter.renews")}
+      </p>
     </div>
   );
 }

@@ -107,7 +107,7 @@ export function AiActivityButton() {
       <>
         <button
           ref={button}
-          className="button ai-activity-toggle ai-activity-toggle-summarised ai-activity-toggle-live"
+          className="button ai-activity-toggle ai-activity-toggle-summarised"
           type="button"
           aria-expanded={false}
           aria-controls={paneId}

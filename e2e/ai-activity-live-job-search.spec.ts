@@ -207,8 +207,21 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     // Start announced, never a step.
     await expect(announcerOf(page)).toHaveText(fr.aiActivity.live.announce.started.job_search);
 
+    // The step stays part of the button's name, in metadata style.
+    await expect(button).toHaveAccessibleName(new RegExp(`^${fr.aiActivity.label} .+`));
+    const words = await button.locator(".ai-activity-summary").evaluate((element) => {
+      const css = getComputedStyle(element);
+      return { color: css.color, rem: parseFloat(css.fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize), whiteSpace: css.whiteSpace, textOverflow: css.textOverflow };
+    });
+    expect(words).toEqual({ color: "rgb(107, 106, 103)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis" });
+
     // The pane: « En cours ailleurs », the search with its steps, a link to its page and its stop icon.
-    await button.click();
+    // Clicking the step's words opens the pane too; open, the close icon alone in the frame and no words.
+    await button.locator(".ai-activity-summary").click();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(button.locator(".ai-activity-summary")).toHaveCount(0);
+    await expect(button.locator(".ai-activity-frame")).toHaveText("");
+    await expect(button.locator(".ai-activity-frame svg")).toHaveCount(1);
     const pane = paneOf(page);
     const elsewhere = pane.locator(".ai-activity-elsewhere");
     await expect(elsewhere.getByRole("heading", { name: fr.aiActivity.live.elsewhere })).toBeVisible();

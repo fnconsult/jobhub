@@ -30,7 +30,8 @@
 // Coach would: the CV's first line as the name, its second as the title, and
 // fixed Search Criteria the rule-based fallback could never produce, so tests
 // can tell the AI reading was used. A CV containing "E2E_AI_DOWN" gets a 503,
-// so tests can watch the fallback to the rule-based reading.
+// so tests can watch the fallback to the rule-based reading; one containing
+// "E2E_CV_SLOW" takes 30 s, so tests can stop the reading (#335).
 //
 // For the AI Coach in the Coach Panel (task coaching), it says which Profile
 // the system prompt put in view, if any, and how many messages it was sent, so
@@ -232,6 +233,8 @@ globalThis.fetch = async (input, init) => {
     }
   }
   if (prompt.startsWith("CV :\n")) {
+    // A CV holding "E2E_CV_SLOW" takes 30 s to read, or rejects at once when the Candidate stops it (#335).
+    if (prompt.includes("E2E_CV_SLOW")) await answerAfter(30_000, input instanceof Request ? input.signal : init?.signal);
     const [fullName = "", headline = ""] = prompt.slice("CV :\n".length).split("\n");
     content = JSON.stringify({
       masterCv: {

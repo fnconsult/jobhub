@@ -52,6 +52,7 @@ import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from ".
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
+import { ABOUT_JOBBBOX_RULE, readAboutJobbbox } from "./about-jobbbox";
 import { asData, COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
 import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, MAX_PLAYBOOK_AGENTS, type PlaybookAdvice } from "./playbook-agents";
@@ -96,6 +97,8 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * `cost`: null when no AI call was made (distress words answered by the distress Guardrail message, a Job Offer link without Guardrails).
  * `jobOffer`: the Job Offer read from the link in the Candidate's message, when there is one.
  * `provenance`: what served the reply, step by step (#327), to keep with it.
+ * `aboutJobbbox`: the AI Coach marked the Candidate's message as asking how to use Jobbbox (#344), not for job-search advice;
+ * false (or absent) when it wrote no reply (a blocked message, distress, a Job Offer link) or did not say.
  * `stopped`: the Candidate stopped it (#328), `messagePassed` saying whether the Candidate's message had gone through the input
  * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
  * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
@@ -110,6 +113,7 @@ export type CoachReply =
       consultations: PlaybookConsultation[];
       jobOffer?: JobOffer;
       provenance: Provenance;
+      aboutJobbbox?: boolean;
     }
   | { ok: false; error: "invalid" }
   | { ok: false; error: "stopped"; messagePassed: boolean }
@@ -256,7 +260,7 @@ export function createCoach(deps: CoachDeps): Coach {
         /** Everything before the reply itself, done once even when the reply is written again. */
         const prepare = async () => {
           const served = await deps.playbooks.served();
-          const instructions = [PERSONA, GROUNDING_RULES, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
+          const instructions = [PERSONA, GROUNDING_RULES, ABOUT_JOBBBOX_RULE, digestText(served.coreDigest)].filter(Boolean).join("\n\n");
           // The Playbook Agents left out, recorded on the reply call (#260): who, never what they said.
           const skipped: AiWarning[] = [];
           // The choice reads the conversation and what is In view alone, so it comes first: the context then keeps room for the advice chosen.
@@ -298,6 +302,8 @@ export function createCoach(deps: CoachDeps): Coach {
         };
         let prepared: Awaited<ReturnType<typeof prepare>> | undefined;
         const written: GenerateResult[] = [];
+        // What the latest reply written said of the message (#344): its last line, taken out before the Guardrails and the Candidate see it.
+        let aboutJobbbox = false;
         const write = async (feedback: string | null) => {
           prepared ??= await prepare();
           const result = await recorder.ai.generate({
@@ -310,7 +316,9 @@ export function createCoach(deps: CoachDeps): Coach {
             warnings: prepared.skipped,
           });
           written.push(result);
-          return { text: result.text.trim(), secrets: prepared.secrets };
+          const read = readAboutJobbbox(result.text);
+          aboutJobbbox = read.aboutJobbbox;
+          return { text: read.text, secrets: prepared.secrets };
         };
         const latest = messages.at(-1)!.content;
         const language = options.language ?? "fr";
@@ -363,6 +371,7 @@ export function createCoach(deps: CoachDeps): Coach {
           consultations,
           ...(linked?.ok && guarded.outcome === "replied" ? { jobOffer: linked.jobOffer } : {}),
           provenance: recorder.provenance(),
+          aboutJobbbox: !link && aboutJobbbox,
         };
       } catch (error) {
         if (signal?.aborted) return stopped();

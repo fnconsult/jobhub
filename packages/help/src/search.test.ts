@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { articles, search } from "./index";
+import { articles, questionKey, search } from "./index";
 
 const ids = (query: string, locale: "fr" | "en" = "fr", options?: { limit?: number }) => search(query, locale, options).map((entry) => entry.id);
 
@@ -72,5 +72,19 @@ describe("search — Help Articles matching a Candidate's words, without AI", ()
 
     expect(articles("fr").length).toBeGreaterThanOrEqual(25);
     expect(perSearch).toBeLessThan(5);
+  });
+});
+
+describe("questionKey — a question's words as the search reads them, to group the same question asked again (#344)", () => {
+  it("folds accents and case, drops stop-words and short words, and keeps each word once, in alphabetical order", () => {
+    expect(questionKey("Pourquoi suis-je bloqué à cinq analyses ?")).toBe("analyses bloque cinq");
+  });
+
+  it("is the same for the same question written differently", () => {
+    expect(questionKey("Pourquoi suis-je BLOQUÉ à cinq analyses ?!")).toBe(questionKey("cinq analyses : pourquoi suis-je bloque"));
+  });
+
+  it("is empty for a question of stop-words alone", () => {
+    expect(questionKey("Et pourquoi ?")).toBe("");
   });
 });

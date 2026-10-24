@@ -133,6 +133,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "sign_in_setting", // issue #209: Require SSO for Administrators
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
+        "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
         "workflow_agent_run",
       ]);

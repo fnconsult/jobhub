@@ -24,6 +24,7 @@ describe("the Back Office navigation", () => {
           ["guardrails", "/admin/garde-fous"],
         ],
       ],
+      ["content", [["unansweredQuestions", "/admin/questions-sans-reponse"]]],
       [
         "platform",
         [
@@ -46,6 +47,10 @@ describe("the Back Office navigation", () => {
     ]);
   });
 
+  it("shows a Help editor the Contenu group alone, with « Questions sans réponse » (#344)", () => {
+    expect(sections(backOfficeNav(backOfficeAccess(["help-editor"])))).toEqual([["content", [["unansweredQuestions", "/admin/questions-sans-reponse"]]]]);
+  });
+
   it("shows only the sections an Administrator's roles cover, and leaves out groups with none", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["plans-manager"])))).toEqual([
       [
@@ -66,9 +71,9 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
-    // Support reads everything but Provider Secrets and the AI Message Log: Connexion, Consommation IA and the search sites under Plateforme, read-only.
-    expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["offer", "coaching", "platform"]);
-    expect(sections(backOfficeNav(backOfficeAccess(["support"])))[2]).toEqual([
+    // Support reads everything but Provider Secrets and the AI Message Log: the Unanswered Questions under Contenu, Connexion, Consommation IA and the search sites under Plateforme, read-only.
+    expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["offer", "coaching", "content", "platform"]);
+    expect(sections(backOfficeNav(backOfficeAccess(["support"])))[3]).toEqual([
       "platform",
       [
         ["platformSettings", "/admin/parametres"],

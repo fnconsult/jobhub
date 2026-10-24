@@ -44,6 +44,8 @@ const PATHS = {
   coachingPlaybooks: ["M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z", "M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"],
   // A railing, two posts and two rails: the Guardrails (#228).
   guardrails: ["M5 4v16M19 4v16", "M5 8h14M5 14h14"],
+  // A question mark in a speech bubble: the Unanswered Questions (#344).
+  unansweredQuestions: ["M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z", "M10 9.5a2 2 0 1 1 2.8 1.8c-.5.2-.8.7-.8 1.2v.5M12 15h.01"],
   searchSites: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"],
   // A key: Provider Secrets (#208).
   providerSecrets: ["M8 9a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", "M11 11l9-9M16 6l3 3M14 8l2 2"],

@@ -90,9 +90,9 @@ function useSummary(summary: AiActivityPane["summary"]): string | null {
 }
 
 /**
- * The button: at rest the tasks icon and the page's summary, or its label « Activité IA » on a page with no AI (never an
- * icon alone, ADR-0009); open, its label and a close icon. On a phone, its short label. Renders nothing outside
- * AiActivityProvider.
+ * The button: at rest the tasks icon and the page's summary, or the icon alone on a page with no AI; open, a close icon.
+ * Its label « Activité IA » is never shown, only its name for screen readers and its tooltip. On a phone, the icon
+ * alone. Renders nothing outside AiActivityProvider.
  */
 export function AiActivityButton() {
   const { t } = useTranslation();

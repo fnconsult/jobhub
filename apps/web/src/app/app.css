@@ -2098,12 +2098,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   z-index: 5;
   padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-meta);
-  color: var(--color-background);
+  color: var(--color-text);
   white-space: nowrap;
   pointer-events: none;
   visibility: hidden;
-  background: var(--color-text);
+  background: var(--color-background);
   border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-menu);
 }
 
 .signalement-open:hover .signalement-tip,
@@ -2169,12 +2170,16 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 .signalement-type:has(input:checked) {
   font-weight: 600;
   background: var(--color-background);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 14%), inset 0 -3px 0 var(--color-text);
+  box-shadow: inset 0 -3px 0 var(--color-text);
 }
 
 .signalement-type:has(input:focus-visible) {
   outline: 3px solid var(--color-focus-ring);
   outline-offset: 1px;
+}
+
+.signalement-form textarea {
+  width: 100%;
 }
 
 .signalement-count {

@@ -114,6 +114,60 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
     });
   });
 
+  describe("handled by the team (the Back Office's side, #376)", () => {
+    async function sent(change: Record<string, unknown> = {}) {
+      const result = await signalements.send(marie, bug(change), FROM_MARIE);
+      if (!result.ok) throw new Error("fixture Signalement refused");
+      return result.signalement;
+    }
+    const QUESTION = { type: "question", message: "Je ne trouve pas l'export PDF.", attachedQuestion: "Comment exporter ?", attachedCoachReply: "Je ne sais pas." };
+
+    it("changes a status in any direction, dated, saying what it was before", async () => {
+      const signalement = await sent();
+      now = new Date("2026-10-26T10:00:00Z");
+
+      const seen = await signalements.changeStatus(signalement.id, "vu");
+      now = new Date("2026-10-27T10:00:00Z");
+      const back = await signalements.changeStatus(signalement.id, "nouveau");
+
+      expect(seen).toEqual({ before: signalement, after: { ...signalement, status: "vu", statusChangedAt: new Date("2026-10-26T10:00:00Z") } });
+      expect(back).toMatchObject({ before: { status: "vu" }, after: { status: "nouveau", statusChangedAt: now } });
+    });
+
+    it("keeps the date when the status is set to what it already is", async () => {
+      const signalement = await sent();
+
+      expect(await signalements.changeStatus(signalement.id, "nouveau")).toEqual({ before: signalement, after: signalement });
+    });
+
+    it("saves one reply, dated, editable until the Signalement is marked « traité », and at most 2,000 characters", async () => {
+      const signalement = await sent();
+      now = new Date("2026-10-26T10:00:00Z");
+
+      expect(await signalements.reply(signalement.id, "  Merci, c'est corrigé.  ")).toMatchObject({ before: { reply: null }, after: { reply: "Merci, c'est corrigé.", replyUpdatedAt: now } });
+      expect(await signalements.reply(signalement.id, "a".repeat(2_001))).toEqual({ errors: [{ field: "reply", code: "too_long" }] });
+      expect(await signalements.reply(signalement.id, " ")).toEqual({ errors: [{ field: "reply", code: "required" }] });
+      await signalements.changeStatus(signalement.id, "traite");
+      expect(await signalements.reply(signalement.id, "Encore une chose.")).toEqual({ refused: "already_handled" });
+    });
+
+    it("marks a Bug or an Idée « traité » without a reply, never a Question", async () => {
+      const question = await sent(QUESTION);
+
+      expect(await signalements.changeStatus((await sent()).id, "traite")).toMatchObject({ after: { status: "traite" } });
+      expect(await signalements.changeStatus(question.id, "traite")).toEqual({ refused: "reply_required" });
+      await signalements.reply(question.id, "L'export PDF est dans le menu du CV.");
+      expect(await signalements.changeStatus(question.id, "traite")).toMatchObject({ after: { status: "traite" } });
+    });
+
+    it("finds nothing to change for an unknown id or status", async () => {
+      expect(await signalements.changeStatus("0b6c2f1e-1111-4111-8111-111111111111", "vu")).toBeNull();
+      expect(await signalements.changeStatus("pas-un-id", "vu")).toBeNull();
+      expect(await signalements.changeStatus((await sent()).id, "ferme" as never)).toBeNull();
+      expect(await signalements.reply("pas-un-id", "Merci.")).toBeNull();
+    });
+  });
+
   describe("the limit of 10 in a rolling 24 hours, counted in the database", () => {
     async function sendAt(at: string, candidateId = marie) {
       now = new Date(at);

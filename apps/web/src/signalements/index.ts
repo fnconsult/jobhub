@@ -8,6 +8,8 @@
  *    raw user agent), and refuses an (SENDING_LIMIT + 1)th within a rolling SENDING_WINDOW_HOURS, counted in the
  *    database. A Question carries a copy of the Candidate's question and the coach's reply, never a link to the Coach
  *    Conversation, so it stays readable once that conversation is deleted;
+ *  - `changeStatus` and `reply`, the team's side (the Back Office, #376), on its transaction: any status in any
+ *    direction, but a Question is marked `traite` only once it has a reply; one reply, editable until `traite`;
  * and `migrateSignalements(database)` and `purgeSignalements(database, now)` (the worker, nightly: RETENTION_MONTHS
  * after it was marked `traite`).
  *
@@ -19,14 +21,16 @@
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import { resolveTextSize, type TextSizeSetting } from "@jobhub/shared/design";
 import type { Pool } from "pg";
-import { inTransaction } from "../database/pool";
+import { inTransaction, type Queryable } from "../database/pool";
 import type { FieldError } from "../validation";
 import { browserOf, pagePath } from "./context";
 import {
   ATTACHED_MAX_LENGTH,
+  isSignalementStatus,
   isSignalementType,
   MESSAGE_MAX_LENGTH,
   MESSAGE_MIN_LENGTH,
+  REPLY_MAX_LENGTH,
   SENDING_LIMIT,
   SENDING_WINDOW_HOURS,
   SIGNALEMENT_STATUSES,
@@ -86,6 +90,19 @@ export interface Signalements {
    * for the Candidate. The message is trimmed; a Bug's or an Idée's attachments are ignored.
    */
   send(candidateId: string, sent: unknown, context: SendingContext): Promise<SendResult>;
+  /**
+   * Sets its status, dated when it changes, on `within` (the Back Office's transaction). Null for no such Signalement
+   * or status. A Question without a reply cannot be marked `traite`.
+   */
+  changeStatus(id: string, status: SignalementStatus, within?: Queryable): Promise<Changed | { refused: "reply_required" } | null>;
+  /** Saves the team's reply (trimmed, at most REPLY_MAX_LENGTH), dated, on `within`. Null for no such Signalement; refused once it is `traite`. */
+  reply(id: string, text: unknown, within?: Queryable): Promise<Changed | { errors: FieldError[] } | { refused: "already_handled" } | null>;
+}
+
+/** A Signalement before and after the team changed it: what the Back Office Audit records (#376). */
+export interface Changed {
+  before: Signalement;
+  after: Signalement;
 }
 
 export interface SignalementsDeps {
@@ -175,8 +192,17 @@ function checked(sent: unknown): Checked | FieldError[] {
   };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function createSignalements(database: Pool, deps: SignalementsDeps): Signalements {
   const now = deps.now ?? (() => new Date());
+
+  /** The Signalement `id`, locked until `within`'s transaction ends; null for none. */
+  async function locked(id: string, within: Queryable): Promise<Signalement | null> {
+    if (!UUID.test(id)) return null;
+    const { rows } = await within.query<Row>(`SELECT ${COLUMNS} FROM signalement WHERE id = $1 FOR UPDATE`, [id]);
+    return rows[0] ? fromRow(rows[0]) : null;
+  }
 
   return {
     async send(candidateId, sent, context) {
@@ -211,6 +237,26 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
         return { ok: true, signalement: fromRow(rows[0]!) } as const;
       });
     },
+
+    async changeStatus(id, status, within = database) {
+      if (!isSignalementStatus(status)) return null;
+      const before = await locked(id, within);
+      if (!before) return null;
+      if (before.status === status) return { before, after: before };
+      if (status === "traite" && before.type === "question" && !before.reply) return { refused: "reply_required" };
+      const { rows } = await within.query<Row>(`UPDATE signalement SET status = $2, status_changed_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, status, now()]);
+      return { before, after: fromRow(rows[0]!) };
+    },
+
+    async reply(id, sent, within = database) {
+      const reply = text("reply", sent, 1, REPLY_MAX_LENGTH);
+      const before = await locked(id, within);
+      if (!before) return null;
+      if (before.status === "traite") return { refused: "already_handled" };
+      if (typeof reply !== "string") return { errors: [reply] };
+      const { rows } = await within.query<Row>(`UPDATE signalement SET reply = $2, reply_updated_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, reply, now()]);
+      return { before, after: fromRow(rows[0]!) };
+    },
   };
 }
 
@@ -239,6 +285,7 @@ export async function migrateSignalements(database: Pool): Promise<void> {
       reply text,
       reply_updated_at timestamptz,
       created_at timestamptz NOT NULL DEFAULT now(),
+      CHECK (reply IS NULL OR char_length(reply) <= ${REPLY_MAX_LENGTH}),
       CHECK ((type = 'question') = (attached_question IS NOT NULL AND attached_coach_reply IS NOT NULL))
     );
     CREATE INDEX IF NOT EXISTS signalement_candidate_idx ON signalement (candidate_id, created_at);

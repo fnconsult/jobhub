@@ -13,10 +13,11 @@ import { signInWithMagicLink, startTestAuth } from "../../web/src/auth/test-supp
 import { createThrowawayDatabase } from "../../web/src/test-support/throwaway-database";
 import { createGuardrailStore, migrateGuardrails } from "@jobhub/web/guardrails";
 import { createUnansweredQuestions, migrateUnansweredQuestions } from "@jobhub/web/unanswered-questions";
+import { createSignalements, migrateSignalements, signalementsOf } from "@jobhub/web/signalements";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -938,6 +939,49 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await expect(createJobs({ ...otherDeps, database: (await createThrowawayDatabase("test_worker_jobs_empty")).pool })[UNANSWERED_QUESTIONS_PURGE]!.handler({})).resolves.toBeUndefined();
     } finally {
       await throwaway.drop();
+    }
+  });
+
+  it("purges, every night, the Signalements marked « traité » 12 months ago, never one still « nouveau » (#374)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateSignalements(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const marie = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+      const signalements = createSignalements(database, { version: "test" });
+      const sent = async () => {
+        const result = await signalements.send(marie, { type: "bug", message: "Le bouton « Enregistrer » ne fait rien.", path: "/", textSize: "standard" }, { userAgent: null, interfaceLanguage: "fr" });
+        if (!result.ok) throw new Error("fixture Signalement refused");
+        return result.signalement.id;
+      };
+      const handled = await sent();
+      await signalements.changeStatus(handled, "traite");
+      const nouveau = await sent();
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[SIGNALEMENTS_PURGE]!;
+      const kept = async () => (await signalementsOf(database, marie)).map((signalement) => signalement.id).sort();
+
+      expect(jobAt(0).cron).toBe("40 3 * * *");
+      await jobAt(360).handler({});
+      expect(await kept()).toEqual([handled, nouveau].sort());
+
+      await jobAt(370).handler({});
+      expect(await kept()).toEqual([nouveau]);
+      await jobAt(5_000).handler({});
+      expect(await kept()).toEqual([nouveau]);
+      expect(logs).toEqual(["[signalements] 1 Signalement(s) purged, 12 months after they were marked traité"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no Signalement to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[SIGNALEMENTS_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

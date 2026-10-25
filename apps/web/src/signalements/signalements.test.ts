@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createSignalements, migrateSignalements, type Signalements, type SendingContext } from "./index";
+import { createSignalements, migrateSignalements, purgeSignalements, signalementsOf, type Signalements, type SendingContext } from "./index";
 
 const CHROME_ON_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.54 Safari/537.36";
 const FROM_MARIE: SendingContext = { userAgent: CHROME_ON_MAC, interfaceLanguage: "fr" };
@@ -165,6 +165,33 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       expect(await signalements.changeStatus("pas-un-id", "vu")).toBeNull();
       expect(await signalements.changeStatus((await sent()).id, "ferme" as never)).toBeNull();
       expect(await signalements.reply("pas-un-id", "Merci.")).toBeNull();
+    });
+  });
+
+  describe("the purge, 12 months after a Signalement was marked « traité »", () => {
+    async function sentAt(at: string, status?: "vu" | "traite", changedAt?: string) {
+      now = new Date(at);
+      const result = await signalements.send(marie, bug(), FROM_MARIE);
+      if (!result.ok) throw new Error("fixture Signalement refused");
+      if (status) {
+        now = new Date(changedAt ?? at);
+        await signalements.changeStatus(result.signalement.id, status);
+      }
+      return result.signalement.id;
+    }
+
+    it("removes one marked « traité » more than 12 months ago, and keeps one « nouveau » or « vu » of any age and one marked « traité » since", async () => {
+      const handledLongAgo = await sentAt("2024-01-10T08:00:00Z", "traite", "2025-10-24T08:00:00Z");
+      const nouveau = await sentAt("2020-01-10T08:00:00Z");
+      const vu = await sentAt("2021-01-10T08:00:00Z", "vu");
+      const handledLately = await sentAt("2024-01-11T08:00:00Z", "traite", "2025-10-26T08:00:00Z");
+
+      expect(await purgeSignalements(database, new Date("2026-10-25T09:30:00Z"))).toBe(1);
+      expect(await purgeSignalements(database, new Date("2026-10-25T09:30:00Z"))).toBe(0);
+
+      const kept = (await signalementsOf(database, marie)).map((signalement) => signalement.id);
+      expect(kept).not.toContain(handledLongAgo);
+      expect(kept.sort()).toEqual([nouveau, vu, handledLately].sort());
     });
   });
 

@@ -18,6 +18,7 @@
     "./appointment-reminders": "./src/appointment-reminders/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./unanswered-questions": "./src/unanswered-questions/index.ts",
+    "./signalements": "./src/signalements/index.ts",
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
     "./search-sites": "./src/search-sites/index.ts",
     "./mailers": "./src/auth/mailers.ts",

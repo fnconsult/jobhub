@@ -32,6 +32,7 @@ import {
   MESSAGE_MAX_LENGTH,
   MESSAGE_MIN_LENGTH,
   REPLY_MAX_LENGTH,
+  RETENTION_MONTHS,
   SENDING_LIMIT,
   SENDING_WINDOW_HOURS,
   SIGNALEMENT_STATUSES,
@@ -267,6 +268,15 @@ export async function signalementsOf(database: Queryable, candidateId: string): 
   return rows.map(fromRow);
 }
 
+/** Deletes the Signalements marked `traite` RETENTION_MONTHS ago or more at `now`; returns how many. Safe to run again. */
+export async function purgeSignalements(database: Queryable, now: Date): Promise<number> {
+  const { rowCount } = await database.query(
+    `DELETE FROM signalement WHERE status = 'traite' AND status_changed_at <= $1::timestamptz - make_interval(months => $2)`,
+    [now, RETENTION_MONTHS],
+  );
+  return rowCount ?? 0;
+}
+
 const listed = (values: readonly string[]) => values.map((value) => `'${value}'`).join(", ");
 
 /** Creates or upgrades the Signalement table. Needs the Candidate table. Safe to run repeatedly. */
@@ -296,5 +306,6 @@ export async function migrateSignalements(database: Pool): Promise<void> {
       CHECK ((type = 'question') = (attached_question IS NOT NULL AND attached_coach_reply IS NOT NULL))
     );
     CREATE INDEX IF NOT EXISTS signalement_candidate_idx ON signalement (candidate_id, created_at);
+    CREATE INDEX IF NOT EXISTS signalement_handled_idx ON signalement (status_changed_at) WHERE status = 'traite';
   `);
 }

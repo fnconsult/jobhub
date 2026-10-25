@@ -1,0 +1,237 @@
+<meta charset="utf-8">
+<title>Jobbbox Signalement icon prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  PROTOTYPE (throwaway, never merged): branch prototype/signalement-icon, for #280 (map #278).
+  Question: what does the Signalement icon look like at rest, when does it morph between bug, ⓘ and ○□△, and what
+  happens under prefers-reduced-motion?
+  Technique settled by #279: the three glyphs are drawn on ONE shared skeleton (5 subpaths, each M C C C C Z) and
+  morphed with SMIL <animate attributeName="d"> (works in Safari, 0 KB). The <animate> is only added when motion is
+  allowed; never loops; 5 s or less.
+  Three variants of WHEN it moves (bottom bar ← →, or #A #B #C); the resting glyph is a separate switch.
+  The dialog is #281's variant A (centred modal), reduced to what the icon needs.
+-->
+<style>
+:root {
+  --bg: #ffffff; --surface: #f7f7f5; --surface-hover: #efeeec; --border: #e3e2e0;
+  --text: #37352f; --text-2: #5a5955; --meta: #6b6a67; --accent: #1f5fbf; --on-accent: #fff; --glyph: #d97757;
+  --proto: #1b1a17; --proto-text: #fff;
+  --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 16px; line-height: 1.6; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.icon { width: 1.25em; height: 1.25em; flex: none; overflow: visible; }
+.stage { flex: 1; min-height: 0; display: flex; position: relative; }
+.sidebar { width: 15rem; flex: none; background: var(--surface); border-right: 1px solid var(--border); padding: .75rem; display: flex; flex-direction: column; gap: .25rem; }
+.brand { font-weight: 600; font-size: 1.25em; padding: .25rem .5rem .75rem; }
+.nav-link { display: flex; align-items: center; gap: .5em; width: 100%; text-align: left; padding: .45rem .75rem; min-height: 40px; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.nav-link:hover, .nav-link:focus-visible { background: var(--surface-hover); }
+.nav-link[disabled] { cursor: default; color: var(--text-2); }
+.sidebar-foot { margin-top: auto; border-top: 1px solid var(--border); padding-top: .75rem; display: flex; flex-direction: column; gap: .25rem; }
+.proto-new { outline: 2px dashed var(--glyph); outline-offset: 2px; }
+main { flex: 1; overflow-y: auto; padding: 2rem 1.5rem; }
+main h2 { font-size: 1.125em; margin: 0 0 .75rem; }
+.specimens { display: flex; gap: 2.5rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 2rem; }
+.specimen { display: flex; flex-direction: column; align-items: center; gap: .4rem; }
+.specimen .meta { font-size: .8125rem; color: var(--meta); }
+.glyphs { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.glyph-btn { display: flex; flex-direction: column; align-items: center; gap: .3rem; border: 1px solid var(--border); background: var(--bg); border-radius: 10px; padding: .75rem 1rem; cursor: pointer; min-width: 6rem; }
+.glyph-btn[aria-pressed="true"] { border-color: var(--accent); background: #eaf1fb; }
+.note { max-width: 40rem; color: var(--text-2); }
+.overlay { position: absolute; inset: 0; background: rgb(15 15 15 / .38); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 5; }
+.modal { background: var(--bg); border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / .25); width: min(30rem, 100%); padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.modal h3 { margin: 0; font-size: 1.25em; display: flex; align-items: center; gap: .45em; }
+.seg { display: grid; grid-template-columns: repeat(2, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.seg button { min-height: 42px; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--bg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / .14); }
+.modal textarea { border: 1px solid var(--text-2); border-radius: 8px; min-height: 6em; padding: .6rem .75rem; font: inherit; }
+.actions { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 .9em; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; }
+.button-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.proto-bar { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--proto); color: var(--proto-text); padding: 6px 16px; font-size: 13px; line-height: 1.3; }
+.proto-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.proto-bar button { background: #34332f; color: var(--proto-text); border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.proto-label { font-weight: 600; padding: 0 4px; }
+.proto-state { opacity: .75; font-size: 12px; text-align: center; }
+@media (max-width: 700px) { .sidebar { width: 11rem; } main { padding: 1rem; } }
+</style>
+
+<div class="stage" id="stage"></div>
+<div class="proto-bar" role="region" aria-label="Prototype">
+  <div class="proto-row">
+    <button type="button" id="prev" aria-label="Variante précédente">←</button>
+    <span class="proto-label" id="variant-label"></span>
+    <button type="button" id="next" aria-label="Variante suivante">→</button>
+    <button type="button" id="rest"></button>
+    <button type="button" id="motion"></button>
+    <button type="button" id="replay">Rejouer le chargement</button>
+  </div>
+  <div class="proto-state" id="proto-state"></div>
+</div>
+
+<script>
+const VARIANTS = {
+  A: "A · Bouge au survol et au focus du bouton",
+  B: "B · Ne bouge que dans la fenêtre : suit le type choisi",
+  C: "C · Une fois par session, au premier chargement",
+};
+const KEYS = Object.keys(VARIANTS);
+const GLYPH_NAMES = { bug: "Bug", info: "ⓘ", shapes: "○□△" };
+
+/* ---------- The shared skeleton: 5 subpaths, each M + 4 C + Z ---------- */
+const f = (n) => +n.toFixed(2);
+const P = (x, y) => [x, y];
+const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+function seg(a, b) { return [lerp(a, b, 1 / 3), lerp(a, b, 2 / 3), b]; } // a straight cubic
+function sub(start, segs) { return `M${f(start[0])} ${f(start[1])}` + segs.map(([c1, c2, e]) => `C${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(e[0])} ${f(e[1])}`).join("") + "Z"; }
+function ellipse(cx, cy, rx, ry) {
+  const kx = 0.5523 * rx, ky = 0.5523 * ry;
+  return sub(P(cx, cy - ry), [
+    [P(cx + kx, cy - ry), P(cx + rx, cy - ky), P(cx + rx, cy)],
+    [P(cx + rx, cy + ky), P(cx + kx, cy + ry), P(cx, cy + ry)],
+    [P(cx - kx, cy + ry), P(cx - rx, cy + ky), P(cx - rx, cy)],
+    [P(cx - rx, cy - ky), P(cx - kx, cy - ry), P(cx, cy - ry)],
+  ]);
+}
+const circle = (cx, cy, r) => ellipse(cx, cy, r, r);
+function poly(p0, p1, p2, p3) { return sub(p0, [seg(p0, p1), seg(p1, p2), seg(p2, p3), seg(p3, p0)]); }
+const rect = (x, y, w, h) => poly(P(x, y), P(x + w, y), P(x + w, y + h), P(x, y + h));
+const tri = (a, b, c) => poly(a, b, c, a); // the fourth side has no length
+function line(a, b) { const m = lerp(a, b, 0.5); return poly(a, m, b, m); } // out and back: drawn as a stroke
+const none = (x, y) => line(P(x, y), P(x, y)); // nothing (butt caps)
+
+const GLYPHS = {
+  // Legs: an open polyline a→b→c drawn out and back (a b c b), so the skeleton stays closed.
+  bug: [ellipse(12, 14.5, 4.6, 6), circle(12, 6.4, 2.1), poly(P(3.5, 9), P(7.4, 12), P(3.5, 16.5), P(7.4, 12)), poly(P(20.5, 9), P(16.6, 12), P(20.5, 16.5), P(16.6, 12)), line(P(12, 11), P(12, 20.5))].join(""),
+  info: [circle(12, 12, 9), circle(12, 7.6, 0.55), line(P(12, 10.8), P(12, 17)), none(12, 12), none(12, 12)].join(""),
+  shapes: [circle(7, 16, 3.6), rect(13, 12.4, 7, 7), tri(P(12, 3.5), P(16.2, 10.2), P(7.8, 10.2)), none(7, 16), none(16.5, 16)].join(""),
+};
+
+/* ---------- State ---------- */
+const reducedByOs = matchMedia("(prefers-reduced-motion: reduce)");
+const fresh = () => ({
+  variant: KEYS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "A",
+  rest: "bug", reduced: reducedByOs.matches, dialog: null, played: 0, loadPlayed: false,
+});
+let S = fresh();
+const $ = (s) => document.querySelector(s);
+
+/* One SVG per place; its path keeps its id so it can be animated in place. */
+function svg(id, glyph, px) {
+  const size = px ? `width="${px}" height="${px}"` : `class="icon"`;
+  return `<svg ${size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="butt" stroke-linejoin="round" aria-hidden="true" style="overflow:visible"><path id="${id}" d="${GLYPHS[glyph]}"/></svg>`;
+}
+
+/* Morph a path through glyphs. Under reduced motion it jumps to the last one, with no <animate> at all. */
+function morph(id, glyphs, dur) {
+  const path = document.getElementById(id); if (!path) return;
+  path.querySelectorAll("animate").forEach((a) => a.remove());
+  const last = glyphs[glyphs.length - 1];
+  if (S.reduced) { path.setAttribute("d", GLYPHS[last]); return; }
+  if (path.dataset.playing === "1") return; // never restarted while playing
+  const from = path.getAttribute("d");
+  const values = [from, ...glyphs.map((g) => GLYPHS[g])];
+  const n = values.length - 1;
+  const a = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+  a.setAttribute("attributeName", "d");
+  a.setAttribute("values", values.join(";"));
+  // Each glyph holds a moment: ease each step with keySplines.
+  a.setAttribute("calcMode", "spline");
+  a.setAttribute("keyTimes", values.map((_, i) => f(i / n)).join(";"));
+  a.setAttribute("keySplines", Array(n).fill("0.65 0 0.35 1").join(";"));
+  a.setAttribute("dur", dur + "s");
+  a.setAttribute("begin", "indefinite");
+  a.setAttribute("fill", "freeze");
+  path.appendChild(a);
+  path.dataset.playing = "1";
+  a.addEventListener("endEvent", () => { path.setAttribute("d", GLYPHS[last]); a.remove(); path.dataset.playing = ""; });
+  S.played++; renderState();
+  a.beginElement();
+}
+const CYCLE = () => { const order = ["bug", "info", "shapes"]; const i = order.indexOf(S.rest); return [order[(i + 1) % 3], order[(i + 2) % 3], S.rest]; };
+
+/* ---------- Render ---------- */
+function render() {
+  const typeGlyph = S.dialog ? { bug: "bug", idee: "shapes", question: "info" }[S.dialog.type] : S.rest;
+  $("#stage").innerHTML = `
+    <nav class="sidebar" aria-label="Navigation principale">
+      <div class="brand">Jobbbox</div>
+      ${["Accueil", "Mes profils", "Recherches d'offres", "Mes candidatures", "Agenda", "Coachs"].map((l) => `<button class="nav-link" type="button" disabled>${l}</button>`).join("")}
+      <div class="sidebar-foot">
+        <button class="nav-link proto-new" type="button" id="entry">${svg("p-entry", S.rest)} Signalement</button>
+        <button class="nav-link" type="button" disabled>Mon compte</button>
+        <button class="nav-link" type="button" disabled>Se déconnecter</button>
+      </div>
+    </nav>
+    <main>
+      <h2>Les trois glyphes, sur le même squelette</h2>
+      <div class="glyphs" role="group" aria-label="Glyphe au repos">
+        ${Object.keys(GLYPHS).map((g) => `<button class="glyph-btn" type="button" data-rest="${g}" aria-pressed="${S.rest === g}">${svg("p-g-" + g, g, 40)}<span>${GLYPH_NAMES[g]}${S.rest === g ? " · au repos" : ""}</span></button>`).join("")}
+      </div>
+      <h2>Tailles (glyphe au repos)</h2>
+      <div class="specimens">
+        ${[16, 20, 24, 48, 96].map((px) => `<div class="specimen">${svg("p-s-" + px, S.rest, px)}<span class="meta">${px} px</span></div>`).join("")}
+        <div class="specimen"><button class="button" type="button" data-play-big>Jouer la métamorphose</button><span class="meta">sur le 96 px, 3 s, une fois</span></div>
+      </div>
+      <p class="note">${note()}</p>
+    </main>
+    ${S.dialog ? `<div class="overlay" data-overlay><div class="modal" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+      <h3 id="dlg-title">${svg("p-dialog", S.variant === "B" ? typeGlyph : S.rest)} ${S.dialog.type === "question" ? "Poser la question à l'équipe" : "Envoyer un signalement"}</h3>
+      ${S.dialog.type === "question" ? "" : `<div class="seg" role="group" aria-label="Type">${["bug", "idee"].map((k) => `<button type="button" data-type="${k}" aria-pressed="${S.dialog.type === k}">${k === "bug" ? "Bug" : "Idée"}</button>`).join("")}</div>`}
+      <textarea aria-label="Message" placeholder="Décrivez…"></textarea>
+      <div class="actions"><button class="button" type="button" data-type="${S.dialog.type === "question" ? "bug" : "question"}">${S.dialog.type === "question" ? "↩ Revenir à Bug" : "Simuler une Question (après le coach)"}</button><span><button class="button" type="button" data-close>Annuler</button> <button class="button button-primary" type="button" data-close>Envoyer</button></span></div>
+    </div></div>` : ""}`;
+  $("#variant-label").textContent = VARIANTS[S.variant];
+  $("#rest").textContent = "Au repos : " + GLYPH_NAMES[S.rest];
+  $("#motion").textContent = "Mouvement réduit : " + (S.reduced ? "oui" : "non");
+  renderState();
+  if (location.hash.slice(1) !== S.variant) history.replaceState(null, "", "#" + S.variant);
+}
+function note() {
+  if (S.variant === "A") return "Survolez ou tabulez jusqu'au bouton « Signalement » : il passe par les deux autres glyphes et revient au repos, en 3 s, une fois par survol. Rien d'autre ne bouge.";
+  if (S.variant === "B") return "Le bouton du menu ne bouge jamais. Ouvrez-le : dans la fenêtre, le glyphe suit le type choisi (Bug → bug, Idée → ○□△, Question → ⓘ), en 0,5 s.";
+  return "Au premier chargement de la session, le bouton du menu joue la métamorphose une fois (4 s), puis reste au repos. « Rejouer le chargement » simule une nouvelle session.";
+}
+function renderState() {
+  $("#proto-state").textContent = `Variante ${S.variant} · repos ${GLYPH_NAMES[S.rest]} · mouvement réduit ${S.reduced ? "oui (aucun <animate> ajouté)" : "non"}${reducedByOs.matches ? " · le système le demande" : ""} · métamorphoses jouées : ${S.played}${S.dialog ? " · fenêtre : " + S.dialog.type : ""}`;
+}
+
+/* ---------- Behaviour ---------- */
+function onLoad() { if (S.variant === "C" && !S.loadPlayed) { S.loadPlayed = true; setTimeout(() => morph("p-entry", CYCLE(), 4), 600); } }
+document.addEventListener("pointerover", (e) => { if (S.variant === "A" && e.target.closest("#entry") && !e.relatedTarget?.closest?.("#entry")) morph("p-entry", CYCLE(), 3); });
+document.addEventListener("focusin", (e) => { if (S.variant === "A" && e.target.id === "entry" && e.target.matches(":focus-visible")) morph("p-entry", CYCLE(), 3); });
+document.addEventListener("click", (e) => {
+  if (e.target.matches("[data-overlay]")) { S.dialog = null; render(); $("#entry").focus(); return; }
+  const t = e.target.closest("button"); if (!t || !t.closest("#stage")) return;
+  const d = t.dataset;
+  if (t.id === "entry") { S.dialog = { type: "bug" }; render(); return; }
+  if (d.rest) { S.rest = d.rest; render(); return; }
+  if ("playBig" in d) return morph("p-s-96", CYCLE(), 3);
+  if (d.type) {
+    const before = { bug: "bug", idee: "shapes", question: "info" }[S.dialog.type];
+    S.dialog.type = d.type; const after = { bug: "bug", idee: "shapes", question: "info" }[d.type];
+    render();
+    if (S.variant === "B") { document.getElementById("p-dialog").setAttribute("d", GLYPHS[before]); morph("p-dialog", [after], 0.5); }
+    return;
+  }
+  if ("close" in d) { S.dialog = null; render(); $("#entry").focus(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && S.dialog) { S.dialog = null; render(); $("#entry").focus(); return; }
+  if (e.target.closest("textarea, input")) return;
+  if (e.key === "ArrowRight") cycle(1);
+  if (e.key === "ArrowLeft") cycle(-1);
+});
+function cycle(n) { const i = KEYS.indexOf(S.variant); S.variant = KEYS[(i + n + KEYS.length) % KEYS.length]; S.dialog = null; S.loadPlayed = false; render(); onLoad(); }
+$("#prev").onclick = () => cycle(-1);
+$("#next").onclick = () => cycle(1);
+$("#rest").onclick = () => { const o = Object.keys(GLYPHS); S.rest = o[(o.indexOf(S.rest) + 1) % o.length]; render(); };
+$("#motion").onclick = () => { S.reduced = !S.reduced; render(); };
+$("#replay").onclick = () => { S.loadPlayed = false; render(); onLoad(); };
+reducedByOs.addEventListener("change", () => { S.reduced = reducedByOs.matches; render(); });
+window.addEventListener("hashchange", () => { const v = location.hash.slice(1); if (KEYS.includes(v) && v !== S.variant) { S.variant = v; S.dialog = null; S.loadPlayed = false; render(); onLoad(); } });
+render(); onLoad();
+</script>

@@ -18,6 +18,7 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 
 /** Every Back Office section's path, and the sidebar label that leads to it. */
 const SECTIONS = {
+  signalements: "/admin/signalements",
   plans: "/admin/offres",
   planQuotas: "/admin/quotas",
   coupons: "/admin/codes-promo",
@@ -73,7 +74,8 @@ async function expectSections(page: Page, allowed: Section[]) {
   await page.goto("/admin");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(admin.title);
   const links = backOfficeNav(page).getByRole("link");
-  await expect(links).toHaveText([...allowed.map((section) => admin.sections[section]), admin.nav.account]);
+  // Signalements carries its « à traiter » count after its name, for those who change them (#376).
+  await expect(links).toHaveText([...allowed.map((section) => (section === "signalements" ? new RegExp(`^${admin.sections[section]}`) : admin.sections[section])), admin.nav.account]);
   for (const [section, path] of Object.entries(SECTIONS) as [Section, string][]) {
     const response = await page.goto(path);
     if (allowed.includes(section)) {
@@ -102,12 +104,12 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "providerSecrets", "platformSettings", "signInProviders", "aiUsage", "aiMessages", "searchSites", "tools", "administrators", "journal"]);
+    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "providerSecrets", "platformSettings", "signInProviders", "aiUsage", "aiMessages", "searchSites", "tools", "administrators", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
     // The sidebar names its groups; Plateforme holds Provider Secrets (Clés, #208), Sign-in Providers (Connexion, #209) and the search sites.
-    for (const group of ["offer", "coaching", "platform", "team"]) await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups[group] })).toBeVisible();
+    for (const group of ["candidates", "offer", "coaching", "platform", "team"]) await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups[group] })).toBeVisible();
     await expect(backOfficeNav(page).getByRole("link", { name: admin.sections.administrators })).toHaveAttribute("aria-current", "page");
 
     const row = page.getByRole("row").filter({ hasText: SUPER_ADMIN });
@@ -161,7 +163,7 @@ test.describe("Back Office Roles", () => {
     await coachesPage.goto(SECTIONS.humanCoaches);
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
-    await expectSections(supportPage, ["plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "signInProviders", "aiUsage", "searchSites", "tools"]);
+    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "signInProviders", "aiUsage", "searchSites", "tools"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);

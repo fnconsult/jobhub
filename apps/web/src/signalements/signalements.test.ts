@@ -1,0 +1,143 @@
+import type { Pool } from "pg";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createSignalements, migrateSignalements, type Signalements, type SendingContext } from "./index";
+
+const CHROME_ON_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.54 Safari/537.36";
+const FROM_MARIE: SendingContext = { userAgent: CHROME_ON_MAC, interfaceLanguage: "fr" };
+
+const bug = (more: Record<string, unknown> = {}) => ({
+  type: "bug",
+  message: "Le bouton « Enregistrer » ne fait rien sur ma lettre.",
+  path: "/candidatures/0b6c2f1e-1111-4111-8111-111111111111/documents?onglet=lettre&email=marie.dupont@example.fr#haut",
+  textSize: "large",
+  ...more,
+});
+
+describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DATABASE_URL)", () => {
+  let testAuth: TestAuth;
+  let database: Pool;
+  let marie: string;
+  let now: Date;
+  let signalements: Signalements;
+
+  async function candidate(email: string): Promise<string> {
+    const cookie = await signInWithMagicLink(testAuth, email);
+    return (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
+  }
+
+  beforeEach(async () => {
+    testAuth = await startTestAuth();
+    database = testAuth.database;
+    await migrateSignalements(database);
+    await migrateSignalements(database); // safe to run twice
+    marie = await candidate("marie.dupont@example.fr");
+    now = new Date("2026-10-25T09:30:00Z");
+    signalements = createSignalements(database, { version: "35e2ea1", now: () => now });
+  }, 60_000);
+  afterEach(async () => {
+    await testAuth.stop();
+  }, 60_000);
+
+  describe("sending", () => {
+    it("stores the Signalement with its context: the page's path, the Jobbbox version, the browser parsed, the Interface Language and the Text Size", async () => {
+      const sent = await signalements.send(marie, bug(), FROM_MARIE);
+
+      expect(sent).toEqual({
+        ok: true,
+        signalement: {
+          id: expect.any(String),
+          type: "bug",
+          message: "Le bouton « Enregistrer » ne fait rien sur ma lettre.",
+          attachedQuestion: null,
+          attachedCoachReply: null,
+          context: {
+            path: "/candidatures/0b6c2f1e-1111-4111-8111-111111111111/documents",
+            version: "35e2ea1",
+            browser: "Chrome 141, Mac",
+            interfaceLanguage: "fr",
+            textSize: "large",
+          },
+          status: "nouveau",
+          statusChangedAt: null,
+          reply: null,
+          replyUpdatedAt: null,
+          createdAt: now,
+        },
+      });
+    });
+
+    it("never stores the query string, the #… or the raw user agent", async () => {
+      await signalements.send(marie, bug(), FROM_MARIE);
+
+      const { rows } = await database.query<{ row: string }>(`SELECT row_to_json(s)::text AS row FROM signalement s`);
+      expect(rows).toHaveLength(1);
+      for (const leak of ["onglet", "marie.dupont@example.fr", "#haut", "Mozilla", "AppleWebKit", "7390"]) expect(rows[0]!.row).not.toContain(leak);
+    });
+
+    it.each([
+      ["no type", { type: undefined }, [{ field: "type", code: "required" }]],
+      ["another type", { type: "plainte" }, [{ field: "type", code: "invalid" }]],
+      ["a blank message", { message: "   " }, [{ field: "message", code: "required" }]],
+      ["a message under 10 characters", { message: "  Ça bug.  " }, [{ field: "message", code: "too_short" }]],
+      ["a message over 2,000 characters", { message: "a".repeat(2_001) }, [{ field: "message", code: "too_long" }]],
+      ["a message that is not text", { message: 42 }, [{ field: "message", code: "invalid" }]],
+      ["a Question without the coach exchange", { type: "question", attachedQuestion: "Comment exporter ?" }, [{ field: "attachedCoachReply", code: "required" }]],
+    ])("refuses %s, storing nothing", async (_, change, errors) => {
+      expect(await signalements.send(marie, bug(change), FROM_MARIE)).toEqual({ ok: false, errors });
+      expect(await signalements.send(marie, "pas un objet", FROM_MARIE)).toMatchObject({ ok: false });
+
+      expect((await database.query(`SELECT 1 FROM signalement`)).rowCount).toBe(0);
+    });
+
+    it("accepts a message of exactly 10 and of exactly 2,000 characters, trimmed", async () => {
+      expect(await signalements.send(marie, bug({ message: "  Ça bugge !  " }), FROM_MARIE)).toMatchObject({ ok: true, signalement: { message: "Ça bugge !" } });
+      expect(await signalements.send(marie, bug({ message: "a".repeat(2_000) }), FROM_MARIE)).toMatchObject({ ok: true });
+    });
+
+    it("keeps a copy of a Question's question and coach reply, and ignores those a Bug or an Idée carries", async () => {
+      const question = await signalements.send(
+        marie,
+        bug({ type: "question", message: "Je ne trouve toujours pas l'export PDF.", attachedQuestion: "Comment exporter mon CV ?", attachedCoachReply: "Ouvrez votre Profil, puis « Exporter »." }),
+        FROM_MARIE,
+      );
+      const idee = await signalements.send(marie, bug({ type: "idee", attachedQuestion: "Comment exporter mon CV ?", attachedCoachReply: "Ouvrez votre Profil." }), FROM_MARIE);
+
+      expect(question).toMatchObject({ ok: true, signalement: { type: "question", attachedQuestion: "Comment exporter mon CV ?", attachedCoachReply: "Ouvrez votre Profil, puis « Exporter »." } });
+      expect(idee).toMatchObject({ ok: true, signalement: { type: "idee", attachedQuestion: null, attachedCoachReply: null } });
+    });
+
+    it("keeps what it cannot read of the context as unknown, a stale Text Size as standard and an unknown language as French", async () => {
+      const sent = await signalements.send(marie, bug({ path: "javascript:alert(1)", textSize: "géante" }), { userAgent: null, interfaceLanguage: "de" });
+
+      expect(sent).toMatchObject({ ok: true, signalement: { context: { path: null, version: "35e2ea1", browser: null, interfaceLanguage: "fr", textSize: "standard" } } });
+    });
+  });
+
+  describe("the limit of 10 in a rolling 24 hours, counted in the database", () => {
+    async function sendAt(at: string, candidateId = marie) {
+      now = new Date(at);
+      return signalements.send(candidateId, bug(), FROM_MARIE);
+    }
+
+    it("refuses the 11th within 24 hours, and accepts the 1st after the window", async () => {
+      await sendAt("2026-10-25T08:00:00Z");
+      for (let sent = 2; sent <= 10; sent++) expect(await sendAt("2026-10-25T20:00:00Z")).toMatchObject({ ok: true });
+
+      expect(await sendAt("2026-10-26T07:59:00Z")).toEqual({ ok: false, refused: "too_many" });
+      expect(await sendAt("2026-10-26T08:00:00Z")).toMatchObject({ ok: true });
+      expect(await sendAt("2026-10-26T08:01:00Z")).toEqual({ ok: false, refused: "too_many" });
+    });
+
+    it("counts each Candidate's own, and holds when they are sent all at once", async () => {
+      const jean = await candidate("jean.martin@example.fr");
+      now = new Date("2026-10-25T08:00:00Z");
+
+      const sent = await Promise.all(Array.from({ length: 14 }, () => signalements.send(marie, bug(), FROM_MARIE)));
+
+      expect(sent.filter((each) => each.ok)).toHaveLength(10);
+      expect(sent.filter((each) => !each.ok)).toEqual(Array.from({ length: 4 }, () => ({ ok: false, refused: "too_many" })));
+      expect(await signalements.send(jean, bug(), FROM_MARIE)).toMatchObject({ ok: true });
+    });
+  });
+});

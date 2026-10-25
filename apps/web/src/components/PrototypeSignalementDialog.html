@@ -8,8 +8,8 @@
     A · a centred modal, Claude-style (Radix Dialog), type chosen inside it;
     B · inside the Coach Panel, no modal: the panel turns into the form;
     C · two steps anchored to the button that opened it (a popover on wide screens, a bottom sheet on phones).
-  Fixed in every variant (decided elsewhere): types Bug / Idée / Question; entry points at the Sidebar's foot and at the
-  Coach Panel's foot (« Signaler un problème », « Proposer une idée », « Poser une question »); none in the Top Bar.
+  Fixed in every variant (decided elsewhere): types Bug / Idée only (2026-10-25: questions go through the Coach Panel's help and AI Coach, never a Signalement); entry points at the Sidebar's foot and at the
+  Coach Panel's foot (« Signaler un problème », « Proposer une idée »); none in the Top Bar.
   Assumption: a self-contained page like prototype/candidate-help, so it opens with no database or sign-in.
   Tokens copied from packages/shared/src/design/tokens.ts (light only). Nothing is sent anywhere.
 -->
@@ -106,7 +106,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .sg-done { background: var(--ok-surface); color: var(--ok); border-radius: 10px; padding: .9rem 1rem; }
 .sg-done p { margin: 0 0 .35rem; color: var(--text); }
 .sg-done strong { color: var(--ok); }
-.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.seg { display: grid; grid-template-columns: repeat(2, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
 .seg label { min-height: 42px; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: .35em; cursor: pointer; position: relative; }
 .seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
 .seg label:has(input:checked) { background: var(--bg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / .14); }
@@ -202,7 +202,6 @@ const ICON = {
 const TYPES = {
   bug: { name: "Bug", action: "Signaler un problème", label: "Décrivez le problème", hint: "Quelque chose ne marche pas ou s'affiche mal.", ph: "Ce que vous faisiez, ce qui s'est passé, ce que vous attendiez." },
   idee: { name: "Idée", action: "Proposer une idée", label: "Décrivez votre idée", hint: "Ce qui vous aiderait dans Jobbbox.", ph: "Ce que vous aimeriez pouvoir faire, et pourquoi." },
-  question: { name: "Question", action: "Poser une question", label: "Votre question", hint: "Une personne de l'équipe vous répond dans Jobbbox.", ph: "Votre question pour l'équipe Jobbbox." },
 };
 const TKEYS = Object.keys(TYPES);
 
@@ -266,7 +265,7 @@ function panelHome() {
   const sentCards = S.variant === "B" ? S.sent.map(sentCard).join("") : "";
   return `<p>Bonjour. Posez votre question : je cherche d'abord dans l'aide de Jobbbox, et votre coach répond si l'aide n'a pas la réponse.</p>
     <section class="this-page"><p class="meta">Sur cette page</p><p><strong>La page d'une candidature</strong></p><p>Elle rassemble l'offre, le score de correspondance, vos documents adaptés et vos relances.</p></section>
-    <section><p class="meta" style="margin:0 0 .4rem">Souvent demandé</p><div class="chips"><button class="chip" type="button">Quand mon quota se renouvelle-t-il ?</button><button class="chip" type="button">Comment signaler un problème ou joindre l'équipe ?</button></div></section>
+    <section><p class="meta" style="margin:0 0 .4rem">Souvent demandé</p><div class="chips"><button class="chip" type="button">Quand mon quota se renouvelle-t-il ?</button><button class="chip" type="button">Comment signaler un problème ?</button></div></section>
     ${sentCards}`;
 }
 function sentCard(s) {
@@ -303,7 +302,7 @@ function typeSeg() {
 function doneHtml(inline) {
   const s = S.sent[S.sent.length - 1];
   return `<div class="sg-done" role="status"><strong>Merci, c'est envoyé.</strong>
-    <p>L'équipe Jobbbox lit chaque signalement${s.type === "question" ? " et vous répond ici, dans Jobbbox" : ""}. Vous suivez son statut dans Mon compte › Mes signalements.</p></div>
+    <p>L'équipe Jobbbox lit chaque signalement. Vous suivez son statut dans Mon compte › Mes signalements.</p></div>
     <div class="sg-actions">${inline ? "" : `<button class="button" type="button" data-mine-go>Voir mes signalements</button>`}<button class="button button-primary" type="button" data-sg-close>Fermer</button></div>`;
 }
 
@@ -399,7 +398,7 @@ function focusFirst() {
 /* ---------- Behaviour ---------- */
 function openSg(type, from) {
   const fromPanel = from.startsWith("sg-foot");
-  const prefill = type === "question" && fromPanel && S.draft.trim() ? S.draft.trim() : "";
+  const prefill = "";
   const kept = S.kept && (!type || S.kept.type === type) ? S.kept : null;
   S.sg = { type: type || kept?.type || (S.variant === "C" ? null : "bug"), text: prefill || kept?.text || "", from, error: "", contextOpen: false, done: false };
   S.kept = null; S.menuOpen = false;
@@ -417,7 +416,6 @@ function submitSg() {
   if (!g.type) return;
   if (n < MIN) { g.error = n ? `Encore ${MIN - n} caractères au moins, pour que l'équipe comprenne.` : "Écrivez quelques mots avant d'envoyer."; render(); $("#sg-text")?.focus(); return; }
   S.sent.push({ type: g.type, text: g.text.trim() });
-  if (g.type === "question" && g.from.startsWith("sg-foot")) S.draft = "";
   if (S.variant === "C") { const from = g.from; S.sg = null; S.toast = `Signalement envoyé. Vous le suivez dans Mon compte.`; render(); document.getElementById(from)?.focus(); return; }
   g.done = true; render(); focusFirst();
 }

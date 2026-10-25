@@ -3819,17 +3819,44 @@ textarea.title-edit {
 }
 
 /* ---------- AI Activity (#314, #332): the Top Bar's button and the « Cette page » pane ----------
-   Everything in rem, so it follows the Text Size. The button sits left of « Aide et coach », as high;
-   at rest its words are the page's summary, metadata (#317), or its icon alone on a page with no AI content;
-   open, a close icon. Its label « Activité IA » is for screen readers and the tooltip only. */
-.topbar .ai-activity-toggle {
+   Everything in rem, so it follows the Text Size. The button sits left of « Aide et coach »; its frame holds an icon
+   alone, as high: at rest the tasks icon, while an action runs its live Activity glyph, open a close icon. Closed, its
+   words sit left of the frame, outside the button (#369): the page's summary or the step under way, metadata (#317),
+   and while an action runs its stop icon between them and the frame. Clicking the words opens the pane; they are in
+   the button's name, not a tab stop of their own. Its label « Activité IA » is for screen readers and the tooltip only. */
+.topbar .ai-activity-control {
   display: inline-flex;
   flex: 0 1 auto;
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
+}
+
+.topbar .ai-activity-toggle {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* The frame: .button's, around the icon alone, at « Aide et coach »'s height. */
+.ai-activity-frame {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
   min-height: var(--control-height);
   padding-inline: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
 }
 
 /* Its name is for screen readers and the tooltip; the icon and the summary say what the eye needs. */
@@ -3844,6 +3871,7 @@ textarea.title-edit {
 
 .ai-activity-summary {
   min-width: 0;
+  cursor: pointer;
   max-width: 18rem;
   overflow: hidden;
   color: var(--color-text-meta);
@@ -3852,7 +3880,7 @@ textarea.title-edit {
   white-space: nowrap;
 }
 
-/* On a phone: the icon alone, no summary. */
+/* On a phone: the frame alone, no words. */
 @media (width < 40rem) {
   .ai-activity-summary {
     display: none;

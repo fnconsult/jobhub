@@ -187,7 +187,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     // The closed button: the Activity's glyph and the step under way, a stop icon beside it.
     const button = aiActivityButton(page);
     await expect(button.locator("svg.activity-glyph")).toBeVisible({ timeout: 30_000 });
-    await expect(button).toContainText(new RegExp(STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")), { timeout: 30_000 });
+    await expect(button).toHaveAccessibleName(new RegExp(STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")), { timeout: 30_000 });
     const glyph = button.locator("svg.activity-glyph");
     expect(await glyph.getAttribute("aria-hidden")).toBe("true");
     // It moves while the step runs: its strokes are drawn anew, frame after frame.
@@ -197,11 +197,35 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     const stopIcon = stopIconOf(banner);
     await expect(stopIcon).toBeVisible();
     await expect(stopIcon).toHaveAttribute("title", fr.aiActivity.live.stop.job_search);
+    // #369: the glyph alone in the frame, the step in words left of it; the stop icon beside the words, between them
+    // and the frame, on their row (as #333 had it, and prototype a6d65a8c).
+    const frame = button.locator(".ai-activity-frame");
+    const stepWords = banner.locator(".ai-activity-summary");
+    await expect(frame.locator("svg.activity-glyph")).toBeVisible();
+    await expect(frame).toHaveText("");
+    const [wordsBox, frameBox, stopBox] = [(await stepWords.boundingBox())!, (await frame.boundingBox())!, (await stopIcon.boundingBox())!];
+    expect(wordsBox.x + wordsBox.width).toBeLessThanOrEqual(stopBox.x);
+    expect(stopBox.x + stopBox.width).toBeLessThanOrEqual(frameBox.x);
+    expect(stopBox.y + stopBox.height / 2).toBeCloseTo(frameBox.y + frameBox.height / 2, 0);
+    expect(wordsBox.y + wordsBox.height / 2).toBeCloseTo(frameBox.y + frameBox.height / 2, 0);
     // Start announced, never a step.
     await expect(announcerOf(page)).toHaveText(fr.aiActivity.live.announce.started.job_search);
 
+    // The step stays part of the button's name, in metadata style.
+    await expect(button).toHaveAccessibleName(new RegExp(`^${fr.aiActivity.label} .+`));
+    const words = await stepWords.evaluate((element) => {
+      const css = getComputedStyle(element);
+      return { color: css.color, rem: parseFloat(css.fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize), whiteSpace: css.whiteSpace, textOverflow: css.textOverflow };
+    });
+    expect(words).toEqual({ color: "rgb(107, 106, 103)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis" });
+
     // The pane: « En cours ailleurs », the search with its steps, a link to its page and its stop icon.
-    await button.click();
+    // Clicking the step's words opens the pane too; open, the close icon alone in the frame and no words.
+    await stepWords.click();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
+    await expect(stepWords).toHaveCount(0);
+    await expect(frame).toHaveText("");
+    await expect(frame.locator("svg")).toHaveCount(1);
     const pane = paneOf(page);
     const elsewhere = pane.locator(".ai-activity-elsewhere");
     await expect(elsewhere.getByRole("heading", { name: fr.aiActivity.live.elsewhere })).toBeVisible();

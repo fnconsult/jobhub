@@ -90,63 +90,52 @@ function useSummary(summary: AiActivityPane["summary"]): string | null {
 }
 
 /**
- * The button: at rest the tasks icon and the page's summary, or the icon alone on a page with no AI; open, a close icon.
- * Its label « Activité IA » is never shown, only its name for screen readers and its tooltip. On a phone, the icon
+ * The button: in its frame, at rest the tasks icon, or while an action runs its live Activity glyph (#333); open, a
+ * close icon. Closed, its words sit left of the frame, outside the button (#369): the page's summary, or the step under
+ * way with its stop icon beside them, between the words and the frame; none on a page with no AI. The words are not a
+ * control of their own: clicking them opens the pane, and the button's name says them (aria-labelledby), one tab stop.
+ * Its label « Activité IA » is never shown, only its name for screen readers and its tooltip. On a phone, the frame
  * alone. Renders nothing outside AiActivityProvider.
  */
 export function AiActivityButton() {
   const { t } = useTranslation();
   const control = useContext(AiActivityControl);
   const summary = useSummary(control?.pane.summary ?? null);
+  const labelId = useId();
+  const wordsId = useId();
   if (!control) return null;
   const { open, paneId, toggle, close, button } = control;
-  // While an action runs, the closed button shows its step under way, a stop icon beside it (#333).
   const underWay = open ? null : control.live.underWay;
-  if (underWay) {
-    return (
-      <>
-        <button
-          ref={button}
-          className="button ai-activity-toggle ai-activity-toggle-summarised"
-          type="button"
-          aria-expanded={false}
-          aria-controls={paneId}
-          title={t("aiActivity.label")}
-          onClick={toggle}
-        >
-          <ActivityGlyph activity={underWay.current?.activity ?? BEFORE_FIRST_STEP} live />
-          <span className="ai-activity-label">{t("aiActivity.label")}</span>
-          {/* A space between them in the button's name: « Activité IA Recherche web ». */}
-          <span className="ai-activity-summary">
-            {" "}
-            <StepWords action={underWay} />
-          </span>
-        </button>
-        <StopButton action={underWay} stop={control.stop} />
-      </>
-    );
-  }
-  // The summary stands in for the label on screen only when it is shown: closed, and on a page with AI content.
-  const summarised = !open && summary !== null;
-  const className = open ? "button ai-activity-toggle ai-activity-toggle-open" : summarised ? "button ai-activity-toggle ai-activity-toggle-summarised" : "button ai-activity-toggle";
+  const words = open ? null : underWay ? <StepWords action={underWay} /> : summary;
+  const icon = open ? <Icons.close /> : underWay ? <ActivityGlyph activity={underWay.current?.activity ?? BEFORE_FIRST_STEP} live /> : <Icons.aiActivity />;
   return (
-    <button
-      ref={button}
-      className={className}
-      type="button"
-      aria-expanded={open}
-      aria-controls={paneId}
-      title={t("aiActivity.label")}
-      onClick={toggle}
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && open) close();
-      }}
-    >
-      {open ? <Icons.close /> : <Icons.aiActivity />}
-      <span className="ai-activity-label">{t("aiActivity.label")}</span>
-      {/* A space between them in the button's name: « Activité IA 3 modèles · … ». */}
-      {summarised ? <span className="ai-activity-summary"> {summary}</span> : null}
-    </button>
+    <span className="ai-activity-control">
+      {words !== null ? (
+        <span id={wordsId} className="ai-activity-summary" onClick={toggle}>
+          {words}
+        </span>
+      ) : null}
+      {underWay ? <StopButton action={underWay} stop={control.stop} /> : null}
+      <button
+        ref={button}
+        className="ai-activity-toggle"
+        type="button"
+        aria-expanded={open}
+        aria-controls={paneId}
+        // Its name, with the words: « Activité IA 3 modèles · … ».
+        aria-labelledby={words !== null ? `${labelId} ${wordsId}` : undefined}
+        title={t("aiActivity.label")}
+        onClick={toggle}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && open) close();
+        }}
+      >
+        <span id={labelId} className="ai-activity-label">
+          {t("aiActivity.label")}
+        </span>
+        <span className="ai-activity-frame">{icon}</span>
+      </button>
+    </span>
   );
 }
 

@@ -146,7 +146,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
 
     // The step under way, beside « Arrêter », on the page and on the closed AI Activity button.
     await expect(dossier.locator(".streamed-action-step")).toContainText(fr.aiActivity.steps.web_search);
-    await expect(aiActivityButton(page)).toContainText(fr.aiActivity.steps.web_search);
+    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.web_search));
     // The pane: the facts' web search ended (« 1 requête »), the news' under way.
     await aiActivityButton(page).click();
     const live = paneOf(page).locator(".ai-activity-live");
@@ -214,7 +214,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
 
     // The reading, live: on the page beside « Arrêter », and on the closed button with its stop icon.
     await expect(page.locator(".streamed-action-step")).toContainText(fr.aiActivity.steps.read);
-    await expect(aiActivityButton(page)).toContainText(fr.aiActivity.steps.read);
+    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.read));
     await page.getByRole("banner").getByRole("button", { name: fr.aiActivity.live.stop.cv_reading, exact: true }).click();
 
     await expect(page.getByText(/^Lecture arrêtée à \d{2}:\d{2} : rien n'a été lu ni enregistré\.$/)).toBeVisible();

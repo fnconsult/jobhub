@@ -40,5 +40,6 @@ The exception covers this icon only. Every other function still needs a visible 
 One more exception, asked by the user (« retire le libellé AI activity du bouton des tâches IA »):
 - **The AI Activity button never shows its label « Activité IA ».** At rest it shows the tasks icon and the page's summary, or the icon alone on a page with no AI content and on a phone; open, a close icon; while an action runs, the step in words.
 - Its label stays its accessible name and its tooltip.
+- The words (the summary or the step) sit outside the button's bordered frame, which holds the icon alone, as metadata. They are still part of the one button: clicking them opens the pane, they are in its accessible name, and Tab stops once. Stop sits beside the button, after the frame.
 
 The exception covers this button only. Every other function still needs a visible label.

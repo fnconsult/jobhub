@@ -130,6 +130,8 @@ describe("Failure Reason catalog", () => {
       "stripe_refused",
       "role_missing",
       "invalid_value",
+      "reply_required",
+      "already_handled",
       "guardrail_timeout",
       "invalid_verdict",
       "provider_error",
@@ -142,6 +144,8 @@ describe("Failure Reason catalog", () => {
     expect(failureReasonWording("other")).toBe("Erreur inattendue");
     expect(failureReasonWording("role_missing")).toBe("Section hors de ses rôles");
     expect(failureReasonWording("invalid_value")).toBe("Valeur refusée par le réglage");
+    expect(failureReasonWording("reply_required")).toBe("Une Question se traite avec une réponse");
+    expect(failureReasonWording("already_handled")).toBe("Signalement déjà traité");
     expect(failureReasonWording("key_missing", "en")).toBe("API key missing");
     for (const code of FAILURE_REASONS) {
       expect(failureReasonWording(code, "fr")).not.toMatch(/failureReasons\./);
@@ -181,6 +185,9 @@ describe("Failure Reason catalog", () => {
       "stripe_refused",
       "role_missing",
       "invalid_value",
+      // A Signalement's status or reply refused (#376).
+      "reply_required",
+      "already_handled",
       "other",
     ]);
   });

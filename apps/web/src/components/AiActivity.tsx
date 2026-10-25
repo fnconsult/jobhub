@@ -409,7 +409,7 @@ function PaneSections({ pane }: { pane: AiActivityPane }) {
       <Section title={t("aiActivity.sections.byElement")}>
         <ul className="ai-activity-list">
           {pane.elements.map((element, index) => (
-            <li key={index} className="ai-activity-element">
+            <li key={index} className="ai-activity-element" data-end={element.end.state === "done" ? undefined : element.end.state}>
               <div className="ai-activity-row">
                 <strong>{labelOf(element)}</strong>
                 {element.at ? (
@@ -419,6 +419,7 @@ function PaneSections({ pane }: { pane: AiActivityPane }) {
                 ) : null}
               </div>
               {element.name ? <p className="ai-activity-meta">{t(`aiActivity.kinds.${element.kind}`)}</p> : null}
+              {element.end.state === "done" ? null : <EndWords end={element.end} />}
               {element.served ? (
                 <>
                   {element.served.models.map((model) => (
@@ -441,6 +442,27 @@ function PaneSections({ pane }: { pane: AiActivityPane }) {
           ))}
         </ul>
       </Section>
+    </>
+  );
+}
+
+/**
+ * A stopped or failed element's end, in words, never by its light red alone (ADR-0009): « Arrêtée à 12:04 », « Échec à
+ * 12:04 » (another day, « Arrêtée le 23/10 à 12:04 »), and a failed one's Failure Reason when known (#368).
+ */
+function EndWords({ end }: { end: Exclude<ActivityElement["end"], { state: "done" }> }) {
+  const { t } = useTranslation();
+  const language = useLanguage();
+  const at = end.at ? new Date(end.at) : null;
+  // Another day: « Arrêtée le 23/10 à 12:04 ».
+  const today = at !== null && at.toDateString() === new Date().toDateString();
+  const words = at
+    ? t(today ? `aiActivity.ended.${end.state}` : `aiActivity.ended.${end.state}On`, { time: formatTimeOfDay(at, new Date(), language) })
+    : t(`aiActivity.ended.${end.state}Undated`);
+  return (
+    <>
+      <p className="ai-activity-element-end">{words}</p>
+      {end.state === "failed" && end.reason ? <p>{t(end.reason as ParseKeys)}</p> : null}
     </>
   );
 }

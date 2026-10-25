@@ -709,6 +709,10 @@ _Avoid_: Session pane, sources bar, tasks panel
 One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, a Company Dossier, a Master CV Version read from a file (« CV de référence, lu dans votre fichier »), and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. It still shows the sites its source names. Each Provenance site appears once in the page's Sources, however many elements read it.
 _Avoid_: Row, entry
 
+**End state**:
+How an AI Activity element ended, as « Par élément » shows it: done, stopped or failed. A stopped or failed element is in light red, with « Arrêtée » or « Échec » and the time (the date too on another day) and, for a failed one, its Failure Reason; its tokens and time still count in the page's Total. Stopped when its action was stopped or any step was stopped; failed when its action failed or a step that wrote its content failed; otherwise done, so a Guardrail that could not check, or one source of many, leaves it done. A Job Search counts by its own status as well, since one stopped between two steps has no stopped step. The time is when its Provenance started plus its wall-clock duration, unknown without a Provenance. Not a step's Outcome, which is never sent to the browser.
+_Avoid_: Status, outcome
+
 **Guardrail Trigger**:
 One time a Guardrail blocked, flagged or could not check a message or reply: which Guardrail, its setting, what it did, for which agent, and when; when it could not check, why, as a Failure Reason code only (timeout, a verdict that was not valid, the provider's error). No Candidate, no Coach Conversation and no text: aggregates of no one, so outside the Data export and kept 24 months. Super-admins and Support read them per day in the Back Office; the text, if needed, is in the AI Message Log. No one is alerted when a Candidate expresses distress.
 _Avoid_: Guardrail log, incident, alert

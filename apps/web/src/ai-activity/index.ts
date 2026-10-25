@@ -17,9 +17,12 @@
 import type { Provenance, ProvenanceSite } from "@jobhub/shared";
 import type { CoachConversations } from "../coach-conversations";
 import type { JobOffers } from "../job-offers";
-import { activityElement, type ActivityElement, type ElementKind } from "./pane";
+import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
+import { activityElement, type ActionEnded, type ActivityElement, type ElementKind } from "./pane";
 
-export { activityElement, aiActivityPane, byRulesOnly, ELEMENT_KINDS, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane, type ElementKind } from "./pane";
+const withEnded = (ended: ActionEnded | undefined) => (ended ? { ended } : {});
+
+export { activityElement, aiActivityPane, byRulesOnly, ELEMENT_KINDS, type ActionEnded, type ActivityElement, type ElementEnd, type ActivityModel, type ActivityTool, type AiActivityPane, type ElementKind } from "./pane";
 
 /** Where the pages' Provenance is read: the Job Offers', and the AI Coach replies' about a page's object. */
 export interface PageSources {
@@ -56,10 +59,20 @@ export async function jobOfferPage(sources: PageSources, candidateId: string, jo
   return [...offer, ...replies];
 }
 
-/** `/recherches` and `/recherches/[id]`: each Job Search shown with its run's Provenance (null until kept), then the Job Offers it found. */
+/** How a Job Search shown ended, as its row says (#331): `failure` is why one failed. */
+type SearchEnd = { status?: JobSearchStatus; failure?: JobSearchFailure | null };
+
+/** A stopped or failed Job Search's end, with a failed one's Failure Reason as the Job Search page words it (#368). */
+const searchEnded = ({ status, failure }: SearchEnd): ActionEnded | undefined =>
+  status === "stopped" ? { state: "stopped" } : status === "failed" ? { state: "failed", reason: `jobSearch.failureReasons.${failure ?? "other"}` } : undefined;
+
+/**
+ * `/recherches` and `/recherches/[id]`: each Job Search shown with its run's Provenance (null until kept) and how it ended
+ * (a stopped or failed one keeps its Job Offers, #331), then the Job Offers it found.
+ */
 export async function jobSearchPage(
   sources: PageSources,
-  searches: readonly { startedAt: Date; provenance?: Provenance | null; results: readonly { jobOffer: OfferShown }[] }[],
+  searches: readonly (SearchEnd & { startedAt: Date; provenance?: Provenance | null; results: readonly { jobOffer: OfferShown }[] })[],
 ): Promise<ActivityElement[]> {
   const found = await offers(
     sources,
@@ -67,7 +80,7 @@ export async function jobSearchPage(
   );
   let next = 0;
   return searches.flatMap((search) => [
-    activityElement("job_search", search.provenance ?? null, { at: search.startedAt.toISOString() }),
+    activityElement("job_search", search.provenance ?? null, { at: search.startedAt.toISOString(), ...withEnded(searchEnded(search)) }),
     ...found.slice(next, (next += search.results.length)),
   ]);
 }

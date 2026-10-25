@@ -14,7 +14,7 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const MORPH = "0.5s";
 
 /**
- * The Signalement's entry point in the Sidebar's foot (#375, ADR-0009 amended): an icon alone, the bug, to the right of
+ * The Signalement's entry point in the Sidebar's foot (#375, ADR-0009 amendment « the Signalement icon »): an icon alone, the bug, to the right of
  * « Mon compte », a 44 px target named « Signalement » with its tooltip on hover and focus. It never moves. It opens the
  * Signalement dialog (Radix, ADR-0018; centred, full screen on phones), and on close the focus comes back to it.
  * `version`: the Jobbbox version the dialog's detail shows (the server's, as the Signalement keeps it).

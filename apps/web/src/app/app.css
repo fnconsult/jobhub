@@ -2058,8 +2058,8 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 /* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------
-   An icon alone, on Mon compte's row, to its right, a 44 px target (ADR-0009 amended: never the only way in, the Coach
-   Panel's foot keeps labelled links). Named « Signalement », with that tooltip on hover and focus. */
+   An icon alone, on Mon compte's row, to its right, a 44 px target (ADR-0009 amendment #375: never the only way in, the Coach
+   Panel's foot keeps labelled links, #345). Named « Signalement », with that tooltip on hover and focus. */
 .sidebar-account-row {
   display: flex;
   gap: var(--space-1);

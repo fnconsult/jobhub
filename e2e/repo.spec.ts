@@ -141,3 +141,25 @@ test.describe("Search Criteria's Sectors, Subsectors and Domains are documented 
     }
   });
 });
+
+// Issue #375: the Signalement icon in the Sidebar is an icon alone, an exception to ADR-0009's floor on record.
+test.describe("ADR-0009 amendment: the Signalement icon (issue #375)", () => {
+  test("is committed, named and tooltipped « Signalement », and never the only way in", () => {
+    const adr = read("docs/adr/0009-accessibility-floor-for-senior-audience.md");
+    const section = /## Amendment: [^\n]*Signalement[^\n]*\n([\s\S]*?)(?=\n## |$)/.exec(adr);
+    expect(section, "an amendment about the Signalement icon").not.toBeNull();
+    const text = section![1]!;
+    expect(text).toMatch(/#375/);
+    expect(text).toMatch(/icon alone/);
+    expect(text).toMatch(/Mon compte/);
+    expect(text).toMatch(/aria-label/);
+    expect(text).toMatch(/tooltip/);
+    expect(text).toContain("« Signalement »");
+    expect(text).toMatch(/44 ?px/);
+    expect(text).toMatch(/never the only way in/);
+    expect(text).toContain("« Signaler un problème »");
+    expect(text).toContain("« Proposer une idée »");
+    expect(text).toMatch(/#345/);
+    expect(text).toMatch(/Every other function still needs a visible label/);
+  });
+});

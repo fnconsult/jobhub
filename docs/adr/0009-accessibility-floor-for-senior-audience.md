@@ -43,3 +43,13 @@ One more exception, asked by the user (« retire le libellé AI activity du bout
 - The words (the summary or the step) sit outside the button's bordered frame, which holds the icon alone, as metadata. They are still part of the one button: clicking them opens the pane, they are in its accessible name, and Tab stops once. Stop sits beside the button, after the frame.
 
 The exception covers this button only. Every other function still needs a visible label.
+
+## Amendment: the Signalement icon (issue #375, 2026-10-25)
+
+One more exception, asked in #375 (part of #278):
+- **In the Sidebar's foot, the Signalement entry is an icon alone**: the bug, on « Mon compte »'s row, to its right. It never moves and never changes glyph. The Sidebar drawer on phones has the same row.
+- It is named « Signalement » by its `aria-label`, and shows the tooltip « Signalement » on hover and on focus. Its target is at least 44 px, and Tab stops on it once, right after « Mon compte ».
+- It is never the only way in. Like AI Activity's Stop, a labelled way sits elsewhere: the Coach Panel's foot keeps the labelled links « Signaler un problème » and « Proposer une idée » (#345). The exception holds on that condition; the icon does not ship to production alone, without those links.
+- It opens the Signalement dialog, whose controls all have visible labels (Bug / Idée, Annuler / Envoyer). The glyph in the dialog's title is decorative (`aria-hidden`) beside the title in words, and under `prefers-reduced-motion` it switches at once rather than morphing.
+
+The exception covers this icon only. Every other function still needs a visible label.

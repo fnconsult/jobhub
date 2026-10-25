@@ -13,7 +13,7 @@
  * Each model's time and each Tool's are its calls' durations summed; the Total's time is wall-clock, each element's start to end summed.
  * A time of 0 is one not kept (a Coach reply saved before Provenance), so not known (null).
  */
-import { describeModel, markOf, residencyOf, whereItRan, type Provenance, type ProvenanceSite, type Translated } from "@jobhub/shared";
+import { describeModel, markOf, residencyOf, whereItRan, type Activity, type Provenance, type ProvenanceSite, type Translated } from "@jobhub/shared";
 
 /** What a page shows that AI may have produced, each the content a Provenance is kept with. */
 export const ELEMENT_KINDS = ["job_offer", "coach_reply", "job_search", "job_digest", "tailored_cv", "tailored_documents", "company_dossier", "action_card", "ats_score", "master_cv"] as const;
@@ -45,8 +45,16 @@ export interface ActivityTool {
   ms: number | null;
 }
 
+/**
+ * How an element's action ended (#368): done; or stopped by the Candidate, or failed, each with when it ended (null when
+ * not known) and, for a failed one, its Failure Reason's wording key when known.
+ */
+export type ElementEnd = { state: "done" } | { state: "stopped" | "failed"; at: string | null; reason: string | null };
+
 export interface ActivityElement {
   kind: ElementKind;
+  /** How its action ended: Par élément says a stopped or failed one in words, on light red. */
+  end: ElementEnd;
   /** A Job Offer's title, an Action Card's. */
   name?: string;
   /** When its action started, else when it was made; null when not known. */
@@ -121,10 +129,40 @@ function addSite(sites: ProvenanceSite[], site: ProvenanceSite): void {
  */
 export const byRulesOnly = (served: NonNullable<ActivityElement["served"]>): boolean => served.models.length === 0 && served.tools.some((tool) => tool.name === null);
 
+const DONE: ElementEnd = { state: "done" };
+
+/**
+ * How an element's action ended, when the caller knows it besides its Provenance (a Job Search's status): stopped, or
+ * failed with its Failure Reason's wording key (null when not known).
+ */
+export type ActionEnded = { state: "stopped" } | { state: "failed"; reason: string | null };
+
+/** The Activities that write the content itself: a failed one leaves it incomplete. */
+const WRITING: ReadonlySet<Activity> = new Set(["write", "think_write"]);
+
+/**
+ * How the element's action ended: stopped if it was, or one of its steps; otherwise failed if its action failed, or the step
+ * that wrote it did. A step it did without (a Guardrail that could not check, one source of many) leaves it done.
+ * It ended at its Provenance's start plus its wall-clock time; not known without one.
+ */
+function endOf(provenance: Provenance | null, ended: ActionEnded | undefined): ElementEnd {
+  const at = provenance ? new Date(Date.parse(provenance.startedAt) + provenance.wallMs).toISOString() : null;
+  const steps = provenance?.steps ?? [];
+  if (ended?.state === "stopped" || steps.some((step) => step.outcome === "stopped")) return { state: "stopped", at, reason: null };
+  if (ended?.state === "failed") return { state: "failed", at, reason: ended.reason };
+  if (steps.some((step) => step.outcome === "failed" && WRITING.has(step.activity))) return { state: "failed", at, reason: null };
+  return DONE;
+}
+
 /** One element of the page, as the pane shows it: what served it, read from its Provenance (null when none was kept). */
-export function activityElement(kind: ElementKind, provenance: Provenance | null, made: { name?: string; at?: string | null; sites?: readonly ProvenanceSite[] } = {}): ActivityElement {
+export function activityElement(
+  kind: ElementKind,
+  provenance: Provenance | null,
+  made: { name?: string; at?: string | null; sites?: readonly ProvenanceSite[]; ended?: ActionEnded } = {},
+): ActivityElement {
   const named = made.name ? { name: made.name } : {};
-  if (!provenance) return { kind, ...named, at: made.at ?? null, served: null, ...(made.sites?.length ? { sites: structuredClone([...made.sites]) } : {}) };
+  const end = endOf(provenance, made.ended);
+  if (!provenance) return { kind, ...named, at: made.at ?? null, end, served: null, ...(made.sites?.length ? { sites: structuredClone([...made.sites]) } : {}) };
   const models: ActivityModel[] = [];
   const tools: ActivityTool[] = [];
   const sites: ProvenanceSite[] = [];
@@ -150,7 +188,7 @@ export function activityElement(kind: ElementKind, provenance: Provenance | null
     addTool(tools, { name: step.kind === "rules" ? null : mark.text!, ...(mark.logo ? { logo: mark.logo } : {}), ms: known(step.ms) });
   }
   for (const site of provenance.sites) addSite(sites, site);
-  return { kind, ...named, at: provenance.startedAt, served: { models, tools, sites, tokens, ms: known(provenance.wallMs) } };
+  return { kind, ...named, at: provenance.startedAt, end, served: { models, tools, sites, tokens, ms: known(provenance.wallMs) } };
 }
 
 /** The pane for the page's elements: each model, Tool and Provenance site once with its sums, the Total, and the closed button's summary. */

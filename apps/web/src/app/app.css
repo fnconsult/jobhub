@@ -4038,6 +4038,18 @@ textarea.title-edit {
   margin: 0;
 }
 
+/* A stopped or failed element (#368): light red, like a stopped or failed live action, and said in words; its words in line with the others'. */
+.ai-activity-element[data-end] {
+  margin-inline: calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  background: var(--color-danger-surface);
+  border-radius: var(--radius-sm);
+}
+
+.ai-activity-element-end {
+  font-weight: 600;
+}
+
 .ai-activity-element-model code {
   margin-left: var(--space-1);
   color: var(--color-text-meta);

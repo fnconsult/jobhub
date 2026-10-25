@@ -3069,6 +3069,14 @@
   },
   "aiActivity": {
     "modelNotRecorded": "modèle non enregistré",
+    "ended": {
+      "stopped": "Arrêtée à {{time}}",
+      "failed": "Échec à {{time}}",
+      "stoppedOn": "Arrêtée le {{time}}",
+      "failedOn": "Échec le {{time}}",
+      "stoppedUndated": "Arrêtée",
+      "failedUndated": "Échec"
+    },
     "stop": "Arrêter",
     "stoppedAt": "Arrêtée à {{time}}",
     "steps": {

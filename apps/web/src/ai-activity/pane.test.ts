@@ -80,7 +80,7 @@ describe("AI Activity's « Cette page » pane (#332)", () => {
   it("lists an element whose Provenance was not kept as « modèle non enregistré », out of every total", () => {
     const pane = aiActivityPane([activityElement("job_search", null, { at: "2026-10-20T08:00:00.000Z" }), activityElement("coach_reply", reply)]);
 
-    expect(pane.elements[0]).toEqual({ kind: "job_search", at: "2026-10-20T08:00:00.000Z", served: null });
+    expect(pane.elements[0]).toEqual({ kind: "job_search", at: "2026-10-20T08:00:00.000Z", end: { state: "done" }, served: null });
     expect(pane.total).toEqual({ tokens: 1800 + 2000, ms: 6400 });
     expect(pane.summary).toEqual({ models: 2, tokens: 3800, ms: 6400 });
   });
@@ -109,6 +109,71 @@ describe("AI Activity's « Cette page » pane (#332)", () => {
     const scored = provenance([{ kind: "rules", activity: "compute", rule: "match_score", ms: 12, at, outcome: "ok", count: 1 }]);
 
     expect(aiActivityPane([activityElement("job_offer", scored)]).tools).toEqual([{ name: null, ms: 12, usedBy: [0] }]);
+  });
+
+  describe("each element's end state (#368)", () => {
+    it("is stopped when one of its steps was stopped, ended when its action ended", () => {
+      const stopped = provenance([ai({}), tool(600), ai({ activity: "read", task: "offer_analysis", outcome: "stopped", tokens: undefined, ms: 300 })], {
+        startedAt: "2026-10-23T10:00:00.000Z",
+        wallMs: 4 * 60 * 1000,
+      });
+
+      expect(activityElement("job_search", stopped).end).toEqual({ state: "stopped", at: "2026-10-23T10:04:00.000Z", reason: null });
+    });
+
+    it("is failed when its action failed (a Job Search's status), with its Failure Reason's wording", () => {
+      const run = provenance([ai({ activity: "web_search", task: "web_search", outcome: "failed", tokens: undefined }), tool(900)], { startedAt: "2026-10-23T12:00:00.000Z", wallMs: 4 * 60 * 1000 });
+
+      expect(activityElement("job_search", run, { ended: { state: "failed", reason: "jobSearch.failureReasons.discovery_failed" } }).end).toEqual({
+        state: "failed",
+        at: "2026-10-23T12:04:00.000Z",
+        reason: "jobSearch.failureReasons.discovery_failed",
+      });
+    });
+
+    it("is failed, at no known time, when its action failed before any Provenance was kept", () => {
+      expect(activityElement("job_search", null, { at: "2026-10-23T12:00:00.000Z", ended: { state: "failed", reason: null } })).toMatchObject({
+        end: { state: "failed", at: null, reason: null },
+        served: null,
+      });
+    });
+
+    it("is failed when the step that wrote it failed: without it, it is incomplete", () => {
+      const written = provenance([ai({ activity: "web_search", task: "web_search" }), ai({ activity: "write", task: "writing", outcome: "failed", tokens: undefined })], {
+        startedAt: "2026-10-23T12:00:00.000Z",
+        wallMs: 4 * 60 * 1000,
+      });
+
+      expect(activityElement("tailored_documents", written).end).toEqual({ state: "failed", at: "2026-10-23T12:04:00.000Z", reason: null });
+    });
+
+    it("is done when a step it did without failed: a Guardrail that could not check, one source of many", () => {
+      const reply = provenance([ai({ activity: "think", task: "guardrail", outcome: "failed", tokens: undefined }), ai({}), { kind: "tool", activity: "search", tool: "france-travail", ms: 300, at, outcome: "failed", count: 1 }]);
+
+      expect(activityElement("coach_reply", reply).end).toEqual({ state: "done" });
+    });
+
+    it("is done for a Provenance kept before Outcomes meant anything but ok, and for none kept", () => {
+      expect(activityElement("coach_reply", provenance([ai({ endpoint: undefined, ms: 0 })], { wallMs: 0 })).end).toEqual({ state: "done" });
+      expect(activityElement("coach_reply", null).end).toEqual({ state: "done" });
+    });
+
+    it("still counts what a stopped or failed element spent, in the Total and the closed button's summary", () => {
+      const stopped = provenance([ai({ tokens: { input: 1000, output: 200 } }), ai({ activity: "read", task: "offer_analysis", outcome: "stopped", tokens: undefined })], { wallMs: 3000 });
+      const failed = provenance([ai({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 400, output: 100 } })], { wallMs: 2000 });
+
+      const pane = aiActivityPane([activityElement("job_search", stopped), activityElement("job_search", failed, { ended: { state: "failed", reason: null } })]);
+
+      expect(pane.elements.map((element) => element.end.state)).toEqual(["stopped", "failed"]);
+      expect(pane.total).toEqual({ tokens: 1200 + 500, ms: 5000 });
+      expect(pane.summary).toEqual({ models: 2, tokens: 1700, ms: 5000 });
+    });
+
+    it("is stopped rather than failed when a step was stopped", () => {
+      const run = provenance([ai({ outcome: "stopped", tokens: undefined })]);
+
+      expect(activityElement("job_search", run, { ended: { state: "failed", reason: "jobSearch.failureReasons.other" } }).end).toMatchObject({ state: "stopped" });
+    });
   });
 
   it("holds no cost, prompt, AI task, Playbook Agent, Outcome or internal id: only what the pane shows", () => {

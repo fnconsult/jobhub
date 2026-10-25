@@ -65,7 +65,7 @@ describe("AI Activity's page loaders (#332)", () => {
   it("shows an offer from before Provenance was kept as « modèle non enregistré », counted in no total", async () => {
     const pane = aiActivityPane(await jobOfferPage(sources({ offers: {} }), CANDIDATE, { id: OFFER, title: "DAF Lyon" }));
 
-    expect(pane.elements[0]).toEqual({ kind: "job_offer", name: "DAF Lyon", at: null, served: null });
+    expect(pane.elements[0]).toEqual({ kind: "job_offer", name: "DAF Lyon", at: null, end: { state: "done" }, served: null });
     expect(pane.total).toEqual({ tokens: 2100, ms: 6400 });
   });
 
@@ -105,6 +105,25 @@ describe("AI Activity's page loaders (#332)", () => {
       { kind: "job_search", recorded: true },
       { kind: "job_offer", recorded: true },
       { kind: "job_search", recorded: false },
+    ]);
+  });
+
+  it("says a failed Job Search failed, with why, and a stopped one stopped, though each kept its Job Offers (#368)", async () => {
+    const run: Provenance = { ...read, steps: [{ kind: "tool", activity: "read", tool: "job-site", ms: 900, at: "2026-10-23T10:00:05.000Z", outcome: "ok", count: 1 }] };
+    const elements = await jobSearchPage(sources(), [
+      { startedAt: new Date("2026-10-23T10:00:00Z"), status: "failed", failure: "discovery_failed", provenance: run, results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] },
+      { startedAt: new Date("2026-10-22T08:00:00Z"), status: "failed", failure: null, provenance: null, results: [] },
+      { startedAt: new Date("2026-10-21T08:00:00Z"), status: "stopped", failure: null, provenance: run, results: [] },
+      { startedAt: new Date("2026-10-20T08:00:00Z"), status: "done", failure: null, provenance: run, results: [] },
+    ]);
+
+    expect(elements.map(({ kind, end }) => ({ kind, end }))).toEqual([
+      { kind: "job_search", end: { state: "failed", at: "2026-10-23T10:00:09.100Z", reason: "jobSearch.failureReasons.discovery_failed" } },
+      { kind: "job_offer", end: { state: "done" } },
+      { kind: "job_search", end: { state: "failed", at: null, reason: "jobSearch.failureReasons.other" } },
+      // Stopped between two steps: none of its steps says so, its status does.
+      { kind: "job_search", end: { state: "stopped", at: "2026-10-23T10:00:09.100Z", reason: null } },
+      { kind: "job_search", end: { state: "done" } },
     ]);
   });
 
@@ -206,7 +225,7 @@ describe("AI Activity's page loaders (#332)", () => {
       const pane = aiActivityPane(old);
 
       expect(fresh).toMatchObject({ kind: "company_dossier", at, served: { sites: [REGISTER], tools: [{ name: "recherche-entreprises.api.gouv.fr" }] } });
-      expect(old[1]).toEqual({ kind: "company_dossier", at: "2026-01-01T09:00:00.000Z", served: null, sites: [REGISTER] });
+      expect(old[1]).toEqual({ kind: "company_dossier", at: "2026-01-01T09:00:00.000Z", end: { state: "done" }, served: null, sites: [REGISTER] });
       // Its sites are the page's Sources; no total counts it.
       expect(pane.sites).toEqual([REGISTER]);
       expect(pane.total).toEqual({ tokens: null, ms: null });
@@ -229,7 +248,7 @@ describe("AI Activity's page loaders (#332)", () => {
   it("lists a Coach reply saved with nothing kept as « modèle non enregistré »", async () => {
     const elements = await jobOfferPage(sources({ replies: [{ at: "2026-09-01T08:00:00.000Z", provenance: null }] }), CANDIDATE, { id: OFFER, title: "DAF Lyon" });
 
-    expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", served: null });
+    expect(elements[1]).toEqual({ kind: "coach_reply", at: "2026-09-01T08:00:00.000Z", end: { state: "done" }, served: null });
   });
 });
 

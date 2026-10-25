@@ -24,6 +24,13 @@ const tag = () => Array.from({ length: 10 }, () => String.fromCharCode(97 + Math
 const navOf = (page: Page) => page.getByRole("navigation", { name: admin.nav.label });
 const rowOf = (page: Page, text: string) => page.getByRole("row").filter({ hasText: text });
 const mainOf = (page: Page) => page.getByRole("main");
+const ONE = /\/admin\/signalements\/[0-9a-f-]{36}$/;
+/** Opens the Signalement `row` links to and returns its id, once its page is shown. */
+async function openFrom(page: Page, row: ReturnType<Page["getByRole"]>): Promise<string> {
+  await row.getByRole("link").click();
+  await expect(page).toHaveURL(ONE);
+  return new URL(page.url()).pathname.split("/").pop()!;
+}
 
 /** A signed-in page of its own (cookies apart), as for another person on another computer. */
 async function personPage(browser: Browser, email: string): Promise<Page> {
@@ -118,9 +125,7 @@ test.describe("« Signalements » in the Back Office (#376)", () => {
 
     // A Bug: marked « traité » without a reply; it leaves « à traiter ».
     await support.goto(PATH);
-    await rowOf(support, ref).nth(0).getByRole("link").click();
-    const bugUrl = support.url();
-    const bugId = bugUrl.split("/").pop()!.split("?")[0]!;
+    const bugId = await openFrom(support, rowOf(support, ref).nth(0));
     await support.getByRole("button", { name: tr(texts.markAs, { status: texts.statuses.traite }) }).click();
     await expect(mainOf(support).getByRole("status")).toHaveText(texts.notices.status);
     await expect(mainOf(support)).toContainText(tr(texts.statusNow, { status: texts.statuses.traite }));
@@ -128,8 +133,7 @@ test.describe("« Signalements » in the Back Office (#376)", () => {
     await expect(rowOf(support, ref)).toHaveCount(2);
 
     // A Question: opening it shows it in full, changes nothing.
-    await rowOf(support, ref).nth(1).getByRole("link").click();
-    const questionId = support.url().split("/").pop()!.split("?")[0]!;
+    const questionId = await openFrom(support, rowOf(support, ref).nth(1));
     await expect(mainOf(support)).toContainText(`Comment passer à l'offre Standard ? ${ref}`);
     await expect(mainOf(support)).toContainText(`Je ne trouve pas d'article sur ce point ${ref}`);
     await expect(mainOf(support)).toContainText(tr(texts.statusNow, { status: texts.statuses.nouveau }));
@@ -143,13 +147,13 @@ test.describe("« Signalements » in the Back Office (#376)", () => {
 
     // The reply, signed « L'équipe Jobbbox », then « traité »: the reply can no longer be changed.
     await expect(mainOf(support)).toContainText(texts.signature);
-    await support.getByLabel(texts.replyTitle).fill(`Rendez-vous dans Mon compte, rubrique Offre ${ref}`);
+    await support.getByRole("textbox", { name: texts.replyTitle }).fill(`Rendez-vous dans Mon compte, rubrique Offre ${ref}`);
     await support.getByRole("button", { name: texts.saveReply }).click();
     await expect(mainOf(support).getByRole("status")).toHaveText(texts.notices.reply);
     await support.getByRole("button", { name: tr(texts.markAs, { status: texts.statuses.traite }) }).click();
     await expect(mainOf(support).getByRole("status")).toHaveText(texts.notices.status);
     await expect(mainOf(support)).toContainText(texts.replyLocked);
-    await expect(support.getByLabel(texts.replyTitle)).toHaveCount(0);
+    await expect(support.getByRole("textbox", { name: texts.replyTitle })).toHaveCount(0);
     await expect(mainOf(support)).not.toContainText(supportEmail.split("@")[0]!);
 
     // In the Journal: the Signalements' ids and statuses, whether a reply was written, never a word of them; and the refused attempt.
@@ -182,8 +186,7 @@ test.describe("« Signalements » in the Back Office (#376)", () => {
 
     // The super-admin's view holds the Bug's id, to try it as the Help editor.
     await page.goto(`${PATH}?type=bug`);
-    await rowOf(page, ref).getByRole("link").click();
-    const bugPath = new URL(page.url()).pathname;
+    const bugPath = `${PATH}/${await openFrom(page, rowOf(page, ref))}`;
 
     await helpEditor.goto(PATH);
     await expect(mainOf(helpEditor)).toContainText(texts.questionsOnly);
@@ -193,7 +196,7 @@ test.describe("« Signalements » in the Back Office (#376)", () => {
     await expect(mainOf(helpEditor)).not.toContainText(candidateEmail);
     await expect(mainOf(helpEditor).getByRole("columnheader", { name: texts.plan })).toHaveCount(0);
     await expect(helpEditor.getByRole("navigation", { name: texts.typeFilter })).toHaveCount(0);
-    await rowOf(helpEditor, ref).getByRole("link").click();
+    await openFrom(helpEditor, rowOf(helpEditor, ref));
     await expect(mainOf(helpEditor)).toContainText(`Comment passer à l'offre Standard ? ${ref}`);
     await expect(mainOf(helpEditor)).not.toContainText(candidateEmail);
     await expect(helpEditor.getByRole("button", { name: tr(texts.markAs, { status: texts.statuses.vu }) })).toBeDisabled();

@@ -948,7 +948,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const database = testAuth.database;
       await migrateSignalements(database);
       const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
-      const marie = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+      const marie = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
       const signalements = createSignalements(database, { version: "test" });
       const sent = async () => {
         const result = await signalements.send(marie, { type: "bug", message: "Le bouton « Enregistrer » ne fait rien.", path: "/", textSize: "standard" }, { userAgent: null, interfaceLanguage: "fr" });

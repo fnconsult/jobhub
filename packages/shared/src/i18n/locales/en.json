@@ -3214,5 +3214,8 @@
         }
       }
     }
+  },
+  "signalement": {
+    "tooMany": "You have sent a lot of feedback today. Please try again tomorrow."
   }
 }

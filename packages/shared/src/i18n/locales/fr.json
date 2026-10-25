@@ -3214,5 +3214,8 @@
         }
       }
     }
+  },
+  "signalement": {
+    "tooMany": "Vous avez envoyé beaucoup de signalements aujourd'hui, réessayez demain."
   }
 }

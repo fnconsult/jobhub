@@ -34,6 +34,7 @@ import { migrateProviderSecrets } from "./provider-secrets/index";
 import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
+import { migrateSignalements } from "./signalements/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
@@ -83,6 +84,7 @@ export async function migrateDatabase(
     ["Eval Cases and Eval Runs are up to date", () => migrateEvals(database)],
     ["Reference data is up to date", () => migrateReferenceData(database)],
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
+    ["Signalements are up to date", () => migrateSignalements(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

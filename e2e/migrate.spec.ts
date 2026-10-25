@@ -131,6 +131,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "session",
         "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
         "sign_in_setting", // issue #209: Require SSO for Administrators
+        "signalement", // issue #374: the Candidate's Signalements (Bug / Idée / Question)
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
@@ -226,6 +227,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
+        // Signalements (issue #374) go with their Candidate.
+        { from_table: "signalement", from_column: "candidate_id", to_table: "candidate" },
         // A Tailored CV (issue #18) goes with its Application.
         { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },

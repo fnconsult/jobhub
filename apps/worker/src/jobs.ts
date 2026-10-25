@@ -9,6 +9,7 @@ import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTI
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
+import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
@@ -69,6 +70,9 @@ export const COACH_CONVERSATIONS_PURGE = "coach-conversations.purge";
  * marked written or dismissed 30 days ago (MARKED_RETENTION_DAYS, #344). Runs nightly.
  */
 export const UNANSWERED_QUESTIONS_PURGE = "unanswered-questions.purge";
+
+/** Queue name: delete the Signalements marked `traite` SIGNALEMENT_RETENTION_MONTHS ago or more (#374, #283). Runs nightly. */
+export const SIGNALEMENTS_PURGE = "signalements.purge";
 
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
@@ -511,6 +515,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeUnansweredQuestions(deps.database, now());
           if (purged) log(`[unanswered-questions] ${purged} Unanswered Question(s) purged`);
+        }),
+    },
+
+    // A Signalement is kept until 12 months after it was marked « traité »; one not yet handled, until it is. Safe to run again.
+    [SIGNALEMENTS_PURGE]: {
+      cron: "40 3 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeSignalements(deps.database, now());
+          if (purged) log(`[signalements] ${purged} Signalement(s) purged, ${SIGNALEMENT_RETENTION_MONTHS} months after they were marked traité`);
         }),
     },
 

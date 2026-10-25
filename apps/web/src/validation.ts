@@ -3,8 +3,11 @@ import type * as z from "zod";
 /** A field the caller must fix, as a dotted path (e.g. "searchCriteria.locations"). */
 export interface FieldError {
   field: string;
-  /** "too_long": over a string's maximum length (e.g. PROFILE_NAME_MAX_LENGTH for a Profile name). */
-  code: "required" | "too_long" | "invalid";
+  /**
+   * "too_long": over a string's maximum length (e.g. PROFILE_NAME_MAX_LENGTH for a Profile name).
+   * "too_short": under a string's minimum length, though not blank (e.g. a Signalement's message).
+   */
+  code: "required" | "too_short" | "too_long" | "invalid";
 }
 
 /**

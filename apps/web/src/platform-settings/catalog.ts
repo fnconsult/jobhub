@@ -212,6 +212,8 @@ export const ENV_ONLY_SETTINGS = {
   GOOGLE_CLIENT_SECRET: { kind: "secret", shown: false },
   NODE_ENV: { kind: "deployment", shown: false },
   NEXT_RUNTIME: { kind: "deployment", shown: false },
+  // The deployed commit (deploy/compose.yml): the Jobbbox version a Signalement keeps (#374).
+  JOBHUB_REVISION: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   WXT_WEB_ORIGIN: { kind: "deployment", shown: false },

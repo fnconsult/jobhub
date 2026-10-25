@@ -79,3 +79,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | 30 days. The worker's nightly job `ai-usage.purge` deletes older logs. Deleted with the Candidate's account (`ON DELETE CASCADE`). |
 | Rights | In the Candidate's data export (`aiMessageLog`, without costs); erased with the account, or on request by the Jobbbox team. |
 | Security | Secrets are scrubbed before storing; every read is audited; the pages check the super-admin role on every request. |
+
+## Signalements (#374)
+
+| | |
+| --- | --- |
+| Purpose | Support and improving Jobbbox: let a signed-in Candidate tell the Jobbbox team about a Bug, suggest an Idée, or ask a Question after help or the AI Coach did not satisfy them, and follow what the team does with it. |
+| Legal basis | Contract (GDPR art. 6(1)(b)) for Questions: answering the Candidate about the service they use. Legitimate interest (GDPR art. 6(1)(f)) for Bugs and Idées: keeping Jobbbox working and improving it. |
+| People concerned | Candidates who send a Signalement; people they name in what they write. |
+| Data | The Candidate's id; the type (Bug, Idée, Question); the message (10 to 2,000 characters), kept as written, without redaction; for a Question, a copy of the Candidate's question and the AI Coach's reply (not a link to the Coach Conversation); the context attached automatically: the page's path without its query string or `#…`, the Jobbbox version, the browser parsed to name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size; the status (nouveau, vu, traité) and when it last changed; the team's reply (at most 2,000 characters) and when it was last saved; when it was sent. Which Administrator changed the status or replied is not kept with it (the Back Office Audit records that, by the Signalement's id, without its text). |
+| Source | The Candidate, from the Signalement dialog (`POST /api/signalements`); the context from the page and the request. At most 10 per Candidate in a rolling 24 hours. |
+| Processors | None: Signalements are read by people only and never sent to an AI. If an agent triage comes later, redaction applies on the way to the AI (ADR-0007). |
+| Who can read it | The Candidate who sent it; Administrators whose Back Office Role allows it (#376): Support and super-admins, and Help editors for Questions only. |
+| Storage | The `signalement` table in the app's Postgres database (EU). |
+| Retention | 12 months after it is marked « traité » (the worker's nightly job `signalements.purge`); one not yet handled is kept until it is. Deleted at once with the Candidate's account (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's data export (`signalements`: every field, without the Administrator's identity); erased with the account. |
+| Security | Sending checks the signed-in Candidate and the request's origin; the type, message and limits are checked on the server. |

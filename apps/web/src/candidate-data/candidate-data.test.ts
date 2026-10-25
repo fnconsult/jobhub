@@ -22,6 +22,7 @@ import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
 import { createAppointmentReminders } from "../appointment-reminders";
+import { createSignalements } from "../signalements";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -740,6 +741,70 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(sessions).toHaveLength(1);
     expect(JSON.stringify(exported)).not.toMatch(/secret-|google-sub-1/);
     expect(JSON.stringify(exported)).not.toContain(sessions[0]!.token);
+  });
+
+  it("the export holds every Signalement the Candidate sent, newest first, with its context, status and the team's reply, never which Administrator handled it (#374)", async () => {
+    const administrator = await signIn("support@jobbbox.ai");
+    let now = new Date("2026-10-20T08:00:00Z");
+    const signalements = createSignalements(database, { version: "35e2ea1", now: () => now });
+    const from = { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36", interfaceLanguage: "fr" };
+    const bug = await signalements.send(candidateId, { type: "bug", message: "Le bouton « Enregistrer » ne fait rien.", path: "/profils?x=1", textSize: "large" }, from);
+    now = new Date("2026-10-21T08:00:00Z");
+    const question = await signalements.send(
+      candidateId,
+      { type: "question", message: "Je ne trouve pas l'export PDF.", path: "/", textSize: "standard", attachedQuestion: "Comment exporter ?", attachedCoachReply: "Je ne sais pas." },
+      from,
+    );
+    if (!bug.ok || !question.ok) throw new Error("fixture Signalements refused");
+    now = new Date("2026-10-22T08:00:00Z");
+    await signalements.reply(bug.signalement.id, "Merci, c'est corrigé.");
+    await signalements.changeStatus(bug.signalement.id, "traite");
+    await signalements.send(administrator, { type: "idee", message: "Une idée de l'équipe elle-même.", path: "/", textSize: "standard" }, from);
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.signalements).toEqual([
+      {
+        id: question.signalement.id,
+        type: "question",
+        message: "Je ne trouve pas l'export PDF.",
+        attachedQuestion: "Comment exporter ?",
+        attachedCoachReply: "Je ne sais pas.",
+        context: { path: "/", version: "35e2ea1", browser: "Chrome 141, Mac", interfaceLanguage: "fr", textSize: "standard" },
+        status: "nouveau",
+        statusChangedAt: null,
+        reply: null,
+        replyUpdatedAt: null,
+        createdAt: new Date("2026-10-21T08:00:00Z"),
+      },
+      {
+        id: bug.signalement.id,
+        type: "bug",
+        message: "Le bouton « Enregistrer » ne fait rien.",
+        attachedQuestion: null,
+        attachedCoachReply: null,
+        context: { path: "/profils", version: "35e2ea1", browser: "Chrome 141, Mac", interfaceLanguage: "fr", textSize: "large" },
+        status: "traite",
+        statusChangedAt: new Date("2026-10-22T08:00:00Z"),
+        reply: "Merci, c'est corrigé.",
+        replyUpdatedAt: new Date("2026-10-22T08:00:00Z"),
+        createdAt: new Date("2026-10-20T08:00:00Z"),
+      },
+    ]);
+    expect(JSON.stringify(exported.signalements)).not.toMatch(new RegExp(`${administrator}|support@jobbbox\\.ai`));
+  });
+
+  it("deleting the account deletes the Candidate's Signalements, and no one else's (#374)", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    const signalements = createSignalements(database, { version: "35e2ea1" });
+    const sent = { type: "bug", message: "Le bouton « Enregistrer » ne fait rien.", path: "/", textSize: "standard" };
+    await signalements.send(candidateId, sent, { userAgent: null, interfaceLanguage: "fr" });
+    await signalements.send(other, sent, { userAgent: null, interfaceLanguage: "fr" });
+
+    await candidateData.delete(candidateId);
+
+    expect((await candidateData.export(other)).signalements).toHaveLength(1);
+    expect((await database.query("SELECT 1 FROM signalement WHERE candidate_id = $1", [candidateId])).rows).toEqual([]);
   });
 
   it("deleting the account removes the Candidate and everything of theirs, signs them out, and keeps the Job Offers", async () => {

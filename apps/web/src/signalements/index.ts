@@ -10,7 +10,8 @@
  *    Conversation, so it stays readable once that conversation is deleted;
  *  - `changeStatus` and `reply`, the team's side (the Back Office, #376), on its transaction: any status in any
  *    direction, but a Question is marked `traite` only once it has a reply; one reply, editable until `traite`;
- * and `migrateSignalements(database)` and `purgeSignalements(database, now)` (the worker, nightly: RETENTION_MONTHS
+ * and `signalementsOf(database, candidateId)` (the Candidate's own, for their Data export and « Mes signalements »),
+ * `migrateSignalements(database)` and `purgeSignalements(database, now)` (the worker, nightly: RETENTION_MONTHS
  * after it was marked `traite`).
  *
  * Tied to the Candidate: deleted with their account (ON DELETE CASCADE, ADR-0010) and in their Data export. It never
@@ -258,6 +259,12 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       return { before, after: fromRow(rows[0]!) };
     },
   };
+}
+
+/** Every Signalement the Candidate sent, newest first: what their Data export holds, and what they can follow (#377). */
+export async function signalementsOf(database: Queryable, candidateId: string): Promise<Signalement[]> {
+  const { rows } = await database.query<Row>(`SELECT ${COLUMNS} FROM signalement WHERE candidate_id = $1 ORDER BY created_at DESC, id`, [candidateId]);
+  return rows.map(fromRow);
 }
 
 const listed = (values: readonly string[]) => values.map((value) => `'${value}'`).join(", ");

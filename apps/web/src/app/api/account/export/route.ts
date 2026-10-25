@@ -5,7 +5,7 @@ import { getCandidateData } from "@/candidate-data/server";
 /**
  * Downloads all the Candidate's personal data (ADR-0010, GDPR art. 15 / 20) as one
  * JSON file: their account, Plan, consents and settings, Profiles, Applications,
- * Coach Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards (see
+ * Coach Conversations, Coach Memory, Coach Access, Coaching Sessions, Action Cards and Signalements (see
  * CandidateDataExport). Secrets and providers' internal identifiers are left out.
  * 200 file · 401
  */

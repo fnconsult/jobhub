@@ -11,7 +11,8 @@
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
- *    their Back Office Assistant conversations; the AI Message Log of their own AI calls. Profiles and Applications
+ *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent
+ *    (never which Administrator handled them). Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -41,6 +42,7 @@ import type { ChosenFrequency } from "../job-digests";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
+import { signalementsOf, type Signalement } from "../signalements";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
@@ -236,6 +238,11 @@ export interface CandidateDataExport {
   aiMessageLog: ExportedAiMessageLog[];
   /** What the Candidate confirmed the AI Coach should remember, oldest first. */
   coachMemory: { id: string; kind: string; text: string; createdAt: Date; updatedAt: Date }[];
+  /**
+   * Every Signalement the Candidate sent (#374), newest first: type, message, a Question's question and coach reply,
+   * context, status and the team's reply, with their dates; never which Administrator changed it or replied.
+   */
+  signalements: Signalement[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -314,6 +321,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_conversation: "backOfficeAssistantConversations",
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
+  signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
 };
 
 /**
@@ -586,7 +594,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
@@ -629,10 +637,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             warnings: warnings.filter(isFailureReason).map(worded),
           })),
         ),
+        signalementsOf(database, candidateId),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements };
     },
 
     async delete(candidateId) {

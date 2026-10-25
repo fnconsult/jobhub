@@ -44,6 +44,11 @@ const statements = {
   evalRuns: ["read", "write"],
   /** Unanswered Questions (« Questions sans réponse », #344): write covers marking one « Article écrit » or « Écarter ». */
   unansweredQuestions: ["read", "write"],
+  /**
+   * Signalements (#376): write covers changing their status and replying. Read alone (Help editors) shows only the
+   * Questions, without the Candidate's email or Plan; nobody deletes one from the Back Office.
+   */
+  signalements: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -63,8 +68,8 @@ const ROLES = {
   "plans-manager": control.newRole({ plans: ["read", "write"], planQuotas: ["read", "write"], coupons: ["read", "write"] }),
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
   "playbook-editor": control.newRole({ coachingPlaybooks: ["read", "write"], evalRuns: ["read", "write"] }),
-  "help-editor": control.newRole({ unansweredQuestions: ["read", "write"] }),
-  // Reads everything but Provider Secrets and the AI Message Log; the team's own sections (Administrateurs, Journal) stay with super-admins.
+  "help-editor": control.newRole({ unansweredQuestions: ["read", "write"], signalements: READ }),
+  // Reads everything but Provider Secrets and the AI Message Log, and triages Signalements; the team's own sections (Administrateurs, Journal) stay with super-admins.
   support: control.newRole({
     planQuotas: READ,
     plans: READ,
@@ -80,6 +85,7 @@ const ROLES = {
     evalRuns: READ,
     platformSettings: READ,
     unansweredQuestions: READ,
+    signalements: ["read", "write"],
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

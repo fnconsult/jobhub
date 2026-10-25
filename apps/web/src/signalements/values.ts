@@ -15,6 +15,9 @@ export const isSignalementType = (value: unknown): value is SignalementType => (
 /** Where a Signalement stands, in the order of its life. */
 export const SIGNALEMENT_STATUSES = ["nouveau", "vu", "traite"] as const;
 export type SignalementStatus = (typeof SIGNALEMENT_STATUSES)[number];
+/** « À traiter »: what the team still has to handle, what the Back Office lists by default and counts (#376). */
+export const TO_HANDLE_STATUSES = ["nouveau", "vu"] as const satisfies readonly SignalementStatus[];
+
 export const isSignalementStatus = (value: unknown): value is SignalementStatus => (SIGNALEMENT_STATUSES as readonly unknown[]).includes(value);
 
 /** The message's length, in characters, once trimmed. */

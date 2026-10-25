@@ -22,7 +22,9 @@ import { createEvalCasesBackOffice, type EvalCasesBackOffice } from "./eval-case
 import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
 import { createPlatformSettingsBackOffice, type PlatformSettingsBackOffice } from "./platform-settings-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
+import { createSignalementsBackOffice, type SignalementsBackOffice } from "./signalements-back-office";
 import { createUnansweredQuestionsBackOffice, type UnansweredQuestionsBackOffice } from "./unanswered-questions-back-office";
+import { getSignalements } from "@/signalements/server";
 import { getUnansweredQuestions } from "@/unanswered-questions/server";
 
 let backOffice: BackOffice | undefined;
@@ -33,6 +35,7 @@ let guardrailsBackOffice: GuardrailsBackOffice | undefined;
 let evalCasesBackOffice: EvalCasesBackOffice | undefined;
 let platformSettingsBackOffice: PlatformSettingsBackOffice | undefined;
 let unansweredQuestionsBackOffice: UnansweredQuestionsBackOffice | undefined;
+let signalementsBackOffice: SignalementsBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -85,6 +88,12 @@ export function getPlatformSettingsBackOffice(): PlatformSettingsBackOffice {
 export function getUnansweredQuestionsBackOffice(): UnansweredQuestionsBackOffice {
   unansweredQuestionsBackOffice ??= createUnansweredQuestionsBackOffice(getUnansweredQuestions(), getBackOffice());
   return unansweredQuestionsBackOffice;
+}
+
+/** « Signalements »: what each Administrator may read of them, their status changes and replies, each recorded in the Back Office Audit (#376). */
+export function getSignalementsBackOffice(): SignalementsBackOffice {
+  signalementsBackOffice ??= createSignalementsBackOffice(getSignalements(), getBackOffice());
+  return signalementsBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

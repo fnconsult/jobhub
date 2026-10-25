@@ -33,7 +33,9 @@ const PATHS = {
   add: ["M12 5v14M5 12h14"],
   conversations: ["M4 6h16M4 12h16M4 18h10"],
   searchAgain: ["M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"],
-  // The Back Office's sections (#204). Stacked layers: the Plans (#206).
+  // The Back Office's sections (#204). A flag on its pole: the Signalements (#376).
+  signalements: ["M5 21V4", "M5 4h11l-2 4 2 4H5"],
+  // Stacked layers: the Plans (#206).
   plans: ["M12 3l9 5-9 5-9-5z", "M3 13l9 5 9-5"],
   planQuotas: ["M4 20V10M10 20V4M16 20v-7M22 20H2"],
   // A price tag.

@@ -44,6 +44,12 @@ export function BackOfficeSidebarLayout({ groups, title, children }: { groups: R
                       >
                         <SectionIcon />
                         {t(`admin.sections.${section.key}`)}
+                        {section.count === undefined ? null : (
+                          <span className="sidebar-count">
+                            <span aria-hidden="true">{section.count}</span>
+                            <span className="visually-hidden">{t("admin.nav.toHandle", { count: section.count })}</span>
+                          </span>
+                        )}
                       </Link>
                     </li>
                   );

@@ -1669,6 +1669,20 @@ html[data-sidebar="closed"] .sidebar-docked {
   background: var(--color-surface-hover);
 }
 
+/* What waits in a section (#376): the Signalements « à traiter », after its name, at the line's end. */
+.sidebar-count {
+  min-width: 1.75em;
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-radius: var(--radius-lg);
+}
+
 /* The Back Office's sidebar (#204): sections by group, each group named in small words above its links. */
 .sidebar-group + .sidebar-group {
   margin-top: var(--space-4);

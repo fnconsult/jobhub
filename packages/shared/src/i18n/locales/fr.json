@@ -806,14 +806,17 @@
       "label": "Navigation du back office",
       "account": "Mon compte",
       "groups": {
+        "candidates": "Candidats",
         "offer": "Offre",
         "coaching": "Coaching",
         "content": "Contenu",
         "platform": "Plateforme",
         "team": "Équipe"
-      }
+      },
+      "toHandle": "{{count}} à traiter"
     },
     "sections": {
+      "signalements": "Signalements",
       "plans": "Offres",
       "planQuotas": "Quotas",
       "coupons": "Codes promo",
@@ -1410,7 +1413,8 @@
         "search_sites": "Sites de recherche",
         "tool_pages": "Pages Outils",
         "journal": "Journal",
-        "unanswered_questions": "Questions sans réponse"
+        "unanswered_questions": "Questions sans réponse",
+        "signalements": "Signalements"
       },
       "actions": {
         "added": "Ajout",
@@ -1907,6 +1911,79 @@
       },
       "journalFields": {
         "status": "Statut"
+      }
+    },
+    "signalements": {
+      "title": "Signalements",
+      "intro": "Les bugs, idées et questions que les candidats envoient depuis l'application, à traiter du plus ancien au plus récent. Lus par l'équipe seulement, jamais par une IA.",
+      "questionsOnly": "Vos rôles vous montrent les questions seulement, sans l'e-mail ni l'offre du candidat.",
+      "noDeletion": "Un signalement ne se supprime pas depuis le back office.",
+      "typeFilter": "Filtrer par type",
+      "allTypes": "Tous les types",
+      "statusFilter": "Filtrer par statut",
+      "toHandle": "À traiter",
+      "allStatuses": "Tous",
+      "types": {
+        "bug": "Bug",
+        "idee": "Idée",
+        "question": "Question"
+      },
+      "statuses": {
+        "nouveau": "Nouveau",
+        "vu": "Vu",
+        "traite": "Traité"
+      },
+      "caption": "Signalements, les plus anciens d'abord",
+      "type": "Type",
+      "date": "Date",
+      "message": "Message",
+      "page": "Page",
+      "version": "Version",
+      "browser": "Navigateur",
+      "language": "Langue",
+      "textSize": "Taille du texte",
+      "candidate": "Candidat",
+      "plan": "Offre",
+      "status": "Statut",
+      "open": "Ouvrir",
+      "openLabel": "Ouvrir : {{message}}",
+      "unknownPage": "Page inconnue",
+      "unknownBrowser": "Inconnu",
+      "none": "Aucun signalement.",
+      "back": "Tous les signalements",
+      "detailTitle": "{{type}} du {{date}}",
+      "sentBy": "Envoyé par {{email}} (offre {{plan}})",
+      "context": "Contexte",
+      "attachedQuestion": "Question posée au coach IA",
+      "attachedCoachReply": "Réponse du coach IA",
+      "statusTitle": "Statut",
+      "statusNow": "Statut actuel : {{status}}.",
+      "statusHelp": "Ouvrir un signalement ne change pas son statut. Une question ne se marque « Traité » qu'une fois répondue.",
+      "markAs": "Marquer « {{status}} »",
+      "replyTitle": "Réponse de l'équipe",
+      "replyHelp": "Une seule réponse, 2 000 caractères au plus, modifiable jusqu'à « Traité ». Le candidat la voit signée « L'équipe Jobbbox », jamais avec votre nom.",
+      "signature": "L'équipe Jobbbox",
+      "saveReply": "Enregistrer la réponse",
+      "replyLocked": "Signalement traité : sa réponse ne se modifie plus.",
+      "noReply": "Pas encore de réponse.",
+      "notices": {
+        "status": "Statut changé.",
+        "reply": "Réponse enregistrée.",
+        "reply_required": "Une question ne se marque « Traité » qu'une fois répondue.",
+        "already_handled": "Ce signalement est traité : sa réponse ne se modifie plus.",
+        "not_found": "Ce signalement n'existe pas.",
+        "required": "Écrivez la réponse avant de l'enregistrer.",
+        "too_long": "La réponse dépasse 2 000 caractères.",
+        "invalid": "Cette réponse n'a pas pu être lue."
+      },
+      "journalFields": {
+        "status": "Statut",
+        "reply": "Réponse"
+      },
+      "replyStates": {
+        "none": "Aucune",
+        "written": "Écrite",
+        "changed": "Modifiée"
       }
     },
     "evals": {
@@ -3014,6 +3091,8 @@
     "stripe_refused": "Refusé par Stripe",
     "role_missing": "Section hors de ses rôles",
     "invalid_value": "Valeur refusée par le réglage",
+    "reply_required": "Une Question se traite avec une réponse",
+    "already_handled": "Signalement déjà traité",
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",

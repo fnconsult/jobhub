@@ -806,14 +806,17 @@
       "label": "Back office navigation",
       "account": "My account",
       "groups": {
+        "candidates": "Candidates",
         "offer": "Offer",
         "coaching": "Coaching",
         "content": "Content",
         "platform": "Platform",
         "team": "Team"
-      }
+      },
+      "toHandle": "{{count}} to handle"
     },
     "sections": {
+      "signalements": "Feedback",
       "plans": "Plans",
       "planQuotas": "Quotas",
       "coupons": "Coupons",
@@ -1410,7 +1413,8 @@
         "search_sites": "Search sites",
         "tool_pages": "Tools pages",
         "journal": "Journal",
-        "unanswered_questions": "Unanswered questions"
+        "unanswered_questions": "Unanswered questions",
+        "signalements": "Feedback"
       },
       "actions": {
         "added": "Added",
@@ -1907,6 +1911,79 @@
       },
       "journalFields": {
         "status": "Status"
+      }
+    },
+    "signalements": {
+      "title": "Feedback",
+      "intro": "The bugs, ideas and questions Candidates send from the app, to handle oldest first. Read by the team only, never by an AI.",
+      "questionsOnly": "Your roles show you the questions only, without the Candidate's email or Plan.",
+      "noDeletion": "Feedback cannot be deleted from the back office.",
+      "typeFilter": "Filter by type",
+      "allTypes": "All types",
+      "statusFilter": "Filter by status",
+      "toHandle": "To handle",
+      "allStatuses": "All",
+      "types": {
+        "bug": "Bug",
+        "idee": "Idea",
+        "question": "Question"
+      },
+      "statuses": {
+        "nouveau": "New",
+        "vu": "Seen",
+        "traite": "Handled"
+      },
+      "caption": "Feedback, oldest first",
+      "type": "Type",
+      "date": "Date",
+      "message": "Message",
+      "page": "Page",
+      "version": "Version",
+      "browser": "Browser",
+      "language": "Language",
+      "textSize": "Text size",
+      "candidate": "Candidate",
+      "plan": "Plan",
+      "status": "Status",
+      "open": "Open",
+      "openLabel": "Open: {{message}}",
+      "unknownPage": "Unknown page",
+      "unknownBrowser": "Unknown",
+      "none": "No feedback.",
+      "back": "All feedback",
+      "detailTitle": "{{type}} of {{date}}",
+      "sentBy": "Sent by {{email}} ({{plan}} plan)",
+      "context": "Context",
+      "attachedQuestion": "Question asked to the AI Coach",
+      "attachedCoachReply": "The AI Coach's reply",
+      "statusTitle": "Status",
+      "statusNow": "Current status: {{status}}.",
+      "statusHelp": "Opening feedback does not change its status. A question is marked “Handled” only once replied to.",
+      "markAs": "Mark “{{status}}”",
+      "replyTitle": "The team's reply",
+      "replyHelp": "One reply, at most 2,000 characters, editable until “Handled”. The Candidate sees it signed “L'équipe Jobbbox”, never with your name.",
+      "signature": "L'équipe Jobbbox",
+      "saveReply": "Save the reply",
+      "replyLocked": "Handled: its reply can no longer be changed.",
+      "noReply": "No reply yet.",
+      "notices": {
+        "status": "Status changed.",
+        "reply": "Reply saved.",
+        "reply_required": "A question is marked “Handled” only once replied to.",
+        "already_handled": "This feedback is handled: its reply can no longer be changed.",
+        "not_found": "This feedback does not exist.",
+        "required": "Write the reply before saving it.",
+        "too_long": "The reply is over 2,000 characters.",
+        "invalid": "This reply could not be read."
+      },
+      "journalFields": {
+        "status": "Status",
+        "reply": "Reply"
+      },
+      "replyStates": {
+        "none": "None",
+        "written": "Written",
+        "changed": "Changed"
       }
     },
     "evals": {
@@ -3014,6 +3091,8 @@
     "stripe_refused": "Refused by Stripe",
     "role_missing": "Section outside their roles",
     "invalid_value": "Value the setting does not take",
+    "reply_required": "A Question is handled with a reply",
+    "already_handled": "Feedback already handled",
     "guardrail_timeout": "Check took too long",
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",

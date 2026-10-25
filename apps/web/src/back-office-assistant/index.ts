@@ -160,6 +160,8 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   tools: { name: "Outils (Tools) : les outils externes que l'application appelle", page: routes.adminTools },
   evalRuns: { name: "Évaluations (Eval Runs) des playbooks, du coach IA et des garde-fous", page: routes.adminCoachingPlaybooks },
   unansweredQuestions: { name: "Questions sans réponse (Unanswered Questions) : ce que l'aide n'a pas couvert", page: routes.adminUnansweredQuestions() },
+  // Read by people only (#283): no Signalement is ever given to the assistant, only where they are.
+  signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe seulement, jamais par une IA", page: routes.adminSignalements() },
 };
 
 const heading = (resource: BackOfficeResource) => {
@@ -378,6 +380,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",
   unanswered_questions: "questions sans réponse",
+  signalements: "signalements",
   eval_runs: "Eval Runs",
   coach_message_cost: "coût coach",
   ai_usage: "consommation IA",

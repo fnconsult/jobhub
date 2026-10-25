@@ -10,6 +10,9 @@
     C · two steps anchored to the button that opened it (a popover on wide screens, a bottom sheet on phones).
   Fixed in every variant (decided elsewhere): types Bug / Idée only (2026-10-25: questions go through the Coach Panel's help and AI Coach, never a Signalement); entry points at the Sidebar's foot and at the
   Coach Panel's foot (« Signaler un problème », « Proposer une idée »); none in the Top Bar.
+  A Question to the team is never offered on its own: only after the Candidate answers « Non » to « Cela répond à votre
+  question ? » under an AI Coach reply (a Help Article's « Non » leads to the coach first). It opens prefilled with their
+  question and attaches that exchange (their question and the reply), nothing else of the conversation.
   Assumption: a self-contained page like prototype/candidate-help, so it opens with no database or sign-in.
   Tokens copied from packages/shared/src/design/tokens.ts (light only). Nothing is sent anywhere.
 -->
@@ -202,8 +205,10 @@ const ICON = {
 const TYPES = {
   bug: { name: "Bug", action: "Signaler un problème", label: "Décrivez le problème", hint: "Quelque chose ne marche pas ou s'affiche mal.", ph: "Ce que vous faisiez, ce qui s'est passé, ce que vous attendiez." },
   idee: { name: "Idée", action: "Proposer une idée", label: "Décrivez votre idée", hint: "Ce qui vous aiderait dans Jobbbox.", ph: "Ce que vous aimeriez pouvoir faire, et pourquoi." },
+  // Never offered on its own: only after the help and the AI Coach did not satisfy the Candidate (2026-10-25).
+  question: { name: "Question", action: "Poser la question à l'équipe", label: "Votre question", hint: "Une personne de l'équipe Jobbbox vous répond dans Jobbbox.", ph: "Votre question, avec ce qui manquait dans la réponse." },
 };
-const TKEYS = Object.keys(TYPES);
+const TKEYS = ["bug", "idee"]; // the types a Candidate can choose
 
 const SIZES = [16, 17, 18, 20];
 const SIZE_NAMES = ["Normal", "Grand", "Plus grand", "Très grand"];
@@ -211,7 +216,7 @@ const fresh = () => ({
   variant: KEYS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "A",
   panelOpen: false, menuOpen: false, phone: false, size: 0, draft: "",
   sg: null, // { type, text, from, step, error, contextOpen, done }
-  sent: [], toast: null,
+  sent: [], toast: null, messages: [],
 });
 let S = fresh();
 const $ = (sel) => document.querySelector(sel);
@@ -219,7 +224,9 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const narrow = () => $("#stage").clientWidth <= 768;
 
 function context() {
+  const x = S.sg?.exchange;
   return [
+    ...(x ? [["Échange", `Votre question et ${x.source === "coach" ? "la réponse du coach (IA)" : "l'article « " + x.answer + " »"}`]] : []),
     ["Page", "/candidatures/8f2c…/correspondance"],
     ["Version", "Jobbbox 0.42.0"],
     ["Navigateur", S.phone ? "Safari 18, iPhone" : "Chrome 141, Mac"],
@@ -227,7 +234,9 @@ function context() {
     ["Taille du texte", SIZE_NAMES[S.size]],
   ];
 }
-const contextSentence = () => "Joints automatiquement : la page, la version de Jobbbox, votre navigateur, la langue et la taille du texte. Ni capture d'écran, ni conversation avec votre coach.";
+const contextSentence = () => S.sg?.exchange
+  ? "Joints automatiquement : votre échange avec l'aide et coach (votre question et la réponse reçue), la page, la version de Jobbbox, votre navigateur, la langue et la taille du texte. Rien d'autre de la conversation."
+  : "Joints automatiquement : la page, la version de Jobbbox, votre navigateur, la langue et la taille du texte. Ni capture d'écran, ni conversation avec votre coach.";
 const contextList = () => `<dl>${context().map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
 
 /* ---------- Frame ---------- */
@@ -256,7 +265,7 @@ function panel() {
     ? `<button class="button button-quiet" type="button" data-sg-cancel>${ICON.back} Conversation</button><span class="panel-title">Signalement</span>`
     : `<span class="panel-title">${ICON.help} Aide et coach · Nouvelle conversation ▾</span>`;
   const body = inForm ? formB() : panelHome();
-  const foot = inForm ? "" : `<form class="composer" data-noop><textarea id="box" rows="1" aria-label="Votre question" placeholder="Votre question">${esc(S.draft)}</textarea><button class="button button-primary" type="submit">Envoyer au coach</button></form>
+  const foot = inForm ? "" : `<form class="composer" data-ask><textarea id="box" rows="1" aria-label="Votre question" placeholder="Votre question">${esc(S.draft)}</textarea><button class="button button-primary" type="submit">Envoyer au coach</button></form>
     <div class="foot-links proto-new">${TKEYS.map((k) => `<button class="linkish" type="button" id="sg-foot-${k}" data-sg-open="${k}" data-from="sg-foot-${k}">${TYPES[k].action}</button>`).join("")}</div>`;
   return `<aside class="panel" aria-label="Aide et coach"><div class="panel-head">${head}<button class="button button-quiet" type="button" data-panel-close>Fermer</button></div>
     <div class="panel-body" id="panel-body">${body}</div>${foot ? `<div class="panel-foot">${foot}</div>` : ""}</aside>`;
@@ -265,8 +274,22 @@ function panelHome() {
   const sentCards = S.variant === "B" ? S.sent.map(sentCard).join("") : "";
   return `<p>Bonjour. Posez votre question : je cherche d'abord dans l'aide de Jobbbox, et votre coach répond si l'aide n'a pas la réponse.</p>
     <section class="this-page"><p class="meta">Sur cette page</p><p><strong>La page d'une candidature</strong></p><p>Elle rassemble l'offre, le score de correspondance, vos documents adaptés et vos relances.</p></section>
-    <section><p class="meta" style="margin:0 0 .4rem">Souvent demandé</p><div class="chips"><button class="chip" type="button">Quand mon quota se renouvelle-t-il ?</button><button class="chip" type="button">Comment signaler un problème ?</button></div></section>
-    ${sentCards}`;
+    <section><p class="meta" style="margin:0 0 .4rem">Souvent demandé</p><div class="chips"><button class="chip" type="button" data-article-quota>Quand mon quota se renouvelle-t-il ?</button><button class="chip" type="button">Comment signaler un problème ?</button></div></section>
+    ${sentCards}${messagesHtml()}`;
+}
+const fbRow = (i) => `<div class="feedback" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.4rem"><span class="meta">Cela répond à votre question ?</span><button class="button" type="button" data-fb="yes" data-i="${i}">Oui</button><button class="button" type="button" data-fb="no" data-i="${i}">Non</button></div>`;
+function messagesHtml() {
+  return S.messages.map((m, i) => {
+    if (m.me) return `<div style="align-self:flex-end;max-width:85%;background:var(--surface-hover);border-radius:10px;padding:.5rem .8rem">${esc(m.text)}</div>`;
+    const head = m.article ? `<div class="meta">Aide · écrit par l'équipe Jobbbox</div><p style="margin:.2rem 0"><strong>${esc(m.title)}</strong></p>` : `<div class="meta"><span style="color:var(--glyph)">✳</span> Votre coach · IA</div>`;
+    let after = "";
+    if (m.fb === null) after = fbRow(i);
+    else if (m.fb === "yes") after = `<p class="meta" role="status" style="margin:.4rem 0 0">Merci, c'est noté.</p>`;
+    else if (m.article) after = `<div class="proto-new" style="margin-top:.5rem;padding:.6rem .7rem;background:var(--surface);border-radius:8px"><p style="margin:0 0 .4rem">L'article ne suffit pas : votre coach peut vous répondre.</p><button class="button" type="button" data-ask-coach="${i}">Demander à mon coach</button></div>`;
+    else if (m.escalated) after = `<p class="meta" style="margin:.4rem 0 0">Question envoyée à l'équipe. Vous suivez sa réponse dans Mon compte › Mes signalements.</p>`;
+    else after = `<div class="proto-new" style="margin-top:.5rem;padding:.6rem .7rem;background:var(--surface);border-radius:8px"><p style="margin:0 0 .4rem">Désolé que la réponse ne suffise pas. Une personne de l'équipe Jobbbox peut vous répondre, dans Jobbbox.</p><button class="button" type="button" id="sg-esc-${i}" data-sg-open="question" data-from="sg-esc-${i}" data-i="${i}">Poser la question à l'équipe</button></div>`;
+    return `<div class="${m.article ? "card" : ""}" style="max-width:95%">${head}<p style="margin:.2rem 0">${esc(m.text)}</p>${after}</div>`;
+  }).join("");
 }
 function sentCard(s) {
   return `<div class="sent-card"><div class="meta">Signalement · ${TYPES[s.type].name} · envoyé à l'instant</div><p style="margin:.3rem 0">${esc(s.text.length > 120 ? s.text.slice(0, 120) + "…" : s.text)}</p>
@@ -297,6 +320,7 @@ function fieldHtml() {
     </div>`;
 }
 function typeSeg() {
+  if (S.sg.type === "question") return `<p class="meta" style="margin:-.5rem 0 0">${TYPES.question.hint}</p>`;
   return `<div class="seg" role="radiogroup" aria-label="Type de signalement">${TKEYS.map((k) => `<label>${ICON[k]}<input type="radio" name="sg-type" value="${k}" ${S.sg.type === k ? "checked" : ""}>${TYPES[k].name}</label>`).join("")}</div>`;
 }
 function doneHtml(inline) {
@@ -311,7 +335,7 @@ function dialogA() {
   const g = S.sg;
   if (g.done) return `<div class="overlay" data-overlay><div class="modal" role="dialog" aria-modal="true" aria-labelledby="sg-title"><h2 id="sg-title">${ICON.signal} Signalement envoyé</h2>${doneHtml()}</div></div>`;
   return `<div class="overlay" data-overlay><form class="modal" role="dialog" aria-modal="true" aria-labelledby="sg-title" data-sg-form>
-    <h2 id="sg-title">${ICON.signal} Envoyer un signalement</h2>
+    <h2 id="sg-title">${ICON.signal} ${g.type === "question" ? TYPES.question.action : "Envoyer un signalement"}</h2>
     ${typeSeg()}
     ${fieldHtml()}
     <div class="sg-context"><p>${contextSentence()} <button class="linkish" type="button" data-ctx>${g.contextOpen ? "Masquer le détail" : "Voir le détail"}</button></p>${g.contextOpen ? contextList() : ""}</div>
@@ -324,11 +348,11 @@ function formB() {
   const g = S.sg;
   if (g.done) return doneHtml(true);
   return `<form data-sg-form style="display:flex;flex-direction:column;gap:1rem">
-    <fieldset class="type-cards"><legend>Que voulez-vous nous dire ?</legend>
+    ${g.type === "question" ? `<h2 style="margin:0;font-size:1.125em">${TYPES.question.action}</h2><p class="meta" style="margin:-.5rem 0 0">${TYPES.question.hint}</p>` : `<fieldset class="type-cards"><legend>Que voulez-vous nous dire ?</legend>
       ${TKEYS.map((k) => `<label class="type-card">${ICON[k]}<input type="radio" name="sg-type" value="${k}" ${g.type === k ? "checked" : ""}><span><strong>${TYPES[k].action}</strong><small>${TYPES[k].hint}</small></span></label>`).join("")}
-    </fieldset>
+    </fieldset>`}
     ${fieldHtml()}
-    <div class="sg-context"><p><strong>Joint automatiquement</strong></p>${contextList()}<p class="meta" style="margin-top:.4rem">Ni capture d'écran, ni conversation avec votre coach.</p></div>
+    <div class="sg-context"><p><strong>Joint automatiquement</strong></p>${contextList()}<p class="meta" style="margin-top:.4rem">${g.exchange ? "Rien d'autre de la conversation, ni capture d'écran." : "Ni capture d'écran, ni conversation avec votre coach."}</p></div>
     <div class="sg-actions"><button class="button" type="button" data-sg-cancel>Annuler</button><button class="button button-primary" type="submit">Envoyer</button></div>
   </form>`;
 }
@@ -342,9 +366,9 @@ function dialogC() {
       <div class="sg-actions"><button class="button button-quiet" type="button" data-sg-cancel>Annuler</button></div>`;
   } else {
     inner = `<h2 id="sg-title">${ICON[g.type]} ${TYPES[g.type].action}</h2>
-      <p class="meta" style="margin:-.5rem 0 0">${TYPES[g.type].hint} <button class="linkish" type="button" data-pick="">Changer</button></p>
+      <p class="meta" style="margin:-.5rem 0 0">${TYPES[g.type].hint} ${g.type === "question" ? "" : `<button class="linkish" type="button" data-pick="">Changer</button>`}</p>
       ${fieldHtml()}
-      <details class="sg-context" ${g.contextOpen ? "open" : ""} data-ctx-details><summary>Ce qui est joint (5 éléments)</summary>${contextList()}<p class="meta" style="margin-top:.4rem">Ni capture d'écran, ni conversation avec votre coach.</p></details>
+      <details class="sg-context" ${g.contextOpen ? "open" : ""} data-ctx-details><summary>Ce qui est joint (${context().length} éléments)</summary>${contextList()}<p class="meta" style="margin-top:.4rem">${g.exchange ? "Rien d'autre de la conversation, ni capture d'écran." : "Ni capture d'écran, ni conversation avec votre coach."}</p></details>
       <div class="sg-actions"><button class="button" type="button" data-sg-cancel>Annuler</button><button class="button button-primary" type="submit">Envoyer</button></div>`;
   }
   return `<div class="pop-scrim" data-overlay></div><form class="popover" id="popover" role="dialog" aria-modal="true" aria-labelledby="sg-title" data-sg-form>${inner}</form>`;
@@ -391,23 +415,27 @@ function render() {
 function focusFirst() {
   const root = S.variant === "B" ? $("#panel-body") : $("[role=dialog]");
   if (!root) return;
-  const target = S.sg?.done ? root.querySelector("[data-sg-close]") : (S.sg?.type && (S.sg.from.startsWith("sg-foot") || S.variant !== "A")) ? root.querySelector("#sg-text") : root.querySelector("input:checked, input, button");
+  const target = S.sg?.done ? root.querySelector("[data-sg-close]") : (S.sg?.type && (S.sg.from.startsWith("sg-foot") || S.sg.type === "question" || S.variant !== "A")) ? root.querySelector("#sg-text") : root.querySelector("input:checked, input, button");
   target?.focus();
 }
 
 /* ---------- Behaviour ---------- */
-function openSg(type, from) {
-  const fromPanel = from.startsWith("sg-foot");
-  const prefill = "";
+function openSg(type, from, i) {
+  if (type === "question") { // only from a coach reply the Candidate said did not answer them
+    const m = S.messages[i];
+    S.sg = { type, text: m.q, from, msg: i, exchange: { source: "coach", question: m.q, answer: m.text }, error: "", contextOpen: false, done: false };
+    S.menuOpen = false; if (S.variant === "B") S.panelOpen = true;
+    render(); focusFirst(); return;
+  }
   const kept = S.kept && (!type || S.kept.type === type) ? S.kept : null;
-  S.sg = { type: type || kept?.type || (S.variant === "C" ? null : "bug"), text: prefill || kept?.text || "", from, error: "", contextOpen: false, done: false };
+  S.sg = { type: type || kept?.type || (S.variant === "C" ? null : "bug"), text: kept?.text || "", from, error: "", contextOpen: false, done: false };
   S.kept = null; S.menuOpen = false;
   if (S.variant === "B") S.panelOpen = true;
   render(); focusFirst();
 }
 function closeSg() {
   const g = S.sg; if (!g) return;
-  if (!g.done && g.text.trim()) S.kept = { type: g.type, text: g.text }; // a closed draft comes back next time
+  if (!g.done && g.text.trim() && g.type !== "question") S.kept = { type: g.type, text: g.text }; // a closed draft comes back next time
   S.sg = null; render();
   document.getElementById(g.from)?.focus() || (S.variant === "B" && $("#box")?.focus());
 }
@@ -416,6 +444,7 @@ function submitSg() {
   if (!g.type) return;
   if (n < MIN) { g.error = n ? `Encore ${MIN - n} caractères au moins, pour que l'équipe comprenne.` : "Écrivez quelques mots avant d'envoyer."; render(); $("#sg-text")?.focus(); return; }
   S.sent.push({ type: g.type, text: g.text.trim() });
+  if (g.type === "question") S.messages[g.msg].escalated = true;
   if (S.variant === "C") { const from = g.from; S.sg = null; S.toast = `Signalement envoyé. Vous le suivez dans Mon compte.`; render(); document.getElementById(from)?.focus(); return; }
   g.done = true; render(); focusFirst();
 }
@@ -425,7 +454,10 @@ document.addEventListener("click", (e) => {
   if (e.target.matches("[data-overlay]") && S.sg) return closeSg();
   const t = e.target.closest("button"); if (!t) return;
   const d = t.dataset;
-  if ("sgOpen" in d) return openSg(d.sgOpen, d.from);
+  if ("sgOpen" in d) return openSg(d.sgOpen, d.from, +d.i);
+  if ("fb" in d) { S.messages[+d.i].fb = d.fb; render(); return; }
+  if ("askCoach" in d) return askCoach(S.messages[+d.askCoach].q);
+  if ("articleQuota" in d) { S.panelOpen = true; S.messages.push({ article: true, title: "Quand mon quota se renouvelle-t-il ?", q: "Quand mon quota se renouvelle-t-il ?", text: "Chaque lundi à 0 h. La barre « Hebdomadaire », en bas du menu, montre où vous en êtes.", fb: null }); render(); return; }
   if ("sgCancel" in d || "sgClose" in d) return closeSg();
   if ("pick" in d) { S.sg.type = d.pick || null; S.sg.error = ""; render(); focusFirst(); return; }
   if ("ctx" in d) { S.sg.contextOpen = !S.sg.contextOpen; render(); return; }
@@ -449,7 +481,12 @@ document.addEventListener("input", (e) => {
     $("#sg-count").textContent = `${S.sg.text.trim().length} / ${MAX}`;
   }
 });
-document.addEventListener("submit", (e) => { e.preventDefault(); if ("sgForm" in e.target.dataset) submitSg(); });
+document.addEventListener("submit", (e) => { e.preventDefault(); if ("sgForm" in e.target.dataset) submitSg(); if ("ask" in e.target.dataset) askCoach(S.draft); });
+function askCoach(q) {
+  if (!q?.trim()) return;
+  S.messages.push({ me: true, text: q.trim() }, { q: q.trim(), text: "Voici ce que je comprends de votre question, à partir de votre profil et de la page ouverte. (Prototype : réponse écrite d'avance, aucun appel à l'IA.)", fb: null });
+  S.draft = ""; render(); const b = $("#panel-body"); if (b) b.scrollTop = b.scrollHeight;
+}
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && S.sg && !S.sg.done) { e.preventDefault(); return closeSg(); }
   if (e.key === "Escape" && S.sg?.done) return closeSg();

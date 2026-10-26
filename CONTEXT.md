@@ -738,6 +738,10 @@ _Avoid_: Tooltip, glossary link
 **Empty state help link**:
 The link that follows the line of an empty state (no Propositions, no Relances, no Applications, no Job Search, nothing on the Agenda, no Profile data) and opens the Help Article that explains what fills it.
 
+**Question sans réponse (couldNotAnswer)**:
+The AI Coach's own hidden mark on a reply (a last line removed before anyone sees it) saying it could not answer the question. The Coach Panel then offers « Poser la question à l'équipe » at once, without asking « Cela répond à votre question ? ». Never set on a Guardrail message or a Job Offer link; not saved with the Coach Conversation. Not the same as an Unanswered Question, and never linked to one.
+_Avoid_: unanswered flag
+
 **Unanswered Question**:
 A question about using Jobbbox that a Candidate asked the AI Coach, that no Help Article answered, kept so the team can write the missing article. The AI Coach itself says whether a question is about using Jobbbox (not about the Candidate's job search). Question and answer are kept with identity removed, with the page's route pattern (never its address) and the Interface Language, and no link to the Candidate or the Coach Conversation. Asked again, the same question (same search words, page and language) counts once more; asked again after it was marked, it opens a new one. Help editors mark it written (« Article écrit ») or dismissed (« Écarter »). Purged 12 months after it was last asked, 30 days after it was marked; not in the Data export.
 _Avoid_: FAQ gap, feedback, ticket

@@ -105,9 +105,10 @@
 <div class="shell">
   <nav class="side">
     <h1>Jobbbox · Back Office</h1>
+    <a href="#" data-page="dashboard" id="nav-dashboard">Dashboard</a>
     <h2>Offre</h2><a href="#">Offres</a><a href="#">Quotas</a><a href="#">Codes promo</a>
     <h2>Coaching</h2><a href="#">Coachs</a><a href="#">Playbooks</a>
-    <h2>Plateforme</h2><a href="#" class="on">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a>
+    <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a>
     <h2>Équipe</h2><a href="#">Administrateurs</a><a href="#">Journal</a>
     <p class="small muted" style="margin:24px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
   </nav>
@@ -227,7 +228,7 @@ const SRC = { bo: ["Back Office", "src-bo"], env: ["env", "src-env"], code: ["d�
 
 // ---------- state ----------
 const qs = new URLSearchParams(location.search);
-const S = { variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, task: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
+const S = { page: qs.get("page") || (qs.get("tab") ? "parametres" : "dashboard"), variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, task: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
 const VARIANTS = { A: "Onglets + fournisseur actif + tableau", B: "Usages à gauche + matrice comparative", C: "Grand tableau de réglages" };
 
 // ---------- helpers ----------
@@ -359,7 +360,7 @@ function costBlock() {
   const sMax = Math.max(...STOPS.map((x) => x.v)), sTot = STOPS.reduce((a, x) => a + x.v, 0);
   const stops = STOPS.map((x) => `<div class="row" style="gap:8px;margin:5px 0" data-tip="${h(`<div>${x.k}</div><b>${x.v} runs</b> (${Math.round((x.v / sTot) * 100)} %)`)}"><span class="small" style="width:11rem">${h(x.k)}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(x.v / sMax) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:3.5rem;text-align:right">${Math.round((x.v / sTot) * 100)} %</span></div>`).join("");
   const postes = POSTES.map((x) => `<div class="row" style="gap:8px;margin:5px 0" data-tip="${h(`<div>${x.k}</div><b>${eur(x.v, 4)}</b> par run (${Math.round((x.v / allRun) * 100)} %)`)}"><span class="small" style="width:11rem">${h(x.k)}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(x.v / POSTES[0].v) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:3.5rem;text-align:right">${eur(x.v, 3)}</span></div>`).join("");
-  return `<h2 class="sec">Consommation et budget <span class="small muted" style="font-weight:400">· octobre 2026, au 26</span></h2>
+  return `<h2 class="sec">Recherche d'offres : consommation et budget <span class="small muted" style="font-weight:400">· octobre 2026, au 26</span></h2>
     <div class="kpis">
       <div class="kpi"><div class="lbl">Dépense recherche web du mois</div><div class="val">${eur(spend)}</div><div class="sub">${Math.round((spend / threshold) * 100)} % du seuil d'alerte (${eur(threshold, 0)})</div><div class="bar-track"><span style="width:${Math.min(100, (spend / threshold) * 100)}%"></span></div></div>
       <div class="kpi"><div class="lbl">Coût moyen d'un run</div><div class="val">${eur(allRun, 3)}</div><div class="sub">budget ${eur(0.08)} · ${Math.round((allRun / 0.08) * 100)} % utilisé</div></div>
@@ -376,7 +377,7 @@ function costBlock() {
       <div class="chart"><h4>Pourquoi les runs s'arrêtent</h4><p class="small muted" style="margin:0 0 6px">${sTot} runs ce mois</p>${stops}</div>
     </div>
     <div class="chart" style="margin-top:14px"><h4>Où va le coût d'un run (moyenne)</h4><p class="small muted" style="margin:0 0 6px">La recherche web elle-même pèse ${Math.round((POSTES[2].v / allRun) * 100)} % ; la lecture des pages par un LLM l'essentiel.</p>${postes}</div>
-    <p class="small"><a href="#">Tout le détail dans Consommation IA (filtré sur la recherche web) →</a> &nbsp; <a href="#">Vue tableau</a></p>`;
+    <p class="small"><a href="#">Tout le détail dans Consommation IA →</a> &nbsp; <a href="#" data-page="parametres" data-tab="web">Réglages de la recherche web →</a> &nbsp; <a href="#">Vue tableau</a></p>`;
 }
 
 function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#">Journaux IA · ${h(us.label)} →</a></p>`; }
@@ -502,7 +503,7 @@ function variantA() {
       <td class="small">${p.tools.map((t) => h(t.name)).join(", ") || "—"}</td><td class="small">${p.params.map((s) => `${h(s.k)} : ${h(s.v)}`).join("<br>") || "—"}</td>
       <td class="small">${[...p.usedBy.map(usageName), ...(PLAYBOOKS.some((b) => b.p === pid) ? [`${PLAYBOOKS.filter((b) => b.p === pid).length} Playbook Agent(s)`] : [])].join(", ") || "—"}</td>
       <td>${us.active && !isA ? `<button class="btn" data-activate="${pid}" ${ks === "ko" ? 'title="Clé absente : les appels échoueront tant qu\'elle n\'est pas saisie"' : ""}>Rendre actif${ks === "ko" ? " ⚠" : ""}</button>` : ""}</td></tr>`; }).join("")}</table>`;
-  if (us.business) body += businessBlock(us.business) + costBlock();
+  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a></p>`;
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
@@ -575,18 +576,29 @@ function variantC() {
     ${S.chip !== "all" ? observeLinks(u(S.chip)) : ""}`;
 }
 
+function dashboard() {
+  return `<div class="pagehead"><h1>Dashboard</h1><p>Vos rôles : super-admin.</p></div>
+    <p class="small muted">Chaque bloc n'apparaît qu'aux rôles qui peuvent lire sa section (ici : Consommation IA).</p>
+    ${costBlock()}`;
+}
+
 // ---------- render + wiring ----------
 function render() {
   const url = new URL(location); url.searchParams.set("variant", S.variant); url.searchParams.set("tab", S.tab); history.replaceState(null, "", url);
-  document.getElementById("main").innerHTML = { A: variantA, B: variantB, C: variantC }[S.variant]();
+  url.searchParams.set("page", S.page);
+  history.replaceState(null, "", url);
+  document.getElementById("nav-dashboard").classList.toggle("on", S.page === "dashboard");
+  document.getElementById("nav-parametres").classList.toggle("on", S.page === "parametres");
+  document.getElementById("main").innerHTML = S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
   document.getElementById("overlay").innerHTML = S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
+  if (t.dataset.page) { e.preventDefault(); S.page = t.dataset.page; if (t.dataset.tab) S.tab = t.dataset.tab; S.drawer = null; return render(); }
   if (t.dataset.jobsite != null) { const x = u("extension").jobSites[+t.dataset.jobsite]; x.on = !x.on; toast(`${x.pat} ${x.on ? "activé" : "désactivé"}`); return render(); }
   if (t.dataset.jobsiteRm != null) { const [x] = u("extension").jobSites.splice(+t.dataset.jobsiteRm, 1); toast(`${x.pat} retiré`); return render(); }
   if (t.hasAttribute("data-add")) { S.adding = true; S.addType = S.tab === "extension" ? "jobsite" : S.tab === "sources" ? "source" : S.tab === "signin" ? "signin" : S.tab === "ai" ? "model" : "provider"; return render(); }

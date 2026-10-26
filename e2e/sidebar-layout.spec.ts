@@ -207,9 +207,11 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     // Docked: the page stays beside it, not under it.
     const main = (await page.getByRole("main").boundingBox())!;
     expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
-    // The message box stays at the bottom of the panel.
+    // The message box stays at the bottom of the panel, with only the panel's foot under it (#345).
     const form = (await panel.locator("form").boundingBox())!;
-    expect(form.y + form.height).toBeGreaterThan(900 - inset - 32);
+    const foot = (await panel.locator(".coach-panel-foot").boundingBox())!;
+    expect(foot.y).toBeGreaterThanOrEqual(form.y + form.height - 1);
+    expect(foot.y + foot.height).toBeGreaterThan(900 - inset - 32);
 
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

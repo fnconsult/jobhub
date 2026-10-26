@@ -111,6 +111,8 @@ test.describe("Signalement from the Coach Panel (#345)", () => {
     const down = "Comment négocier mon salaire ? E2E_AI_DOWN";
     await ask(page, down);
     await expect(panelOf(page).getByRole("alert")).toBeVisible({ timeout: 30_000 });
+    // The unavailable message stands for the coach's reply.
+    const unavailable = (await panelOf(page).getByRole("alert").textContent())!.trim();
     // No more link to the article on making a Signalement: the team is offered here.
     await expect(panelOf(page).getByRole("button", { name: "Faire un signalement" })).toHaveCount(0);
     await askTeamOf(page).click();
@@ -119,7 +121,7 @@ test.describe("Signalement from the Coach Panel (#345)", () => {
     await expect(questionDialogOf(page).getByRole("status")).toContainText(s.thanks);
     await page.keyboard.press("Escape");
     expect(await exportedSignalements(page)).toEqual([
-      expect.objectContaining({ type: "question", attachedQuestion: down, attachedCoachReply: fr.coachPanel.errors.unavailable }),
+      expect.objectContaining({ type: "question", attachedQuestion: down, attachedCoachReply: unavailable }),
     ]);
 
     // A reply the AI Coach marked as one it could not answer: the team at once, no « Oui / Non ».

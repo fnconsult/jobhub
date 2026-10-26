@@ -287,7 +287,7 @@ A message shown on every workspace page when a Job Search stops being searching:
 _Avoid_: Alert, toast, Action Card
 
 **Search provider**:
-A web search Tool that returns pages for a query, with their dates when it knows them, and never writes text: Perplexity (its Search API), Brave or Tavily. It receives only queries built from Search Criteria or an employer's name. One is active for web search (the `web_search` route), another may be its fallback, and a search Task Playbook may name its own. Every Search provider honours the same filters (included and excluded domains, country, maximum age, number of results), applying itself those it lacks on the pages it returns.
+A web search Tool that returns pages for a query, with their dates when it knows them, and never writes text: Perplexity (its Search API), Brave or Tavily. It receives only queries built from Search Criteria or an employer's name. One is active for web search (the `web_search` route), another may be its fallback, and a search Task Playbook may name its own. Every Search provider honours the same filters (included and excluded domains, country, maximum age, number of results), applying itself those it lacks on the pages it returns. Without the key of the active one, web search is unavailable (Failure Reason `key_missing`): Job discovery skips it like a disabled source, and a foreign employer's Company Dossier is refused, while a French employer's is still built from the register with no Company News.
 _Avoid_: Search engine, search LLM, web search tool
 
 **Target Company**:

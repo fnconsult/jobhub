@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backOfficeAccess, permanentSuperAdminsFromEnv } from "./access";
+import { BACK_OFFICE_ROLES, backOfficeAccess, isBackOfficeRole, permanentSuperAdminsFromEnv } from "./access";
 
 describe("permanent super-admins", () => {
   it("are the Jobbbox team members whose emails are listed in ADMIN_EMAILS, whatever the case", () => {
@@ -144,6 +144,38 @@ describe("Back Office access", () => {
     expect(backOfficeAccess(["support"]).can("platformSettings", "read")).toBe(true);
     expect(backOfficeAccess(["support"]).can("platformSettings", "write")).toBe(false);
     for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("platformSettings", "read"), role).toBe(false);
+  });
+
+  it("Technique changes the non-secret settings, the search sites and the Tools' prices, sees keys without changing them, and reads the Dashboard and the Audit; never the AI Message Log (#397)", () => {
+    const technique = backOfficeAccess(["platform-manager"]);
+
+    expect(technique.isAdministrator).toBe(true);
+    expect(technique.isSuperAdmin).toBe(false);
+    // Writes: Platform Settings (the Tools' prices are Platform Settings on their Paramètres sheet), sources, sites and Job Sites.
+    for (const resource of ["platformSettings", "searchSites"] as const) {
+      expect(technique.can(resource, "read"), resource).toBe(true);
+      expect(technique.can(resource, "write"), resource).toBe(true);
+    }
+    // Keys: seen by their source and last 4 characters only, never replaced, tested or cleared.
+    expect(technique.can("providerSecrets", "read")).toBe(true);
+    expect(technique.can("providerSecrets", "write")).toBe(false);
+    // Reads: the Dashboard's figures (AI Usage, Tools), the Sign-in Providers' tab of Paramètres, and Actions des administrateurs.
+    for (const resource of ["aiUsage", "tools", "ssoProviders", "audit"] as const) {
+      expect(technique.can(resource, "read"), resource).toBe(true);
+      expect(technique.can(resource, "write" as never), resource).toBe(false);
+    }
+    // Never Appels IA, and nothing outside the platform.
+    for (const resource of ["aiMessages", "roles", "plans", "planQuotas", "coupons", "humanCoaches", "coachMessageCost", "coachingPlaybooks", "guardrails", "evalRuns", "unansweredQuestions", "signalements"] as const) {
+      expect(technique.can(resource, "read"), resource).toBe(false);
+    }
+  });
+
+  it("Technique is grantable like any Back Office Role; Support still only reads Paramètres and super-admins keep everything (#397)", () => {
+    expect(BACK_OFFICE_ROLES).toContain("platform-manager");
+    expect(isBackOfficeRole("platform-manager")).toBe(true);
+    expect(backOfficeAccess(["support"]).can("platformSettings", "write")).toBe(false);
+    expect(backOfficeAccess(["support"]).can("audit", "read")).toBe(false);
+    for (const resource of ["platformSettings", "searchSites", "providerSecrets"] as const) expect(backOfficeAccess(["super-admin"]).can(resource, "write"), resource).toBe(true);
   });
 
   it("several roles add up", () => {

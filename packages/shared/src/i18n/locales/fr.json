@@ -813,7 +813,8 @@
       "coach-manager": "Responsable coaching",
       "support": "Support",
       "playbook-editor": "Rédacteur de playbooks",
-      "help-editor": "Rédacteur de l'aide"
+      "help-editor": "Rédacteur de l'aide",
+      "platform-manager": "Technique"
     },
     "nav": {
       "label": "Navigation du back office",
@@ -1406,7 +1407,8 @@
         "coach-manager": "Les coachs humains ; consulte le coût de l'AI Coach.",
         "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier.",
         "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources.",
-        "help-editor": "Lit les questions sans réponse et les marque « Article écrit » ou les écarte."
+        "help-editor": "Lit les questions sans réponse et les marque « Article écrit » ou les écarte.",
+        "platform-manager": "Règle les paramètres non secrets, les sources et sites de recherche et les prix des outils ; voit les clés par leur source et leurs 4 derniers caractères, sans les changer ; lit la consommation, les outils et le journal."
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",

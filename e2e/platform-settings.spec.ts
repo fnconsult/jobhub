@@ -19,6 +19,7 @@ import { newAddress } from "./support/mailbox";
 // Issue #303: they set the extension's Chrome Web Store page there, an https URL only; Mon compte's
 // Outils offers it within seconds, and « coming soon » again once it is « Rétablir »'d (the e2e server
 // sets no EXTENSION_STORE_URL).
+// Issue #397: a Technique administrator (platform-manager) changes them too, sees Provider Secrets read-only, never Appels IA.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
@@ -159,6 +160,54 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(refused).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.invalid_value }));
       await expect(refused).toContainText(tr(admin.journal.fieldAtFault, { field: value }));
       await expect(refused).not.toContainText("120");
+    });
+
+    test("a Technique administrator changes a Platform Setting, cannot replace a key (no form, server refuses), cannot open Appels IA (#397)", async ({ page, browser }) => {
+      await signInWithMagicLink(page, SUPER_ADMIN);
+      const technique = newAddress("settings-technique");
+      const techniquePage = await personPage(browser, technique);
+      await grant(page, technique, "platform-manager");
+
+      // Changes a Platform Setting, recorded in their name, and restores it.
+      await techniquePage.goto(PATH);
+      await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);
+      const setting = row(techniquePage, EDITED);
+      await setting.getByRole("textbox", { name: tr(texts.newValue, { name: EDITED }) }).fill("58");
+      await setting.getByRole("button", { name: texts.save }).click();
+      await expect(techniquePage.getByRole("status").filter({ hasText: EDITED })).toHaveText(tr(texts.notices.saved, { name: EDITED }));
+      await expect(setting.getByRole("cell").nth(0)).toHaveText("58");
+      await expect(setting.getByRole("cell").nth(1)).toContainText(texts.sources.back_office);
+      await expect(setting.getByRole("cell").nth(1)).toContainText(technique);
+      await setting.getByRole("button", { name: texts.restore }).click();
+      await expect(techniquePage.getByRole("status").filter({ hasText: EDITED })).toHaveText(tr(texts.notices.restored, { name: EDITED }));
+      await expect(setting.getByRole("cell").nth(1)).toHaveText(texts.sources.default);
+
+      // Sees the keys by their source and last 4 characters only: read-only, no form to replace, test or clear one.
+      const KEY = "LUSHA_API_KEY";
+      expect((await techniquePage.goto("/admin/cles"))?.status()).toBe(200);
+      await expect(techniquePage.getByText(admin.readOnly)).toBeVisible();
+      await expect(techniquePage.getByRole("row").filter({ hasText: KEY })).toBeVisible();
+      await expect(techniquePage.getByRole("main").locator("form")).toHaveCount(0);
+      await expect(techniquePage.locator('input[type="password"]')).toHaveCount(0);
+      // Sent by hand (the super-admin's replace form), the server refuses it.
+      await page.goto("/admin/cles");
+      const form = page.locator("form").filter({ has: page.locator(`input[name="name"][value="${KEY}"]`) }).filter({ has: page.locator('input[name="value"]') });
+      const actionField = await form.locator('input[name^="$ACTION_ID_"]').getAttribute("name");
+      expect(actionField).toBeTruthy();
+      const forged = await techniquePage.request.post("/admin/cles", {
+        headers: { origin },
+        multipart: { [actionField!]: "", name: KEY, value: "e2e-technique-forged-key", saveAnyway: "on" },
+        maxRedirects: 0,
+      });
+      expect(forged.status()).toBe(404);
+      await page.goto("/admin/cles");
+      await expect(page.getByRole("row").filter({ hasText: KEY })).not.toContainText(technique);
+
+      // Never Appels IA (the AI Message Log): not in the sidebar, and its page answers 404.
+      await techniquePage.goto("/admin");
+      await expect(techniquePage.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.aiMessages })).toHaveCount(0);
+      expect((await techniquePage.goto("/admin/journaux-ia"))?.status()).toBe(404);
+      await expect(techniquePage.getByRole("heading", { level: 1 })).toHaveText(page404);
     });
 
     test("« Rétablir » falls back to the value env holds, not the code's default, and the source follows; the Journal has the before and after of each step", async ({ page }) => {

@@ -45,8 +45,9 @@ import type { HumanCoach } from "../human-coaches";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages } from "./conversation";
+import { EXPLAINING, explainedSchema, explainedText } from "./explained";
 
-export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage } from "./conversation";
+export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage, type ExplainedItem } from "./conversation";
 
 /** The Back Office data the assistant reads, each source covered by one Back Office resource. */
 export interface BackOfficeAssistantSources {
@@ -111,7 +112,8 @@ const inputSchema = z.object({
   messages: z
     .array(
       z.discriminatedUnion("from", [
-        z.object({ from: z.literal("administrator"), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }),
+        // `explained`: the item an Explainable label asked about (#407), told with the question.
+        z.object({ from: z.literal("administrator"), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH), explained: explainedSchema.optional() }),
         // The assistant's own replies, as saved: they may run longer than what an Administrator may type.
         z.object({ from: z.literal("assistant"), text: z.string().trim().min(1).max(MAX_REPLY_LENGTH) }),
       ]),
@@ -464,7 +466,8 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
         const written: GenerateResult[] = [];
         const write = async (feedback: string | null) => {
           const [context, run] = await Promise.all([assistantContext(deps.sources, administrator.access), taskRun(deps.taskPlaybooks, "back-office-assistant", deps.ai)]);
-          const instructions = `${run.text()}\n${GUARDS}`;
+          const explaining = messages.some((message) => message.from === "administrator" && message.explained);
+          const instructions = `${run.text()}\n${GUARDS}${explaining ? `\n${EXPLAINING}` : ""}`;
           const result = await recorder.ai.generate({
             // Its own task, so it is counted apart from the AI Coach; routed like coaching.
             task: "back_office_assistant",
@@ -477,7 +480,12 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
             // the identity of the Candidate the call is made for. Whatever the Administrator types is still
             // scanned by the AI layer, and goes to Mistral with their EU AI consent.
             containsIdentity: false,
-            prompt: messages.map((message) => ({ role: message.from === "administrator" ? ("user" as const) : ("assistant" as const), content: message.text })),
+            prompt: messages.map((message) =>
+              message.from === "administrator"
+                ? // An Explainable label's context goes with its question, every time the conversation is answered.
+                  { role: "user" as const, content: message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text }
+                : { role: "assistant" as const, content: message.text },
+            ),
           });
           written.push(result);
           return { text: result.text.trim(), secrets: [instructions] };

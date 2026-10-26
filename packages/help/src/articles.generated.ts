@@ -429,7 +429,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "parler à quelqu'un"
       ],
       "route": null,
-      "body": "Faites un signalement : « Signaler un problème », « Proposer une idée » ou « Poser une question », en bas du panneau « Aide et coach ». Sur téléphone, vous le trouvez aussi dans le menu.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
+      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », en bas du panneau « Aide et coach ». Vous le trouvez aussi avec l'icône à côté de « Mon compte », dans le menu sur téléphone.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
     },
     {
       "id": "faq-help-and-ai",
@@ -905,7 +905,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "talk to someone"
       ],
       "route": null,
-      "body": "Send feedback: « Report a problem », « Suggest an idea » or « Ask a question », at the foot of the « Help and coach » panel. On phones, you also find it in the menu.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person."
+      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », at the foot of the « Help and coach » panel. You also find it with the icon beside « My account », in the menu on phones.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person."
     },
     {
       "id": "faq-quota-renewal",

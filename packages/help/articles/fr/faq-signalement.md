@@ -3,7 +3,9 @@ kind: faq
 title: Comment signaler un problème ou joindre l'équipe ?
 synonyms: [signalement, signaler, bug, problème, idée, support, équipe, personne, joindre, "parler à quelqu'un"]
 ---
-Faites un signalement : « Signaler un problème », « Proposer une idée » ou « Poser une question », en bas du panneau « Aide et coach ». Sur téléphone, vous le trouvez aussi dans le menu.
+Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », en bas du panneau « Aide et coach ». Vous le trouvez aussi avec l'icône à côté de « Mon compte », dans le menu sur téléphone.
+
+Pour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox.
 
 L'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.
 

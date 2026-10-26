@@ -22,6 +22,7 @@ export const FRANCE_TRAVAIL_TOKEN_URL = "https://entreprise.francetravail.fr/con
 /** The France Travail APIs Jobbbox uses, La Bonne Boite first: the connection test validates the client with it. */
 export const FRANCE_TRAVAIL_APIS = ["la_bonne_boite", "offres_emploi", "romeo"] as const;
 export type FranceTravailApi = (typeof FRANCE_TRAVAIL_APIS)[number];
+export const isFranceTravailApi = (value: unknown): value is FranceTravailApi => (FRANCE_TRAVAIL_APIS as readonly unknown[]).includes(value);
 
 /**
  * The scopes each API's token asks for, alternatives in order: La Bonne Boite's OpenAPI also lists

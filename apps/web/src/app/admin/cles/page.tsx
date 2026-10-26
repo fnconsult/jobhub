@@ -1,3 +1,4 @@
+import { isFranceTravailApi } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
@@ -5,7 +6,7 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { isProviderSecretName, PROVIDER_SECRETS, type ProviderSecretName } from "@/provider-secrets/catalog";
 import { secretCipherFromEnv } from "@/provider-secrets/cipher";
-import type { ProviderSecretSource } from "@/provider-secrets/index";
+import type { ApiAccess, ProviderSecretSource } from "@/provider-secrets/index";
 import { getProviderSecrets, getSecretResolver } from "@/provider-secrets/server";
 import { routes } from "@/routes";
 
@@ -13,6 +14,7 @@ const ERRORS = ["test_failed", "empty", "too_long", "unknown_secret", "no_master
 type ErrorCode = (typeof ERRORS)[number];
 
 const TONE: Record<ProviderSecretSource, "success" | "accent" | "danger"> = { database: "success", env: "accent", missing: "danger", unreadable: "danger" };
+const ACCESS_TONE: Record<ApiAccess, "success" | "danger" | undefined> = { ok: "success", refused: "danger", error: "danger" };
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -75,7 +77,7 @@ export default async function ProviderSecretsPage({ searchParams }: { searchPara
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const search = await searchParams;
-  const secrets = await getProviderSecrets().list();
+  const [secrets, franceTravail] = await Promise.all([getProviderSecrets().list(), getProviderSecrets().apiAccess("france-travail")]);
   const cipher = secretCipherFromEnv(process.env);
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
   // Only key names and codes from the address bar are shown, each checked against the known ones.
@@ -175,6 +177,35 @@ export default async function ProviderSecretsPage({ searchParams }: { searchPara
           </tbody>
         </table>
       </div>
+      {franceTravail.length > 0 ? (
+        <section className="stack" aria-labelledby="france-travail-access">
+          <h2 id="france-travail-access">{t("admin.providerSecrets.apiAccess.title")}</h2>
+          <p>{t("admin.providerSecrets.apiAccess.intro", { at: at.format(franceTravail[0]!.testedAt) })}</p>
+          <div className="table-scroll">
+            <table className="application-table">
+              <caption className="visually-hidden">{t("admin.providerSecrets.apiAccess.caption")}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t("admin.providerSecrets.apiAccess.api")}</th>
+                  <th scope="col">{t("admin.providerSecrets.apiAccess.state")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {franceTravail.map(({ api, state }) => (
+                  <tr key={api}>
+                    <th scope="row">{isFranceTravailApi(api) ? t(`admin.providerSecrets.apiAccess.apis.${api}`) : api}</th>
+                    <td>
+                      <span className="pill" data-tone={ACCESS_TONE[state]}>
+                        {t(`admin.providerSecrets.apiAccess.states.${state}`)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
       {versions.length > 0 && cipher ? (
         <p>{t("admin.providerSecrets.keyVersions", { versions: versions.map((version) => `v${version}`).join(", "), active: `v${cipher.activeVersion}` })}</p>
       ) : null}

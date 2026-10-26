@@ -5,6 +5,7 @@ import { getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getServerT } from "@/i18n/server";
+import { franceTravailAwaitingAccess } from "@/provider-secrets/server";
 import { routes } from "@/routes";
 import { getSearchSites } from "@/search-sites/server";
 
@@ -94,7 +95,13 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
   const t = await getServerT();
   const { notice } = await searchParams;
   const searchSites = getSearchSites();
-  const [sources, discoverySites, jobSites] = await Promise.all([searchSites.jobDiscoverySources(), searchSites.jobDiscoverySites(), searchSites.jobSites()]);
+  const [sources, discoverySites, jobSites, awaitingAccess] = await Promise.all([
+    searchSites.jobDiscoverySources(),
+    searchSites.jobDiscoverySites(),
+    searchSites.jobSites(),
+    // France Travail without Offres d'emploi at its latest connection test (#400): runs go on without it.
+    franceTravailAwaitingAccess(),
+  ]);
   const shown = notice && Object.hasOwn(NOTICES, notice) ? (notice as Notice) : null;
   const status = (enabled: boolean) => t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled");
 
@@ -146,7 +153,18 @@ export default async function SearchSitesPage({ searchParams }: { searchParams: 
                 return (
                   <tr key={source}>
                     <th scope="row">{name}</th>
-                    <td>{status(sources[source])}</td>
+                    <td>
+                      {status(sources[source])}
+                      {source === "france_travail" && awaitingAccess ? (
+                        <>
+                          {" "}
+                          <span className="pill" data-tone="danger">
+                            {t("admin.searchSites.sources.awaitingAccess")}
+                          </span>
+                          <p>{t("admin.searchSites.sources.accessRefused")}</p>
+                        </>
+                      ) : null}
+                    </td>
                     <td>{toggle(setJobDiscoverySource, FIELDS.source, source, sources[source], name)}</td>
                   </tr>
                 );

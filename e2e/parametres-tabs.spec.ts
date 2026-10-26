@@ -80,7 +80,7 @@ test.describe("Paramètres in tabs (#396)", () => {
 
     for (const [slug, id, heading] of TABS) {
       await tabs(page).getByRole("link", { name: texts.tabs[id] }).click();
-      await expect(page).toHaveURL(`${origin}${PATH}?tab=${slug}`);
+      await page.waitForURL(`${origin}${PATH}?tab=${slug}`);
       await page.reload();
       await expect(tabs(page).getByRole("link", { name: texts.tabs[id] }), slug).toHaveAttribute("aria-current", "page");
       await expect(page.getByRole("heading", { level: 2, name: heading, exact: true }), slug).toBeVisible();

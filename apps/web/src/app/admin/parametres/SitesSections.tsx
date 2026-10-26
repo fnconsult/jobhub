@@ -2,7 +2,7 @@ import { FORBIDDEN_SITES, type JobDiscoverySite } from "@jobhub/shared";
 import type { JobSite } from "@/search-sites/index";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { addJobDiscoverySite, addJobSite, removeJobDiscoverySite, removeJobSite, setJobDiscoverySite, setJobSite } from "./actions";
-import { Here, type Ctx } from "./context";
+import { Here, ScrollFrame, type Ctx } from "./context";
 
 /** The form field naming the row an action is for. */
 const FIELDS = { domain: "domain", pattern: "pattern" } as const;
@@ -98,7 +98,7 @@ export function DiscoverySitesSection({ ctx, sites, adding }: { ctx: Ctx; sites:
       {sites.length === 0 ? (
         <p>{t("admin.searchSites.discoverySites.none")}</p>
       ) : (
-        <div className="table-scroll">
+        <ScrollFrame label={t("admin.searchSites.discoverySites.caption")}>
           <table className="application-table">
             <caption>{t("admin.searchSites.discoverySites.caption")}</caption>
             <thead>
@@ -121,7 +121,7 @@ export function DiscoverySitesSection({ ctx, sites, adding }: { ctx: Ctx; sites:
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollFrame>
       )}
       {/* While « + Ajouter » shows the same form, it is not drawn twice: its fields keep one id. */}
       {adding ? null : <AddJobDiscoverySiteForm ctx={ctx} />}
@@ -136,7 +136,7 @@ export function JobSitesSection({ ctx, sites, adding }: { ctx: Ctx; sites: reado
     <section className="stack" aria-labelledby="job-sites-title">
       <h2 id="job-sites-title">{t("admin.searchSites.jobSites.title")}</h2>
       <p>{t("admin.searchSites.jobSites.intro")}</p>
-      <div className="table-scroll">
+      <ScrollFrame label={t("admin.searchSites.jobSites.caption")}>
         <table className="application-table">
           <caption>{t("admin.searchSites.jobSites.caption")}</caption>
           <thead>
@@ -165,7 +165,7 @@ export function JobSitesSection({ ctx, sites, adding }: { ctx: Ctx; sites: reado
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollFrame>
       {adding ? null : <AddJobSiteForm ctx={ctx} />}
     </section>
   );

@@ -45,7 +45,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
 
   /** Opens provider `name`'s edit form, sets its switches to `switches`, and saves it. */
   async function edit(name: string, switches: Partial<Record<"shownToCandidatesLabel" | "allowedForAdministratorsLabel" | "trustedLabel" | "enabledLabel", boolean>>) {
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     const form = article(superAdmin, name).locator("details");
     await form.locator("summary").click();
     for (const [label, on] of Object.entries(switches)) await form.getByRole("checkbox", { name: sp[label], exact: true }).setChecked(on);
@@ -53,7 +53,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
   }
 
   test("env's Google client is a provider after the deployment, and Google sign-in still works", async ({ browser }) => {
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     await expect(superAdmin.getByRole("heading", { level: 1 })).toHaveText(sp.title);
     const google = article(superAdmin, "Google");
     await expect(google).toContainText(sp.enabled);
@@ -76,7 +76,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
   });
 
   test("a super-admin adds an OIDC provider, tests it, then enables it for Administrators only; its secret is never sent back", async ({ browser }) => {
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     await superAdmin.locator("summary", { hasText: tr(sp.add, { type: sp.types.oidc }) }).click();
     const form = superAdmin.locator("details[open] form");
     await form.getByLabel(sp.id, { exact: true }).fill(SSO.id);
@@ -111,7 +111,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     // with Better Auth's code as its technical detail (#263). Shown again, it is not recorded twice.
     await refuseAtIssuer(superAdmin, "access_denied");
     await provider.getByRole("button", { name: tr(sp.test, { name: SSO.name }) }).click();
-    await expect(superAdmin).toHaveURL(new RegExp(`/admin/connexion\\?testFailed=${SSO.id}&error=access_denied`));
+    await expect(superAdmin).toHaveURL(new RegExp(`/admin/parametres\\?tab=connexion&testFailed=${SSO.id}&error=access_denied`));
     await expect(superAdmin.getByRole("main").getByRole("alert")).toHaveText(tr(sp.testFailed, { name: SSO.name }));
     await superAdmin.reload();
     await superAdmin.goto(`${server.origin}/admin/journal?section=sign_in_providers&outcome=failed`);
@@ -121,13 +121,13 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await expect(failedTests).toContainText(fr.admin.journal.outcomes.failed);
     await failedTests.getByText(fr.admin.journal.technicalDetail).click();
     await expect(failedTests.locator("code")).toHaveText("access_denied");
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
 
     // The test sign-in: the super-admin signs in at the issuer, comes back, nothing is created.
     let redirectUri = "";
     await approveAtIssuer(superAdmin, { sub: "sso-office", email: SSO_SUPER_ADMIN, email_verified: true, name: "SSO Office" }, SSO.clientId, (uri) => (redirectUri = uri));
     await provider.getByRole("button", { name: tr(sp.test, { name: SSO.name }) }).click();
-    await expect(superAdmin).toHaveURL(`${server.origin}/admin/connexion?tested=${SSO.id}`);
+    await expect(superAdmin).toHaveURL(`${server.origin}/admin/parametres?tab=connexion&tested=${SSO.id}`);
     expect(redirectUri, "the callback URL shown is the one the app sends").toBe(callbackUrl);
     await expect(superAdmin.getByRole("status")).toHaveText(tr(sp.testPassed, { name: SSO.name }));
     await expect(article(superAdmin, SSO.name)).not.toContainText(sp.notTested);
@@ -169,7 +169,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     // Never sent back: not in the page, nor the server's log. Recorded in the Journal, without it.
     await superAdmin.goto(`${server.origin}/admin/journal?section=sign_in_providers`);
     await expect(superAdmin.getByRole("row").filter({ hasText: SSO.id }).first()).toContainText(fr.admin.journal.sections.sign_in_providers);
-    for (const path of ["/admin/connexion", "/admin/journal"]) {
+    for (const path of ["/admin/parametres?tab=connexion", "/admin/journal"]) {
       await superAdmin.goto(`${server.origin}${path}`);
       expect(await superAdmin.content(), path).not.toContain(SSO.secret);
     }
@@ -218,7 +218,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await support.goto(`${server.origin}/admin`);
     await expect(support.getByRole("heading", { level: 1 })).toHaveText(fr.admin.title);
 
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     await superAdmin.getByRole("checkbox", { name: sp.ssoLabel }).check();
     await superAdmin.getByRole("button", { name: sp.ssoSave }).click();
     await expect(superAdmin.getByRole("status")).toHaveText(sp.ssoOn);
@@ -236,7 +236,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
     await expect(support).toHaveURL(`${server.origin}/compte/connexion`);
 
     // The ADMIN_EMAILS super-admin, signed in by magic link, is exempt.
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     await expect(superAdmin.getByRole("heading", { level: 1 })).toHaveText(sp.title);
 
     // Linked once from Mon compte, then signed in with it: the Back Office opens.
@@ -257,7 +257,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
 
   test("Apple: the client secret is signed from the .p8 key as soon as it is saved, with its next signature date; the key is never sent back", async () => {
     const privateKey = generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey.export({ format: "pem", type: "pkcs8" }).toString();
-    await superAdmin.goto(`${server.origin}/admin/connexion`);
+    await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     await superAdmin.locator("summary", { hasText: tr(sp.add, { type: sp.types.apple }) }).click();
     const form = superAdmin.locator("details[open] form");
     await form.getByLabel(sp.serviceId).fill("fr.jobbbox.e2e.signin");

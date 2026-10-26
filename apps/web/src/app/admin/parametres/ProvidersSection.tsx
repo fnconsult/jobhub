@@ -4,7 +4,7 @@ import type { EnvOnlyRow } from "@/platform-settings/env-only";
 import { parametresHref, type KeyState, type PossibleProvider } from "@/platform-settings/parametres";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import { saveSetting } from "./actions";
-import { Here, type Ctx } from "./context";
+import { Here, ScrollFrame, type Ctx } from "./context";
 import { SettingsTable } from "./SettingsTable";
 
 const KEY_TONE: Record<NonNullable<KeyState["source"]>, "success" | "accent" | "danger"> = { database: "success", env: "accent", missing: "danger", unreadable: "danger" };
@@ -94,9 +94,7 @@ export function ProvidersSection({
           <p data-active-provider>{t("admin.platformSettings.active.inUse", { names: active.length > 0 ? active.map((row) => row.tool.name).join(", ") : t("admin.platformSettings.active.none") })}</p>
         )}
         {tab.activeSetting && active.some(missingKey) ? (
-          <p className="notice" role="status">
-            {t("admin.platformSettings.active.noKey")}
-          </p>
+          <p className="notice">{t("admin.platformSettings.active.noKey")}</p>
         ) : null}
         {tab.id === "contact_enrichment" ? <p>{t("admin.platformSettings.enrichedContactsHelp")}</p> : null}
         <SettingsTable ctx={ctx} caption={t("admin.platformSettings.active.settingsCaption", { tab: tabName })} names={tab.settings} settings={settings} envOnly={envOnly} />
@@ -105,7 +103,7 @@ export function ProvidersSection({
       {rows.length > 0 ? (
         <section className="stack" aria-labelledby="possible-providers">
           <h2 id="possible-providers">{t("admin.platformSettings.providers.title")}</h2>
-          <div className="table-scroll">
+          <ScrollFrame label={t("admin.platformSettings.providers.caption", { tab: tabName })}>
             <table className="application-table">
               <caption className="visually-hidden">{t("admin.platformSettings.providers.caption", { tab: tabName })}</caption>
               <thead>
@@ -172,7 +170,7 @@ export function ProvidersSection({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollFrame>
         </section>
       ) : null}
     </>

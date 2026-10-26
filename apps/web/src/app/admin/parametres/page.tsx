@@ -207,7 +207,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const noticed = platformSetting(one(search.setting) ?? "");
   const confirmNotice = one(search.notice);
   const confirming = canWrite && noticed?.confirm !== undefined && (confirmNotice === "unconfirmed" || confirmNotice === "restoreUnconfirmed") ? noticed : undefined;
-  const differing = settings.filter((setting) => setting.differsFromDefault).length;
+  // The settings of this tab from env that differ from the code's default: how an old `.env` shows up (ADR-0033).
+  const differing = settings.filter((setting) => setting.differsFromDefault && tab.settings.includes(setting.name)).length;
   const notices = <Notices ctx={ctx} search={search} signInProviders={signInProviders} requireSso={signInSettings?.requireSsoForAdministrators ?? false} />;
 
   return (

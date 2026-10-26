@@ -3,7 +3,8 @@
 // with CONTACT_ENRICHMENT_PROVIDER=apollo, and Apollo's API is answered here;
 // a server started with CONTACT_ENRICHMENT_PROVIDER=lusha gets Lusha's v3 API
 // (issue #77), and Lusha's account usage answers the Clés connection test, accepting
-// e2e-lusha-key and any key starting e2e-lusha-valid- (#208). Nothing reaches the real ones.
+// e2e-lusha-key and any key starting e2e-lusha-valid- (#208); Kaspr's answers its own connection test, accepting
+// keys starting e2e-kaspr-valid- (#396). Nothing reaches the real ones.
 //
 // Apollo: a search at any company finds two made-up people, Claire Martin (DRH)
 // and Hugo Bernard (Responsable recrutement). Claire's details reveal a work
@@ -119,6 +120,13 @@ globalThis.fetch = async (input, init) => {
     const key = new Headers(init?.headers).get("api_key") ?? "";
     if (key !== LUSHA_KEY && !key.startsWith("e2e-lusha-valid-")) return Response.json({ statusCode: 401, message: `Invalid api_key ${key}` }, { status: 401 });
     return Response.json({ usage: { credits: { used: 0, total: 100 } } });
+  }
+  // Kaspr's remaining credits, the connection test of its key on its sheet in Paramètres (#396): a key starting
+  // e2e-kaspr-valid- is accepted; any other is refused (401). The suite's server never uses Kaspr otherwise.
+  if (url.href === "https://api.developers.kaspr.io/keys/remaining") {
+    const key = /^Bearer (.*)$/.exec(new Headers(init?.headers).get("authorization") ?? "")?.[1] ?? "";
+    if (!key.startsWith("e2e-kaspr-valid-")) return Response.json({ message: "Unauthorized" }, { status: 401 });
+    return Response.json({ remaining: 100 });
   }
   // Fantastic.jobs' active-ats, the Clés section's connection test (#243): a search for no job. A key starting
   // e2e-fj-valid- is accepted; any other is refused (401), echoed back in the answer to check it is scrubbed.

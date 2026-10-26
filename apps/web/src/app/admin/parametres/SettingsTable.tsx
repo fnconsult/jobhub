@@ -2,7 +2,7 @@ import { isEditable, type PlatformSetting, type PlatformSettingType } from "@/pl
 import type { EnvOnlyRow, ShownValue } from "@/platform-settings/env-only";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import { restoreSetting, saveSetting } from "./actions";
-import { Here, type Ctx } from "./context";
+import { Here, ScrollFrame, type Ctx } from "./context";
 import { SOURCE_TONE } from "./tone";
 
 /** What a boolean setting takes, as env holds it. */
@@ -42,7 +42,7 @@ export function SettingsTable({ ctx, caption, names, settings, envOnly }: { ctx:
     isModelSetting(setting) ? t("admin.platformSettings.rules.model", { provider: ctx.modelProviders[setting.name] ?? "" }) : ctx.rule(setting.type);
 
   return (
-    <div className="table-scroll">
+    <ScrollFrame label={caption}>
       <table className="application-table">
         <caption className="visually-hidden">{caption}</caption>
         <thead>
@@ -101,7 +101,7 @@ export function SettingsTable({ ctx, caption, names, settings, envOnly }: { ctx:
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollFrame>
   );
 }
 

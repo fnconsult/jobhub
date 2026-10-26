@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { providerSheetHref, type PossibleProvider } from "@/platform-settings/parametres";
 import { setJobDiscoverySource, testSecret } from "./actions";
-import { Here, type Ctx } from "./context";
+import { Here, ScrollFrame, type Ctx } from "./context";
 import { KeyCell } from "./ProvidersSection";
 
 /** The Tools each Job discovery source calls: the web search's is the active Search provider. */
@@ -39,12 +39,13 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
     <section className="stack" aria-labelledby="sources-title">
       <h2 id="sources-title">{t("admin.platformSettings.sources.title")}</h2>
       <p>{t("admin.platformSettings.sources.intro")}</p>
-      <div className="table-scroll">
+      <ScrollFrame label={t("admin.platformSettings.sources.caption")}>
         <table className="application-table">
           <caption className="visually-hidden">{t("admin.platformSettings.sources.caption")}</caption>
           <thead>
             <tr>
               <th scope="col">{t("admin.platformSettings.sources.source")}</th>
+              <th scope="col">{t("admin.searchSites.status")}</th>
               <th scope="col">{t("admin.platformSettings.sources.switch")}</th>
               <th scope="col">{t("admin.platformSettings.sources.provider")}</th>
               <th scope="col">{t("admin.platformSettings.sources.keys")}</th>
@@ -62,8 +63,8 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
               return (
                 <tr key={source} data-source={source}>
                   <th scope="row">{name}</th>
+                  <td>{t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}</td>
                   <td>
-                    <p>{t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}</p>
                     <BackOfficeForm canWrite={ctx.can.sites} action={setJobDiscoverySource}>
                       <Here ctx={ctx} />
                       <input type="hidden" name="source" value={source} />
@@ -104,7 +105,7 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollFrame>
     </section>
   );
 }

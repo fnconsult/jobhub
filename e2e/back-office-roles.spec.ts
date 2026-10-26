@@ -27,17 +27,16 @@ const SECTIONS = {
   coachingPlaybooks: "/admin/playbooks",
   guardrails: "/admin/garde-fous",
   unansweredQuestions: "/admin/questions-sans-reponse",
-  providerSecrets: "/admin/cles",
   platformSettings: "/admin/parametres",
-  signInProviders: "/admin/connexion",
   aiUsage: "/admin/consommation-ia",
   aiMessages: "/admin/journaux-ia",
-  searchSites: "/admin/sites",
   tools: "/admin/outils",
   administrators: "/admin/administrateurs",
   journal: "/admin/journal",
 } as const;
 type Section = keyof typeof SECTIONS;
+/** The Job discovery sources: Paramètres' Sources tab, formerly Sites de recherche (#396). */
+const SOURCES = `${SECTIONS.platformSettings}?tab=sources`;
 
 /** The Back Office Roles, in the order the app lists them. */
 const ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "support"];
@@ -104,11 +103,11 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "providerSecrets", "platformSettings", "signInProviders", "aiUsage", "aiMessages", "searchSites", "tools", "administrators", "journal"]);
+    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "aiMessages", "tools", "administrators", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
-    // The sidebar names its groups; Plateforme holds Provider Secrets (Clés, #208), Sign-in Providers (Connexion, #209) and the search sites.
+    // The sidebar names its groups; Plateforme holds Paramètres, whose tabs hold the Provider Secrets, Sign-in Providers and search sites (#396).
     for (const group of ["candidates", "offer", "coaching", "platform", "team"]) await expect(backOfficeNav(page).getByRole("heading", { name: admin.nav.groups[group] })).toBeVisible();
     await expect(backOfficeNav(page).getByRole("link", { name: admin.sections.administrators })).toHaveAttribute("aria-current", "page");
 
@@ -163,7 +162,7 @@ test.describe("Back Office Roles", () => {
     await coachesPage.goto(SECTIONS.humanCoaches);
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
-    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "signInProviders", "aiUsage", "searchSites", "tools"]);
+    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "tools"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
@@ -180,18 +179,23 @@ test.describe("Back Office Roles", () => {
     await expect(supportPage.getByLabel(admin.humanCoaches.name)).toBeDisabled();
     for (const retire of await supportPage.getByRole("button", { name: tr(admin.humanCoaches.retire, { name: "" }) }).all()) await expect(retire).toBeDisabled();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
-    await supportPage.goto(SECTIONS.searchSites);
+    // The search sites, on Paramètres' tabs (#396): Sources, Recherche web (Job discovery sites) and Extension (Job Sites).
+    await supportPage.goto(SOURCES);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     // The sites and their state show; every switch and the add forms are disabled, with no form behind them.
     const disableFranceTravail = tr(admin.searchSites.disable, { name: admin.searchSites.sources.names.france_travail });
     await expect(supportPage.getByRole("button", { name: disableFranceTravail })).toBeDisabled();
+    await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
+    await supportPage.goto(`${SECTIONS.platformSettings}?tab=recherche-web`);
     await expect(supportPage.getByRole("button", { name: admin.searchSites.discoverySites.add, exact: true })).toBeDisabled();
+    await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
+    await supportPage.goto(`${SECTIONS.platformSettings}?tab=extension`);
     await expect(supportPage.getByLabel(admin.searchSites.jobSites.pattern)).toBeDisabled();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
     // Sent by hand, Support's switch is refused on the server, and the source stays enabled.
-    const switched = await submitAs(supportPage, page, SECTIONS.searchSites, disableFranceTravail, { source: "france_travail", enabled: "false" });
+    const switched = await submitAs(supportPage, page, SOURCES, disableFranceTravail, { tab: "sources", source: "france_travail", enabled: "false" });
     expect(switched.status()).toBe(404);
-    await page.goto(SECTIONS.searchSites);
+    await page.goto(SOURCES);
     await expect(page.getByRole("button", { name: disableFranceTravail })).toBeEnabled();
 
     // Nor can Support save by sending the form by hand: the write is refused on the server.

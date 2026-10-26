@@ -84,7 +84,8 @@ test.describe("the Back Office Journal", () => {
     const franceTravail = sites.sources.names.france_travail;
     await signInWithMagicLink(page, ADMINISTRATOR);
 
-    await page.goto("/admin/sites");
+    // Job discovery sites are on Paramètres' Recherche web tab, the sources on its Sources tab (#396).
+    await page.goto("/admin/parametres?tab=recherche-web");
     await page.getByLabel(sites.discoverySites.domain).fill(domain);
     await page.getByRole("button", { name: sites.discoverySites.add, exact: true }).click();
     await expect(page.getByRole("status")).toHaveText(sites.notices.siteAdded);
@@ -93,6 +94,7 @@ test.describe("the Back Office Journal", () => {
     await page.getByRole("button", { name: tr(sites.remove, { name: domain }) }).click();
     await expect(page.getByRole("status")).toHaveText(sites.notices.siteRemoved);
     // Switch a Job discovery source off, then on again (other tests rely on it).
+    await page.goto("/admin/parametres?tab=sources");
     await page.getByRole("button", { name: tr(sites.disable, { name: franceTravail }) }).click();
     await expect(page.getByRole("status")).toHaveText(sites.notices.saved);
     await page.getByRole("button", { name: tr(sites.enable, { name: franceTravail }) }).click();

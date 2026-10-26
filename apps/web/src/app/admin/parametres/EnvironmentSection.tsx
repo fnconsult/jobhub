@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BACK_OFFICE_PAGES, type BackOfficePage } from "@/admin/back-office-nav";
 import type { EnvOnlyRow, retiredSettingsSet } from "@/platform-settings/env-only";
-import type { Ctx } from "./context";
+import { ScrollFrame, type Ctx } from "./context";
 import { ShownEnvValue } from "./SettingsTable";
 
 /** The settings with a section of their own, linked from Environnement (ADR-0033). */
@@ -25,7 +25,7 @@ export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: rea
             {t("admin.platformSettings.envOnly.mailToConsole")}
           </p>
         ) : null}
-        <div className="table-scroll">
+        <ScrollFrame label={t("admin.platformSettings.envOnly.caption")}>
           <table className="application-table">
             <caption className="visually-hidden">{t("admin.platformSettings.envOnly.caption")}</caption>
             <thead>
@@ -49,7 +49,7 @@ export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: rea
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollFrame>
       </section>
 
       <section className="stack" aria-labelledby="settings-retired">
@@ -59,7 +59,7 @@ export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: rea
         ) : (
           <>
             <p>{t("admin.platformSettings.environment.retired.intro")}</p>
-            <div className="table-scroll">
+            <ScrollFrame label={t("admin.platformSettings.environment.retired.caption")}>
               <table className="application-table">
                 <caption className="visually-hidden">{t("admin.platformSettings.environment.retired.caption")}</caption>
                 <thead>
@@ -79,7 +79,7 @@ export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: rea
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollFrame>
           </>
         )}
       </section>

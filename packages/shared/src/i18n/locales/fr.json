@@ -1182,7 +1182,9 @@
           "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
           "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)"
-        }
+        },
+        "awaitingAccess": "En attente d'accès",
+        "accessRefused": "Indisponible : accès refusé par France Travail (API Offres d'emploi). Les recherches d'offres continuent sans elle."
       },
       "discoverySites": {
         "title": "Sites de la recherche d'offres",
@@ -1270,6 +1272,23 @@
       "test": "Tester {{name}}",
       "noMasterKey": "Enregistrement désactivé : SECRETS_MASTER_KEYS n'est pas défini sur ce serveur. Les clés viennent uniquement de l'environnement.",
       "keyVersions": "Clés enregistrées chiffrées avec la clé maîtresse : {{versions}} (active : {{active}}).",
+      "apiAccess": {
+        "title": "Accès aux API France Travail",
+        "intro": "Selon le dernier test de connexion des clés en usage, le {{at}}. Le test réussit dès que le client est valide.",
+        "caption": "Accès aux API France Travail",
+        "api": "API",
+        "state": "État",
+        "apis": {
+          "la_bonne_boite": "La Bonne Boite",
+          "offres_emploi": "Offres d'emploi",
+          "romeo": "ROMEO"
+        },
+        "states": {
+          "ok": "ok",
+          "refused": "accès refusé",
+          "error": "erreur"
+        }
+      },
       "saved": "{{name}} remplacée : le test de connexion a réussi.",
       "savedUntested": "{{name}} remplacée malgré l'échec du test de connexion. C'est inscrit au journal.",
       "cleared": "{{name}} effacée : la valeur de l'environnement est de nouveau utilisée.",
@@ -2161,11 +2180,13 @@
         "disabled": "Désactivé",
         "key_missing": "Clé manquante",
         "setting_missing": "Paramètre manquant",
+        "awaiting_access": "En attente d'accès",
         "not_configured": "Non configuré",
         "no_key_needed": "Sans clé"
       },
       "missingKeys": "Manque : {{keys}}",
       "missingSettings": "À régler dans Paramètres : {{settings}}",
+      "accessRefused": "Indisponible : accès refusé par {{provider}}",
       "envBadge": "env",
       "envBadgeLabel": "Vient de l'environnement et diffère de la valeur par défaut du code : {{settings}}",
       "noKeys": "Aucune",

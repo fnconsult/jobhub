@@ -1,20 +1,21 @@
 import type { Tool, ToolCategory } from "@jobhub/shared";
 import { sharedPool } from "@/database/pool";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
-import { getSecretResolver } from "@/provider-secrets/server";
+import { franceTravailAwaitingAccess, getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
 import { latestToolCalls, toolCalls, toolsOverview, type CalledTool, type ToolCall, type ToolRow, type ToolsState } from "./index";
 
 /**
  * The values in use (Provider Secrets over env), the Platform Settings in use (read now, as
- * Paramètres reads them) and the Sign-in Providers enabled; none without a database.
+ * Paramètres reads them), the Sign-in Providers enabled and the Tools awaiting access (France
+ * Travail without Offres d'emploi, #400); none without a database.
  */
 async function currentState(): Promise<ToolsState> {
   const env = getSecretResolver().current().env;
   const settings = await getPlatformSettingsResolver().refresh();
   if (!process.env.DATABASE_URL) return { env, signInTypes: [], settings };
-  const providers = await getSignInProviders().list();
-  return { env, signInTypes: providers.filter((provider) => provider.enabled).map((provider) => provider.type), settings };
+  const [providers, awaitingAccess] = await Promise.all([getSignInProviders().list(), franceTravailAwaitingAccess()]);
+  return { env, signInTypes: providers.filter((provider) => provider.enabled).map((provider) => provider.type), settings, accessRefused: awaitingAccess ? ["france-travail"] : [] };
 }
 
 /** Every Tool, by category, with its status, its settings and its last 30 days' calls, as the Outils page lists them. */

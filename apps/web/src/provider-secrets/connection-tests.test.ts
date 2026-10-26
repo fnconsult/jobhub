@@ -76,11 +76,43 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
   it("France Travail: asks for an OAuth token with both client credentials", async () => {
     const { fetch, requests } = fakeFetch(200, { access_token: "t", expires_in: 1500 });
 
-    expect(await createConnectionTester({ fetch })("france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" })).toEqual({ ok: true });
+    expect(await createConnectionTester({ fetch })("france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" })).toEqual({
+      ok: true,
+      apis: { la_bonne_boite: "ok", offres_emploi: "ok", romeo: "ok" },
+    });
 
     expect(requests[0]!.url).toContain("francetravail.fr/connexion/oauth2/access_token");
     const form = new URLSearchParams(await requests[0]!.text());
     expect(Object.fromEntries(form)).toMatchObject({ grant_type: "client_credentials", client_id: "id", client_secret: "secret" });
+  });
+
+  it("France Travail: a client lacking Offres d'emploi passes, with each API's state", async () => {
+    const scopes: string[] = [];
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const scope = new URLSearchParams(await new Request(input, init).text()).get("scope") ?? "";
+      scopes.push(scope);
+      return scope.startsWith("api_offresdemploiv2")
+        ? Response.json({ error: "invalid_scope", error_description: "Unknown/invalid scope(s): [api_offresdemploiv2]" }, { status: 400 })
+        : Response.json({ access_token: "t", expires_in: 1499 });
+    }) as typeof globalThis.fetch;
+
+    expect(await createConnectionTester({ fetch })("france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" })).toEqual({
+      ok: true,
+      apis: { la_bonne_boite: "ok", offres_emploi: "refused", romeo: "ok" },
+    });
+    // The client is validated with La Bonne Boite, then each API asks its own token.
+    expect(scopes).toEqual(["api_labonneboitev2 search office", "api_offresdemploiv2 o2dsoffre", "api_romeov2"]);
+  });
+
+  it("France Travail: a client its endpoint does not know fails, with the status", async () => {
+    const { fetch, requests } = fakeFetch(400, { error: "invalid_client", error_description: "Client authentication failed" });
+
+    expect(await createConnectionTester({ fetch })("france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "bad" })).toEqual({
+      ok: false,
+      detail: expect.stringContaining("HTTP 400 invalid_client"),
+      apis: { la_bonne_boite: "error", offres_emploi: "error", romeo: "error" },
+    });
+    expect(requests).toHaveLength(1);
   });
 
   it("Fantastic.jobs: asks active-ats for no job (none charged) with the API key as a bearer token", async () => {

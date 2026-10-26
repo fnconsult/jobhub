@@ -143,7 +143,11 @@ const P = {
     keys: [{ name: "FRANCE_TRAVAIL_CLIENT_ID", source: "bo", fp: "…a0b3", by: "admin@jobbbox.ai", at: "12/10/2026" }, { name: "FRANCE_TRAVAIL_CLIENT_SECRET", source: "bo", fp: "…ff19", by: "admin@jobbbox.ai", at: "12/10/2026" }],
     test: { ok: false, at: "26/10/2026 09:12", detail: "token · HTTP 400 invalid_scope (api_offresdemploiv2)" },
     tools: [{ name: "La Bonne Boite v2", cost: "gratuit" }, { name: "ROMEO v2", cost: "gratuit" }, { name: "Offres d'emploi v2", cost: "non souscrit" }],
-    params: [{ k: "Scopes demandés", v: "api_labonneboitev2", src: "code" }], usedBy: ["ft"] },
+    params: [{ k: "Scopes demandés", v: "api_labonneboitev2", src: "code" }, { k: "Débit max", v: "2 appels/s", src: "code" }], usedBy: ["sources"] },
+  ats: { name: "API des ATS (Greenhouse, Lever, Ashby)", region: "Hors UE (lecture d'offres publiques)", keys: [],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET boards-api.greenhouse.io · 200" },
+    tools: [{ name: "Greenhouse Job Board API", cost: "gratuit" }, { name: "Lever Postings API", cost: "gratuit" }, { name: "Ashby Posting API", cost: "gratuit" }],
+    params: [{ k: "Délai entre appels", v: "1 s", src: "code" }], usedBy: ["sources"] },
   lusha: { name: "Lusha", region: "Hors UE", keys: [{ name: "LUSHA_API_KEY", source: "env", fp: "…p0Oz" }], test: { ok: true, at: "25/10/2026", detail: "200" }, tools: [], params: [], usedBy: ["enrich"] },
   kaspr: { name: "Kaspr", region: "UE", keys: [{ name: "KASPR_API_KEY", source: "missing" }], test: null, tools: [], params: [], usedBy: [] },
   apollo: { name: "Apollo", region: "Hors UE", keys: [{ name: "APOLLO_API_KEY", source: "missing" }], test: null, tools: [], params: [], usedBy: [] },
@@ -176,10 +180,16 @@ const U = [
       { t: "Match Score", p: "mistral", m: "mistral-medium-latest", effort: "moyen", src: "env", def: "mistral · mistral-medium-latest (env)", personal: true },
       { t: "CV adapté", p: "mistral", m: "mistral-large-latest", effort: "élevé", src: "env", def: "mistral · mistral-large-latest (env)", personal: true },
     ], settings: [{ k: "Routage des tâches avec identité", v: "Mistral (UE)", src: "code", def: "Mistral" }] },
-  { id: "ft", label: "France Travail", active: "france-travail", providers: ["france-travail"], settings: [{ k: "Débit max", v: "2 appels/s", src: "code", def: "2 appels/s" }] },
+  { id: "sources", label: "Sources", active: null, providers: ["france-travail", "perplexity", "ats"], settings: [],
+    sources: [
+      { k: "France Travail", pid: "france-travail", on: false, what: "Offres d'emploi (API v2) · entreprises à fort potentiel (La Bonne Boite)", note: "API Offres d'emploi v2 non souscrite : test en échec (invalid_scope)" },
+      { k: "Recherche web", pid: "perplexity", on: true, what: "Requêtes construites depuis les Search Criteria", link: "web" },
+      { k: "API des ATS (Greenhouse, Lever, Ashby)", pid: "ats", on: true, what: "Lit une offre hébergée sur un ATS par son API publique au lieu de sa page" },
+    ] },
   { id: "enrich", label: "Enrichissement de contacts", active: "lusha", providers: ["lusha", "kaspr", "apollo"], settings: [{ k: "Fournisseur actif", v: "lusha", type: "provider", src: "env", def: "lusha" }] },
   { id: "mail", label: "E-mail", active: "brevo", providers: ["brevo"], settings: [{ k: "Adresse d'envoi", v: "hello@jobbbox.ai", src: "env", def: "hello@jobbbox.ai" }] },
   { id: "pay", label: "Paiement", active: "stripe", providers: ["stripe"], settings: [] },
+  { id: "env", label: "Environnement 🔒", active: null, providers: [], settings: [] },
   { id: "signin", label: "Connexion", active: null, providers: ["google", "apple"], settings: [{ k: "SSO obligatoire pour les Administrateurs", v: "non", src: "bo", def: "non" }] },
 ];
 const PLAYBOOKS = [
@@ -275,7 +285,7 @@ function businessBlock(b, compact) {
   return `<h2 class="sec">Réglages de la Job discovery</h2>
   <div class="grid2">
     <div class="card"><h3 style="margin-top:0">Budget par run</h3><div class="kv">${b.budget.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Le run s'arrête au premier plafond atteint.</p></div>
-    <div class="card"><h3 style="margin-top:0">Sources</h3>${b.sources.map((s) => `<label class="row" style="margin:4px 0"><input type="checkbox" ${s.on ? "checked" : ""}> ${h(s.k)} ${s.note ? `<span class="small warn">· ${h(s.note)}</span>` : ""}</label>`).join("")}</div>
+    <div class="card"><h3 style="margin-top:0">Sources</h3><p class="small">${u("sources").sources.map((x) => `<span class="dot ${x.on ? "ok" : "off"}"></span>${h(x.k)}`).join("<br>")}</p><button class="btn ghost" data-tab="sources">Gérer dans l'onglet Sources →</button></div>
   </div>
   <h3>Job discovery sites</h3>
   <table><tr><th>Domaine</th><th>État</th><th>Effet</th><th></th></tr>${b.sites.map((s) => `<tr><td>${h(s.d)}</td><td>${s.on ? '<span class="ok">activé</span>' : '<span class="muted">désactivé</span>'}</td><td class="small muted">${s.on ? "1 requête restreinte à ce site par run" : "pages de ce site ignorées"}</td><td><button class="btn ghost">${s.on ? "Désactiver" : "Activer"}</button></td></tr>`).join("")}</table>
@@ -283,6 +293,66 @@ function businessBlock(b, compact) {
 }
 
 function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#">Journaux IA · ${h(us.label)} →</a></p>`; }
+
+const ENV = [
+  { k: "DATABASE_URL", v: "postgres://••••@db:5432/jobhub", why: "Amorçage : nécessaire pour lire tout le reste" },
+  { k: "DATABASE_POOL_MAX", v: "10", why: "Infrastructure (connexions à la base)" },
+  { k: "AUTH_SECRET", v: "••••••••", why: "Secret d'amorçage : signe les sessions" },
+  { k: "SECRETS_MASTER_KEYS", v: "1:••••, 2:••••", why: "Chiffre les Provider Secrets (ADR-0020) : ne peut pas vivre dans ce qu'il chiffre" },
+  { k: "APP_URL", v: "https://staging.jobbbox.ai", why: "Adresse de l'application, fixée au déploiement" },
+  { k: "ADMIN_EMAILS", v: "2 adresses", why: "Premiers super-admins : accès de secours au Back Office" },
+  { k: "EXTENSION_ORIGINS", v: "chrome-extension://••••", why: "Sécurité : origines autorisées de l'extension" },
+  { k: "AI_FAKE", v: "false", why: "Développement et tests uniquement" },
+  { k: "STRIPE_API_URL", v: "(défaut)", why: "Tests e2e : faux serveur Stripe" },
+  { k: "CONTACT_ENRICHMENT_API_URL", v: "(défaut)", why: "Tests e2e : faux serveur" },
+  { k: "CONTACT_ENRICHMENT_DPA_SIGNED", v: "true", why: "Engagement juridique (DPA signé), pas un réglage" },
+  { k: "BEDROCK_REGION", v: "eu-north-1", why: "Hébergement : région du compte AWS" },
+];
+const tabsHtml = () => U.map((x) => `<button data-tab="${x.id}" class="${x.id === S.tab ? "on" : ""}">${h(x.label)}</button>`).join("");
+function envTab() {
+  return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
+    <div class="tabs">${tabsHtml()}</div>
+    <div class="note" style="margin-top:14px">Ces variables d'environnement ne se modifient pas ici : elles se changent dans le <code>.env</code> du serveur, puis au redémarrage. Les secrets sont masqués.</div>
+    <table><tr><th>Variable</th><th>Valeur</th><th>Pourquoi elle reste dans l'environnement</th></tr>
+    ${ENV.map((x) => `<tr><td><code>${h(x.k)}</code></td><td class="small">${h(x.v)}</td><td class="small muted">${h(x.why)}</td></tr>`).join("")}</table>
+    <h2 class="sec">Valeurs par défaut lues dans l'environnement</h2>
+    <p class="small muted">Elles servent tant qu'aucune valeur n'est enregistrée dans le Back Office ; chacune est modifiable dans son onglet (badge <span class="pill src-env">env</span>).</p>
+    <table><tr><th>Variable</th><th>Valeur</th><th>Modifiable dans</th></tr>
+      <tr><td><code>AI_WEB_SEARCH_PROVIDER</code></td><td class="small">perplexity</td><td><button class="btn ghost" data-tab="web">Recherche web →</button></td></tr>
+      <tr><td><code>AI_COACHING_PROVIDER</code> / <code>_MODEL</code></td><td class="small">mistral · mistral-large-latest</td><td><button class="btn ghost" data-tab="ai">IA →</button></td></tr>
+      <tr><td><code>JOB_DISCOVERY_BUDGET_*</code></td><td class="small">30 · 0,08 € · 90 s</td><td><button class="btn ghost" data-tab="web">Recherche web →</button></td></tr>
+      <tr><td><code>CONTACT_ENRICHMENT_PROVIDER</code></td><td class="small">lusha</td><td><button class="btn ghost" data-tab="enrich">Enrichissement →</button></td></tr>
+      <tr><td><code>MAIL_FROM</code></td><td class="small">hello@jobbbox.ai</td><td><button class="btn ghost" data-tab="mail">E-mail →</button></td></tr>
+    </table>`;
+}
+
+// ---------- "+ Ajouter" : un seul bouton pour tout type de ressource ----------
+const ADD_TYPES = {
+  provider: { label: "Fournisseur", fields: () => `<span>Usage</span><select id="addUsage">${U.filter((x) => !["env", "sources"].includes(x.id)).map((x) => `<option value="${x.id}" ${x.id === S.tab ? "selected" : ""}>${h(x.label)}</option>`).join("")}</select>
+      <span>Fournisseur</span><select id="addName"><option>Exa</option><option>Serper</option><option>OpenAI</option><option>Google Vertex</option><option>Autre (catalogue)…</option></select>
+      <span>Clé</span><input id="addKey" type="password" placeholder="collée ici, jamais réaffichée">` },
+  key: { label: "Clé (Provider Secret)", fields: () => `<span>Fournisseur</span><select id="addProv">${Object.entries(P).map(([id, p]) => `<option value="${id}">${h(p.name)}</option>`).join("")}</select>
+      <span>Nom</span><input id="addName" placeholder="ex. TAVILY_API_KEY"><span>Valeur</span><input type="password" placeholder="jamais réaffichée">` },
+  model: { label: "Modèle", fields: () => `<span>Fournisseur</span><select id="addProv"><option value="mistral">Mistral</option><option value="anthropic">Anthropic</option><option value="bedrock">Amazon Bedrock</option></select>
+      <span>Identifiant</span><input id="addName" placeholder="ex. mistral-medium-2610"><span>Résidence</span><select><option>UE</option><option>Hors UE</option></select>` },
+  source: { label: "Source de la Job discovery", fields: () => `<span>Nom</span><input id="addName" placeholder="ex. Indeed Partner API"><span>Fournisseur</span><input placeholder="ex. indeed"><span>Clé</span><input type="password">` },
+  site: { label: "Job discovery site", fields: () => `<span>Domaine</span><input id="addName" placeholder="exemple.fr"><span>État</span><select><option>activé</option><option>désactivé</option></select>` },
+  jobsite: { label: "Job Site de l'extension", fields: () => `<span>Domaine</span><input id="addName" placeholder="exemple.fr">` },
+  signin: { label: "Fournisseur de connexion", fields: () => `<span>Type</span><select id="addName"><option>Microsoft</option><option>Apple</option><option>OIDC générique</option></select><span>Client ID</span><input><span>Client secret</span><input type="password">` },
+};
+const addButton = () => `<button class="btn primary" style="margin-left:auto" data-add>+ Ajouter</button>`;
+function addDrawer() {
+  const t = ADD_TYPES[S.addType];
+  return `<div class="scrim" data-close></div><aside class="drawer">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Ajouter</h2><button class="btn ghost" data-close>Fermer ✕</button></div>
+    <div class="kv" style="grid-template-columns: 7rem 1fr; margin-top:14px">
+      <span>Type</span><select id="addType">${Object.entries(ADD_TYPES).map(([k, x]) => `<option value="${k}" ${k === S.addType ? "selected" : ""}>${h(x.label)}</option>`).join("")}</select>
+      ${t.fields()}
+    </div>
+    ${["provider", "key", "source", "signin"].includes(S.addType) ? `<div class="note">La connexion est testée à l'enregistrement ; un échec bloque l'ajout, sauf « enregistrer quand même » (inscrit au Journal).</div>` : ""}
+    <div class="row" style="margin-top:12px"><button class="btn primary" data-addsave>Ajouter</button></div>
+  </aside>`;
+}
 
 // ---------- Variant A : onglets, fournisseur actif en tête, tableau des fournisseurs, fiche en tiroir ----------
 function variantA() {
@@ -302,6 +372,16 @@ function variantA() {
         <td>${b.validated ? `v${b.v} <span class="small ok">validée</span>` : `v${b.v} <span class="small warn">non validée : pas servie en production</span>`}</td>
         <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "clé absente : agent écarté des réponses" : h(kt)}</span></td>
         <td><button class="btn" data-playbook="${i}">Modifier…</button></td></tr>`; }).join("")}</table>`;
+  } else if (us.sources) {
+    body = `<p class="muted" style="margin-top:14px">Où la Job discovery trouve des offres. Une source désactivée est ignorée par les Job Searches et les compléments du Job Digest.</p>
+      <table><tr><th>Source</th><th>État</th><th>Fournisseur</th><th>Clé</th><th>Test</th><th></th></tr>
+      ${us.sources.map((x, i) => { const p = P[x.pid]; const [ks, kt] = p.keys.length ? keyState(x.pid) : ["ok", "aucune (API publiques)"];
+        return `<tr><td><b>${h(x.k)}</b><div class="small muted">${h(x.what)}</div>${x.note ? `<div class="small warn">${h(x.note)}</div>` : ""}</td>
+        <td><label class="row"><input type="checkbox" data-source="${i}" ${x.on ? "checked" : ""}> ${x.on ? "activée" : "désactivée"}</label></td>
+        <td class="small">${h(p.name)}${x.link ? `<br><button class="btn ghost" data-tab="${x.link}">Choisir le fournisseur →</button>` : ""}</td>
+        <td><span class="dot ${ks}"></span><span class="small">${h(kt)}</span></td><td class="small">${testState(x.pid)}</td>
+        <td><button class="btn" data-open="${x.pid}">Fiche…</button></td></tr>`; }).join("")}</table>`;
+    S.skipProviders = true;
   } else if (us.active) {
     const a = P[us.active]; const [ks, kt] = keyState(us.active);
     body = `<div class="card surface" style="margin-top:16px">
@@ -311,6 +391,9 @@ function variantA() {
       ${us.alsoUsedBy ? `<p class="small muted" style="margin:10px 0 0">${h(us.alsoUsedBy)}</p>` : ""}
     </div>`;
   }
+  if (S.skipProviders) { S.skipProviders = false; return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
+    <div class="tabs">${tabsHtml()}</div>${body}${observeLinks(us)}`; }
+  if (us.id === "env") return envTab();
   body += `<h2 class="sec">Fournisseurs possibles</h2>
     <table><tr><th>Fournisseur</th><th>Clé</th><th>Test</th><th>Outils</th><th>Paramètres</th><th>Utilisé par</th><th></th></tr>
     ${us.providers.map((pid) => { const p = P[pid]; const [ks, kt] = keyState(pid); const isA = pid === us.active;
@@ -321,8 +404,8 @@ function variantA() {
       <td>${us.active && !isA && ks !== "ko" ? `<button class="btn" data-activate="${pid}">Rendre actif</button>` : ""}</td></tr>`; }).join("")}</table>`;
   if (us.business) body += businessBlock(us.business);
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
-  return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p></div>
-    <div class="tabs">${U.map((x) => `<button data-tab="${x.id}" class="${x.id === S.tab ? "on" : ""}">${h(x.label)}</button>`).join("")}</div>
+  return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
+    <div class="tabs">${tabsHtml()}</div>
     ${body}${observeLinks(us)}`;
 }
 
@@ -396,14 +479,21 @@ function variantC() {
 function render() {
   const url = new URL(location); url.searchParams.set("variant", S.variant); url.searchParams.set("tab", S.tab); history.replaceState(null, "", url);
   document.getElementById("main").innerHTML = { A: variantA, B: variantB, C: variantC }[S.variant]();
-  document.getElementById("overlay").innerHTML = S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
+  document.getElementById("overlay").innerHTML = S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
+  if (t.hasAttribute("data-add")) { S.adding = true; S.addType = S.tab === "sources" ? "source" : S.tab === "signin" ? "signin" : S.tab === "ai" ? "model" : "provider"; return render(); }
+  if (t.hasAttribute("data-addsave")) { const n = document.getElementById("addName")?.value || "(sans nom)"; const label = ADD_TYPES[S.addType].label;
+    if (S.addType === "site") u("web").business.sites.push({ d: n, on: true });
+    if (S.addType === "source") u("sources").sources.push({ k: n, pid: "ats", on: false, what: "Nouvelle source (désactivée tant que non testée)" });
+    if (S.addType === "provider") { const id = n.toLowerCase().replace(/\W/g, ""); const us = u(document.getElementById("addUsage").value); P[id] = { name: n, region: "à préciser", keys: [{ name: n.toUpperCase().replace(/\W/g, "_") + "_API_KEY", source: document.getElementById("addKey").value ? "bo" : "missing", fp: "…" + (document.getElementById("addKey").value.slice(-4) || "") }], test: null, tools: [], params: [], usedBy: [] }; us.providers.push(id); S.tab = us.id; }
+    S.adding = false; toast(`${label} « ${n} » ajouté, inscrit au Journal`); return render(); }
+  if (t.dataset.source != null && e.type === "click") { const x = u("sources").sources[+t.dataset.source]; x.on = t.checked; toast(`Source ${x.k} ${x.on ? "activée" : "désactivée"}`); return render(); }
   if (t.dataset.tksave) { const k = u("ai").tasks[+t.dataset.tksave]; const [pid, m] = document.getElementById("tkModel").value.split("|"); Object.assign(k, { p: pid, m, effort: document.getElementById("tkEffort").value, src: "bo" }); S.task = null; toast(`${k.t} : ${P[pid].name} · ${m}, dès le prochain appel`); return render(); }
   if (t.dataset.tkreset) { const k = u("ai").tasks[+t.dataset.tkreset]; const [pid, m] = k.def.split(" (")[0].split(" · "); Object.assign(k, { p: pid, m, src: k.def.includes("(env)") ? "env" : "code" }); S.task = null; toast(`${k.t} : défaut rétabli`); return render(); }
   if (t.dataset.task != null && !t.dataset.tksave) { S.task = +t.dataset.task; return render(); }
@@ -418,9 +508,10 @@ document.addEventListener("click", (e) => {
   if (t.dataset.sub) { S.sub = t.dataset.sub; return render(); }
   if (t.dataset.chip) { S.chip = t.dataset.chip; if (t.dataset.chip !== "all") S.tab = t.dataset.chip; return render(); }
   if (t.dataset.open) { if (e.target.closest("select,input,button") && !t.matches("button")) return; S.drawer = t.dataset.open; return render(); }
-  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; return render(); }
+  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; return render(); }
 });
 document.addEventListener("change", (e) => {
+  if (e.target.id === "addType") { S.addType = e.target.value; return render(); }
   if (e.target.id === "groupBy") { S.groupBy = e.target.value; return render(); }
   const set = e.target.dataset.set;
   if (S.variant === "C") { const r = e.target.closest("[data-row]"); if (r) { S.changed.add(r.dataset.row); r.parentElement.classList.add("changed"); const b = document.getElementById("saveAll"); b.disabled = false; b.textContent = `Enregistrer ${S.changed.size} changement${S.changed.size > 1 ? "s" : ""}`; } return; }
@@ -431,7 +522,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea,select,[contenteditable]")) return;
   if (e.key === "ArrowLeft") cycle(-1);
   if (e.key === "ArrowRight") cycle(1);
-  if (e.key === "Escape" && (S.drawer || S.playbook != null || S.task != null)) { S.drawer = null; S.playbook = null; S.task = null; render(); }
+  if (e.key === "Escape") { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; render(); }
 });
 render();
 </script>

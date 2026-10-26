@@ -202,7 +202,7 @@
   },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
-    "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Connexion section:\n{{url}}\n\nThe Jobbbox team",
+    "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings:\n{{url}}\n\nThe Jobbbox team",
     "reasons": {
       "missing_secret": "the Team ID, Key ID or .p8 key is missing or no longer decrypts (master key removed?)",
       "invalid_apple_key": "The .p8 key or a saved ID cannot sign the secret",

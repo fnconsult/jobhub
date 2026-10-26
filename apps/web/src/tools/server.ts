@@ -1,5 +1,6 @@
 import type { Tool, ToolCategory } from "@jobhub/shared";
 import { sharedPool } from "@/database/pool";
+import type { PlatformSettingsSnapshot } from "@/platform-settings/resolver";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
@@ -9,7 +10,7 @@ import { latestToolCalls, toolCalls, toolsOverview, type CalledTool, type ToolCa
  * The values in use (Provider Secrets over env), the Platform Settings in use (read now, as
  * Paramètres reads them) and the Sign-in Providers enabled; none without a database. Paramètres' providers are read from it too.
  */
-export async function currentState(): Promise<ToolsState & { settings: Awaited<ReturnType<ReturnType<typeof getPlatformSettingsResolver>["refresh"]>> }> {
+export async function currentState(): Promise<ToolsState & { settings: PlatformSettingsSnapshot }> {
   const env = getSecretResolver().current().env;
   const settings = await getPlatformSettingsResolver().refresh();
   if (!process.env.DATABASE_URL) return { env, signInTypes: [], settings };

@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Super-admins and Support see every external tool the app calls (#233), by category: what it is
  * for, where it runs and processes data, whether it is configured, and its last 30 days' calls.
- * Read-only; a key is only said to be there or not, linked to Clés for those who can open it.
+ * Read-only; a key is only said to be there or not, linked to its provider's sheet in Paramètres (#396) for those who read the Provider Secrets.
  * Its state accounts for its Platform Settings (#304): off, a setting missing, the « env » badge.
  */
 export default async function ToolsPage() {

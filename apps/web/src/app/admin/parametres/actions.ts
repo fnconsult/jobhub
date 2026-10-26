@@ -14,7 +14,7 @@ import { parametresHref, parametresTab, providerSheetHref, type ParametresTabId 
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { getProviderSecrets, getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
-import { CONFIRMED, FORM, type PlatformSettingNotice, type SitesNotice } from "./notices";
+import { CONFIRMED, FORM, SIGN_IN_SWITCHES, type PlatformSettingNotice, type SitesNotice } from "./notices";
 
 /** The longest technical detail of a refusal carried back to the page; the Journal keeps it whole. */
 const DETAIL_MAX_LENGTH = 300;
@@ -154,8 +154,6 @@ export async function removeJobSite(form: FormData) {
 
 // ---- Sign-in Providers (the former Connexion) ----
 
-/** The provider form's switches: the form fields saveProvider reads. */
-const SWITCHES = { shownToCandidates: "shownToCandidates", allowedForAdministrators: "allowedForAdministrators", trustedForLinking: "trustedForLinking", enabled: "enabled" } as const;
 
 export async function saveProvider(form: FormData) {
   const { administrator } = await requireBackOffice("ssoProviders", "write");
@@ -167,10 +165,10 @@ export async function saveProvider(form: FormData) {
     discoveryUrl: text(form, "discoveryUrl"),
     tenantId: text(form, "tenantId"),
     appBundleIdentifier: text(form, "appBundleIdentifier"),
-    enabled: form.get(SWITCHES.enabled) === "on",
-    shownToCandidates: form.get(SWITCHES.shownToCandidates) === "on",
-    allowedForAdministrators: form.get(SWITCHES.allowedForAdministrators) === "on",
-    trustedForLinking: form.get(SWITCHES.trustedForLinking) === "on",
+    enabled: form.get(SIGN_IN_SWITCHES.enabled) === "on",
+    shownToCandidates: form.get(SIGN_IN_SWITCHES.shownToCandidates) === "on",
+    allowedForAdministrators: form.get(SIGN_IN_SWITCHES.allowedForAdministrators) === "on",
+    trustedForLinking: form.get(SIGN_IN_SWITCHES.trustedForLinking) === "on",
     secrets: { clientSecret: text(form, "clientSecret"), teamId: text(form, "teamId"), keyId: text(form, "keyId"), privateKey: text(form, "privateKey") },
   });
   if (!saved.ok) back(form, { error: saved.error, form: text(form, "formKey") });

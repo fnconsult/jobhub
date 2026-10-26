@@ -8,6 +8,9 @@
 export const FORM = { tab: "tab", sheet: "fournisseur", confirmed: "confirmed" } as const;
 export const CONFIRMED = "yes";
 
+/** A Sign-in Provider form's switches: the fields saveProvider reads. */
+export const SIGN_IN_SWITCHES = { shownToCandidates: "shownToCandidates", allowedForAdministrators: "allowedForAdministrators", trustedForLinking: "trustedForLinking", enabled: "enabled" } as const;
+
 /** A Platform Setting's notice: a key under admin.platformSettings.notices, and whether it is an error. */
 export const PLATFORM_SETTING_NOTICES = {
   saved: false,

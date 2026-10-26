@@ -4,6 +4,7 @@ import type { SaveError, SignInProviderStatus, SignInSecretSource } from "@/sign
 import { linksByEmail } from "@/sign-in-providers/policy";
 import { removeProvider, saveProvider, setRequireSso, startTestSignIn } from "./actions";
 import { Here, type Ctx, type T } from "./context";
+import { SIGN_IN_SWITCHES } from "./notices";
 
 /** A Sign-in Provider's save errors, as admin.signInProviders.errors names them. */
 export const SIGN_IN_ERRORS = [
@@ -22,8 +23,6 @@ export const SIGN_IN_ERRORS = [
   "unknown_provider",
 ] as const satisfies readonly (SaveError | "unknown_provider")[];
 
-/** The provider form's switches: the form fields saveProvider reads. */
-const SWITCHES = { shownToCandidates: "shownToCandidates", allowedForAdministrators: "allowedForAdministrators", trustedForLinking: "trustedForLinking", enabled: "enabled" } as const;
 
 const TONE: Record<SignInSecretSource, "success" | "accent" | "danger"> = { database: "success", env: "accent", missing: "danger", unreadable: "danger" };
 
@@ -266,18 +265,18 @@ export function ProviderForm({ ctx, type, provider, formKey }: { ctx: Ctx; type:
             <p id={field(`${secret}-help`)}>{secretHelp}</p>
           </div>
         ))}
-        <Switch name={SWITCHES.shownToCandidates} id={field(SWITCHES.shownToCandidates)} label={t("admin.signInProviders.shownToCandidatesLabel")} checked={provider?.shownToCandidates ?? true} />
-        <Switch name={SWITCHES.allowedForAdministrators} id={field(SWITCHES.allowedForAdministrators)} label={t("admin.signInProviders.allowedForAdministratorsLabel")} checked={provider?.allowedForAdministrators ?? true} />
+        <Switch name={SIGN_IN_SWITCHES.shownToCandidates} id={field(SIGN_IN_SWITCHES.shownToCandidates)} label={t("admin.signInProviders.shownToCandidatesLabel")} checked={provider?.shownToCandidates ?? true} />
+        <Switch name={SIGN_IN_SWITCHES.allowedForAdministrators} id={field(SIGN_IN_SWITCHES.allowedForAdministrators)} label={t("admin.signInProviders.allowedForAdministratorsLabel")} checked={provider?.allowedForAdministrators ?? true} />
         {PROVIDER_TYPES[type].trustIsAChoice ? (
           <Switch
-            name={SWITCHES.trustedForLinking}
-            id={field(SWITCHES.trustedForLinking)}
+            name={SIGN_IN_SWITCHES.trustedForLinking}
+            id={field(SIGN_IN_SWITCHES.trustedForLinking)}
             label={t("admin.signInProviders.trustedLabel")}
             help={t("admin.signInProviders.trustedHelp")}
             checked={provider?.trustedForLinking ?? false}
           />
         ) : null}
-        <Switch name={SWITCHES.enabled} id={field(SWITCHES.enabled)} label={t("admin.signInProviders.enabledLabel")} help={t("admin.signInProviders.enabledHelp")} checked={provider?.enabled ?? false} />
+        <Switch name={SIGN_IN_SWITCHES.enabled} id={field(SIGN_IN_SWITCHES.enabled)} label={t("admin.signInProviders.enabledLabel")} help={t("admin.signInProviders.enabledHelp")} checked={provider?.enabled ?? false} />
         <button className="button button-primary" type="submit">
           {t("admin.signInProviders.save")}
         </button>

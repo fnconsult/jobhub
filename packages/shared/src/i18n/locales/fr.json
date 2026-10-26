@@ -202,7 +202,7 @@
   },
   "appleAlert": {
     "subject": "Jobbbox : la connexion avec Apple doit être réparée",
-    "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans la section Connexion :\n{{url}}\n\nL'équipe Jobbbox",
+    "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres :\n{{url}}\n\nL'équipe Jobbbox",
     "reasons": {
       "missing_secret": "l'identifiant d'équipe, l'identifiant de clé ou la clé .p8 manque ou ne se déchiffre plus (clé maîtresse retirée ?)",
       "invalid_apple_key": "La clé .p8 ou un identifiant enregistré ne permet pas de signer le secret",

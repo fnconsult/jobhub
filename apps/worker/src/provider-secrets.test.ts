@@ -60,7 +60,7 @@ function clients(resolver: ReturnType<typeof database>["resolver"], fetch: typeo
 
 describe("the worker's clients, on Provider Secrets (#208)", () => {
   it("turns Job discovery on once its web search's key is entered in the Back Office, without a restart", async () => {
-    const { PERPLEXITY_API_KEY: _fromEnv, ...withoutSearchKey } = ENV;
+    const withoutSearchKey = Object.fromEntries(Object.entries(ENV).filter(([name]) => name !== "PERPLEXITY_API_KEY"));
     const { stored, resolver } = database({ MISTRAL_API_KEY: { value: MISTRAL_OLD, row: "r1" } }, withoutSearchKey);
     await resolver.refresh();
     const lines: string[] = [];

@@ -38,6 +38,9 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
 
   it("links a setting to the tab that shows it, Environnement for one only env holds", () => {
     expect(settingHref("AI_WEB_SEARCH_PROVIDER")).toBe("/admin/parametres?tab=recherche-web#setting-AI_WEB_SEARCH_PROVIDER");
+    for (const name of ["AI_WEB_SEARCH_FALLBACK_PROVIDER", "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "BRAVE_MAX_PAGES", "TAVILY_SEARCH_DEPTH"]) {
+      expect(settingHref(name), name).toBe(`/admin/parametres?tab=recherche-web#setting-${name}`);
+    }
     expect(settingHref("AI_IDENTITY_MODEL")).toBe("/admin/parametres?tab=ia#setting-AI_IDENTITY_MODEL");
     expect(settingHref("JOB_DISCOVERY_BUDGET_EUR")).toBe("/admin/parametres?tab=sources#setting-JOB_DISCOVERY_BUDGET_EUR");
     expect(settingHref("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("/admin/parametres?tab=enrichissement#setting-CONTACT_ENRICHMENT_DPA_SIGNED");
@@ -83,7 +86,7 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
   describe("« Fournisseurs possibles »", () => {
     it("lists every web search Tool, the active one marked, the others ready to be made active, a missing key named", () => {
       const rows = possibleProviders(tab("recherche-web"), stateOf({ PERPLEXITY_API_KEY: "pplx-0123456789abcdef" }));
-      expect(rows.map((row) => row.tool.id)).toEqual(["perplexity", "brave", "tavily", "linkup"]);
+      expect(rows.map((row) => row.tool.id)).toEqual(["perplexity", "brave", "tavily"]);
       expect(rows[0]).toMatchObject({ active: true, selectable: false, status: "configured", usedBy: ["web_search"] });
       expect(rows[1]).toMatchObject({ active: false, selectable: true, status: "key_missing", usedBy: [], keys: [{ name: "BRAVE_SEARCH_API_KEY", set: false }] });
     });

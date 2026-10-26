@@ -13,7 +13,7 @@
  * Which Tools, Platform Settings and active provider each tab shows is said here once; the page only lays
  * them out.
  */
-import { AI_ROUTING_SETTINGS, taskRouteFromEnv } from "@jobhub/ai";
+import { SEARCH_TASK, taskRouteFromEnv, TEXT_TASKS } from "@jobhub/ai";
 import { TOOLS, type Tool, type ToolCategory } from "@jobhub/shared";
 import { isProviderSecretName } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
@@ -37,7 +37,16 @@ export interface ParametresTab {
   settings: readonly string[];
 }
 
-const WEB_SEARCH_SETTINGS = ["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_MODEL"];
+/** Recherche web's settings: the active Search provider and its fallback, each provider's typed settings (ADR-0043), then the one they replace. */
+const WEB_SEARCH_SETTINGS = [
+  "AI_WEB_SEARCH_PROVIDER",
+  "AI_WEB_SEARCH_FALLBACK_PROVIDER",
+  "PERPLEXITY_SEARCH_TYPE",
+  "PERPLEXITY_QUERIES_PER_CALL",
+  "BRAVE_MAX_PAGES",
+  "TAVILY_SEARCH_DEPTH",
+  "AI_WEB_SEARCH_MODEL",
+];
 const namesOf = (groups: readonly string[]) => PLATFORM_SETTINGS.filter((setting) => groups.includes(setting.group)).map((setting) => setting.name);
 
 export const PARAMETRES_TABS: readonly ParametresTab[] = [
@@ -174,17 +183,17 @@ const FEATURES: Partial<Record<ToolCategory, UsedBy>> = {
   sign_in: "sign_in",
 };
 
-/** The AI tasks, as their routing settings name them (`AI_<TASK>_PROVIDER`). */
-const AI_TASKS = AI_ROUTING_SETTINGS.flatMap((setting) => {
-  const task = /^AI_(.+)_PROVIDER$/.exec(setting.name)?.[1];
-  return task ? [task.toLowerCase()] : [];
-});
+/**
+ * The AI tasks, as the AI layer routes them: not read from the setting names, since AI_WEB_SEARCH_FALLBACK_PROVIDER
+ * (#398) names a provider for no task of its own.
+ */
+const AI_TASKS = [...Object.keys(TEXT_TASKS), SEARCH_TASK] as Parameters<typeof taskRouteFromEnv>[1][];
 
 /** The provider each AI task is routed to, as the AI layer would route it; none for a value it refuses. */
 function taskProviders(state: ProvidersState): Map<string, string> {
   const env = overSettings(state.env, state.settings.env);
   try {
-    return new Map(AI_TASKS.map((task) => [task, taskRouteFromEnv(env, task as Parameters<typeof taskRouteFromEnv>[1]).provider]));
+    return new Map(AI_TASKS.map((task) => [task, taskRouteFromEnv(env, task).provider]));
   } catch {
     return new Map();
   }

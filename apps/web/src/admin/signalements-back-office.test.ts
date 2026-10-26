@@ -98,6 +98,7 @@ describe.skipIf(!connectionString)("« Signalements » in the Back Office: Suppo
         status: "nouveau",
         statusChangedAt: null,
         reply: null,
+        repliedAt: null,
         replyUpdatedAt: null,
         createdAt: new Date("2026-10-23T09:00:00Z"),
         candidate: { email: "paul.martin@example.fr", plan: "standard" },

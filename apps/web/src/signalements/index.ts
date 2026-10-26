@@ -12,6 +12,9 @@
  *    direction, but a Question is marked `traite` only once it has a reply; one reply, editable until `traite`;
  *  - `list`, `one` and `countToHandle`, what the team reads (#376): oldest first, of some types and statuses, each with
  *    the Candidate's email and Plan; and how many are « à traiter » (TO_HANDLE_STATUSES);
+ *  - `notifications`, `closeNotifications` and `remove`, the Candidate's side (#377): the Signalement notifications
+ *    due (a reply saved or `traite` since they last closed it, derived from the row as it stands), closing one or all
+ *    of them, and deleting one of their own;
  * and `signalementsOf(database, candidateId)` (the Candidate's own, for their Data export and « Mes signalements »),
  * `migrateSignalements(database)` and `purgeSignalements(database, now)` (the worker, nightly: RETENTION_MONTHS
  * after it was marked `traite`).
@@ -72,6 +75,9 @@ export interface Signalement {
   statusChangedAt: Date | null;
   /** The team's reply, signed « L'équipe Jobbbox », never with an Administrator's name; null while there is none. */
   reply: string | null;
+  /** When the reply was first saved; null while there is none, or for one saved without it. */
+  repliedAt: Date | null;
+  /** When the reply was last saved: later than `repliedAt` once it was changed. */
   replyUpdatedAt: Date | null;
   createdAt: Date;
 }
@@ -120,6 +126,36 @@ export interface Signalements {
   one(id: string): Promise<SentSignalement | null>;
   /** How many are « à traiter » (TO_HANDLE_STATUSES): what the Back Office's sidebar shows next to Signalements. */
   countToHandle(): Promise<number>;
+  /**
+   * The Candidate's Signalement notifications not closed yet, newest first (#377): one for each of their Signalements
+   * the team replied to or marked `traite` since the Candidate last closed its notification (one even when both
+   * happened). Being marked `vu` gives none. Derived from the Signalement as it stands, so a reply or status written
+   * by any means notifies.
+   */
+  notifications(candidateId: string): Promise<SignalementNotification[]>;
+  /**
+   * Closes the notification of the Candidate's Signalement `id` (they closed it), or, without `id`, of every one of
+   * theirs (they opened « Mes signalements »). A reply or `traite` saved afterwards notifies again. Nothing for anyone
+   * else's.
+   */
+  closeNotifications(candidateId: string, id?: string): Promise<void>;
+  /**
+   * Deletes the Candidate's own Signalement `id` (« Mes signalements », #377): gone for the team too. The Back Office
+   * Audit keeps only what it already held. False when they have no such Signalement.
+   */
+  remove(candidateId: string, id: string): Promise<boolean>;
+}
+
+/**
+ * What every workspace page tells the Candidate of one of their Signalements (#377): « L'équipe Jobbbox a répondu à
+ * votre signalement du 25 octobre » when it has a reply, else « Votre signalement du 25 octobre est traité ».
+ */
+export interface SignalementNotification {
+  signalementId: string;
+  /** ISO: when the Candidate sent it, the date the notification names. */
+  sentAt: string;
+  /** The team replied (else it was marked `traite` without a reply). */
+  replied: boolean;
 }
 
 /** A Signalement before and after the team changed it: what the Back Office Audit records (#376). */
@@ -149,12 +185,13 @@ interface Row {
   status: SignalementStatus;
   status_changed_at: Date | null;
   reply: string | null;
+  replied_at: Date | null;
   reply_updated_at: Date | null;
   created_at: Date;
 }
 
 const COLUMNS = `id::text, type, message, attached_question, attached_coach_reply, path, version, browser, interface_language, text_size,
-  status, status_changed_at, reply, reply_updated_at, created_at`;
+  status, status_changed_at, reply, replied_at, reply_updated_at, created_at`;
 
 interface SentRow extends Row {
   email: string;
@@ -177,6 +214,7 @@ const fromRow = (row: Row): Signalement => ({
   status: row.status,
   statusChangedAt: row.status_changed_at,
   reply: row.reply,
+  repliedAt: row.replied_at,
   replyUpdatedAt: row.reply_updated_at,
   createdAt: row.created_at,
 });
@@ -225,6 +263,13 @@ function checked(sent: unknown): Checked | FieldError[] {
     textSize: resolveTextSize(typeof body.textSize === "string" ? body.textSize : null).setting,
   };
 }
+
+/**
+ * A Signalement whose notification is due: replied to, or marked `traite`, after the Candidate last closed its
+ * notification (never, while `notification_closed_at` is null).
+ */
+const NOTIFYING = `((reply IS NOT NULL AND (notification_closed_at IS NULL OR reply_updated_at > notification_closed_at))
+  OR (status = 'traite' AND (notification_closed_at IS NULL OR status_changed_at > notification_closed_at)))`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -288,7 +333,7 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       if (!before) return null;
       if (before.status === "traite") return { refused: "already_handled" };
       if (typeof reply !== "string") return { errors: [reply] };
-      const { rows } = await within.query<Row>(`UPDATE signalement SET reply = $2, reply_updated_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, reply, now()]);
+      const { rows } = await within.query<Row>(`UPDATE signalement SET reply = $2, replied_at = coalesce(replied_at, $3), reply_updated_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, reply, now()]);
       return { before, after: fromRow(rows[0]!) };
     },
 
@@ -301,6 +346,29 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       if (!UUID.test(id)) return null;
       const { rows } = await database.query<SentRow>(`SELECT ${SENT} WHERE s.id = $1`, [id]);
       return rows[0] ? sentFrom(rows[0]) : null;
+    },
+
+    async notifications(candidateId) {
+      const { rows } = await database.query<{ id: string; created_at: Date; replied: boolean }>(
+        `SELECT id::text, created_at, reply IS NOT NULL AS replied FROM signalement WHERE candidate_id = $1 AND ${NOTIFYING}
+         ORDER BY created_at DESC, id`,
+        [candidateId],
+      );
+      return rows.map((row) => ({ signalementId: row.id, sentAt: row.created_at.toISOString(), replied: row.replied }));
+    },
+
+    async closeNotifications(candidateId, id) {
+      if (id !== undefined && !UUID.test(id)) return;
+      await database.query(
+        `UPDATE signalement SET notification_closed_at = $2 WHERE candidate_id = $1 AND ($3::uuid IS NULL OR id = $3::uuid) AND ${NOTIFYING}`,
+        [candidateId, now(), id ?? null],
+      );
+    },
+
+    async remove(candidateId, id) {
+      if (!UUID.test(id)) return false;
+      const { rowCount } = await database.query(`DELETE FROM signalement WHERE id = $1 AND candidate_id = $2`, [id, candidateId]);
+      return Boolean(rowCount);
     },
 
     async countToHandle() {
@@ -353,6 +421,10 @@ export async function migrateSignalements(database: Pool): Promise<void> {
       CHECK (reply IS NULL OR char_length(reply) <= ${REPLY_MAX_LENGTH}),
       CHECK ((type = 'question') = (attached_question IS NOT NULL AND attached_coach_reply IS NOT NULL))
     );
+    -- When the team's reply was first saved: reply_updated_at is when it last was (#377).
+    ALTER TABLE signalement ADD COLUMN IF NOT EXISTS replied_at timestamptz;
+    -- When the Candidate last closed its notification, or opened « Mes signalements » (#377).
+    ALTER TABLE signalement ADD COLUMN IF NOT EXISTS notification_closed_at timestamptz;
     CREATE INDEX IF NOT EXISTS signalement_candidate_idx ON signalement (candidate_id, created_at);
     CREATE INDEX IF NOT EXISTS signalement_handled_idx ON signalement (status_changed_at) WHERE status = 'traite';
   `);

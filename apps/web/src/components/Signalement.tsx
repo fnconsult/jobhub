@@ -2,15 +2,39 @@
 
 import { resolveTextSize } from "@jobhub/shared/design";
 import * as Dialog from "@radix-ui/react-dialog";
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useTranslation } from "react-i18next";
+import { routes } from "@/routes";
 import { browserOf } from "@/signalements/context";
-import { DRAFT_TYPES, forgetDraft, keepDraft, keptDraft, type DraftType } from "@/signalements/draft";
+import {
+  DRAFT_TYPES,
+  forgetDraft,
+  keepDraft,
+  keptDraft,
+  type DraftType,
+} from "@/signalements/draft";
 import { MESSAGE_MAX_LENGTH, MESSAGE_MIN_LENGTH } from "@/signalements/values";
 import { send } from "./ApplicationControls";
 import { SIGNALEMENT_GLYPHS, signalementGlyph } from "./signalement-glyphs";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+/** « Mes signalements »' title's id (#377): the dialog gives it the focus when it closes after sending from that Section. */
+export const MY_SIGNALEMENTS_TITLE_ID = "my-signalements-title";
 const MORPH = "0.5s";
 
 /**
@@ -21,7 +45,10 @@ const MORPH = "0.5s";
  *    question à l'équipe », no type to choose, the text prefilled with `question` and editable; it is sent with a copy of
  *    `question` and `coachReply`, never a link to the Coach Conversation. Never kept as the draft.
  */
-export type SignalementStart = { kind: "draft" } | { kind: "type"; type: DraftType } | { kind: "question"; question: string; coachReply: string };
+export type SignalementStart =
+  | { kind: "draft" }
+  | { kind: "type"; type: DraftType }
+  | { kind: "question"; question: string; coachReply: string };
 
 const DRAFT: SignalementStart = { kind: "draft" };
 
@@ -35,9 +62,23 @@ export function SignalementButton({ version }: { version: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
-    <SignalementDialog version={version} open={open} onOpenChange={setOpen} start={DRAFT}>
-      <Dialog.Trigger className="signalement-open" type="button" aria-label={t("signalement.open")}>
-        <svg className="icon signalement-glyph" viewBox="0 0 24 24" aria-hidden focusable={false}>
+    <SignalementDialog
+      version={version}
+      open={open}
+      onOpenChange={setOpen}
+      start={DRAFT}
+    >
+      <Dialog.Trigger
+        className="signalement-open"
+        type="button"
+        aria-label={t("signalement.open")}
+      >
+        <svg
+          className="icon signalement-glyph"
+          viewBox="0 0 24 24"
+          aria-hidden
+          focusable={false}
+        >
           <path d={SIGNALEMENT_GLYPHS.bug} />
         </svg>
         <span className="signalement-tip" aria-hidden>
@@ -48,17 +89,51 @@ export function SignalementButton({ version }: { version: string }) {
   );
 }
 
-const OpenSignalement = createContext<((start: SignalementStart) => void) | null>(null);
+/**
+ * A labelled button opening the same Signalement dialog with `type` chosen (« Signaler un problème », « Proposer une
+ * idée »: « Mes signalements »' empty state, #377), keeping what was typed. On close the focus comes back to it.
+ */
+export function SignalementTypeButton({
+  type,
+  children,
+}: {
+  type: DraftType;
+  children: ReactNode;
+}) {
+  const open = useOpenSignalement();
+  return (
+    <button
+      className="button"
+      type="button"
+      onClick={() => open?.({ kind: "type", type })}
+    >
+      {children}
+    </button>
+  );
+}
+
+const OpenSignalement = createContext<
+  ((start: SignalementStart) => void) | null
+>(null);
 
 /**
  * The Signalement dialog for what `children` open with useOpenSignalement() (the Coach Panel, #345). `version`: the
  * Jobbbox version its detail shows. On close, the focus goes back to what opened it.
  */
-export function SignalementProvider({ version, children }: { version: string; children: ReactNode }) {
+export function SignalementProvider({
+  version,
+  children,
+}: {
+  version: string;
+  children: ReactNode;
+}) {
   const [start, setStart] = useState<SignalementStart | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const open = useCallback((next: SignalementStart) => {
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    opener.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     setStart(next);
   }, []);
   return (
@@ -78,7 +153,8 @@ export function SignalementProvider({ version, children }: { version: string; ch
 }
 
 /** Opens the Signalement dialog on `start`; null outside a SignalementProvider (the Back Office, signed-out pages). */
-export function useOpenSignalement(): ((start: SignalementStart) => void) | null {
+export function useOpenSignalement():
+  ((start: SignalementStart) => void) | null {
   return useContext(OpenSignalement);
 }
 
@@ -102,8 +178,17 @@ function SignalementDialog({
   children?: ReactNode;
 }) {
   const message = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
+  const onMine = usePathname() === routes.accountSignalements;
+  // One was sent since the dialog opened: « Mes signalements », behind it, lists it once it closes.
+  const sent = useRef(false);
+  function changeOpen(next: boolean) {
+    if (next) sent.current = false;
+    else if (sent.current && onMine) router.refresh();
+    onOpenChange(next);
+  }
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={changeOpen}>
       {children}
       <Dialog.Portal>
         <Dialog.Overlay className="scrim" />
@@ -115,19 +200,33 @@ function SignalementDialog({
             event.preventDefault();
             message.current?.focus();
           }}
-          {...(onCloseAutoFocus
-            ? {
-                onCloseAutoFocus: (event: Event) => {
-                  event.preventDefault();
-                  onCloseAutoFocus();
-                },
-              }
-            : {})}
+          onCloseAutoFocus={(event: Event) => {
+            if (sent.current && onMine) {
+              // The empty state's button that opened it gives way to the list: the Section's title takes the focus.
+              event.preventDefault();
+              document.getElementById(MY_SIGNALEMENTS_TITLE_ID)?.focus();
+            } else if (onCloseAutoFocus) {
+              event.preventDefault();
+              onCloseAutoFocus();
+            }
+          }}
         >
           {start.kind === "question" ? (
-            <SignalementForm version={version} message={message} question={start} onClose={() => onOpenChange(false)} />
+            <SignalementForm
+              version={version}
+              message={message}
+              question={start}
+              onSent={() => (sent.current = true)}
+              onClose={() => changeOpen(false)}
+            />
           ) : (
-            <SignalementForm version={version} message={message} type={start.kind === "type" ? start.type : undefined} onClose={() => onOpenChange(false)} />
+            <SignalementForm
+              version={version}
+              message={message}
+              type={start.kind === "type" ? start.type : undefined}
+              onSent={() => (sent.current = true)}
+              onClose={() => changeOpen(false)}
+            />
           )}
         </Dialog.Content>
       </Dialog.Portal>
@@ -148,24 +247,29 @@ function SignalementForm({
   message,
   type: chosen,
   question,
+  onSent,
   onClose,
 }: {
   version: string;
   message: RefObject<HTMLTextAreaElement | null>;
   type?: DraftType | undefined;
   question?: Asked;
+  onSent: () => void;
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const id = useId();
   // The draft kept from the last opening (signalements/draft): Esc, Annuler or a click outside keeps it.
   const [type, setType] = useState<DraftType>(() => chosen ?? keptDraft().type);
-  const [text, setText] = useState(() => (question ? question.question : keptDraft().text));
+  const [text, setText] = useState(() =>
+    question ? question.question : keptDraft().text,
+  );
   const [problem, setProblem] = useState<Problem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [working, setWorking] = useState(false);
   const [sent, setSent] = useState(false);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const onMine = usePathname() === routes.accountSignalements;
   const length = text.trim().length;
 
   useEffect(() => {
@@ -174,7 +278,8 @@ function SignalementForm({
 
   // A type chosen from the Coach Panel's foot is the draft's from now on.
   useEffect(() => {
-    if (chosen && !question) keepDraft({ type: chosen, text: keptDraft().text });
+    if (chosen && !question)
+      keepDraft({ type: chosen, text: keptDraft().text });
   }, [chosen, question]);
 
   function changeType(next: DraftType) {
@@ -185,7 +290,8 @@ function SignalementForm({
   function changeText(next: string) {
     if (!question) keepDraft({ type, text: next });
     setText(next);
-    if (problem === "tooShort" && next.trim().length >= MESSAGE_MIN_LENGTH) setProblem(null);
+    if (problem === "tooShort" && next.trim().length >= MESSAGE_MIN_LENGTH)
+      setProblem(null);
   }
 
   async function submit(event?: FormEvent) {
@@ -198,20 +304,46 @@ function SignalementForm({
     }
     setWorking(true);
     setProblem(null);
-    const context = { message: text, path: window.location.pathname, textSize: textSizeNow() };
+    const context = {
+      message: text,
+      path: window.location.pathname,
+      textSize: textSizeNow(),
+    };
     const body = question
-      ? { type: "question", ...context, attachedQuestion: question.question, attachedCoachReply: question.coachReply }
+      ? {
+          type: "question",
+          ...context,
+          attachedQuestion: question.question,
+          attachedCoachReply: question.coachReply,
+        }
       : { type, ...context };
     const { ok, result } = await send("/api/signalements", "POST", body);
     setWorking(false);
     if (ok) {
       if (!question) forgetDraft();
       setSent(true);
+      onSent();
       return;
     }
-    const tooShort = Array.isArray(result.errors) && result.errors.some((error: { code?: string }) => error.code === "too_short");
-    setProblem(result.error === "too_many" ? "tooMany" : tooShort ? "tooShort" : "failed");
+    const tooShort =
+      Array.isArray(result.errors) &&
+      result.errors.some(
+        (error: { code?: string }) => error.code === "too_short",
+      );
+    setProblem(
+      result.error === "too_many"
+        ? "tooMany"
+        : tooShort
+          ? "tooShort"
+          : "failed",
+    );
     message.current?.focus();
+  }
+
+  /** « Voir mes signalements »: the dialog closes and « Mes signalements » shows, already there or not. */
+  function seeMine(event: MouseEvent<HTMLAnchorElement>) {
+    if (onMine) event.preventDefault();
+    onClose();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -223,7 +355,9 @@ function SignalementForm({
 
   const title = (
     <Dialog.Title className="dialog-title signalement-title">
-      <MorphingGlyph d={question ? SIGNALEMENT_GLYPHS.info : signalementGlyph(type)} />
+      <MorphingGlyph
+        d={question ? SIGNALEMENT_GLYPHS.info : signalementGlyph(type)}
+      />
       {question ? t("signalement.question.title") : t("signalement.title")}
     </Dialog.Title>
   );
@@ -234,11 +368,24 @@ function SignalementForm({
         {title}
         <div className="signalement-thanks" role="status">
           <p>
-            <strong>{t("signalement.thanks")}</strong> {t("signalement.thanksDetail")}
+            <strong>{t("signalement.thanks")}</strong>{" "}
+            {t("signalement.thanksDetail")}
           </p>
         </div>
         <div className="actions signalement-actions">
-          <button ref={closeButton} className="button button-primary" type="button" onClick={onClose}>
+          <Link
+            className="button"
+            href={routes.accountSignalements}
+            onClick={seeMine}
+          >
+            {t("signalement.seeMine")}
+          </Link>
+          <button
+            ref={closeButton}
+            className="button button-primary"
+            type="button"
+            onClick={onClose}
+          >
             {t("signalement.close")}
           </button>
         </div>
@@ -248,7 +395,13 @@ function SignalementForm({
   const errorId = `${id}-error`;
   const countId = `${id}-count`;
   const detailButton = (
-    <button className="link-button" type="button" aria-expanded={detailOpen} aria-controls={`${id}-detail`} onClick={() => setDetailOpen(!detailOpen)}>
+    <button
+      className="link-button"
+      type="button"
+      aria-expanded={detailOpen}
+      aria-controls={`${id}-detail`}
+      onClick={() => setDetailOpen(!detailOpen)}
+    >
       {t(detailOpen ? "signalement.hideDetail" : "signalement.showDetail")}
     </button>
   );
@@ -257,17 +410,29 @@ function SignalementForm({
       {title}
       {question ? null : (
         <fieldset className="signalement-types">
-          <legend className="visually-hidden">{t("signalement.typeLegend")}</legend>
+          <legend className="visually-hidden">
+            {t("signalement.typeLegend")}
+          </legend>
           {DRAFT_TYPES.map((option) => (
             <label key={option} className="signalement-type">
-              <input type="radio" name={`${id}-type`} value={option} checked={type === option} onChange={() => changeType(option)} />
+              <input
+                type="radio"
+                name={`${id}-type`}
+                value={option}
+                checked={type === option}
+                onChange={() => changeType(option)}
+              />
               {t(`signalement.types.${option}`)}
             </label>
           ))}
         </fieldset>
       )}
       <div className="field">
-        <label htmlFor={`${id}-message`}>{question ? t("signalement.question.label") : t(`signalement.label.${type}`)}</label>
+        <label htmlFor={`${id}-message`}>
+          {question
+            ? t("signalement.question.label")
+            : t(`signalement.label.${type}`)}
+        </label>
         <textarea
           ref={message}
           id={`${id}-message`}
@@ -275,9 +440,15 @@ function SignalementForm({
           rows={6}
           value={text}
           maxLength={MESSAGE_MAX_LENGTH}
-          placeholder={question ? t("signalement.question.placeholder") : t(`signalement.placeholder.${type}`)}
+          placeholder={
+            question
+              ? t("signalement.question.placeholder")
+              : t(`signalement.placeholder.${type}`)
+          }
           aria-invalid={problem === "tooShort" || undefined}
-          aria-describedby={problem === "tooShort" ? `${errorId} ${countId}` : countId}
+          aria-describedby={
+            problem === "tooShort" ? `${errorId} ${countId}` : countId
+          }
           onChange={(event) => changeText(event.target.value)}
           onKeyDown={onKeyDown}
         />
@@ -329,7 +500,9 @@ function SignalementForm({
             <dt>{t("signalement.detail.browser")}</dt>
             <dd>{browserOf(navigator.userAgent) ?? "—"}</dd>
             <dt>{t("signalement.detail.language")}</dt>
-            <dd>{t(`languages.${i18n.language}`, { defaultValue: i18n.language })}</dd>
+            <dd>
+              {t(`languages.${i18n.language}`, { defaultValue: i18n.language })}
+            </dd>
             <dt>{t("signalement.detail.textSize")}</dt>
             <dd>{t(`textSize.${textSizeNow()}`)}</dd>
           </dl>
@@ -338,14 +511,22 @@ function SignalementForm({
       </div>
       {problem === "tooMany" || problem === "failed" ? (
         <p className="field-error" role="alert">
-          {t(problem === "tooMany" ? "signalement.tooMany" : "signalement.failed")}
+          {t(
+            problem === "tooMany"
+              ? "signalement.tooMany"
+              : "signalement.failed",
+          )}
         </p>
       ) : null}
       <div className="actions signalement-actions">
         <button className="button" type="button" onClick={onClose}>
           {t("signalement.cancel")}
         </button>
-        <button className="button button-primary" type="submit" disabled={working}>
+        <button
+          className="button button-primary"
+          type="submit"
+          disabled={working}
+        >
           {working ? t("signalement.sending") : t("signalement.send")}
         </button>
       </div>
@@ -354,7 +535,8 @@ function SignalementForm({
 }
 
 /** The Text Size in use, as <html data-text-size> holds it (see TextSizeControl). */
-const textSizeNow = () => resolveTextSize(document.documentElement.dataset.textSize).setting;
+const textSizeNow = () =>
+  resolveTextSize(document.documentElement.dataset.textSize).setting;
 
 /**
  * The title's glyph, following the Signalement's type (#279, #375). When it changes it morphs, in MORPH, with SMIL
@@ -389,7 +571,12 @@ function MorphingGlyph({ d }: { d: string }) {
   }, [d, motion]);
 
   return (
-    <svg className="icon signalement-glyph" viewBox="0 0 24 24" aria-hidden focusable={false}>
+    <svg
+      className="icon signalement-glyph"
+      viewBox="0 0 24 24"
+      aria-hidden
+      focusable={false}
+    >
       <path ref={path} d={d} />
     </svg>
   );

@@ -228,6 +228,7 @@
       "signIn": "Sign-in",
       "preferences": "Preferences",
       "tools": "Tools",
+      "signalements": "My feedback",
       "data": "My data",
       "reminders": "Reminders"
     },
@@ -3353,6 +3354,49 @@
       "nothingElse": "Nothing else from the conversation.",
       "yourQuestion": "Your question to the coach",
       "coachReply": "The coach's reply (AI)"
-    }
+    },
+    "seeMine": "See my feedback"
+  },
+  "mySignalements": {
+    "title": "My feedback",
+    "intro": "The bugs, ideas and questions you sent the Jobbbox team, newest first, with the team's reply.",
+    "listLabel": "Your feedback, newest first",
+    "empty": "You have not sent any feedback",
+    "emptyHint": "A problem, an idea? The Jobbbox team reads every piece of feedback.",
+    "reportProblem": "Report a problem",
+    "proposeIdea": "Suggest an idea",
+    "types": {
+      "bug": "Bug",
+      "idee": "Idea",
+      "question": "Question"
+    },
+    "heading": "{{type}} of {{date}}",
+    "status": "Status: {{status}}",
+    "statuses": {
+      "nouveau": "Sent",
+      "vu": "Read by the team",
+      "traite": "Done"
+    },
+    "attached": "What was attached",
+    "attachedQuestion": "Your question to the coach",
+    "attachedCoachReply": "The coach's reply",
+    "reply": "Reply from the Jobbbox team",
+    "repliedOn": "On {{date}}",
+    "changedOn": "edited on {{date}}",
+    "delete": "Delete",
+    "deleteLabel": "Delete: {{heading}}",
+    "confirmDelete": "Delete this feedback? The Jobbbox team will no longer see it, and this cannot be undone.",
+    "confirm": "Yes, delete",
+    "keep": "No, keep it",
+    "deleting": "Deleting…",
+    "deleteFailed": "Deleting failed. Please try again.",
+    "deleted": "Feedback deleted."
+  },
+  "signalementNotifications": {
+    "label": "Replies to your feedback",
+    "replied": "The Jobbbox team replied to your feedback of {{date}}",
+    "handled": "Your feedback of {{date}} is done",
+    "see": "See",
+    "dismiss": "Close"
   }
 }

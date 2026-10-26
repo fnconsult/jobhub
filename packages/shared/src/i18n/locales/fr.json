@@ -202,7 +202,7 @@
   },
   "appleAlert": {
     "subject": "Jobbbox : la connexion avec Apple doit être réparée",
-    "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans la section Connexion :\n{{url}}\n\nL'équipe Jobbbox",
+    "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres :\n{{url}}\n\nL'équipe Jobbbox",
     "reasons": {
       "missing_secret": "l'identifiant d'équipe, l'identifiant de clé ou la clé .p8 manque ou ne se déchiffre plus (clé maîtresse retirée ?)",
       "invalid_apple_key": "La clé .p8 ou un identifiant enregistré ne permet pas de signer le secret",
@@ -1304,7 +1304,7 @@
     },
     "platformSettings": {
       "title": "Paramètres",
-      "intro": "Les réglages non secrets de la plateforme : où l'IA est appelée et avec quels modèles, l'expéditeur des e-mails, les seuils du Job Digest, le budget de la recherche d'offres, les contacts enrichis et la page de l'extension. Une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur la valeur par défaut du code.",
+      "intro": "Les réglages de la plateforme, par type d'outil : le fournisseur actif et ses réglages, puis chaque fournisseur possible avec ses clés, son dernier test et ce qu'il sert. Une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur la valeur par défaut du code.",
       "differs_one": "{{count}} réglage vient de l'environnement et diffère de la valeur par défaut du code : vérifiez qu'il est voulu.",
       "differs_other": "{{count}} réglages viennent de l'environnement et diffèrent de la valeur par défaut du code : vérifiez qu'ils sont voulus.",
       "groups": {
@@ -1322,7 +1322,26 @@
       "sources": {
         "back_office": "Back office",
         "env": "Environnement",
-        "default": "Défaut du code"
+        "default": "Défaut du code",
+        "title": "Sources de la recherche d'offres",
+        "intro": "Où le worker cherche des offres pour les recherches d'offres et les compléments des Job Digests. Une source désactivée est ignorée ; une source sans sa clé ou son fournisseur est indisponible.",
+        "caption": "Sources de la recherche d'offres",
+        "source": "Source",
+        "switch": "Interrupteur",
+        "provider": "Fournisseur",
+        "keys": "Clé",
+        "test": "Test",
+        "why": "Disponibilité",
+        "available": "Disponible",
+        "noKeyNeeded": "Sans clé",
+        "testKey": "Tester {{name}}",
+        "reasons": {
+          "switched_off": "Indisponible : désactivée ici",
+          "key_missing": "Indisponible : clé manquante ({{names}})",
+          "setting_missing": "Indisponible : paramètre manquant ({{names}})",
+          "disabled": "Indisponible : désactivée par un paramètre",
+          "not_configured": "Indisponible : non configurée"
+        }
       },
       "empty": "(aucune)",
       "differsFlag": "Diffère du défaut",
@@ -1348,7 +1367,7 @@
       "save": "Enregistrer",
       "restore": "Rétablir",
       "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
-      "editIntro": "Le routage de l'IA, l'expéditeur des e-mails, les réglages du Job Digest, de la recherche d'offres et des contacts enrichis, ainsi que la page de l'extension sur le Chrome Web Store, se modifient ici : une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite au Journal.",
+      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite au Journal.",
       "rules": {
         "whole": "un nombre entier de {{min}} à {{max}}",
         "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
@@ -1376,14 +1395,118 @@
         "value": "Valeur",
         "source": "Source"
       },
-      "enrichedContactsHelp": "Les contacts enrichis restent désactivés tant que le DPA n'est pas marqué signé, quels que soient le fournisseur et sa clé. La clé du fournisseur choisi se saisit dans Clés.",
+      "enrichedContactsHelp": "Les contacts enrichis restent désactivés tant que le DPA n'est pas marqué signé, quels que soient le fournisseur et sa clé. La clé du fournisseur choisi se saisit sur sa fiche, dans cet onglet.",
       "confirmDpa": {
         "title": "Marquer le DPA signé ?",
-        "question": "Confirmez-vous que l'accord de traitement des données (DPA) avec le fournisseur des contacts enrichis est signé ? Le code ne peut pas le vérifier : une fois le DPA marqué signé, les contacts enrichis s'activent dès qu'un fournisseur est choisi et que sa clé est dans Clés. La confirmation est inscrite au Journal.",
+        "question": "Confirmez-vous que l'accord de traitement des données (DPA) avec le fournisseur des contacts enrichis est signé ? Le code ne peut pas le vérifier : une fois le DPA marqué signé, les contacts enrichis s'activent dès qu'un fournisseur est choisi et que sa clé est saisie. La confirmation est inscrite au Journal.",
         "yes": "Oui, le DPA est signé",
         "cancel": "Annuler"
       },
-      "refusedDetail": "Détail :"
+      "refusedDetail": "Détail :",
+      "tabsLabel": "Onglets de Paramètres",
+      "tabs": {
+        "web_search": "Recherche web",
+        "ai": "IA",
+        "sources": "Sources",
+        "contact_enrichment": "Enrichissement de contacts",
+        "email": "E-mail",
+        "billing": "Paiement",
+        "sign_in": "Connexion",
+        "extension": "Extension",
+        "environment": "Environnement"
+      },
+      "active": {
+        "title": "Fournisseur actif",
+        "none": "Aucun",
+        "inUse": "En service : {{names}}",
+        "settingsCaption": "Réglages de l'onglet {{tab}}",
+        "noKey": "Sa clé manque : ses appels échoueront tant qu'elle n'est pas saisie.",
+        "readOnlyFromEnv": "Se règle dans l'environnement",
+        "settingsTitle": "Réglages"
+      },
+      "providers": {
+        "title": "Fournisseurs possibles",
+        "caption": "Fournisseurs possibles de l'onglet {{tab}}",
+        "provider": "Fournisseur",
+        "keys": "Clé",
+        "lastTest": "Dernier test",
+        "status": "État",
+        "settings": "Paramètres",
+        "usedBy": "Utilisé par",
+        "actions": "Actions",
+        "activeFlag": "Actif",
+        "open": "Fiche de {{name}}",
+        "makeActive": "Rendre actif",
+        "noKeyWarning": "Sans clé : les appels échoueront tant qu'elle n'est pas saisie.",
+        "keySet": "Définie",
+        "keyMissing": "Manquante",
+        "noKeys": "Aucune",
+        "notSecret": "hors des clés du back office : se règle dans l'environnement",
+        "neverTested": "Jamais testée",
+        "testPassed": "Réussi, le {{at}}",
+        "testFailed": "Échoué, le {{at}}",
+        "none": "—",
+        "usedByValues": {
+          "identity": "Route d'identité (consentement IA UE)",
+          "job_discovery": "Recherche d'offres",
+          "enriched_contacts": "Contacts enrichis",
+          "email": "E-mails",
+          "billing": "Paiements",
+          "sign_in": "Connexion"
+        }
+      },
+      "sheet": {
+        "close": "Fermer la fiche",
+        "keysTitle": "Clés",
+        "settingsTitle": "Ses paramètres",
+        "noSettings": "Aucun paramètre propre.",
+        "toolPage": "Ses appels, ses échecs et son coût dans Outils",
+        "readOnlyKeys": "Seuls les super-admins remplacent, effacent ou testent une clé.",
+        "notSecretHelp": "Cette clé n'est pas encore une clé du back office : elle se règle dans l'environnement du serveur."
+      },
+      "environment": {
+        "why": "Pourquoi dans l'environnement",
+        "kinds": {
+          "bootstrap": "Nécessaire au démarrage, avant que la base de données soit lue, ou pour ouvrir ce qu'elle garde.",
+          "read_only": "Encore lu dans l'environnement : pas encore réglable dans le back office."
+        },
+        "retired": {
+          "title": "Variables qui ne servent plus",
+          "intro": "L'environnement du serveur définit encore ces variables, que Jobbbox ne lit plus : elles peuvent être retirées du .env. Leur valeur n'est jamais affichée.",
+          "none": "Aucune variable inutilisée dans l'environnement.",
+          "caption": "Variables de l'environnement qui ne servent plus",
+          "replacedBy": "Remplacée par",
+          "by": {
+            "coaching_playbooks": "Les Coaching Playbooks, réglés dans Playbooks"
+          }
+        }
+      },
+      "add": {
+        "button": "+ Ajouter",
+        "title": "Ajouter",
+        "type": "Type",
+        "choose": "Choisir ce type",
+        "types": {
+          "provider": "Fournisseur",
+          "key": "Clé",
+          "model": "Modèle",
+          "source": "Source",
+          "job_discovery_site": "Site de la recherche d'offres",
+          "job_site": "Site de l'extension",
+          "sign_in_provider": "Fournisseur de connexion"
+        },
+        "providerLabel": "Fournisseur",
+        "providerHelp": "Un fournisseur s'ajoute en saisissant sa clé sur sa fiche.",
+        "openSheet": "Ouvrir sa fiche",
+        "keyLabel": "Clé",
+        "modelSetting": "Tâche",
+        "modelValue": "Modèle",
+        "sourceLabel": "Source à activer",
+        "noSource": "Toutes les sources sont déjà activées.",
+        "enableSource": "Activer la source",
+        "close": "Fermer",
+        "keyValue": "Valeur de la clé"
+      }
     },
     "administrators": {
       "title": "Administrateurs",

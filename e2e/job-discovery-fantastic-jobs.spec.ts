@@ -75,10 +75,13 @@ async function adminPage(browser: Browser): Promise<Page> {
   return page;
 }
 
-const keyRow = (page: Page) => page.getByRole("row").filter({ has: page.getByRole("rowheader").filter({ hasText: NAME }) });
+/** Fantastic.jobs' sheet, on Paramètres' Sources tab (#396, formerly Clés), and its key there. */
+const SHEET = "/admin/parametres?tab=sources&fournisseur=fantastic-jobs";
+const sheetOf = (page: Page) => page.locator('aside[data-sheet="fantastic-jobs"]');
+const keyRow = (page: Page) => sheetOf(page).locator(`[data-key="${NAME}"]`);
 
 async function replaceKey(page: Page, value: string, { saveAnyway = false } = {}) {
-  await page.goto("/admin/cles");
+  await page.goto(SHEET);
   await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: NAME }) }).click();
   await page.getByLabel(tr(keys.newValue, { name: NAME })).fill(value);
   if (saveAnyway) await page.locator(`#anyway-${NAME}`).check();
@@ -86,7 +89,7 @@ async function replaceKey(page: Page, value: string, { saveAnyway = false } = {}
 }
 
 async function clearKey(page: Page) {
-  await page.goto("/admin/cles");
+  await page.goto(SHEET);
   const clear = page.getByRole("button", { name: tr(keys.clear, { name: NAME }) });
   if (await clear.count()) await clear.click();
   await expect(keyRow(page)).toContainText(keys.sources.missing);
@@ -94,8 +97,11 @@ async function clearKey(page: Page) {
 
 const sourceRow = (page: Page) => page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: SOURCE_NAME, exact: true }) });
 
+/** The Job discovery sources: Paramètres' Sources tab (#396, formerly Sites de recherche). */
+const SOURCES = "/admin/parametres?tab=sources";
+
 async function setSource(page: Page, enabled: boolean) {
-  await page.goto("/admin/sites");
+  await page.goto(SOURCES);
   const button = sourceRow(page).getByRole("button", { name: tr(enabled ? sites.enable : sites.disable, { name: SOURCE_NAME }), exact: true });
   if (await button.count()) await button.click();
   await expect(sourceRow(page).getByRole("cell").first()).toHaveText(enabled ? sites.enabled : sites.disabled);
@@ -221,10 +227,10 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
     }
   });
 
-  test("Back Office, Clés: Fantastic.jobs and its FANTASTIC_JOBS_API_KEY are listed, with source, fingerprint and who changed it when", async () => {
-    await office.goto("/admin/cles");
+  test("Back Office, Paramètres: Fantastic.jobs' sheet has its FANTASTIC_JOBS_API_KEY, with source, fingerprint and who changed it when", async () => {
+    await office.goto(SHEET);
     await expect(keyRow(office)).toHaveCount(1);
-    await expect(keyRow(office)).toContainText(keys.providers["fantastic-jobs"]);
+    await expect(sheetOf(office).getByRole("heading", { level: 2 })).toHaveText(keys.providers["fantastic-jobs"]);
     await expect(keyRow(office)).toContainText(keys.sources.missing);
     await expect(keyRow(office)).toContainText(keys.missingHelp);
     expect(keys.intro).toContain("Fantastic.jobs");
@@ -232,29 +238,29 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
     // A key its provider refuses is not saved, and is shown nowhere.
     const refused = `e2e-fj-refused-${runId}`;
     await replaceKey(office, refused);
-    await expect(office.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: NAME }));
-    await expect(office.getByRole("main").getByRole("alert").nth(1)).toHaveText(tr(keys.status, { status: "401" }));
+    await expect(sheetOf(office).getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: NAME }));
+    await expect(sheetOf(office).getByRole("alert").nth(1)).toHaveText(tr(keys.status, { status: "401" }));
     await expect(keyRow(office)).toContainText(keys.sources.missing);
     expect(await office.content()).not.toContain(refused);
 
     // A key that passes the connection test is saved: source, fingerprint, who and when; never its value.
     await replaceKey(office, VALID_KEY);
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
     await expect(keyRow(office)).toContainText(keys.sources.database);
     await expect(keyRow(office)).toContainText(`…${VALID_KEY.slice(-4)}`);
     await expect(keyRow(office)).toContainText(SUPER_ADMIN);
-    await expect(keyRow(office).locator("time")).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}T/);
+    await expect(keyRow(office).locator("time").first()).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}T/);
     expect(await office.content()).not.toContain(VALID_KEY);
 
     // Its connection test, on the key in use.
     await keyRow(office).getByRole("button", { name: tr(keys.test, { name: NAME }) }).click();
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
 
     // Replaced by a key the provider refuses, saved anyway: its test now fails.
     await replaceKey(office, refused, { saveAnyway: true });
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.savedUntested, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.savedUntested, { name: NAME }));
     await keyRow(office).getByRole("button", { name: tr(keys.test, { name: NAME }) }).click();
-    await expect(office.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.testFailed, { name: NAME }));
+    await expect(sheetOf(office).getByRole("alert").first()).toHaveText(tr(keys.testFailed, { name: NAME }));
 
     await office.goto("/admin/journal?section=provider_secrets");
     await expect(office.getByRole("row").filter({ hasText: NAME }).first()).toContainText(SUPER_ADMIN);
@@ -263,8 +269,8 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
     await clearKey(office);
   });
 
-  test("Back Office, Sites: the Fantastic.jobs source is listed with its toggle", async () => {
-    await office.goto("/admin/sites");
+  test("Back Office, Sources: the Fantastic.jobs source is listed with its toggle", async () => {
+    await office.goto(SOURCES);
     await expect(sourceRow(office)).toHaveCount(1);
     await expect(sourceRow(office).getByRole("cell").first()).toHaveText(sites.enabled);
 
@@ -400,7 +406,7 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
 
   test("the key entered in the Back Office is used by the worker over the environment's", async ({ page }) => {
     await replaceKey(office, VALID_KEY);
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
     try {
       // The fake accepts only the Back Office's key: the environment's is a different, wrong one.
       const run = await jobSearchRun(page, { fj: "ok", envKey: ENV_KEY, acceptedKey: VALID_KEY }, "backoffice");
@@ -417,7 +423,7 @@ test.describe("Fantastic.jobs as a Job discovery source with its own Provider Se
 
   test("a key entered in the Back Office alone, with none in the environment, turns Fantastic.jobs on", async ({ page }) => {
     await replaceKey(office, VALID_KEY);
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
     try {
       const run = await jobSearchRun(page, { fj: "ok", envKey: "", acceptedKey: VALID_KEY }, "bokey");
 

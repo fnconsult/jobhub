@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envOnlySettingsShown } from "./env-only";
+import { envOnlySettingsShown, retiredSettingsSet } from "./env-only";
 
 const AUTH_SECRET = "a-very-secret-session-signing-key-0123456789";
 const MASTER_KEY = Buffer.alloc(32, 7).toString("base64");
@@ -67,5 +67,13 @@ describe("the settings only env holds, as Paramètres shows them", () => {
     expect(shown({ ...ENV, JOBHUB_TARGET: "e2e" }).MAIL_TRANSPORT?.warning).toBeNull();
     expect(shown({ ...ENV, MAIL_TRANSPORT: undefined }).MAIL_TRANSPORT?.warning).toBeNull();
     expect(shown(ENV).APP_URL?.warning).toBeNull();
+  });
+});
+
+describe("the env variables Jobbbox no longer reads (#396)", () => {
+  it("lists those env still sets, with what took their place, never their value", () => {
+    expect(retiredSettingsSet({ ...ENV, COACH_KNOWLEDGE_ENVIRONMENT: "production" })).toEqual([{ name: "COACH_KNOWLEDGE_ENVIRONMENT", replacedBy: "coaching_playbooks" }]);
+    expect(retiredSettingsSet({ ...ENV, COACH_KNOWLEDGE_ENVIRONMENT: " " })).toEqual([]);
+    expect(retiredSettingsSet(ENV)).toEqual([]);
   });
 });

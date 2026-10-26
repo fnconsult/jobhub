@@ -8,7 +8,7 @@ describe("the alert of a failed Apple client secret", () => {
     expect(email.subject).toBe("Jobbbox : la connexion avec Apple doit être réparée");
     expect(email.text).toContain("apple");
     expect(email.text).toContain("La clé .p8");
-    expect(email.text).toContain("https://app.jobbbox.fr/admin/connexion");
+    expect(email.text).toContain("https://app.jobbbox.fr/admin/parametres?tab=connexion");
   });
 
   it("names each provider that failed", () => {

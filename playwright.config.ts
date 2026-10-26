@@ -21,7 +21,7 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // the careers site of a Job Offer link pasted in the Coach Panel (e2e/support/fake-coach-link-sites.mjs), and so is
 // geo.api.gouv.fr, which suggests the Search Criteria's places (e2e/support/fake-geo-api.mjs), and so
 // are INSEE and France Travail's ROME open data, the Sectors' and Domains' labels (e2e/support/fake-reference-data.mjs),
-// and so is France Travail's token endpoint, for the Clés section's connection test (e2e/support/fake-france-travail.mjs).
+// and so is France Travail's token endpoint, for its sheet's connection test in Paramètres (e2e/support/fake-france-travail.mjs).
 // Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
 // E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
 // the e2e Administrators: permanent super-admins (#204). SECRETS_MASTER_KEYS lets
@@ -54,7 +54,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements)\.spec\.ts/,
+      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -125,8 +125,8 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test",
-      // Provider Secrets (#208): an obviously fake master key, for the Clés section.
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test",
+      // Provider Secrets (#208): an obviously fake master key, for the providers' sheets in Paramètres (#396).
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
       CONTACT_ENRICHMENT_PROVIDER: "apollo",
@@ -135,7 +135,9 @@ export default defineConfig({
       LUSHA_API_KEY: "",
       // No Fantastic.jobs key either: its spec (#243) enters one in the Clés section.
       FANTASTIC_JOBS_API_KEY: "",
-      // Nor France Travail's: its access spec (#400) enters them in the Clés section, its fake token endpoint answering.
+      // Nor Kaspr's: Paramètres' spec (#396) enters one on its sheet.
+      KASPR_API_KEY: "",
+      // Nor France Travail's: its access spec (#400) enters them on its sheet in Paramètres, its fake token endpoint answering.
       FRANCE_TRAVAIL_CLIENT_ID: "",
       FRANCE_TRAVAIL_CLIENT_SECRET: "",
       // Nor Brave's, whatever the shell has: the Outils spec shows a key missing with it.

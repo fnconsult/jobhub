@@ -1,5 +1,6 @@
 import type { Tool, ToolCategory } from "@jobhub/shared";
 import { sharedPool } from "@/database/pool";
+import type { PlatformSettingsSnapshot } from "@/platform-settings/resolver";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { franceTravailAwaitingAccess, getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
@@ -8,9 +9,9 @@ import { latestToolCalls, toolCalls, toolsOverview, type CalledTool, type ToolCa
 /**
  * The values in use (Provider Secrets over env), the Platform Settings in use (read now, as
  * Paramètres reads them), the Sign-in Providers enabled and the Tools awaiting access (France
- * Travail without Offres d'emploi, #400); none without a database.
+ * Travail without Offres d'emploi, #400); none without a database. Paramètres' providers are read from it too.
  */
-async function currentState(): Promise<ToolsState> {
+export async function currentState(): Promise<ToolsState & { settings: PlatformSettingsSnapshot }> {
   const env = getSecretResolver().current().env;
   const settings = await getPlatformSettingsResolver().refresh();
   if (!process.env.DATABASE_URL) return { env, signInTypes: [], settings };

@@ -202,7 +202,7 @@
   },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
-    "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Connexion section:\n{{url}}\n\nThe Jobbbox team",
+    "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings:\n{{url}}\n\nThe Jobbbox team",
     "reasons": {
       "missing_secret": "the Team ID, Key ID or .p8 key is missing or no longer decrypts (master key removed?)",
       "invalid_apple_key": "The .p8 key or a saved ID cannot sign the secret",
@@ -1304,7 +1304,7 @@
     },
     "platformSettings": {
       "title": "Settings",
-      "intro": "The platform's non-secret settings: where AI is reached and with which models, the email sender, the Job Digest's thresholds, the Job discovery budget, Enriched Contacts and the extension's page. A value set in the back office wins over the server's environment, which wins over the code's default.",
+      "intro": "The platform's settings, by kind of tool: the active provider and its settings, then every possible provider with its keys, its last test and what it serves. A value entered in the back office wins over the server's environment, which wins over the code's default.",
       "differs_one": "{{count}} setting comes from the environment and differs from the code's default: check that it is intended.",
       "differs_other": "{{count}} settings come from the environment and differ from the code's default: check that they are intended.",
       "groups": {
@@ -1322,7 +1322,26 @@
       "sources": {
         "back_office": "Back office",
         "env": "Environment",
-        "default": "Code default"
+        "default": "Code default",
+        "title": "Job discovery sources",
+        "intro": "Where the worker looks for offers for job searches and Job Digest top-ups. A disabled source is skipped; a source without its key or provider is unavailable.",
+        "caption": "Job discovery sources",
+        "source": "Source",
+        "switch": "Switch",
+        "provider": "Provider",
+        "keys": "Key",
+        "test": "Test",
+        "why": "Availability",
+        "available": "Available",
+        "noKeyNeeded": "No key",
+        "testKey": "Test {{name}}",
+        "reasons": {
+          "switched_off": "Unavailable: disabled here",
+          "key_missing": "Unavailable: key missing ({{names}})",
+          "setting_missing": "Unavailable: setting missing ({{names}})",
+          "disabled": "Unavailable: turned off by a setting",
+          "not_configured": "Unavailable: not configured"
+        }
       },
       "empty": "(none)",
       "differsFlag": "Differs from default",
@@ -1348,7 +1367,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "AI routing, the email sender, the Job Digest, Job discovery and Enriched Contacts settings, and the extension's store page are changed here: a saved value applies within seconds in the app and the worker, without a restart (the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a key missing) is refused, and a model named is tested with a call. Each change and each refused attempt goes to the Journal.",
+      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is written to the Journal.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1376,14 +1395,118 @@
         "value": "Value",
         "source": "Source"
       },
-      "enrichedContactsHelp": "Enriched Contacts stay off until the DPA is marked signed, whatever the provider and its key. The chosen provider's key is entered in Keys.",
+      "enrichedContactsHelp": "Enriched contacts stay off until the DPA is marked signed, whatever the provider and its key. The chosen provider's key is entered on its sheet, in this tab.",
       "confirmDpa": {
         "title": "Mark the DPA signed?",
-        "question": "Do you confirm the data-processing agreement (DPA) with the Enriched Contacts provider is signed? The code cannot check it: once the DPA is marked signed, Enriched Contacts turn on as soon as a provider is chosen and its key is in Keys. The confirmation goes to the Journal.",
+        "question": "Do you confirm the data processing agreement (DPA) with the enriched contacts provider is signed? The code cannot check it: once the DPA is marked signed, enriched contacts turn on as soon as a provider is chosen and its key is entered. The confirmation is written to the Journal.",
         "yes": "Yes, the DPA is signed",
         "cancel": "Cancel"
       },
-      "refusedDetail": "Detail:"
+      "refusedDetail": "Detail:",
+      "tabsLabel": "Settings tabs",
+      "tabs": {
+        "web_search": "Web search",
+        "ai": "AI",
+        "sources": "Sources",
+        "contact_enrichment": "Contact enrichment",
+        "email": "Email",
+        "billing": "Payment",
+        "sign_in": "Sign-in",
+        "extension": "Extension",
+        "environment": "Environment"
+      },
+      "active": {
+        "title": "Active provider",
+        "none": "None",
+        "inUse": "In use: {{names}}",
+        "settingsCaption": "Settings of the {{tab}} tab",
+        "noKey": "Its key is missing: its calls will fail until it is entered.",
+        "readOnlyFromEnv": "Set in the environment",
+        "settingsTitle": "Settings"
+      },
+      "providers": {
+        "title": "Possible providers",
+        "caption": "Possible providers of the {{tab}} tab",
+        "provider": "Provider",
+        "keys": "Key",
+        "lastTest": "Last test",
+        "status": "Status",
+        "settings": "Settings",
+        "usedBy": "Used by",
+        "actions": "Actions",
+        "activeFlag": "Active",
+        "open": "{{name}}'s sheet",
+        "makeActive": "Make active",
+        "noKeyWarning": "No key: calls will fail until it is entered.",
+        "keySet": "Set",
+        "keyMissing": "Missing",
+        "noKeys": "None",
+        "notSecret": "not a back office key: set in the environment",
+        "neverTested": "Never tested",
+        "testPassed": "Passed, {{at}}",
+        "testFailed": "Failed, {{at}}",
+        "none": "—",
+        "usedByValues": {
+          "identity": "Identity route (EU AI consent)",
+          "job_discovery": "Job discovery",
+          "enriched_contacts": "Enriched contacts",
+          "email": "Emails",
+          "billing": "Payments",
+          "sign_in": "Sign-in"
+        }
+      },
+      "sheet": {
+        "close": "Close the sheet",
+        "keysTitle": "Keys",
+        "settingsTitle": "Its settings",
+        "noSettings": "No settings of its own.",
+        "toolPage": "Its calls, failures and cost in Tools",
+        "readOnlyKeys": "Only super-admins replace, clear or test a key.",
+        "notSecretHelp": "This key is not a back office key yet: it is set in the server's environment."
+      },
+      "environment": {
+        "why": "Why in the environment",
+        "kinds": {
+          "bootstrap": "Needed at start-up, before the database can be read, or to open what it holds.",
+          "read_only": "Still read from the environment: not yet settable in the back office."
+        },
+        "retired": {
+          "title": "Variables no longer used",
+          "intro": "The server's environment still sets these variables, which Jobbbox no longer reads: they can be removed from the .env. Their value is never shown.",
+          "none": "No unused variable in the environment.",
+          "caption": "Environment variables no longer used",
+          "replacedBy": "Replaced by",
+          "by": {
+            "coaching_playbooks": "Coaching Playbooks, set in Playbooks"
+          }
+        }
+      },
+      "add": {
+        "button": "+ Add",
+        "title": "Add",
+        "type": "Type",
+        "choose": "Choose this type",
+        "types": {
+          "provider": "Provider",
+          "key": "Key",
+          "model": "Model",
+          "source": "Source",
+          "job_discovery_site": "Job discovery site",
+          "job_site": "Extension site",
+          "sign_in_provider": "Sign-in provider"
+        },
+        "providerLabel": "Provider",
+        "providerHelp": "A provider is added by entering its key on its sheet.",
+        "openSheet": "Open its sheet",
+        "keyLabel": "Key",
+        "modelSetting": "Task",
+        "modelValue": "Model",
+        "sourceLabel": "Source to enable",
+        "noSource": "Every source is already enabled.",
+        "enableSource": "Enable the source",
+        "close": "Close",
+        "keyValue": "Key value"
+      }
     },
     "administrators": {
       "title": "Administrators",

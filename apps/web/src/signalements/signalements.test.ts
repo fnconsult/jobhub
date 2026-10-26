@@ -61,6 +61,7 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
           status: "nouveau",
           statusChangedAt: null,
           reply: null,
+          repliedAt: null,
           replyUpdatedAt: null,
           createdAt: now,
         },
@@ -149,6 +150,18 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       expect(await signalements.reply(signalement.id, " ")).toEqual({ errors: [{ field: "reply", code: "required" }] });
       await signalements.changeStatus(signalement.id, "traite");
       expect(await signalements.reply(signalement.id, "Encore une chose.")).toEqual({ refused: "already_handled" });
+    });
+
+    it("keeps the date of the first reply when the reply is changed, which the Candidate sees as « modifiée le … » (#377)", async () => {
+      const signalement = await sent();
+      now = new Date("2026-10-26T10:00:00Z");
+      await signalements.reply(signalement.id, "Nous regardons.");
+      now = new Date("2026-10-27T10:00:00Z");
+
+      expect(await signalements.reply(signalement.id, "C'est corrigé.")).toMatchObject({
+        before: { repliedAt: new Date("2026-10-26T10:00:00Z"), replyUpdatedAt: new Date("2026-10-26T10:00:00Z") },
+        after: { reply: "C'est corrigé.", repliedAt: new Date("2026-10-26T10:00:00Z"), replyUpdatedAt: now },
+      });
     });
 
     it("marks a Bug or an Idée « traité » without a reply, never a Question", async () => {

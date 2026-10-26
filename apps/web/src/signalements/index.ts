@@ -75,6 +75,9 @@ export interface Signalement {
   statusChangedAt: Date | null;
   /** The team's reply, signed « L'équipe Jobbbox », never with an Administrator's name; null while there is none. */
   reply: string | null;
+  /** When the reply was first saved; null while there is none, or for one saved without it. */
+  repliedAt: Date | null;
+  /** When the reply was last saved: later than `repliedAt` once it was changed. */
   replyUpdatedAt: Date | null;
   createdAt: Date;
 }
@@ -182,12 +185,13 @@ interface Row {
   status: SignalementStatus;
   status_changed_at: Date | null;
   reply: string | null;
+  replied_at: Date | null;
   reply_updated_at: Date | null;
   created_at: Date;
 }
 
 const COLUMNS = `id::text, type, message, attached_question, attached_coach_reply, path, version, browser, interface_language, text_size,
-  status, status_changed_at, reply, reply_updated_at, created_at`;
+  status, status_changed_at, reply, replied_at, reply_updated_at, created_at`;
 
 interface SentRow extends Row {
   email: string;
@@ -210,6 +214,7 @@ const fromRow = (row: Row): Signalement => ({
   status: row.status,
   statusChangedAt: row.status_changed_at,
   reply: row.reply,
+  repliedAt: row.replied_at,
   replyUpdatedAt: row.reply_updated_at,
   createdAt: row.created_at,
 });
@@ -328,7 +333,7 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       if (!before) return null;
       if (before.status === "traite") return { refused: "already_handled" };
       if (typeof reply !== "string") return { errors: [reply] };
-      const { rows } = await within.query<Row>(`UPDATE signalement SET reply = $2, reply_updated_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, reply, now()]);
+      const { rows } = await within.query<Row>(`UPDATE signalement SET reply = $2, replied_at = coalesce(replied_at, $3), reply_updated_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, reply, now()]);
       return { before, after: fromRow(rows[0]!) };
     },
 
@@ -416,6 +421,8 @@ export async function migrateSignalements(database: Pool): Promise<void> {
       CHECK (reply IS NULL OR char_length(reply) <= ${REPLY_MAX_LENGTH}),
       CHECK ((type = 'question') = (attached_question IS NOT NULL AND attached_coach_reply IS NOT NULL))
     );
+    -- When the team's reply was first saved: reply_updated_at is when it last was (#377).
+    ALTER TABLE signalement ADD COLUMN IF NOT EXISTS replied_at timestamptz;
     -- When the Candidate last closed its notification, or opened « Mes signalements » (#377).
     ALTER TABLE signalement ADD COLUMN IF NOT EXISTS notification_closed_at timestamptz;
     CREATE INDEX IF NOT EXISTS signalement_candidate_idx ON signalement (candidate_id, created_at);

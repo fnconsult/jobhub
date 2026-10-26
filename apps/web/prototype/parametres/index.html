@@ -94,6 +94,9 @@
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .tip { position: fixed; pointer-events: none; background: #fff; border: 1px solid var(--border); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); border-radius: var(--r-sm); padding: 6px 9px; font-size: 12.5px; z-index: 60; }
   .tip b { font-variant-numeric: tabular-nums; }
+  .term { all: unset; cursor: help; color: inherit; border-bottom: 1px dashed var(--muted); line-height: 1.25; }
+  .term:hover, .term:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
+  .term:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .ask { border: 1px solid var(--border); background: var(--bg); color: var(--accent); border-radius: 999px; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; padding: 0; vertical-align: 1px; margin-left: 4px; }
   .ask:hover { background: #eef3fb; }
   .bubble { background: var(--surface); border-radius: var(--r-md); padding: 10px 12px; margin: 8px 0; font-size: 14px; }
@@ -114,7 +117,7 @@
     <h2>Coaching</h2><a href="#">Coachs</a><a href="#">Playbooks</a>
     <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a><a href="#" data-page="historique" id="nav-historique">Historique des recherches</a>
     <h2>Équipe</h2><a href="#">Administrateurs</a><a href="#">Journal</a>
-    <p class="small" style="margin:16px 8px 0"><span class="ask" style="display:inline-block;text-align:center;line-height:18px">?</span> partout : l'Assistant du Back Office explique en contexte.</p>
+    <p class="small" style="margin:16px 8px 0">Un libellé <span style="border-bottom:1px dashed var(--muted)">souligné en tirets</span> s'explique : un clic, et l'Assistant du Back Office répond en contexte.</p>
     <p class="small muted" style="margin:12px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
   </nav>
   <main id="main"></main>
@@ -271,6 +274,7 @@ const ANSWERS = {
   "Runs passés au secours": "Part des runs où le fournisseur actif a échoué et où Brave a pris le relais. Les 9 et 10 octobre, Perplexity répondait 429 (limite de débit).",
   "Dépense recherche web du mois": "Somme des frais de recherche web du mois (Perplexity et Brave), hors lecture des pages. Elle est comparée au seuil d'alerte réglé dans Paramètres › Recherche web.",
 };
+const term = (text, topic = text) => `<button class="term" data-ask="${h(topic)}" title="Demander à l'Assistant">${h(text)}</button>`;
 const ask = (topic) => `<button class="ask" data-ask="${h(topic)}" title="Demander à l'Assistant">?</button>`;
 function assistantDrawer(topic) {
   const a = ANSWERS[topic] ?? "Je peux expliquer ce réglage, sa valeur actuelle, d'où elle vient et ce qu'un changement modifierait. Je ne modifie rien et ne vois jamais les clés.";
@@ -283,7 +287,7 @@ function assistantDrawer(topic) {
   </aside>`;
 }
 
-const keyWarning = (pid) => keyState(pid)[0] === "ko" ? `<div class="note" style="border-left-color:var(--danger);color:var(--danger)">⚠ ${h(P[pid].name)} n'a pas de clé : l'enregistrement est permis, mais les appels échoueront (et seront écartés) tant qu'elle n'est pas saisie. <button class="btn ghost" data-open="${pid}">Saisir la clé →</button>${ask("clé absente")}</div>` : "";
+const keyWarning = (pid) => keyState(pid)[0] === "ko" ? `<div class="note" style="border-left-color:var(--danger);color:var(--danger)">⚠ ${h(P[pid].name)} n'a pas de clé : l'enregistrement est permis, mais les appels échoueront (et seront écartés) tant qu'elle n'est pas saisie. <button class="btn ghost" data-open="${pid}">Saisir la clé →</button> ${term("Pourquoi ?", "clé absente")}</div>` : "";
 function setActive(usageId, pid) { const us = u(usageId); us.active = pid; const s = us.settings.find((x) => x.k === "Fournisseur actif"); if (s) { s.v = pid; s.src = "bo"; } toast(`${us.label} : fournisseur actif → ${P[pid].name} (dès le prochain appel)${keyState(pid)[0] === "ko" ? " · ⚠ clé absente" : ""}`); render(); }
 
 function settingInput(s, onchange) {
@@ -309,7 +313,7 @@ function drawer(pid) {
     <h3>Outils</h3>
     ${p.tools.length ? `<table><tr><th>Outil</th><th>Prix</th><th>Source</th></tr>${p.tools.map((t) => `<tr><td>${h(t.name)}</td><td><input value="${h(t.cost)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px;width:11rem"></td><td>${src("code")}<div class="small muted">catalogue, 10/2026</div></td></tr>`).join("")}</table><p class="small muted">Un prix saisi ici remplace le prix catalogue (remise négociée, nouveau tarif) dès le prochain appel.</p>` : `<p class="muted small">Aucun outil.</p>`}
     <h3>Paramètres du fournisseur</h3>
-    ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
+    ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
     <p class="small muted" style="margin-top:20px">Clés : super-admin seulement, jamais relues en clair. Paramètres : ressource « Paramètres non secrets ». Chaque changement va au Journal.</p>
   </aside>`;
 }
@@ -357,7 +361,7 @@ function taskDrawer(i) {
 function businessBlock(b, compact) {
   return `<h2 class="sec">Réglages de la Job discovery</h2>
   <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">Budget par run</h3><div class="kv">${b.budget.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Le run s'arrête au premier plafond atteint.</p></div>
+    <div class="card"><h3 style="margin-top:0">Budget par run</h3><div class="kv">${b.budget.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Le run s'arrête au premier plafond atteint.</p></div>
     <div class="card"><h3 style="margin-top:0">Sources</h3><p class="small">${u("sources").sources.map((x) => `<span class="dot ${x.on ? "ok" : "off"}"></span>${h(x.k)}`).join("<br>")}</p><button class="btn ghost" data-tab="sources">Gérer dans l'onglet Sources →</button></div>
   </div>
   <h3>Job discovery sites</h3>
@@ -406,11 +410,11 @@ function costBlock() {
   const postes = POSTES.map((x) => `<div class="row" style="gap:8px;margin:5px 0" data-tip="${h(`<div>${x.k}</div><b>${eur(x.v, 4)}</b> par run (${Math.round((x.v / allRun) * 100)} %)`)}"><span class="small" style="width:11rem">${h(x.k)}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(x.v / POSTES[0].v) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:3.5rem;text-align:right">${eur(x.v, 3)}</span></div>`).join("");
   return `<h2 class="sec">Recherche d'offres : consommation et budget <span class="small muted" style="font-weight:400">· octobre 2026, au 26</span></h2>
     <div class="kpis">
-      <div class="kpi"><div class="lbl">Dépense recherche web du mois${ask("Dépense recherche web du mois")}</div><div class="val">${eur(spend)}</div><div class="sub">${Math.round((spend / threshold) * 100)} % du seuil d'alerte (${eur(threshold, 0)})</div><div class="bar-track"><span style="width:${Math.min(100, (spend / threshold) * 100)}%"></span></div></div>
-      <div class="kpi"><div class="lbl">Coût moyen d'un run${ask("Coût moyen d'un run")}</div><div class="val">${eur(allRun, 3)}</div><div class="sub">budget ${eur(0.08)} · ${Math.round((allRun / 0.08) * 100)} % utilisé</div></div>
+      <div class="kpi"><div class="lbl">${term("Dépense recherche web du mois")}</div><div class="val">${eur(spend)}</div><div class="sub">${Math.round((spend / threshold) * 100)} % du seuil d'alerte (${eur(threshold, 0)})</div><div class="bar-track"><span style="width:${Math.min(100, (spend / threshold) * 100)}%"></span></div></div>
+      <div class="kpi"><div class="lbl">${term("Coût moyen d'un run")}</div><div class="val">${eur(allRun, 3)}</div><div class="sub">budget ${eur(0.08)} · ${Math.round((allRun / 0.08) * 100)} % utilisé</div></div>
       <div class="kpi"><div class="lbl">Coût par nouvelle offre</div><div class="val">${eur((allRun * runs) / newOffers, 4)}</div><div class="sub">${newOffers.toLocaleString("fr-FR")} nouvelles offres</div></div>
       <div class="kpi"><div class="lbl">Runs</div><div class="val">${runs}</div><div class="sub">Job Searches et compléments du Job Digest</div></div>
-      <div class="kpi"><div class="lbl">Runs passés au secours${ask("Runs passés au secours")}</div><div class="val">${((fallbackRuns / runs) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</div><div class="sub">${fallbackRuns} runs sur Brave · 3 jours</div></div>
+      <div class="kpi"><div class="lbl">${term("Runs passés au secours")}</div><div class="val">${((fallbackRuns / runs) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</div><div class="sub">${fallbackRuns} runs sur Brave · 3 jours</div></div>
       <div class="kpi"><div class="lbl">Appels en échec</div><div class="val">0,6 %</div><div class="sub">⚠ 1 outil sans prix connu</div></div>
     </div>
     <div class="chart"><h4>Dépense quotidienne de la recherche web, par Search provider</h4>
@@ -444,7 +448,7 @@ const tabsHtml = () => U.map((x) => `<button data-tab="${x.id}" class="${x.id ==
 function envTab() {
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
-    <div class="note" style="margin-top:14px">${ask("Environnement")} Ces variables d'environnement ne se modifient pas ici : elles se changent dans le <code>.env</code> du serveur, puis au redémarrage. Les secrets sont masqués.</div>
+    <div class="note" style="margin-top:14px">${term("Ces variables d'environnement ne se modifient pas ici", "Environnement")} : elles se changent dans le <code>.env</code> du serveur, puis au redémarrage. Les secrets sont masqués.</div>
     <table><tr><th>Variable</th><th>Valeur</th><th>Pourquoi elle reste dans l'environnement</th></tr>
     ${ENV.map((x) => `<tr><td><code>${h(x.k)}</code></td><td class="small">${h(x.v)}</td><td class="small muted">${h(x.why)}</td></tr>`).join("")}</table>
     <h2 class="sec">Valeurs par défaut lues dans l'environnement</h2>
@@ -506,7 +510,7 @@ function variantA() {
         <td><button class="btn" data-playbook="${i}">Modifier…</button></td></tr>`; }).join("")}</table>`;
   } else if (us.jobSites) {
     body = `<h2 class="sec">Réglages de l'extension</h2>
-      <div class="kv">${us.settings.map((x) => `<span>${h(x.k)}${ask(x.k)}</span>${settingInput(x)}${src(x.src)}`).join("")}
+      <div class="kv">${us.settings.map((x) => `<span>${term(x.k)}</span>${settingInput(x)}${src(x.src)}`).join("")}
         <span>Origines autorisées</span><span class="small"><code>EXTENSION_ORIGINS</code> · chrome-extension://••••</span><button class="btn ghost" data-tab="env">Environnement 🔒 →</button></div>
       <h2 class="sec">Job Sites</h2>
       <p class="small muted">Les sites où l'extension affiche son badge « Analyser cette offre ». Les sites intégrés peuvent être désactivés, pas retirés ; un site ajouté n'a le badge que chez les personnes qui ont autorisé l'extension sur tous les sites. La capture manuelle reste possible partout.</p>
@@ -520,7 +524,7 @@ function variantA() {
     body = `<p class="muted" style="margin-top:14px">Où la Job discovery trouve des offres. Une source désactivée est ignorée par les Job Searches et les compléments du Job Digest.</p>
       <table><tr><th>Source</th><th>État</th><th>Fournisseur</th><th>Clé</th><th>Test</th><th></th></tr>
       ${us.sources.map((x, i) => { const p = P[x.pid]; const [ks, kt] = p.keys.length ? keyState(x.pid) : ["ok", "aucune (API publiques)"];
-        return `<tr><td><b>${h(x.k)}</b>${ask(x.k)}<div class="small muted">${h(x.what)}</div>${x.note ? `<div class="small warn">${h(x.note)}</div>` : ""}</td>
+        return `<tr><td><b>${term(x.k)}</b><div class="small muted">${h(x.what)}</div>${x.note ? `<div class="small warn">${h(x.note)}</div>` : ""}</td>
         <td><label class="row"><input type="checkbox" data-source="${i}" ${x.on ? "checked" : ""}> ${x.on ? "activée" : "désactivée"}</label></td>
         <td class="small">${h(p.name)}${x.link ? `<br><button class="btn ghost" data-tab="${x.link}">Choisir le fournisseur →</button>` : ""}</td>
         <td><span class="dot ${ks}"></span><span class="small">${h(kt)}</span></td><td class="small">${testState(x.pid)}</td>
@@ -529,9 +533,9 @@ function variantA() {
   } else if (us.active) {
     const a = P[us.active]; const [ks, kt] = keyState(us.active);
     body = `<div class="card surface" style="margin-top:16px">
-      <div class="row" style="justify-content:space-between"><div><div class="small muted">Fournisseur actif${ask("Fournisseur actif")}</div><div style="font-size:20px;font-weight:600"><span class="dot ${ks}"></span>${h(a.name)}</div></div>
+      <div class="row" style="justify-content:space-between"><div><div class="small muted">${term("Fournisseur actif")}</div><div style="font-size:20px;font-weight:600"><span class="dot ${ks}"></span>${h(a.name)}</div></div>
       <div class="small">Clé : <span class="${ks}">${h(kt)}</span> · Test : ${testState(us.active)} <button class="btn ghost" data-open="${us.active}">Fiche →</button></div></div>
-      ${us.settings.length ? `<div class="kv" style="margin-top:12px">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : ""}
+      ${us.settings.length ? `<div class="kv" style="margin-top:12px">${us.settings.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : ""}
       ${us.alsoUsedBy ? `<p class="small muted" style="margin:10px 0 0">${h(us.alsoUsedBy)}</p>` : ""}
       ${keyWarning(us.active)}
     </div>`;
@@ -550,11 +554,11 @@ function variantA() {
   if (us.id === "web") body += `<h2 class="sec">Tâches IA de la recherche</h2>
       <p class="small muted">Les mêmes tâches que dans l'onglet IA : un changement ici s'y voit aussi.</p>
       <table><tr><th>Tâche</th><th>Rôle dans la recherche</th><th>Modèle</th><th>Effort</th><th>Source</th><th></th></tr>
-      ${u("ai").tasks.map((t, i) => t.search ? `<tr class="click" data-task="${i}"><td>${h(t.t)}${ask(t.t)}</td><td class="small muted">${{ "Variantes de titre": "construit les requêtes du plan", "Lecture d'offre": "lit une page sans données JobPosting", "Faits des Company Dossiers": "extrait les faits d'un employeur étranger des pages trouvées" }[t.t]}</td>
+      ${u("ai").tasks.map((t, i) => t.search ? `<tr class="click" data-task="${i}"><td>${term(t.t)}</td><td class="small muted">${{ "Variantes de titre": "construit les requêtes du plan", "Lecture d'offre": "lit une page sans données JobPosting", "Faits des Company Dossiers": "extrait les faits d'un employeur étranger des pages trouvées" }[t.t]}</td>
         <td><span class="small">${h(P[t.p].name)}</span> · <code>${h(t.m)}</code>${keyState(t.p)[0] === "ko" ? ' <span class="small ko">⚠ clé absente</span>' : ""}</td><td>${h(t.effort)}</td><td>${src(t.src)}</td><td><button class="btn" data-task="${i}">Modifier…</button></td></tr>` : "").join("")}</table>`;
   if (us.id === "web") S.histHere = true;
   if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a> &nbsp; Runs passés : <a href="#" data-page="historique">Historique des recherches →</a></p>`;
-  if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
+  if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
     ${body}${observeLinks(us)}`;
@@ -584,7 +588,7 @@ function variantB() {
       ${rows.map(([l, f]) => `<tr><td>${l}</td>${us.providers.map((pid) => `<td class="${pid === us.active ? "active" : ""} small">${f(pid)}</td>`).join("")}</tr>`).join("")}</table>`;
   } else if (S.sub === "business") right += businessBlock(us.business).replace('<h2 class="sec">Réglages de la Job discovery</h2>', "");
   else if (S.sub === "tasks") right += `<table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td>${P[t.p].name}</td><td><code>${h(t.m)}</code></td><td>${src(t.src)}</td></tr>`).join("")}</table>`;
-  else if (S.sub === "settings") right += us.settings.length ? `<div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Valeur par défaut affichée au survol ; « Rétablir le défaut » efface la valeur du Back Office.</p>` : `<p class="muted">Aucun réglage.</p>`;
+  else if (S.sub === "settings") right += us.settings.length ? `<div class="kv">${us.settings.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Valeur par défaut affichée au survol ; « Rétablir le défaut » efface la valeur du Back Office.</p>` : `<p class="muted">Aucun réglage.</p>`;
   else right += `<table><tr><th>Quand</th><th>Qui</th><th>Réglage</th><th>Avant → après</th></tr>
       <tr><td>24/10/2026 18:02</td><td>admin@jobbbox.ai</td><td>Fournisseur actif</td><td>env (perplexity) → Back Office (perplexity)</td></tr>
       <tr><td>21/10/2026 10:40</td><td>admin@jobbbox.ai</td><td>PERPLEXITY_API_KEY</td><td>remplacée (empreinte …x9Qa)</td></tr>
@@ -668,7 +672,7 @@ function runDrawer(id) {
   const max = funnel[0][1];
   return `<div class="scrim" data-close></div><aside class="drawer" style="width:min(44rem,95vw)">
     <div class="row" style="justify-content:space-between"><div><div class="small muted">${r.trigger} · ${r.at} · <code>${r.id}</code></div><h2 style="margin:0">${h(r.criteria)}</h2></div><button class="btn ghost" data-close>Fermer ✕</button></div>
-    <p class="small">${r.prov}${r.fb ? ' <span class="warn">· Perplexity a répondu 429, bascule sur Brave à la recherche 2</span>' : ""} · ${r.secs} s · ${eur(r.cost, 3)} · arrêt : ${h(r.stop)} ${ask("Pourquoi ce run s'est arrêté")}</p>
+    <p class="small">${r.prov}${r.fb ? ' <span class="warn">· Perplexity a répondu 429, bascule sur Brave à la recherche 2</span>' : ""} · ${r.secs} s · ${eur(r.cost, 3)} · arrêt : ${term(r.stop, "Pourquoi ce run s'est arrêté")}</p>
     <h3>Entonnoir (Discovery metrics)</h3>
     ${funnel.map(([k, v]) => `<div class="row" style="gap:8px;margin:4px 0"><span class="small" style="width:10rem">${k}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(v / max) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:2.5rem;text-align:right">${v}</span></div>`).join("")}
     <h3>Recherches du run</h3>

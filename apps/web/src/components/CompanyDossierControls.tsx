@@ -6,7 +6,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { StreamedActionStatus, useStreamedAction, type StreamedAction } from "./StreamedAction";
 
-type Failure = "unavailable" | "failed" | "required" | "notACompany" | { stoppedAt: Date } | null;
+type Failure = "unavailable" | "webSearchUnavailable" | "failed" | "required" | "notACompany" | { stoppedAt: Date } | null;
 
 /**
  * Sends one Company Dossier request, its steps live in AI Activity (#335); the failure to show, or null when it worked.
@@ -16,13 +16,23 @@ async function send(action: StreamedAction, url: string, method: "POST" | "PUT",
   const outcome = await action.run(url, { method, ...(body ? { json: body } : {}) });
   if (outcome.ok) return null;
   if (outcome.stopped) return { stoppedAt: outcome.at };
-  if (outcome.status === 503) return "unavailable";
+  // A foreign employer's dossier needs web search, unavailable without its Search provider's key (#399).
+  if (outcome.status === 503) return outcome.body.error === "web_search_unavailable" ? "webSearchUnavailable" : "unavailable";
   if (outcome.status === 400) {
     const errors = (outcome.body as { errors?: { code?: string }[] }).errors;
     return errors?.some((error) => error.code === "not_a_company") ? "notACompany" : "required";
   }
   return "failed";
 }
+
+/** What each failure says to the Candidate. */
+const MESSAGE = {
+  unavailable: "companyDossier.unavailable",
+  webSearchUnavailable: "companyDossier.webSearchUnavailable",
+  notACompany: "companyDossier.notACompany",
+  required: "cvReview.required",
+  failed: "application.error",
+} as const;
 
 function FailureMessage({ failure, id }: { failure: Failure; id?: string }) {
   const { t, i18n } = useTranslation();
@@ -36,15 +46,7 @@ function FailureMessage({ failure, id }: { failure: Failure; id?: string }) {
   }
   return (
     <p id={id} className="field-error" role="alert">
-      {t(
-        failure === "unavailable"
-          ? "companyDossier.unavailable"
-          : failure === "notACompany"
-            ? "companyDossier.notACompany"
-            : failure === "required"
-              ? "cvReview.required"
-              : "application.error",
-      )}
+      {t(MESSAGE[failure])}
     </p>
   );
 }

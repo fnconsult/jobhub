@@ -17,6 +17,10 @@ describe("a Company Dossier build, as its route answers", () => {
     expect(companyDossierOutcome({ ok: false, error: "unavailable", reason: "provider_unavailable" })).toEqual({ status: 503, body: { error: "unavailable", reason: "provider_unavailable" } });
   });
 
+  it("answers web search unavailable apart, its Failure Reason key_missing (#399)", () => {
+    expect(companyDossierOutcome({ ok: false, error: "web_search_unavailable" })).toEqual({ status: 503, body: { error: "web_search_unavailable", reason: "key_missing" } });
+  });
+
   it("answers a Stop with the dossier as now kept, its finished parts in it (#335)", () => {
     expect(companyDossierOutcome({ ok: false, error: "stopped", state: { status: "not_built" } })).toEqual({ status: STOPPED, body: { error: "stopped", state: { status: "not_built" } } });
   });

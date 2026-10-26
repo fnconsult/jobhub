@@ -170,7 +170,7 @@ const U = [
     alsoUsedBy: "Company Dossiers utilisent le même fournisseur de recherche." },
   { id: "ai", label: "IA", active: null, providers: ["mistral", "anthropic", "bedrock"],
     tasks: [
-      { t: "Coach (conversation)", p: "mistral", m: "mistral-large-latest", src: "env" },
+      { t: "AI Coach (réponse)", p: "mistral", m: "mistral-large-latest", src: "env" },
       { t: "Lecture d'offre", p: "anthropic", m: "claude-sonnet-5-5", src: "bo" },
       { t: "Variantes de titre", p: "anthropic", m: "claude-haiku-5-5", src: "code" },
       { t: "Match Score", p: "mistral", m: "mistral-medium-latest", src: "env" },
@@ -181,6 +181,12 @@ const U = [
   { id: "mail", label: "E-mail", active: "brevo", providers: ["brevo"], settings: [{ k: "Adresse d'envoi", v: "hello@jobbbox.ai", src: "env", def: "hello@jobbbox.ai" }] },
   { id: "pay", label: "Paiement", active: "stripe", providers: ["stripe"], settings: [] },
   { id: "signin", label: "Connexion", active: null, providers: ["google", "apple"], settings: [{ k: "SSO obligatoire pour les Administrateurs", v: "non", src: "bo", def: "non" }] },
+];
+const PLAYBOOKS = [
+  { name: "Positionnement après 40 ans", p: "mistral", m: "mistral-large-latest", effort: "élevé", v: 4, validated: true },
+  { name: "Réseau et candidatures spontanées", p: "mistral", m: "mistral-medium-latest", effort: "moyen", v: 2, validated: true },
+  { name: "Négociation salariale", p: "bedrock", m: "claude-sonnet-5-5 (eu-north-1)", effort: "élevé", v: 3, validated: true },
+  { name: "Préparation d'entretien", p: "mistral", m: "mistral-large-latest", effort: "moyen", v: 1, validated: false },
 ];
 const SRC = { bo: ["Back Office", "src-bo"], env: ["env", "src-env"], code: ["défaut du code", "src-code"], missing: ["absente", "ko"], database: ["Back Office", "src-bo"] };
 
@@ -213,6 +219,7 @@ function drawer(pid) {
   return `<div class="scrim" data-close></div><aside class="drawer">
     <div class="row" style="justify-content:space-between"><h2 style="margin:0">${h(p.name)}</h2><button class="btn ghost" data-close>Fermer ✕</button></div>
     <p class="muted small">${h(p.region)} · utilisé par : ${p.usedBy.length ? p.usedBy.map(usageName).join(", ") : "aucun Usage"}</p>
+    ${PLAYBOOKS.some((b) => b.p === pid) ? `<p class="small">Playbook Agents : ${PLAYBOOKS.filter((b) => b.p === pid).map((b) => `<a href="#">${h(b.name)}</a>`).join(", ")} <span class="muted">(modifiables dans Playbooks)</span></p>` : ""}
     ${p.retired ? `<div class="note">Recommandé au retrait (#384) : pas de dates, pas de pays, pas de pagination.</div>` : ""}
     <h3>Clés</h3>
     <table><tr><th>Clé</th><th>Source</th><th>Empreinte</th><th></th></tr>
@@ -245,7 +252,14 @@ function variantA() {
   let body = "";
   if (us.id === "ai") {
     body = `<h2 class="sec">Tâches</h2><table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>
-      ${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td><select>${us.providers.map((p) => `<option ${p === t.p ? "selected" : ""}>${P[p].name}</option>`).join("")}</select></td><td><input value="${h(t.m)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px"></td><td>${src(t.src)}</td></tr>`).join("")}</table>`;
+      ${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td><select>${us.providers.map((p) => `<option ${p === t.p ? "selected" : ""}>${P[p].name}</option>`).join("")}</select></td><td><input value="${h(t.m)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px"></td><td>${src(t.src)}</td></tr>`).join("")}</table>
+      <h2 class="sec">Playbook Agents <span class="small muted" style="font-weight:400">· lecture seule ici</span></h2>
+      <div class="note">Le modèle et l'effort d'un Playbook Agent font partie de sa Playbook Version : ils se modifient dans <a href="#">Playbooks</a>, comme une nouvelle version à valider. Seuls des modèles résidant dans l'UE sont proposés.</div>
+      <table><tr><th>Coaching Playbook</th><th>Fournisseur</th><th>Modèle</th><th>Effort</th><th>Version servie</th><th>Clé du fournisseur</th><th></th></tr>
+      ${PLAYBOOKS.map((b) => { const [ks, kt] = keyState(b.p); return `<tr><td>${h(b.name)}</td><td>${h(P[b.p].name)}</td><td><code>${h(b.m)}</code></td><td>${h(b.effort)}</td>
+        <td>${b.validated ? `v${b.v} <span class="small ok">validée</span>` : `v${b.v} <span class="small warn">non validée : pas servie en production</span>`}</td>
+        <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "clé absente : agent écarté des réponses" : h(kt)}</span></td>
+        <td><a href="#" class="small">Modifier dans Playbooks →</a></td></tr>`; }).join("")}</table>`;
   } else if (us.active) {
     const a = P[us.active]; const [ks, kt] = keyState(us.active);
     body = `<div class="card surface" style="margin-top:16px">
@@ -261,7 +275,7 @@ function variantA() {
       return `<tr class="click" data-open="${pid}"><td><b>${h(p.name)}</b>${isA ? ' <span class="pill src-bo">actif</span>' : ""}${p.retired ? ' <span class="pill">à retirer</span>' : ""}<div class="small muted">${h(p.region)}</div></td>
       <td><span class="dot ${ks}"></span><span class="small">${h(kt)}</span></td><td class="small">${testState(pid)}</td>
       <td class="small">${p.tools.map((t) => h(t.name)).join(", ") || "—"}</td><td class="small">${p.params.map((s) => `${h(s.k)} : ${h(s.v)}`).join("<br>") || "—"}</td>
-      <td class="small">${p.usedBy.map(usageName).join(", ") || "—"}</td>
+      <td class="small">${[...p.usedBy.map(usageName), ...(PLAYBOOKS.some((b) => b.p === pid) ? [`${PLAYBOOKS.filter((b) => b.p === pid).length} Playbook Agent(s)`] : [])].join(", ") || "—"}</td>
       <td>${us.active && !isA && ks !== "ko" ? `<button class="btn" data-activate="${pid}">Rendre actif</button>` : ""}</td></tr>`; }).join("")}</table>`;
   if (us.business) body += businessBlock(us.business);
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;

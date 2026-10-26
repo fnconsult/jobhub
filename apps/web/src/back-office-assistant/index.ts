@@ -135,6 +135,7 @@ const ROLE_NAMES: Record<BackOfficeRole, string> = {
   "coach-manager": "Responsable coaching",
   "playbook-editor": "Rédacteur de playbooks",
   "help-editor": "Rédacteur de l'aide",
+  "platform-manager": "Technique",
   support: "Support",
 };
 
@@ -347,7 +348,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     const permanent = administrators.filter((one) => one.permanent).length;
     return [
       heading("roles"),
-      "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs, la connexion SSO et les journaux IA), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Support (lecture seule, sans secrets ni journaux IA). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
+      "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs, la connexion SSO et les journaux IA), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Technique (paramètres non secrets, sources et sites de recherche, prix des outils ; voit les clés par leur source et leurs 4 derniers caractères sans les changer ; lit la consommation IA, les outils et le journal, jamais les journaux IA), Support (lecture seule, sans secrets ni journaux IA). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
       `${administrators.length} Administrateur(s), dont ${permanent} super-admin(s) permanent(s). Par rôle :`,
       ...lines,
     ].join("\n");

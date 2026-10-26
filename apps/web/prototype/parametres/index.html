@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Paramètres · Back Office</title>
+<!--
+  PROTOTYPE — throwaway (wayfinder map #383, decision #392). Not production code.
+  Question: what should the Back Office « Paramètres » (Platform Settings) page look like?
+  Three structurally different variants on one page, switchable via ?variant=A|B|C and the bottom bar (← →).
+  Assumption: static HTML mimicking the Back Office shell and design tokens (packages/shared/src/design/tokens.ts),
+  stub data, in-memory state only. Nothing is saved.
+-->
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f7f7f5; --hover: #efeeec; --border: #e3e2e0;
+    --text: #37352f; --muted: #5a5955; --accent: #1f5fbf; --danger: #b42318; --success: #1e6e3a; --warn: #8a5a00;
+    --r-sm: 4px; --r-md: 6px; --r-lg: 10px;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text); background: var(--bg); font-size: 15px; line-height: 1.5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: var(--accent); }
+  .shell { display: grid; grid-template-columns: 15rem 1fr; min-height: 100vh; }
+  .side { background: var(--surface); border-right: 1px solid var(--border); padding: 16px 10px; font-size: 14px; }
+  .side h1 { font-size: 15px; margin: 0 8px 16px; }
+  .side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 8px 4px; font-weight: 600; }
+  .side a { display: block; padding: 4px 8px; border-radius: var(--r-sm); color: var(--text); text-decoration: none; }
+  .side a.on { background: var(--hover); font-weight: 600; }
+  main { padding: 28px 36px 120px; max-width: 1180px; }
+  .pagehead { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px; }
+  .pagehead h1 { font-size: 26px; margin: 0; }
+  .pagehead p { margin: 0; color: var(--muted); }
+  h2.sec { font-size: 17px; margin: 28px 0 8px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12.5px; background: var(--surface); }
+  tr.click { cursor: pointer; } tr.click:hover td { background: var(--hover); }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .tabs button { border: 0; background: none; padding: 8px 12px; border-bottom: 2px solid transparent; cursor: pointer; color: var(--muted); }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
+  .card { border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px 16px; background: var(--bg); }
+  .card.surface { background: var(--surface); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .pill { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); white-space: nowrap; }
+  .src-bo { color: var(--success); border-color: #b9d8c3; background: #eef6f0; }
+  .src-env { color: var(--accent); border-color: #c4d4ee; background: #eef3fb; }
+  .src-code { color: var(--muted); }
+  .ok { color: var(--success); } .ko { color: var(--danger); } .warn { color: var(--warn); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+  .dot.ok { background: var(--success); } .dot.ko { background: var(--danger); } .dot.off { background: #bbb; } .dot.warn { background: #d29a00; }
+  .btn { border: 1px solid var(--muted); background: var(--bg); border-radius: var(--r-sm); padding: 4px 10px; cursor: pointer; font-size: 13.5px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.ghost { border-color: transparent; color: var(--accent); padding: 4px 6px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .kv { display: grid; grid-template-columns: 13rem 1fr auto; gap: 6px 14px; align-items: center; font-size: 14px; }
+  .kv input, .kv select { padding: 3px 7px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg); width: 100%; max-width: 18rem; }
+  .note { font-size: 13px; color: var(--muted); background: var(--surface); border-left: 3px solid var(--border); padding: 6px 10px; margin: 10px 0; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(30rem, 92vw); background: var(--bg); box-shadow: -8px 0 24px rgb(15 15 15 / 14%); padding: 22px; overflow: auto; z-index: 20; }
+  .scrim { position: fixed; inset: 0; background: rgb(15 15 15 / 30%); z-index: 19; }
+  .usages { display: flex; flex-direction: column; gap: 2px; }
+  .usages button { text-align: left; border: 1px solid transparent; background: none; border-radius: var(--r-md); padding: 8px 10px; cursor: pointer; }
+  .usages button.on { background: var(--surface); border-color: var(--border); }
+  .usages .sub { display: block; font-size: 12.5px; color: var(--muted); }
+  .split { display: grid; grid-template-columns: 15rem 1fr; gap: 22px; }
+  .matrix td:first-child, .matrix th:first-child { width: 12rem; color: var(--muted); font-weight: 600; background: var(--surface); }
+  .matrix th.active { background: #eef3fb; color: var(--accent); }
+  .matrix td.active { background: #f6f9fe; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .chips button { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 2px 10px; cursor: pointer; font-size: 13.5px; }
+  .chips button.on { background: var(--text); color: #fff; border-color: var(--text); }
+  tr.group td { background: var(--surface); font-weight: 600; font-size: 13px; }
+  td.val input, td.val select { padding: 2px 6px; border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; width: 100%; }
+  td.val input:hover, td.val select:hover, td.val input:focus { border-color: var(--border); background: var(--bg); }
+  .changed td { background: #fffbe8 !important; }
+  .toast { position: fixed; top: 16px; right: 16px; background: var(--text); color: #fff; padding: 8px 14px; border-radius: var(--r-md); font-size: 14px; z-index: 40; }
+  /* prototype switcher: deliberately not part of the design */
+  .proto { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #111; color: #fff; border-radius: 999px; padding: 6px 8px; display: flex; gap: 6px; align-items: center; box-shadow: 0 6px 24px rgb(0 0 0 / 35%); z-index: 50; font-size: 14px; }
+  .proto button { background: #333; color: #fff; border: 0; border-radius: 999px; width: 30px; height: 30px; cursor: pointer; }
+  .proto span { padding: 0 10px; min-width: 15rem; text-align: center; }
+  .proto em { font-style: normal; color: #f5c518; font-weight: 700; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side">
+    <h1>Jobbbox · Back Office</h1>
+    <h2>Offre</h2><a href="#">Offres</a><a href="#">Quotas</a><a href="#">Codes promo</a>
+    <h2>Coaching</h2><a href="#">Coachs</a><a href="#">Playbooks</a>
+    <h2>Plateforme</h2><a href="#" class="on">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a>
+    <h2>Équipe</h2><a href="#">Administrateurs</a><a href="#">Journal</a>
+    <p class="small muted" style="margin:24px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
+  </nav>
+  <main id="main"></main>
+</div>
+<div id="overlay"></div>
+<div class="proto" id="proto"></div>
+
+<script>
+// ---------- stub data (in memory) ----------
+const NOW = "26/10/2026";
+const P = {
+  perplexity: { name: "Perplexity", region: "Hors UE (requêtes seules, ADR-0007)",
+    keys: [{ name: "PERPLEXITY_API_KEY", source: "bo", fp: "…x9Qa", by: "admin@jobbbox.ai", at: "21/10/2026" }],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET /v1/models · 200" },
+    tools: [{ name: "Search API", cost: "0,001 $ / appel" }, { name: "fetch_url", cost: "0,0005 $ / appel" }],
+    params: [{ k: "Type de recherche", v: "fast", opts: ["fast", "pro"], src: "code" }, { k: "Pages max par requête", v: "5", src: "code" }, { k: "Résultats par page", v: "10", src: "code" }],
+    filters: { domains: "inclure ou exclure", country: "oui", dates: "publication + mise à jour", pages: "5" },
+    usedBy: ["web", "company"] },
+  brave: { name: "Brave Search", region: "Hors UE (requêtes seules)",
+    keys: [{ name: "BRAVE_SEARCH_API_KEY", source: "env", fp: "…7Lmw", by: "—", at: "—" }],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET /res/v1/web/search?q=test · 200" },
+    tools: [{ name: "Web Search API", cost: "≈ 0,005 $ / appel" }],
+    params: [{ k: "Pages max par requête", v: "10", src: "code" }, { k: "Résultats par page", v: "20", src: "code" }],
+    filters: { domains: "inclure seulement", country: "oui", dates: "page_age", pages: "10" },
+    usedBy: [] },
+  tavily: { name: "Tavily", region: "Hors UE (requêtes seules)",
+    keys: [{ name: "TAVILY_API_KEY", source: "missing" }],
+    test: null, tools: [{ name: "Search", cost: "1 crédit (basic) / 2 (advanced)" }],
+    params: [{ k: "Profondeur", v: "basic", opts: ["basic", "advanced", "fast", "ultra-fast"], src: "code" }],
+    filters: { domains: "inclure ou exclure", country: "oui (nom de pays)", dates: "publication", pages: "1" },
+    usedBy: [] },
+  linkup: { name: "Linkup", region: "UE/US/APAC (non garanti)", retired: true,
+    keys: [{ name: "LINKUP_API_KEY", source: "missing" }],
+    test: null, tools: [{ name: "Search", cost: "0,005 $ / appel" }],
+    params: [{ k: "Profondeur", v: "standard", opts: ["standard", "deep", "fast", "flash"], src: "code" }],
+    filters: { domains: "inclure ou exclure", country: "non", dates: "non", pages: "1" },
+    usedBy: [] },
+  mistral: { name: "Mistral", region: "UE",
+    keys: [{ name: "MISTRAL_API_KEY", source: "bo", fp: "…T2pc", by: "admin@jobbbox.ai", at: "02/10/2026" }],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET /v1/models · 200" }, tools: [], params: [{ k: "Point d'accès", v: "UE", src: "code" }], usedBy: ["ai"] },
+  anthropic: { name: "Anthropic (API directe)", region: "Hors UE : tâches sans donnée personnelle",
+    keys: [{ name: "ANTHROPIC_API_KEY", source: "bo", fp: "…Qe41", by: "admin@jobbbox.ai", at: "24/10/2026" }],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET /v1/models · 200" }, tools: [], params: [{ k: "Point d'accès", v: "auto", opts: ["auto", "direct", "bedrock"], src: "env" }], usedBy: ["ai"] },
+  bedrock: { name: "Amazon Bedrock", region: "UE (eu-north-1)",
+    keys: [{ name: "AWS_BEARER_TOKEN_BEDROCK", source: "missing" }], test: null, tools: [], params: [{ k: "Région", v: "eu-north-1", src: "env" }], usedBy: ["ai"] },
+  "france-travail": { name: "France Travail", region: "UE",
+    keys: [{ name: "FRANCE_TRAVAIL_CLIENT_ID", source: "bo", fp: "…a0b3", by: "admin@jobbbox.ai", at: "12/10/2026" }, { name: "FRANCE_TRAVAIL_CLIENT_SECRET", source: "bo", fp: "…ff19", by: "admin@jobbbox.ai", at: "12/10/2026" }],
+    test: { ok: false, at: "26/10/2026 09:12", detail: "token · HTTP 400 invalid_scope (api_offresdemploiv2)" },
+    tools: [{ name: "La Bonne Boite v2", cost: "gratuit" }, { name: "ROMEO v2", cost: "gratuit" }, { name: "Offres d'emploi v2", cost: "non souscrit" }],
+    params: [{ k: "Scopes demandés", v: "api_labonneboitev2", src: "code" }], usedBy: ["ft"] },
+  lusha: { name: "Lusha", region: "Hors UE", keys: [{ name: "LUSHA_API_KEY", source: "env", fp: "…p0Oz" }], test: { ok: true, at: "25/10/2026", detail: "200" }, tools: [], params: [], usedBy: ["enrich"] },
+  kaspr: { name: "Kaspr", region: "UE", keys: [{ name: "KASPR_API_KEY", source: "missing" }], test: null, tools: [], params: [], usedBy: [] },
+  apollo: { name: "Apollo", region: "Hors UE", keys: [{ name: "APOLLO_API_KEY", source: "missing" }], test: null, tools: [], params: [], usedBy: [] },
+  brevo: { name: "Brevo", region: "UE", keys: [{ name: "BREVO_API_KEY", source: "bo", fp: "…kM2s", by: "admin@jobbbox.ai", at: "25/10/2026" }, { name: "SMTP_URL", source: "env", fp: "…:587" }],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET /v3/account · 200" }, tools: [], params: [{ k: "Envoi par", v: "API", opts: ["API", "SMTP"], src: "bo" }], usedBy: ["mail"] },
+  stripe: { name: "Stripe", region: "UE (compte FR)", keys: [{ name: "STRIPE_SECRET_KEY", source: "env", fp: "…test" }, { name: "STRIPE_WEBHOOK_SECRET", source: "env", fp: "…wh7d" }],
+    test: { ok: true, at: "26/10/2026 09:12", detail: "GET /v1/balance · 200" }, tools: [], params: [{ k: "Mode", v: "test", opts: ["test", "live"], src: "env" }], usedBy: ["pay"] },
+  google: { name: "Google", region: "—", keys: [{ name: "GOOGLE_CLIENT_SECRET", source: "bo", fp: "…3Hnq" }], test: { ok: true, at: "20/10/2026", detail: "connexion test réussie" }, tools: [], params: [{ k: "Montré à", v: "Candidats et Administrateurs", src: "bo" }], usedBy: ["signin"] },
+  apple: { name: "Apple", region: "—", keys: [{ name: "APPLE_PRIVATE_KEY", source: "missing" }], test: null, tools: [], params: [], usedBy: [] },
+};
+const U = [
+  { id: "web", label: "Recherche web", active: "perplexity", providers: ["perplexity", "brave", "tavily", "linkup"],
+    settings: [
+      { k: "Fournisseur actif", v: "perplexity", type: "provider", src: "bo", def: "perplexity (env)" },
+      { k: "Pays", v: "FR", src: "code", def: "FR" },
+      { k: "Ancienneté max des offres", v: "30 jours", src: "code", def: "30 jours" },
+      { k: "Fournisseur de secours", v: "brave", type: "provider", src: "bo", def: "aucun" },
+    ],
+    business: {
+      budget: [{ k: "Offres par run", v: "30", src: "env", def: "30" }, { k: "Coût max par run", v: "0,08 €", src: "code", def: "0,08 €" }, { k: "Durée max par run", v: "90 s", src: "env", def: "90 s" }],
+      sources: [{ k: "France Travail", on: false, note: "API Offres d'emploi v2 indisponible" }, { k: "Recherche web", on: true }, { k: "API des ATS (Greenhouse, Lever, Ashby)", on: true }],
+      sites: [{ d: "welcometothejungle.com", on: true }, { d: "apec.fr", on: true }, { d: "hellowork.com", on: false }, { d: "cadremploi.fr", on: true }],
+    },
+    alsoUsedBy: "Company Dossiers utilisent le même fournisseur de recherche." },
+  { id: "ai", label: "IA", active: null, providers: ["mistral", "anthropic", "bedrock"],
+    tasks: [
+      { t: "Coach (conversation)", p: "mistral", m: "mistral-large-latest", src: "env" },
+      { t: "Lecture d'offre", p: "anthropic", m: "claude-sonnet-5-5", src: "bo" },
+      { t: "Variantes de titre", p: "anthropic", m: "claude-haiku-5-5", src: "code" },
+      { t: "Match Score", p: "mistral", m: "mistral-medium-latest", src: "env" },
+      { t: "CV adapté", p: "mistral", m: "mistral-large-latest", src: "env" },
+    ], settings: [{ k: "Routage des tâches avec identité", v: "Mistral (UE)", src: "code", def: "Mistral" }] },
+  { id: "ft", label: "France Travail", active: "france-travail", providers: ["france-travail"], settings: [{ k: "Débit max", v: "2 appels/s", src: "code", def: "2 appels/s" }] },
+  { id: "enrich", label: "Enrichissement de contacts", active: "lusha", providers: ["lusha", "kaspr", "apollo"], settings: [{ k: "Fournisseur actif", v: "lusha", type: "provider", src: "env", def: "lusha" }] },
+  { id: "mail", label: "E-mail", active: "brevo", providers: ["brevo"], settings: [{ k: "Adresse d'envoi", v: "hello@jobbbox.ai", src: "env", def: "hello@jobbbox.ai" }] },
+  { id: "pay", label: "Paiement", active: "stripe", providers: ["stripe"], settings: [] },
+  { id: "signin", label: "Connexion", active: null, providers: ["google", "apple"], settings: [{ k: "SSO obligatoire pour les Administrateurs", v: "non", src: "bo", def: "non" }] },
+];
+const SRC = { bo: ["Back Office", "src-bo"], env: ["env", "src-env"], code: ["défaut du code", "src-code"], missing: ["absente", "ko"], database: ["Back Office", "src-bo"] };
+
+// ---------- state ----------
+const qs = new URLSearchParams(location.search);
+const S = { variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
+const VARIANTS = { A: "Onglets + fournisseur actif + tableau", B: "Usages à gauche + matrice comparative", C: "Grand tableau de réglages" };
+
+// ---------- helpers ----------
+const h = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const src = (s) => `<span class="pill ${SRC[s][1]}">${SRC[s][0]}</span>`;
+const keyState = (p) => { const ks = P[p].keys; if (ks.every((k) => k.source === "missing")) return ["ko", "clé absente"]; if (ks.some((k) => k.source === "missing")) return ["warn", "clé incomplète"]; return ["ok", ks.map((k) => k.fp).join(" · ")]; };
+const testState = (p) => { const t = P[p].test; return !t ? `<span class="muted">jamais testé</span>` : t.ok ? `<span class="ok">✓ ${h(t.at)}</span>` : `<span class="ko">✗ ${h(t.detail)}</span>`; };
+const u = (id) => U.find((x) => x.id === id);
+const usageName = (id) => (id === "company" ? "Company Dossiers" : u(id)?.label ?? id);
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 1800); }
+function setActive(usageId, pid) { const us = u(usageId); us.active = pid; const s = us.settings.find((x) => x.k === "Fournisseur actif"); if (s) { s.v = pid; s.src = "bo"; } toast(`${us.label} : fournisseur actif → ${P[pid].name} (dès le prochain appel)`); render(); }
+
+function settingInput(s, onchange) {
+  if (s.type === "provider") {
+    const us = U.find((x) => x.settings.includes(s));
+    return `<select data-set="${h(s.k)}">${(s.k.includes("secours") ? ["aucun", ...us.providers] : us.providers).map((p) => `<option value="${p}" ${p === s.v ? "selected" : ""}>${P[p]?.name ?? p}</option>`).join("")}</select>`;
+  }
+  if (s.opts) return `<select data-set="${h(s.k)}">${s.opts.map((o) => `<option ${o === s.v ? "selected" : ""}>${o}</option>`).join("")}</select>`;
+  return `<input data-set="${h(s.k)}" value="${h(s.v)}">`;
+}
+
+function drawer(pid) {
+  const p = P[pid];
+  return `<div class="scrim" data-close></div><aside class="drawer">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${h(p.name)}</h2><button class="btn ghost" data-close>Fermer ✕</button></div>
+    <p class="muted small">${h(p.region)} · utilisé par : ${p.usedBy.length ? p.usedBy.map(usageName).join(", ") : "aucun Usage"}</p>
+    ${p.retired ? `<div class="note">Recommandé au retrait (#384) : pas de dates, pas de pays, pas de pagination.</div>` : ""}
+    <h3>Clés</h3>
+    <table><tr><th>Clé</th><th>Source</th><th>Empreinte</th><th></th></tr>
+    ${p.keys.map((k) => `<tr><td><code>${k.name}</code></td><td>${src(k.source)}</td><td>${h(k.fp ?? "—")}<div class="small muted">${k.by && k.by !== "—" ? `${h(k.by)}, ${h(k.at)}` : ""}</div></td><td><button class="btn">Remplacer</button></td></tr>`).join("")}</table>
+    <div class="row" style="margin-top:8px"><button class="btn" data-test="${pid}">Tester la connexion</button> ${testState(pid)}</div>
+    <h3>Outils</h3>
+    ${p.tools.length ? `<table><tr><th>Outil</th><th>Coût</th></tr>${p.tools.map((t) => `<tr><td>${h(t.name)}</td><td>${h(t.cost)}</td></tr>`).join("")}</table>` : `<p class="muted small">Aucun outil.</p>`}
+    <h3>Paramètres du fournisseur</h3>
+    ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
+    <p class="small muted" style="margin-top:20px">Clés : super-admin seulement, jamais relues en clair. Paramètres : ressource « Paramètres non secrets ». Chaque changement va au Journal.</p>
+  </aside>`;
+}
+
+function businessBlock(b, compact) {
+  return `<h2 class="sec">Réglages de la Job discovery</h2>
+  <div class="grid2">
+    <div class="card"><h3 style="margin-top:0">Budget par run</h3><div class="kv">${b.budget.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Le run s'arrête au premier plafond atteint.</p></div>
+    <div class="card"><h3 style="margin-top:0">Sources</h3>${b.sources.map((s) => `<label class="row" style="margin:4px 0"><input type="checkbox" ${s.on ? "checked" : ""}> ${h(s.k)} ${s.note ? `<span class="small warn">· ${h(s.note)}</span>` : ""}</label>`).join("")}</div>
+  </div>
+  <h3>Job discovery sites</h3>
+  <table><tr><th>Domaine</th><th>État</th><th>Effet</th><th></th></tr>${b.sites.map((s) => `<tr><td>${h(s.d)}</td><td>${s.on ? '<span class="ok">activé</span>' : '<span class="muted">désactivé</span>'}</td><td class="small muted">${s.on ? "1 requête restreinte à ce site par run" : "pages de ce site ignorées"}</td><td><button class="btn ghost">${s.on ? "Désactiver" : "Activer"}</button></td></tr>`).join("")}</table>
+  <div class="row" style="margin-top:8px"><input placeholder="exemple.fr" style="padding:3px 7px;border:1px solid var(--border);border-radius:4px"><button class="btn">Ajouter un site</button> <a href="#" class="small">Job Sites de l'extension →</a></div>`;
+}
+
+function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#">Journaux IA · ${h(us.label)} →</a></p>`; }
+
+// ---------- Variant A : onglets, fournisseur actif en tête, tableau des fournisseurs, fiche en tiroir ----------
+function variantA() {
+  const us = u(S.tab);
+  let body = "";
+  if (us.id === "ai") {
+    body = `<h2 class="sec">Tâches</h2><table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>
+      ${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td><select>${us.providers.map((p) => `<option ${p === t.p ? "selected" : ""}>${P[p].name}</option>`).join("")}</select></td><td><input value="${h(t.m)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px"></td><td>${src(t.src)}</td></tr>`).join("")}</table>`;
+  } else if (us.active) {
+    const a = P[us.active]; const [ks, kt] = keyState(us.active);
+    body = `<div class="card surface" style="margin-top:16px">
+      <div class="row" style="justify-content:space-between"><div><div class="small muted">Fournisseur actif</div><div style="font-size:20px;font-weight:600"><span class="dot ${ks}"></span>${h(a.name)}</div></div>
+      <div class="small">Clé : <span class="${ks}">${h(kt)}</span> · Test : ${testState(us.active)} <button class="btn ghost" data-open="${us.active}">Fiche →</button></div></div>
+      ${us.settings.length ? `<div class="kv" style="margin-top:12px">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : ""}
+      ${us.alsoUsedBy ? `<p class="small muted" style="margin:10px 0 0">${h(us.alsoUsedBy)}</p>` : ""}
+    </div>`;
+  }
+  body += `<h2 class="sec">Fournisseurs possibles</h2>
+    <table><tr><th>Fournisseur</th><th>Clé</th><th>Test</th><th>Outils</th><th>Paramètres</th><th>Utilisé par</th><th></th></tr>
+    ${us.providers.map((pid) => { const p = P[pid]; const [ks, kt] = keyState(pid); const isA = pid === us.active;
+      return `<tr class="click" data-open="${pid}"><td><b>${h(p.name)}</b>${isA ? ' <span class="pill src-bo">actif</span>' : ""}${p.retired ? ' <span class="pill">à retirer</span>' : ""}<div class="small muted">${h(p.region)}</div></td>
+      <td><span class="dot ${ks}"></span><span class="small">${h(kt)}</span></td><td class="small">${testState(pid)}</td>
+      <td class="small">${p.tools.map((t) => h(t.name)).join(", ") || "—"}</td><td class="small">${p.params.map((s) => `${h(s.k)} : ${h(s.v)}`).join("<br>") || "—"}</td>
+      <td class="small">${p.usedBy.map(usageName).join(", ") || "—"}</td>
+      <td>${us.active && !isA && ks !== "ko" ? `<button class="btn" data-activate="${pid}">Rendre actif</button>` : ""}</td></tr>`; }).join("")}</table>`;
+  if (us.business) body += businessBlock(us.business);
+  if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
+  return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p></div>
+    <div class="tabs">${U.map((x) => `<button data-tab="${x.id}" class="${x.id === S.tab ? "on" : ""}">${h(x.label)}</button>`).join("")}</div>
+    ${body}${observeLinks(us)}`;
+}
+
+// ---------- Variant B : liste des Usages à gauche (état d'un coup d'œil), sous-onglets, fournisseurs en matrice ----------
+function variantB() {
+  const us = u(S.tab);
+  const health = (x) => { if (!x.active) return ["ok", `${x.providers.length} fournisseurs`]; const [ks] = keyState(x.active); const t = P[x.active].test; return [t && !t.ok ? "ko" : ks, P[x.active].name]; };
+  const left = `<div class="usages">${U.map((x) => { const [d, label] = health(x); return `<button data-tab="${x.id}" class="${x.id === S.tab ? "on" : ""}"><span class="dot ${d}"></span>${h(x.label)}<span class="sub">${h(label)}</span></button>`; }).join("")}</div>`;
+  const subs = [["provider", "Fournisseurs"], ...(us.business ? [["business", "Job discovery"]] : []), ...(us.tasks ? [["tasks", "Tâches"]] : []), ["settings", "Réglages"], ["history", "Historique des changements"]];
+  if (!subs.some(([k]) => k === S.sub)) S.sub = "provider";
+  let right = `<div class="row" style="justify-content:space-between"><h2 style="margin:0">${h(us.label)}</h2>${observeLinks(us)}</div>
+    <div class="tabs" style="margin-bottom:12px">${subs.map(([k, l]) => `<button data-sub="${k}" class="${k === S.sub ? "on" : ""}">${l}</button>`).join("")}</div>`;
+  if (S.sub === "provider") {
+    const rows = [
+      ["Statut", (pid) => (pid === us.active ? '<span class="pill src-bo">actif</span>' : us.active && keyState(pid)[0] !== "ko" ? `<button class="btn" data-activate="${pid}">Rendre actif</button>` : P[pid].retired ? '<span class="pill">à retirer</span>' : "—")],
+      ["Résidence", (pid) => h(P[pid].region)],
+      ["Clé", (pid) => { const [ks, kt] = keyState(pid); return `<span class="dot ${ks}"></span>${h(kt)}<br><button class="btn ghost" data-open="${pid}">Remplacer…</button>`; }],
+      ["Test", (pid) => `${testState(pid)}<br><button class="btn ghost" data-test="${pid}">Tester</button>`],
+      ["Outils", (pid) => P[pid].tools.map((t) => `${h(t.name)} <span class="muted small">${h(t.cost)}</span>`).join("<br>") || "—"],
+      ...(us.id === "web" ? [["Domaines", (pid) => h(P[pid].filters.domains)], ["Pays", (pid) => h(P[pid].filters.country)], ["Dates", (pid) => h(P[pid].filters.dates)], ["Pages", (pid) => h(P[pid].filters.pages)]] : []),
+      ["Paramètres", (pid) => P[pid].params.map((s) => `${h(s.k)}<br>${settingInput(s)}`).join("<br>") || "—"],
+      ["Aussi utilisé par", (pid) => P[pid].usedBy.filter((x) => x !== us.id).map(usageName).join(", ") || "—"],
+    ];
+    right += `<table class="matrix"><tr><th></th>${us.providers.map((pid) => `<th class="${pid === us.active ? "active" : ""}">${h(P[pid].name)}</th>`).join("")}</tr>
+      ${rows.map(([l, f]) => `<tr><td>${l}</td>${us.providers.map((pid) => `<td class="${pid === us.active ? "active" : ""} small">${f(pid)}</td>`).join("")}</tr>`).join("")}</table>`;
+  } else if (S.sub === "business") right += businessBlock(us.business).replace('<h2 class="sec">Réglages de la Job discovery</h2>', "");
+  else if (S.sub === "tasks") right += `<table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td>${P[t.p].name}</td><td><code>${h(t.m)}</code></td><td>${src(t.src)}</td></tr>`).join("")}</table>`;
+  else if (S.sub === "settings") right += us.settings.length ? `<div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Valeur par défaut affichée au survol ; « Rétablir le défaut » efface la valeur du Back Office.</p>` : `<p class="muted">Aucun réglage.</p>`;
+  else right += `<table><tr><th>Quand</th><th>Qui</th><th>Réglage</th><th>Avant → après</th></tr>
+      <tr><td>24/10/2026 18:02</td><td>admin@jobbbox.ai</td><td>Fournisseur actif</td><td>env (perplexity) → Back Office (perplexity)</td></tr>
+      <tr><td>21/10/2026 10:40</td><td>admin@jobbbox.ai</td><td>PERPLEXITY_API_KEY</td><td>remplacée (empreinte …x9Qa)</td></tr>
+      <tr><td>12/10/2026 09:15</td><td>admin@jobbbox.ai</td><td>Source France Travail</td><td>activée → désactivée</td></tr></table>`;
+  return `<div class="pagehead"><h1>Paramètres</h1><p>Un Usage = un fournisseur actif.</p></div><div class="split">${left}<div>${right}</div></div>`;
+}
+
+// ---------- Variant C : un seul tableau de tous les réglages (clés comprises), filtré par chips, groupé par Usage ou fournisseur ----------
+function variantC() {
+  const rows = [];
+  for (const us of U) {
+    if (S.chip !== "all" && S.chip !== us.id) continue;
+    const add = (group, k, valHtml, s, def, extra = "") => rows.push({ group, k, valHtml, s, def, extra, us: us.id });
+    for (const s of us.settings) add(us.label, s.k, settingInput(s), s.src, s.def);
+    if (us.tasks) for (const t of us.tasks) add(us.label, `Tâche : ${t.t}`, `<select>${us.providers.map((p) => `<option ${p === t.p ? "selected" : ""}>${P[p].name} · ${p === t.p ? t.m : "…"}</option>`).join("")}</select>`, t.src, "—");
+    if (us.business) {
+      for (const s of us.business.budget) add(us.label, `Budget : ${s.k}`, settingInput(s), s.src, s.def);
+      for (const s of us.business.sources) add(us.label, `Source : ${s.k}`, `<select><option ${s.on ? "selected" : ""}>activée</option><option ${!s.on ? "selected" : ""}>désactivée</option></select>`, "bo", "activée", s.note ? `<span class="small warn">${h(s.note)}</span>` : "");
+      for (const s of us.business.sites) add(us.label, `Site : ${s.d}`, `<select><option ${s.on ? "selected" : ""}>activé</option><option ${!s.on ? "selected" : ""}>désactivé</option></select>`, "bo", "—");
+    }
+    for (const pid of us.providers) {
+      const p = P[pid];
+      const g = S.groupBy === "usage" ? us.label : p.name;
+      for (const k of p.keys) rows.push({ group: g, k: `${p.name} · ${k.name}`, valHtml: `<span class="${k.source === "missing" ? "ko" : ""}">${k.source === "missing" ? "absente" : "•••• " + h(k.fp)}</span> <button class="btn ghost" data-open="${pid}">Remplacer</button>`, s: k.source, def: "env", extra: k.source === "missing" ? "" : testState(pid), us: us.id, secret: true });
+      for (const s of p.params) rows.push({ group: g, k: `${p.name} · ${s.k}`, valHtml: settingInput(s), s: s.src, def: s.v, us: us.id });
+    }
+  }
+  if (S.groupBy === "provider") rows.sort((a, b) => a.group.localeCompare(b.group));
+  let last = null;
+  const body = rows.map((r) => { const g = r.group !== last ? `<tr class="group"><td colspan="5">${h(r.group)}</td></tr>` : ""; last = r.group;
+    return `${g}<tr class="${S.changed.has(r.k) ? "changed" : ""}"><td>${r.secret ? "🔒 " : ""}${h(r.k)}</td><td class="val" data-row="${h(r.k)}">${r.valHtml}</td><td>${src(r.s)}</td><td class="small muted">${h(r.def)}</td><td class="small">${r.extra ?? ""}</td></tr>`; }).join("");
+  return `<div class="pagehead"><h1>Paramètres</h1><p>Chaque ligne est un réglage ; la colonne Source dit d'où vient sa valeur.</p></div>
+    <div class="row" style="justify-content:space-between">
+      <div class="chips"><button data-chip="all" class="${S.chip === "all" ? "on" : ""}">Tout</button>${U.map((x) => `<button data-chip="${x.id}" class="${x.id === S.chip ? "on" : ""}">${h(x.label)}</button>`).join("")}</div>
+      <div class="row small">Grouper par <select id="groupBy"><option value="usage" ${S.groupBy === "usage" ? "selected" : ""}>Usage</option><option value="provider" ${S.groupBy === "provider" ? "selected" : ""}>Fournisseur</option></select>
+      <button class="btn primary" id="saveAll" ${S.changed.size ? "" : "disabled"}>Enregistrer ${S.changed.size || ""} changement${S.changed.size > 1 ? "s" : ""}</button></div>
+    </div>
+    <table><tr><th style="width:30%">Réglage</th><th style="width:30%">Valeur</th><th>Source</th><th>Défaut</th><th>État</th></tr>${body}</table>
+    ${S.chip !== "all" ? observeLinks(u(S.chip)) : ""}`;
+}
+
+// ---------- render + wiring ----------
+function render() {
+  const url = new URL(location); url.searchParams.set("variant", S.variant); url.searchParams.set("tab", S.tab); history.replaceState(null, "", url);
+  document.getElementById("main").innerHTML = { A: variantA, B: variantB, C: variantC }[S.variant]();
+  document.getElementById("overlay").innerHTML = S.drawer ? drawer(S.drawer) : "";
+  document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
+}
+const keys = Object.keys(VARIANTS);
+const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  if (!t) return;
+  if (t.id === "prev") return cycle(-1);
+  if (t.id === "next") return cycle(1);
+  if (t.id === "saveAll") { toast(`${S.changed.size} changement(s) enregistré(s), inscrits au Journal`); S.changed.clear(); return render(); }
+  if (t.dataset.activate) { e.stopPropagation(); return setActive(S.variant === "C" ? S.chip : S.tab, t.dataset.activate); }
+  if (t.dataset.test) { e.stopPropagation(); const p = P[t.dataset.test]; if (p.keys.some((k) => k.source === "missing")) toast("Test impossible : clé absente"); else { p.test = { ...(p.test || {}), ok: p.test?.ok ?? true, at: NOW + " (à l'instant)", detail: p.test?.detail ?? "200" }; toast(`Test ${p.name} : ${p.test.ok ? "réussi" : "échec"}`); } return render(); }
+  if (t.dataset.tab) { S.tab = t.dataset.tab; S.chip = t.dataset.tab; return render(); }
+  if (t.dataset.sub) { S.sub = t.dataset.sub; return render(); }
+  if (t.dataset.chip) { S.chip = t.dataset.chip; if (t.dataset.chip !== "all") S.tab = t.dataset.chip; return render(); }
+  if (t.dataset.open) { if (e.target.closest("select,input,button") && !t.matches("button")) return; S.drawer = t.dataset.open; return render(); }
+  if (t.hasAttribute("data-close")) { S.drawer = null; return render(); }
+});
+document.addEventListener("change", (e) => {
+  if (e.target.id === "groupBy") { S.groupBy = e.target.value; return render(); }
+  const set = e.target.dataset.set;
+  if (S.variant === "C") { const r = e.target.closest("[data-row]"); if (r) { S.changed.add(r.dataset.row); r.parentElement.classList.add("changed"); const b = document.getElementById("saveAll"); b.disabled = false; b.textContent = `Enregistrer ${S.changed.size} changement${S.changed.size > 1 ? "s" : ""}`; } return; }
+  if (set === "Fournisseur actif") return setActive(S.tab, e.target.value);
+  if (set) { for (const us of U) for (const s of [...us.settings, ...(us.business?.budget ?? [])]) if (s.k === set) { s.v = e.target.value; s.src = "bo"; } for (const p of Object.values(P)) for (const s of p.params) if (s.k === set) { s.v = e.target.value; s.src = "bo"; } toast(`« ${set} » enregistré (Back Office), inscrit au Journal`); render(); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input,textarea,select,[contenteditable]")) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+  if (e.key === "Escape" && S.drawer) { S.drawer = null; render(); }
+});
+render();
+</script>
+</body>
+</html>

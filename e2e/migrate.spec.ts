@@ -125,6 +125,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "platform_setting", // issue #298: Platform Settings set in the Back Office, over env
         "playbook_version", // issue #225: every Playbook Version, kept forever
         "profile",
+        "provider_api_access", // issue #400: what each France Travail API answered its latest connection test
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data

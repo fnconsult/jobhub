@@ -150,6 +150,9 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     });
     const sent = await conversations.send({ id: candidateId, access: backOfficeAccess(["support"]) }, { message: "Quotas Premium ?" });
     if (!sent.ok) throw new Error("fixture conversation refused");
+    // Asked from an Explainable label (#407): the item it asked about goes with the question.
+    const explained = { label: "Pays", page: "/admin/parametres", kind: "setting", id: "JOB_DISCOVERY_COUNTRY", value: "FR" } as const;
+    await conversations.send({ id: candidateId, access: backOfficeAccess(["support"]) }, { conversationId: sent.conversation.id, message: "Explique-moi « Pays » ici.", explained });
 
     const exported = await candidateData.export(candidateId);
 
@@ -161,6 +164,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         lastMessageAt: expect.any(Date),
         messages: [
           { from: "administrator", text: "Quotas Premium ?", sentAt: expect.any(Date) },
+          { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date), provenance },
+          { from: "administrator", text: "Explique-moi « Pays » ici.", sentAt: expect.any(Date), explained },
           { from: "assistant", text: "Premium : 4321 Match Scores par mois.", sentAt: expect.any(Date), provenance },
         ],
       },

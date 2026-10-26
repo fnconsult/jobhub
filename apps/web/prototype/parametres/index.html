@@ -94,6 +94,10 @@
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .tip { position: fixed; pointer-events: none; background: #fff; border: 1px solid var(--border); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); border-radius: var(--r-sm); padding: 6px 9px; font-size: 12.5px; z-index: 60; }
   .tip b { font-variant-numeric: tabular-nums; }
+  .ask { border: 1px solid var(--border); background: var(--bg); color: var(--accent); border-radius: 999px; width: 20px; height: 20px; font-size: 12px; line-height: 1; cursor: pointer; padding: 0; vertical-align: 1px; margin-left: 4px; }
+  .ask:hover { background: #eef3fb; }
+  .bubble { background: var(--surface); border-radius: var(--r-md); padding: 10px 12px; margin: 8px 0; font-size: 14px; }
+  .bubble.me { background: #eef3fb; margin-left: 3rem; }
   /* prototype switcher: deliberately not part of the design */
   .proto { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #111; color: #fff; border-radius: 999px; padding: 6px 8px; display: flex; gap: 6px; align-items: center; box-shadow: 0 6px 24px rgb(0 0 0 / 35%); z-index: 50; font-size: 14px; }
   .proto button { background: #333; color: #fff; border: 0; border-radius: 999px; width: 30px; height: 30px; cursor: pointer; }
@@ -110,7 +114,8 @@
     <h2>Coaching</h2><a href="#">Coachs</a><a href="#">Playbooks</a>
     <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a>
     <h2>Équipe</h2><a href="#">Administrateurs</a><a href="#">Journal</a>
-    <p class="small muted" style="margin:24px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
+    <p class="small" style="margin:16px 8px 0"><span class="ask" style="display:inline-block;text-align:center;line-height:18px">?</span> partout : l'Assistant du Back Office explique en contexte.</p>
+    <p class="small muted" style="margin:12px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
   </nav>
   <main id="main"></main>
 </div>
@@ -239,7 +244,36 @@ const testState = (p) => { const t = P[p].test; return !t ? `<span class="muted"
 const u = (id) => U.find((x) => x.id === id);
 const usageName = (id) => (id === "company" ? "Company Dossiers" : u(id)?.label ?? id);
 function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 1800); }
-const keyWarning = (pid) => keyState(pid)[0] === "ko" ? `<div class="note" style="border-left-color:var(--danger);color:var(--danger)">⚠ ${h(P[pid].name)} n'a pas de clé : l'enregistrement est permis, mais les appels échoueront (et seront écartés) tant qu'elle n'est pas saisie. <button class="btn ghost" data-open="${pid}">Saisir la clé →</button></div>` : "";
+// ---------- « ? » : l'Assistant du Back Office explique, en contexte ----------
+const ANSWERS = {
+  "Fournisseur actif": "C'est le Search provider qui reçoit les requêtes de la Job discovery et des Company Dossiers. Un changement s'applique au prochain appel ; un run déjà lancé garde le sien. Perplexity est le défaut (env : AI_WEB_SEARCH_PROVIDER). Brave ou Tavily changent les filtres gérés : voir la colonne des capacités.",
+  "Fournisseur de secours": "Si le fournisseur actif échoue pendant un run (clé absente, 401/403, 429, panne), le run bascule sur celui-ci jusqu'à sa fin. Ce mois-ci, 61 runs ont basculé, sur 3 jours (9, 10 et 21 octobre). S'il n'a pas de clé, la bascule est sautée.",
+  "Pays": "Seules les pages ciblant ce pays sont demandées au fournisseur. Valeur par défaut du code (FR) ; Tavily attend un nom de pays, l'adaptateur le traduit.",
+  "Ancienneté max des offres": "Une offre publiée il y a plus de 30 jours est ignorée (Skip reason « too old ») ; la date du fournisseur est la source la plus faible d'une Posting date.",
+  "Seuil d'alerte mensuel (recherche web)": "Au-delà, un e-mail part aux super-admins et un bandeau s'affiche dans Consommation IA ; rien n'est coupé. À ce rythme, la fin de mois est estimée à 1,82 € pour un seuil de 2 €.",
+  "Offres par run": "Le run s'arrête dès qu'il a trouvé ce nombre d'offres (nouvelles ou déjà connues). 46 % des runs du mois se sont arrêtés sur ce plafond.",
+  "Coût max par run": "Somme des coûts enregistrés des appels du run (plan, recherche web, lecture des pages). 5 % des runs s'y arrêtent ; le coût moyen est de 0,038 €.",
+  "Durée max par run": "Le run s'arrête après cette durée, la page en cours est terminée. 19 % des runs du mois s'y arrêtent.",
+  "France Travail": "La source est désactivée : l'API Offres d'emploi v2 n'est plus au catalogue de francetravail.io (accès sur demande), d'où le test en échec « invalid_scope ». La Bonne Boite et ROMEO restent utilisables avec le même client. Une demande d'accès est à faire via le formulaire francetravail.io/contact.",
+  "Environnement": "Ces variables ne se modifient pas depuis le Back Office : secrets d'amorçage, infrastructure, réglages de test ou engagements juridiques. Elles changent dans le .env du serveur, puis au redémarrage.",
+  "clé absente": "Sans clé, chaque appel à ce fournisseur échoue et est écarté. Saisissez-la sur sa fiche (super-admin) ; elle est testée à l'enregistrement et prise en compte en quelques secondes, sans redémarrage. Je ne vois jamais la valeur d'une clé.",
+  "Coût moyen d'un run": "Moyenne des coûts enregistrés par run ce mois-ci. La lecture des pages par un LLM en fait 82 % ; la recherche web elle-même 5 %.",
+  "Runs passés au secours": "Part des runs où le fournisseur actif a échoué et où Brave a pris le relais. Les 9 et 10 octobre, Perplexity répondait 429 (limite de débit).",
+  "Dépense recherche web du mois": "Somme des frais de recherche web du mois (Perplexity et Brave), hors lecture des pages. Elle est comparée au seuil d'alerte réglé dans Paramètres › Recherche web.",
+};
+const ask = (topic) => `<button class="ask" data-ask="${h(topic)}" title="Demander à l'Assistant">?</button>`;
+function assistantDrawer(topic) {
+  const a = ANSWERS[topic] ?? "Je peux expliquer ce réglage, sa valeur actuelle, d'où elle vient et ce qu'un changement modifierait. Je ne modifie rien et ne vois jamais les clés.";
+  return `<div class="scrim" data-close></div><aside class="drawer">
+    <div class="row" style="justify-content:space-between"><div><div class="small muted">Assistant du Back Office</div><h2 style="margin:0">${h(topic)}</h2></div><button class="btn ghost" data-close>Fermer ✕</button></div>
+    <div class="bubble me">Explique-moi « ${h(topic)} » ici.</div>
+    <div class="bubble">${h(a)}</div>
+    <div class="row" style="margin-top:10px"><input placeholder="Poser une autre question…" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:4px"><button class="btn">Envoyer</button></div>
+    <p class="small muted" style="margin-top:16px">Lecture seule, dans la limite de vos rôles ; ne voit ni les clés ni les adresses e-mail. La conversation est la vôtre (gardée 12 mois).</p>
+  </aside>`;
+}
+
+const keyWarning = (pid) => keyState(pid)[0] === "ko" ? `<div class="note" style="border-left-color:var(--danger);color:var(--danger)">⚠ ${h(P[pid].name)} n'a pas de clé : l'enregistrement est permis, mais les appels échoueront (et seront écartés) tant qu'elle n'est pas saisie. <button class="btn ghost" data-open="${pid}">Saisir la clé →</button>${ask("clé absente")}</div>` : "";
 function setActive(usageId, pid) { const us = u(usageId); us.active = pid; const s = us.settings.find((x) => x.k === "Fournisseur actif"); if (s) { s.v = pid; s.src = "bo"; } toast(`${us.label} : fournisseur actif → ${P[pid].name} (dès le prochain appel)${keyState(pid)[0] === "ko" ? " · ⚠ clé absente" : ""}`); render(); }
 
 function settingInput(s, onchange) {
@@ -265,7 +299,7 @@ function drawer(pid) {
     <h3>Outils</h3>
     ${p.tools.length ? `<table><tr><th>Outil</th><th>Prix</th><th>Source</th></tr>${p.tools.map((t) => `<tr><td>${h(t.name)}</td><td><input value="${h(t.cost)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px;width:11rem"></td><td>${src("code")}<div class="small muted">catalogue, 10/2026</div></td></tr>`).join("")}</table><p class="small muted">Un prix saisi ici remplace le prix catalogue (remise négociée, nouveau tarif) dès le prochain appel.</p>` : `<p class="muted small">Aucun outil.</p>`}
     <h3>Paramètres du fournisseur</h3>
-    ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
+    ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
     <p class="small muted" style="margin-top:20px">Clés : super-admin seulement, jamais relues en clair. Paramètres : ressource « Paramètres non secrets ». Chaque changement va au Journal.</p>
   </aside>`;
 }
@@ -313,7 +347,7 @@ function taskDrawer(i) {
 function businessBlock(b, compact) {
   return `<h2 class="sec">Réglages de la Job discovery</h2>
   <div class="grid2">
-    <div class="card"><h3 style="margin-top:0">Budget par run</h3><div class="kv">${b.budget.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Le run s'arrête au premier plafond atteint.</p></div>
+    <div class="card"><h3 style="margin-top:0">Budget par run</h3><div class="kv">${b.budget.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Le run s'arrête au premier plafond atteint.</p></div>
     <div class="card"><h3 style="margin-top:0">Sources</h3><p class="small">${u("sources").sources.map((x) => `<span class="dot ${x.on ? "ok" : "off"}"></span>${h(x.k)}`).join("<br>")}</p><button class="btn ghost" data-tab="sources">Gérer dans l'onglet Sources →</button></div>
   </div>
   <h3>Job discovery sites</h3>
@@ -362,11 +396,11 @@ function costBlock() {
   const postes = POSTES.map((x) => `<div class="row" style="gap:8px;margin:5px 0" data-tip="${h(`<div>${x.k}</div><b>${eur(x.v, 4)}</b> par run (${Math.round((x.v / allRun) * 100)} %)`)}"><span class="small" style="width:11rem">${h(x.k)}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(x.v / POSTES[0].v) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:3.5rem;text-align:right">${eur(x.v, 3)}</span></div>`).join("");
   return `<h2 class="sec">Recherche d'offres : consommation et budget <span class="small muted" style="font-weight:400">· octobre 2026, au 26</span></h2>
     <div class="kpis">
-      <div class="kpi"><div class="lbl">Dépense recherche web du mois</div><div class="val">${eur(spend)}</div><div class="sub">${Math.round((spend / threshold) * 100)} % du seuil d'alerte (${eur(threshold, 0)})</div><div class="bar-track"><span style="width:${Math.min(100, (spend / threshold) * 100)}%"></span></div></div>
-      <div class="kpi"><div class="lbl">Coût moyen d'un run</div><div class="val">${eur(allRun, 3)}</div><div class="sub">budget ${eur(0.08)} · ${Math.round((allRun / 0.08) * 100)} % utilisé</div></div>
+      <div class="kpi"><div class="lbl">Dépense recherche web du mois${ask("Dépense recherche web du mois")}</div><div class="val">${eur(spend)}</div><div class="sub">${Math.round((spend / threshold) * 100)} % du seuil d'alerte (${eur(threshold, 0)})</div><div class="bar-track"><span style="width:${Math.min(100, (spend / threshold) * 100)}%"></span></div></div>
+      <div class="kpi"><div class="lbl">Coût moyen d'un run${ask("Coût moyen d'un run")}</div><div class="val">${eur(allRun, 3)}</div><div class="sub">budget ${eur(0.08)} · ${Math.round((allRun / 0.08) * 100)} % utilisé</div></div>
       <div class="kpi"><div class="lbl">Coût par nouvelle offre</div><div class="val">${eur((allRun * runs) / newOffers, 4)}</div><div class="sub">${newOffers.toLocaleString("fr-FR")} nouvelles offres</div></div>
       <div class="kpi"><div class="lbl">Runs</div><div class="val">${runs}</div><div class="sub">Job Searches et compléments du Job Digest</div></div>
-      <div class="kpi"><div class="lbl">Runs passés au secours</div><div class="val">${((fallbackRuns / runs) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</div><div class="sub">${fallbackRuns} runs sur Brave · 3 jours</div></div>
+      <div class="kpi"><div class="lbl">Runs passés au secours${ask("Runs passés au secours")}</div><div class="val">${((fallbackRuns / runs) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</div><div class="sub">${fallbackRuns} runs sur Brave · 3 jours</div></div>
       <div class="kpi"><div class="lbl">Appels en échec</div><div class="val">0,6 %</div><div class="sub">⚠ 1 outil sans prix connu</div></div>
     </div>
     <div class="chart"><h4>Dépense quotidienne de la recherche web, par Search provider</h4>
@@ -400,7 +434,7 @@ const tabsHtml = () => U.map((x) => `<button data-tab="${x.id}" class="${x.id ==
 function envTab() {
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
-    <div class="note" style="margin-top:14px">Ces variables d'environnement ne se modifient pas ici : elles se changent dans le <code>.env</code> du serveur, puis au redémarrage. Les secrets sont masqués.</div>
+    <div class="note" style="margin-top:14px">${ask("Environnement")} Ces variables d'environnement ne se modifient pas ici : elles se changent dans le <code>.env</code> du serveur, puis au redémarrage. Les secrets sont masqués.</div>
     <table><tr><th>Variable</th><th>Valeur</th><th>Pourquoi elle reste dans l'environnement</th></tr>
     ${ENV.map((x) => `<tr><td><code>${h(x.k)}</code></td><td class="small">${h(x.v)}</td><td class="small muted">${h(x.why)}</td></tr>`).join("")}</table>
     <h2 class="sec">Valeurs par défaut lues dans l'environnement</h2>
@@ -462,7 +496,7 @@ function variantA() {
         <td><button class="btn" data-playbook="${i}">Modifier…</button></td></tr>`; }).join("")}</table>`;
   } else if (us.jobSites) {
     body = `<h2 class="sec">Réglages de l'extension</h2>
-      <div class="kv">${us.settings.map((x) => `<span>${h(x.k)}</span>${settingInput(x)}${src(x.src)}`).join("")}
+      <div class="kv">${us.settings.map((x) => `<span>${h(x.k)}${ask(x.k)}</span>${settingInput(x)}${src(x.src)}`).join("")}
         <span>Origines autorisées</span><span class="small"><code>EXTENSION_ORIGINS</code> · chrome-extension://••••</span><button class="btn ghost" data-tab="env">Environnement 🔒 →</button></div>
       <h2 class="sec">Job Sites</h2>
       <p class="small muted">Les sites où l'extension affiche son badge « Analyser cette offre ». Les sites intégrés peuvent être désactivés, pas retirés ; un site ajouté n'a le badge que chez les personnes qui ont autorisé l'extension sur tous les sites. La capture manuelle reste possible partout.</p>
@@ -476,7 +510,7 @@ function variantA() {
     body = `<p class="muted" style="margin-top:14px">Où la Job discovery trouve des offres. Une source désactivée est ignorée par les Job Searches et les compléments du Job Digest.</p>
       <table><tr><th>Source</th><th>État</th><th>Fournisseur</th><th>Clé</th><th>Test</th><th></th></tr>
       ${us.sources.map((x, i) => { const p = P[x.pid]; const [ks, kt] = p.keys.length ? keyState(x.pid) : ["ok", "aucune (API publiques)"];
-        return `<tr><td><b>${h(x.k)}</b><div class="small muted">${h(x.what)}</div>${x.note ? `<div class="small warn">${h(x.note)}</div>` : ""}</td>
+        return `<tr><td><b>${h(x.k)}</b>${ask(x.k)}<div class="small muted">${h(x.what)}</div>${x.note ? `<div class="small warn">${h(x.note)}</div>` : ""}</td>
         <td><label class="row"><input type="checkbox" data-source="${i}" ${x.on ? "checked" : ""}> ${x.on ? "activée" : "désactivée"}</label></td>
         <td class="small">${h(p.name)}${x.link ? `<br><button class="btn ghost" data-tab="${x.link}">Choisir le fournisseur →</button>` : ""}</td>
         <td><span class="dot ${ks}"></span><span class="small">${h(kt)}</span></td><td class="small">${testState(x.pid)}</td>
@@ -485,9 +519,9 @@ function variantA() {
   } else if (us.active) {
     const a = P[us.active]; const [ks, kt] = keyState(us.active);
     body = `<div class="card surface" style="margin-top:16px">
-      <div class="row" style="justify-content:space-between"><div><div class="small muted">Fournisseur actif</div><div style="font-size:20px;font-weight:600"><span class="dot ${ks}"></span>${h(a.name)}</div></div>
+      <div class="row" style="justify-content:space-between"><div><div class="small muted">Fournisseur actif${ask("Fournisseur actif")}</div><div style="font-size:20px;font-weight:600"><span class="dot ${ks}"></span>${h(a.name)}</div></div>
       <div class="small">Clé : <span class="${ks}">${h(kt)}</span> · Test : ${testState(us.active)} <button class="btn ghost" data-open="${us.active}">Fiche →</button></div></div>
-      ${us.settings.length ? `<div class="kv" style="margin-top:12px">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : ""}
+      ${us.settings.length ? `<div class="kv" style="margin-top:12px">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : ""}
       ${us.alsoUsedBy ? `<p class="small muted" style="margin:10px 0 0">${h(us.alsoUsedBy)}</p>` : ""}
       ${keyWarning(us.active)}
     </div>`;
@@ -504,7 +538,7 @@ function variantA() {
       <td class="small">${[...p.usedBy.map(usageName), ...(PLAYBOOKS.some((b) => b.p === pid) ? [`${PLAYBOOKS.filter((b) => b.p === pid).length} Playbook Agent(s)`] : [])].join(", ") || "—"}</td>
       <td>${us.active && !isA ? `<button class="btn" data-activate="${pid}" ${ks === "ko" ? 'title="Clé absente : les appels échoueront tant qu\'elle n\'est pas saisie"' : ""}>Rendre actif${ks === "ko" ? " ⚠" : ""}</button>` : ""}</td></tr>`; }).join("")}</table>`;
   if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a></p>`;
-  if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
+  if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
     ${body}${observeLinks(us)}`;
@@ -534,7 +568,7 @@ function variantB() {
       ${rows.map(([l, f]) => `<tr><td>${l}</td>${us.providers.map((pid) => `<td class="${pid === us.active ? "active" : ""} small">${f(pid)}</td>`).join("")}</tr>`).join("")}</table>`;
   } else if (S.sub === "business") right += businessBlock(us.business).replace('<h2 class="sec">Réglages de la Job discovery</h2>', "");
   else if (S.sub === "tasks") right += `<table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td>${P[t.p].name}</td><td><code>${h(t.m)}</code></td><td>${src(t.src)}</td></tr>`).join("")}</table>`;
-  else if (S.sub === "settings") right += us.settings.length ? `<div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Valeur par défaut affichée au survol ; « Rétablir le défaut » efface la valeur du Back Office.</p>` : `<p class="muted">Aucun réglage.</p>`;
+  else if (S.sub === "settings") right += us.settings.length ? `<div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div><p class="small muted">Valeur par défaut affichée au survol ; « Rétablir le défaut » efface la valeur du Back Office.</p>` : `<p class="muted">Aucun réglage.</p>`;
   else right += `<table><tr><th>Quand</th><th>Qui</th><th>Réglage</th><th>Avant → après</th></tr>
       <tr><td>24/10/2026 18:02</td><td>admin@jobbbox.ai</td><td>Fournisseur actif</td><td>env (perplexity) → Back Office (perplexity)</td></tr>
       <tr><td>21/10/2026 10:40</td><td>admin@jobbbox.ai</td><td>PERPLEXITY_API_KEY</td><td>remplacée (empreinte …x9Qa)</td></tr>
@@ -590,14 +624,15 @@ function render() {
   document.getElementById("nav-dashboard").classList.toggle("on", S.page === "dashboard");
   document.getElementById("nav-parametres").classList.toggle("on", S.page === "parametres");
   document.getElementById("main").innerHTML = S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
-  document.getElementById("overlay").innerHTML = S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
+  document.getElementById("overlay").innerHTML = S.asking ? assistantDrawer(S.asking) : S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-ask],[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
+  if (t.dataset.ask) { e.preventDefault(); e.stopPropagation(); S.asking = t.dataset.ask; return render(); }
   if (t.dataset.page) { e.preventDefault(); S.page = t.dataset.page; if (t.dataset.tab) S.tab = t.dataset.tab; S.drawer = null; return render(); }
   if (t.dataset.jobsite != null) { const x = u("extension").jobSites[+t.dataset.jobsite]; x.on = !x.on; toast(`${x.pat} ${x.on ? "activé" : "désactivé"}`); return render(); }
   if (t.dataset.jobsiteRm != null) { const [x] = u("extension").jobSites.splice(+t.dataset.jobsiteRm, 1); toast(`${x.pat} retiré`); return render(); }
@@ -623,7 +658,7 @@ document.addEventListener("click", (e) => {
   if (t.dataset.sub) { S.sub = t.dataset.sub; return render(); }
   if (t.dataset.chip) { S.chip = t.dataset.chip; if (t.dataset.chip !== "all") S.tab = t.dataset.chip; return render(); }
   if (t.dataset.open) { if (e.target.closest("select,input,button") && !t.matches("button")) return; S.drawer = t.dataset.open; return render(); }
-  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; return render(); }
+  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; S.asking = null; return render(); }
 });
 document.addEventListener("change", (e) => {
   if (e.target.id === "tkModel" || e.target.id === "pbModel") { document.getElementById("keyWarn").innerHTML = keyWarning(e.target.value.split("|")[0]); return; }
@@ -638,7 +673,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea,select,[contenteditable]")) return;
   if (e.key === "ArrowLeft") cycle(-1);
   if (e.key === "ArrowRight") cycle(1);
-  if (e.key === "Escape") { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; render(); }
+  if (e.key === "Escape") { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; S.asking = null; render(); }
 });
 document.addEventListener("mousemove", (e) => {
   const el = e.target.closest("[data-tip]"); let tip = document.getElementById("tip");

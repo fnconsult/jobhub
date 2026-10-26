@@ -17,9 +17,10 @@ import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-
 import { createReferenceData } from "@jobhub/web/reference-data";
 import { createSearchSites } from "@jobhub/web/search-sites";
 import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
+import { createTargetCompanies } from "@jobhub/web/target-companies";
 import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
 import { Pool } from "pg";
-import { jobDiscoveryBudgetFromEnv } from "./job-discovery";
+import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createJobs, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
@@ -48,6 +49,7 @@ const platformSettings = watchPlatformSettings({ database, env: process.env });
 await platformSettings.ready;
 const settingsEnv = () => platformSettings.resolver.current().env;
 jobDiscoveryBudgetFromEnv(settingsEnv());
+targetCompanySettingsFromEnv(settingsEnv());
 jobDigestsConfigFromEnv(settingsEnv());
 
 const profiles = createProfiles(database);
@@ -78,6 +80,9 @@ const worker = workerClients({
   settings: () => searchSites.jobDiscoverySettings(),
   // The web searches name the Sectors wanted by their labels.
   industries: () => referenceData.read(),
+  // Each Profile's Target Companies (#406): La Bonne Boite's and the Candidate's own, how many a run visits and how often.
+  targetCompanies: createTargetCompanies(database),
+  targetCompanySettings: () => targetCompanySettingsFromEnv(settingsEnv()),
   // The task Playbooks at the version this environment serves (JOBHUB_TARGET), as the web app reads them.
   taskPlaybooks: taskPlaybooksReader(database, process.env),
   euAiConsent: (candidateId) => euAiConsents.has(candidateId),

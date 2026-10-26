@@ -118,6 +118,18 @@ export function buildSearchQuery(
   return parts.join(", ");
 }
 
+/**
+ * The only text sent to the web-search provider to find a Target Company's postings (#406): one of the Job
+ * Search's job titles, as `planJobSearch` issued it, and the company's name (a company, not a person: La Bonne
+ * Boite's, or one the Candidate added, resolved in the company register), both cleaned like Search Criteria.
+ */
+export function buildTargetCompanyQuery(query: JobSearchQuery | undefined, company: string): string {
+  if (query === undefined || !issued.has(query)) {
+    throw new DataResidencyError("A Target Company query must name a job title planJobSearch issued: no other text may reach the web-search provider");
+  }
+  return `${clean(query.title)} "${clean(company).replace(/"/g, "")}"`;
+}
+
 /** Up to this many job titles per language: the Search Criteria's own and its variants. */
 const TITLES_PER_LANGUAGE = 3;
 

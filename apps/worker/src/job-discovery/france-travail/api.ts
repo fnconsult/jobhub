@@ -12,10 +12,7 @@
 import { MAX_POSTING_AGE_DAYS, searchedSubsectors, type ContractType, type JobOfferDetails, type SalaryRange, type SearchCriteria } from "@jobhub/shared";
 import { romeCodesFor } from "./rome";
 
-/** OAuth2 client-credentials token endpoint, in the "/partenaire" realm. */
-export const TOKEN_URL = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
-/** The scopes the Offres d'emploi v2 API asks for. */
-export const SCOPE = "api_offresdemploiv2 o2dsoffre";
+// Its token, asked with its own scopes alone, comes from @jobhub/shared's France Travail tokens (#400).
 export const SEARCH_URL = "https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search";
 /** The most offers one search answer gives (its `range` spans at most 150). */
 export const MAX_RANGE = 150;

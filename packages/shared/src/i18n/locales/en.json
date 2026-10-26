@@ -1182,7 +1182,9 @@
           "fantastic_jobs": "Fantastic.jobs API (ATS postings)",
           "web_search": "Web search (search provider)",
           "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)"
-        }
+        },
+        "awaitingAccess": "Awaiting access",
+        "accessRefused": "Unavailable: access refused by France Travail (Offres d'emploi API). Job searches go on without it."
       },
       "discoverySites": {
         "title": "Job discovery sites",
@@ -1268,6 +1270,23 @@
       "test": "Test {{name}}",
       "noMasterKey": "Saving is off: SECRETS_MASTER_KEYS is not set on this server. Keys come from the environment only.",
       "keyVersions": "Saved keys are encrypted with master key: {{versions}} (active: {{active}}).",
+      "apiAccess": {
+        "title": "France Travail API access",
+        "intro": "As the latest connection test of the keys in use found it, on {{at}}. The test passes once the client is valid.",
+        "caption": "France Travail API access",
+        "api": "API",
+        "state": "State",
+        "apis": {
+          "la_bonne_boite": "La Bonne Boite",
+          "offres_emploi": "Offres d'emploi",
+          "romeo": "ROMEO"
+        },
+        "states": {
+          "ok": "ok",
+          "refused": "access refused",
+          "error": "error"
+        }
+      },
       "saved": "{{name}} replaced: the connection test passed.",
       "savedUntested": "{{name}} replaced although the connection test failed. This is recorded in the journal.",
       "cleared": "{{name}} cleared: the environment's value is used again.",
@@ -2282,11 +2301,13 @@
         "disabled": "Disabled",
         "key_missing": "Key missing",
         "setting_missing": "Setting missing",
+        "awaiting_access": "Awaiting access",
         "not_configured": "Not configured",
         "no_key_needed": "No key needed"
       },
       "missingKeys": "Missing: {{keys}}",
       "missingSettings": "To set on Settings: {{settings}}",
+      "accessRefused": "Unavailable: access refused by {{provider}}",
       "envBadge": "env",
       "envBadgeLabel": "From the environment, and not the code's default: {{settings}}",
       "noKeys": "None",

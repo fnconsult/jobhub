@@ -26,6 +26,14 @@ describe("a Tool's status", () => {
     });
   });
 
+  it("is awaiting access when its provider refused it at its latest connection test, configured as it is (#400)", () => {
+    const franceTravail = { FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: "secret" };
+
+    expect(toolStatus(tool("france-travail"), { ...stateOf(franceTravail), accessRefused: ["france-travail"] })).toMatchObject({ status: "awaiting_access" });
+    // Without its keys, what is missing comes first.
+    expect(toolStatus(tool("france-travail"), { ...stateOf(), accessRefused: ["france-travail"] })).toMatchObject({ status: "key_missing" });
+  });
+
   it("is a key missing when one is empty or absent, naming it", () => {
     expect(toolStatus(tool("france-travail"), stateOf({ FRANCE_TRAVAIL_CLIENT_ID: "id", FRANCE_TRAVAIL_CLIENT_SECRET: " " }))).toMatchObject({
       status: "key_missing",

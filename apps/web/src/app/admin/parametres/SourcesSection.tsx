@@ -21,6 +21,8 @@ function unavailable(ctx: Ctx, enabled: boolean, providers: readonly PossiblePro
   const blocked = providers.find((row) => row.status !== "configured" && row.status !== "no_key_needed");
   if (!blocked) return null;
   if (blocked.status === "key_missing") return t("admin.platformSettings.sources.reasons.key_missing", { names: blocked.missingKeys.join(", ") });
+  // France Travail without Offres d'emploi at its latest connection test (#400): runs go on without it.
+  if (blocked.status === "awaiting_access") return t("admin.searchSites.sources.accessRefused");
   if (blocked.status === "setting_missing") return t("admin.platformSettings.sources.reasons.setting_missing", { names: blocked.missingSettings.join(", ") });
   return t(`admin.platformSettings.sources.reasons.${blocked.status === "disabled" ? "disabled" : "not_configured"}`);
 }
@@ -63,7 +65,17 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
               return (
                 <tr key={source} data-source={source}>
                   <th scope="row">{name}</th>
-                  <td>{t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}</td>
+                  <td>
+                    {t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}
+                    {providers.some((row) => row.status === "awaiting_access") ? (
+                      <>
+                        {" "}
+                        <span className="pill" data-tone="danger">
+                          {t("admin.searchSites.sources.awaitingAccess")}
+                        </span>
+                      </>
+                    ) : null}
+                  </td>
                   <td>
                     <BackOfficeForm canWrite={ctx.can.sites} action={setJobDiscoverySource}>
                       <Here ctx={ctx} />

@@ -202,6 +202,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const allowed = addableTypes(ctx);
   const adding = asked !== undefined ? addTypeFor(tab, asked, allowed) : undefined;
   const sheet = adding ? undefined : rows.find((row) => row.tool.id === ctx.sheet);
+  // France Travail's APIs, each as its latest connection test found it (#400), on its sheet.
+  const apiAccess = sheet?.tool.id === "france-travail" && readSecrets && hasDatabase ? await getProviderSecrets().apiAccess("france-travail") : [];
 
   // The DPA marked signed waits for the super-admin's confirmation (#302).
   const noticed = platformSetting(one(search.setting) ?? "");
@@ -275,7 +277,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
         ) : null}
       </div>
 
-      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} notices={notices} /> : null}
+      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} notices={notices} /> : null}
       {adding ? <AddPanel ctx={ctx} type={adding} allowed={allowed} sources={sources ?? ALL_SOURCES} signInTypes={signInProviders.map((provider) => provider.type)} /> : null}
     </BackOfficeLayout>
   );

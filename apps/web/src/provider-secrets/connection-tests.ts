@@ -1,7 +1,8 @@
 /**
  * The connection test of each provider behind a Provider Secret: its cheapest
  * authenticated call, made with the keys in `env` (the one being saved over those
- * in use). AI providers list their models, France Travail gives an OAuth token,
+ * in use). AI providers list their models, France Travail gives each of its APIs' OAuth
+ * tokens (La Bonne Boite first, which validates the client; each API's state is returned, #400),
  * Fantastic.jobs answers a search for no job (one API request, no Jobs credit),
  * Stripe its balance, Brevo its account (or its SMTP relay is verified), the contact-enrichment
  * provider answers its account call. Nothing is spent and nothing is stored.
@@ -10,7 +11,7 @@
  * the keys before they go anywhere. Each test that calls its provider is recorded as one
  * `connection_test` call to its Tool (#234): its outcome and duration, never a key.
  */
-import { recordingClient, recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
+import { checkFranceTravailAccess, createFranceTravailTokens, recordingClient, recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
 import nodemailer from "nodemailer";
 import type { SecretProvider } from "./catalog";
 import type { ConnectionTester, ConnectionTestResult } from "./index";
@@ -43,10 +44,6 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider> = {
   brevo: "brevo",
 };
 const CONNECTION_TEST = "connection_test";
-
-/** France Travail's token endpoint and scope, as the worker's client uses them (apps/worker/src/job-discovery/france-travail/api.ts). */
-const FRANCE_TRAVAIL_TOKEN_URL = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
-const FRANCE_TRAVAIL_SCOPE = "api_offresdemploiv2 o2dsoffre";
 
 /** Fantastic.jobs' API, as the worker's client uses it (apps/worker/src/job-discovery/fantastic-jobs/api.ts). */
 const FANTASTIC_JOBS_API_URL = "https://data.fantastic.jobs/v1";
@@ -86,6 +83,8 @@ interface Io {
   /** Calls `url`; ok on a 2xx answer, whose JSON `accept` may still turn down. */
   call(url: string, init: RequestInit, accept?: (body: unknown) => string | null): Promise<ConnectionTestResult>;
   bearer(url: string, key: string): Promise<ConnectionTestResult>;
+  /** The fetch its calls go through, for a test that reads the answers itself. */
+  fetch: typeof globalThis.fetch;
   verifySmtp(smtpUrl: string): Promise<void>;
 }
 
@@ -101,7 +100,12 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
     const smtp = { [CONNECTION_TEST]: plainVerifySmtp };
     const verifySmtp = externalApis ? recordingClient(smtp, externalApis, { provider: "brevo_smtp", answeredStatus: null })[CONNECTION_TEST] : plainVerifySmtp;
     const call = (url: string, init: RequestInit, accept?: (body: unknown) => string | null) => callWith(fetch, url, init, accept);
-    return { call, bearer: (url, key) => call(url, { method: "GET", headers: { authorization: `Bearer ${key}`, accept: "application/json" } }), verifySmtp };
+    return {
+      call,
+      bearer: (url, key) => call(url, { method: "GET", headers: { authorization: `Bearer ${key}`, accept: "application/json" } }),
+      fetch: fetch as typeof globalThis.fetch,
+      verifySmtp,
+    };
   }
 
   async function callWith(
@@ -143,14 +147,13 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       const region = env.BEDROCK_REGION?.trim() || "eu-north-1";
       return "missing" in found ? failed(`missing ${found.missing}`) : bearer(`https://bedrock-mantle.${region}.api.aws/v1/models`, found.AWS_BEARER_TOKEN_BEDROCK);
     },
-    async "france-travail"(env, { call }) {
+    async "france-travail"(env, { fetch }) {
       const found = keys(env, "FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET");
       if ("missing" in found) return failed(`missing ${found.missing}`);
-      return call(FRANCE_TRAVAIL_TOKEN_URL, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
-        body: new URLSearchParams({ grant_type: "client_credentials", client_id: found.FRANCE_TRAVAIL_CLIENT_ID, client_secret: found.FRANCE_TRAVAIL_CLIENT_SECRET, scope: FRANCE_TRAVAIL_SCOPE }),
-      });
+      // Each API's own token, never their scopes mixed (#400): passes when the client is valid, whatever API it lacks.
+      const tokens = createFranceTravailTokens({ clientId: found.FRANCE_TRAVAIL_CLIENT_ID, clientSecret: found.FRANCE_TRAVAIL_CLIENT_SECRET, fetch, timeoutMs });
+      const { client, apis, detail } = await checkFranceTravailAccess(tokens, new Date());
+      return client === "valid" ? { ok: true, apis } : { ok: false, detail: detail || "no France Travail API gave a token", apis };
     },
     async "fantastic-jobs"(env, { bearer }) {
       const found = keys(env, "FANTASTIC_JOBS_API_KEY");

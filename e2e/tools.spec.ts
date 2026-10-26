@@ -6,7 +6,7 @@ import { newAddress } from "./support/mailbox";
 // Issue #233: the Back Office's Outils section lists every external tool the app calls, by
 // category, with whether it is configured and its last 30 days' calls; each Tool's page lists
 // its latest calls, never what they said nor a key. Super-admins and Support only. The e2e
-// server runs on Mistral (faked in-process) with MISTRAL_API_KEY, without France Travail's keys.
+// server runs on Mistral (faked in-process) with MISTRAL_API_KEY, without Brave's key.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const tools = admin.tools;
@@ -60,12 +60,12 @@ test.describe("Tools (Outils)", () => {
     for (const name of ["Perplexity", "Brave Search", "Tavily", "Linkup"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
     for (const name of ["France Travail", "Greenhouse", "Lever", "Ashby", "APEC"]) await expect(toolRow(page, "job_discovery", name)).toBeVisible();
 
-    // Configured from its key, linked to its provider's sheet in Paramètres (#396); France Travail's keys are missing; a public API needs none.
+    // Configured from its key, linked to its provider's sheet in Paramètres (#396); Brave's key is missing (France Travail's keys are entered by its access spec, #400); a public API needs none.
     const mistral = toolRow(page, "ai_model", "Mistral AI");
     await expect(mistral).toContainText(tools.statuses.configured);
     await expect(mistral.getByRole("link", { name: "MISTRAL_API_KEY" })).toHaveAttribute("href", "/admin/parametres?tab=ia&fournisseur=mistral");
-    await expect(toolRow(page, "job_discovery", "France Travail")).toContainText(tools.statuses.key_missing);
-    await expect(toolRow(page, "job_discovery", "France Travail")).toContainText(tr(tools.missingKeys, { keys: "FRANCE_TRAVAIL_CLIENT_ID, FRANCE_TRAVAIL_CLIENT_SECRET" }));
+    await expect(toolRow(page, "web_search", "Brave Search")).toContainText(tools.statuses.key_missing);
+    await expect(toolRow(page, "web_search", "Brave Search")).toContainText(tr(tools.missingKeys, { keys: "BRAVE_SEARCH_API_KEY" }));
     await expect(toolRow(page, "job_discovery", "Greenhouse")).toContainText(tools.statuses.no_key_needed);
     // The Assistant's call counts in Mistral's last 30 days (recorded just after its reply: a reload may be needed).
     await expect(async () => {

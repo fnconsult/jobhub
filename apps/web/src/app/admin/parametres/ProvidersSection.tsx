@@ -14,6 +14,7 @@ const STATUS_TONE: Record<PossibleProvider["status"], "success" | "accent" | "da
   disabled: undefined,
   key_missing: "danger",
   setting_missing: "danger",
+  awaiting_access: "danger",
   not_configured: "accent",
 };
 

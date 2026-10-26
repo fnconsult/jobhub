@@ -20,7 +20,8 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // contact-data provider behind Enriched Contacts (e2e/support/fake-contact-provider.mjs), and so is
 // the careers site of a Job Offer link pasted in the Coach Panel (e2e/support/fake-coach-link-sites.mjs), and so is
 // geo.api.gouv.fr, which suggests the Search Criteria's places (e2e/support/fake-geo-api.mjs), and so
-// are INSEE and France Travail's ROME open data, the Sectors' and Domains' labels (e2e/support/fake-reference-data.mjs).
+// are INSEE and France Travail's ROME open data, the Sectors' and Domains' labels (e2e/support/fake-reference-data.mjs),
+// and so is France Travail's token endpoint, for its sheet's connection test in Paramètres (e2e/support/fake-france-travail.mjs).
 // Stripe is a fake HTTP API (apps/web/src/billing/fake-stripe.ts) on
 // E2E_STRIPE_URL; webhooks are signed with its test secret. ADMIN_EMAILS names
 // the e2e Administrators: permanent super-admins (#204). SECRETS_MASTER_KEYS lets
@@ -67,7 +68,7 @@ export default defineConfig({
     { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
-    { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail|job-discovery-fantastic-jobs|job-freshness|job-offer-provenance|job-search-provenance-progress|job-search-stop|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
+    { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail(-access)?|job-discovery-fantastic-jobs|job-freshness|job-offer-provenance|job-search-provenance-progress|job-search-stop|job-search-metrics|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },
     // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
     // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs
@@ -114,6 +115,7 @@ export default defineConfig({
         `--import=${path.resolve("e2e/support/fake-coach-link-sites.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-geo-api.mjs")}`,
         `--import=${path.resolve("e2e/support/fake-reference-data.mjs")}`,
+        `--import=${path.resolve("e2e/support/fake-france-travail.mjs")}`,
       ].join(" "),
       STRIPE_SECRET_KEY: "sk_test_fake",
       STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
@@ -123,7 +125,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test",
       // Provider Secrets (#208): an obviously fake master key, for the providers' sheets in Paramètres (#396).
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
@@ -135,6 +137,11 @@ export default defineConfig({
       FANTASTIC_JOBS_API_KEY: "",
       // Nor Kaspr's: Paramètres' spec (#396) enters one on its sheet.
       KASPR_API_KEY: "",
+      // Nor France Travail's: its access spec (#400) enters them on its sheet in Paramètres, its fake token endpoint answering.
+      FRANCE_TRAVAIL_CLIENT_ID: "",
+      FRANCE_TRAVAIL_CLIENT_SECRET: "",
+      // Nor Brave's, whatever the shell has: the Outils spec shows a key missing with it.
+      BRAVE_SEARCH_API_KEY: "",
       CONTACT_ENRICHMENT_DPA_SIGNED: "true",
     },
   },

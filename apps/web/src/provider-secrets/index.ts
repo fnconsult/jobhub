@@ -6,6 +6,7 @@
  *  - what is each key's state                 `list`: source, fingerprint, who and when, its last connection test; never a value
  *  - change a key                             `replace` (tested first), `clear` (back to env)
  *  - does the key in use work                 `test`
+ *  - what each API of a provider answered     `apiAccess`: from its latest test (France Travail's, #400)
  *  - what are the values (web and worker)     `load`, read by the resolver (./resolver.ts)
  *  - move every row to the newest master key  `reencrypt` (the worker's job)
  * and `providerSecretsReader(database, deps)` (`load` and `reencrypt` alone, for the
@@ -42,8 +43,14 @@ const MAX_LENGTH = 4096;
 /** A test's detail when the key has no value at all. */
 const MISSING = "missing";
 
-/** Whether a provider accepts the keys in `env`: its cheapest authenticated call. The detail may be scrubbed further. */
-export type ConnectionTestResult = { ok: true } | { ok: false; detail: string };
+/** How a provider with several APIs answered for each (France Travail's, #400): granted, access refused by the provider, or an error. */
+export type ApiAccess = "ok" | "refused" | "error";
+
+/**
+ * Whether a provider accepts the keys in `env`: its cheapest authenticated call. The detail may be scrubbed further.
+ * `apis`: for a provider with several APIs, each one's access, by API.
+ */
+export type ConnectionTestResult = { ok: true; apis?: Record<string, ApiAccess> } | { ok: false; detail: string; apis?: Record<string, ApiAccess> };
 export type ConnectionTester = (provider: SecretProvider, env: Env) => Promise<ConnectionTestResult>;
 
 /** Where a key's value in use comes from: `unreadable` is a database row that does not open (env stands in). */
@@ -74,6 +81,13 @@ export type ReplaceResult =
 
 export type ClearResult = { ok: true } | { ok: false; error: "unknown_secret" };
 
+/** One API of a provider, as its latest connection test found it. */
+export interface ProviderApiAccess {
+  api: string;
+  state: ApiAccess;
+  testedAt: Date;
+}
+
 export interface ProviderSecretsDeps {
   /** Null without SECRETS_MASTER_KEYS: nothing can be saved, env alone is used. */
   cipher: SecretCipher | null;
@@ -96,6 +110,11 @@ export interface ProviderSecrets {
   clear(actor: BackOfficeActor, name: unknown): Promise<ClearResult>;
   /** `actor` tests the provider of key `name` with the keys in use; recorded, passed or failed. */
   test(actor: BackOfficeActor, name: ProviderSecretName): Promise<ConnectionTestResult>;
+  /**
+   * Each API of `provider` as the latest test of the keys in use found it (a save, or the Test
+   * button), by API; none for a provider with one API, nor once one of its keys is cleared.
+   */
+  apiAccess(provider: SecretProvider): Promise<ProviderApiAccess[]>;
   /** The values the database holds that open, by name. Rows that do not open are left out (and said, without value). */
   load(): Promise<StoredSecrets>;
   /** Re-encrypts every row not under the newest master key; how many. */
@@ -205,7 +224,7 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
   async function testWith(provider: SecretProvider, env: Env, secrets: readonly (string | undefined)[]): Promise<ConnectionTestResult> {
     try {
       const result = await deps.testConnection(provider, env);
-      return result.ok ? result : { ok: false, detail: scrubSecrets(result.detail, secrets).slice(0, 300) };
+      return result.ok ? result : { ...result, detail: scrubSecrets(result.detail, secrets).slice(0, 300) };
     } catch (error) {
       return { ok: false, detail: scrubSecrets(error instanceof Error ? error.message : String(error), secrets).slice(0, 300) };
     }
@@ -223,6 +242,17 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
       technical: { class: "ConnectionTest", provider: providerOf(name), ...(status ? { status: Number(status) } : {}), message: detail },
     };
   };
+
+  /** Keeps what each API of `provider` answered in `tested`, in place of what it answered before; nothing for a provider with one API. */
+  async function keepApiAccess(within: Queryable, provider: SecretProvider, tested: ConnectionTestResult): Promise<void> {
+    if (!tested.apis) return;
+    await within.query("DELETE FROM provider_api_access WHERE provider = $1", [provider]);
+    const apis = Object.entries(tested.apis);
+    await within.query(
+      "INSERT INTO provider_api_access (provider, api, state) SELECT $1, unnest($2::text[]), unnest($3::text[])",
+      [provider, apis.map(([api]) => api), apis.map(([, state]) => state)],
+    );
+  }
 
   /** Runs `write` and records `action` on `name`, then announces the change, all in one transaction. */
   async function recorded(actor: BackOfficeActor, name: ProviderSecretName, write: (within: Queryable) => Promise<boolean>, action: SecretAction): Promise<void> {
@@ -294,6 +324,7 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
                tag = excluded.tag, key_version = excluded.key_version, updated_by_email = excluded.updated_by_email, updated_at = excluded.updated_at`,
             [name, id, provider, sealed.ciphertext, sealed.iv, sealed.tag, sealed.keyVersion, actor.email.trim().toLowerCase()],
           );
+          await keepApiAccess(within, provider, tested);
           return true;
         },
         tested.ok ? "replaced" : "replaced_despite_failed_test",
@@ -303,16 +334,35 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
 
     async clear(actor, name) {
       if (!isProviderSecretName(name)) return { ok: false, error: "unknown_secret" };
-      await recorded(actor, name, async (within) => ((await within.query("DELETE FROM provider_secret WHERE name = $1", [name])).rowCount ?? 0) > 0, "cleared");
+      await recorded(
+        actor,
+        name,
+        async (within) => {
+          const cleared = ((await within.query("DELETE FROM provider_secret WHERE name = $1", [name])).rowCount ?? 0) > 0;
+          // What its APIs answered no longer says anything of the keys now in use.
+          if (cleared) await within.query("DELETE FROM provider_api_access WHERE provider = $1", [providerOf(name)]);
+          return cleared;
+        },
+        "cleared",
+      );
       return { ok: true };
     },
 
     async test(actor, name) {
       const env = await envInUse();
       const tested: ConnectionTestResult = env[name]?.trim() ? await testWith(providerOf(name), env, keysIn(env)) : { ok: false, detail: MISSING };
+      await keepApiAccess(database, providerOf(name), tested);
       if (tested.ok) await deps.backOffice.record(actor, async () => null, () => ({ section: "provider_secrets", target: name, action: "tested", before: null, after: null }));
       else await deps.backOffice.recordFailure(actor, failedTest(name, "tested", tested.detail));
       return tested;
+    },
+
+    async apiAccess(provider) {
+      const { rows } = await database.query<ProviderApiAccess>(
+        `SELECT api, state, tested_at AS "testedAt" FROM provider_api_access WHERE provider = $1 ORDER BY api`,
+        [provider],
+      );
+      return rows;
     },
   };
 }
@@ -352,6 +402,14 @@ export async function migrateProviderSecrets(database: Pick<Pool, "query">): Pro
       -- The Administrator by email only: no Candidate id, so this table is never part of a Candidate's data export.
       updated_by_email text NOT NULL,
       updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    -- What each API of a provider with several (France Travail's, #400) answered its latest connection test. No secret, no Candidate.
+    CREATE TABLE IF NOT EXISTS provider_api_access (
+      provider text NOT NULL,
+      api text NOT NULL,
+      state text NOT NULL CHECK (state IN ('ok', 'refused', 'error')),
+      tested_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (provider, api)
     );
   `);
 }

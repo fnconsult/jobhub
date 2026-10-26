@@ -223,7 +223,8 @@ const testState = (p) => { const t = P[p].test; return !t ? `<span class="muted"
 const u = (id) => U.find((x) => x.id === id);
 const usageName = (id) => (id === "company" ? "Company Dossiers" : u(id)?.label ?? id);
 function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 1800); }
-function setActive(usageId, pid) { const us = u(usageId); us.active = pid; const s = us.settings.find((x) => x.k === "Fournisseur actif"); if (s) { s.v = pid; s.src = "bo"; } toast(`${us.label} : fournisseur actif → ${P[pid].name} (dès le prochain appel)`); render(); }
+const keyWarning = (pid) => keyState(pid)[0] === "ko" ? `<div class="note" style="border-left-color:var(--danger);color:var(--danger)">⚠ ${h(P[pid].name)} n'a pas de clé : l'enregistrement est permis, mais les appels échoueront (et seront écartés) tant qu'elle n'est pas saisie. <button class="btn ghost" data-open="${pid}">Saisir la clé →</button></div>` : "";
+function setActive(usageId, pid) { const us = u(usageId); us.active = pid; const s = us.settings.find((x) => x.k === "Fournisseur actif"); if (s) { s.v = pid; s.src = "bo"; } toast(`${us.label} : fournisseur actif → ${P[pid].name} (dès le prochain appel)${keyState(pid)[0] === "ko" ? " · ⚠ clé absente" : ""}`); render(); }
 
 function settingInput(s, onchange) {
   if (s.type === "provider") {
@@ -265,6 +266,7 @@ function playbookDrawer(i) {
       <span>Modèle</span><select id="pbModel">${opts}</select>
       <span>Effort</span><select id="pbEffort">${["faible", "moyen", "élevé"].map((e) => `<option ${(d ? d.effort : b.effort) === e ? "selected" : ""}>${e}</option>`).join("")}</select>
     </div>
+    <div id="keyWarn">${keyWarning(d ? d.p : b.p)}</div>
     <p class="small muted">Quand le consulter : « ${h(b.name.toLowerCase())} » (inchangé, se modifie dans Playbooks).</p>
     <div class="note">Enregistrer crée la <b>version ${d ? d.v : b.v + 1}</b> en brouillon, avec les mêmes règles et ce modèle. La version ${b.v} reste servie en production jusqu'à sa validation par une autre personne que vous.</div>
     <div class="row"><button class="btn primary" data-pbsave="${i}">${d ? `Mettre à jour le brouillon v${d.v}` : `Créer la version ${b.v + 1} (brouillon)`}</button><a href="#" class="small">Ouvrir dans Playbooks (règles, sources, validation) →</a></div>
@@ -284,6 +286,7 @@ function taskDrawer(i) {
       <span>Modèle</span><select id="tkModel">${opts}</select>
       <span>Effort</span><select id="tkEffort">${["faible", "moyen", "élevé"].map((e) => `<option ${t.effort === e ? "selected" : ""}>${e}</option>`).join("")}</select>
     </div>
+    <div id="keyWarn">${keyWarning(t.p)}</div>
     <div class="note">${t.personal ? "Cette tâche reçoit des données personnelles : seuls des modèles résidant dans l'UE sont proposés (ADR-0007), et les appels avec identité suivent l'EU AI Consent." : "Cette tâche ne reçoit aucune donnée personnelle : les modèles hors UE sont permis (ADR-0007)."}</div>
     <div class="note">Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit au Journal (avant → après).</div>
     <div class="row"><button class="btn primary" data-tksave="${i}">Enregistrer</button><button class="btn" data-tkreset="${i}">Rétablir le défaut</button><a href="#" class="small">Consommation IA · ${h(t.t)} →</a></div>
@@ -373,7 +376,7 @@ function variantA() {
       <table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Effort</th><th>Données</th><th>Source</th><th>Clé du fournisseur</th><th></th></tr>
       ${us.tasks.map((t, i) => { const [ks, kt] = keyState(t.p); return `<tr class="click" data-task="${i}"><td>${h(t.t)}</td><td>${h(P[t.p].name)}</td><td><code>${h(t.m)}</code></td><td>${h(t.effort)}</td>
         <td class="small">${t.personal ? "personnelles : UE" : "sans donnée personnelle"}</td><td>${src(t.src)}</td>
-        <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "clé absente" : h(kt)}</span></td>
+        <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "⚠ clé absente : appels en échec" : h(kt)}</span></td>
         <td><button class="btn" data-task="${i}">Modifier…</button></td></tr>`; }).join("")}</table>
       <h2 class="sec">Playbook Agents</h2>
       <div class="note">Le modèle et l'effort d'un Playbook Agent font partie de sa Playbook Version : « Modifier… » ouvre le Coaching Playbook sur le côté : un changement crée une nouvelle Playbook Version en brouillon, servie en production une fois validée dans <a href="#">Playbooks</a> par une autre personne. Seuls des modèles résidant dans l'UE sont proposés.</div>
@@ -411,6 +414,7 @@ function variantA() {
       <div class="small">Clé : <span class="${ks}">${h(kt)}</span> · Test : ${testState(us.active)} <button class="btn ghost" data-open="${us.active}">Fiche →</button></div></div>
       ${us.settings.length ? `<div class="kv" style="margin-top:12px">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : ""}
       ${us.alsoUsedBy ? `<p class="small muted" style="margin:10px 0 0">${h(us.alsoUsedBy)}</p>` : ""}
+      ${keyWarning(us.active)}
     </div>`;
   }
   if (S.skipProviders) { S.skipProviders = false; return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
@@ -423,7 +427,7 @@ function variantA() {
       <td><span class="dot ${ks}"></span><span class="small">${h(kt)}</span></td><td class="small">${testState(pid)}</td>
       <td class="small">${p.tools.map((t) => h(t.name)).join(", ") || "—"}</td><td class="small">${p.params.map((s) => `${h(s.k)} : ${h(s.v)}`).join("<br>") || "—"}</td>
       <td class="small">${[...p.usedBy.map(usageName), ...(PLAYBOOKS.some((b) => b.p === pid) ? [`${PLAYBOOKS.filter((b) => b.p === pid).length} Playbook Agent(s)`] : [])].join(", ") || "—"}</td>
-      <td>${us.active && !isA && ks !== "ko" ? `<button class="btn" data-activate="${pid}">Rendre actif</button>` : ""}</td></tr>`; }).join("")}</table>`;
+      <td>${us.active && !isA ? `<button class="btn" data-activate="${pid}" ${ks === "ko" ? 'title="Clé absente : les appels échoueront tant qu\'elle n\'est pas saisie"' : ""}>Rendre actif${ks === "ko" ? " ⚠" : ""}</button>` : ""}</td></tr>`; }).join("")}</table>`;
   if (us.business) body += businessBlock(us.business);
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
@@ -519,7 +523,7 @@ document.addEventListener("click", (e) => {
     if (S.addType === "provider") { const id = n.toLowerCase().replace(/\W/g, ""); const us = u(document.getElementById("addUsage").value); P[id] = { name: n, region: "à préciser", keys: [{ name: n.toUpperCase().replace(/\W/g, "_") + "_API_KEY", source: document.getElementById("addKey").value ? "bo" : "missing", fp: "…" + (document.getElementById("addKey").value.slice(-4) || "") }], test: null, tools: [], params: [], usedBy: [] }; us.providers.push(id); S.tab = us.id; }
     S.adding = false; toast(`${label} « ${n} » ajouté, inscrit au Journal`); return render(); }
   if (t.dataset.source != null && e.type === "click") { const x = u("sources").sources[+t.dataset.source]; x.on = t.checked; toast(`Source ${x.k} ${x.on ? "activée" : "désactivée"}`); return render(); }
-  if (t.dataset.tksave) { const k = u("ai").tasks[+t.dataset.tksave]; const [pid, m] = document.getElementById("tkModel").value.split("|"); Object.assign(k, { p: pid, m, effort: document.getElementById("tkEffort").value, src: "bo" }); S.task = null; toast(`${k.t} : ${P[pid].name} · ${m}, dès le prochain appel`); return render(); }
+  if (t.dataset.tksave) { const k = u("ai").tasks[+t.dataset.tksave]; const [pid, m] = document.getElementById("tkModel").value.split("|"); Object.assign(k, { p: pid, m, effort: document.getElementById("tkEffort").value, src: "bo" }); S.task = null; toast(`${k.t} : ${P[pid].name} · ${m}, dès le prochain appel${keyState(pid)[0] === "ko" ? " · ⚠ clé absente" : ""}`); return render(); }
   if (t.dataset.tkreset) { const k = u("ai").tasks[+t.dataset.tkreset]; const [pid, m] = k.def.split(" (")[0].split(" · "); Object.assign(k, { p: pid, m, src: k.def.includes("(env)") ? "env" : "code" }); S.task = null; toast(`${k.t} : défaut rétabli`); return render(); }
   if (t.dataset.task != null && !t.dataset.tksave) { S.task = +t.dataset.task; return render(); }
   if (t.dataset.pbsave) { const b = PLAYBOOKS[+t.dataset.pbsave]; const [pid, m] = document.getElementById("pbModel").value.split("|"); b.draft = { v: b.draft?.v ?? b.v + 1, p: pid, m, effort: document.getElementById("pbEffort").value }; S.playbook = null; toast(`${b.name} : version ${b.draft.v} en brouillon, à valider dans Playbooks`); return render(); }
@@ -536,6 +540,7 @@ document.addEventListener("click", (e) => {
   if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; return render(); }
 });
 document.addEventListener("change", (e) => {
+  if (e.target.id === "tkModel" || e.target.id === "pbModel") { document.getElementById("keyWarn").innerHTML = keyWarning(e.target.value.split("|")[0]); return; }
   if (e.target.id === "addType") { S.addType = e.target.value; return render(); }
   if (e.target.id === "groupBy") { S.groupBy = e.target.value; return render(); }
   const set = e.target.dataset.set;

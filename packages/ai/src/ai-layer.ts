@@ -211,6 +211,11 @@ export interface SearchResult extends CallFacts {
   provider: ProviderId;
   model: string;
   usage: TokenUsage;
+  /**
+   * The query texts sent, as sent (after Redaction), in order: what a Job discovery run records of its searches (#404).
+   * Absent when none was sent.
+   */
+  queries?: string[];
 }
 
 /** The single entry point for every LLM and AI-search call (ADR-0007). */
@@ -747,7 +752,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         chosen = serving();
       }
     }
-    if (calls.length > 0) return together(calls);
+    if (calls.length > 0) return { ...together(calls), queries: sent };
     const { route, provider } = chosen;
     return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok" };
   }

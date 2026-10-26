@@ -252,6 +252,7 @@ const usageName = (id) => (id === "company" ? "Company Dossiers" : u(id)?.label 
 function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 1800); }
 // ---------- « ? » : l'Assistant du Back Office explique, en contexte ----------
 const ANSWERS = {
+  "Pourquoi ce run s'est arrêté": "Le run s'arrête au premier plafond atteint (offres, coût, durée) ou quand ses requêtes sont épuisées. Ici, la raison est indiquée à côté ; les réglages sont dans Paramètres › Recherche web › Budget par run.",
   "Variantes de titre": "Cette tâche reçoit le seul intitulé des Search Criteria et propose jusqu'à 3 variantes par langue ; chacune devient une requête du plan. Un modèle plus capable trouve des intitulés plus justes, pour un coût de 0,004 € par run en moyenne.",
   "Lecture d'offre": "Quand une page n'a pas de données JobPosting, cette tâche lit la page pour en tirer l'offre. C'est le premier poste de coût d'un run (82 %).",
   "Faits des Company Dossiers": "Pour un employeur étranger, cette tâche lit les pages renvoyées par le Search provider et en extrait les faits du dossier (site, effectif, SIREN…). Pages publiques seulement, aucune donnée personnelle.",
@@ -551,7 +552,8 @@ function variantA() {
       <table><tr><th>Tâche</th><th>Rôle dans la recherche</th><th>Modèle</th><th>Effort</th><th>Source</th><th></th></tr>
       ${u("ai").tasks.map((t, i) => t.search ? `<tr class="click" data-task="${i}"><td>${h(t.t)}${ask(t.t)}</td><td class="small muted">${{ "Variantes de titre": "construit les requêtes du plan", "Lecture d'offre": "lit une page sans données JobPosting", "Faits des Company Dossiers": "extrait les faits d'un employeur étranger des pages trouvées" }[t.t]}</td>
         <td><span class="small">${h(P[t.p].name)}</span> · <code>${h(t.m)}</code>${keyState(t.p)[0] === "ko" ? ' <span class="small ko">⚠ clé absente</span>' : ""}</td><td>${h(t.effort)}</td><td>${src(t.src)}</td><td><button class="btn" data-task="${i}">Modifier…</button></td></tr>` : "").join("")}</table>`;
-  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a></p>`;
+  if (us.id === "web") S.histHere = true;
+  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a></p>` + historyBlock();
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
@@ -624,6 +626,59 @@ function variantC() {
     ${S.chip !== "all" ? observeLinks(u(S.chip)) : ""}`;
 }
 
+// ---------- Historique des recherches (stub) ----------
+const TITLES = ["Directeur financier", "DRH", "Responsable supply chain", "Directrice marketing", "Chef de projet SI", "Responsable administratif et financier"];
+const CITIES = ["Paris", "Lyon", "Bordeaux", "Nantes", "Lille", "Toulouse"];
+const RUNS = Array.from({ length: 14 }, (_, i) => {
+  const t = TITLES[i % 6], c = CITIES[(i * 5) % 6], fb = i === 3 || i === 9, digest = i % 3 === 2;
+  const stop = ["Plafond d'offres (30)", "Fin des requêtes", "Plafond de durée (90 s)", "Plafond d'offres (30)", "Plafond de coût (0,08 €)"][i % 5];
+  const searches = [
+    ...[0, 1, 2].map((k) => ({ kind: "plan", q: k === 0 ? `${t} ${c} CDI` : k === 1 ? `${t} adjoint ${c}` : `${t.replace("Directeur", "Head of").replace("Directrice", "Head of")} ${c} job`, prov: fb && k > 0 ? "Brave" : "Perplexity", page: 1, res: 20 - k * 3, nouv: 6 - k * 2, cost: fb && k > 0 ? 0.0043 : 0.00086 })),
+    { kind: "entreprise cible", q: `${t} Legrand`, prov: "ATS (Greenhouse)", page: 1, res: 4, nouv: 1, cost: 0 },
+    { kind: "entreprise cible", q: `${t} Groupe SEB`, prov: fb ? "Brave" : "Perplexity", page: 1, res: 11, nouv: 2, cost: fb ? 0.0043 : 0.00086 },
+    { kind: "site", q: `${t} ${c} (site:apec.fr)`, prov: fb ? "Brave" : "Perplexity", page: 1, res: 9, nouv: 3, cost: fb ? 0.0043 : 0.00086 },
+  ];
+  const nouv = searches.reduce((a, x) => a + x.nouv, 0);
+  return { id: `run-${(48213 - i * 37).toString(16)}`, at: `26/10 ${String(17 - Math.floor(i / 2)).padStart(2, "0")}:${String((i * 17) % 60).padStart(2, "0")}`, trigger: digest ? "Job Digest" : "Job Search", profile: `Profil #${(0xa3f2 + i * 911).toString(16)}`,
+    criteria: `${t} · ${c}`, secs: 38 + ((i * 13) % 55), prov: fb ? "Perplexity → Brave" : "Perplexity", fb, searches, pages: 24 + (i % 7) * 3, urls: 61 + (i % 5) * 8,
+    extracted: nouv + 9, known: 9, dedup: nouv + 6, match60: Math.max(2, Math.round(nouv * 0.55)), nouv, stop,
+    skips: [["Trop ancienne (> 30 j)", 7 + (i % 4)], ["Page illisible", 3], ["robots.txt", 2], ["Offre fermée", 1 + (i % 2)], ["Forbidden site", i % 3]],
+    cost: +(0.031 + (fb ? 0.009 : 0) + (i % 4) * 0.002).toFixed(4) };
+});
+function historyBlock() {
+  const f = S.hist ?? (S.hist = { trigger: "all", fb: false });
+  const rows = RUNS.filter((r) => (f.trigger === "all" || r.trigger === f.trigger) && (!f.fb || r.fb));
+  return `<h2 class="sec">Historique des recherches</h2>
+    <div class="row small" style="margin-bottom:8px">
+      <select data-hist="trigger"><option value="all">Tous les déclencheurs</option><option ${f.trigger === "Job Search" ? "selected" : ""}>Job Search</option><option ${f.trigger === "Job Digest" ? "selected" : ""}>Job Digest</option></select>
+      <select><option>7 derniers jours</option><option>Aujourd'hui</option><option>30 derniers jours</option></select>
+      <label class="row"><input type="checkbox" data-hist="fb" ${f.fb ? "checked" : ""}> bascules au secours seulement</label>
+      <span class="muted">${rows.length} runs</span>
+    </div>
+    <table><tr><th>Quand</th><th>Déclencheur</th><th>Profil</th><th>Recherches</th><th>Fournisseur</th><th>Pages lues</th><th>Offres nouvelles</th><th>Arrêt</th><th>Durée</th><th>Coût</th></tr>
+    ${rows.map((r) => `<tr class="click" data-run="${r.id}"><td>${r.at}</td><td class="small">${r.trigger}</td><td class="small"><code>${r.profile}</code><div class="muted">${h(r.criteria)}</div></td>
+      <td>${r.searches.length}</td><td class="small">${r.fb ? `<span class="warn">${r.prov} ⚠</span>` : r.prov}</td><td>${r.pages}</td><td><b>${r.nouv}</b> <span class="small muted">/ ${r.extracted}</span></td>
+      <td class="small">${h(r.stop)}</td><td class="small">${r.secs} s</td><td class="small">${eur(r.cost, 3)}</td></tr>`).join("")}</table>
+    <p class="small muted">Requêtes construites depuis les Search Criteria uniquement ; aucun nom ni e-mail de Candidat ici.</p>`;
+}
+function runDrawer(id) {
+  const r = RUNS.find((x) => x.id === id);
+  const funnel = [["URLs renvoyées", r.urls], ["Pages lues", r.pages], ["Offres extraites", r.extracted], ["Déjà connues", r.known], ["Après dédoublonnage", r.dedup], ["Match Score ≥ 60", r.match60]];
+  const max = funnel[0][1];
+  return `<div class="scrim" data-close></div><aside class="drawer" style="width:min(44rem,95vw)">
+    <div class="row" style="justify-content:space-between"><div><div class="small muted">${r.trigger} · ${r.at} · <code>${r.id}</code></div><h2 style="margin:0">${h(r.criteria)}</h2></div><button class="btn ghost" data-close>Fermer ✕</button></div>
+    <p class="small">${r.prov}${r.fb ? ' <span class="warn">· Perplexity a répondu 429, bascule sur Brave à la recherche 2</span>' : ""} · ${r.secs} s · ${eur(r.cost, 3)} · arrêt : ${h(r.stop)} ${ask("Pourquoi ce run s'est arrêté")}</p>
+    <h3>Entonnoir (Discovery metrics)</h3>
+    ${funnel.map(([k, v]) => `<div class="row" style="gap:8px;margin:4px 0"><span class="small" style="width:10rem">${k}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(v / max) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:2.5rem;text-align:right">${v}</span></div>`).join("")}
+    <h3>Recherches du run</h3>
+    <table><tr><th>#</th><th>Type</th><th>Requête</th><th>Fournisseur</th><th>Résultats</th><th>Nouvelles offres</th><th>Coût</th></tr>
+    ${r.searches.map((x, i) => `<tr><td>${i + 1}</td><td class="small">${x.kind}</td><td class="small"><code>${h(x.q)}</code></td><td class="small">${x.prov}</td><td>${x.res}</td><td>${x.nouv}</td><td class="small">${eur(x.cost, 4)}</td></tr>`).join("")}</table>
+    <h3>Pages écartées</h3>
+    <table><tr><th>Skip reason</th><th>Pages</th></tr>${r.skips.filter(([, v]) => v).map(([k, v]) => `<tr><td class="small">${k}</td><td>${v}</td></tr>`).join("")}</table>
+    <div class="row" style="margin-top:12px"><a href="#" class="small">Journaux IA de ce run →</a><a href="#" class="small">Ouvrir la Job Search (super-admin, inscrit au Journal) →</a></div>
+  </aside>`;
+}
+
 function dashboard() {
   return `<div class="pagehead"><h1>Dashboard</h1><p>Vos rôles : super-admin.</p></div>
     <p class="small muted">Chaque bloc n'apparaît qu'aux rôles qui peuvent lire sa section (ici : Consommation IA).</p>
@@ -638,15 +693,16 @@ function render() {
   document.getElementById("nav-dashboard").classList.toggle("on", S.page === "dashboard");
   document.getElementById("nav-parametres").classList.toggle("on", S.page === "parametres");
   document.getElementById("main").innerHTML = S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
-  document.getElementById("overlay").innerHTML = S.asking ? assistantDrawer(S.asking) : S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
+  document.getElementById("overlay").innerHTML = S.run ? runDrawer(S.run) : S.asking ? assistantDrawer(S.asking) : S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-ask],[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-run],[data-ask],[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
-  if (t.dataset.ask) { e.preventDefault(); e.stopPropagation(); S.asking = t.dataset.ask; return render(); }
+  if (t.dataset.run) { S.run = t.dataset.run; return render(); }
+  if (t.dataset.ask) { S.run = null; e.preventDefault(); e.stopPropagation(); S.asking = t.dataset.ask; return render(); }
   if (t.dataset.page) { e.preventDefault(); S.page = t.dataset.page; if (t.dataset.tab) S.tab = t.dataset.tab; S.drawer = null; return render(); }
   if (t.dataset.jobsite != null) { const x = u("extension").jobSites[+t.dataset.jobsite]; x.on = !x.on; toast(`${x.pat} ${x.on ? "activé" : "désactivé"}`); return render(); }
   if (t.dataset.jobsiteRm != null) { const [x] = u("extension").jobSites.splice(+t.dataset.jobsiteRm, 1); toast(`${x.pat} retiré`); return render(); }
@@ -672,10 +728,12 @@ document.addEventListener("click", (e) => {
   if (t.dataset.sub) { S.sub = t.dataset.sub; return render(); }
   if (t.dataset.chip) { S.chip = t.dataset.chip; if (t.dataset.chip !== "all") S.tab = t.dataset.chip; return render(); }
   if (t.dataset.open) { if (e.target.closest("select,input,button") && !t.matches("button")) return; S.drawer = t.dataset.open; return render(); }
-  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; S.asking = null; return render(); }
+  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; S.asking = null; S.run = null; return render(); }
 });
 document.addEventListener("change", (e) => {
   if (e.target.id === "tkModel" || e.target.id === "pbModel") { document.getElementById("keyWarn").innerHTML = keyWarning(e.target.value.split("|")[0]); return; }
+  if (e.target.dataset.hist === "trigger") { S.hist.trigger = e.target.value; return render(); }
+  if (e.target.dataset.hist === "fb") { S.hist.fb = e.target.checked; return render(); }
   if (e.target.id === "addType") { S.addType = e.target.value; return render(); }
   if (e.target.id === "groupBy") { S.groupBy = e.target.value; return render(); }
   const set = e.target.dataset.set;
@@ -687,7 +745,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea,select,[contenteditable]")) return;
   if (e.key === "ArrowLeft") cycle(-1);
   if (e.key === "ArrowRight") cycle(1);
-  if (e.key === "Escape") { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; S.asking = null; render(); }
+  if (e.key === "Escape") { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; S.asking = null; S.run = null; render(); }
 });
 document.addEventListener("mousemove", (e) => {
   const el = e.target.closest("[data-tip]"); let tip = document.getElementById("tip");

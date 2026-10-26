@@ -79,6 +79,21 @@
   td.val input:hover, td.val select:hover, td.val input:focus { border-color: var(--border); background: var(--bg); }
   .changed td { background: #fffbe8 !important; }
   .toast { position: fixed; top: 16px; right: 16px; background: var(--text); color: #fff; padding: 8px 14px; border-radius: var(--r-md); font-size: 14px; z-index: 40; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 10px; margin: 10px 0 16px; }
+  .kpi { border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; }
+  .kpi .lbl { font-size: 12.5px; color: var(--muted); }
+  .kpi .val { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .sub { font-size: 12.5px; color: var(--muted); }
+  .bar-track { height: 6px; background: var(--surface); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  .bar-track span { display: block; height: 100%; background: #2a78d6; border-radius: 3px; }
+  .chart { border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; position: relative; }
+  .chart h4 { margin: 0 0 2px; font-size: 14px; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart text { font-size: 11px; fill: var(--muted); }
+  .legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--muted); margin: 4px 0; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .tip { position: fixed; pointer-events: none; background: #fff; border: 1px solid var(--border); box-shadow: 0 4px 14px rgb(0 0 0 / 12%); border-radius: var(--r-sm); padding: 6px 9px; font-size: 12.5px; z-index: 60; }
+  .tip b { font-variant-numeric: tabular-nums; }
   /* prototype switcher: deliberately not part of the design */
   .proto { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: #111; color: #fff; border-radius: 999px; padding: 6px 8px; display: flex; gap: 6px; align-items: center; box-shadow: 0 6px 24px rgb(0 0 0 / 35%); z-index: 50; font-size: 14px; }
   .proto button { background: #333; color: #fff; border: 0; border-radius: 999px; width: 30px; height: 30px; cursor: pointer; }
@@ -167,7 +182,7 @@ const U = [
       { k: "Fournisseur de secours", v: "brave", type: "provider", src: "bo", def: "aucun" },
     ],
     business: {
-      budget: [{ k: "Offres par run", v: "30", src: "env", def: "30" }, { k: "Coût max par run", v: "0,08 €", src: "code", def: "0,08 €" }, { k: "Durée max par run", v: "90 s", src: "env", def: "90 s" }],
+      budget: [{ k: "Offres par run", v: "30", src: "env", def: "30" }, { k: "Coût max par run", v: "0,08 €", src: "code", def: "0,08 €" }, { k: "Durée max par run", v: "90 s", src: "env", def: "90 s" }, { k: "Seuil d'alerte mensuel (recherche web)", v: "15 €", src: "bo", def: "aucun" }],
       sources: [{ k: "France Travail", on: false, note: "API Offres d'emploi v2 indisponible" }, { k: "Recherche web", on: true }, { k: "API des ATS (Greenhouse, Lever, Ashby)", on: true }],
       sites: [{ d: "welcometothejungle.com", on: true }, { d: "apec.fr", on: true }, { d: "hellowork.com", on: false }, { d: "cadremploi.fr", on: true }],
     },
@@ -247,7 +262,7 @@ function drawer(pid) {
     ${p.keys.map((k) => `<tr><td><code>${k.name}</code></td><td>${src(k.source)}</td><td>${h(k.fp ?? "—")}<div class="small muted">${k.by && k.by !== "—" ? `${h(k.by)}, ${h(k.at)}` : ""}</div></td><td><button class="btn">Remplacer</button></td></tr>`).join("")}</table>
     <div class="row" style="margin-top:8px"><button class="btn" data-test="${pid}">Tester la connexion</button> ${testState(pid)}</div>
     <h3>Outils</h3>
-    ${p.tools.length ? `<table><tr><th>Outil</th><th>Coût</th></tr>${p.tools.map((t) => `<tr><td>${h(t.name)}</td><td>${h(t.cost)}</td></tr>`).join("")}</table>` : `<p class="muted small">Aucun outil.</p>`}
+    ${p.tools.length ? `<table><tr><th>Outil</th><th>Prix</th><th>Source</th></tr>${p.tools.map((t) => `<tr><td>${h(t.name)}</td><td><input value="${h(t.cost)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px;width:11rem"></td><td>${src("code")}<div class="small muted">catalogue, 10/2026</div></td></tr>`).join("")}</table><p class="small muted">Un prix saisi ici remplace le prix catalogue (remise négociée, nouveau tarif) dès le prochain appel.</p>` : `<p class="muted small">Aucun outil.</p>`}
     <h3>Paramètres du fournisseur</h3>
     ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
     <p class="small muted" style="margin-top:20px">Clés : super-admin seulement, jamais relues en clair. Paramètres : ressource « Paramètres non secrets ». Chaque changement va au Journal.</p>
@@ -303,6 +318,65 @@ function businessBlock(b, compact) {
   <h3>Job discovery sites</h3>
   <table><tr><th>Domaine</th><th>État</th><th>Effet</th><th></th></tr>${b.sites.map((s) => `<tr><td>${h(s.d)}</td><td>${s.on ? '<span class="ok">activé</span>' : '<span class="muted">désactivé</span>'}</td><td class="small muted">${s.on ? "1 requête restreinte à ce site par run" : "pages de ce site ignorées"}</td><td><button class="btn ghost">${s.on ? "Désactiver" : "Activer"}</button></td></tr>`).join("")}</table>
   <div class="row" style="margin-top:8px"><input placeholder="exemple.fr" style="padding:3px 7px;border:1px solid var(--border);border-radius:4px"><button class="btn">Ajouter un site</button> <button class="btn ghost small" data-tab="extension">Job Sites de l'extension →</button></div>`;
+}
+
+// ---------- Consommation et budget (stub data, deterministic) ----------
+const SERIES = [{ k: "Perplexity", c: "#2a78d6" }, { k: "Brave (secours)", c: "#eb6834" }];
+const DAYS = Array.from({ length: 26 }, (_, i) => { const d = i + 1; const runs = 18 + ((d * 7) % 11) + (d % 7 === 6 || d % 7 === 0 ? -9 : 0);
+  return { d, runs, perplexity: +(runs * 0.0021 * 0.86).toFixed(4), brave: d === 9 || d === 10 ? +(runs * 0.012 * 0.86).toFixed(4) : d === 21 ? 0.04 : 0 }; });
+const STOPS_SHARE = [["Plafond d'offres (30)", 0.46], ["Fin des requêtes", 0.30], ["Plafond de durée (90 s)", 0.19], ["Plafond de coût (0,08 €)", 0.05]];
+const POSTES = [{ k: "Lecture des pages (LLM)", v: 0.0312 }, { k: "Plan (variantes de titre)", v: 0.0041 }, { k: "Recherche web", v: 0.0019 }, { k: "Entreprises cibles", v: 0.0011 }];
+const eur = (v, d = 2) => v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }) + " €";
+function tipOn(el, html) { el.dataset.tip = html; }
+function costBlock() {
+  const spend = DAYS.reduce((a, x) => a + x.perplexity + x.brave, 0), runs = DAYS.reduce((a, x) => a + x.runs, 0);
+  const STOPS = STOPS_SHARE.map(([k, f]) => ({ k, v: Math.round(runs * f) }));
+  STOPS[1].v = runs - STOPS.reduce((a, x, i) => a + (i === 1 ? 0 : x.v), 0);
+  const allRun = POSTES.reduce((a, x) => a + x.v, 0), threshold = 2, newOffers = 3914, fallbackRuns = DAYS.filter((x) => x.brave > 0).reduce((a, x) => a + x.runs, 0);
+  // chart 1: daily stacked bars
+  const W = 640, H = 170, L = 34, B = 20, T = 6, n = DAYS.length, bw = (W - L) / n - 3;
+  const max = Math.max(...DAYS.map((x) => x.perplexity + x.brave)), top = Math.ceil(max * 10) / 10 || 0.1;
+  const y = (v) => T + (H - T - B) * (1 - v / top);
+  let bars = "";
+  DAYS.forEach((x, i) => { const bx = L + i * ((W - L) / n) + 1.5; const y1 = y(x.perplexity), y2 = y(x.perplexity + x.brave);
+    const tip = `<div>${x.d} oct.</div><div>Perplexity <b>${eur(x.perplexity, 3)}</b></div><div>Brave <b>${eur(x.brave, 3)}</b></div><div class=muted>${x.runs} runs</div>`;
+    bars += `<rect x="${bx}" y="${y1}" width="${bw}" height="${Math.max(0, H - B - y1)}" rx="2" fill="${SERIES[0].c}"/>`;
+    if (x.brave) bars += `<rect x="${bx}" y="${y2}" width="${bw}" height="${Math.max(0, y1 - y2 - 2)}" rx="2" fill="${SERIES[1].c}"/>`;
+    bars += `<rect x="${bx - 1.5}" y="${T}" width="${bw + 3}" height="${H - T - B}" fill="transparent" data-tip="${h(tip)}"/>`;
+    if (x.d % 5 === 0 || x.d === 1) bars += `<text x="${bx + bw / 2}" y="${H - 5}" text-anchor="middle">${x.d}</text>`; });
+  const grid = [0, top / 2, top].map((v) => `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#e3e2e0"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(2).replace(".", ",")}</text>`).join("");
+  // chart 2: cumulative vs threshold
+  const W2 = 320, H2 = 150, top2 = threshold * 1.15, xs = (i) => L + (i + 0.5) * ((W2 - L) / n), y2f = (v) => T + (H2 - T - B) * (1 - v / top2);
+  let cum = 0; const pts = DAYS.map((x, i) => { cum += x.perplexity + x.brave; return [xs(i), cum]; });
+  const proj = cum / 26 * 31;
+  const line = pts.map(([px, v], i) => `${i ? "L" : "M"}${px.toFixed(1)},${y2f(v).toFixed(1)}`).join("");
+  const dots = pts.map(([px, v], i) => `<circle cx="${px}" cy="${y2f(v)}" r="9" fill="transparent" data-tip="${h(`<div>${i + 1} oct.</div><div>Cumul <b>${eur(v)}</b></div>`)}"/>`).join("");
+  const c2 = `<line x1="${L}" x2="${W2}" y1="${y2f(threshold)}" y2="${y2f(threshold)}" stroke="#b42318" stroke-dasharray="4 4"/><text x="${W2}" y="${y2f(threshold) - 5}" text-anchor="end" style="fill:#b42318">seuil d'alerte ${eur(threshold, 0)}</text>
+    ${[0, 1].map((v) => `<line x1="${L}" x2="${W2}" y1="${y2f(v)}" y2="${y2f(v)}" stroke="#e3e2e0"/><text x="${L - 6}" y="${y2f(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+    <path d="${line}" fill="none" stroke="${SERIES[0].c}" stroke-width="2"/>${dots}
+    <circle cx="${pts.at(-1)[0]}" cy="${y2f(cum)}" r="4" fill="${SERIES[0].c}"/><text x="${pts.at(-1)[0] - 6}" y="${y2f(cum) + 16}" text-anchor="end" style="fill:#37352f">${eur(cum)} · fin de mois estimée ${eur(proj)}</text>`;
+  // chart 3: stop reasons (single hue bars)
+  const sMax = Math.max(...STOPS.map((x) => x.v)), sTot = STOPS.reduce((a, x) => a + x.v, 0);
+  const stops = STOPS.map((x) => `<div class="row" style="gap:8px;margin:5px 0" data-tip="${h(`<div>${x.k}</div><b>${x.v} runs</b> (${Math.round((x.v / sTot) * 100)} %)`)}"><span class="small" style="width:11rem">${h(x.k)}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(x.v / sMax) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:3.5rem;text-align:right">${Math.round((x.v / sTot) * 100)} %</span></div>`).join("");
+  const postes = POSTES.map((x) => `<div class="row" style="gap:8px;margin:5px 0" data-tip="${h(`<div>${x.k}</div><b>${eur(x.v, 4)}</b> par run (${Math.round((x.v / allRun) * 100)} %)`)}"><span class="small" style="width:11rem">${h(x.k)}</span><span style="flex:1;height:10px;background:var(--surface);border-radius:0 4px 4px 0"><span style="display:block;height:10px;width:${(x.v / POSTES[0].v) * 100}%;background:#2a78d6;border-radius:0 4px 4px 0"></span></span><span class="small" style="width:3.5rem;text-align:right">${eur(x.v, 3)}</span></div>`).join("");
+  return `<h2 class="sec">Consommation et budget <span class="small muted" style="font-weight:400">· octobre 2026, au 26</span></h2>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Dépense recherche web du mois</div><div class="val">${eur(spend)}</div><div class="sub">${Math.round((spend / threshold) * 100)} % du seuil d'alerte (${eur(threshold, 0)})</div><div class="bar-track"><span style="width:${Math.min(100, (spend / threshold) * 100)}%"></span></div></div>
+      <div class="kpi"><div class="lbl">Coût moyen d'un run</div><div class="val">${eur(allRun, 3)}</div><div class="sub">budget ${eur(0.08)} · ${Math.round((allRun / 0.08) * 100)} % utilisé</div></div>
+      <div class="kpi"><div class="lbl">Coût par nouvelle offre</div><div class="val">${eur((allRun * runs) / newOffers, 4)}</div><div class="sub">${newOffers.toLocaleString("fr-FR")} nouvelles offres</div></div>
+      <div class="kpi"><div class="lbl">Runs</div><div class="val">${runs}</div><div class="sub">Job Searches et compléments du Job Digest</div></div>
+      <div class="kpi"><div class="lbl">Runs passés au secours</div><div class="val">${((fallbackRuns / runs) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</div><div class="sub">${fallbackRuns} runs sur Brave · 3 jours</div></div>
+      <div class="kpi"><div class="lbl">Appels en échec</div><div class="val">0,6 %</div><div class="sub">⚠ 1 outil sans prix connu</div></div>
+    </div>
+    <div class="chart"><h4>Dépense quotidienne de la recherche web, par Search provider</h4>
+      <div class="legend">${SERIES.map((x) => `<span><i style="background:${x.c}"></i>${x.k}</span>`).join("")}</div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Dépense quotidienne en euros, barres empilées par fournisseur">${grid}${bars}</svg></div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="chart"><h4>Cumul du mois et seuil d'alerte (€)</h4><svg viewBox="0 0 ${W2} ${H2}" role="img" aria-label="Dépense cumulée du mois face au seuil d'alerte">${c2}</svg></div>
+      <div class="chart"><h4>Pourquoi les runs s'arrêtent</h4><p class="small muted" style="margin:0 0 6px">${sTot} runs ce mois</p>${stops}</div>
+    </div>
+    <div class="chart" style="margin-top:14px"><h4>Où va le coût d'un run (moyenne)</h4><p class="small muted" style="margin:0 0 6px">La recherche web elle-même pèse ${Math.round((POSTES[2].v / allRun) * 100)} % ; la lecture des pages par un LLM l'essentiel.</p>${postes}</div>
+    <p class="small"><a href="#">Tout le détail dans Consommation IA (filtré sur la recherche web) →</a> &nbsp; <a href="#">Vue tableau</a></p>`;
 }
 
 function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#">Journaux IA · ${h(us.label)} →</a></p>`; }
@@ -428,7 +502,7 @@ function variantA() {
       <td class="small">${p.tools.map((t) => h(t.name)).join(", ") || "—"}</td><td class="small">${p.params.map((s) => `${h(s.k)} : ${h(s.v)}`).join("<br>") || "—"}</td>
       <td class="small">${[...p.usedBy.map(usageName), ...(PLAYBOOKS.some((b) => b.p === pid) ? [`${PLAYBOOKS.filter((b) => b.p === pid).length} Playbook Agent(s)`] : [])].join(", ") || "—"}</td>
       <td>${us.active && !isA ? `<button class="btn" data-activate="${pid}" ${ks === "ko" ? 'title="Clé absente : les appels échoueront tant qu\'elle n\'est pas saisie"' : ""}>Rendre actif${ks === "ko" ? " ⚠" : ""}</button>` : ""}</td></tr>`; }).join("")}</table>`;
-  if (us.business) body += businessBlock(us.business);
+  if (us.business) body += businessBlock(us.business) + costBlock();
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
@@ -553,6 +627,12 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") cycle(-1);
   if (e.key === "ArrowRight") cycle(1);
   if (e.key === "Escape") { S.drawer = null; S.playbook = null; S.task = null; S.adding = false; render(); }
+});
+document.addEventListener("mousemove", (e) => {
+  const el = e.target.closest("[data-tip]"); let tip = document.getElementById("tip");
+  if (!el) { tip?.remove(); return; }
+  if (!tip) { tip = document.createElement("div"); tip.id = "tip"; tip.className = "tip"; document.body.append(tip); }
+  tip.innerHTML = el.dataset.tip; tip.style.left = Math.min(e.clientX + 14, innerWidth - 220) + "px"; tip.style.top = e.clientY + 14 + "px";
 });
 render();
 </script>

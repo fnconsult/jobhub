@@ -116,14 +116,17 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
 
   // Built again whenever an AI key or routing setting changes: a key entered later turns Job discovery on.
   const discovery = rebuilding(aiResolver, aiNames, (env): JobDiscovery | DiscoveryUnavailable => {
+    let built: AiLayer;
     try {
-      buildAi(env);
+      built = buildAi(env);
     } catch (error) {
       if (!(error instanceof AiConfigError) || options.production) throw error;
       // The message names the missing setting, never a value.
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
+    // Without its Search provider's key, Job discovery still runs, its web search skipped like a source that is off (#399).
+    if (!built.webSearchAvailable()) log("[worker] Job discovery runs without the web search: its Search provider's key is not set");
     return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 

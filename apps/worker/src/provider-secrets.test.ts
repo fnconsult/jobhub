@@ -224,6 +224,8 @@ describe("the worker's web search, on the Search provider's Provider Secret (#39
     const worker = clients(resolver, fakeProviders().fetch, lines);
 
     expect(worker.discovery()).toHaveProperty("discover");
+    expect(lines).toContain("[worker] Job discovery runs without the web search: its Search provider's key is not set");
+    expect(lines.join("\n")).not.toContain("Job discovery is unavailable");
     expect(worker.ai.webSearchAvailable()).toBe(false);
     await expect(worker.ai.searchWeb({ candidateId: "c-1", criteria })).rejects.toThrow(/BRAVE_SEARCH_API_KEY/);
     await expect(worker.ai.generate(generate)).resolves.toMatchObject({ text: "ok" });

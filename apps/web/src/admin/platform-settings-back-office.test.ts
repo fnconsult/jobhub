@@ -165,6 +165,85 @@ describe.skipIf(!connectionString)("Platform Settings' Back Office writes and th
     expect(await platformSettingsReader(database).load()).toEqual({ ANTHROPIC_ENDPOINT: expect.objectContaining({ value: "auto" }) });
   });
 
+  describe("several settings changed as one (an AI task's route, #402): all kept, or none", () => {
+    const refusing = () =>
+      createPlatformSettingsBackOffice(
+        platformSettingsStore(database, {}, {
+          check: async ({ name, after }) =>
+            name === "AI_WRITING_PROVIDER" && after.AI_WRITING_PROVIDER === "openai"
+              ? { reason: "data_residency", technical: { class: "AiConfigError", message: "writing would send personal data outside the EU" } }
+              : name === "AI_WRITING_MODEL" && after.AI_WRITING_MODEL === "mistral-nope"
+                ? { reason: "test_failed", technical: { class: "AiProviderError", message: "AI_WRITING_MODEL failed its test call" } }
+                : null,
+        }),
+        backOffice,
+      );
+
+    it("keeps the model when the provider that came with it is refused, recording the refusal alone", async () => {
+      const routes = refusing();
+      expect(await routes.set(claire, "AI_WRITING_MODEL", "claude-sonnet-5")).toMatchObject({ ok: true, changed: true });
+
+      expect(
+        await routes.apply(claire, [
+          { name: "AI_WRITING_MODEL", value: null },
+          { name: "AI_WRITING_PROVIDER", value: "openai" },
+        ]),
+      ).toMatchObject({ ok: false, error: "refused", name: "AI_WRITING_PROVIDER", reason: "data_residency" });
+
+      const stored = await platformSettingsReader(database).load();
+      expect(stored.AI_WRITING_MODEL?.value).toBe("claude-sonnet-5");
+      expect(stored.AI_WRITING_PROVIDER).toBeUndefined();
+      expect((await journal()).map(({ target, action }) => ({ target, action }))).toEqual([
+        { target: "AI_WRITING_MODEL", action: "updated" },
+        { target: "AI_WRITING_PROVIDER", action: "refused" },
+      ]);
+    });
+
+    it("keeps the provider when the model that came with it fails its test call", async () => {
+      const routes = refusing();
+
+      expect(
+        await routes.apply(claire, [
+          { name: "AI_WRITING_PROVIDER", value: "mistral" },
+          { name: "AI_WRITING_MODEL", value: "mistral-nope" },
+        ]),
+      ).toMatchObject({ ok: false, error: "refused", name: "AI_WRITING_MODEL", reason: "test_failed" });
+
+      expect(await platformSettingsReader(database).load()).toEqual({});
+      expect((await journal()).map(({ target, action }) => ({ target, action }))).toEqual([{ target: "AI_WRITING_MODEL", action: "refused" }]);
+    });
+
+    it("undoes the changes before one that records nothing (a setting not editable)", async () => {
+      expect(
+        await changes.apply(claire, [
+          { name: "JOB_DIGEST_MIN_MATCH_SCORE", value: "75" },
+          { name: "MAIL_TRANSPORT", value: "smtp" },
+        ]),
+      ).toEqual({ ok: false, error: "not_editable", name: "MAIL_TRANSPORT" });
+
+      expect(await platformSettingsReader(database).load()).toEqual({});
+      expect(await journal()).toEqual([]);
+    });
+
+    it("keeps every change let through, each recorded with its value before and after", async () => {
+      const routes = refusing();
+
+      expect(
+        await routes.apply(claire, [
+          { name: "AI_WRITING_PROVIDER", value: "mistral" },
+          { name: "AI_WRITING_MODEL", value: "mistral-large-latest" },
+        ]),
+      ).toEqual({ ok: true, changed: true });
+
+      const stored = await platformSettingsReader(database).load();
+      expect([stored.AI_WRITING_PROVIDER?.value, stored.AI_WRITING_MODEL?.value]).toEqual(["mistral", "mistral-large-latest"]);
+      expect((await journal()).map(({ target, action, after }) => ({ target, action, after }))).toEqual([
+        { target: "AI_WRITING_PROVIDER", action: "updated", after: { value: "mistral", source: "back_office" } },
+        { target: "AI_WRITING_MODEL", action: "updated", after: { value: "mistral-large-latest", source: "back_office" } },
+      ]);
+    });
+  });
+
   it("records MAIL_FROM's save, « Rétablir » and refusal, the sender before and after, never the sender refused (#300)", async () => {
     expect(await changes.set(claire, "MAIL_FROM", "Jobbbox <hello@jobbbox.ai>")).toMatchObject({ ok: true, changed: true });
     expect(await changes.set(claire, "MAIL_FROM", "Jobbbox <hello>")).toEqual({ ok: false, error: "invalid" });

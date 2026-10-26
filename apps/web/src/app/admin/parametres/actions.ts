@@ -9,6 +9,8 @@
 import { toolById } from "@jobhub/shared";
 import { redirect } from "next/navigation";
 import type { TextTask } from "@jobhub/ai";
+import type { BackOfficeActor } from "@/admin/back-office";
+import type { PlatformSettingValueChange } from "@/admin/platform-settings-back-office";
 import { getCoachingPlaybooksBackOffice, getPlatformSettingsBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { aiTaskRoutes, playbookAgentChange, routeChange, TEXT_TASK_IDS } from "@/platform-settings/ai-tasks";
@@ -91,31 +93,33 @@ async function routeIn(form: FormData) {
 const routeBack = (form: FormData, notice: RouteNotice): never => back(form, { route: notice });
 
 /**
- * An AI task's provider and model, saved as their Platform Settings, each checked as any routing change is (a route with
- * personal data outside the EU, a model failing its test call); a provider whose key is missing is saved all the same,
- * the panel warning of it (ADR-0042). The first refusal stops the change, said as a Platform Setting's.
+ * Saves an AI task's route `changes` as one (#402): all kept, or, the first refused, none, the route staying as it was;
+ * the refusal is said as that Platform Setting's.
+ */
+async function applyRoute(form: FormData, administrator: BackOfficeActor, changes: readonly PlatformSettingValueChange[], saved: RouteNotice): Promise<never> {
+  const done = await getPlatformSettingsBackOffice().apply(administrator, changes);
+  if (!done.ok && done.error === "refused") settingBack(form, "refused", done.name, done);
+  if (!done.ok) settingBack(form, done.error === "unconfirmed" ? "unconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), done.name);
+  return routeBack(form, saved);
+}
+
+/**
+ * An AI task's provider and model, saved as their Platform Settings in one change, each checked as any routing change is
+ * (a route with personal data outside the EU, a model failing its test call); a provider whose key is missing is saved
+ * all the same, the panel warning of it (ADR-0042). A refusal of either keeps neither.
  */
 export async function saveRoute(form: FormData) {
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const route = await routeIn(form);
   const changes = routeChange(route.task, route, { provider: String(form.get("provider") ?? ""), model: String(form.get("model") ?? "") });
-  for (const { name, value } of changes) {
-    const done = value === null ? await getPlatformSettingsBackOffice().restore(administrator, name) : await getPlatformSettingsBackOffice().set(administrator, name, value);
-    if (!done.ok && done.error === "refused") settingBack(form, "refused", name, done);
-    if (!done.ok) settingBack(form, done.error === "unconfirmed" ? "unconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), name);
-  }
-  routeBack(form, changes.length > 0 ? "routeSaved" : "routeUnchanged");
+  await applyRoute(form, administrator, changes, changes.length > 0 ? "routeSaved" : "routeUnchanged");
 }
 
-/** « Rétablir le défaut »: the task's provider and model go back to env's, else the code's default. */
+/** « Rétablir le défaut »: the task's provider and model go back to env's, else the code's default, together or not at all. */
 export async function restoreRoute(form: FormData) {
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const route = await routeIn(form);
-  for (const name of [route.modelSetting, route.providerSetting]) {
-    const done = await getPlatformSettingsBackOffice().restore(administrator, name);
-    if (!done.ok && done.error === "refused") settingBack(form, "refused", name, done);
-  }
-  routeBack(form, "routeRestored");
+  await applyRoute(form, administrator, [{ name: route.modelSetting, value: null }, { name: route.providerSetting, value: null }], "routeRestored");
 }
 
 /**

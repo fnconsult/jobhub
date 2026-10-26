@@ -313,12 +313,13 @@ export interface BackOffice {
    * transaction it is given, then `changeOf` says what it changed (null: nothing to record).
    * If the write, or recording it, fails, neither is kept and the error is thrown.
    * When `changeOf` says the write was refused (a BackOfficeFailure), the write is undone and
-   * the refusal recorded on its own.
+   * the refusal recorded on its own. A write that makes several changes at once (an AI task's
+   * provider and model, #402) has them all recorded, in order, in the same transaction.
    */
   record<T>(
     actor: BackOfficeActor,
     write: (within: Queryable) => Promise<T>,
-    changeOf: (result: T) => BackOfficeAttempt | null,
+    changeOf: (result: T) => BackOfficeAttempt | readonly BackOfficeChange[] | null,
   ): Promise<T>;
   /** Records an attempt that failed or was refused, outside any write (#263). */
   recordFailure(actor: BackOfficeActor, failure: BackOfficeFailure): Promise<void>;
@@ -467,7 +468,7 @@ export function createBackOffice(
   async function record<T>(
     actor: BackOfficeActor,
     write: (within: Queryable) => Promise<T>,
-    changeOf: (result: T) => BackOfficeAttempt | null,
+    changeOf: (result: T) => BackOfficeAttempt | readonly BackOfficeChange[] | null,
   ): Promise<T> {
     const client = await database.connect();
     let refused: BackOfficeFailure | null = null;
@@ -475,14 +476,15 @@ export function createBackOffice(
     try {
       await client.query("BEGIN");
       result = await write(client);
-      const change = changeOf(result);
-      if (change && isFailure(change)) {
+      const attempt = changeOf(result);
+      if (attempt && !Array.isArray(attempt) && isFailure(attempt as BackOfficeAttempt)) {
         // Refused: whatever the write did is undone; the refusal is recorded on its own, below.
-        refused = change;
+        refused = attempt as BackOfficeFailure;
         await client.query("ROLLBACK");
         return result;
       }
-      if (change) {
+      const changes: readonly BackOfficeChange[] = attempt === null ? [] : Array.isArray(attempt) ? attempt : [attempt as BackOfficeChange];
+      for (const change of changes) {
         const secret = isSecretAction(change.action);
         await client.query(
           `INSERT INTO back_office_audit (candidate_id, actor_email, section, target, action, before, after)

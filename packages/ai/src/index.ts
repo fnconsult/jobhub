@@ -39,7 +39,7 @@ export type {
   TaskInstructions,
   WebSearchRun,
 } from "./ai-layer";
-export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
+export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, smallModelFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { checkAiRoutingChange } from "./routing-check";
 export type { AiRoutingCheckDeps, AiRoutingRefusal } from "./routing-check";

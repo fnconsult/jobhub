@@ -117,7 +117,7 @@ function backOfficeData() {
           at: new Date("2026-10-16T09:00:00Z"),
           actor: { candidateId: "a2", email: "paul@jobbbox.fr" },
           section: "ai_messages",
-          target: "/admin/journaux-ia",
+          target: "/admin/activite/appels-ia",
           action: "denied",
           before: null,
           after: null,
@@ -273,7 +273,7 @@ describe("Back Office Assistant", () => {
     const outside = system.slice(system.indexOf("Hors des rôles"));
     expect(outside).toContain("Clés des fournisseurs (Provider Secrets)");
     expect(outside).toContain("Quotas des offres");
-    expect(outside).toContain("Journal du Back Office");
+    expect(outside).toContain("Activité › Actions des administrateurs");
     expect(outside).not.toContain("Coachs humains");
     expect(system).toContain("lecture seule");
   });
@@ -307,8 +307,8 @@ describe("Back Office Assistant", () => {
     const reply = await assistant.reply(administrator, asked("Que disait le dernier prompt de Marie ?"));
 
     expect(reply).toMatchObject({ ok: true, sections: expect.arrayContaining(["aiUsage", "aiMessages"]) });
-    expect(prompt()).toContain("Journaux IA");
-    expect(prompt()).toContain("/admin/journaux-ia");
+    expect(prompt()).toContain("Activité › Appels IA");
+    expect(prompt()).toContain("/admin/activite/appels-ia");
   });
 
   it("a super-admin's assistant reads every section, yet is given no secret value and no email address", async () => {
@@ -325,7 +325,7 @@ describe("Back Office Assistant", () => {
       // A refused attempt says why, never its technical detail.
       expect(prompt()).toContain("garde-fous, tentative refusée (modification) de prompt_injection ; échec : Refusé par l'Eval Run");
       // So does a section opened outside the Administrator's roles (#264).
-      expect(prompt()).toContain("journaux IA, accès refusé (consultation) de /admin/journaux-ia ; échec : Section hors de ses rôles");
+      expect(prompt()).toContain("appels IA, accès refusé (consultation) de /admin/activite/appels-ia ; échec : Section hors de ses rôles");
       expect(prompt()).not.toContain("secret-after-injection");
       expect(prompt()).not.toContain(SECRET);
       expect(prompt()).not.toMatch(/@/);

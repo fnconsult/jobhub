@@ -841,13 +841,15 @@
       "signInProviders": "Connexion",
       "searchSites": "Sites de recherche",
       "administrators": "Administrateurs",
-      "journal": "Journal",
+      "journal": "Actions des administrateurs",
       "aiUsage": "Consommation IA",
-      "aiMessages": "Journaux IA",
+      "aiMessages": "Appels IA",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Garde-fous",
       "tools": "Outils",
-      "unansweredQuestions": "Questions sans réponse"
+      "unansweredQuestions": "Questions sans réponse",
+      "activity": "Activité",
+      "discoveryRuns": "Recherches"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1573,7 +1575,8 @@
         "tool_pages": "Pages Outils",
         "journal": "Journal",
         "unanswered_questions": "Questions sans réponse",
-        "signalements": "Signalements"
+        "signalements": "Signalements",
+        "discovery_runs": "Activité › Recherches"
       },
       "actions": {
         "added": "Ajout",

@@ -5,7 +5,7 @@ import { BACK_OFFICE_PAGES, backOfficeNav } from "./back-office-nav";
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
 
 describe("the Back Office navigation", () => {
-  it("shows a super-admin every section, grouped, Signalements first under Candidats, Plans, their Quotas and Coupons under Offre, Paramètres (with the former Clés, Connexion and Sites de recherche, #396), AI consumption and AI message logs under Plateforme", () => {
+  it("shows a super-admin every section, grouped, Signalements first under Candidats, Plans, their Quotas and Coupons under Offre, Paramètres (with the former Clés, Connexion and Sites de recherche, #396), AI consumption and Activité (#404) under Plateforme", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
       ["candidates", [["signalements", "/admin/signalements"]]],
       [
@@ -31,17 +31,11 @@ describe("the Back Office navigation", () => {
         [
           ["platformSettings", "/admin/parametres"],
           ["aiUsage", "/admin/consommation-ia"],
-          ["aiMessages", "/admin/journaux-ia"],
+          ["activity", "/admin/activite"],
           ["tools", "/admin/outils"],
         ],
       ],
-      [
-        "team",
-        [
-          ["administrators", "/admin/administrateurs"],
-          ["journal", "/admin/journal"],
-        ],
-      ],
+      ["team", [["administrators", "/admin/administrateurs"]]],
     ]);
   });
 
@@ -89,6 +83,7 @@ describe("the Back Office navigation", () => {
       [
         ["platformSettings", "/admin/parametres"],
         ["aiUsage", "/admin/consommation-ia"],
+        ["activity", "/admin/activite"],
         ["tools", "/admin/outils"],
       ],
     ]);
@@ -105,5 +100,16 @@ describe("the Back Office navigation", () => {
     expect(BACK_OFFICE_PAGES.providerSecrets.href).toBe("/admin/parametres");
     expect(BACK_OFFICE_PAGES.signInProviders.href).toBe("/admin/parametres?tab=connexion");
     expect(BACK_OFFICE_PAGES.searchSites.href).toBe("/admin/parametres?tab=sources");
+  });
+
+  it("has one entry « Activité » whose tabs are Recherches, Appels IA and Actions des administrateurs, no longer their own sections (#404)", () => {
+    const keys = backOfficeNav(backOfficeAccess(["super-admin"])).flatMap((group) => group.sections.map((section) => section.key));
+    expect(keys).not.toContain("aiMessages");
+    expect(keys).not.toContain("journal");
+    expect(BACK_OFFICE_PAGES.discoveryRuns.href).toBe("/admin/activite/recherches");
+    expect(BACK_OFFICE_PAGES.aiMessages.href).toBe("/admin/activite/appels-ia");
+    expect(BACK_OFFICE_PAGES.journal.href).toBe("/admin/activite/actions");
+    // Technique reads the Recherches and the Actions des administrateurs: Activité is in their sidebar.
+    expect(backOfficeNav(backOfficeAccess(["platform-manager"])).flatMap((group) => group.sections.map((section) => section.key))).toContain("activity");
   });
 });

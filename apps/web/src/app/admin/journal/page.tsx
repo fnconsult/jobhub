@@ -179,14 +179,14 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         <ul className="journal-filter">
           {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
             <li key={option ?? "all"}>
-              <Link href={routes.adminJournal({ section: option, outcome })} aria-current={option === section && !withTools ? CURRENT : undefined}>
+              <Link href={routes.adminAudit({ section: option, outcome })} aria-current={option === section && !withTools ? CURRENT : undefined}>
                 {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
               </Link>
             </li>
           ))}
           {readsTools ? (
             <li>
-              <Link href={routes.adminJournal({ section: TOOLS_FILTER, outcome })} aria-current={withTools ? CURRENT : undefined}>
+              <Link href={routes.adminAudit({ section: TOOLS_FILTER, outcome })} aria-current={withTools ? CURRENT : undefined}>
                 {t("admin.journal.tools")}
               </Link>
             </li>
@@ -197,7 +197,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         <ul className="journal-filter">
           {[undefined, ...BACK_OFFICE_OUTCOMES].map((option) => (
             <li key={option ?? "all"}>
-              <Link href={routes.adminJournal({ section: shownSection, outcome: option })} aria-current={option === outcome ? CURRENT : undefined}>
+              <Link href={routes.adminAudit({ section: shownSection, outcome: option })} aria-current={option === outcome ? CURRENT : undefined}>
                 {t(`admin.journal.outcomeFilters.${option ?? "all"}`)}
               </Link>
             </li>

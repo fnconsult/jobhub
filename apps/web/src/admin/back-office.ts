@@ -54,6 +54,8 @@ export const BACK_OFFICE_SECTIONS = [
   "job_discovery_sites",
   "job_sites",
   "ai_messages",
+  // A Job Search opened from Activité › Recherches (#404), named by its run; and an Administrator denied the Recherches.
+  "discovery_runs",
   "coaching_playbooks",
   "eval_cases",
   "guardrails",
@@ -209,6 +211,8 @@ export interface BackOfficeAuditEntry {
 const DENIED_SECTIONS = {
   roles: "roles",
   audit: "journal",
+  discoveryRuns: "discovery_runs",
+  jobSearches: "discovery_runs",
   planQuotas: "plan_quotas",
   plans: "plans",
   coupons: "coupons",

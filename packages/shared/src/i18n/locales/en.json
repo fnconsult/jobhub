@@ -841,13 +841,15 @@
       "signInProviders": "Sign-in",
       "searchSites": "Search sites",
       "administrators": "Administrators",
-      "journal": "Journal",
+      "journal": "Administrator actions",
       "aiUsage": "AI consumption",
-      "aiMessages": "AI message logs",
+      "aiMessages": "AI calls",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Guardrails",
       "tools": "Tools",
-      "unansweredQuestions": "Unanswered questions"
+      "unansweredQuestions": "Unanswered questions",
+      "activity": "Activity",
+      "discoveryRuns": "Searches"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1573,7 +1575,8 @@
         "tool_pages": "Tools pages",
         "journal": "Journal",
         "unanswered_questions": "Unanswered questions",
-        "signalements": "Feedback"
+        "signalements": "Feedback",
+        "discovery_runs": "Activity › Searches"
       },
       "actions": {
         "added": "Added",

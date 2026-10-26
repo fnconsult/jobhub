@@ -172,7 +172,7 @@ test.describe("Paramètres in tabs (#396)", () => {
   test("« Rendre actif » a web search provider without its key warns first, never blocks (#399)", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(`${PATH}?tab=recherche-web`);
-    // Tavily, not Brave: the Company Dossier spec (#405) enters a Brave key meanwhile.
+    // Tavily, not Brave: the Search providers' keys spec (#399, the worker project, run alongside) enters a Brave key meanwhile.
     const tavily = page.locator('tr[data-provider="tavily"]');
     // A Provider Secret since #399: shown as the Provider Secrets are, « Absente ».
     await expect(tavily).toContainText(keys.sources.missing);

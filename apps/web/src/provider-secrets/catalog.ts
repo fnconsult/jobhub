@@ -8,12 +8,15 @@
  */
 
 /** Who a Provider Secret is for; keys of one provider are tested together. */
-export const SECRET_PROVIDERS = ["mistral", "perplexity", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo"] as const;
+export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo"] as const;
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 
 export const PROVIDER_SECRETS = [
   { name: "MISTRAL_API_KEY", provider: "mistral" },
   { name: "PERPLEXITY_API_KEY", provider: "perplexity" },
+  // Search providers (ADR-0043): only the active one's key (and its fallback's) is used; without it, web search is unavailable.
+  { name: "BRAVE_SEARCH_API_KEY", provider: "brave" },
+  { name: "TAVILY_API_KEY", provider: "tavily" },
   // Claude: the direct API (outside the EU) and/or Bedrock (EU, preferred for tasks with personal data). ANTHROPIC_ENDPOINT=auto uses whichever are entered.
   { name: "ANTHROPIC_API_KEY", provider: "anthropic" },
   { name: "AWS_BEARER_TOKEN_BEDROCK", provider: "bedrock" },
@@ -41,7 +44,7 @@ export const isProviderSecretName = (value: unknown): value is ProviderSecretNam
 export const providerOf = (name: ProviderSecretName): SecretProvider => PROVIDER_SECRETS.find((secret) => secret.name === name)!.provider;
 
 /** The keys the AI layer reads among the Provider Secrets. */
-export const AI_SECRET_NAMES = ["MISTRAL_API_KEY", "PERPLEXITY_API_KEY", "ANTHROPIC_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"] as const satisfies readonly ProviderSecretName[];
+export const AI_SECRET_NAMES = ["MISTRAL_API_KEY", "PERPLEXITY_API_KEY", "BRAVE_SEARCH_API_KEY", "TAVILY_API_KEY", "ANTHROPIC_API_KEY", "AWS_BEARER_TOKEN_BEDROCK"] as const satisfies readonly ProviderSecretName[];
 export const STRIPE_SECRET_NAMES = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const FRANCE_TRAVAIL_SECRET_NAMES = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"] as const satisfies readonly ProviderSecretName[];
 export const FANTASTIC_JOBS_SECRET_NAMES = ["FANTASTIC_JOBS_API_KEY"] as const satisfies readonly ProviderSecretName[];

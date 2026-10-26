@@ -1228,7 +1228,7 @@
     },
     "providerSecrets": {
       "title": "Provider keys",
-      "intro": "The keys of third-party services (AI, France Travail, Fantastic.jobs, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
+      "intro": "The keys of third-party services (AI, web search, France Travail, Fantastic.jobs, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
       "caption": "Provider keys and their source",
       "key": "Key",
       "source": "Source",
@@ -1248,6 +1248,8 @@
       "providers": {
         "mistral": "Mistral",
         "perplexity": "Perplexity",
+        "brave": "Brave Search",
+        "tavily": "Tavily",
         "anthropic": "Anthropic Claude (direct API, outside the EU)",
         "bedrock": "Anthropic Claude (AWS Bedrock, EU)",
         "france-travail": "France Travail",

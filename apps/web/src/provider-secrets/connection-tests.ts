@@ -1,7 +1,8 @@
 /**
  * The connection test of each provider behind a Provider Secret: its cheapest
  * authenticated call, made with the keys in `env` (the one being saved over those
- * in use). AI providers list their models, France Travail gives an OAuth token,
+ * in use). AI providers list their models, Brave answers one search of a single result,
+ * Tavily its usage (no credit spent), France Travail gives an OAuth token,
  * Fantastic.jobs answers a search for no job (one API request, no Jobs credit),
  * Stripe its balance, Brevo its account (or its SMTP relay is verified), the contact-enrichment
  * provider answers its account call. Nothing is spent and nothing is stored.
@@ -32,6 +33,8 @@ export interface ConnectionTesterDeps {
 const TOOL_OF: Record<SecretProvider, ExternalApiProvider> = {
   mistral: "mistral",
   perplexity: "perplexity",
+  brave: "brave",
+  tavily: "tavily",
   anthropic: "anthropic",
   bedrock: "anthropic_bedrock",
   "france-travail": "france_travail",
@@ -43,6 +46,13 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider> = {
   brevo: "brevo",
 };
 const CONNECTION_TEST = "connection_test";
+
+/**
+ * Brave's web search, as packages/ai/src/providers/brave.ts calls it: one search of one result is its cheapest
+ * authenticated call (it has no account call). Tavily's usage endpoint reads the key's credits without spending one.
+ */
+const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
+const TAVILY_USAGE_URL = "https://api.tavily.com/usage";
 
 /** France Travail's token endpoint and scope, as the worker's client uses them (apps/worker/src/job-discovery/france-travail/api.ts). */
 const FRANCE_TRAVAIL_TOKEN_URL = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
@@ -132,6 +142,18 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
     async perplexity(env, { bearer }) {
       const found = keys(env, "PERPLEXITY_API_KEY");
       return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.perplexity.ai/v1/models", found.PERPLEXITY_API_KEY);
+    },
+    async brave(env, { call }) {
+      const found = keys(env, "BRAVE_SEARCH_API_KEY");
+      if ("missing" in found) return failed(`missing ${found.missing}`);
+      return call(`${BRAVE_SEARCH_URL}?${new URLSearchParams({ q: "jobbbox", count: "1" })}`, {
+        method: "GET",
+        headers: { "x-subscription-token": found.BRAVE_SEARCH_API_KEY, accept: "application/json" },
+      });
+    },
+    async tavily(env, { bearer }) {
+      const found = keys(env, "TAVILY_API_KEY");
+      return "missing" in found ? failed(`missing ${found.missing}`) : bearer(TAVILY_USAGE_URL, found.TAVILY_API_KEY);
     },
     async anthropic(env, { call }) {
       const found = keys(env, "ANTHROPIC_API_KEY");

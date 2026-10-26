@@ -7,11 +7,12 @@
  *   await targets.list(profileId);                                  // the Profile's, those set aside left out
  *   await targets.refresh(candidateId, profileId, { key, companies }, now); // La Bonne Boite's answer for the Profile's job and area
  *   await targets.visited(profileId, ids, now);                     // Job discovery read them in this run
+ *   await targets.notACompany(profileId, ids, now);                 // the register says they are not companies: not picked again
  *   await targets.careersSites(["siren:552100554"]);                // Map: company key → careers site URL
  *   await targets.keepCareersSite("siren:552100554", url, now);     // found once, kept for every Profile
  *   await targets.add(candidateId, profileId, "Acme Industrie");    // the Candidate's own, resolved in the company register
  *   await targets.setAside(candidateId, profileId, id);             // for good: La Bonne Boite never brings it back
- *   await webSearchableName(register, company);                     // the name a web search may carry, null: none (ADR-0007)
+ *   await webSearchableName(register, company);                     // { name } a web search may carry, else { refused } (ADR-0007)
  *
  * A company is the same across Profiles by its key: its SIREN when known (`siren:552100554`, an
  * establishment's SIRET gives it), else its name compared without case, accents or legal form
@@ -39,6 +40,11 @@ export interface TargetCompany {
   addedAt: Date;
   /** When Job discovery last read its careers site or searched for its postings; null: never. */
   lastVisitedAt: Date | null;
+  /**
+   * When the company register said it is not a company (a sole trader's, a private person's, or a SIREN it does not
+   * list): its name never goes to a web search (ADR-0007), so Job discovery no longer picks it; null: never said.
+   */
+  notACompanyAt: Date | null;
 }
 
 /** A company La Bonne Boite gave: one establishment (its SIRET) and its hiring potential. */
@@ -70,6 +76,8 @@ export interface TargetCompanyStore {
   refresh(candidateId: string, profileId: string, listing: LaBonneBoiteListing, at: Date): Promise<void>;
   /** Job discovery visited these Target Companies of the Profile at `at`. */
   visited(profileId: string, ids: readonly string[], at: Date): Promise<void>;
+  /** The company register said at `at` that these Target Companies of the Profile are not companies: not picked again. */
+  notACompany(profileId: string, ids: readonly string[], at: Date): Promise<void>;
   /** The careers site (or ATS board) kept for each of these companies that has one. */
   careersSites(companyKeys: readonly string[]): Promise<Map<string, string>>;
   /** Keeps `url` as the company's careers site, for every Profile; one already kept is replaced. */
@@ -108,23 +116,31 @@ export function companyKeyOf(company: { siret?: string | null; siren?: string | 
 }
 
 /**
- * The name a web search « title + company » may carry for a Target Company (ADR-0007: a company's, never a person's),
- * null when none may: the company register is asked by its SIREN when known, and the name goes only when it lists that
- * SIREN as a company (a sole trader's, or one it does not list, never); else by its name, which goes unless the
- * register lists it as a sole trader's or it holds a SIREN, as for a Company Dossier. The register unreachable: null.
+ * What the company register says of a Target Company's name for a web search « title + company » (ADR-0007: a
+ * company's, never a person's): `{ name }` when it may go; else `not_a_company`, the register's definite answer (a
+ * sole trader's, a SIREN it does not list, a name holding a SIREN), or `register_unavailable`, to ask again later.
  */
-export async function webSearchableName(register: CompanyRegister, company: Pick<TargetCompany, "companyKey" | "name">): Promise<string | null> {
+export type WebSearchableName = { name: string } | { refused: "not_a_company" | "register_unavailable" };
+
+/**
+ * The name a web search « title + company » may carry for a Target Company: the company register is asked by its
+ * SIREN when known, and the name goes only when it lists that SIREN as a company (a sole trader's, or one it does not
+ * list, never); else by its name, which goes unless the register lists it as a sole trader's or it holds a SIREN, as
+ * for a Company Dossier. The register unreachable: `register_unavailable`, no name either.
+ */
+export async function webSearchableName(register: CompanyRegister, company: Pick<TargetCompany, "companyKey" | "name">): Promise<WebSearchableName> {
+  const notACompany = { refused: "not_a_company" } as const;
   try {
     const siren = /^siren:(\d{9})$/.exec(company.companyKey)?.[1];
     if (siren) {
       const { companies } = await register.search(siren);
-      return companies.some((listed) => listed.siren === siren) ? company.name : null;
+      return companies.some((listed) => listed.siren === siren) ? { name: company.name } : notACompany;
     }
-    if (sirenIn(company.name)) return null;
+    if (sirenIn(company.name)) return notACompany;
     const { soleTraderNamed } = await register.search(company.name);
-    return soleTraderNamed ? null : company.name;
+    return soleTraderNamed ? notACompany : { name: company.name };
   } catch {
-    return null;
+    return { refused: "register_unavailable" };
   }
 }
 
@@ -141,9 +157,10 @@ interface Row {
   activity: string | null;
   added_at: Date;
   last_visited_at: Date | null;
+  not_a_company_at: Date | null;
 }
 
-const COLUMNS = "id, company_key, name, origin, hiring_score, city, activity, added_at, last_visited_at";
+const COLUMNS = "id, company_key, name, origin, hiring_score, city, activity, added_at, last_visited_at, not_a_company_at";
 
 const companyOf = (row: Row): TargetCompany => ({
   id: row.id,
@@ -155,6 +172,7 @@ const companyOf = (row: Row): TargetCompany => ({
   activity: row.activity,
   addedAt: row.added_at,
   lastVisitedAt: row.last_visited_at,
+  notACompanyAt: row.not_a_company_at,
 });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -241,6 +259,12 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
       await database.query("UPDATE target_company SET last_visited_at = $3 WHERE profile_id = $1 AND id = ANY($2::uuid[])", [profileId, valid, at]);
     },
 
+    async notACompany(profileId, ids, at) {
+      const valid = ids.filter((id) => UUID.test(id));
+      if (valid.length === 0) return;
+      await database.query("UPDATE target_company SET not_a_company_at = $3 WHERE profile_id = $1 AND id = ANY($2::uuid[])", [profileId, valid, at]);
+    },
+
     async careersSites(companyKeys) {
       if (companyKeys.length === 0) return new Map();
       const { rows } = await database.query<{ company_key: string; url: string }>("SELECT company_key, url FROM company_careers_site WHERE company_key = ANY($1::text[])", [[...companyKeys]]);
@@ -301,6 +325,8 @@ export async function migrateTargetCompanies(database: Pick<Pool, "query">): Pro
       set_aside_at timestamptz,
       UNIQUE (profile_id, company_key)
     );
+    -- When the company register said it is not a company (a sole trader's, a SIREN it does not list): never picked again.
+    ALTER TABLE target_company ADD COLUMN IF NOT EXISTS not_a_company_at timestamptz;
     CREATE INDEX IF NOT EXISTS target_company_candidate_id_idx ON target_company (candidate_id);
     -- What a Profile's La Bonne Boite companies were last fetched for (its job and area) and when.
     CREATE TABLE IF NOT EXISTS target_company_refresh (

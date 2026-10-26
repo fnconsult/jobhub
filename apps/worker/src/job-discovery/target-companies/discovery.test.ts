@@ -227,6 +227,46 @@ describe("Job discovery visits the Profile's Target Companies (#406)", () => {
     expect(report.targetCompanies).toMatchObject({ visited: 1 });
   });
 
+  it("keeps the register's « not a company », so a sole trader with the best hiring score takes no run's place again, even after the revisit delay", async () => {
+    const register = fakeRegister();
+    const store = memoryTargetCompanies();
+    const { discovery, search } = setup({ register, store, max: 1, laBonneBoite: lbb({ ok: true, companies: [DUPONT, ACME], calls: 1 }) });
+    const run = () => discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    const first = await run();
+    const second = await run();
+    // The revisit delay passes for every one visited.
+    for (const company of store.rows.get("profile-1")!) if (company.lastVisitedAt) company.lastVisitedAt = new Date(company.lastVisitedAt.getTime() - 8 * DAY);
+    const third = await run();
+
+    // The first run's only place went to the sole trader, refused; every later run's goes to ACME.
+    expect(first.targetCompanies).toMatchObject({ visited: 0 });
+    expect(second.targetCompanies).toMatchObject({ visited: 1 });
+    expect(third.targetCompanies).toMatchObject({ visited: 1 });
+    expect(search.queries.filter((query) => query === 'Directeur financier "ACME INDUSTRIE"')).toHaveLength(2);
+    // The register was asked about the sole trader once.
+    expect(register.asked.filter((query) => query === "812345678")).toHaveLength(1);
+  });
+
+  it("leaves a Target Company due when the register cannot answer, so the next run asks again and searches it", async () => {
+    const working = fakeRegister();
+    let down = true;
+    const register: CompanyRegister = {
+      search: async (query) => {
+        if (down) throw new Error("register down");
+        return working.search(query);
+      },
+    };
+    const { discovery, search } = setup({ register, max: 1, laBonneBoite: lbb({ ok: true, companies: [ACME, BETA], calls: 1 }) });
+
+    const first = await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+    down = false;
+    await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    expect(first.targetCompanies).toMatchObject({ visited: 0 });
+    expect(search.queries.filter((query) => /ACME|BETA/.test(query))).toEqual(['Directeur financier "ACME INDUSTRIE"']);
+  });
+
   it("never sends the name of a company the register does not list under its SIREN, nor a name it lists as a sole trader's", async () => {
     const store = memoryTargetCompanies();
     // A SIREN the register lists nothing under, and a name the Candidate typed that it lists as a sole trader.

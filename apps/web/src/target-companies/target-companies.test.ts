@@ -42,21 +42,21 @@ describe("webSearchableName: a Target Company's name goes to the web search only
 
   it("sends a company's name when the register lists its SIREN as a company, asking it by SIREN alone", async () => {
     asked.length = 0;
-    expect(await webSearchableName(fake, { companyKey: "siren:552100554", name: "ACME" })).toBe("ACME");
+    expect(await webSearchableName(fake, { companyKey: "siren:552100554", name: "ACME" })).toEqual({ name: "ACME" });
     expect(asked).toEqual(["552100554"]);
   });
 
   it("never sends the name of a sole trader, nor of a SIREN the register does not list", async () => {
     asked.length = 0;
-    expect(await webSearchableName(fake, { companyKey: "siren:812345678", name: "JEAN DUPONT" })).toBeNull();
-    expect(await webSearchableName(fake, { companyKey: "siren:999999999", name: "GHOST SARL" })).toBeNull();
+    expect(await webSearchableName(fake, { companyKey: "siren:812345678", name: "JEAN DUPONT" })).toEqual({ refused: "not_a_company" });
+    expect(await webSearchableName(fake, { companyKey: "siren:999999999", name: "GHOST SARL" })).toEqual({ refused: "not_a_company" });
     expect(asked).toEqual(["812345678", "999999999"]);
   });
 
   it("for a name without SIREN, sends it unless the register lists it as a sole trader's or it holds a SIREN", async () => {
-    expect(await webSearchableName(fake, { companyKey: "name:globex robotics", name: "Globex Robotics GmbH" })).toBe("Globex Robotics GmbH");
-    expect(await webSearchableName(fake, { companyKey: "name:jean dupont", name: "Jean Dupont" })).toBeNull();
-    expect(await webSearchableName(fake, { companyKey: "name:812 345 678", name: "812 345 678" })).toBeNull();
+    expect(await webSearchableName(fake, { companyKey: "name:globex robotics", name: "Globex Robotics GmbH" })).toEqual({ name: "Globex Robotics GmbH" });
+    expect(await webSearchableName(fake, { companyKey: "name:jean dupont", name: "Jean Dupont" })).toEqual({ refused: "not_a_company" });
+    expect(await webSearchableName(fake, { companyKey: "name:812 345 678", name: "812 345 678" })).toEqual({ refused: "not_a_company" });
   });
 
   it("sends nothing when the register cannot answer", async () => {
@@ -65,8 +65,8 @@ describe("webSearchableName: a Target Company's name goes to the web search only
         throw new Error("register down");
       },
     };
-    expect(await webSearchableName(down, { companyKey: "siren:552100554", name: "ACME" })).toBeNull();
-    expect(await webSearchableName(down, { companyKey: "name:globex robotics", name: "Globex Robotics" })).toBeNull();
+    expect(await webSearchableName(down, { companyKey: "siren:552100554", name: "ACME" })).toEqual({ refused: "register_unavailable" });
+    expect(await webSearchableName(down, { companyKey: "name:globex robotics", name: "Globex Robotics" })).toEqual({ refused: "register_unavailable" });
   });
 });
 
@@ -161,6 +161,18 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
     await targets.visited(profileId, [first!.id], LATER);
 
     expect((await targets.list(profileId)).find((company) => company.id === first!.id)!.lastVisitedAt).toEqual(LATER);
+  });
+
+  it("keeps the company register's « not a company » for the Profile's Target Company, through La Bonne Boite's refreshes", async () => {
+    await targets.refresh("candidate-1", profileId, { key: "k", companies: [acme, beta] }, NOW);
+    const [first, second] = await targets.list(profileId);
+
+    await targets.notACompany(profileId, [first!.id], LATER);
+    await targets.refresh("candidate-1", profileId, { key: "k", companies: [acme, beta] }, LATER);
+
+    const listed = await targets.list(profileId);
+    expect(listed.find((company) => company.id === first!.id)!.notACompanyAt).toEqual(LATER);
+    expect(listed.find((company) => company.id === second!.id)!.notACompanyAt).toBeNull();
   });
 
   it("keeps one careers site per company, for every Profile", async () => {

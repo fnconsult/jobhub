@@ -76,6 +76,8 @@ export interface ExportedTargetCompany {
   activity: string | null;
   addedAt: Date;
   lastVisitedAt: Date | null;
+  /** When the company register said it is not a company, so Job discovery no longer visits it. */
+  notACompanyAt: Date | null;
   /** Set when the Candidate set it aside, for good. */
   setAsideAt: Date | null;
 }
@@ -407,7 +409,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ),
       grouped<ExportedTargetCompany>(
       `SELECT profile_id AS key, name, origin, hiring_score AS "hiringScore", city, activity, added_at AS "addedAt", last_visited_at AS "lastVisitedAt",
-              set_aside_at AS "setAsideAt"
+              not_a_company_at AS "notACompanyAt", set_aside_at AS "setAsideAt"
          FROM target_company WHERE candidate_id = $1 ORDER BY added_at, id`,
         candidateId,
       ),

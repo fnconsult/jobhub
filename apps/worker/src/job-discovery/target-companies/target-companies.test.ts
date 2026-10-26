@@ -46,7 +46,7 @@ const forRun = (targets: ReturnType<typeof setup>["targets"], now = NOW, profile
   targets.forRun({ candidateId: "candidate-1", profileId, criteria: searched, now });
 
 describe("which Target Companies a run visits: rotation and cap (#406)", () => {
-  const listed = (id: string, origin: "la_bonne_boite" | "candidate", hiringScore: number | null, lastVisitedAt: Date | null = null) => ({
+  const listed = (id: string, origin: "la_bonne_boite" | "candidate", hiringScore: number | null, lastVisitedAt: Date | null = null, notACompanyAt: Date | null = null) => ({
     id,
     companyKey: `name:${id}`,
     name: id,
@@ -56,6 +56,7 @@ describe("which Target Companies a run visits: rotation and cap (#406)", () => {
     activity: null,
     addedAt: NOW,
     lastVisitedAt,
+    notACompanyAt,
   });
 
   it("takes the Candidate's own first, then La Bonne Boite's by hiring score, up to the cap", () => {
@@ -65,6 +66,12 @@ describe("which Target Companies a run visits: rotation and cap (#406)", () => {
     );
 
     expect(picked.map((target) => target.id)).toEqual(["own-b", "own-a", "lbb-90", "lbb-80", "lbb-75"]);
+  });
+
+  it("leaves out for good those the company register said are not companies, visited or not", () => {
+    const companies = [listed("sole-trader", "la_bonne_boite", 99, null, daysLater(-30)), listed("own", "candidate", null, daysLater(-30), daysLater(-30)), listed("lbb-70", "la_bonne_boite", 70)];
+
+    expect(pickTargetCompanies(companies, { max: 5, revisitDays: 7, now: NOW }).map((target) => target.id)).toEqual(["lbb-70"]);
   });
 
   it("leaves out those visited within the delay, and visits them again once it has passed", () => {

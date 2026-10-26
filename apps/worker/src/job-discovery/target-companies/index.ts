@@ -6,8 +6,9 @@
  *   // run.laBonneBoite: { status: "off" | "kept" | "searched" | "refused" | "failed", calls }
  *   // run.visits: [{ id, companyKey, name, careersSite }]: those to visit now, in order
  *   await targets.visited(profileId, run.visits, now);          // once the run has visited them
+ *   await targets.notACompany(profileId, refused, now);          // those the register says are not companies: never picked again
  *   await targets.keepCareersSite(visit, url, now);              // a careers site found for one, kept for every Profile
- *   await targets.webSearchName(visit);                          // the name its web search may carry; null: no web search
+ *   await targets.webSearchName(visit);                          // { name } its web search may carry, else { refused }
  *
  * The Profile's list is refreshed from La Bonne Boite (France Travail's companies likely to hire)
  * at most monthly for the same job and area, and as soon as its Search Criteria title or first
@@ -19,7 +20,8 @@
  *
  * A run visits up to `max` of them (JOB_DISCOVERY_TARGET_COMPANIES, 5 by default), the Candidate's
  * own first, then by hiring score, none visited within `revisitDays` (JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS,
- * 7 by default); those set aside never. Never throws: what cannot be read gives no visit.
+ * 7 by default); those set aside never, nor those the company register said are not companies (a sole trader's name
+ * never goes to a web search, so no careers site is found for it). Never throws: what cannot be read gives no visit.
  *
  * A Target Company without a known careers site is looked for with a web search « title + company », outside the EU:
  * its name goes only once the company register lists it as a company (ADR-0007): a sole trader's name is a private
@@ -28,12 +30,13 @@
 import { locationKey, type SearchCriteria } from "@jobhub/shared";
 import { readNumberSetting } from "@jobhub/web/platform-settings";
 import type { CompanyRegister } from "@jobhub/web/company-register";
-import { webSearchableName, type TargetCompany, type TargetCompanyStore } from "@jobhub/web/target-companies";
+import { webSearchableName, type TargetCompany, type TargetCompanyStore, type WebSearchableName } from "@jobhub/web/target-companies";
 import type { LaBonneBoite, LaBonneBoiteArea } from "../france-travail/la-bonne-boite";
 import { resolveRome, type RomePredictor } from "../france-travail/rome-resolution";
 import type { CityCodes } from "./city-codes";
 
 export { createCityCodes, type CityCodes } from "./city-codes";
+export type { WebSearchableName } from "@jobhub/web/target-companies";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** La Bonne Boite's data changes monthly: a list fetched less long ago for the same job and area is kept. */
@@ -83,14 +86,17 @@ export interface TargetCompanies {
   }): Promise<TargetCompaniesForRun>;
   /** The run visited them. Never throws. */
   visited(profileId: string, visits: readonly TargetCompanyVisit[], now: Date): Promise<void>;
+  /** The company register said these are not companies (`webSearchName`'s `not_a_company`): never picked again. Never throws. */
+  notACompany(profileId: string, visits: readonly TargetCompanyVisit[], now: Date): Promise<void>;
   /** The run found `url` as `visit`'s careers site: kept for its company, for every Profile. Never throws. */
   keepCareersSite(visit: TargetCompanyVisit, url: string, now: Date): Promise<void>;
   /**
-   * The name a web search for `visit`'s postings may carry: its own once the company register lists it as a company,
-   * null when it lists a sole trader (a private person), does not list its SIREN, or cannot answer (ADR-0007).
-   * `step` wraps the call to the register, as in `forRun`. Never throws.
+   * The name a web search for `visit`'s postings may carry: `{ name }`, its own, once the company register lists it as
+   * a company; else `{ refused }`: `not_a_company` when the register lists a sole trader (a private person) or does not
+   * list its SIREN, a definite answer, so the run counts it as visited; `register_unavailable` when the register cannot
+   * answer, so it stays due (ADR-0007). `step` wraps the call to the register, as in `forRun`. Never throws.
    */
-  webSearchName(visit: TargetCompanyVisit, step?: <T>(work: () => Promise<T>) => Promise<T>): Promise<string | null>;
+  webSearchName(visit: TargetCompanyVisit, step?: <T>(work: () => Promise<T>) => Promise<T>): Promise<WebSearchableName>;
 }
 
 export interface TargetCompaniesOptions {
@@ -108,13 +114,15 @@ export interface TargetCompaniesOptions {
 
 /**
  * The Target Companies to visit now: the Candidate's own first (oldest added first), then La Bonne Boite's by
- * hiring score, none visited less than `revisitDays` ago, at most `max`.
+ * hiring score, none visited less than `revisitDays` ago nor said not to be a company by the register, at most `max`.
  */
-export function pickTargetCompanies<T extends Pick<TargetCompany, "origin" | "hiringScore" | "lastVisitedAt" | "addedAt">>(
+export function pickTargetCompanies<T extends Pick<TargetCompany, "origin" | "hiringScore" | "lastVisitedAt" | "addedAt" | "notACompanyAt">>(
   companies: readonly T[],
   { max, revisitDays, now }: TargetCompanySettings & { now: Date },
 ): T[] {
-  const due = companies.filter((company) => !company.lastVisitedAt || now.getTime() - company.lastVisitedAt.getTime() >= revisitDays * DAY_MS);
+  const due = companies.filter(
+    (company) => !company.notACompanyAt && (!company.lastVisitedAt || now.getTime() - company.lastVisitedAt.getTime() >= revisitDays * DAY_MS),
+  );
   const rank = (company: T) => (company.origin === "candidate" ? 0 : 1);
   return [...due]
     .sort((a, b) => rank(a) - rank(b) || (b.hiringScore ?? 0) - (a.hiringScore ?? 0) || a.addedAt.getTime() - b.addedAt.getTime())
@@ -179,14 +187,23 @@ export function createTargetCompanies(options: TargetCompaniesOptions): TargetCo
       await options.store.visited(profileId, visits.map((visit) => visit.id), now).catch((error: unknown) => log(`[job-discovery] Target Company visits not recorded: ${String(error)}`));
     },
 
+    async notACompany(profileId, visits, now) {
+      if (visits.length === 0) return;
+      await options.store.notACompany(profileId, visits.map((visit) => visit.id), now).catch((error: unknown) => log(`[job-discovery] Target Companies not recorded as not companies: ${String(error)}`));
+    },
+
     async keepCareersSite(visit, url, now) {
       await options.store.keepCareersSite(visit.companyKey, url, now).catch((error: unknown) => log(`[job-discovery] careers site not kept: ${String(error)}`));
     },
 
     async webSearchName(visit, step) {
       const vet = () => webSearchableName(options.register, visit);
-      const vetted = await (step ? step(vet) : vet()).catch(() => null);
-      if (vetted === null) log(`[job-discovery] a Target Company (${visit.companyKey.startsWith("siren:") ? visit.companyKey : "added by name"}) is not web-searched: the company register does not list it as a company`);
+      const vetted = await (step ? step(vet) : vet()).catch((): WebSearchableName => ({ refused: "register_unavailable" }));
+      if ("refused" in vetted) {
+        const company = visit.companyKey.startsWith("siren:") ? visit.companyKey : "added by name";
+        const why = vetted.refused === "not_a_company" ? "the company register does not list it as a company" : "the company register cannot answer, asked again next run";
+        log(`[job-discovery] a Target Company (${company}) is not web-searched: ${why}`);
+      }
       return vetted;
     },
   };

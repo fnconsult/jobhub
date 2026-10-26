@@ -620,6 +620,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const forRun = await targets.forRun({ candidateId, profileId, criteria, now: now(), step: (work) => recording().step({ tool: "france-travail" }, work) });
         Object.assign(metrics, { laBonneBoite: forRun.laBonneBoite.status, calls: forRun.laBonneBoite.calls });
         const visited: TargetCompanyVisit[] = [];
+        /** Those the register said are not companies: not visited, but recorded as such, never to be picked again. */
+        const notCompanies: TargetCompanyVisit[] = [];
         const titles = plan?.queries.map((query) => query.title) ?? [criteria.targetRole];
         let searchable = webSearch;
         for (const visit of forRun.visits) {
@@ -634,8 +636,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           const first = plan?.queries[0];
           if (!searchable || !first) continue;
           const searching = recording();
-          const employer = await targets.webSearchName(visit, (work) => searching.step({ tool: "recherche-entreprises" }, work));
-          if (employer === null) continue;
+          const vetted = await targets.webSearchName(visit, (work) => searching.step({ tool: "recherche-entreprises" }, work));
+          if ("refused" in vetted) {
+            // The register's definite « not a company » is kept: else it would take one of the run's places, and one
+            // register call, in every run. The register unreachable, it stays due, asked again next run.
+            if (vetted.refused === "not_a_company") notCompanies.push(visit);
+            continue;
+          }
+          const employer = vetted.name;
           visited.push(visit);
           try {
             const search = await searching.ai
@@ -663,6 +671,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         metrics.visited = visited.length;
         metrics.offers = found.size - before;
         await targets.visited(profileId, visited, now());
+        await targets.notACompany(profileId, notCompanies, now());
       };
 
       /**

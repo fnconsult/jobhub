@@ -291,7 +291,7 @@ A web search Tool that returns pages for a query, with their dates when it knows
 _Avoid_: Search engine, search LLM, web search tool
 
 **Target Company**:
-A company Job discovery aims at for one Profile (« Entreprise cible »): one La Bonne Boite gives as likely to hire for the Profile's job and area, or one the Candidate adds by name. Job discovery reads its careers site or ATS when one is known, else searches the web for the job title and its name, once the company register lists it as a company: a sole trader's name, a private person's, is never searched (ADR-0007); at most 5 per run, the Candidate's own first, then by hiring score, none visited again within 7 days. The Candidate sees them on the Profile, can open their Company Dossier, look for Enriched Contacts, prepare a spontaneous application, or set one aside for good. Part of the Candidate's Data export.
+A company Job discovery aims at for one Profile (« Entreprise cible »): one La Bonne Boite gives as likely to hire for the Profile's job and area, or one the Candidate adds by name. Job discovery reads its careers site or ATS when one is known, else searches the web for the job title and its name, once the company register lists it as a company: a sole trader's name, a private person's, is never searched (ADR-0007), and one the register says is not a company is no longer visited; at most 5 per run, the Candidate's own first, then by hiring score, none visited again within 7 days. The Candidate sees them on the Profile, can open their Company Dossier, look for Enriched Contacts, prepare a spontaneous application, or set one aside for good. Part of the Candidate's Data export.
 _Avoid_: Prospect, lead, high-potential company
 
 **Job Search query**:

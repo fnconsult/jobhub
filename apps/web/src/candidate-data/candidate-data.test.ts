@@ -503,8 +503,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(exported.profiles.find((profile) => profile.id === profileId)).toMatchObject({
       targetCompanies: [
-        { name: "Tisserands du Rhône", origin: "candidate", hiringScore: null, city: null, activity: null, addedAt: new Date("2026-10-01T08:00:00Z"), lastVisitedAt: null, setAsideAt: new Date("2026-10-01T08:00:00Z") },
-        { name: "ACME INDUSTRIE", origin: "la_bonne_boite", hiringScore: 82.5, city: "Lyon", activity: null, addedAt: new Date("2026-10-02T08:00:00Z"), lastVisitedAt: null, setAsideAt: null },
+        { name: "Tisserands du Rhône", origin: "candidate", hiringScore: null, city: null, activity: null, addedAt: new Date("2026-10-01T08:00:00Z"), lastVisitedAt: null, notACompanyAt: null, setAsideAt: new Date("2026-10-01T08:00:00Z") },
+        { name: "ACME INDUSTRIE", origin: "la_bonne_boite", hiringScore: 82.5, city: "Lyon", activity: null, addedAt: new Date("2026-10-02T08:00:00Z"), lastVisitedAt: null, notACompanyAt: null, setAsideAt: null },
       ],
       targetCompaniesRefreshedAt: new Date("2026-10-02T08:00:00Z"),
     });

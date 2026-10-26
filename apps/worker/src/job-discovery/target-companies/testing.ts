@@ -58,6 +58,7 @@ export function memoryTargetCompanies(): MemoryTargetCompanyStore {
           activity: company.activity ?? null,
           addedAt: at,
           lastVisitedAt: null,
+          notACompanyAt: null,
           setAside: false,
         });
       }
@@ -65,6 +66,9 @@ export function memoryTargetCompanies(): MemoryTargetCompanyStore {
     },
     async visited(profileId, visited, at) {
       for (const company of of(profileId)) if (visited.includes(company.id)) company.lastVisitedAt = at;
+    },
+    async notACompany(profileId, ids, at) {
+      for (const company of of(profileId)) if (ids.includes(company.id)) company.notACompanyAt = at;
     },
     async careersSites(keys) {
       return new Map(keys.flatMap((key) => (sites.has(key) ? [[key, sites.get(key)!] as const] : [])));
@@ -83,6 +87,7 @@ export function memoryTargetCompanies(): MemoryTargetCompanyStore {
         activity: null,
         addedAt: at,
         lastVisitedAt: null,
+        notACompanyAt: null,
         setAside: false,
       };
       of(profileId).push(row);

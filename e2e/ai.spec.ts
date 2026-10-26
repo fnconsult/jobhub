@@ -109,7 +109,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
         AI_WRITING_PROVIDER: "openai",
         AI_OFFER_ANALYSIS_PROVIDER: "anthropic",
         AI_WEB_SEARCH_PROVIDER: "perplexity",
-        AI_WEB_SEARCH_MODEL: "perplexity/sonar",
+        PERPLEXITY_SEARCH_TYPE: "web",
       },
       [score(), write(), analyseOffer, search()],
     );
@@ -122,7 +122,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
       "api.perplexity.ai",
     ]);
     expect(JSON.parse(r.requests[0]!.body).model).toBe("mistral-small-latest");
-    expect(JSON.parse(r.requests[3]!.body).model).toBe("perplexity/sonar");
+    expect(JSON.parse(r.requests[3]!.body).search_type).toBe("web");
     expect(r.outcomes.map((o) => (o.ok ? o.value.provider : o.error.name))).toEqual(["mistral", "openai", "anthropic", "perplexity"]);
   });
 
@@ -160,17 +160,17 @@ test.describe("AI layer: provider adapters", () => {
     expect(r.requests[0]!.apiKeyHeader).toBe("test-anthropic-key");
   });
 
-  test("Mistral and OpenAI (EU residency) over their chat-completions APIs, Perplexity over its Agent API", () => {
+  test("Mistral and OpenAI (EU residency) over their chat-completions APIs, Perplexity over its Search API", () => {
     const r = runAi({ ...KEYS, AI_SCORING_PROVIDER: "mistral", AI_WRITING_PROVIDER: "openai" }, [score(), write(), search()]);
     ok(r);
     expect(r.requests.map((req) => req.url)).toEqual([
       "https://api.mistral.ai/v1/chat/completions",
       "https://eu.api.openai.com/v1/chat/completions",
-      "https://api.perplexity.ai/v1/responses",
+      "https://api.perplexity.ai/search",
     ]);
     expect(JSON.parse(r.requests[0]!.body).messages[0]).toMatchObject({ role: "system", content: expect.stringMatching(/^Score this CV against the offer\.\n+Note : /) });
     expect(JSON.parse(r.requests[0]!.body).messages[1]).toEqual({ role: "user", content: REDACTED_CV });
-    expect(r.outcomes[2]).toMatchObject({ ok: true, value: { answer: "reply from api.perplexity.ai", sources: ["https://jobs.example/offre-1"] } });
+    expect(r.outcomes[2]).toMatchObject({ ok: true, value: { answer: expect.stringContaining("reply from api.perplexity.ai"), sources: ["https://jobs.example/offre-1"] } });
   });
 });
 
@@ -212,14 +212,14 @@ test.describe("AI layer: the guardrail, not the endpoint's region, keeps identit
     ok(r);
     expect(r.requests).toHaveLength(1);
     const body = JSON.parse(r.requests[0]!.body);
-    const query: string = body.input;
+    const query: string = body.query;
     expect(query).toContain("Développeur TypeScript");
     expect(query).toContain("Paris");
     expect(query).toContain("CDI");
     expect(query).toMatch(/55.000 €/);
     expect(query).not.toMatch(/@|jean|dupont|12 34|\+33/i);
     // Nothing but that query and the search settings goes out: no instructions, no other input.
-    expect(Object.keys(body).sort()).toEqual(["input", "max_output_tokens", "preset", "store", "tools"]);
+    expect(Object.keys(body).sort()).toEqual(["max_results", "query", "search_type"]);
   });
 });
 
@@ -275,23 +275,22 @@ test.describe("AI layer: keys come from the environment", () => {
   });
 });
 
-test.describe("AI layer: Perplexity's Agent API (issue #74)", () => {
-  const recorded = path.resolve("packages/ai/src/providers/fixtures/perplexity-responses-search.json");
+test.describe("AI layer: Perplexity's Search API (issues #74, #398)", () => {
+  const recorded = path.resolve("packages/ai/src/providers/fixtures/perplexity-search.json");
 
-  test("a web search answered with a recorded /v1/responses reply returns the answer, sources and usage", () => {
-    const r = runAi({ ...KEYS, E2E_PERPLEXITY_REPLY: recorded, AI_WEB_SEARCH_MODEL: "perplexity/sonar" }, [search("cand-74")]);
+  test("a web search answered with a Search API reply returns its pages, each once, with no tokens", () => {
+    const r = runAi({ ...KEYS, E2E_PERPLEXITY_REPLY: recorded }, [search("cand-74")]);
     ok(r);
-    expect(r.requests.map((req) => req.url)).toEqual(["https://api.perplexity.ai/v1/responses"]);
+    expect(r.requests.map((req) => req.url)).toEqual(["https://api.perplexity.ai/search"]);
     expect(r.requests[0]!.authorization).toBe("Bearer test-perplexity-key");
-    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({ model: "perplexity/sonar", tools: [{ type: "web_search" }] });
+    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({ search_type: "fast", max_results: 20 });
 
     expect(r.outcomes[0]).toMatchObject({
       ok: true,
       value: {
         provider: "perplexity",
-        answer:
-          "Deux offres de DAF en CDI à Lyon : Acme Industrie [1] et un groupe industriel [2]. Les deux sont publiées depuis moins de deux semaines.",
-        // Search results, then the cited pages, each once.
+        model: "fast",
+        answer: expect.stringContaining("Acme Industrie recrute son Directeur administratif et financier"),
         sources: [
           "https://carrieres.acme-industrie.example/offres/daf-lyon",
           "https://www.cadremploi.example/emploi/daf-lyon-123",
@@ -299,9 +298,25 @@ test.describe("AI layer: Perplexity's Agent API (issue #74)", () => {
         ],
       },
     });
+    expect(r.usage).toEqual([expect.objectContaining({ candidateId: "cand-74", task: "web_search", provider: "perplexity", model: "fast", inputTokens: 0, outputTokens: 0 })]);
+  });
+
+  test("a run goes on with the fallback Search provider once Perplexity is rate limited (ADR-0043)", () => {
+    const r = runAi({ ...KEYS, BRAVE_SEARCH_API_KEY: "test-brave-key", AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave", E2E_RATE_LIMITED_HOSTS: "api.perplexity.ai" }, [search()]);
+    ok(r);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.perplexity.ai", "api.search.brave.com"]);
+    expect(r.outcomes[0]).toMatchObject({ ok: true, value: { provider: "brave" } });
     expect(r.usage).toEqual([
-      expect.objectContaining({ candidateId: "cand-74", task: "web_search", provider: "perplexity", inputTokens: 812, outputTokens: 64 }),
+      expect.objectContaining({ provider: "perplexity", outcome: "failed", reason: "rate_limited" }),
+      expect.objectContaining({ provider: "brave", outcome: "ok" }),
     ]);
+  });
+
+  test("without the fallback's key, Perplexity's failure stands", () => {
+    const r = runAi({ ...KEYS, AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave", E2E_RATE_LIMITED_HOSTS: "api.perplexity.ai" }, [search()]);
+    expect(r.startup).toEqual({ ok: true });
+    expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "AiProviderError" } });
+    expect(r.requests.map((req) => req.host)).toEqual(["api.perplexity.ai"]);
   });
 
   test("a search Perplexity fails surfaces as an error, logged as failed with no tokens (#218)", () => {
@@ -320,7 +335,7 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     expect(r.usage).toEqual([
       expect.objectContaining({ candidateId: "cand-1", task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", inputTokens: 200, outputTokens: 50 }),
       expect.objectContaining({ candidateId: "cand-1", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", inputTokens: 120, outputTokens: 30 }),
-      expect.objectContaining({ candidateId: "cand-2", task: "web_search", provider: "perplexity", inputTokens: 120, outputTokens: 30 }),
+      expect.objectContaining({ candidateId: "cand-2", task: "web_search", provider: "perplexity", inputTokens: 0, outputTokens: 0 }),
       expect.objectContaining({ candidateId: null, task: "scoring", inputTokens: 200, outputTokens: 50 }),
     ]);
     for (const line of r.usage) expect(Number.isNaN(Date.parse(line.at))).toBe(false);
@@ -329,7 +344,8 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     const total = (id: string) =>
       r.usage.filter((l) => l.candidateId === id).reduce((sum, l) => sum + l.inputTokens + l.outputTokens, 0);
     expect(total("cand-1")).toBe(400);
-    expect(total("cand-2")).toBe(150);
+    // A Search API call has no tokens: it is billed per search.
+    expect(total("cand-2")).toBe(0);
   });
 
   test("a failed provider call is reported, and logged as failed with no tokens, so it counts for nothing (#218)", () => {
@@ -386,12 +402,12 @@ test.describe("AI layer: fake provider", () => {
 test.describe("AI layer: pluggable web search providers (issue #110)", () => {
   const ACME = "https://carrieres.acme-industrie.example/offres/daf-lyon";
   const CADREMPLOI = "https://www.cadremploi.example/emploi/daf-lyon-123";
-  const SEARCH_KEYS = { BRAVE_SEARCH_API_KEY: "test-brave-key", TAVILY_API_KEY: "test-tavily-key", LINKUP_API_KEY: "test-linkup-key" };
+  const SEARCH_KEYS = { BRAVE_SEARCH_API_KEY: "test-brave-key", TAVILY_API_KEY: "test-tavily-key" };
   const FILTERS = { includeDomains: ["apec.fr", "cadremploi.fr"], excludeDomains: ["indeed.fr"], maxAgeDays: 30 };
   const route = (provider: string) => ({ ...KEYS, ...SEARCH_KEYS, AI_WEB_SEARCH_PROVIDER: provider });
   const dayOffset = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 
-  for (const provider of ["brave", "tavily", "linkup"]) {
+  for (const provider of ["brave", "tavily"]) {
     test(`AI_WEB_SEARCH_PROVIDER=${provider} returns the provider's results as sources, and logs usage`, () => {
       const r = runAi(route(provider), [search("cand-110")]);
       ok(r);
@@ -407,7 +423,6 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
     expect(brave.host).toBe("api.search.brave.com");
     expect(new URL(brave.url).pathname).toBe("/res/v1/web/search");
     expect(requestOf("tavily")).toMatchObject({ url: "https://api.tavily.com/search", authorization: "Bearer test-tavily-key" });
-    expect(requestOf("linkup")).toMatchObject({ url: "https://api.linkup.so/v1/search", authorization: "Bearer test-linkup-key" });
   });
 
   test("Tavily applies domain and date filters as its own parameters", () => {
@@ -420,14 +435,17 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
     });
   });
 
-  test("Linkup applies domain and date filters as its own parameters", () => {
-    const r = runAi(route("linkup"), [search("cand-1", FILTERS)]);
+  test("Tavily favours a country by its name, for a general search", () => {
+    const r = runAi(route("tavily"), [search("cand-1", { country: "FR" })]);
     ok(r);
-    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({
-      includeDomains: ["apec.fr", "cadremploi.fr"],
-      excludeDomains: ["indeed.fr"],
-      fromDate: dayOffset(30),
-    });
+    expect(JSON.parse(r.requests[0]!.body)).toMatchObject({ topic: "general", country: "france" });
+  });
+
+  test("Brave drops the pages it returns on an excluded domain: it has no such filter (emulated)", () => {
+    const r = runAi(route("brave"), [search("cand-1", { excludeDomains: ["cadremploi.example"] })]);
+    ok(r);
+    expect(new URL(r.requests[0]!.url).searchParams.get("q")).not.toMatch(/cadremploi/);
+    expect(r.outcomes[0]).toMatchObject({ ok: true, value: { sources: [ACME] } });
   });
 
   test("Brave turns included domains into site: operators and the freshness into a date range", () => {
@@ -438,14 +456,15 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
     expect(params.get("freshness")).toBe(`${dayOffset(30)}to${dayOffset(0)}`);
   });
 
-  test("the model setting is the search depth for Tavily and Linkup", () => {
-    const tavily = runAi({ ...route("tavily"), AI_WEB_SEARCH_MODEL: "advanced" }, [search()]);
+  test("Tavily's depth is its own setting, and the old model setting is still read for one release", () => {
+    const tavily = runAi({ ...route("tavily"), TAVILY_SEARCH_DEPTH: "advanced" }, [search()]);
     expect(JSON.parse(tavily.requests[0]!.body).search_depth).toBe("advanced");
-    const linkup = runAi({ ...route("linkup"), AI_WEB_SEARCH_MODEL: "deep" }, [search()]);
-    expect(JSON.parse(linkup.requests[0]!.body).depth).toBe("deep");
+    const legacy = runAi({ ...route("tavily"), AI_WEB_SEARCH_MODEL: "advanced" }, [search()]);
+    expect(JSON.parse(legacy.requests[0]!.body).search_depth).toBe("advanced");
+    expect(legacy.stderr).toMatch(/AI_WEB_SEARCH_MODEL is read for one more release/);
   });
 
-  for (const provider of ["brave", "tavily", "linkup"]) {
+  for (const provider of ["brave", "tavily"]) {
     test(`${provider} only receives a query built from Search Criteria, with no contact details`, () => {
       const r = runAi(route(provider), [search()]);
       ok(r);
@@ -473,7 +492,6 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
   for (const [provider, key] of [
     ["brave", "BRAVE_SEARCH_API_KEY"],
     ["tavily", "TAVILY_API_KEY"],
-    ["linkup", "LINKUP_API_KEY"],
   ] as const) {
     test(`a missing ${key} stops start-up and names the variable`, () => {
       const env: Record<string, string> = { ...route(provider) };
@@ -488,7 +506,7 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
     expect(runAi({ ...KEYS }).startup).toEqual({ ok: true });
   });
 
-  test("AI_ENV_KEYS and .env.example list the three adapter keys, empty", () => {
+  test("AI_ENV_KEYS and .env.example list the adapter keys, empty, and LINKUP_API_KEY no more", () => {
     const listed = spawnSync(tsx, ["-e", 'import("@jobhub/ai").then((m) => console.log(JSON.stringify(m.AI_ENV_KEYS)))'], { encoding: "utf8" });
     const keys = JSON.parse(listed.stdout) as string[];
     const example = readFileSync(".env.example", "utf8");
@@ -497,11 +515,13 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
       expect(example).toMatch(new RegExp(`^${key}=$`, "m"));
     }
     expect(example).toMatch(/^AI_WEB_SEARCH_PROVIDER=/m);
+    expect(keys).not.toContain("LINKUP_API_KEY");
+    expect(example).not.toMatch(/^LINKUP_API_KEY=/m);
   });
 
   test("the live recorder does nothing without WEB_SEARCH_LIVE, so CI never calls a provider", () => {
     const result = spawnSync("npx", ["vitest", "run", "packages/ai/src/providers/web-search.live.test.ts"], {
-      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", BRAVE_SEARCH_API_KEY: "k", TAVILY_API_KEY: "k", LINKUP_API_KEY: "k" },
+      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", BRAVE_SEARCH_API_KEY: "k", TAVILY_API_KEY: "k" },
       encoding: "utf8",
       timeout: 55_000,
     });

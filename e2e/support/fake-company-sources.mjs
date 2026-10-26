@@ -12,18 +12,16 @@
 // BIBENDUM (SIREN 552100557), as for Michelin; SIREN 123456789 gets the
 // all-null record the live register answers it with; anything else finds nothing.
 //
-// Perplexity's web search answers for any company with made-up facts about
-// "Globex Robotics" in Germany, including a CEO's name (Hans Müller) the
-// dossier must drop, and one source. For "PersonLeak", it answers with a
-// person's name and home address in the facts and a LinkedIn profile among the
-// sources and as its website, none of which may reach the page. For "Bibendum",
-// it gives the group's SIREN.
+// Perplexity's Search API (POST /search, ADR-0043) returns pages, never written text: for any company,
+// a page about "Globex Robotics" in Germany whose text names a CEO (Hans Müller) the dossier must drop.
+// For "PersonLeak", pages naming a person and their home address, a LinkedIn profile among them, none
+// of which may reach the page. For "Bibendum", a page giving the group's SIREN. Until the company-facts
+// Task Playbook's agent reads such pages (#405), no facts are written from them.
 //
 // Its search for an employer's Company News (the query asking for "Articles de presse") answers
-// with three articles: one from last month, kept; one older than twelve months and one whose title
-// names a person (Hans Müller), which the dossier must drop. For "Sans Chiffres", with none. For an
-// employer holding "E2E_SLOW_NEWS", it takes 30 s, or rejects at once when the Candidate stops the
-// dossier (#335), as fetch does.
+// with three article pages: one from last month; one older than twelve months and one whose title
+// names a person (Hans Müller). For "Sans Chiffres", with none. For an employer holding
+// "E2E_SLOW_NEWS", it takes 30 s, or rejects at once when the Candidate stops the dossier (#335), as fetch does.
 const realFetch = globalThis.fetch;
 
 /** Waits `ms`, or rejects with `signal`'s reason once it aborts, as fetch does. */
@@ -38,18 +36,11 @@ function answerAfter(ms, signal) {
 /** The calendar day `days` ago, YYYY-MM-DD. */
 const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 
-/** Perplexity's Agent API (POST /v1/responses): `text` as the answer, `sources` as its search results. */
-function perplexityAnswer(text, sources) {
+/** Perplexity's Search API (POST /search): the result pages, each with its title, URL, snippet and date when known. */
+function perplexityPages(pages) {
   return Response.json({
-    id: "resp_e2e",
-    object: "response",
-    status: "completed",
-    model: "openai/gpt-6-luna",
-    output: [
-      { type: "search_results", queries: ["e2e"], results: sources.map(({ url }, id) => ({ id, url, title: "", snippet: "" })) },
-      { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] },
-    ],
-    usage: { input_tokens: 20, output_tokens: 40, total_tokens: 60 },
+    id: "search_e2e",
+    results: pages.map(({ url, title = "", snippet = "", date = null }) => ({ title, url, snippet, date, last_updated: null })),
   });
 }
 
@@ -127,41 +118,31 @@ globalThis.fetch = async (input, init) => {
             { title: "Des résultats annuels en hausse", outlet: "Éco Hebdo", date: daysAgo(400), url: "https://news.example/resultats-anciens", namesPerson: false },
             { title: "Hans Müller quitte la direction du groupe", outlet: "Éco Hebdo", date: daysAgo(10), url: "https://news.example/depart", namesPerson: false },
           ];
-      return perplexityAnswer(JSON.stringify({ articles }), articles.map(({ url }) => ({ url })));
+      return perplexityPages(articles.map(({ url, title, outlet, date }) => ({ url, title: `${title} - ${outlet}`, date })));
     }
     if (query.includes("PersonLeak")) {
-      const leak = JSON.stringify({
-        country: "États-Unis",
-        headquarters: "Home office of John Smith, 12 Elm St, Austin",
-        industry: "Software, founded by Jane Doe",
-        headcount: "12 salariés",
-        website: "https://www.linkedin.com/in/john-smith-austin",
-      });
-      return perplexityAnswer(leak, [{ url: "https://www.linkedin.com/in/john-smith-austin" }, { url: "javascript:alert(1)" }, { url: "https://personleak.example/about" }]);
+      return perplexityPages([
+        { url: "https://www.linkedin.com/in/john-smith-austin", title: "John Smith - PersonLeak", snippet: "Home office of John Smith, 12 Elm St, Austin." },
+        { url: "javascript:alert(1)", title: "PersonLeak" },
+        { url: "https://personleak.example/about", title: "About PersonLeak", snippet: "Software, founded by Jane Doe. 12 employees." },
+      ]);
     }
     if (query.includes("Bibendum")) {
-      return perplexityAnswer(JSON.stringify({ country: "France", siren: "552 100 557" }), [{ url: "https://bibendum.example/groupe" }]);
+      return perplexityPages([{ url: "https://bibendum.example/groupe", title: "Le groupe Bibendum", snippet: "Compagnie Générale des Établissements Bibendum, SIREN 552 100 557." }]);
     }
     // "Weitblick Energie AG" (#172): a web search citing a source by a long URL with no break in it.
     if (query.includes("Weitblick Energie")) {
-      return perplexityAnswer(JSON.stringify({ country: "Allemagne", industry: "Énergie", website: "https://www.weitblick-energie.example/de/unternehmen/ueber-uns/investor-relations" }), [
-        { url: "https://assets.weitblick-energie.example/weitblick/assets/api/uuid:3f1c9a2e-7b4d-4e8a-9c61-2d5f0b8e4a17/251113-press-release-en.pdf" },
+      return perplexityPages([
+        { url: "https://assets.weitblick-energie.example/weitblick/assets/api/uuid:3f1c9a2e-7b4d-4e8a-9c61-2d5f0b8e4a17/251113-press-release-en.pdf", title: "Weitblick Energie AG press release", snippet: "Energy, Germany." },
       ]);
     }
     // "Atlantis Labs" (#95): a web dossier that names no country the people search knows.
     if (query.includes("Atlantis Labs")) {
-      return perplexityAnswer(JSON.stringify({ headquarters: "Atlantis", industry: "Robotique", website: "atlantis-labs.example" }), [{ url: "https://atlantis-labs.example/about" }]);
+      return perplexityPages([{ url: "https://atlantis-labs.example/about", title: "Atlantis Labs", snippet: "Robotics, Atlantis." }]);
     }
-    const answer = JSON.stringify({
-      country: "Allemagne",
-      headquarters: "Munich",
-      industry: "Robotique industrielle",
-      headcount: "1 200 salariés",
-      revenue: "300 M€ (2024)",
-      website: "globex-robotics.example",
-      ceo: "Hans Müller",
-    });
-    return perplexityAnswer(answer, [{ url: "https://globex-robotics.example/about" }]);
+    return perplexityPages([
+      { url: "https://globex-robotics.example/about", title: "About Globex Robotics", snippet: "Industrial robotics, Munich, Germany. 1,200 employees, €300M revenue (2024). CEO: Hans Müller." },
+    ]);
   }
   return realFetch(input, init);
 };

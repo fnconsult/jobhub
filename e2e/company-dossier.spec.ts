@@ -99,7 +99,9 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.noNews)).toBeVisible();
   });
 
-  test("a dossier shows the employer's Company News of the last twelve months, none naming a person", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never the Company News JSON an LLM wrote.
+  // Company News from the pages themselves has no issue yet (ADR-0043).
+  test.fixme("a dossier shows the employer's Company News of the last twelve months, none naming a person", async ({ page }) => {
     const dossier = await openApplication(page, "Acme Industrie");
 
     await dossier.getByRole("button", { name: t.build }).click();
@@ -122,7 +124,9 @@ test.describe("Company Dossier", () => {
     await expectNoPrivatePersonNamed(page);
   });
 
-  test("a foreign employer gets a dossier from web sources, labelled less reliable", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
+  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
+  test.fixme("a foreign employer gets a dossier from web sources, labelled less reliable", async ({ page }) => {
     const dossier = await openApplication(page, "Globex Robotics GmbH");
 
     await dossier.getByRole("button", { name: t.build }).click();
@@ -193,7 +197,9 @@ test.describe("Company Dossier", () => {
     await expect(again.getByText(t.reliability.official)).toHaveCount(0);
   });
 
-  test("the Candidate corrects the Presumed Employer before confirming, and the dossier is built for the employer they named", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
+  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
+  test.fixme("the Candidate corrects the Presumed Employer before confirming, and the dossier is built for the employer they named", async ({ page }) => {
     const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client recrute son DAF. Client présumé : Acme Industrie");
     await dossier.getByRole("button", { name: t.build }).click();
     await expect(dossier.getByLabel(t.employerLabel)).toHaveValue("Acme Industrie");
@@ -289,7 +295,9 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText("552100556", { exact: true })).toBeVisible();
   });
 
-  test("a large French employer known by another name than its registered one is matched by the SIREN the web search gives", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
+  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
+  test.fixme("a large French employer known by another name than its registered one is matched by the SIREN the web search gives", async ({ page }) => {
     const dossier = await openApplication(page, "Bibendum");
 
     await dossier.getByRole("button", { name: t.build }).click();
@@ -300,7 +308,9 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.reliability.less_reliable)).toHaveCount(0);
   });
 
-  test("a web dossier shows no person's name, home address or profile, even when the web search gives them", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
+  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
+  test.fixme("a web dossier shows no person's name, home address or profile, even when the web search gives them", async ({ page }) => {
     const dossier = await openApplication(page, "PersonLeak Inc");
 
     await dossier.getByRole("button", { name: t.build }).click();

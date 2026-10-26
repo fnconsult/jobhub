@@ -3,7 +3,7 @@
  * in the Back Office, kept encrypted in the database, falling back to env.
  *
  * One deep module. `createProviderSecrets(database, deps)` answers:
- *  - what is each key's state                 `list`: source, fingerprint, who and when; never a value
+ *  - what is each key's state                 `list`: source, fingerprint, who and when, its last connection test; never a value
  *  - change a key                             `replace` (tested first), `clear` (back to env)
  *  - does the key in use work                 `test`
  *  - what are the values (web and worker)     `load`, read by the resolver (./resolver.ts)
@@ -61,6 +61,8 @@ export interface ProviderSecretStatus {
   /** Who last replaced it in the Back Office, and when; null for env. */
   updatedBy: string | null;
   updatedAt: Date | null;
+  /** Its last connection test, as the Back Office Audit has it (a test, or a replacement tested first); null before any. */
+  lastTest: { at: Date; passed: boolean } | null;
 }
 
 export type ReplaceResult =
@@ -241,12 +243,13 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
     reencrypt,
 
     async list() {
-      const stored = new Map((await rows()).map((row) => [row.name, row]));
+      const [stored, tests] = await Promise.all([rows().then((all) => new Map(all.map((row) => [row.name, row]))), lastTests(database)]);
       return PROVIDER_SECRETS.map(({ name, provider }): ProviderSecretStatus => {
         const row = stored.get(name);
         const value = row ? open(row) : null;
+        const lastTest = tests.get(name) ?? null;
         if (row && value !== null) {
-          return { name, provider, source: "database", fingerprint: fingerprintOf(value), keyVersion: row.key_version, updatedBy: row.updated_by_email, updatedAt: row.updated_at };
+          return { name, provider, source: "database", fingerprint: fingerprintOf(value), keyVersion: row.key_version, updatedBy: row.updated_by_email, updatedAt: row.updated_at, lastTest };
         }
         const fromEnv = deps.env[name]?.trim();
         return {
@@ -257,6 +260,7 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
           keyVersion: row?.key_version ?? null,
           updatedBy: row?.updated_by_email ?? null,
           updatedAt: row?.updated_at ?? null,
+          lastTest,
         };
       });
     },
@@ -313,6 +317,22 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
   };
 }
 
+
+/**
+ * Each key's last connection test, as the Back Office Audit keeps it: the Test button's (`tested`, passed or failed),
+ * or the one a replacement ran first (`replaced` passed it, `replaced_despite_failed_test` and a replacement refused
+ * with `test_failed` failed it).
+ */
+async function lastTests(database: Pick<Pool, "query">): Promise<Map<string, { at: Date; passed: boolean }>> {
+  const { rows } = await database.query<{ target: string; at: Date; passed: boolean }>(
+    `SELECT DISTINCT ON (target) target, created_at AS at, (outcome = 'succeeded' AND action <> 'replaced_despite_failed_test') AS passed
+       FROM back_office_audit
+      WHERE section = 'provider_secrets'
+        AND (action IN ('tested', 'replaced', 'replaced_despite_failed_test') OR (action = 'refused' AND reason = 'test_failed'))
+      ORDER BY target, id DESC`,
+  );
+  return new Map(rows.map(({ target, at, passed }) => [target, { at, passed }]));
+}
 
 /** Creates the Provider Secrets table. Safe to run repeatedly. */
 export async function migrateProviderSecrets(database: Pick<Pool, "query">): Promise<void> {

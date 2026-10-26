@@ -51,6 +51,7 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
       keyVersion: null,
       updatedBy: null,
       updatedAt: null,
+      lastTest: null,
     });
     expect(list.find((secret) => secret.name === "PERPLEXITY_API_KEY")).toMatchObject({ source: "missing", fingerprint: null });
     expect(JSON.stringify(list)).not.toContain(ENV.MISTRAL_API_KEY);
@@ -70,6 +71,7 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
       keyVersion: 1,
       updatedBy: "claire@jobbbox.fr",
       updatedAt: expect.any(Date),
+      lastTest: { at: expect.any(Date), passed: true },
     });
     const { rows } = await database.query("SELECT * FROM provider_secret");
     expect(JSON.stringify(rows)).not.toContain(VALUE);
@@ -215,6 +217,29 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
     ]);
     const { rows } = await database.query("SELECT * FROM back_office_audit");
     expect(JSON.stringify(rows)).not.toContain(ENV.MISTRAL_API_KEY);
+  });
+
+  it("lists each key's last connection test: the Test button's or the one a replacement ran, passed or not (#396)", async () => {
+    const lastTestOf = async (name: string) => (await secrets.list()).find((secret) => secret.name === name)!.lastTest;
+    expect(await lastTestOf("STRIPE_SECRET_KEY")).toBeNull();
+
+    await secrets.test(claire, "STRIPE_SECRET_KEY");
+    expect(await lastTestOf("STRIPE_SECRET_KEY")).toEqual({ at: expect.any(Date), passed: true });
+    tester.mockResolvedValue({ ok: false, detail: "HTTP 401" });
+    await secrets.test(claire, "STRIPE_SECRET_KEY");
+    expect(await lastTestOf("STRIPE_SECRET_KEY")).toEqual({ at: expect.any(Date), passed: false });
+
+    // A replacement its provider refused, then one saved anyway: both failed tests. Clearing it tests nothing.
+    await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
+    expect(await lastTestOf("MISTRAL_API_KEY")).toEqual({ at: expect.any(Date), passed: false });
+    tester.mockResolvedValue({ ok: true });
+    await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: false });
+    expect(await lastTestOf("MISTRAL_API_KEY")).toEqual({ at: expect.any(Date), passed: true });
+    tester.mockResolvedValue({ ok: false, detail: "HTTP 401" });
+    await secrets.replace(claire, "MISTRAL_API_KEY", VALUE, { saveAnyway: true });
+    await secrets.clear(claire, "MISTRAL_API_KEY");
+    expect(await lastTestOf("MISTRAL_API_KEY")).toEqual({ at: expect.any(Date), passed: false });
+    expect(await lastTestOf("PERPLEXITY_API_KEY")).toBeNull();
   });
 
   it("tells every listener, web and worker, once a change is committed", async () => {

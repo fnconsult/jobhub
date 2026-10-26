@@ -6,13 +6,21 @@
  *   parametresHref("sources", query, hash) a tab's address: the tab is in the URL, so a reload keeps it
  *   settingHref(name) / providerSheetHref  a Platform Setting's row, a Tool's sheet, on the tab that shows it
  *   legacyRedirect("cles", query)          where Clés, Connexion and Sites de recherche now are
+ *   possibleProviders(tab, state)          « Fournisseurs possibles »: each Tool of the tab's kind, active or not,
+ *                                          its keys, its state and what it serves
  *
  * Which Tools, Platform Settings and active provider each tab shows is said here once; the page only lays
  * them out.
  */
+import { AI_ROUTING_SETTINGS, taskRouteFromEnv } from "@jobhub/ai";
 import { TOOLS, type Tool, type ToolCategory } from "@jobhub/shared";
+import { isProviderSecretName } from "../provider-secrets/catalog";
+import type { ProviderSecretStatus } from "../provider-secrets/index";
 import { routes } from "../routes";
-import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS } from "./catalog";
+import { toolStatus, type ToolState, type ToolsState } from "../tools/index";
+import { overSettings } from "./ai-routing";
+import { ENV_ONLY_SETTINGS, parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
+import type { PlatformSettingsSnapshot } from "./resolver";
 
 export type ParametresTabId = "web_search" | "ai" | "sources" | "contact_enrichment" | "email" | "billing" | "sign_in" | "extension" | "environment";
 
@@ -95,4 +103,108 @@ export function legacyRedirect(page: "cles" | "connexion" | "sites", query: Reco
     case "sites":
       return parametresHref("sources");
   }
+}
+
+/** What a tab's providers are read from: the Tools' state, and the Provider Secrets as Clés lists them (null: not shown to this reader). */
+export interface ProvidersState extends ToolsState {
+  settings: PlatformSettingsSnapshot;
+  secrets: readonly ProviderSecretStatus[] | null;
+}
+
+/** One key a Tool needs: set or not; for a Provider Secret shown to its reader, its source, last 4 characters and last connection test. */
+export interface KeyState {
+  name: string;
+  /** A Provider Secret, replaced, cleared and tested on the Tool's sheet; otherwise env's alone. */
+  secret: boolean;
+  set: boolean;
+  source?: ProviderSecretStatus["source"];
+  fingerprint?: string | null;
+  lastTest?: ProviderSecretStatus["lastTest"];
+}
+
+/** What a possible provider serves: an AI task (`ai_usage` tasks, `identity` for the EU AI consent route), or a feature. */
+export type UsedBy = string;
+
+export interface PossibleProvider extends ToolState {
+  tool: Tool;
+  /** The tab's active provider (« Fournisseur actif »). */
+  active: boolean;
+  /** « Rendre actif » can choose it: the tab has an active provider and it is another one. A missing key warns, never hides it. */
+  selectable: boolean;
+  keys: KeyState[];
+  /** What it serves while it can be called: none when it cannot (a key missing, off). */
+  usedBy: UsedBy[];
+}
+
+/** The feature a Tool of each kind serves, for a kind whose Tools are not routed AI tasks. */
+const FEATURES: Partial<Record<ToolCategory, UsedBy>> = {
+  job_discovery: "job_discovery",
+  contact_enrichment: "enriched_contacts",
+  mail: "email",
+  billing: "billing",
+  sign_in: "sign_in",
+};
+
+/** The AI tasks, as their routing settings name them (`AI_<TASK>_PROVIDER`). */
+const AI_TASKS = AI_ROUTING_SETTINGS.flatMap((setting) => {
+  const task = /^AI_(.+)_PROVIDER$/.exec(setting.name)?.[1];
+  return task ? [task.toLowerCase()] : [];
+});
+
+/** The provider each AI task is routed to, as the AI layer would route it; none for a value it refuses. */
+function taskProviders(state: ProvidersState): Map<string, string> {
+  const env = overSettings(state.env, state.settings.env);
+  try {
+    return new Map(AI_TASKS.map((task) => [task, taskRouteFromEnv(env, task as Parameters<typeof taskRouteFromEnv>[1]).provider]));
+  } catch {
+    return new Map();
+  }
+}
+
+/** The value of `name` in use, as the code reads it (a provider in lower case). */
+function settingValue(state: ProvidersState, name: string): string {
+  const resolved = state.settings.setting(name);
+  const setting = platformSetting(name);
+  if (!resolved?.value || !setting) return resolved?.value ?? "";
+  const parsed = parseSetting(setting, resolved.value);
+  return parsed.ok ? String(parsed.value) : resolved.value;
+}
+
+const callable = (state: ToolState) => state.status === "configured" || state.status === "no_key_needed";
+
+/** Every Tool of `tab`'s kind, in the catalog's order, with its state, its keys and what it serves. */
+export function possibleProviders(tab: ParametresTab, state: ProvidersState): PossibleProvider[] {
+  const tools = (TOOLS as readonly Tool[]).filter((tool) => tab.toolCategories.includes(tool.category));
+  if (tools.length === 0) return [];
+  const routed = taskProviders(state);
+  const active = tab.activeSetting ? settingValue(state, tab.activeSetting) : undefined;
+  const choices = tab.activeSetting ? platformSetting(tab.activeSetting)?.type : undefined;
+  const secrets = new Map(state.secrets?.map((secret) => [secret.name, secret]));
+  return tools.map((tool): PossibleProvider => {
+    const status = toolStatus(tool, state);
+    const usage = tool.usage;
+    const served = (): UsedBy[] => {
+      if (!callable(status)) return [];
+      if (usage?.table === "ai_usage") {
+        const tasks = [...routed].filter(([, provider]) => provider === usage.provider).map(([task]) => task);
+        return usage.provider === "mistral" ? [...tasks, "identity"] : tasks;
+      }
+      const feature = FEATURES[tool.category];
+      return feature && (active === undefined || active === tool.id) ? [feature] : [];
+    };
+    const isActive = active !== undefined && active === tool.id;
+    return {
+      tool,
+      ...status,
+      active: isActive,
+      selectable: !isActive && choices?.kind === "choice" && choices.values.includes(tool.id),
+      keys: tool.keys.map((name): KeyState => {
+        const secret = isProviderSecretName(name);
+        const shown = secret ? secrets.get(name) : undefined;
+        const base = { name, secret, set: Boolean(state.env[name]?.trim()) };
+        return shown ? { ...base, source: shown.source, fingerprint: shown.fingerprint, lastTest: shown.lastTest } : base;
+      }),
+      usedBy: served(),
+    };
+  });
 }

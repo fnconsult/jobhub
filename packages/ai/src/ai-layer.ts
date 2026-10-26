@@ -191,10 +191,16 @@ export interface CompanySearchRequest {
   /** The only input: the employer's name, as the Job Offer or the Candidate gives it. Never a person. */
   employer: string;
   /**
-   * The "company-facts-search" task Playbook's served text, `{{entreprise}}` standing for the employer;
-   * default: its built-in text. The JSON keys and "name no person" are always added.
+   * The "company-facts-search" task Playbook's words, `{{entreprise}}` standing for the employer: its served
+   * query (`## requête`) with `forReading`, else its version 1 text; default: the built-in one.
    */
   instructions?: string;
+  /**
+   * The pages are for its Playbook Agent to read (`readCompanyFacts`, #405): the query is the task Playbook's
+   * words alone. Without it, as version 1 worded it: asking for the facts as JSON and that no person be named,
+   * which a Search provider, returning pages, never writes.
+   */
+  forReading?: boolean;
   /** The web-search provider and model instead of the configured one (see `SearchRequest.route`). */
   route?: Route;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
@@ -830,7 +836,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     async searchCompany(request) {
       return search({
         candidateId: request.candidateId,
-        queries: [buildCompanyQuery(request.employer, request.instructions)],
+        queries: [buildCompanyQuery(request.employer, request.instructions, { forReading: request.forReading === true })],
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
         ...(request.signal ? { signal: request.signal } : {}),

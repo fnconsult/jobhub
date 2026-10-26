@@ -14,7 +14,7 @@ describe("task Playbooks as written in this repo (ADR-0026)", () => {
 
   it("are imported validated, but for the new Job Offer Summary and sector", () => {
     expect(TASK_PLAYBOOKS.filter((task) => !task.validatedAtImport).map((task) => task.id)).toEqual(["job-offer-reading"]);
-    expect(TASK_PLAYBOOKS.filter((task) => !task.agent).map((task) => task.id)).toEqual(["company-facts-search", "company-news-search"]);
+    expect(TASK_PLAYBOOKS.filter((task) => !task.agent).map((task) => task.id)).toEqual(["company-news-search"]);
     expect(TASK_PLAYBOOKS.filter((task) => task.search).map((task) => task.id)).toEqual(["company-facts-search", "company-news-search", "job-search-queries"]);
   });
 
@@ -38,8 +38,21 @@ describe("task Playbooks as written in this repo (ADR-0026)", () => {
     expect(taskInstructionsProblems(queries, "## intitulés\n\nDonne.\n\n## requête fr\n\nOffre {{intitulé}}\n\n## requête en\n\n{{intitulé}} in {{lieu}}")).toEqual([
       "## requête fr : {{lieu}}",
     ]);
-    expect(taskInstructionsProblems(facts, "Fiche de l'entreprise.")).toEqual(["{{entreprise}}"]);
-    expect(taskInstructionsProblems(facts, `{{entreprise}}${" x".repeat(400)}`)).toEqual(["length"]);
+    expect(taskInstructionsProblems(facts, "Fiche de l'entreprise.")).toEqual(["## requête", "## lecture"]);
+    expect(taskInstructionsProblems(facts, "## requête\n\nFiche de l'entreprise.\n\n## lecture\n\nLis.")).toEqual(["## requête : {{entreprise}}"]);
+    expect(taskInstructionsProblems(facts, `## requête\n\n{{entreprise}}\n\n## lecture\n\n${"x".repeat(4000)}`)).toEqual(["length"]);
+  });
+
+  it("keep the version 1 a task Playbook was first imported with, when its text written here came after it (#405)", () => {
+    const facts = taskPlaybookSeed("company-facts-search")!;
+
+    // Version 1: the web-search query alone, as production ran it; the text written here adds the Playbook Agent reading the pages.
+    expect(facts.firstVersion).toEqual({ instructions: expect.stringContaining("{{entreprise}}"), agent: false });
+    expect(facts.firstVersion?.instructions).not.toMatch(/^## /m);
+    expect(facts.agent).toBe(true);
+    expect(builtInInstructions("company-facts-search", "requête")).toContain("{{entreprise}}");
+    expect(builtInInstructions("company-facts-search", "lecture")).toMatch(/pages/);
+    expect(TASK_PLAYBOOKS.filter((task) => "firstVersion" in task).map((task) => task.id)).toEqual(["company-facts-search"]);
   });
 
   it("fill slots with the values given, any other left out", () => {

@@ -9,6 +9,8 @@
  *   const plan = await ai.planJobSearch({ candidateId, criteria }); // up to 6 queries: job title variants × FR/EN
  *   await ai.searchWeb({ candidateId, criteria, query: plan.queries[0], page: 1, filters: { excludeDomains, maxAgeDays: 30 } });
  *   await ai.searchCompany({ candidateId, employer });
+ *   const pages = await ai.searchCompany({ candidateId, employer, forReading: true }); // pages for a Playbook Agent to read
+ *   await readCompanyFacts(ai, { candidateId, employer, pages, reading }); // the facts JSON its agent read in them (#405)
  *   await ai.searchCompanyNews({ candidateId, employer, registeredName, website }); // its Company News, never fails
  *   await ai.searchCompanyNewsWithCall({ candidateId, employer }); // the same, with the search call (null when it failed)
  *   await readOfferFields(ai, { candidateId, jobOffer, reading }); // a Job Offer's fields, read from its text
@@ -57,6 +59,8 @@ export { createProvenanceRecorder } from "./provenance-recorder";
 export type { ProvenanceRecorder, ProvenanceRecorderOptions } from "./provenance-recorder";
 export type { FeatureStep, StepSubject, StepTool } from "./activity";
 export { readJobPage, readOfferFields } from "./job-offer-reading";
+export { readCompanyFacts } from "./company-facts";
+export type { CompanyFactsRequest } from "./company-facts";
 export type { OfferFields } from "./job-offer-reading";
 export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";
 export { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, MAX_COMPANY_NEWS } from "./company-news";

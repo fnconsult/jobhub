@@ -1231,7 +1231,7 @@
     },
     "providerSecrets": {
       "title": "Clés des fournisseurs",
-      "intro": "Les clés des services tiers (IA, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
+      "intro": "Les clés des services tiers (IA, recherche web, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
       "caption": "Clés des fournisseurs et leur source",
       "key": "Clé",
       "source": "Source",
@@ -1251,6 +1251,8 @@
       "providers": {
         "mistral": "Mistral",
         "perplexity": "Perplexity",
+        "brave": "Brave Search",
+        "tavily": "Tavily",
         "anthropic": "Anthropic Claude (API directe, hors UE)",
         "bedrock": "Anthropic Claude (AWS Bedrock, UE)",
         "france-travail": "France Travail",
@@ -2675,6 +2677,7 @@
     "rebuild": "Mettre à jour le dossier",
     "working": "Recherche en cours…",
     "unavailable": "Les sources sont indisponibles pour le moment. Réessayez dans quelques minutes.",
+    "webSearchUnavailable": "Le dossier d'un employeur étranger se constitue à partir de la recherche web, qui est indisponible pour le moment. Réessayez plus tard.",
     "notACompany": "Ce nom ou ce SIREN ne désigne pas une entreprise : un entrepreneur individuel est une personne privée, et aucune recherche n'est faite sur lui. Indiquez le nom de l'entreprise qui recrute.",
     "employerUnknown": "L'offre ne nomme pas l'employeur. Indiquez-le pour constituer le dossier.",
     "postedByAgency": "Cette offre est publiée par un cabinet de recrutement ({{agency}}).",

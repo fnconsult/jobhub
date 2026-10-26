@@ -20,6 +20,18 @@ export class AiConfigError extends Error {
 }
 
 /**
+ * Web search is unavailable: the Search provider of the call (the active one, or a task Playbook's) has no key
+ * entered (#399, ADR-0043). Every other AI task still works; a feature searching the web skips its search, as a
+ * disabled source, or refuses with its own message. Its Failure Reason is `key_missing`; its message names the key.
+ */
+export class WebSearchUnavailable extends AiConfigError {
+  override name = "WebSearchUnavailable";
+  constructor(detail: string) {
+    super(`Web search is unavailable: ${detail}`, { reason: "key_missing" });
+  }
+}
+
+/**
  * A provider call failed: HTTP error, refusal or unreadable response. Its message is
  * scrubbed of the keys in `options.secrets` and of anything that looks like a
  * credential (a provider may echo the key it was sent), so it can be logged or stored.

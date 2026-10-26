@@ -365,6 +365,28 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     });
   });
 
+  describe("without the key of the active Search provider (#399)", () => {
+    beforeEach(() => {
+      ai = createAiLayer({ providers: [mistral], routes: { offer_analysis: "mistral", web_search: "perplexity" }, usage: createMemoryUsageLog() });
+      dossiers = createCompanyDossiers(testAuth.auth.options.database as Pool, { applications, register, ai });
+    });
+
+    it("refuses a foreign employer's dossier, saying web search is unavailable, and changes nothing", async () => {
+      const applicationId = await applicationFor({ employer: "Globex Robotics GmbH" });
+      register.companies = [];
+
+      expect(await dossiers.build(candidateId, applicationId)).toEqual({ ok: false, error: "web_search_unavailable" });
+      expect(await dossiers.get(candidateId, applicationId)).toEqual({ status: "not_built" });
+      expect(perplexity.queries).toEqual([]);
+    });
+
+    it("still builds a French employer's dossier from the register, without Company News", async () => {
+      const applicationId = await applicationFor({ employer: "Acme Industrie SAS" });
+
+      expect(await dossiers.build(candidateId, applicationId)).toMatchObject({ ok: true, state: { status: "built", dossier: { siren: "552100554", news: [] } } });
+    });
+  });
+
   describe("foreign employers", () => {
     it("reads the facts in the pages the web search returned with the company-facts-search task Playbook's agent, its call kept in Provenance and AI Usage (#405)", async () => {
       register.companies = [];

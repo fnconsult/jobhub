@@ -11,13 +11,13 @@
  * Runs only with FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET set.
  * Access may be withdrawn at any time (it was in 2026, #119): a search never
  * throws, and a refusal (401, 403, 404, 410, or credentials the token endpoint
- * turns down) or any other failure is an outcome Job discovery counts and goes
+ * turns down, or Offres d'emploi not granted: `invalid_scope`) or any other failure is an outcome Job discovery counts and goes
  * on without. `calls` is how many HTTP calls the search made (a token, when the
  * one kept has expired, and the search), within France Travail's 10 calls a second.
  * What the API looks like is unverified and kept in ./api.ts.
  */
-import type { JobOfferDetails, SearchCriteria } from "@jobhub/shared";
-import { readOffers, SCOPE, SEARCH_URL, searchParams, TOKEN_URL } from "./api";
+import { createFranceTravailTokens, type JobOfferDetails, type SearchCriteria } from "@jobhub/shared";
+import { readOffers, SEARCH_URL, searchParams } from "./api";
 
 export interface FranceTravailOffer {
   /** The offer's public page at France Travail. */
@@ -56,36 +56,25 @@ class Refused extends Error {}
 export function createFranceTravail(options: FranceTravailOptions): FranceTravail {
   const fetch = options.fetch ?? globalThis.fetch;
   const timeoutMs = options.timeoutMs ?? 15_000;
-  /** The access token, kept across searches until a minute before it expires. */
-  let token: { value: string; expiresAt: number } | null = null;
+  /** Offres d'emploi's own token, asked with its scopes alone (#400), kept across searches until a minute before it expires. */
+  const tokens = createFranceTravailTokens({ clientId: options.clientId, clientSecret: options.clientSecret, fetch, timeoutMs });
 
   return {
     async search(criteria, { max, now, location }) {
       let calls = 0;
-      const call = (url: string, init: RequestInit = {}) => {
-        calls++;
-        return fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
-      };
       try {
-        if (!token || token.expiresAt <= now.getTime()) {
-          const answer = await call(TOKEN_URL, {
-            method: "POST",
-            headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
-            body: new URLSearchParams({ grant_type: "client_credentials", client_id: options.clientId, client_secret: options.clientSecret, scope: SCOPE }),
-          });
-          if ([400, 401, 403].includes(answer.status)) throw new Refused(`token refused (${answer.status})`);
-          if (!answer.ok) throw new Error(`token answered ${answer.status}`);
-          const { access_token: value, expires_in: expiresIn } = (await answer.json()) as { access_token?: unknown; expires_in?: unknown };
-          if (typeof value !== "string" || !value) throw new Error("token answer without access_token");
-          const seconds = typeof expiresIn === "number" && expiresIn > 0 ? expiresIn : 0;
-          token = { value, expiresAt: now.getTime() + Math.max(seconds - 60, 0) * 1000 };
-        }
-        const answer = await call(`${SEARCH_URL}?${searchParams(criteria, location === undefined ? { max, now } : { max, now, location })}`, {
+        const token = await tokens.token("offres_emploi", now);
+        calls += token.calls;
+        // An unknown client or Offres d'emploi not granted (invalid_scope) is a refusal; anything else a failure.
+        if (!token.ok) throw token.reason === "failed" ? new Error(token.detail) : new Refused(token.detail);
+        calls++;
+        const answer = await fetch(`${SEARCH_URL}?${searchParams(criteria, location === undefined ? { max, now } : { max, now, location })}`, {
           headers: { authorization: `Bearer ${token.value}`, accept: "application/json" },
+          signal: AbortSignal.timeout(timeoutMs),
         });
         if (answer.status === 204) return { ok: true, offers: [], calls };
         if (REFUSED.has(answer.status)) {
-          if (answer.status === 401) token = null;
+          if (answer.status === 401) tokens.forget("offres_emploi");
           throw new Refused(`search refused (${answer.status})`);
         }
         if (!answer.ok) throw new Error(`search answered ${answer.status}`);

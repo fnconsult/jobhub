@@ -238,6 +238,14 @@ describe("France Travail search", () => {
       expect(api.searches()).toHaveLength(0);
     });
 
+    it("is refused, without searching, when the client is not granted Offres d'emploi (invalid_scope)", async () => {
+      const { api, franceTravail } = setup({ token: { status: 400, body: '{"error":"invalid_scope","error_description":"Unknown/invalid scope(s): [api_offresdemploiv2]"}' } });
+
+      expect(await franceTravail.search(criteria, { max: 30, now: NOW })).toEqual({ ok: false, reason: "refused", detail: "token refused (400 invalid_scope)", calls: 1 });
+      expect(api.searches()).toHaveLength(0);
+      expect(new URLSearchParams(api.token().body).get("scope")).toBe("api_offresdemploiv2 o2dsoffre");
+    });
+
     it("asks for a new token after the search refused the one it kept", async () => {
       let status = 401;
       const { api, franceTravail } = setup({ search: () => ({ status, body: status === 200 ? SEARCH_ANSWER : "{}" }) });

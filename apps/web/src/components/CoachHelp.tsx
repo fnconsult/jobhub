@@ -1,9 +1,9 @@
 "use client";
 
-import { useId, useRef, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
-import { helpArticle, helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpLocale } from "@/coach-help";
+import { helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpLocale } from "@/coach-help";
 
 /**
  * The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, written by the Jobbbox team and found
@@ -134,11 +134,13 @@ export function HelpIntro({ pathname, locale, onOpen }: { pathname: string; loca
   );
 }
 
-/** With the AI Coach unavailable: « Voici ce que l'aide propose » for the question sent, or the way to make a Signalement. */
-export function HelpForUnanswered({ question, locale, onOpen }: { question: string; locale: HelpLocale; onOpen: (article: HelpArticle) => void }) {
+/**
+ * With the AI Coach unavailable: « Voici ce que l'aide propose » for the question sent, and, with `onAskTeam`, « Poser la
+ * question à l'équipe » directly (#345, ADR-0035).
+ */
+export function HelpForUnanswered({ question, locale, onOpen, onAskTeam }: { question: string; locale: HelpLocale; onOpen: (article: HelpArticle) => void; onAskTeam?: () => void }) {
   const { t } = useTranslation();
   const found = helpForUnanswered(question, locale);
-  const signalement = helpArticle("faq-signalement", locale);
   return (
     <div className="help-unanswered" data-help>
       {found.length > 0 ? (
@@ -155,15 +157,76 @@ export function HelpForUnanswered({ question, locale, onOpen }: { question: stri
           </ul>
         </>
       ) : (
-        <p>
-          {t("coachPanel.help.noHelp")}{" "}
-          {signalement ? (
-            <button type="button" className="link-action" onClick={() => onOpen(signalement)}>
-              {t("coachPanel.help.signalement")}
-            </button>
-          ) : null}
-        </p>
+        <p>{t("coachPanel.help.noHelp")}</p>
       )}
+      {onAskTeam ? (
+        <p>
+          {t("coachPanel.team.unavailable")}{" "}
+          <button type="button" className="link-action" onClick={onAskTeam}>
+            {t("coachPanel.team.ask")}
+          </button>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Under an AI Coach reply (#345, ADR-0035): « Cela répond à votre question ? Oui / Non ». « Non » offers « Poser la
+ * question à l'équipe », which takes the focus; « Oui » thanks. A reply the AI Coach marked as one it could not answer
+ * (`couldNotAnswer`) offers the team at once, without asking. `satisfied`: the Candidate's answer, if any.
+ */
+export function ReplyFeedback({
+  couldNotAnswer,
+  satisfied,
+  onAnswer,
+  onAskTeam,
+}: {
+  couldNotAnswer: boolean;
+  satisfied: boolean | undefined;
+  onAnswer: (satisfied: boolean) => void;
+  onAskTeam: () => void;
+}) {
+  const { t } = useTranslation();
+  const askButton = useRef<HTMLButtonElement>(null);
+  // Only a « Non » just given moves the focus, never a reply shown again.
+  const saidNo = useRef(false);
+  useEffect(() => {
+    if (satisfied === false && saidNo.current) askButton.current?.focus();
+    saidNo.current = false;
+  }, [satisfied]);
+
+  if (satisfied === true)
+    return (
+      <p role="status" className="reply-feedback">
+        {t("coachPanel.team.thanks")}
+      </p>
+    );
+  if (couldNotAnswer || satisfied === false)
+    return (
+      <p className="reply-feedback" data-help>
+        {t(couldNotAnswer ? "coachPanel.team.couldNotAnswer" : "coachPanel.team.notSatisfied")}{" "}
+        <button ref={askButton} type="button" className="link-action" onClick={onAskTeam}>
+          {t("coachPanel.team.ask")}
+        </button>
+      </p>
+    );
+  return (
+    <div className="reply-feedback" role="group" aria-label={t("coachPanel.team.answered")} data-help>
+      <span>{t("coachPanel.team.answered")}</span>
+      <button type="button" className="link-action" onClick={() => onAnswer(true)}>
+        {t("coachPanel.team.yes")}
+      </button>
+      <button
+        type="button"
+        className="link-action"
+        onClick={() => {
+          saidNo.current = true;
+          onAnswer(false);
+        }}
+      >
+        {t("coachPanel.team.no")}
+      </button>
     </div>
   );
 }

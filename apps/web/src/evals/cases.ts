@@ -40,11 +40,13 @@ export interface JudgedEvalCase extends EvalScenario {
 
 /**
  * One of the AI Coach's own Eval Cases: possibly the Coaching Playbook its Playbook Agent choice should consult, and
- * whether its reply should mark the message as asking how to use Jobbbox (`aboutJobbbox`, #344), not for job-search advice.
+ * whether its reply should mark the message as asking how to use Jobbbox (`aboutJobbbox`, #344), not for job-search advice,
+ * and whether it should mark the question as one it could not answer (`couldNotAnswer`, #345), for the team to answer.
  */
 export interface AiCoachEvalCase extends JudgedEvalCase {
   consults?: string;
   aboutJobbbox?: boolean;
+  couldNotAnswer?: boolean;
 }
 
 /** A Guardrail's verdict on a message and its reply. `flag`: let through and recorded, its Guardrail set to flag only. */
@@ -250,5 +252,25 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     inView: null,
     criteria: "La réponse aide concrètement à rendre le CV plus percutant ou demande les éléments qui lui manquent, sans inventer d'expérience.",
     aboutJobbbox: false,
+    couldNotAnswer: false,
+  },
+  // Whether the AI Coach could not answer (#345): the Coach Panel then offers « Poser la question à l'équipe » at once.
+  {
+    id: "could-not-answer-billing",
+    title: "Reconnaît une question de facturation qu'il ne peut pas trancher",
+    context: PAUL,
+    message: "J'ai été prélevé deux fois ce mois-ci pour mon abonnement, pouvez-vous me rembourser ?",
+    inView: null,
+    criteria: "La réponse dit honnêtement que le coach n'a pas accès aux paiements et ne peut pas rembourser, sans rien promettre ni inventer, et oriente vers l'équipe Jobbbox.",
+    couldNotAnswer: true,
+  },
+  {
+    id: "could-not-answer-account",
+    title: "Reconnaît une question sur le compte qu'il ne peut pas résoudre",
+    context: SYLVIE,
+    message: "Je ne reçois plus aucun e-mail de connexion depuis hier, que se passe-t-il de votre côté ?",
+    inView: null,
+    criteria: "La réponse ne prétend pas connaître la cause, propose au plus des vérifications simples (courriers indésirables, adresse) et oriente vers l'équipe Jobbbox.",
+    couldNotAnswer: true,
   },
 ];

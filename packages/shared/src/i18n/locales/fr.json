@@ -607,13 +607,25 @@
       "thanks": "Merci ! Posez une autre question quand vous voulez.",
       "askAbout": "À propos de « {{title}} » : ",
       "unavailableHelp": "Voici ce que l'aide propose :",
-      "noHelp": "L'aide n'a pas d'article sur cette question. Pour joindre l'équipe Jobbbox, faites un signalement.",
-      "signalement": "Faire un signalement",
+      "noHelp": "L'aide n'a pas d'article sur cette question.",
       "kinds": {
         "page": "Page",
         "glossary": "Mot à connaître",
         "faq": "Question fréquente"
       }
+    },
+    "team": {
+      "answered": "Cela répond à votre question ?",
+      "yes": "Oui",
+      "no": "Non",
+      "thanks": "Merci de votre retour.",
+      "ask": "Poser la question à l'équipe",
+      "notSatisfied": "L'équipe Jobbbox peut vous répondre.",
+      "couldNotAnswer": "Votre coach IA n'a pas cette réponse : l'équipe Jobbbox peut vous répondre.",
+      "unavailable": "L'équipe Jobbbox peut aussi vous répondre.",
+      "foot": "Signalement",
+      "reportProblem": "Signaler un problème",
+      "suggestIdea": "Proposer une idée"
     }
   },
   "provenanceLine": {
@@ -3330,6 +3342,17 @@
     "thanks": "Merci, c'est envoyé.",
     "thanksDetail": "L'équipe Jobbbox lit chaque signalement.",
     "close": "Fermer",
-    "tooMany": "Vous avez envoyé beaucoup de signalements aujourd'hui, réessayez demain."
+    "tooMany": "Vous avez envoyé beaucoup de signalements aujourd'hui, réessayez demain.",
+    "question": {
+      "title": "Poser la question à l'équipe",
+      "label": "Votre question",
+      "placeholder": "Ce que vous voulez savoir, et ce qui manquait dans la réponse du coach.",
+      "attached": "Joints automatiquement :",
+      "exchange": "Échange : votre question et la réponse du coach (IA)",
+      "context": "la page, la version de Jobbbox, votre navigateur, la langue et la taille du texte",
+      "nothingElse": "Rien d'autre de la conversation.",
+      "yourQuestion": "Votre question au coach",
+      "coachReply": "Réponse du coach (IA)"
+    }
   }
 }

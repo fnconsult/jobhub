@@ -334,6 +334,24 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         expect(done.results.find((result) => result.case.id === each.id)).toMatchObject({ score: 0.8, reply: "Voici comment faire dans Jobbbox." });
       }
     });
+
+    it("has cases the AI Coach cannot answer and one it can, and scores 0 a case it marks the wrong way (#345)", async () => {
+      const notAnswered = AI_COACH_EVAL_CASES.filter((each) => each.couldNotAnswer === true);
+      const answered = AI_COACH_EVAL_CASES.filter((each) => each.couldNotAnswer === false);
+      expect(notAnswered.length).toBeGreaterThanOrEqual(2);
+      expect(answered.length).toBeGreaterThanOrEqual(1);
+      // The AI Coach says it could not answer anything.
+      answers.reply = () => "Je ne peux pas vous répondre.\n[sans-reponse]\n[jobbbox:non]";
+
+      const done = await evals.runAiCoach(claire);
+
+      for (const each of answered) {
+        expect(done.results.find((result) => result.case.id === each.id)).toMatchObject({ score: 0, reason: expect.stringMatching(/pas pu répondre/) });
+      }
+      for (const each of notAnswered) {
+        expect(done.results.find((result) => result.case.id === each.id)).toMatchObject({ score: 0.8, reply: "Je ne peux pas vous répondre." });
+      }
+    });
   });
 
   describe("a Guardrail setting's Eval Run", () => {

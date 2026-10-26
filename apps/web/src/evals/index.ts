@@ -414,7 +414,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
   }
 
   /** The AI Coach as an Eval Run plays it: on `served`, the Guardrails as they are, a fictional Coach context per case. */
-  async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string; aboutJobbbox?: boolean })[], served: ServedKnowledge, consult?: string) {
+  async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string; aboutJobbbox?: boolean; couldNotAnswer?: boolean })[], served: ServedKnowledge, consult?: string) {
     const guardrails = createGuardrails({ ai, config: deps.guardrails, triggers: { record: () => {} } });
     let judge: EvalRun["judge"] = null;
     const results = await playAll(cases, async (each): Promise<JudgedCaseResult> => {
@@ -441,6 +441,13 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         const reason = each.aboutJobbbox
           ? "Le coach n'a pas reconnu une question sur la façon d'utiliser Jobbbox."
           : "Le coach a pris pour une question sur la façon d'utiliser Jobbbox une demande de conseil.";
+        return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
+      }
+      // Whether it could not answer (#345) is its own mark too, checked exactly.
+      if (each.couldNotAnswer !== undefined && (replied.couldNotAnswer ?? false) !== each.couldNotAnswer) {
+        const reason = each.couldNotAnswer
+          ? "Le coach n'a pas signalé une question à laquelle il n'a pas pu répondre."
+          : "Le coach a dit n'avoir pas pu répondre à une question qu'il pouvait traiter.";
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
       }
       const call = await ai

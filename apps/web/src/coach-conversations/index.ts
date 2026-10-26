@@ -72,6 +72,8 @@ export interface CoachConversation extends CoachConversationSummary {
 /**
  * `blocked`: whether the Candidate's message and the reply were marked as blocked (#228). `jobOffer`: the reply's Job Offer card, if any.
  * `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date.
+ * `couldNotAnswer`: the AI Coach marked the question as one it could not answer (#345), so the Coach Panel offers the team at
+ * once; never saved, so a reopened conversation no longer says it.
  * `stopped` (#328): the Candidate stopped the reply; their message is saved in `conversation`, with no reply.
  * `unavailable`: the AI Coach could not answer, `reason` its Failure Reason; nothing is saved.
  */
@@ -84,6 +86,7 @@ export type SendResult =
       jobOffer?: JobOfferCard;
       provenance: Provenance;
       at: string;
+      couldNotAnswer: boolean;
     }
   | { ok: false; error: "stopped"; conversation: CoachConversationSummary }
   | { ok: false; error: "unavailable"; reason: FailureReason }
@@ -345,6 +348,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ...(answer.jobOffer ? { jobOffer: await cardOf(candidateId, answer.jobOffer) } : {}),
           provenance: answer.provenance,
           at: sentAt.toISOString(),
+          couldNotAnswer: answer.couldNotAnswer === true,
         };
       });
     },

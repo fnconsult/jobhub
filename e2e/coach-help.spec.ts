@@ -9,7 +9,7 @@ import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
 // box without AI; one opens as a card that lives in the browser only; the AI Coach is told its title alone; when the
 // AI Coach cannot answer, the help still does. The button reads « Aide et coach », « Aide » on phones.
 // Driven in the browser; the AI Coach is faked inside the server (fake-mistral.mjs): "E2E_AI_DOWN" in a message makes it
-// unavailable, "E2E_SHOW_CONTEXT#…" prints the system prompt it was sent.
+// unavailable (the team is then offered, #345), "E2E_SHOW_CONTEXT#…" prints the system prompt it was sent.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const help = fr.coachPanel.help;
 const article = (id: string) => readFileSync(`packages/help/articles/fr/${id}.md`, "utf8");
@@ -110,7 +110,7 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
     await expect(messagesOf(page).nth(1)).toContainText(`À propos de « ${QUOTA_FAQ} »`);
   });
 
-  test("with AI faked as unavailable, sending shows the matching articles, or the Signalement when there are none", async ({ page }) => {
+  test("with AI faked as unavailable, sending shows the matching articles, and the team (#345) when there are none", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-help-unavailable"));
     await openPanel(page);
     await boxOf(page).fill("Quand mon quota se renouvelle-t-il ? E2E_AI_DOWN");
@@ -126,7 +126,7 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
 
     await boxOf(page).fill("Comment négocier mon salaire ? E2E_AI_DOWN");
     await panelOf(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
-    await expect(panelOf(page).getByRole("button", { name: help.signalement })).toBeVisible({ timeout: 30_000 });
+    await expect(panelOf(page).getByRole("button", { name: fr.coachPanel.team.ask, exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(panelOf(page)).toContainText(help.noHelp);
     await expect(panelOf(page)).not.toContainText(help.unavailableHelp);
   });

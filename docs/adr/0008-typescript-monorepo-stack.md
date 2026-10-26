@@ -7,7 +7,7 @@ The web app, the browser extension and the future mobile apps share domain types
 - database: Postgres
 - background job runner: crawling, Job Offer re-checks, Job Digests, Follow-ups
 - payments: Stripe
-- AI providers: Anthropic, Mistral, OpenAI, and for web search Perplexity, Brave, Tavily or Linkup, behind one layer (ADR-0007)
+- AI providers: Anthropic, Mistral, OpenAI, and for web search Perplexity, Brave or Tavily, behind one layer (ADR-0007)
 - interface translation: i18next, with French as the default locale
 
 Authentication is passwordless (magic link + Google, plus Apple when the iOS app ships), because the senior audience produces more support tickets with passwords.

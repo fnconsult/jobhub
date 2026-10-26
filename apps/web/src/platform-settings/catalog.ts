@@ -69,6 +69,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS", group: "job_discovery", type: aboveZero(1000, true), default: "30" },
   { name: "JOB_DISCOVERY_BUDGET_EUR", group: "job_discovery", type: aboveZero(10, false), default: "0.08" },
   { name: "JOB_DISCOVERY_BUDGET_SECONDS", group: "job_discovery", type: aboveZero(MAX_DISCOVERY_SECONDS, true), default: "90" },
+  // A run's Target Companies (worker, #406): how many it visits at most (0: none), and how many days before one is visited again.
+  { name: "JOB_DISCOVERY_TARGET_COMPANIES", group: "job_discovery", type: whole(0, 20), default: "5" },
+  { name: "JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS", group: "job_discovery", type: whole(1, 90), default: "7" },
   // Enriched Contacts (ADR-0015): off without a provider, or until its DPA is signed.
   // "none" turns them off from Paramètres, over a provider env chose (#302).
   { name: "CONTACT_ENRICHMENT_PROVIDER", group: "enriched_contacts", type: { kind: "choice", values: [NO_PROVIDER, ...CONTACT_PROVIDERS], lowerCase: true }, default: "" },

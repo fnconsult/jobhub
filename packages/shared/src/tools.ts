@@ -120,6 +120,8 @@ const WEB_SEARCH_SETTINGS = (...own: string[]): readonly ToolSetting[] => [
   ...own.map((name) => ({ name })),
 ];
 const JOB_DISCOVERY_BUDGET: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS" }, { name: "JOB_DISCOVERY_BUDGET_EUR" }, { name: "JOB_DISCOVERY_BUDGET_SECONDS" }];
+/** How many Target Companies a run visits, and how soon one is visited again (#406): La Bonne Boite gives most of them. */
+const TARGET_COMPANY_SETTINGS: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_TARGET_COMPANIES" }, { name: "JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS" }];
 /** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015). */
 const ENRICHMENT_SETTINGS = (provider: string): readonly ToolSetting[] => [
   { name: "CONTACT_ENRICHMENT_PROVIDER", enabledWhen: [provider] },
@@ -252,14 +254,14 @@ export const TOOLS = [
     id: "france-travail",
     name: "France Travail",
     purpose: {
-      fr: "API des offres d'emploi de France Travail : la recherche d'offres. Ne reçoit que les critères de recherche.",
-      en: "France Travail's job offers API: Job discovery. Receives only Search Criteria.",
+      fr: "API de France Travail pour la recherche d'offres : ses offres d'emploi, les entreprises cibles de La Bonne Boite et les codes ROME de ROMEO. Ne reçoit que le métier et le lieu des critères de recherche.",
+      en: "France Travail's APIs for Job discovery: its job offers, La Bonne Boite's Target Companies and ROMEO's ROME codes. Receives only the Search Criteria's job and place.",
     },
     category: "job_discovery",
     module: "apps/worker/src/job-discovery/france-travail/api.ts",
     runsIn: "worker",
     keys: ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_TRAVAIL_CLIENT_SECRET"],
-    settings: JOB_DISCOVERY_BUDGET,
+    settings: [...JOB_DISCOVERY_BUDGET, ...TARGET_COMPANY_SETTINGS],
     usage: { table: "external_api_usage", provider: "france_travail" },
     residency: "eu",
     residencyNote: { fr: "Service public français ; aucune donnée personnelle envoyée.", en: "French public service; no personal data sent." },

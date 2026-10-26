@@ -100,19 +100,19 @@ export const routes = {
     const query = new URLSearchParams({ ...(filter.route ? { page: filter.route } : {}), ...(filter.language ? { langue: filter.language } : {}) }).toString();
     return `/admin/questions-sans-reponse${query ? `?${query}` : ""}`;
   },
-  /** The sites Jobbbox searches: the extension's Job Sites, Job discovery sources and Job discovery sites. */
-  adminSearchSites: "/admin/sites",
+  /** The Job discovery sources: Paramètres' Sources tab (#396); Job discovery sites are on Recherche web, Job Sites on Extension. */
+  adminSearchSites: "/admin/parametres?tab=sources",
   /** The Tools (Outils, #233): every external tool the app calls, and one Tool's latest calls; super-admins and Support. */
   adminTools: "/admin/outils",
   adminTool: (id: string) => `/admin/outils/${encodeURIComponent(id)}`,
-  /** The Provider Secrets (Clés): third-party keys, super-admins only. */
-  adminProviderSecrets: "/admin/cles",
-  /** The Platform Settings (Paramètres, #298): every one with its value in use and its source; super-admins and Support. */
+  /**
+   * The Platform Settings (Paramètres, #298), in tabs by kind of Tool (#396): super-admins and Support. A tab's address,
+   * a setting's row and a provider's sheet are said by platform-settings/parametres.ts. The Provider Secrets are on each
+   * provider's sheet there (formerly Clés).
+   */
   adminPlatformSettings: "/admin/parametres",
-  /** One Platform Setting's row on Paramètres (#304), or one env holds that it shows. */
-  adminPlatformSetting: (name: string) => `/admin/parametres#setting-${encodeURIComponent(name)}`,
-  /** The Sign-in Providers (Connexion) and Require SSO for Administrators, super-admins only. */
-  adminSignInProviders: "/admin/connexion",
+  /** The Sign-in Providers and Require SSO for Administrators: Paramètres' Connexion tab (#396, formerly Connexion). */
+  adminSignInProviders: "/admin/parametres?tab=connexion",
   /** The AI consumption report (Consommation IA), over a period ("7d", "2026-09"...): super-admins and Support. */
   adminAiUsage: (period?: string) => (period ? `/admin/consommation-ia?periode=${encodeURIComponent(period)}` : "/admin/consommation-ia"),
   /** The AI Message Log (Journaux IA): the list, filtered, or one log; super-admins only, every log read is audited. */

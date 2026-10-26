@@ -282,7 +282,7 @@ test.describe("Job Digest", () => {
     const office = await context.newPage();
     try {
       await signInWithMagicLink(office, SUPER_ADMIN);
-      await office.goto("/admin/parametres");
+      await office.goto("/admin/parametres?tab=sources");
       const setting = office.locator(`tr[data-setting="${THRESHOLD}"]`);
       const sourceOf = () => setting.getByRole("cell").nth(1);
       await expect(setting.getByRole("cell").nth(0)).toHaveText("60");
@@ -335,7 +335,7 @@ test.describe("Job Digest", () => {
     };
     try {
       await signInWithMagicLink(office, SUPER_ADMIN);
-      await office.goto("/admin/parametres");
+      await office.goto("/admin/parametres?tab=e-mail");
       const setting = office.locator(`tr[data-setting="${MAIL_FROM}"]`);
       const valueOf = () => setting.getByRole("cell").nth(0);
       // Env's sender, else the code's: what « Rétablir » goes back to.

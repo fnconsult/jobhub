@@ -240,7 +240,7 @@ describe.skipIf(!connectionString)("signing in through the Sign-in Providers (ne
       const callback = await through("jobbbox-sso", { testNonce: "nonce-issued-to-claire" });
 
       expect(callback.status).toBe(302);
-      expect(callback.headers.get("location")).toBe(`${BASE_URL}/admin/connexion?tested=jobbbox-sso`);
+      expect(callback.headers.get("location")).toBe(`${BASE_URL}/admin/parametres?tab=connexion&tested=jobbbox-sso`);
       expect(callback.headers.getSetCookie().join()).not.toContain("session_token");
       expect(completeTestSignIn).toHaveBeenCalledWith("jobbbox-sso", "nonce-issued-to-claire");
       expect(await candidates()).toBe(0);

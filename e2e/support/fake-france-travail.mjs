@@ -1,5 +1,5 @@
 // Preloaded into the e2e web server (NODE_OPTIONS=--import) to stand in for France Travail's
-// OAuth2 token endpoint, which the Clés section's connection test calls (#400). Shaped as
+// OAuth2 token endpoint, which its sheet's connection test in Paramètres calls (#400, #396). Shaped as
 // francetravail.io documents it (docs/research/issue-400.md): a request naming any scope the
 // client is not granted fails as a whole with 400 invalid_scope, an unknown client or a wrong
 // secret with 400 invalid_client. Nothing reaches the real one.

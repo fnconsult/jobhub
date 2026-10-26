@@ -60,10 +60,10 @@ test.describe("Tools (Outils)", () => {
     for (const name of ["Perplexity", "Brave Search", "Tavily", "Linkup"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
     for (const name of ["France Travail", "Greenhouse", "Lever", "Ashby", "APEC"]) await expect(toolRow(page, "job_discovery", name)).toBeVisible();
 
-    // Configured from its key, linked to Clés; Brave's key is missing (France Travail's keys are entered by its access spec, #400); a public API needs none.
+    // Configured from its key, linked to its provider's sheet in Paramètres (#396); Brave's key is missing (France Travail's keys are entered by its access spec, #400); a public API needs none.
     const mistral = toolRow(page, "ai_model", "Mistral AI");
     await expect(mistral).toContainText(tools.statuses.configured);
-    await expect(mistral.getByRole("link", { name: "MISTRAL_API_KEY" })).toHaveAttribute("href", "/admin/cles?key=MISTRAL_API_KEY");
+    await expect(mistral.getByRole("link", { name: "MISTRAL_API_KEY" })).toHaveAttribute("href", "/admin/parametres?tab=ia&fournisseur=mistral");
     await expect(toolRow(page, "web_search", "Brave Search")).toContainText(tools.statuses.key_missing);
     await expect(toolRow(page, "web_search", "Brave Search")).toContainText(tr(tools.missingKeys, { keys: "BRAVE_SEARCH_API_KEY" }));
     await expect(toolRow(page, "job_discovery", "Greenhouse")).toContainText(tools.statuses.no_key_needed);
@@ -122,14 +122,14 @@ test.describe("Tools (Outils)", () => {
     // Paramètres stays the only place it is changed: nothing to edit here.
     await expect(page.getByRole("main").getByRole("textbox")).toHaveCount(0);
     await endpoint.getByRole("link", { name: "ANTHROPIC_ENDPOINT" }).click();
-    await expect(page).toHaveURL(/\/admin\/parametres#setting-ANTHROPIC_ENDPOINT$/);
+    await expect(page).toHaveURL(/\/admin\/parametres\?tab=ia#setting-ANTHROPIC_ENDPOINT$/);
     await expect(page.locator("#setting-ANTHROPIC_ENDPOINT")).toContainText("bedrock");
 
     // A setting only env holds, as Paramètres shows it: the Stripe Prices.
     await page.goto("/admin/outils/stripe");
     const prices = page.getByRole("table", { name: tr(tools.settingsCaption, { name: "Stripe" }) });
     await expect(prices.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "STRIPE_PRICE_STANDARD" }) })).toContainText("price_standard_monthly");
-    await expect(prices.getByRole("link", { name: "STRIPE_PRICE_STANDARD" })).toHaveAttribute("href", "/admin/parametres#setting-STRIPE_PRICE_STANDARD");
+    await expect(prices.getByRole("link", { name: "STRIPE_PRICE_STANDARD" })).toHaveAttribute("href", "/admin/parametres?tab=environnement#setting-STRIPE_PRICE_STANDARD");
   });
 
   test("a Stripe call shows on Stripe's page and in the Journal with the Outils filter, beside the Back Office changes, never what it carried (#234)", async ({ page }) => {
@@ -246,11 +246,11 @@ test.describe("Tools (Outils)", () => {
 
     await signInWithMagicLink(page, SUPER_ADMIN);
     // A key its provider refuses: tested, so one connection-test call to Lusha.
-    await page.goto("/admin/cles");
+    await page.goto("/admin/parametres?tab=enrichissement&fournisseur=lusha");
     await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: "LUSHA_API_KEY" }) }).click();
     await page.getByLabel(tr(keys.newValue, { name: "LUSHA_API_KEY" })).fill(`e2e-traced-secret-${Date.now()}`);
     await page.getByRole("button", { name: tr(keys.replace, { name: "LUSHA_API_KEY" }) }).click();
-    await expect(page.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
+    await expect(page.locator("aside[data-sheet]").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
 
     for (const [id, name] of [["google", "Google"], ["lusha", "Lusha"]] as const) {
       await page.goto(`/admin/outils/${id}`);
@@ -288,7 +288,7 @@ test.describe("Tools (Outils)", () => {
     await expect(mistral.getByRole("link", { name: "MISTRAL_API_KEY" })).toHaveCount(0);
     expect((await supportPage.goto("/admin/outils/mistral"))?.status()).toBe(200);
     // Support reads Paramètres: a Tool's settings are linked to it (#304).
-    await expect(supportPage.getByRole("main").getByRole("link", { name: "AI_IDENTITY_MODEL" })).toHaveAttribute("href", "/admin/parametres#setting-AI_IDENTITY_MODEL");
+    await expect(supportPage.getByRole("main").getByRole("link", { name: "AI_IDENTITY_MODEL" })).toHaveAttribute("href", "/admin/parametres?tab=ia#setting-AI_IDENTITY_MODEL");
 
     for (const other of [plansPage, candidatePage]) {
       for (const path of ["/admin/outils", "/admin/outils/mistral"]) {

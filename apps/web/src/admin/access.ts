@@ -56,7 +56,7 @@ export type BackOfficeResource = keyof typeof statements;
 const control = createAccessControl(statements);
 
 /** The Back Office Roles, as stored in `administrator_role.role`. */
-export const BACK_OFFICE_ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "support"] as const;
+export const BACK_OFFICE_ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "platform-manager", "support"] as const;
 export type BackOfficeRole = (typeof BACK_OFFICE_ROLES)[number];
 
 export const isBackOfficeRole = (value: unknown): value is BackOfficeRole => BACK_OFFICE_ROLES.includes(value as BackOfficeRole);
@@ -69,6 +69,18 @@ const ROLES = {
   "coach-manager": control.newRole({ humanCoaches: ["read", "write"], coachMessageCost: READ }),
   "playbook-editor": control.newRole({ coachingPlaybooks: ["read", "write"], evalRuns: ["read", "write"] }),
   "help-editor": control.newRole({ unansweredQuestions: ["read", "write"], signalements: READ }),
+  // « Technique » (#397, ADR-0042): changes every non-secret setting of Paramètres (the Tools' prices among them), the
+  // Job discovery sources and sites and the Job Sites; sees Provider Secrets by their source and last 4 characters only,
+  // never replaces one; reads what the Dashboard sums up and the Back Office Audit. Never the AI Message Log.
+  "platform-manager": control.newRole({
+    platformSettings: ["read", "write"],
+    searchSites: ["read", "write"],
+    providerSecrets: READ,
+    ssoProviders: READ,
+    tools: READ,
+    aiUsage: READ,
+    audit: READ,
+  }),
   // Reads everything but Provider Secrets and the AI Message Log, and triages Signalements; the team's own sections (Administrateurs, Journal) stay with super-admins.
   support: control.newRole({
     planQuotas: READ,

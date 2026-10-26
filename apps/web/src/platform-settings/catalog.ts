@@ -228,3 +228,17 @@ export const ENV_ONLY_SETTINGS = {
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
 
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;
+
+/** What took the place of a variable Jobbbox no longer reads. */
+export type RetiredBy = "coaching_playbooks";
+
+/**
+ * The env variables Jobbbox once read and no longer does (#396): Paramètres' Environnement tab lists those an
+ * environment still sets, so an old `.env` can be cleaned. A guard test keeps the code from reading one again.
+ */
+export const RETIRED_SETTINGS = {
+  // The coaching knowledge's environment (#174): Coaching Playbooks are now edited and validated in the Back Office (ADR-0021).
+  COACH_KNOWLEDGE_ENVIRONMENT: "coaching_playbooks",
+} as const satisfies Record<string, RetiredBy>;
+
+export type RetiredSettingName = keyof typeof RETIRED_SETTINGS;

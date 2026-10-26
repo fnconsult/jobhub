@@ -19,6 +19,8 @@ import { newAddress } from "./support/mailbox";
 // Issue #303: they set the extension's Chrome Web Store page there, an https URL only; Mon compte's
 // Outils offers it within seconds, and « coming soon » again once it is « Rétablir »'d (the e2e server
 // sets no EXTENSION_STORE_URL).
+// Issue #396: each setting is on the tab of its kind of Tool (?tab=), the settings only env holds on Environnement.
+// Issue #397: a Technique administrator (platform-manager) changes them too, sees Provider Secrets read-only, never Appels IA.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
@@ -55,7 +57,7 @@ async function grant(superAdmin: Page, email: string, role: string) {
 }
 
 test.describe("Platform Settings (Paramètres)", () => {
-  test("a super-admin sees every Platform Setting with its source and default, an env value differing from the default flagged, and no secret", async ({ page }) => {
+  test("a super-admin sees every Platform Setting with its source and default on its tab, an env value differing from the default flagged, and no secret", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(PATH);
     await expect(page).toHaveTitle(`${texts.title} · ${admin.title}`);
@@ -64,42 +66,44 @@ test.describe("Platform Settings (Paramètres)", () => {
     // Under Plateforme.
     await expect(page.getByRole("list", { name: admin.nav.groups.platform }).getByRole("link", { name: admin.sections.platformSettings })).toBeVisible();
 
-    for (const group of ["ai_routing", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"]) {
-      await expect(page.getByRole("heading", { level: 2, name: texts.groups[group] })).toBeVisible();
-    }
-
-    // The e2e server's older .env: Claude on Bedrock, from env, differing from the code's default (auto).
+    // The e2e server's older .env: Claude on Bedrock, from env, differing from the code's default (auto). On the IA tab (#396).
+    await page.goto(`${PATH}?tab=ia`);
     const endpoint = row(page, "ANTHROPIC_ENDPOINT");
     await expect(endpoint.getByRole("cell").nth(0)).toContainText("bedrock");
     await expect(endpoint.getByRole("cell").nth(0)).toContainText(texts.differsFlag);
     await expect(endpoint.getByRole("cell").nth(1)).toHaveText(texts.sources.env);
     await expect(endpoint.getByRole("cell").nth(2)).toHaveText("auto");
-    // Nothing sets the Job Digest's target: the code's default, not flagged.
+    // AI routing set by env (the e2e server's Mistral routes, Bedrock): counted at the top.
+    await expect(page.getByRole("status").filter({ hasText: texts.differs_other.replace("{{count}} ", "") })).toBeVisible();
+    // Nothing sets the Job Digest's target: the code's default, not flagged. On the Sources tab.
+    await page.goto(`${PATH}?tab=sources`);
     const target = row(page, "JOB_DIGEST_TARGET_COUNT");
     await expect(target.getByRole("cell").nth(0)).toHaveText("10");
     await expect(target.getByRole("cell").nth(1)).toHaveText(texts.sources.default);
-    // AI routing set by env (the e2e server's Mistral routes, Bedrock): counted at the top.
-    await expect(page.getByRole("status")).toContainText(texts.differs_other.replace("{{count}} ", ""));
 
-    // The settings only env holds: secrets as set, the master keys by version.
-    await expect(row(page, "AUTH_SECRET").getByRole("cell")).toHaveText(texts.envOnly.set);
-    await expect(row(page, "SECRETS_MASTER_KEYS").getByRole("cell")).toHaveText(tr(texts.envOnly.keyVersions, { versions: "1" }));
-    await expect(row(page, "JOBHUB_TARGET").getByRole("cell")).toHaveText("e2e");
+    // The settings only env holds, on Environnement, each with why it stays there: secrets as set, the master keys by version.
+    await page.goto(`${PATH}?tab=environnement`);
+    await expect(row(page, "AUTH_SECRET").getByRole("cell").nth(0)).toHaveText(texts.envOnly.set);
+    await expect(row(page, "AUTH_SECRET").getByRole("cell").nth(1)).toHaveText(texts.environment.kinds.bootstrap);
+    await expect(row(page, "SECRETS_MASTER_KEYS").getByRole("cell").nth(0)).toHaveText(tr(texts.envOnly.keyVersions, { versions: "1" }));
+    await expect(row(page, "JOBHUB_TARGET").getByRole("cell").nth(0)).toHaveText("e2e");
     // MAIL_TRANSPORT=console is expected in e2e: no warning.
-    await expect(row(page, "MAIL_TRANSPORT").getByRole("cell")).toHaveText("console");
+    await expect(row(page, "MAIL_TRANSPORT").getByRole("cell").nth(0)).toHaveText("console");
+    await expect(row(page, "MAIL_TRANSPORT").getByRole("cell").nth(1)).toHaveText(texts.environment.kinds.read_only);
     await expect(page.getByText(texts.envOnly.mailToConsole)).toHaveCount(0);
-    const databaseUrl = await row(page, "DATABASE_URL").getByRole("cell").innerText();
+    const databaseUrl = await row(page, "DATABASE_URL").getByRole("cell").nth(0).innerText();
     expect(new URL(databaseUrl).password).toBe("");
-
-    // Links to the settings with a section of their own.
-    for (const section of ["planQuotas", "guardrails", "coachCost", "providerSecrets"]) {
+    // Links to the settings with a section of their own; the keys are on each provider's sheet now.
+    for (const section of ["planQuotas", "guardrails", "coachCost"]) {
       await expect(page.getByRole("main").getByRole("link", { name: admin.sections[section], exact: true })).toBeVisible();
     }
 
-    const html = await (await page.request.get(PATH)).text();
-    for (const secret of SECRETS) expect(html).not.toContain(secret);
-    const password = new URL(process.env.E2E_DATABASE_URL!).password;
-    if (password) expect(html).not.toContain(`:${password}@`);
+    for (const tab of ["recherche-web", "ia", "sources", "enrichissement", "e-mail", "paiement", "connexion", "extension", "environnement"]) {
+      const html = await (await page.request.get(`${PATH}?tab=${tab}`)).text();
+      for (const secret of SECRETS) expect(html, tab).not.toContain(secret);
+      const password = new URL(process.env.E2E_DATABASE_URL!).password;
+      if (password) expect(html, tab).not.toContain(`:${password}@`);
+    }
   });
 
   test.describe("editing the Job Digest's and Job discovery's settings (#299)", () => {
@@ -117,7 +121,7 @@ test.describe("Platform Settings (Paramètres)", () => {
 
     test("a super-admin changes a setting, a value out of its bounds is refused, « Rétablir » goes back to the code's default, all in the Journal", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
-      await page.goto(PATH);
+      await page.goto(`${PATH}?tab=sources`);
       await expect(page.getByText(texts.editIntro)).toBeVisible();
       const setting = row(page, EDITED);
       const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: EDITED }) });
@@ -161,9 +165,60 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(refused).not.toContainText("120");
     });
 
+    test("a Technique administrator changes a Platform Setting, cannot replace a key (no form, server refuses), cannot open Appels IA (#397)", async ({ page, browser }) => {
+      await signInWithMagicLink(page, SUPER_ADMIN);
+      const technique = newAddress("settings-technique");
+      const techniquePage = await personPage(browser, technique);
+      await grant(page, technique, "platform-manager");
+
+      // Changes a Platform Setting, recorded in their name, and restores it.
+      await techniquePage.goto(`${PATH}?tab=sources`);
+      await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);
+      const setting = row(techniquePage, EDITED);
+      await setting.getByRole("textbox", { name: tr(texts.newValue, { name: EDITED }) }).fill("58");
+      await setting.getByRole("button", { name: texts.save }).click();
+      await expect(techniquePage.getByRole("status").filter({ hasText: EDITED })).toHaveText(tr(texts.notices.saved, { name: EDITED }));
+      await expect(setting.getByRole("cell").nth(0)).toHaveText("58");
+      await expect(setting.getByRole("cell").nth(1)).toContainText(texts.sources.back_office);
+      await expect(setting.getByRole("cell").nth(1)).toContainText(technique);
+      await setting.getByRole("button", { name: texts.restore }).click();
+      await expect(techniquePage.getByRole("status").filter({ hasText: EDITED })).toHaveText(tr(texts.notices.restored, { name: EDITED }));
+      await expect(setting.getByRole("cell").nth(1)).toHaveText(texts.sources.default);
+
+      // Sees the keys by their source and last 4 characters only, on their provider's sheet in Paramètres (#396):
+      // read-only, no form to replace, test or clear one.
+      const KEY = "LUSHA_API_KEY";
+      const SHEET = `${PATH}?tab=enrichissement&fournisseur=lusha`;
+      const key = (on: Page) => on.locator(`aside[data-sheet="lusha"] [data-key="${KEY}"]`);
+      expect((await techniquePage.goto(SHEET))?.status()).toBe(200);
+      await expect(techniquePage.locator('aside[data-sheet="lusha"]')).toContainText(texts.sheet.readOnlyKeys);
+      await expect(key(techniquePage)).toBeVisible();
+      await expect(key(techniquePage).locator("form")).toHaveCount(0);
+      await expect(techniquePage.locator('input[type="password"]')).toHaveCount(0);
+      // Sent by hand (the super-admin's replace form), the server refuses it.
+      await page.goto(SHEET);
+      const form = page.locator("form").filter({ has: page.locator(`input[name="name"][value="${KEY}"]`) }).filter({ has: page.locator('input[name="value"]') });
+      const actionField = await form.locator('input[name^="$ACTION_ID_"]').getAttribute("name");
+      expect(actionField).toBeTruthy();
+      const forged = await techniquePage.request.post(SHEET, {
+        headers: { origin },
+        multipart: { [actionField!]: "", tab: "enrichissement", fournisseur: "lusha", name: KEY, value: "e2e-technique-forged-key", saveAnyway: "on" },
+        maxRedirects: 0,
+      });
+      expect(forged.status()).toBe(404);
+      await page.goto(SHEET);
+      await expect(key(page)).not.toContainText(technique);
+
+      // Never Appels IA (the AI Message Log): not in the sidebar, and its page answers 404.
+      await techniquePage.goto("/admin");
+      await expect(techniquePage.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.aiMessages })).toHaveCount(0);
+      expect((await techniquePage.goto("/admin/journaux-ia"))?.status()).toBe(404);
+      await expect(techniquePage.getByRole("heading", { level: 1 })).toHaveText(page404);
+    });
+
     test("« Rétablir » falls back to the value env holds, not the code's default, and the source follows; the Journal has the before and after of each step", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
-      await page.goto(PATH);
+      await page.goto(`${PATH}?tab=sources`);
       const setting = row(page, FROM_ENV);
       const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: FROM_ENV }) });
       await expect(setting.getByRole("cell").nth(0)).toContainText("75");
@@ -227,7 +282,7 @@ test.describe("Platform Settings (Paramètres)", () => {
 
     test("switching ANTHROPIC_ENDPOINT from bedrock to auto is saved and « Rétablir » goes back to env's, both in the Journal", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
-      await page.goto(PATH);
+      await page.goto(`${PATH}?tab=ia`);
       const setting = row(page, "ANTHROPIC_ENDPOINT");
       await expect(setting).toContainText(tr(texts.accepted, { rule: tr(texts.rules.choice, { values: "auto, bedrock, vertex, direct" }) }));
 
@@ -250,7 +305,7 @@ test.describe("Platform Settings (Paramètres)", () => {
 
     test("a task with personal data routed outside the EU is refused on save with the reason shown, and in the Journal", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
-      await page.goto(PATH);
+      await page.goto(`${PATH}?tab=ia`);
       // Claude on Bedrock in a US region: no task runs on Claude here, so this alone is accepted.
       await save(page, "BEDROCK_REGION", "us-east-1");
       await expect(page.getByRole("status").filter({ hasText: "BEDROCK_REGION" })).toHaveText(tr(texts.notices.saved, { name: "BEDROCK_REGION" }));
@@ -274,7 +329,7 @@ test.describe("Platform Settings (Paramètres)", () => {
 
     test("a typed model that does not exist fails its test call and is not saved", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
-      await page.goto(PATH);
+      await page.goto(`${PATH}?tab=ia`);
       const setting = row(page, "AI_SCORING_MODEL");
       await expect(setting).toContainText(tr(texts.accepted, { rule: tr(texts.rules.model, { provider: "mistral" }) }));
       // The provider's known models are offered, any other can be typed.
@@ -319,7 +374,7 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(install).toHaveCount(0);
 
       await signInWithMagicLink(page, SUPER_ADMIN);
-      await page.goto(PATH);
+      await page.goto(`${PATH}?tab=extension`);
       const setting = row(page, STORE);
       const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: STORE }) });
       await expect(setting).toContainText(tr(texts.accepted, { rule: texts.rules.url }));
@@ -372,7 +427,7 @@ test.describe("Platform Settings (Paramètres)", () => {
 
   test("a sender MAIL_FROM does not take is refused and in the Journal without it; MAIL_TRANSPORT has no field (#300)", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await page.goto(PATH);
+    await page.goto(`${PATH}?tab=e-mail`);
     const setting = row(page, "MAIL_FROM");
     const before = (await setting.getByRole("cell").nth(0).innerText()).trim();
     await expect(setting).toContainText(tr(texts.accepted, { rule: texts.rules.sender }));
@@ -401,14 +456,16 @@ test.describe("Platform Settings (Paramètres)", () => {
     const plansPage = await personPage(browser, plans);
     await grant(page, plans, "plans-manager");
 
-    expect((await supportPage.goto(PATH))?.status()).toBe(200);
+    expect((await supportPage.goto(`${PATH}?tab=ia`))?.status()).toBe(200);
     await expect(supportPage.getByRole("heading", { level: 1 })).toHaveText(texts.title);
     await expect(row(supportPage, "ANTHROPIC_ENDPOINT").getByRole("cell").nth(1)).toHaveText(texts.sources.env);
     // Support sees the settings without the edit controls (#299).
-    await expect(row(supportPage, EDITED).getByRole("cell").nth(0)).toHaveText(/\d/);
     await expect(supportPage.getByRole("textbox")).toHaveCount(0);
     await expect(supportPage.getByRole("button", { name: texts.save })).toHaveCount(0);
     await expect(supportPage.getByRole("button", { name: texts.restore })).toHaveCount(0);
+    await supportPage.goto(`${PATH}?tab=sources`);
+    await expect(row(supportPage, EDITED).getByRole("cell").nth(0)).toHaveText(/\d/);
+    await expect(supportPage.getByRole("button", { name: texts.save })).toHaveCount(0);
     // Support cannot open Clés: no link to it.
     await expect(supportPage.getByRole("main").getByRole("link", { name: admin.sections.providerSecrets, exact: true })).toHaveCount(0);
 

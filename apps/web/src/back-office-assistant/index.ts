@@ -29,7 +29,7 @@
  */
 import { costInEur, createProvenanceRecorder, type AiLayer, type GenerateResult } from "@jobhub/ai";
 import type { Provenance } from "@jobhub/shared";
-import type { Plan, PlanFeature, PlanQuotas } from "@jobhub/shared";
+import { toolById, type Plan, type PlanFeature, type PlanQuotas } from "@jobhub/shared";
 import { failureReasonWording } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
@@ -38,6 +38,7 @@ import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
 import type { AiUsageReport } from "../ai-usage";
 import type { Coupon, ListedCoupon, PlanDefinition, PlanName } from "../billing";
 import type { CoachMessageCost } from "../coach";
+import { providerSheetHref } from "../platform-settings/parametres";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import type { HumanCoach } from "../human-coaches";
@@ -135,6 +136,7 @@ const ROLE_NAMES: Record<BackOfficeRole, string> = {
   "coach-manager": "Responsable coaching",
   "playbook-editor": "Rédacteur de playbooks",
   "help-editor": "Rédacteur de l'aide",
+  "platform-manager": "Technique",
   support: "Support",
 };
 
@@ -149,12 +151,13 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   coachMessageCost: { name: "Coût du coach IA (Coach Message Cost)", page: routes.adminCoachCost },
   roles: { name: "Administrateurs et rôles du Back Office", page: routes.adminAdministrators },
   audit: { name: "Journal du Back Office", page: routes.adminJournal() },
-  providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)" },
+  // On each provider's sheet in Paramètres (#396), formerly the Clés section.
+  providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)", page: routes.adminPlatformSettings },
   platformSettings: { name: "Paramètres de la plateforme (Platform Settings)", page: routes.adminPlatformSettings },
   ssoProviders: { name: "Fournisseurs de connexion (SSO)", page: routes.adminSignInProviders },
   aiUsage: { name: "Consommation IA (AI Usage)", page: routes.adminAiUsage() },
   aiMessages: { name: "Journaux IA (AI Message Log)", page: routes.adminAiMessages() },
-  searchSites: { name: "Sites de recherche (Job Sites et recherche d'offres)", page: routes.adminSearchSites },
+  searchSites: { name: "Sources de la recherche d'offres, ses sites (onglet Recherche web) et les sites de l'extension (onglet Extension)", page: routes.adminSearchSites },
   coachingPlaybooks: { name: "Playbooks de coaching, socle et sources (Coaching Playbooks)", page: routes.adminCoachingPlaybooks },
   guardrails: { name: "Garde-fous (Guardrails) et leurs déclenchements", page: routes.adminGuardrails },
   tools: { name: "Outils (Tools) : les outils externes que l'application appelle", page: routes.adminTools },
@@ -163,6 +166,9 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   // Read by people only (#283): no Signalement is ever given to the assistant, only where they are.
   signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe seulement, jamais par une IA", page: routes.adminSignalements() },
 };
+
+/** Where the Stripe webhook's signing secret is entered: the Stripe provider's sheet, on Paramètres' Paiement tab (#396). */
+const STRIPE_SHEET = providerSheetHref(toolById("stripe")!)!;
 
 const heading = (resource: BackOfficeResource) => {
   const { name, page } = SECTIONS[resource];
@@ -233,15 +239,15 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
   async providerSecrets() {
     return [
       heading("providerSecrets"),
-      "Les clés des services tiers (IA, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, envoi d'e-mails par Brevo), saisies par les super-admins dans le Back Office et chiffrées. Elles sont en écriture seule : on les remplace, on ne les relit jamais ; une empreinte permet de vérifier laquelle est en place, et chaque remplacement est noté au Journal sans la valeur. Sans clé saisie, l'application prend celle de son environnement. Vous ne connaissez aucune valeur, même masquée.",
-      "Webhook Stripe : Stripe ne prévient Jobbbox d'un abonnement (nouveau, changé, résilié) que par son webhook. Sans lui, le paiement passe dans Stripe mais l'offre du candidat ne change pas dans Jobbbox. Pour le configurer, dans le tableau de bord Stripe (en mode test hors production) : Workbench > Webhooks > Ajouter une destination ; périmètre « Votre compte », payload « Instantanée » (pas « Allégée »), version de l'API proposée ; événements customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, checkout.session.completed et checkout.session.async_payment_succeeded (ces deux derniers pour les séances de coaching) ; type « Endpoint webhook » ; URL {adresse de l'application}/api/billing/webhook (https://staging.jobbbox.ai/api/billing/webhook en staging). Copier ensuite le secret de signature (whsec_…) de cette destination dans la clé STRIPE_WEBHOOK_SECRET du fournisseur Stripe, ici : il s'applique sans redéploiement. Un secret qui n'est pas celui de cette destination fait refuser chaque événement. Les paiements faits avant restent sans effet tant que leurs événements ne sont pas renvoyés depuis Stripe (bouton Renvoyer sur l'événement). Si Stripe montre des envois réussis sans effet, vérifier que le produit Stripe de l'abonnement est bien celui de l'offre dans le Back Office.",
+      "Les clés des services tiers (IA, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, envoi d'e-mails par Brevo), saisies par les super-admins sur la fiche de chaque fournisseur, dans Paramètres (l'onglet de son type d'outil, liste « Fournisseurs possibles »), et chiffrées. Elles sont en écriture seule : on les remplace, on ne les relit jamais ; une empreinte permet de vérifier laquelle est en place, et chaque remplacement est noté au Journal sans la valeur. Sans clé saisie, l'application prend celle de son environnement. Vous ne connaissez aucune valeur, même masquée.",
+      `Webhook Stripe : Stripe ne prévient Jobbbox d'un abonnement (nouveau, changé, résilié) que par son webhook. Sans lui, le paiement passe dans Stripe mais l'offre du candidat ne change pas dans Jobbbox. Pour le configurer, dans le tableau de bord Stripe (en mode test hors production) : Workbench > Webhooks > Ajouter une destination ; périmètre « Votre compte », payload « Instantanée » (pas « Allégée »), version de l'API proposée ; événements customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, checkout.session.completed et checkout.session.async_payment_succeeded (ces deux derniers pour les séances de coaching) ; type « Endpoint webhook » ; URL {adresse de l'application}/api/billing/webhook (https://staging.jobbbox.ai/api/billing/webhook en staging). Copier ensuite le secret de signature (whsec_…) de cette destination dans la clé STRIPE_WEBHOOK_SECRET, sur la fiche du fournisseur Stripe, dans l'onglet Paiement de Paramètres (${STRIPE_SHEET}) : il s'applique sans redéploiement. Un secret qui n'est pas celui de cette destination fait refuser chaque événement. Les paiements faits avant restent sans effet tant que leurs événements ne sont pas renvoyés depuis Stripe (bouton Renvoyer sur l'événement). Si Stripe montre des envois réussis sans effet, vérifier que le produit Stripe de l'abonnement est bien celui de l'offre dans le Back Office.`,
     ].join("\n");
   },
 
   async ssoProviders() {
     return [
       heading("ssoProviders"),
-      "La connexion par un fournisseur d'identité (Google, Apple, Microsoft ou OpenID Connect) : pour chacun, s'il est proposé aux candidats et aux Administrateurs, et l'identifiant client qui le relie à Jobbbox. Un changement s'applique sans déconnecter personne. Le secret client de chaque fournisseur n'est jamais relu ni communiqué : vous ne le connaissez pas.",
+      "La connexion par un fournisseur d'identité (Google, Apple, Microsoft ou OpenID Connect), réglée dans l'onglet Connexion de Paramètres : pour chacun, s'il est proposé aux candidats et aux Administrateurs, et l'identifiant client qui le relie à Jobbbox. Un changement s'applique sans déconnecter personne. Le secret client de chaque fournisseur n'est jamais relu ni communiqué : vous ne le connaissez pas.",
     ].join("\n");
   },
 
@@ -347,7 +353,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     const permanent = administrators.filter((one) => one.permanent).length;
     return [
       heading("roles"),
-      "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs, la connexion SSO et les journaux IA), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Support (lecture seule, sans secrets ni journaux IA). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
+      "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs, la connexion SSO et les journaux IA), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Technique (paramètres non secrets, sources et sites de recherche, prix des outils ; voit les clés par leur source et leurs 4 derniers caractères sans les changer ; lit la consommation IA, les outils et le journal, jamais les journaux IA), Support (lecture seule, sans secrets ni journaux IA). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
       `${administrators.length} Administrateur(s), dont ${permanent} super-admin(s) permanent(s). Par rôle :`,
       ...lines,
     ].join("\n");

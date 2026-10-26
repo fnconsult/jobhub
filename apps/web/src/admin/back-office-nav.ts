@@ -12,7 +12,9 @@ export const BACK_OFFICE_PAGES = {
   coachingPlaybooks: { href: routes.adminCoachingPlaybooks, resource: "coachingPlaybooks" },
   guardrails: { href: routes.adminGuardrails, resource: "guardrails" },
   unansweredQuestions: { href: routes.adminUnansweredQuestions(), resource: "unansweredQuestions" },
-  providerSecrets: { href: routes.adminProviderSecrets, resource: "providerSecrets" },
+  // Clés, Connexion and Sites de recherche are tabs and sheets of Paramètres (#396): no sidebar entry, but still the page a denied
+  // Administrator is recorded on (#264) and the Back Office Assistant names.
+  providerSecrets: { href: routes.adminPlatformSettings, resource: "providerSecrets" },
   platformSettings: { href: routes.adminPlatformSettings, resource: "platformSettings" },
   signInProviders: { href: routes.adminSignInProviders, resource: "ssoProviders" },
   aiUsage: { href: routes.adminAiUsage(), resource: "aiUsage" },
@@ -33,7 +35,7 @@ const GROUPS = [
   { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost", "coachingPlaybooks", "guardrails"] },
   { key: "content", sections: ["unansweredQuestions"] },
-  { key: "platform", sections: ["providerSecrets", "platformSettings", "signInProviders", "aiUsage", "aiMessages", "searchSites", "tools"] },
+  { key: "platform", sections: ["platformSettings", "aiUsage", "aiMessages", "tools"] },
   { key: "team", sections: ["administrators", "journal"] },
 ] as const satisfies ReadonlyArray<{ key: string; sections: readonly BackOfficePage[] }>;
 

@@ -8,7 +8,8 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #399: Brave's and Tavily's keys are Provider Secrets, and a missing key of the active Search provider only makes
-// web search unavailable. Driven through the public entry points: the Back Office's Clés section of the built web app
+// web search unavailable. Driven through the public entry points: the Back Office's Paramètres of the built web app (Brave's
+// and Tavily's sheets on its Recherche web tab, #396)
 // (its connection tests answered by e2e/support/fake-search-providers.mjs), a Job Search started over its HTTP API, and
 // the real worker (apps/worker, `tsx src/main.ts`) on the same database, its web searches routed to Brave and answered
 // by e2e/support/fake-job-sites.mjs, which logs every request the worker sends.
@@ -64,17 +65,21 @@ async function adminPage(browser: Browser): Promise<Page> {
   return page;
 }
 
-const keyRow = (page: Page, name = NAME) => page.getByRole("row").filter({ has: page.getByRole("rowheader").filter({ hasText: name }) });
+/** A Search provider's sheet, on Paramètres' Recherche web tab (#396, formerly Clés), and a key there. */
+const sheetHref = (provider: string) => `/admin/parametres?tab=recherche-web&fournisseur=${provider}`;
+const SHEET = sheetHref("brave");
+const sheetOf = (page: Page, provider = "brave") => page.locator(`aside[data-sheet="${provider}"]`);
+const keyRow = (page: Page, name = NAME, provider = "brave") => sheetOf(page, provider).locator(`[data-key="${name}"]`);
 
 async function replaceKey(page: Page, value: string) {
-  await page.goto("/admin/cles");
+  await page.goto(SHEET);
   await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: NAME }) }).click();
   await page.getByLabel(tr(keys.newValue, { name: NAME })).fill(value);
   await page.getByRole("button", { name: tr(keys.replace, { name: NAME }) }).click();
 }
 
 async function clearKey(page: Page) {
-  await page.goto("/admin/cles");
+  await page.goto(SHEET);
   const clear = page.getByRole("button", { name: tr(keys.clear, { name: NAME }) });
   if (await clear.count()) await clear.click();
   await expect(keyRow(page)).toContainText(keys.sources.missing);
@@ -168,29 +173,31 @@ test.describe("Brave's and Tavily's keys as Provider Secrets; a missing search k
     }
   });
 
-  test("Back Office, Clés: entering a Brave key tests it with Brave and saves it; Tavily's key is listed too", async () => {
-    await office.goto("/admin/cles");
-    await expect(keyRow(office)).toContainText(keys.providers.brave);
+  test("Back Office, Paramètres: on Brave's sheet, entering a key tests it with Brave and saves it; Tavily's sheet has its key too", async () => {
+    await office.goto(sheetHref("tavily"));
+    await expect(sheetOf(office, "tavily").getByRole("heading", { level: 2 })).toHaveText(keys.providers.tavily);
+    await expect(keyRow(office, "TAVILY_API_KEY", "tavily")).toContainText(keys.sources.missing);
+    await office.goto(SHEET);
+    await expect(sheetOf(office).getByRole("heading", { level: 2 })).toHaveText(keys.providers.brave);
+    await expect(keyRow(office)).toHaveCount(1);
     await expect(keyRow(office)).toContainText(keys.sources.missing);
-    await expect(keyRow(office, "TAVILY_API_KEY")).toContainText(keys.providers.tavily);
-    await expect(keyRow(office, "TAVILY_API_KEY")).toContainText(keys.sources.missing);
 
     // A key Brave refuses is not saved, and is shown nowhere.
     const refused = `e2e-brave-refused-${runId}`;
     await replaceKey(office, refused);
-    await expect(office.getByRole("main").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: NAME }));
-    await expect(office.getByRole("main").getByRole("alert").nth(1)).toHaveText(tr(keys.status, { status: "401" }));
+    await expect(sheetOf(office).getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: NAME }));
+    await expect(sheetOf(office).getByRole("alert").nth(1)).toHaveText(tr(keys.status, { status: "401" }));
     await expect(keyRow(office)).toContainText(keys.sources.missing);
     expect(await office.content()).not.toContain(refused);
 
     // A key that passes its connection test is saved: source and fingerprint, never its value.
     await replaceKey(office, VALID_KEY);
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
     await expect(keyRow(office)).toContainText(keys.sources.database);
     await expect(keyRow(office)).toContainText(`…${VALID_KEY.slice(-4)}`);
     expect(await office.content()).not.toContain(VALID_KEY);
     await keyRow(office).getByRole("button", { name: tr(keys.test, { name: NAME }) }).click();
-    await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
+    await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.testPassed, { name: NAME }));
 
     await clearKey(office);
   });
@@ -205,11 +212,12 @@ test.describe("Brave's and Tavily's keys as Provider Secrets; a missing search k
       const without = await jobSearch(page, "without", requestLog, worker.output);
       expect(without.braveSearches).toHaveLength(0);
       expect(worker.output()).toContain("the web search is unavailable");
+      expect(worker.output()).toContain("[worker] Job discovery runs without the web search");
       expect(worker.output()).not.toContain("Job discovery is unavailable");
 
       // Entered in the Back Office while the worker runs: in use within seconds (NOTIFY), no restart.
       await replaceKey(office, VALID_KEY);
-      await expect(office.getByRole("main").getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
+      await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
       await new Promise((resolve) => setTimeout(resolve, 2_000));
 
       const second = await browser.newContext({ baseURL: origin, locale: "en-US" });

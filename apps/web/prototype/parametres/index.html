@@ -115,10 +115,10 @@
     <a href="#" data-page="dashboard" id="nav-dashboard">Dashboard</a>
     <h2>Offre</h2><a href="#">Offres</a><a href="#">Quotas</a><a href="#">Codes promo</a>
     <h2>Coaching</h2><a href="#">Coachs</a><a href="#">Playbooks</a>
-    <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a><a href="#" data-page="historique" id="nav-historique">Historique des recherches</a>
-    <h2>Équipe</h2><a href="#">Administrateurs</a><a href="#">Journal</a>
+    <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#" data-page="activite" id="nav-activite">Activité</a>
+    <h2>Équipe</h2><a href="#">Administrateurs</a>
     <p class="small" style="margin:16px 8px 0">Un libellé <span style="border-bottom:1px dashed var(--muted)">souligné en tirets</span> s'explique : un clic, et l'Assistant du Back Office répond en contexte.</p>
-    <p class="small muted" style="margin:12px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
+    <p class="small muted" style="margin:12px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres ; Journaux IA, Journal et l'historique des recherches dans Activité.</p>
   </nav>
   <main id="main"></main>
 </div>
@@ -242,7 +242,7 @@ const SRC = { bo: ["Back Office", "src-bo"], env: ["env", "src-env"], code: ["d�
 
 // ---------- state ----------
 const qs = new URLSearchParams(location.search);
-const S = { page: qs.get("page") || (qs.get("tab") ? "parametres" : "dashboard"), variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, task: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
+const S = { act: qs.get("act"), page: qs.get("page") || (qs.get("tab") ? "parametres" : "dashboard"), variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, task: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
 const VARIANTS = { A: "Onglets + fournisseur actif + tableau", B: "Usages à gauche + matrice comparative", C: "Grand tableau de réglages" };
 
 // ---------- helpers ----------
@@ -314,7 +314,7 @@ function drawer(pid) {
     ${p.tools.length ? `<table><tr><th>Outil</th><th>Prix</th><th>Source</th></tr>${p.tools.map((t) => `<tr><td>${h(t.name)}</td><td><input value="${h(t.cost)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px;width:11rem"></td><td>${src("code")}<div class="small muted">catalogue, 10/2026</div></td></tr>`).join("")}</table><p class="small muted">Un prix saisi ici remplace le prix catalogue (remise négociée, nouveau tarif) dès le prochain appel.</p>` : `<p class="muted small">Aucun outil.</p>`}
     <h3>Paramètres du fournisseur</h3>
     ${p.params.length ? `<div class="kv">${p.params.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>` : `<p class="muted small">Aucun paramètre.</p>`}
-    <p class="small muted" style="margin-top:20px">Clés : super-admin seulement, jamais relues en clair. Paramètres : ressource « Paramètres non secrets ». Chaque changement va au Journal.</p>
+    <p class="small muted" style="margin-top:20px">Clés : super-admin seulement, jamais relues en clair. Paramètres : ressource « Paramètres non secrets ». Chaque changement va dans Activité.</p>
   </aside>`;
 }
 
@@ -352,7 +352,7 @@ function taskDrawer(i) {
     </div>
     <div id="keyWarn">${keyWarning(t.p)}</div>
     <div class="note">${t.personal ? "Cette tâche reçoit des données personnelles : seuls des modèles résidant dans l'UE sont proposés (ADR-0007), et les appels avec identité suivent l'EU AI Consent." : "Cette tâche ne reçoit aucune donnée personnelle : les modèles hors UE sont permis (ADR-0007)."}</div>
-    <div class="note">Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit au Journal (avant → après).</div>
+    <div class="note">Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit dans Activité (avant → après).</div>
     <div class="row"><button class="btn primary" data-tksave="${i}">Enregistrer</button><button class="btn" data-tkreset="${i}">Rétablir le défaut</button><a href="#" class="small">Consommation IA · ${h(t.t)} →</a></div>
     <p class="small muted" style="margin-top:20px">Droit requis : Paramètres non secrets.</p>
   </aside>`;
@@ -425,10 +425,10 @@ function costBlock() {
       <div class="chart"><h4>Pourquoi les runs s'arrêtent</h4><p class="small muted" style="margin:0 0 6px">${sTot} runs ce mois</p>${stops}</div>
     </div>
     <div class="chart" style="margin-top:14px"><h4>Où va le coût d'un run (moyenne)</h4><p class="small muted" style="margin:0 0 6px">La recherche web elle-même pèse ${Math.round((POSTES[2].v / allRun) * 100)} % ; la lecture des pages par un LLM l'essentiel.</p>${postes}</div>
-    <p class="small"><a href="#">Tout le détail dans Consommation IA →</a> &nbsp; <a href="#" data-page="parametres" data-tab="web">Réglages de la recherche web →</a> &nbsp; <a href="#">Vue tableau</a></p>`;
+    <p class="small"><a href="#">Tout le détail dans Consommation IA →</a> &nbsp; <a href="#" data-page="activite" data-act="recherches">Activité › Recherches →</a> &nbsp; <a href="#" data-page="parametres" data-tab="web">Réglages de la recherche web →</a> &nbsp; <a href="#">Vue tableau</a></p>`;
 }
 
-function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#">Journaux IA · ${h(us.label)} →</a></p>`; }
+function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#" data-page="activite" data-act="ia">Activité › Appels IA · ${h(us.label)} →</a></p>`; }
 
 const ENV = [
   { k: "DATABASE_URL", v: "postgres://••••@db:5432/jobhub", why: "Amorçage : nécessaire pour lire tout le reste" },
@@ -485,7 +485,7 @@ function addDrawer() {
       <span>Type</span><select id="addType">${Object.entries(ADD_TYPES).map(([k, x]) => `<option value="${k}" ${k === S.addType ? "selected" : ""}>${h(x.label)}</option>`).join("")}</select>
       ${t.fields()}
     </div>
-    ${["provider", "key", "source", "signin"].includes(S.addType) ? `<div class="note">La connexion est testée à l'enregistrement ; un échec bloque l'ajout, sauf « enregistrer quand même » (inscrit au Journal).</div>` : ""}
+    ${["provider", "key", "source", "signin"].includes(S.addType) ? `<div class="note">La connexion est testée à l'enregistrement ; un échec bloque l'ajout, sauf « enregistrer quand même » (inscrit dans Activité).</div>` : ""}
     <div class="row" style="margin-top:12px"><button class="btn primary" data-addsave>Ajouter</button></div>
   </aside>`;
 }
@@ -557,7 +557,7 @@ function variantA() {
       ${u("ai").tasks.map((t, i) => t.search ? `<tr class="click" data-task="${i}"><td>${term(t.t)}</td><td class="small muted">${{ "Variantes de titre": "construit les requêtes du plan", "Lecture d'offre": "lit une page sans données JobPosting", "Faits des Company Dossiers": "extrait les faits d'un employeur étranger des pages trouvées" }[t.t]}</td>
         <td><span class="small">${h(P[t.p].name)}</span> · <code>${h(t.m)}</code>${keyState(t.p)[0] === "ko" ? ' <span class="small ko">⚠ clé absente</span>' : ""}</td><td>${h(t.effort)}</td><td>${src(t.src)}</td><td><button class="btn" data-task="${i}">Modifier…</button></td></tr>` : "").join("")}</table>`;
   if (us.id === "web") S.histHere = true;
-  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a> &nbsp; Runs passés : <a href="#" data-page="historique">Historique des recherches →</a></p>`;
+  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a> &nbsp; Runs passés : <a href="#" data-page="activite" data-act="recherches">Activité › Recherches →</a></p>`;
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${term(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
@@ -652,8 +652,7 @@ const RUNS = Array.from({ length: 14 }, (_, i) => {
 function historyBlock() {
   const f = S.hist ?? (S.hist = { trigger: "all", fb: false });
   const rows = RUNS.filter((r) => (f.trigger === "all" || r.trigger === f.trigger) && (!f.fb || r.fb));
-  return `<div class="pagehead"><h1>Historique des recherches</h1><p>Chaque run de la Job discovery, ses recherches et ce qu'elles ont donné.</p></div>
-    <p class="small muted">Requêtes et liens vers les Job Searches gardés 30 jours ; chiffres des runs gardés 24 mois. Super-admin et Support. <a href="#" data-page="parametres" data-tab="web">Réglages de la recherche web →</a></p>
+  return `<p class="small muted" style="margin-top:14px">Chaque run de la Job discovery, ses recherches et ce qu'elles ont donné. Requêtes et liens vers les Job Searches gardés 30 jours ; chiffres des runs gardés 24 mois. Super-admin et Support. <a href="#" data-page="parametres" data-tab="web">Réglages de la recherche web →</a></p>
     <div class="row small" style="margin-bottom:8px">
       <select data-hist="trigger"><option value="all">Tous les déclencheurs</option><option ${f.trigger === "Job Search" ? "selected" : ""}>Job Search</option><option ${f.trigger === "Job Digest" ? "selected" : ""}>Job Digest</option></select>
       <select><option>7 derniers jours</option><option>Aujourd'hui</option><option>30 derniers jours</option></select>
@@ -680,8 +679,22 @@ function runDrawer(id) {
     ${r.searches.map((x, i) => `<tr><td>${i + 1}</td><td class="small">${x.kind}</td><td class="small"><code>${h(x.q)}</code></td><td class="small">${x.prov}</td><td>${x.res}</td><td>${x.nouv}</td><td class="small">${eur(x.cost, 4)}</td></tr>`).join("")}</table>
     <h3>Pages écartées</h3>
     <table><tr><th>Skip reason</th><th>Pages</th></tr>${r.skips.filter(([, v]) => v).map(([k, v]) => `<tr><td class="small">${k}</td><td>${v}</td></tr>`).join("")}</table>
-    <div class="row" style="margin-top:12px"><a href="#" class="small">Journaux IA de ce run →</a><a href="#" class="small">Ouvrir la Job Search (super-admin, inscrit au Journal) →</a></div>
+    <div class="row" style="margin-top:12px"><a href="#" class="small" data-page="activite" data-act="ia">Appels IA de ce run →</a><a href="#" class="small">Ouvrir la Job Search (super-admin, inscrit dans Activité) →</a></div>
   </aside>`;
+}
+
+const ACT_TABS = [["recherches", "Recherches"], ["ia", "Appels IA"], ["admin", "Actions des administrateurs"]];
+function activite() {
+  const t = S.act ?? "recherches";
+  const body = t === "recherches" ? historyBlock() : t === "ia" ? `<p class="small muted" style="margin-top:14px">Ce que chaque appel IA a dit (texte et réponse, clés retirées), gardé 30 jours. Super-admin seulement ; chaque ouverture est inscrite dans Actions des administrateurs.</p>
+      <div class="row small" style="margin-bottom:8px"><select><option>Toutes les tâches</option><option>Recherche web</option><option>Lecture d'offre</option><option>Variantes de titre</option><option>AI Coach (réponse)</option></select><select><option>7 derniers jours</option></select></div>
+      <table><tr><th>Quand</th><th>Tâche</th><th>Fournisseur · modèle</th><th>Candidat</th><th>Durée</th><th>Coût</th><th>Statut</th></tr>
+      ${[["26/10 17:02", "Lecture d'offre", "Anthropic · claude-sonnet-5-5", "#a3f2", "4,1 s", "0,0021 €", "ok"], ["26/10 17:02", "Recherche web", "Perplexity · Search API fast", "#a3f2", "0,8 s", "0,0009 €", "ok"], ["26/10 17:01", "Variantes de titre", "Anthropic · claude-haiku-5-5", "#a3f2", "1,2 s", "0,0004 €", "ok"], ["26/10 16:51", "Recherche web", "Perplexity · Search API fast", "#bbe6", "—", "—", "429 → secours"], ["26/10 16:49", "AI Coach (réponse)", "Mistral · mistral-large-latest", "#c0d1", "6,3 s", "0,0118 €", "ok"]].map((r) => `<tr class="click">${r.map((c, i) => `<td class="small">${i === 6 && c !== "ok" ? `<span class="warn">${c}</span>` : c}</td>`).join("")}</tr>`).join("")}</table>`
+    : `<p class="small muted" style="margin-top:14px">Chaque changement fait dans le Back Office (Back Office Audit) : qui, quoi, avant → après ; jamais la valeur d'une clé.</p>
+      <table><tr><th>Quand</th><th>Qui</th><th>Section</th><th>Action</th><th>Avant → après</th></tr>
+      ${[["26/10 11:40", "admin@jobbbox.ai", "Paramètres · Recherche web", "Fournisseur de secours", "aucun → Brave"], ["24/10 18:02", "admin@jobbbox.ai", "Paramètres · Recherche web", "Fournisseur actif", "env (perplexity) → Back Office (perplexity)"], ["21/10 10:40", "admin@jobbbox.ai", "Paramètres · Clés", "PERPLEXITY_API_KEY", "remplacée (…x9Qa)"], ["20/10 15:12", "support@jobbbox.ai", "Activité · Appels IA", "Ouverture d'un appel", "run-bbe6"], ["12/10 09:15", "admin@jobbbox.ai", "Paramètres · Sources", "France Travail", "activée → désactivée"]].map((r) => `<tr>${r.map((c) => `<td class="small">${h(c)}</td>`).join("")}</tr>`).join("")}</table>`;
+  return `<div class="pagehead"><h1>Activité</h1><p>Ce qui s'est passé : recherches, appels IA, actions des administrateurs.</p></div>
+    <div class="tabs">${ACT_TABS.map(([k, l]) => `<button data-act="${k}" class="${k === t ? "on" : ""}">${l}</button>`).join("")}</div>${body}`;
 }
 
 function dashboard() {
@@ -697,19 +710,22 @@ function render() {
   history.replaceState(null, "", url);
   document.getElementById("nav-dashboard").classList.toggle("on", S.page === "dashboard");
   document.getElementById("nav-parametres").classList.toggle("on", S.page === "parametres");
-  document.getElementById("nav-historique").classList.toggle("on", S.page === "historique");
-  document.getElementById("main").innerHTML = S.page === "historique" ? historyBlock() : S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
+  document.getElementById("nav-activite").classList.toggle("on", S.page === "activite");
+  if (S.act) url.searchParams.set("act", S.act);
+  history.replaceState(null, "", url);
+  document.getElementById("main").innerHTML = S.page === "activite" ? activite() : S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
   document.getElementById("overlay").innerHTML = S.run ? runDrawer(S.run) : S.asking ? assistantDrawer(S.asking) : S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-run],[data-ask],[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-act],[data-run],[data-ask],[data-page],[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
   if (t.dataset.run) { S.run = t.dataset.run; return render(); }
   if (t.dataset.ask) { S.run = null; e.preventDefault(); e.stopPropagation(); S.asking = t.dataset.ask; return render(); }
-  if (t.dataset.page) { e.preventDefault(); S.page = t.dataset.page; if (t.dataset.tab) S.tab = t.dataset.tab; S.drawer = null; return render(); }
+  if (t.dataset.act && !t.dataset.page) { S.act = t.dataset.act; return render(); }
+  if (t.dataset.page) { e.preventDefault(); if (t.dataset.act) S.act = t.dataset.act; S.page = t.dataset.page; if (t.dataset.tab) S.tab = t.dataset.tab; S.drawer = null; return render(); }
   if (t.dataset.jobsite != null) { const x = u("extension").jobSites[+t.dataset.jobsite]; x.on = !x.on; toast(`${x.pat} ${x.on ? "activé" : "désactivé"}`); return render(); }
   if (t.dataset.jobsiteRm != null) { const [x] = u("extension").jobSites.splice(+t.dataset.jobsiteRm, 1); toast(`${x.pat} retiré`); return render(); }
   if (t.hasAttribute("data-add")) { S.adding = true; S.addType = S.tab === "extension" ? "jobsite" : S.tab === "sources" ? "source" : S.tab === "signin" ? "signin" : S.tab === "ai" ? "model" : "provider"; return render(); }
@@ -718,7 +734,7 @@ document.addEventListener("click", (e) => {
     if (S.addType === "jobsite") u("extension").jobSites.push({ pat: n, post: "", builtIn: false, on: true });
     if (S.addType === "source") u("sources").sources.push({ k: n, pid: "ats", on: false, what: "Nouvelle source (désactivée tant que non testée)" });
     if (S.addType === "provider") { const id = n.toLowerCase().replace(/\W/g, ""); const us = u(document.getElementById("addUsage").value); P[id] = { name: n, region: "à préciser", keys: [{ name: n.toUpperCase().replace(/\W/g, "_") + "_API_KEY", source: document.getElementById("addKey").value ? "bo" : "missing", fp: "…" + (document.getElementById("addKey").value.slice(-4) || "") }], test: null, tools: [], params: [], usedBy: [] }; us.providers.push(id); S.tab = us.id; }
-    S.adding = false; toast(`${label} « ${n} » ajouté, inscrit au Journal`); return render(); }
+    S.adding = false; toast(`${label} « ${n} » ajouté, inscrit dans Activité`); return render(); }
   if (t.dataset.source != null && e.type === "click") { const x = u("sources").sources[+t.dataset.source]; x.on = t.checked; toast(`Source ${x.k} ${x.on ? "activée" : "désactivée"}`); return render(); }
   if (t.dataset.tksave) { const k = u("ai").tasks[+t.dataset.tksave]; const [pid, m] = document.getElementById("tkModel").value.split("|"); Object.assign(k, { p: pid, m, effort: document.getElementById("tkEffort").value, src: "bo" }); S.task = null; toast(`${k.t} : ${P[pid].name} · ${m}, dès le prochain appel${keyState(pid)[0] === "ko" ? " · ⚠ clé absente" : ""}`); return render(); }
   if (t.dataset.tkreset) { const k = u("ai").tasks[+t.dataset.tkreset]; const [pid, m] = k.def.split(" (")[0].split(" · "); Object.assign(k, { p: pid, m, src: k.def.includes("(env)") ? "env" : "code" }); S.task = null; toast(`${k.t} : défaut rétabli`); return render(); }
@@ -727,7 +743,7 @@ document.addEventListener("click", (e) => {
   if (t.dataset.playbook != null && !t.dataset.pbsave) { S.playbook = +t.dataset.playbook; return render(); }
   if (t.id === "prev") return cycle(-1);
   if (t.id === "next") return cycle(1);
-  if (t.id === "saveAll") { toast(`${S.changed.size} changement(s) enregistré(s), inscrits au Journal`); S.changed.clear(); return render(); }
+  if (t.id === "saveAll") { toast(`${S.changed.size} changement(s) enregistré(s), inscrits dans Activité`); S.changed.clear(); return render(); }
   if (t.dataset.activate) { e.stopPropagation(); return setActive(S.variant === "C" ? S.chip : S.tab, t.dataset.activate); }
   if (t.dataset.test) { e.stopPropagation(); const p = P[t.dataset.test]; if (p.keys.some((k) => k.source === "missing")) toast("Test impossible : clé absente"); else { p.test = { ...(p.test || {}), ok: p.test?.ok ?? true, at: NOW + " (à l'instant)", detail: p.test?.detail ?? "200" }; toast(`Test ${p.name} : ${p.test.ok ? "réussi" : "échec"}`); } return render(); }
   if (t.dataset.tab) { S.tab = t.dataset.tab; S.chip = t.dataset.tab; return render(); }
@@ -745,7 +761,7 @@ document.addEventListener("change", (e) => {
   const set = e.target.dataset.set;
   if (S.variant === "C") { const r = e.target.closest("[data-row]"); if (r) { S.changed.add(r.dataset.row); r.parentElement.classList.add("changed"); const b = document.getElementById("saveAll"); b.disabled = false; b.textContent = `Enregistrer ${S.changed.size} changement${S.changed.size > 1 ? "s" : ""}`; } return; }
   if (set === "Fournisseur actif") return setActive(S.tab, e.target.value);
-  if (set) { for (const us of U) for (const s of [...us.settings, ...(us.business?.budget ?? [])]) if (s.k === set) { s.v = e.target.value; s.src = "bo"; } for (const p of Object.values(P)) for (const s of p.params) if (s.k === set) { s.v = e.target.value; s.src = "bo"; } toast(`« ${set} » enregistré (Back Office), inscrit au Journal`); render(); }
+  if (set) { for (const us of U) for (const s of [...us.settings, ...(us.business?.budget ?? [])]) if (s.k === set) { s.v = e.target.value; s.src = "bo"; } for (const p of Object.values(P)) for (const s of p.params) if (s.k === set) { s.v = e.target.value; s.src = "bo"; } toast(`« ${set} » enregistré (Back Office), inscrit dans Activité`); render(); }
 });
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea,select,[contenteditable]")) return;

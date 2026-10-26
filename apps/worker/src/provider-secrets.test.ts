@@ -59,19 +59,21 @@ function clients(resolver: ReturnType<typeof database>["resolver"], fetch: typeo
 }
 
 describe("the worker's clients, on Provider Secrets (#208)", () => {
-  it("turns Job discovery on once its web search's key is entered in the Back Office, without a restart", async () => {
+  it("keeps Job discovery on without its web search's key, said in the log, and searches once the key is entered, without a restart (#399)", async () => {
     const withoutSearchKey = Object.fromEntries(Object.entries(ENV).filter(([name]) => name !== "PERPLEXITY_API_KEY"));
     const { stored, resolver } = database({ MISTRAL_API_KEY: { value: MISTRAL_OLD, row: "r1" } }, withoutSearchKey);
     await resolver.refresh();
     const lines: string[] = [];
     const worker = clients(resolver, fakeProviders().fetch, lines);
 
-    expect(worker.discovery()).toEqual({ unavailable: expect.stringContaining("PERPLEXITY_API_KEY") });
+    expect(worker.discovery()).toHaveProperty("discover");
+    expect(lines.join("\n")).toContain("without the web search");
     stored.current = { ...stored.current, PERPLEXITY_API_KEY: { value: "perplexity-key-entered-5678", row: "r2" } };
     await resolver.refresh();
+    lines.length = 0;
 
-    expect(worker.discovery()).not.toHaveProperty("unavailable");
     expect(worker.discovery()).toHaveProperty("discover");
+    expect(lines.join("\n")).not.toContain("without the web search");
   });
 
   it("keeps Job discovery on while a text task's provider waits for its key: that task's calls fail as key_missing (ADR-0042)", async () => {
@@ -220,6 +222,50 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
 
     expect(lines.length).toBeGreaterThan(2);
     for (const value of ["mistral-key-revoked-55555555", MISTRAL_NEW, ENV.PERPLEXITY_API_KEY]) expect(lines.join("\n")).not.toContain(value);
+  });
+});
+
+describe("the worker's web search, on the Search provider's Provider Secret (#399)", () => {
+  /** Web search on Brave, whose key neither env nor the database has yet. */
+  const BRAVE_ENV = { ...ENV, PERPLEXITY_API_KEY: "", AI_WEB_SEARCH_PROVIDER: "brave", MISTRAL_API_KEY: MISTRAL_NEW };
+  const BRAVE_KEY = "brave-key-from-back-office-42";
+  const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+
+  it("keeps Job discovery on without it: web search alone is unavailable", async () => {
+    const { resolver } = database({}, BRAVE_ENV);
+    await resolver.refresh();
+    const lines: string[] = [];
+    const worker = clients(resolver, fakeProviders().fetch, lines);
+
+    expect(worker.discovery()).toHaveProperty("discover");
+    expect(lines).toContain("[worker] Job discovery runs without the web search: its Search provider's key is not set");
+    expect(lines.join("\n")).not.toContain("Job discovery is unavailable");
+    expect(worker.ai.webSearchAvailable()).toBe(false);
+    await expect(worker.ai.searchWeb({ candidateId: "c-1", criteria })).rejects.toThrow(/BRAVE_SEARCH_API_KEY/);
+    await expect(worker.ai.generate(generate)).resolves.toMatchObject({ text: "ok" });
+  });
+
+  it("uses the key entered in the Back Office for its next search, without a restart", async () => {
+    const { stored, resolver } = database({}, BRAVE_ENV);
+    await resolver.refresh();
+    const sent: string[] = [];
+    const providers = fakeProviders();
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const request = new Request(input, init);
+      if (!request.url.startsWith("https://api.search.brave.com/")) return providers.fetch(input, init);
+      sent.push(request.headers.get("x-subscription-token")!);
+      return Response.json({ web: { results: [{ url: "https://emplois.example.fr/daf", title: "DAF", description: "DAF à Lyon" }] } });
+    }) as typeof globalThis.fetch;
+    const worker = clients(resolver, fetch, []);
+    expect(worker.ai.webSearchAvailable()).toBe(false);
+
+    stored.current = { BRAVE_SEARCH_API_KEY: { value: BRAVE_KEY, row: "r1" } };
+    await resolver.refresh();
+
+    expect(worker.ai.webSearchAvailable()).toBe(true);
+    const found = await worker.ai.searchWeb({ candidateId: "c-1", criteria });
+    expect(found.sources).toEqual(["https://emplois.example.fr/daf"]);
+    expect(sent).toEqual([BRAVE_KEY]);
   });
 });
 

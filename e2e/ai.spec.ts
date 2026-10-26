@@ -253,10 +253,13 @@ test.describe("AI layer: keys come from the environment", () => {
     });
   }
 
-  test("a missing PERPLEXITY_API_KEY stops start-up", () => {
-    const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "b" });
-    expect(r.startup).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
-    if (!r.startup.ok) expect(r.startup.error.message).toContain("PERPLEXITY_API_KEY");
+  test("a missing PERPLEXITY_API_KEY no longer stops start-up: web search alone is unavailable, key_missing, naming the variable (#399)", () => {
+    const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "b" }, [search()]);
+    expect(r.startup).toEqual({ ok: true });
+    expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "WebSearchUnavailable" } });
+    if (!r.outcomes[0]!.ok) expect(r.outcomes[0]!.error.message).toContain("PERPLEXITY_API_KEY");
+    expect(r.requests).toEqual([]);
+    expect(r.usage).toEqual([expect.objectContaining({ outcome: "failed", reason: "key_missing", sent: false, costEur: 0, inputTokens: 0, outputTokens: 0 })]);
   });
 
   test(".env.example lists every key the AI layer reads, with no secret values", () => {
@@ -493,12 +496,17 @@ test.describe("AI layer: pluggable web search providers (issue #110)", () => {
     ["brave", "BRAVE_SEARCH_API_KEY"],
     ["tavily", "TAVILY_API_KEY"],
   ] as const) {
-    test(`a missing ${key} stops start-up and names the variable`, () => {
+    test(`a missing ${key} no longer stops start-up: web search alone is unavailable, key_missing, naming the variable (#399)`, () => {
       const env: Record<string, string> = { ...route(provider) };
       delete env[key];
-      const r = runAi(env);
-      expect(r.startup).toMatchObject({ ok: false, error: { name: "AiConfigError" } });
-      if (!r.startup.ok) expect(r.startup.error.message).toContain(key);
+      const r = runAi(env, [search(), score()]);
+      expect(r.startup).toEqual({ ok: true });
+      expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "WebSearchUnavailable" } });
+      if (!r.outcomes[0]!.ok) expect(r.outcomes[0]!.error.message).toContain(key);
+      expect(r.usage[0]).toMatchObject({ provider, outcome: "failed", reason: "key_missing", sent: false, costEur: 0 });
+      // Every other task still works.
+      expect(r.outcomes[1]).toMatchObject({ ok: true });
+      expect(r.requests.map((request) => request.url).join(" ")).not.toContain(provider);
     });
   }
 

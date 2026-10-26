@@ -9,8 +9,9 @@ import { newAddress } from "./support/mailbox";
 // E-mail, Paiement, Connexion), then Extension and, last, Environnement, the tab in the address. It absorbs Clés (each
 // key on its provider's sheet, a side panel), Connexion (its tab) and Sites de recherche (Sources, Recherche web,
 // Extension), whose old addresses redirect. The keys changed here are Kaspr's, which nothing else in the suite uses (the
-// fake Kaspr accepts keys starting e2e-kaspr-valid-, e2e/support/fake-contact-provider.mjs); the web search provider
-// made active is Brave, whose key the suite's server lacks.
+// fake Kaspr accepts keys starting e2e-kaspr-valid-, e2e/support/fake-contact-provider.mjs). Brave, whose key the suite's
+// server lacks, is never actually made active here: since #399 that change is saved (ADR-0042: it warns, never blocks)
+// and would leave every parallel spec without a web search; active-provider.test.ts covers it.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
@@ -168,21 +169,18 @@ test.describe("Paramètres in tabs (#396)", () => {
     await expect(key).toContainText(keys.sources.missing);
   });
 
-  test("« Rendre actif » a web search provider without its key warns first; the attempt is recorded", async ({ page }) => {
+  test("« Rendre actif » a web search provider without its key warns first, never blocks (#399)", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(`${PATH}?tab=recherche-web`);
     const brave = page.locator('tr[data-provider="brave"]');
-    await expect(brave).toContainText(texts.providers.keyMissing);
+    // A Provider Secret since #399: shown as the Provider Secrets are, « Absente ».
+    await expect(brave).toContainText(keys.sources.missing);
     const makeActive = brave.getByRole("button", { name: `${texts.providers.makeActive} : Brave Search` });
+    await expect(makeActive).toBeEnabled();
     await expect(makeActive).toHaveAccessibleDescription(texts.providers.noKeyWarning);
-    await makeActive.click();
-
-    // The AI layer cannot build a route without its key (until #399): the change is refused with its reason, and the
-    // web search stays on Perplexity.
-    await expect(page.getByRole("alert").filter({ hasText: "AI_WEB_SEARCH_PROVIDER" })).toContainText(tr(texts.notices.refused, { name: "AI_WEB_SEARCH_PROVIDER", reason: fr.failureReasons.key_missing }));
+    // Not clicked: saved since #399 (web search alone unavailable, active-provider.test.ts), it would leave the parallel
+    // specs without a web search.
     await expect(page.locator("[data-active-provider]")).toHaveText("Perplexity");
-    await page.goto("/admin/journal?section=platform_settings&outcome=failed");
-    await expect(page.getByRole("row").filter({ hasText: "AI_WEB_SEARCH_PROVIDER" }).filter({ hasText: SUPER_ADMIN }).first()).toContainText(fr.failureReasons.key_missing);
   });
 
   test("Support reads every tab and changes nothing; axe passes", async ({ page, browser }) => {

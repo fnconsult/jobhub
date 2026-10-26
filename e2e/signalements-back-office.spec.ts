@@ -91,7 +91,14 @@ test.describe("« Signalements » in the Back Office (#376)", () => {
     await navOf(support).getByRole("link", { name: new RegExp(`^${texts.title}`) }).click();
     await expect(support).toHaveTitle(`${texts.title} · ${admin.title}`);
     await expect(support.getByRole("navigation", { name: texts.statusFilter }).getByRole("link", { name: texts.toHandle })).toHaveAttribute("aria-current", "page");
-    expect(await sidebarCount(support)).toBe(await mainOf(support).getByRole("table").locator("tbody tr").count());
+    // Other tests send Signalements meanwhile: the sidebar kept from /admin (or read a moment apart from the list) may be
+    // one behind, so both are read again from one fresh load until they agree.
+    await expect
+      .poll(async () => {
+        await support.reload();
+        return (await sidebarCount(support)) === (await mainOf(support).getByRole("table").locator("tbody tr").count());
+      })
+      .toBe(true);
     await expect(mainOf(support)).not.toContainText(admin.readOnly);
     // Nothing on the home.
     await support.goto("/admin");

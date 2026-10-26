@@ -48,7 +48,7 @@
  *    found, nothing changes. Counted against no Plan Quota.
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
-import { AiConfigError, AiProviderError, createProvenanceRecorder, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
+import { AiConfigError, AiProviderError, createProvenanceRecorder, WebSearchUnavailable, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
 import { failureOf, isPersonPage, joinProvenance, provenanceLink, readProvenance, siteDomainOf, type FailureReason, type Provenance, type ProvenanceEvent, type ProvenanceSite } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
@@ -142,6 +142,11 @@ export type CompanyDossierResult =
    * (#367), the register's outage being `provider_unavailable`; never the provider's words.
    */
   | { ok: false; error: "unavailable"; reason?: FailureReason }
+  /**
+   * A foreign employer's dossier is built from the web, and web search is unavailable: its Search provider's key is
+   * missing (#399). Nothing was changed; it can be built once the key is entered. A French employer's never is.
+   */
+  | { ok: false; error: "web_search_unavailable" }
   /** The Candidate stopped it (#335): `state` is the dossier as now kept, its finished parts saved. */
   | { ok: false; error: "stopped"; state: CompanyDossierState };
 
@@ -592,6 +597,7 @@ export function createCompanyDossiers(
     } catch (error) {
       if (signal?.aborted || error instanceof BuildStopped) return stopped();
       if (error instanceof CompanyRegisterUnavailable) return unavailable("provider_unavailable");
+      if (error instanceof WebSearchUnavailable) return { ok: false, error: "web_search_unavailable" };
       if (error instanceof AiProviderError || error instanceof AiConfigError) return unavailable(failureOf(error).reason);
       throw error;
     }

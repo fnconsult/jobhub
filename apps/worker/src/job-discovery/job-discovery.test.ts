@@ -125,12 +125,14 @@ function setup(options: {
   searchPending?: boolean;
   /** The web search's settings (#402). Default: the code's. */
   search?: Partial<WebSearchSettings> | (() => Partial<WebSearchSettings>);
+  /** The active Search provider's key is missing: web search is unavailable (#399). */
+  searchKeyMissing?: boolean;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending, fail: options.searchFails });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
-    providers: [search, llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
+    providers: [...(options.searchKeyMissing ? [] : [search]), llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
     routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
     ...(options.searchFallback ? { searchFallback: options.searchFallback } : {}),
     usage: createMemoryUsageLog(),
@@ -1690,6 +1692,47 @@ describe("Job discovery", () => {
       expect(titles.calls).toEqual([]);
       expect(search.queries).toEqual([]);
       expect(report.costEur).toBe(0);
+    });
+
+    describe("without the key of the active Search provider (#399)", () => {
+      const offerAt = (url: string, title: string) => ({ url, details: { title, content: `Offre ${title}.`, postedAt: new Date("2026-10-14T00:00:00Z") } });
+
+      it("skips the web search like a disabled source, while France Travail and Fantastic.jobs still run", async () => {
+        const franceTravail: FranceTravail = { search: async () => ({ ok: true, calls: 1, offers: [offerAt("https://candidat.francetravail.fr/offres/recherche/detail/1", "DAF")] }) };
+        const fantasticJobs: FantasticJobs = { search: async () => ({ ok: true, calls: 1, costEur: 0.008, offers: [offerAt("https://boards.example.com/acme/jobs/1", "CFO")] }) };
+        const { discovery, search, titles } = setup({ sources: [DAF_URL], pages: {}, now: NOW, franceTravail, fantasticJobs, searchKeyMissing: true });
+
+        const report = await discovery.discover({ candidateId: "c", criteria: { ...criteria, locations: ["Lyon", "Bordeaux"] } });
+
+        expect(report.jobOffers.map((offer) => offer.source.url)).toEqual(["https://candidat.francetravail.fr/offres/recherche/detail/1", "https://boards.example.com/acme/jobs/1"]);
+        expect(report.franceTravail).toMatchObject({ status: "searched", offers: 1 });
+        expect(report.fantasticJobs).toMatchObject({ status: "searched", offers: 1 });
+        // No plan, no search: not even the job title step, as when the web search is disabled.
+        expect(titles.calls).toEqual([]);
+        expect(search.queries).toEqual([]);
+        expect(report.run.provenance().steps.map((step) => step.kind === "ai" && step.task)).not.toContain("job_titles");
+      });
+
+      it("searches with a task Playbook's Search provider whose key is entered", async () => {
+        const brave = createFakeProvider({ id: "brave", residency: "outside_eu", sources: [] });
+        const { discovery } = setup({
+          sources: [],
+          pages: {},
+          now: NOW,
+          searchKeyMissing: true,
+          otherSearch: brave,
+          taskPlaybooks: servedTasks({
+            "job-search-queries": {
+              content: "## intitulés\n\nDonne des synonymes.\n\n## requête fr\n\nPoste « {{intitulé}} » vers {{lieu}}\n\n## requête en\n\n{{intitulé}} job in {{lieu}}",
+              search: { provider: "brave", model: null },
+            },
+          }),
+        });
+
+        await discovery.discover({ candidateId: "c", criteria });
+
+        expect(brave.queries.length).toBeGreaterThan(0);
+      });
     });
 
     it("reads an ATS posting's page instead of its API once the ATS APIs are disabled", async () => {

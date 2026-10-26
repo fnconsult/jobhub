@@ -378,8 +378,9 @@ function offeredOnlyProviders(env: Env, used: ProviderId[], fetch: typeof global
 /**
  * Builds the AI layer from environment variables (in production, ECS injects them from Secrets Manager).
  * Per task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL. Only providers some task uses need their keys.
- * Throws at start-up on a missing key or a task routed to a provider that cannot serve it (a web-search
- * provider for a text task); every call is redacted (redaction.ts, ADR-0007).
+ * Throws at start-up on a missing key of a text task's provider or a task routed to a provider that cannot
+ * serve it (a web-search provider for a text task); without the active Search provider's key, it starts
+ * with web search unavailable (#399). Every call is redacted (redaction.ts, ADR-0007).
  */
 export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps = {}): AiLayer {
   const fake = env.AI_FAKE?.trim() === "true";
@@ -387,15 +388,16 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
 
   const routes = routesFromEnv(env, fake);
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
-  // A provider only text tasks use may wait for its key, when tolerated: those tasks' calls fail as key_missing (ADR-0042).
+  // A provider only text tasks use may wait for its key, when tolerated (ADR-0042); the active Search provider's key may be missing too: web search alone is then unavailable (#399, ADR-0043).
   const textOnly = (id: ProviderId) => routes[SEARCH_TASK].provider !== id;
+  const searchOnly = (id: ProviderId) => Object.entries(routes).every(([task, route]) => route.provider !== id || task === SEARCH_TASK);
   const unconfigured: Partial<Record<ProviderId, string>> = {};
   const providers = used.flatMap((id) => {
     if (fake) return [createFakeProvider({ id })];
     try {
       return buildProviders(id, env, deps.fetch);
     } catch (error) {
-      if (!deps.tolerateMissingKeys || !textOnly(id) || !isMissingKey(error)) throw error;
+      if (!isMissingKey(error) || !(searchOnly(id) || (deps.tolerateMissingKeys && textOnly(id)))) throw error;
       unconfigured[id] = error.message;
       return [];
     }

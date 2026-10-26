@@ -132,7 +132,7 @@ test.describe("compose worker reads the repo-root .env (issue #64)", () => {
     );
   });
 
-  test("without a .env, docker compose up still starts the stack; job discovery is skipped with the reason", async () => {
+  test("without a .env, docker compose up still starts the stack; job discovery runs without the web search, and says why (#399)", async () => {
     test.setTimeout(300_000);
     rmSync(rootEnv, { force: true });
 
@@ -142,7 +142,9 @@ test.describe("compose worker reads the repo-root .env (issue #64)", () => {
 
     run("up", "-d", "--build", "--wait");
     const logs = await workerStarted();
-    expect(logs).toMatch(/\[worker\] Job discovery is unavailable: Missing environment variable/);
+    // The Search provider's key missing no longer turns Job discovery off: only its web search is skipped (#399).
+    expect(logs).toContain("[worker] Job discovery runs without the web search: its Search provider's key is not set");
+    expect(logs).not.toContain("Job discovery is unavailable");
     expect(run("ps", "--status", "running", "--services").split("\n")).toEqual(
       expect.arrayContaining(["postgres", "worker"]),
     );

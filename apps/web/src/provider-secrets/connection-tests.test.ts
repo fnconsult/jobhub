@@ -34,6 +34,45 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
     for (const [header, value] of Object.entries(headers)) expect(requests[0]!.headers.get(header)).toBe(value);
   });
 
+  it("Brave: one web search of a single result, the key in its X-Subscription-Token header (#399)", async () => {
+    const { fetch, requests } = fakeFetch(200, { web: { results: [] } });
+
+    expect(await createConnectionTester({ fetch })("brave", { BRAVE_SEARCH_API_KEY: "bsa-key" })).toEqual({ ok: true });
+
+    expect(requests).toHaveLength(1);
+    const url = new URL(requests[0]!.url);
+    expect(requests[0]!.method).toBe("GET");
+    expect(url.origin + url.pathname).toBe("https://api.search.brave.com/res/v1/web/search");
+    expect(url.searchParams.get("count")).toBe("1");
+    expect(url.searchParams.get("q")).toBeTruthy();
+    expect(requests[0]!.headers.get("x-subscription-token")).toBe("bsa-key");
+  });
+
+  it("Tavily: reads its usage (no credit spent) with the key as a bearer token (#399)", async () => {
+    const { fetch, requests } = fakeFetch(200, { key: { usage: 3, limit: 1000 } });
+
+    expect(await createConnectionTester({ fetch })("tavily", { TAVILY_API_KEY: "tvly-key" })).toEqual({ ok: true });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.method).toBe("GET");
+    expect(requests[0]!.url).toBe("https://api.tavily.com/usage");
+    expect(requests[0]!.headers.get("authorization")).toBe("Bearer tvly-key");
+  });
+
+  it.each<[SecretProvider, string, number]>([
+    ["brave", "BRAVE_SEARCH_API_KEY", 401],
+    ["brave", "BRAVE_SEARCH_API_KEY", 429],
+    ["tavily", "TAVILY_API_KEY", 401],
+    ["tavily", "TAVILY_API_KEY", 432],
+  ])("%s: a key refused (%s, HTTP %i) fails, a missing one fails without a call", async (provider, name, status) => {
+    const refused = fakeFetch(status, { detail: "nope" });
+    const none = fakeFetch();
+
+    expect(await createConnectionTester({ fetch: refused.fetch })(provider, { [name]: "bad" })).toEqual({ ok: false, detail: expect.stringContaining(`HTTP ${status}`) });
+    expect(await createConnectionTester({ fetch: none.fetch })(provider, {})).toEqual({ ok: false, detail: `missing ${name}` });
+    expect(none.requests).toEqual([]);
+  });
+
   it("France Travail: asks for an OAuth token with both client credentials", async () => {
     const { fetch, requests } = fakeFetch(200, { access_token: "t", expires_in: 1500 });
 
@@ -189,6 +228,8 @@ describe("a connection test, as recorded", () => {
   it.each<[SecretProvider, Record<string, string>, string]>([
     ["mistral", { MISTRAL_API_KEY: "mk-abcdefgh" }, "mistral"],
     ["perplexity", { PERPLEXITY_API_KEY: "pplx-abcdefgh" }, "perplexity"],
+    ["brave", { BRAVE_SEARCH_API_KEY: "bsa-abcdefgh" }, "brave"],
+    ["tavily", { TAVILY_API_KEY: "tvly-abcdefgh" }, "tavily"],
     ["anthropic", { ANTHROPIC_API_KEY: "sk-ant-abcdefgh" }, "anthropic"],
     ["bedrock", { AWS_BEARER_TOKEN_BEDROCK: "bk-abcdefgh" }, "anthropic_bedrock"],
     ["france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id-abcdefgh", FRANCE_TRAVAIL_CLIENT_SECRET: "secret-abcdefgh" }, "france_travail"],

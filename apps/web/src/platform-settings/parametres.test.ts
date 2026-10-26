@@ -110,8 +110,11 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
         { name: "PERPLEXITY_API_KEY", secret: true, set: true, source: "database", fingerprint: "cdef", lastTest: tested },
       ]);
       expect(possibleProviders(tab("recherche-web"), stateOf(env))[0]!.keys).toEqual([{ name: "PERPLEXITY_API_KEY", secret: true, set: true }]);
-      // A key outside the Provider Secrets (Brave's, until #399): only whether env sets it.
-      expect(possibleProviders(tab("recherche-web"), stateOf(env, { secrets }))[1]!.keys).toEqual([{ name: "BRAVE_SEARCH_API_KEY", secret: false, set: false }]);
+      // Brave's and Tavily's keys are Provider Secrets since #399: shown as they are, here missing.
+      expect(possibleProviders(tab("recherche-web"), stateOf(env, { secrets })).slice(1).map((row) => row.keys)).toEqual([
+        [{ name: "BRAVE_SEARCH_API_KEY", secret: true, set: false }],
+        [{ name: "TAVILY_API_KEY", secret: true, set: false }],
+      ]);
     });
 
     it("says which AI tasks each AI model serves, the identity route Mistral's; none is « made active » on IA", () => {

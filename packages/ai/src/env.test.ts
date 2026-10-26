@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TOOLS } from "@jobhub/shared";
 import { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
-import { AiConfigError } from "./errors";
+import { AiConfigError, WebSearchUnavailable } from "./errors";
 import { createMemoryUsageLog } from "./testing";
 
 /** Answers every call like the provider at that host would, and records the hosts called. */
@@ -70,7 +70,6 @@ describe("AI layer configured from the environment", () => {
 
       expect(hosts).toEqual([host]);
       expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([["web_search", provider]]);
-      expect(() => createAiLayerFromEnv({ ...env, [key]: "" })).toThrow(new RegExp(key));
     },
   );
 
@@ -181,8 +180,7 @@ describe("AI layer configured from the environment", () => {
     ).not.toThrow();
   });
 
-  it("names the missing key of a provider in use", () => {
-    expect(() => createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k" })).toThrow(/PERPLEXITY_API_KEY/);
+  it("names the missing key of a text provider in use", () => {
     expect(() => createAiLayerFromEnv({ ...base, AI_WRITING_PROVIDER: "mistral" })).toThrow(/MISTRAL_API_KEY/);
   });
 
@@ -206,6 +204,65 @@ describe("AI layer configured from the environment", () => {
 
     it("still stops start-up without that tolerance, naming the key", () => {
       expect(() => createAiLayerFromEnv({ ...base, AI_JOB_TITLES_PROVIDER: "openai" })).toThrow(/OPENAI_API_KEY/);
+    });
+  });
+
+  describe("without the key of the active Search provider (#399)", () => {
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+
+    it("starts: every other task works, and web search is unavailable, naming the missing key", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k" }, { fetch, usage: createMemoryUsageLog() });
+
+      await expect(ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" })).resolves.toMatchObject({ text: "ok" });
+      expect(ai.webSearchAvailable()).toBe(false);
+      const search = ai.searchWeb({ candidateId: "c", criteria });
+      await expect(search).rejects.toBeInstanceOf(WebSearchUnavailable);
+      await expect(search).rejects.toThrow(/PERPLEXITY_API_KEY/);
+      await expect(ai.searchCompany({ candidateId: "c", employer: "Acme Ltd" })).rejects.toBeInstanceOf(WebSearchUnavailable);
+      expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
+    });
+
+    it.each([
+      ["brave", "BRAVE_SEARCH_API_KEY"],
+      ["tavily", "TAVILY_API_KEY"],
+    ])("starts with web search routed to %s and no %s", async (provider, key) => {
+      const ai = createAiLayerFromEnv({ ...base, AI_WEB_SEARCH_PROVIDER: provider }, { usage: createMemoryUsageLog() });
+      expect(ai.webSearchAvailable()).toBe(false);
+      await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toThrow(new RegExp(key));
+    });
+
+    it("searches with a task Playbook's Search provider whose key is entered", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k", BRAVE_SEARCH_API_KEY: "bk" }, { fetch, usage: createMemoryUsageLog() });
+
+      expect(ai.webSearchAvailable({ provider: "brave" })).toBe(true);
+      await ai.searchWeb({ candidateId: "c", criteria, route: { provider: "brave" } });
+      expect(hosts).toEqual(["api.search.brave.com"]);
+    });
+
+    it("is available once the key is entered", () => {
+      expect(createAiLayerFromEnv(base, { usage: createMemoryUsageLog() }).webSearchAvailable()).toBe(true);
+    });
+
+    it("goes to the fallback Search provider when its key is entered (ADR-0043): web search stays available", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv(
+        { AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily", TAVILY_API_KEY: "tk" },
+        { fetch, usage: createMemoryUsageLog() },
+      );
+
+      expect(ai.webSearchAvailable()).toBe(true);
+      await ai.searchWeb({ candidateId: "c", criteria });
+      await ai.searchCompany({ candidateId: "c", employer: "Acme Ltd" });
+      expect(hosts.filter((host) => WEB_SEARCH_HOSTS.includes(host))).toEqual(["api.tavily.com", "api.tavily.com"]);
+    });
+
+    it("is unavailable when the fallback Search provider's key is missing too, and the AI layer still starts", async () => {
+      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily" }, { usage: createMemoryUsageLog() });
+
+      expect(ai.webSearchAvailable()).toBe(false);
+      await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toThrow(/BRAVE_SEARCH_API_KEY/);
     });
   });
 

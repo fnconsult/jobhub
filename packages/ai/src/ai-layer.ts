@@ -4,7 +4,7 @@ import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt,
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
-import { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
+import { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
 import { SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
@@ -251,6 +251,12 @@ export interface AiLayer {
    * web-search provider configured, the configured route's model first for its provider.
    */
   searchModels(): AgentModelChoice[];
+  /**
+   * Whether a web search can be sent: its Search provider (`route`, a task Playbook's, else the active one) has its key
+   * entered, or else the fallback Search provider has (#399, ADR-0043). When not, `searchWeb`, `searchCompany` and `planJobSearch` reject with WebSearchUnavailable, and
+   * `searchCompanyNews` finds none; every other task still works.
+   */
+  webSearchAvailable(route?: Route): boolean;
 }
 
 /** A Company Dossier's Company News, and the web search that found them. */
@@ -293,7 +299,8 @@ export interface AiLayerOptions {
   /**
    * Why a provider is missing from `providers`, by provider (the key it lacks). A text task routed to one does not stop
    * the layer from starting: its calls fail as key_missing, with this said (ADR-0042: a provider with no key warns,
-   * never blocks).
+   * never blocks). A Search provider without its key leaves web search unavailable (#399), and its WebSearchUnavailable
+   * says why.
    */
   unconfigured?: Partial<Record<ProviderId, string>>;
   /**
@@ -395,15 +402,16 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     }
   };
 
-  // Fail fast at start-up on a task routed to a provider that cannot serve it.
+  // Fail fast at start-up on a task routed to a provider that cannot serve it. A Search provider not configured leaves
+  // web search unavailable, and only it (#399).
   for (const task of Object.keys(options.routes) as AiTask[]) {
     // A text task on a provider whose key is missing starts all the same: its calls fail as key_missing (ADR-0042).
     if (task !== SEARCH_TASK && options.unconfigured?.[routeFor(task).provider] !== undefined && !endpointFor(options.providers, routeFor(task))) continue;
-    const provider = providerFor(routeFor(task), task !== SEARCH_TASK && TEXT_TASKS[task].personalData);
     if (task === SEARCH_TASK) {
-      if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
+      const provider = endpointFor(options.providers, routeFor(task));
+      if (provider && !provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
     } else {
-      assertAllowed(task, provider);
+      assertAllowed(task, providerFor(routeFor(task), TEXT_TASKS[task].personalData));
     }
   }
   // The identity route needs no provider until a consenting Candidate's call carries identity; when it has one, check it now.
@@ -626,7 +634,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   /** The configured web-search route, or `override` (a task Playbook's): either must name a provider that searches. */
   const searchProvider = (override?: Route): { route: Route; provider: AiProvider } => {
     const route = override ?? routeFor(SEARCH_TASK);
-    const provider = providerFor(route);
+    const provider = endpointFor(options.providers, route);
+    if (!provider) throw new WebSearchUnavailable(options.unconfigured?.[route.provider] ?? `AI provider "${route.provider}" is not configured`);
     if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
     return { route, provider };
   };
@@ -636,6 +645,20 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     if (!options.searchFallback) return undefined;
     const provider = endpointFor(options.providers, { provider: options.searchFallback });
     return provider?.search ? provider : undefined;
+  };
+
+  /**
+   * The provider a search on `route` (a task Playbook's, else the active one) will be served by: that one, or the
+   * fallback Search provider when that one's key is missing and the fallback's is entered (#399, ADR-0043).
+   */
+  const servingSearch = (route?: Route): AiProvider => {
+    try {
+      return searchProvider(route).provider;
+    } catch (error) {
+      const to = fallbackSearch();
+      if (!(error instanceof WebSearchUnavailable) || !to || to.id === (route ?? routeFor(SEARCH_TASK)).provider) throw error;
+      return to;
+    }
   };
 
   /**
@@ -796,7 +819,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     generate: (request) => generateAs(request, request.task),
 
     async planJobSearch({ candidateId, criteria, instructions, route, shape }) {
-      const contract = searchContractOf(searchProvider(route).provider);
+      const contract = searchContractOf(servingSearch(route));
       const pages = Math.max(1, contract.maxPages);
       const queriesPerCall = Math.max(1, contract.queriesPerCall);
       const titles = instructions?.titles;
@@ -884,6 +907,15 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       return modelChoices((provider) => Boolean(provider.search), [options.routes[SEARCH_TASK]]);
     },
 
+    webSearchAvailable(route) {
+      try {
+        servingSearch(route);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
     forEval: () => evalLayer,
   };
   const noSearch = async (): Promise<never> => {
@@ -900,6 +932,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     searchCompanyNewsWithCall: noSearch,
     agentModels: () => layer.agentModels(),
     searchModels: () => layer.searchModels(),
+    webSearchAvailable: () => false,
     forEval: () => evalLayer,
   };
 

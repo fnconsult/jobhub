@@ -4,7 +4,8 @@
  * changes, so a key entered in the Back Office is used without a restart:
  *
  *   const worker = workerClients({ resolver, production, jobOffers, budget });
- *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job
+ *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job. Not for a missing Search
+ *                           // provider's key: the web search alone is then skipped (#399)
  *   worker.ai;              // the AI layer (Follow-ups), routed by the AI routing Platform Settings (#301)
  *   worker.franceTravail(); // France Travail, or null without its credentials
  *   worker.fantasticJobs(); // Fantastic.jobs, or null without FANTASTIC_JOBS_API_KEY
@@ -119,14 +120,17 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
 
   // Built again whenever an AI key or routing setting changes: a key entered later turns Job discovery on.
   const discovery = rebuilding(aiResolver, aiNames, (env): JobDiscovery | DiscoveryUnavailable => {
+    let built: AiLayer;
     try {
-      buildAi(env);
+      built = buildAi(env);
     } catch (error) {
       if (!(error instanceof AiConfigError) || options.production) throw error;
       // The message names the missing setting, never a value.
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
+    // Without its Search provider's key, Job discovery still runs, its web search skipped like a source that is off (#399).
+    if (!built.webSearchAvailable()) log("[worker] Job discovery runs without the web search: its Search provider's key is not set");
     return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, search: options.search, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 

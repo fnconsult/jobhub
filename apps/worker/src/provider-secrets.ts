@@ -17,6 +17,7 @@
  */
 import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
+import { createFrenchRegister } from "@jobhub/web/company-register";
 import { liveMailer } from "@jobhub/web/mailers";
 import { AI_ROUTING_NAMES, createPlatformSettingsResolver, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
 import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
@@ -128,8 +129,10 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
   const geoFetch = options.externalApis
     ? recordingFetch(options.fetch ?? globalThis.fetch, options.externalApis, { provider: "geo-api-gouv", costEur: () => 0 })
     : options.fetch;
+  // The French company register, free: a Target Company's name is web-searched only once it lists it as a company (ADR-0007).
+  const register = createFrenchRegister({ ...(options.fetch ? { fetch: options.fetch } : {}), ...(options.externalApis ? { externalApis: options.externalApis } : {}) });
   const targetCompanies = options.targetCompanies
-    ? createTargetCompanies({ store: options.targetCompanies, franceTravail: () => franceTravailApis(), cityCodes: createCityCodes({ fetch: geoFetch }), settings: options.targetCompanySettings, log })
+    ? createTargetCompanies({ store: options.targetCompanies, franceTravail: () => franceTravailApis(), cityCodes: createCityCodes({ fetch: geoFetch }), register, settings: options.targetCompanySettings, log })
     : null;
 
   // Built again whenever an AI key or routing setting changes: a key entered later turns Job discovery on.

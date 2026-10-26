@@ -629,14 +629,17 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             await readCareersSite(visit.careersSite, titles);
             continue;
           }
-          // Without a careers site, one web search, as long as the run can search the web.
+          // Without a careers site, one web search, as long as the run can search the web, and only under a company's
+          // name: the register is asked first, and a sole trader's name (a private person's) never leaves (ADR-0007).
           const first = plan?.queries[0];
           if (!searchable || !first) continue;
+          const searching = recording();
+          const employer = await targets.webSearchName(visit, (work) => searching.step({ tool: "recherche-entreprises" }, work));
+          if (employer === null) continue;
           visited.push(visit);
           try {
-            const searching = recording();
             const search = await searching.ai
-              .searchWeb({ candidateId, criteria, query: first, employer: visit.name, filters: searchFilters, route: queryWording.searchRoute, warnings: queryWording.warnings, run: webSearches })
+              .searchWeb({ candidateId, criteria, query: first, employer, filters: searchFilters, route: queryWording.searchRoute, warnings: queryWording.warnings, run: webSearches })
               .finally(() => (report.searchFallback = webSearches.fallback));
             const searched = searching.provenance();
             const results = [...new Set([...search.sources, ...urlsIn(search.answer)])];

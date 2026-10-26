@@ -120,8 +120,9 @@ export function buildSearchQuery(
 
 /**
  * The only text sent to the web-search provider to find a Target Company's postings (#406): one of the Job
- * Search's job titles, as `planJobSearch` issued it, and the company's name (a company, not a person: La Bonne
- * Boite's, or one the Candidate added, resolved in the company register), both cleaned like Search Criteria.
+ * Search's job titles, as `planJobSearch` issued it, and the company's name, both cleaned like Search Criteria.
+ * The name must be a company's, never a person's (ADR-0007, #406 amendment): the caller passes it only once the company
+ * register lists it as a company (`webSearchableName` in @jobhub/web/target-companies), so no sole trader's name is sent.
  */
 export function buildTargetCompanyQuery(query: JobSearchQuery | undefined, company: string): string {
   if (query === undefined || !issued.has(query)) {

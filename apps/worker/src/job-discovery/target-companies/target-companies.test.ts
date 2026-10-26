@@ -36,6 +36,7 @@ function setup(options: { laBonneBoite?: LaBonneBoite | null; romeo?: RomePredic
     store,
     franceTravail: () => (laBonneBoite ? { laBonneBoite, romeo } : null),
     cityCodes: { cityCode: async (location) => (cityAsked.push(location), options.cityCode === undefined ? "69123" : options.cityCode) },
+    register: { search: async () => ({ companies: [], soleTraderNamed: false }) },
     settings: () => ({ max: options.max ?? 5, revisitDays: options.revisitDays ?? 7 }),
   });
   return { store, targets, lbb, romeoAsked, cityAsked };

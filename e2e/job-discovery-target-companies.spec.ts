@@ -10,10 +10,11 @@ import { newAddress } from "./support/mailbox";
 // Issue #406: a Job Search visits the Profile's Target Companies, the companies La Bonne Boite gives as likely to hire
 // for its job and area: after the plan's web searches, one web search « title + company » for a company without a known
 // careers site (here it finds the company's Greenhouse board, kept for every Profile), and the board of one whose careers
-// site is known read through its ATS's API (here Lever), postings for the job captured as Job Offers. Driven through the
+// site is known read through its ATS's API (here Lever), postings for the job captured as Job Offers. A sole trader La
+// Bonne Boite gives (its name a private person's) is never web-searched: the company register is asked by SIREN first (ADR-0007). Driven through the
 // public entry points: a Job Search started over the web app's HTTP API, worked by the real worker (apps/worker,
-// `tsx src/main.ts`) on the same database. La Bonne Boite, ROMEO, France Travail's token endpoint, geo.api.gouv.fr and the
-// ATS APIs are e2e/support/fake-la-bonne-boite.mjs, over e2e/support/fake-job-sites.mjs for the rest of the web.
+// `tsx src/main.ts`) on the same database. La Bonne Boite, ROMEO, France Travail's token endpoint, geo.api.gouv.fr, the
+// company register and the ATS APIs are e2e/support/fake-la-bonne-boite.mjs, over e2e/support/fake-job-sites.mjs for the rest of the web.
 const origin = process.env.E2E_WEB_ORIGIN!;
 const databaseUrl = process.env.E2E_DATABASE_URL!;
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -24,6 +25,7 @@ const requestLog = path.join(workDir, "requests.jsonl");
 const siren = (seed: number) => String(100_000_000 + ((Date.now() * 7 + seed * 104_729) % 800_000_000)).slice(0, 9);
 const ALPHA = { siren: siren(1), name: `ALPHACIBLE ${tag}` };
 const BETA = { siren: siren(2), name: `BETACIBLE ${tag}` };
+const SOLE_TRADER = { siren: siren(3), name: `JEANNE DUPONTCIBLE ${tag}` };
 const ALPHA_POSTING = `https://job-boards.greenhouse.io/alphacible-${tag}/jobs/3001`;
 const BETA_BOARD = `https://jobs.lever.co/betacible-${tag}`;
 const BETA_POSTING = `${BETA_BOARD}/00000000-0000-4000-8000-000000000406`;
@@ -108,6 +110,7 @@ test.describe("A Job Search visits the Profile's Target Companies (#406)", () =>
         E2E_TC_LOG: requestLog,
         E2E_TC_ALPHA_SIRET: `${ALPHA.siren}00011`,
         E2E_TC_BETA_SIRET: `${BETA.siren}00022`,
+        E2E_TC_SOLE_SIRET: `${SOLE_TRADER.siren}00033`,
         NODE_OPTIONS: [`--import=${path.resolve("e2e/support/fake-job-sites.mjs")}`, `--import=${path.resolve("e2e/support/fake-la-bonne-boite.mjs")}`].join(" "),
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -148,16 +151,26 @@ test.describe("A Job Search visits the Profile's Target Companies (#406)", () =>
       [profileId],
     );
     expect(kept.map(({ name, origin }) => ({ name, origin }))).toEqual([
+      { name: SOLE_TRADER.name, origin: "la_bonne_boite" },
       { name: ALPHA.name, origin: "la_bonne_boite" },
       { name: BETA.name, origin: "la_bonne_boite" },
     ]);
-    // Both were visited in this run.
-    for (const company of kept) expect(company.last_visited_at, company.name).not.toBeNull();
+    // The two companies were visited in this run; the sole trader, never searched, was not.
+    expect(Object.fromEntries(kept.map((company) => [company.name, company.last_visited_at !== null]))).toEqual({ [SOLE_TRADER.name]: false, [ALPHA.name]: true, [BETA.name]: true });
   });
 
   test("searches the web for « title + company » for the company without a known careers site, and none for the other", () => {
     const targetSearches = requests().filter((r) => r.url.startsWith("https://api.perplexity.ai") && (r.body.includes("ALPHACIBLE") || r.body.includes("BETACIBLE")));
     expect(targetSearches.map((r) => JSON.parse(r.body).query)).toEqual([`Directeur financier "${ALPHA.name}"`]);
+  });
+
+  test("never sends a sole trader's name, a private person's, to the web search, the register asked by SIREN alone (ADR-0007)", () => {
+    const leaving = requests().filter((r) => !r.url.startsWith("https://api.francetravail.io/") && (r.url.includes("DUPONTCIBLE") || r.body.includes("DUPONTCIBLE")));
+    expect(leaving.map((r) => r.url)).toEqual([]);
+    const registerQueries = requests()
+      .filter((r) => r.url.startsWith("https://recherche-entreprises.api.gouv.fr/"))
+      .map((r) => new URL(r.url).searchParams.get("q"));
+    expect(registerQueries.sort()).toEqual([ALPHA.siren, SOLE_TRADER.siren].sort());
   });
 
   test("captures a posting from each company's ATS: the one the search found, and the job's posting on the board kept", async () => {

@@ -3,9 +3,12 @@
 // result pages, Mistral, the robots.txt of its sites). It stands in for what a Job Search's Target Companies reach:
 //  - France Travail's token endpoint, as a client granted La Bonne Boite and ROMEO but not Offres d'emploi
 //    (`invalid_scope`, as a new francetravail.io application is today);
-//  - La Bonne Boite's /recherche, answering two companies for E2E_TC_TAG: ALPHACIBLE <tag> (SIRET E2E_TC_ALPHA_SIRET),
-//    without a known careers site, and BETACIBLE <tag> (E2E_TC_BETA_SIRET), whose Lever board the spec keeps beforehand;
+//  - La Bonne Boite's /recherche, answering three companies for E2E_TC_TAG: ALPHACIBLE <tag> (SIRET E2E_TC_ALPHA_SIRET),
+//    without a known careers site, BETACIBLE <tag> (E2E_TC_BETA_SIRET), whose Lever board the spec keeps beforehand,
+//    and JEANNE DUPONTCIBLE <tag> (E2E_TC_SOLE_SIRET), a sole trader: a private person, whose name never leaves (ADR-0007);
 //    ROMEO's prediction (no code);
+//  - the company register (recherche-entreprises.api.gouv.fr), asked by SIREN: ALPHACIBLE a company (an SAS),
+//    JEANNE DUPONTCIBLE a sole trader (an "entrepreneur individuel"), anything else unknown;
 //  - geo.api.gouv.fr's communes: Lyon is 69123;
 //  - Perplexity's Search API, for the one search « title + ALPHACIBLE <tag> »: a Greenhouse posting on ALPHACIBLE's board;
 //  - Greenhouse's posting API for that posting, and Lever's board API for BETACIBLE's board (one posting for the job,
@@ -18,6 +21,7 @@ const tag = process.env.E2E_TC_TAG ?? "local";
 const logFile = process.env.E2E_TC_LOG;
 const alpha = { siret: process.env.E2E_TC_ALPHA_SIRET ?? "11111111100011", name: `ALPHACIBLE ${tag}` };
 const beta = { siret: process.env.E2E_TC_BETA_SIRET ?? "22222222200022", name: `BETACIBLE ${tag}` };
+const soleTrader = { siret: process.env.E2E_TC_SOLE_SIRET ?? "33333333300033", name: `JEANNE DUPONTCIBLE ${tag}` };
 const DAY = 24 * 60 * 60 * 1000;
 
 export const ALPHA_BOARD = `alphacible-${tag}`;
@@ -68,10 +72,28 @@ function serve(request, url, body) {
   }
   if (url.hostname === "api.francetravail.io") {
     if (url.pathname === "/partenaire/labonneboite/v2/recherche") {
-      return json({ hits: 2, items: [laBonneBoiteItem(alpha, 88), laBonneBoiteItem(beta, 71)] }, 200, { "x-ratelimit-remaining-clientidlimiter": "1" });
+      return json({ hits: 3, items: [laBonneBoiteItem(soleTrader, 93), laBonneBoiteItem(alpha, 88), laBonneBoiteItem(beta, 71)] }, 200, {
+        "x-ratelimit-remaining-clientidlimiter": "1",
+      });
     }
     if (url.pathname === "/partenaire/romeo/v2/predictionMetiers") return json([]);
     return json({ message: "not found" }, 404);
+  }
+  if (url.origin === "https://recherche-entreprises.api.gouv.fr" && url.pathname === "/search") {
+    const q = (url.searchParams.get("q") ?? "").replace(/\s/g, "");
+    const record = (company, soleTraderRecord) => ({
+      siren: company.siret.slice(0, 9),
+      nom_complet: company.name,
+      nom_raison_sociale: soleTraderRecord ? null : company.name,
+      nature_juridique: soleTraderRecord ? "1000" : "5710",
+      etat_administratif: "A",
+      siege: { adresse: "LYON" },
+      dirigeants: [],
+      finances: null,
+      complements: { est_entrepreneur_individuel: soleTraderRecord },
+    });
+    const results = q === alpha.siret.slice(0, 9) ? [record(alpha, false)] : q === soleTrader.siret.slice(0, 9) ? [record(soleTrader, true)] : [];
+    return json({ results, total_results: results.length, page: 1, per_page: 10, total_pages: 1 });
   }
   if (url.hostname === "geo.api.gouv.fr" && url.pathname === "/communes") {
     return json(url.searchParams.get("nom")?.toLowerCase() === "lyon" ? [{ code: "69123", nom: "Lyon" }] : []);

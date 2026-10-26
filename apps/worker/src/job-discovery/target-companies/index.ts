@@ -7,6 +7,7 @@
  *   // run.visits: [{ id, companyKey, name, careersSite }]: those to visit now, in order
  *   await targets.visited(profileId, run.visits, now);          // once the run has visited them
  *   await targets.keepCareersSite(visit, url, now);              // a careers site found for one, kept for every Profile
+ *   await targets.webSearchName(visit);                          // the name its web search may carry; null: no web search
  *
  * The Profile's list is refreshed from La Bonne Boite (France Travail's companies likely to hire)
  * at most monthly for the same job and area, and as soon as its Search Criteria title or first
@@ -19,10 +20,15 @@
  * A run visits up to `max` of them (JOB_DISCOVERY_TARGET_COMPANIES, 5 by default), the Candidate's
  * own first, then by hiring score, none visited within `revisitDays` (JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS,
  * 7 by default); those set aside never. Never throws: what cannot be read gives no visit.
+ *
+ * A Target Company without a known careers site is looked for with a web search « title + company », outside the EU:
+ * its name goes only once the company register lists it as a company (ADR-0007): a sole trader's name is a private
+ * person's, and La Bonne Boite's establishments and the names Candidates type can be sole traders.
  */
 import { locationKey, type SearchCriteria } from "@jobhub/shared";
 import { readNumberSetting } from "@jobhub/web/platform-settings";
-import type { TargetCompany, TargetCompanyStore } from "@jobhub/web/target-companies";
+import type { CompanyRegister } from "@jobhub/web/company-register";
+import { webSearchableName, type TargetCompany, type TargetCompanyStore } from "@jobhub/web/target-companies";
 import type { LaBonneBoite, LaBonneBoiteArea } from "../france-travail/la-bonne-boite";
 import { resolveRome, type RomePredictor } from "../france-travail/rome-resolution";
 import type { CityCodes } from "./city-codes";
@@ -79,6 +85,12 @@ export interface TargetCompanies {
   visited(profileId: string, visits: readonly TargetCompanyVisit[], now: Date): Promise<void>;
   /** The run found `url` as `visit`'s careers site: kept for its company, for every Profile. Never throws. */
   keepCareersSite(visit: TargetCompanyVisit, url: string, now: Date): Promise<void>;
+  /**
+   * The name a web search for `visit`'s postings may carry: its own once the company register lists it as a company,
+   * null when it lists a sole trader (a private person), does not list its SIREN, or cannot answer (ADR-0007).
+   * `step` wraps the call to the register, as in `forRun`. Never throws.
+   */
+  webSearchName(visit: TargetCompanyVisit, step?: <T>(work: () => Promise<T>) => Promise<T>): Promise<string | null>;
 }
 
 export interface TargetCompaniesOptions {
@@ -87,6 +99,8 @@ export interface TargetCompaniesOptions {
   franceTravail?: () => { laBonneBoite: LaBonneBoite; romeo: RomePredictor | null } | null;
   /** The INSEE code of a place's commune. */
   cityCodes: CityCodes;
+  /** The French company register: a Target Company's name is web-searched only once it lists it as a company. */
+  register: CompanyRegister;
   /** Asked on each run. Default: the catalog's (5 Target Companies, 7 days). */
   settings?: () => TargetCompanySettings;
   log?: (line: string) => void;
@@ -167,6 +181,13 @@ export function createTargetCompanies(options: TargetCompaniesOptions): TargetCo
 
     async keepCareersSite(visit, url, now) {
       await options.store.keepCareersSite(visit.companyKey, url, now).catch((error: unknown) => log(`[job-discovery] careers site not kept: ${String(error)}`));
+    },
+
+    async webSearchName(visit, step) {
+      const vet = () => webSearchableName(options.register, visit);
+      const vetted = await (step ? step(vet) : vet()).catch(() => null);
+      if (vetted === null) log(`[job-discovery] a Target Company (${visit.companyKey.startsWith("siren:") ? visit.companyKey : "added by name"}) is not web-searched: the company register does not list it as a company`);
+      return vetted;
     },
   };
 }

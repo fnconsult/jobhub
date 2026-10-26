@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CompanyRegister, RegisteredCompany } from "../company-dossiers/french-register";
 import { migrateProfiles } from "../profiles";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
-import { companyKeyOf, createTargetCompanies, migrateTargetCompanies, type TargetCompanies } from "./index";
+import { companyKeyOf, createTargetCompanies, migrateTargetCompanies, webSearchableName, type TargetCompanies } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 const NOW = new Date("2026-10-26T08:00:00Z");
@@ -23,6 +23,50 @@ describe("companyKeyOf", () => {
     expect(companyKeyOf({ siret: "55210055400013", name: "ACME" })).toBe("siren:552100554");
     expect(companyKeyOf({ siren: "552100554", name: "Acme" })).toBe("siren:552100554");
     expect(companyKeyOf({ name: "Société Générale SA" })).toBe("name:societe generale");
+  });
+});
+
+describe("webSearchableName: a Target Company's name goes to the web search only as a company's (ADR-0007)", () => {
+  /** The register: ACME a company (SIREN 552100554), JEAN DUPONT a sole trader (SIREN 812345678); the queries asked. */
+  const asked: string[] = [];
+  const fake: CompanyRegister = {
+    search: async (query) => {
+      asked.push(query);
+      const q = query.trim().toLowerCase();
+      return {
+        companies: q === "552100554" || q === "acme industrie" ? [{ siren: "552100554", name: "ACME INDUSTRIE", active: true, financials: [], executiveRoles: [] }] : [],
+        soleTraderNamed: q === "812345678" || q === "jean dupont",
+      };
+    },
+  };
+
+  it("sends a company's name when the register lists its SIREN as a company, asking it by SIREN alone", async () => {
+    asked.length = 0;
+    expect(await webSearchableName(fake, { companyKey: "siren:552100554", name: "ACME" })).toBe("ACME");
+    expect(asked).toEqual(["552100554"]);
+  });
+
+  it("never sends the name of a sole trader, nor of a SIREN the register does not list", async () => {
+    asked.length = 0;
+    expect(await webSearchableName(fake, { companyKey: "siren:812345678", name: "JEAN DUPONT" })).toBeNull();
+    expect(await webSearchableName(fake, { companyKey: "siren:999999999", name: "GHOST SARL" })).toBeNull();
+    expect(asked).toEqual(["812345678", "999999999"]);
+  });
+
+  it("for a name without SIREN, sends it unless the register lists it as a sole trader's or it holds a SIREN", async () => {
+    expect(await webSearchableName(fake, { companyKey: "name:globex robotics", name: "Globex Robotics GmbH" })).toBe("Globex Robotics GmbH");
+    expect(await webSearchableName(fake, { companyKey: "name:jean dupont", name: "Jean Dupont" })).toBeNull();
+    expect(await webSearchableName(fake, { companyKey: "name:812 345 678", name: "812 345 678" })).toBeNull();
+  });
+
+  it("sends nothing when the register cannot answer", async () => {
+    const down: CompanyRegister = {
+      search: async () => {
+        throw new Error("register down");
+      },
+    };
+    expect(await webSearchableName(down, { companyKey: "siren:552100554", name: "ACME" })).toBeNull();
+    expect(await webSearchableName(down, { companyKey: "name:globex robotics", name: "Globex Robotics" })).toBeNull();
   });
 });
 
@@ -101,6 +145,13 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
     expect(await unregistered.add("candidate-1", otherProfileId, "Tisserands")).toEqual({ ok: false, error: "invalid" });
     expect(await unregistered.add("candidate-1", profileId, "  ")).toEqual({ ok: false, error: "invalid" });
     expect(await unregistered.setAside("candidate-2", profileId, (await unregistered.list(profileId))[0]!.id)).toBe(false);
+  });
+
+  it("refuses a name the company register lists as a sole trader's, a private person's (ADR-0007)", async () => {
+    const soleTrader = createTargetCompanies(database, { now: () => NOW, register: { search: async () => ({ companies: [], soleTraderNamed: true }) } });
+
+    expect(await soleTrader.add("candidate-1", profileId, "Jean Dupont")).toEqual({ ok: false, error: "not_a_company" });
+    expect(await soleTrader.list(profileId)).toEqual([]);
   });
 
   it("records the visits of Job discovery", async () => {

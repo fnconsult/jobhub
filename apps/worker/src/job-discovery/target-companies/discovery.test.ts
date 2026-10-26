@@ -1,6 +1,7 @@
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { DEFAULT_JOB_DISCOVERY_SETTINGS, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
+import type { CompanyRegister } from "@jobhub/web/company-register";
 import { describe, expect, it } from "vitest";
 import type { LaBonneBoite, LaBonneBoiteCompany, LaBonneBoiteSearch } from "../france-travail/la-bonne-boite";
 import { createJobDiscovery, type JobDiscoveryBudget, type JobOfferStore } from "../index";
@@ -14,6 +15,31 @@ const criteria: SearchCriteria = { targetRole: "Directeur financier", locations:
 
 const ACME: LaBonneBoiteCompany = { siret: "55210055400013", name: "ACME INDUSTRIE", hiringScore: 90, city: "Lyon" };
 const BETA: LaBonneBoiteCompany = { siret: "38012986600025", name: "BETA LOGISTIQUE", hiringScore: 70, city: "Vénissieux" };
+/** A sole trader La Bonne Boite gives: its name is a private person's (ADR-0007). */
+const DUPONT: LaBonneBoiteCompany = { siret: "81234567800019", name: "JEAN DUPONT", hiringScore: 95, city: "Lyon" };
+
+/**
+ * The company register: ACME and BETA listed as companies under their SIREN or name, JEAN DUPONT as a sole trader
+ * (so not among its companies, `soleTraderNamed` instead), anything else unknown. The queries it was asked.
+ */
+function fakeRegister(soleTraders: { siren: string; name: string }[] = [{ siren: "812345678", name: "JEAN DUPONT" }]): CompanyRegister & { asked: string[] } {
+  const listed = [
+    { siren: "552100554", name: "ACME INDUSTRIE" },
+    { siren: "380129866", name: "BETA LOGISTIQUE" },
+  ];
+  const named = (query: string) => (company: { siren: string; name: string }) => company.siren === query.trim() || company.name.toLowerCase() === query.trim().toLowerCase();
+  const register = {
+    asked: [] as string[],
+    async search(query: string) {
+      register.asked.push(query);
+      return {
+        companies: listed.filter(named(query)).map((company) => ({ ...company, active: true, financials: [], executiveRoles: [] })),
+        soleTraderNamed: soleTraders.some(named(query)),
+      };
+    },
+  };
+  return register;
+}
 
 const greenhouseJob = (id: number, title: string, company: string, daysAgo = 3) => ({
   id,
@@ -80,6 +106,7 @@ function setup(options: {
   settings?: JobDiscoverySettings;
   budget?: Partial<JobDiscoveryBudget>;
   max?: number;
+  register?: CompanyRegister;
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: (query) => options.sources?.(query) ?? [] });
   const llm = createFakeProvider({ id: "anthropic", reply: '{"isJobOffer": false}' });
@@ -94,6 +121,7 @@ function setup(options: {
     store,
     franceTravail: () => (laBonneBoite ? { laBonneBoite, romeo: null } : null),
     cityCodes: { cityCode: async () => "69123" },
+    register: options.register ?? fakeRegister(),
     settings: () => ({ max: options.max ?? 5, revisitDays: 7 }),
   });
   const jobOffers = memoryJobOffers();
@@ -182,6 +210,54 @@ describe("Job discovery visits the Profile's Target Companies (#406)", () => {
     await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
 
     expect(search.queries.filter((query) => query.endsWith('"ACME INDUSTRIE"') || query.endsWith('"BETA LOGISTIQUE"'))).toEqual(['Directeur financier "ACME INDUSTRIE"', 'Directeur financier "BETA LOGISTIQUE"']);
+  });
+
+  it("never sends a sole trader's name, a private person's, to the web search (ADR-0007)", async () => {
+    const register = fakeRegister();
+    const { discovery, search } = setup({ register, laBonneBoite: lbb({ ok: true, companies: [DUPONT, ACME], calls: 1 }) });
+
+    const report = await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    expect(search.queries.filter((query) => /dupont/i.test(query))).toEqual([]);
+    expect(search.queries).toContain('Directeur financier "ACME INDUSTRIE"');
+    // The register was asked by SIREN, never by the person's name.
+    expect(register.asked).toEqual(expect.arrayContaining(["812345678", "552100554"]));
+    expect(register.asked.some((query) => /dupont/i.test(query))).toBe(false);
+    // Not searched, so not visited.
+    expect(report.targetCompanies).toMatchObject({ visited: 1 });
+  });
+
+  it("never sends the name of a company the register does not list under its SIREN, nor a name it lists as a sole trader's", async () => {
+    const store = memoryTargetCompanies();
+    // A SIREN the register lists nothing under, and a name the Candidate typed that it lists as a sole trader.
+    const unknown: LaBonneBoiteCompany = { siret: "99999999900011", name: "GHOST SARL", hiringScore: 80 };
+    store.addOwn("profile-1", { name: "Marie Curie" }, NOW);
+    store.addOwn("profile-1", { name: "Globex Robotics GmbH" }, NOW);
+    const { discovery, search } = setup({
+      store,
+      register: fakeRegister([{ siren: "123123123", name: "Marie Curie" }]),
+      laBonneBoite: lbb({ ok: true, companies: [unknown], calls: 1 }),
+    });
+
+    await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    expect(search.queries.filter((query) => /ghost|curie/i.test(query))).toEqual([]);
+    // A name the register does not list as a sole trader (a foreign company, mostly) is searched, as for a Company Dossier.
+    expect(search.queries).toContain('Directeur financier "Globex Robotics GmbH"');
+  });
+
+  it("sends no Target Company's name when the register cannot answer", async () => {
+    const { discovery, search } = setup({
+      register: {
+        search: async () => {
+          throw new Error("register down");
+        },
+      },
+    });
+
+    await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    expect(search.queries.filter((query) => /ACME|BETA/.test(query))).toEqual([]);
   });
 
   it("goes on when La Bonne Boite is refused, like an unavailable source, and says so", async () => {

@@ -11,6 +11,7 @@
  *   await targets.keepCareersSite("siren:552100554", url, now);     // found once, kept for every Profile
  *   await targets.add(candidateId, profileId, "Acme Industrie");    // the Candidate's own, resolved in the company register
  *   await targets.setAside(candidateId, profileId, id);             // for good: La Bonne Boite never brings it back
+ *   await webSearchableName(register, company);                     // the name a web search may carry, null: none (ADR-0007)
  *
  * A company is the same across Profiles by its key: its SIREN when known (`siren:552100554`, an
  * establishment's SIRET gives it), else its name compared without case, accents or legal form
@@ -18,7 +19,7 @@
  * Candidate, no Profile. A Profile's Target Companies go with it (and with its Candidate).
  */
 import type { Pool } from "pg";
-import { nameKey } from "../company-dossiers/company-names";
+import { nameKey, sirenIn } from "../company-dossiers/company-names";
 import type { CompanyRegister } from "../company-dossiers/french-register";
 
 export type TargetCompanyOrigin = "la_bonne_boite" | "candidate";
@@ -75,13 +76,18 @@ export interface TargetCompanyStore {
   keepCareersSite(companyKey: string, url: string, at: Date): Promise<void>;
 }
 
-export type AddTargetCompanyResult = { ok: true; company: TargetCompany } | { ok: false; error: "invalid" | "exists" };
+/**
+ * `not_a_company`: the register lists the name as a sole trader's (a private person's): the Candidate is asked to name
+ * the company instead, as for a Company Dossier (ADR-0007).
+ */
+export type AddTargetCompanyResult = { ok: true; company: TargetCompany } | { ok: false; error: "invalid" | "exists" | "not_a_company" };
 
 export interface TargetCompanies extends TargetCompanyStore {
   /**
    * The Candidate adds a company by name to the Profile's Target Companies, as the company register lists it
    * (its registered name and SIREN) when it does, else under the name given. Refused when the Profile is not
-   * theirs, the name is empty, or the company is already one of its Target Companies (set aside included).
+   * theirs, the name is empty, the register lists it as a sole trader's (a private person's), or the company is
+   * already one of its Target Companies (set aside included).
    */
   add(candidateId: string, profileId: string, name: string): Promise<AddTargetCompanyResult>;
   /** The Candidate sets one of the Profile's Target Companies aside, for good. False when there is no such one of theirs. */
@@ -99,6 +105,27 @@ export function companyKeyOf(company: { siret?: string | null; siren?: string | 
   const siren = company.siren ?? company.siret?.slice(0, 9);
   if (siren && /^\d{9}$/.test(siren)) return `siren:${siren}`;
   return `name:${nameKey(company.name)}`;
+}
+
+/**
+ * The name a web search « title + company » may carry for a Target Company (ADR-0007: a company's, never a person's),
+ * null when none may: the company register is asked by its SIREN when known, and the name goes only when it lists that
+ * SIREN as a company (a sole trader's, or one it does not list, never); else by its name, which goes unless the
+ * register lists it as a sole trader's or it holds a SIREN, as for a Company Dossier. The register unreachable: null.
+ */
+export async function webSearchableName(register: CompanyRegister, company: Pick<TargetCompany, "companyKey" | "name">): Promise<string | null> {
+  try {
+    const siren = /^siren:(\d{9})$/.exec(company.companyKey)?.[1];
+    if (siren) {
+      const { companies } = await register.search(siren);
+      return companies.some((listed) => listed.siren === siren) ? company.name : null;
+    }
+    if (sirenIn(company.name)) return null;
+    const { soleTraderNamed } = await register.search(company.name);
+    return soleTraderNamed ? null : company.name;
+  } catch {
+    return null;
+  }
 }
 
 /** The longest name kept for a company. */
@@ -139,11 +166,15 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
   const owns = async (candidateId: string, profileId: string) =>
     UUID.test(profileId) && (await database.query("SELECT 1 FROM profile WHERE id = $1 AND candidate_id = $2", [profileId, candidateId])).rows.length > 0;
 
-  /** The company the register lists under `name`, its SIREN and registered name; null when it lists none or cannot answer. */
-  async function registered(name: string): Promise<{ siren: string; name: string } | null> {
+  /**
+   * The company the register lists under `name`, its SIREN and registered name; null when it lists none or cannot
+   * answer; "sole_trader" when it lists the name as a sole trader's (a private person's).
+   */
+  async function registered(name: string): Promise<{ siren: string; name: string } | "sole_trader" | null> {
     if (!options.register) return null;
     try {
-      const { companies } = await options.register.search(name);
+      const { companies, soleTraderNamed } = await options.register.search(name);
+      if (soleTraderNamed) return "sole_trader";
       const found = companies.find((company) => company.active) ?? null;
       return found ? { siren: found.siren, name: found.name } : null;
     } catch {
@@ -228,6 +259,7 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
       const typed = name.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
       if (!typed || !nameKey(typed) || !(await owns(candidateId, profileId))) return { ok: false, error: "invalid" };
       const found = await registered(typed);
+      if (found === "sole_trader") return { ok: false, error: "not_a_company" };
       const company = found ? { name: found.name, key: companyKeyOf({ siren: found.siren, name: found.name }) } : { name: typed, key: companyKeyOf({ name: typed }) };
       const { rows } = await database.query<Row>(
         `INSERT INTO target_company (profile_id, candidate_id, company_key, name, origin, added_at)

@@ -149,7 +149,8 @@ export interface SearchRequest {
   industries?: IndustryReference;
   /**
    * A Target Company's name (#406): the search is then `query`'s job title and that name alone (« title + company »),
-   * nothing else of the Search Criteria, to find that company's postings.
+   * nothing else of the Search Criteria, to find that company's postings. A company's name only, as the company register
+   * lists it: never a sole trader's, a private person's (ADR-0007, #406 amendment).
    */
   employer?: string;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */

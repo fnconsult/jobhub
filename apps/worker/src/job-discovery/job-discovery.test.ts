@@ -77,10 +77,10 @@ function memoryJobOffers(existing: JobOffer[] = []): JobOfferStore & { all: JobO
       delete facts.provenance;
       const offer = { ...(input as Omit<JobOffer, "id">), ...facts };
       const same = all.find((o) => o.source.url === offer.source.url || o.content === offer.content);
-      if (same) return { ok: true, jobOffer: same };
+      if (same) return { ok: true, jobOffer: same, created: false };
       const jobOffer = { id: `offer-${all.length + 1}`, ...offer };
       all.push(jobOffer);
-      return { ok: true, jobOffer };
+      return { ok: true, jobOffer, created: true };
     },
   };
 }
@@ -1952,6 +1952,98 @@ describe("Job discovery", () => {
         "offer_analysis",
       ]);
       expect(failure.partial.run.provenance().steps.at(-1)).toMatchObject({ kind: "ai", task: "offer_analysis", outcome: "failed" });
+    });
+  });
+
+  describe("its record, for Activité › Recherches (#404)", () => {
+    const posting = (title: string): Page => ({ body: jobPostingPage({ title, description: `Poste de ${title} à Lyon.` }) });
+    const ONE = "https://emplois.example.fr/offres/1";
+    const TWO = "https://emplois.example.fr/offres/2";
+    const KNOWN = "https://emplois.example.fr/offres/connue";
+    const known: JobOffer = { id: "known-1", source: { url: KNOWN }, title: "DAF déjà vue", content: "Déjà stockée." };
+    const apec = async (): Promise<JobDiscoverySettings> => ({ ...DEFAULT_JOB_DISCOVERY_SETTINGS, sites: [{ domain: "apec.fr", enabled: true }] });
+
+    it("lists each web search: its kind, the query texts sent, its provider, page, results, new Job Offers and cost", async () => {
+      const { discovery } = setup({
+        queriesPerCall: 5,
+        sources: (_query, { filters }) => (filters?.includeDomains ? [KNOWN] : [ONE, TWO, KNOWN]),
+        pages: { [ONE]: posting("DAF 1"), [TWO]: posting("DAF 2") },
+        existing: [known],
+        settings: apec,
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.searches).toEqual([
+        {
+          kind: "plan",
+          queries: [
+            "Offre d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+            'Job offer "Directeur financier" in Lyon, permanent contract, hybrid remote work, salary from €110,000 gross per year',
+          ],
+          page: 1,
+          provider: "perplexity",
+          fallback: false,
+          results: 3,
+          newJobOffers: 2,
+          costEur: expect.closeTo(0.00086, 6),
+        },
+        {
+          kind: "site",
+          site: "apec.fr",
+          queries: ["Offre d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel"],
+          page: 1,
+          provider: "perplexity",
+          fallback: false,
+          results: 1,
+          newJobOffers: 0,
+          costEur: expect.closeTo(0.00086, 6),
+        },
+      ]);
+      // Three Job Offers found, one of them already stored: two new ones.
+      expect(report.jobOffers).toHaveLength(3);
+      expect(report.newJobOffers).toBe(2);
+    });
+
+    it("names the fallback Search provider on the searches it served", async () => {
+      const brave = createFakeProvider({ id: "brave", residency: "outside_eu", sources: [] });
+      const { discovery } = setup({ sources: [], pages: {}, otherSearch: brave, searchFallback: "brave", searchFails: new AiProviderError("perplexity", "HTTP 429", 429) });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.searches.map(({ provider, fallback }) => ({ provider, fallback }))).toEqual([
+        { provider: "brave", fallback: true },
+        { provider: "brave", fallback: true },
+      ]);
+    });
+
+    it("says why it stopped: its Job Offers found, its spend or its time reached, its searches done, or the Candidate stopping it", async () => {
+      const found = setup({ sources: [ONE, TWO], pages: { [ONE]: posting("DAF 1"), [TWO]: posting("DAF 2") }, budget: { jobOffers: 1 } });
+      expect((await found.discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("job_offers");
+
+      const slow = setup({ sources: [ONE, TWO], pages: { [ONE]: { ...posting("DAF 1"), delayMs: 100_000 }, [TWO]: posting("DAF 2") } });
+      expect((await slow.discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("duration");
+
+      const costly = setup({ sources: [ONE, TWO], pages: { [ONE]: posting("DAF 1"), [TWO]: posting("DAF 2") }, budget: { spendEur: 0.0001 } });
+      expect((await costly.discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("spend");
+
+      const done = setup({ sources: [ONE], pages: { [ONE]: posting("DAF 1") } });
+      expect((await done.discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("exhausted");
+
+      const stop = new AbortController();
+      stop.abort();
+      const stopped = setup({ sources: [ONE], pages: { [ONE]: posting("DAF 1") } });
+      expect((await stopped.discovery.discover({ candidateId: "c", criteria, signal: stop.signal })).stopReason).toBe("stopped");
+    });
+
+    it("keeps what it recorded of a run that failed", async () => {
+      const { discovery } = setup({ sources: [DAF_URL], pages: { [DAF_URL]: { body: "<html><body><h1>Offre</h1></body></html>" } }, reply: () => { throw new Error("LLM down"); } });
+
+      const failure = (await discovery.discover({ candidateId: "c", criteria }).catch((error: unknown) => error)) as JobDiscoveryError;
+
+      expect(failure.partial.stopReason).toBe("failed");
+      expect(failure.partial.searches).toHaveLength(1);
+      expect(failure.partial.searches[0]).toMatchObject({ kind: "plan", results: 1, newJobOffers: 0 });
     });
   });
 });

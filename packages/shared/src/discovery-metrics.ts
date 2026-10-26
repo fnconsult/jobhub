@@ -91,6 +91,44 @@ export interface SearchFallbackMetrics {
   reason: string;
 }
 
+/**
+ * What a web search of a run was for (#404): one of the Job Search's plan's queries, a Target Company, or a Job
+ * discovery site searched on purpose.
+ */
+export const DISCOVERY_SEARCH_KINDS = ["plan", "target_company", "site"] as const;
+export type DiscoverySearchKind = (typeof DISCOVERY_SEARCH_KINDS)[number];
+
+/** One web search of a run, as Activité › Recherches shows it (#404). */
+export interface DiscoverySearch {
+  kind: DiscoverySearchKind;
+  /** The Job discovery site it was restricted to (`site`), or the Target Company it searched (`target_company`). */
+  site?: string;
+  /**
+   * The query texts sent, as sent (after Redaction): built from the Search Criteria or an employer's name alone, never
+   * a Candidate's name. Personal enough to be kept 30 days only, unlike the figures beside them.
+   */
+  queries: string[];
+  /** Which page of results, from 1. */
+  page: number;
+  /** The Search provider that served it, by its id. */
+  provider: string;
+  /** Served by the fallback Search provider, once the active one failed (ADR-0043). */
+  fallback: boolean;
+  /** Distinct result URLs it gave. */
+  results: number;
+  /** Job Offers stored for the first time from the pages it led to. */
+  newJobOffers: number;
+  /** Its estimated cost in €: the search itself, not the pages read after it. */
+  costEur: number;
+}
+
+/**
+ * Why a run of Job discovery ended (#404): a limit of its Job discovery budget reached (`job_offers`, `spend`,
+ * `duration`), every search done before any was (`exhausted`), the Candidate stopping it (`stopped`), or an error (`failed`).
+ */
+export const DISCOVERY_STOP_REASONS = ["job_offers", "spend", "duration", "exhausted", "stopped", "failed"] as const;
+export type DiscoveryStopReason = (typeof DISCOVERY_STOP_REASONS)[number];
+
 /** The metrics of a run where Job discovery found nothing, or never ran. */
 export function noDiscoveryMetrics(): DiscoveryMetrics {
   return {

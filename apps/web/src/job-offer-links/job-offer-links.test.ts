@@ -37,7 +37,7 @@ function memoryJobOffers(stored: JobOffer[] = []) {
       if (typeof body.title !== "string" || body.title.length > 500) return { ok: false, errors: [{ field: "title", code: "too_long" }] };
       const jobOffer = { id: `offer-${captures.length}`, ...(body as Omit<JobOffer, "id">) };
       stored.push(jobOffer);
-      return { ok: true, jobOffer };
+      return { ok: true, jobOffer, created: true };
     },
     async findBySourceUrl(url) {
       return stored.find((jobOffer) => jobOffer.source.url === url) ?? null;

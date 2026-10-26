@@ -68,6 +68,9 @@ function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport
     franceTravail: { status: "off", offers: 0, calls: 0 },
     fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
     searchFallback: null,
+    searches: [],
+    newJobOffers: 0,
+    stopReason: "exhausted",
     ...report,
   };
 }

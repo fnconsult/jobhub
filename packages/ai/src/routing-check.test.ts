@@ -63,11 +63,10 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
     });
   });
 
-  it("refuses a route whose provider's key is missing, naming the key", async () => {
-    const refusal = await checkAiRoutingChange(base, { ...base, AI_WRITING_PROVIDER: "mistral" });
-
-    expect(refusal?.reason).toBe("key_missing");
-    expect(refusal?.technical.message).toMatch(/MISTRAL_API_KEY/);
+  it("lets a text task go to a provider whose key is missing: a warning on Paramètres, never a refusal (ADR-0042)", async () => {
+    expect(await checkAiRoutingChange(base, { ...base, AI_WRITING_PROVIDER: "mistral" })).toBeNull();
+    // Its model cannot be tested without the key: it is not, and the save goes through.
+    expect(await checkAiRoutingChange(base, { ...base, AI_WRITING_PROVIDER: "openai", AI_WRITING_MODEL: "gpt-5" })).toBeNull();
   });
 
   it("refuses a text task routed to a web-search provider", async () => {

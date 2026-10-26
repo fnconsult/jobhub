@@ -126,7 +126,17 @@ export interface AiLayerDeps {
    * it, only email addresses and phone numbers are, by their shape. Must not throw (a failure is only warned about).
    */
   identityOf?: (candidateId: string) => Promise<CandidateIdentity | null>;
+  /**
+   * A text task routed to a provider whose key is missing: true starts the layer all the same, that task's calls failing
+   * as key_missing, so a route chosen on Paramètres before its key is entered warns and never blocks (ADR-0042); default
+   * false: start-up stops, naming the key. The Search provider's key is not concerned.
+   */
+  tolerateMissingKeys?: boolean;
 }
+
+/** Whether `error` says a provider's key is missing (an API key or token, not a setting such as VERTEX_PROJECT_ID). */
+const isMissingKey = (error: unknown): error is AiConfigError =>
+  error instanceof AiConfigError && error.reason === "key_missing" && /Missing environment variable \w+(_API_KEY|_TOKEN_\w+)\b/.test(error.message);
 
 function required(env: Env, key: string): string {
   const value = env[key]?.trim();
@@ -377,7 +387,19 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
 
   const routes = routesFromEnv(env, fake);
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
-  const providers = used.flatMap((id) => (fake ? [createFakeProvider({ id })] : buildProviders(id, env, deps.fetch)));
+  // A provider only text tasks use may wait for its key, when tolerated: those tasks' calls fail as key_missing (ADR-0042).
+  const textOnly = (id: ProviderId) => routes[SEARCH_TASK].provider !== id;
+  const unconfigured: Partial<Record<ProviderId, string>> = {};
+  const providers = used.flatMap((id) => {
+    if (fake) return [createFakeProvider({ id })];
+    try {
+      return buildProviders(id, env, deps.fetch);
+    } catch (error) {
+      if (!deps.tolerateMissingKeys || !textOnly(id) || !isMissingKey(error)) throw error;
+      unconfigured[id] = error.message;
+      return [];
+    }
+  });
   if (!fake) providers.push(...offeredOnlyProviders(env, used, deps.fetch));
   if (deps.euAiConsent && !providers.some((provider) => provider.id === IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
@@ -391,6 +413,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     identityRoute: { provider: IDENTITY_PROVIDER, model: env.AI_IDENTITY_MODEL?.trim() || undefined },
     euAiConsent: deps.euAiConsent,
     identityOf: deps.identityOf,
+    unconfigured,
     usage: deps.usage ?? createConsoleUsageLog(),
   });
 }

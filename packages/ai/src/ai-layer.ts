@@ -291,6 +291,12 @@ export interface AiLayerOptions {
   /** Whether the Candidate gave EU AI consent. Without it, no Candidate has consented. */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
   /**
+   * Why a provider is missing from `providers`, by provider (the key it lacks). A text task routed to one does not stop
+   * the layer from starting: its calls fail as key_missing, with this said (ADR-0042: a provider with no key warns,
+   * never blocks).
+   */
+  unconfigured?: Partial<Record<ProviderId, string>>;
+  /**
    * The fallback Search provider (ADR-0043): when the one serving a run's searches fails (key missing, 401/403, 429,
    * an outage), the run goes on with it. None when it is not configured (its key missing), nor the one that failed.
    */
@@ -374,7 +380,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const providerFor = (route: Route, euFirst = false): AiProvider => {
     const provider = endpointFor(options.providers, route, euFirst);
     // Its key was never entered: a provider is configured with its key.
-    if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`, { reason: "key_missing" });
+    if (!provider) throw new AiConfigError(options.unconfigured?.[route.provider] ?? `AI provider "${route.provider}" is not configured`, { reason: "key_missing" });
     return provider;
   };
 
@@ -391,6 +397,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
   // Fail fast at start-up on a task routed to a provider that cannot serve it.
   for (const task of Object.keys(options.routes) as AiTask[]) {
+    // A text task on a provider whose key is missing starts all the same: its calls fail as key_missing (ADR-0042).
+    if (task !== SEARCH_TASK && options.unconfigured?.[routeFor(task).provider] !== undefined && !endpointFor(options.providers, routeFor(task))) continue;
     const provider = providerFor(routeFor(task), task !== SEARCH_TASK && TEXT_TASKS[task].personalData);
     if (task === SEARCH_TASK) {
       if (!provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);

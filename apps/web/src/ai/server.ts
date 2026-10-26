@@ -19,10 +19,17 @@ let instance: AiLayer | undefined;
  * Every call is redacted before it leaves: what their account and latest Master CV say
  * of their identity, and every email and phone number (ADR-0007).
  * Every call is recorded in AI Usage and the AI Message Log, without waiting on them.
+ * A text task routed to a provider whose key is missing fails its calls as key_missing; the others work.
  */
 export function getAi(): AiLayer {
   instance ??= liveObject(withPlatformSettings(getSecretResolver(), getPlatformSettingsResolver()), [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES], (env) =>
-    createAiLayerFromEnv(env, { euAiConsent: (candidateId) => getEuAiConsents().has(candidateId), identityOf: candidateIdentityOf(sharedPool()), usage: getAiUsageLog() }),
+    createAiLayerFromEnv(env, {
+      euAiConsent: (candidateId) => getEuAiConsents().has(candidateId),
+      identityOf: candidateIdentityOf(sharedPool()),
+      usage: getAiUsageLog(),
+      // A text task routed on Paramètres to a provider whose key is not entered yet fails its own calls, nothing else (ADR-0042).
+      tolerateMissingKeys: true,
+    }),
   );
   return instance;
 }

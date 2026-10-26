@@ -59,9 +59,11 @@ describe("the Tools", () => {
     expect(names("openai")).toEqual(["OPENAI_DATA_RESIDENCY"]);
     expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL"]);
     const search = ["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_FALLBACK_PROVIDER"];
-    expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL"]);
-    expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES"]);
-    expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL"]);
+    // And the filters Job discovery sends every Search provider (#402).
+    const filters = ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "JOB_DISCOVERY_RESULTS_PER_QUERY"];
+    expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", ...filters]);
+    expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", ...filters]);
+    expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", ...filters]);
     for (const id of ["brevo-api", "brevo-smtp"]) expect(names(id), id).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);

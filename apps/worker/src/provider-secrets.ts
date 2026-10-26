@@ -83,7 +83,9 @@ const refusedSearch = (answer: unknown) => (answer as { ok?: boolean; reason?: s
 export function workerClients(options: WorkerClientsOptions): WorkerClients {
   const { resolver } = options;
   const log = options.log ?? ((line: string) => console.info(line));
-  const buildAi = (env: Env) => createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage });
+  // A text task routed on Paramètres to a provider whose key is not entered yet fails its own calls, nothing else (ADR-0042).
+  const buildAi = (env: Env) =>
+    createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage, tolerateMissingKeys: true });
   // The AI layer's keys and its routing: rebuilt when one of either changes.
   const aiResolver = options.platformSettings ? withPlatformSettings(resolver, options.platformSettings) : resolver;
   const aiNames = [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES];

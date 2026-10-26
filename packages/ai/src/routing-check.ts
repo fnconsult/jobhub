@@ -23,7 +23,8 @@ export interface AiRoutingRefusal {
 function buildProblem(env: Env): AiRoutingRefusal | null {
   try {
     // With an EU AI consent lookup, so the identity route is checked too; nothing is called nor recorded.
-    createAiLayerFromEnv(env, { usage: { record: () => {} }, euAiConsent: async () => false });
+    // A text task's provider may wait for its key: Paramètres warns of it, never refuses it (ADR-0042).
+    createAiLayerFromEnv(env, { usage: { record: () => {} }, euAiConsent: async () => false, tolerateMissingKeys: true });
     return null;
   } catch (error) {
     if (!(error instanceof AiConfigError || error instanceof DataResidencyError)) throw error;
@@ -160,7 +161,8 @@ async function failedModel(before: Env, after: Env, deps: AiRoutingCheckDeps): P
 /**
  * Whether changing the AI routing from `before` to `after` (each the environment with the Back Office's
  * values and the Provider Secrets over it) may be saved: null when it may, else why not.
- *  - The AI layer must start on `after`: no key missing, no provider that cannot serve its task.
+ *  - The AI layer must start on `after`: no provider that cannot serve its task, no Search provider's key missing; a text
+ *    task's provider whose key is missing is not refused (ADR-0042: Paramètres warns of it), and its model is not tested.
  *  - No task with personal data may reach an endpoint outside the EU.
  *  - Each model a route names that `before` did not use there passes its test call (one token, or one search).
  * A problem the configuration already had before the change does not block it; each is weighed on its own, so a

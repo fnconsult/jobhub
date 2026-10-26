@@ -48,7 +48,9 @@
 //
 // Asked to mark whether the Candidate's message asks how to use Jobbbox (#344, "Classement de la question"), the AI
 // Coach ends its reply with "[jobbbox:oui]" when the message speaks of being blocked or of quotas (a real model reads
-// the whole message), "[jobbbox:non]" otherwise; the app takes that line out before anyone sees it.
+// the whole message), "[jobbbox:non]" otherwise; the app takes that line out before anyone sees it. Asked to mark a
+// question it could not answer (#345, "Question sans réponse"), it adds "[sans-reponse]" before that line when the
+// message holds "E2E_COACH_CANNOT_ANSWER".
 //
 // For the Back Office Assistant (#205, "assistant du Back Office"), it says how many
 // messages it was sent; "E2E_SHOW_CONTEXT#<tag>" prints the whole system prompt to the
@@ -163,6 +165,9 @@ globalThis.fetch = async (input, init) => {
       const remembered = system.match(/^- (?:Objectif|Contrainte|Décision) : /gm)?.length ?? 0;
       if (remembered) content += ` Mémoire : ${remembered} élément${remembered > 1 ? "s" : ""}.`;
     }
+  }
+  if (system.includes("coach Jobbbox") && system.includes("Question sans réponse") && prompt.includes("E2E_COACH_CANNOT_ANSWER")) {
+    content += "\n[sans-reponse]";
   }
   if (system.includes("coach Jobbbox") && system.includes("Classement de la question")) {
     content += /bloqu|quota/i.test(prompt) ? "\n[jobbbox:oui]" : "\n[jobbbox:non]";

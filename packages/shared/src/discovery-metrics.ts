@@ -77,6 +77,18 @@ export interface DiscoveryMetrics {
   franceTravail?: FranceTravailMetrics;
   /** Fantastic.jobs' part; absent for a run from before Fantastic.jobs was added. */
   fantasticJobs?: FantasticJobsMetrics;
+  /**
+   * The run's switch to the fallback Search provider (ADR-0043): from which provider, to which, and the Failure
+   * Reason that made it switch. Null when it did not; absent for a run from before the fallback.
+   */
+  searchFallback?: SearchFallbackMetrics | null;
+}
+
+/** A run's switch to the fallback Search provider, by provider id and Failure Reason code. */
+export interface SearchFallbackMetrics {
+  from: string;
+  to: string;
+  reason: string;
 }
 
 /** The metrics of a run where Job discovery found nothing, or never ran. */

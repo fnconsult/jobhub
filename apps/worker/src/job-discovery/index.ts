@@ -71,6 +71,9 @@
  * task Playbook's, read at the start of each run (ADR-0026); the LLM reading a page writes the Job
  * Offer Summary and sector only while the "job-offer-reading" task Playbook is served.
  *
+ * The run's web searches go to the active Search provider until it fails (key missing, refused, rate limited, down):
+ * then the rest of the run goes to its fallback, when its key is set, and the report says so (`searchFallback`).
+ *
  * Each run is measured (its funnel and cost in €), also when it fails: the
  * error is then a JobDiscoveryError carrying what the run measured until then.
  *
@@ -87,7 +90,7 @@
  * it stores the run's Provenance. A failed run's partial report has it too.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { costInEur, createProvenanceRecorder, readJobPage, type AiLayer, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, createWebSearchRun, readJobPage, type AiLayer, type SearchFallback, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
 import { servedTaskRun, taskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import {
   believablePostingDate,
@@ -233,6 +236,8 @@ export interface DiscoveryReport {
   franceTravail: FranceTravailMetrics;
   /** Fantastic.jobs' part of the run (its offers are in the funnel too), with its estimated cost, not in `costEur`. */
   fantasticJobs: FantasticJobsMetrics;
+  /** The run's switch to the fallback Search provider, once the active one failed (ADR-0043); null when it did not. */
+  searchFallback: SearchFallback | null;
   /**
    * The run's steps, recorded as it ran: the caller records its own after it (the Match Scores) and stores
    * `run.provenance()`, the run's Provenance, folded, with its wall-clock time until then.
@@ -371,8 +376,11 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         costEur: 0,
         franceTravail: { status: "off", offers: 0, calls: 0 },
         fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
+        searchFallback: null,
         run,
       };
+      /** The run's web searches: once the Search provider fails, the rest go to its fallback (ADR-0043). */
+      const webSearches = createWebSearchRun();
       /** The steps of one search or one page read, for the Provenance of the Job Offers it leads to: steps of the run too. */
       const recording = () => run.part();
       /** `howFound`, the steps that led to a Job Offer, on the site of its page `url`. */
@@ -575,7 +583,9 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           const { queries, site } = next.query;
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
           const searching = recording();
-          const search = await searching.ai.searchWeb({ candidateId, criteria, queries, page: next.page, filters, location, route: queryWording.searchRoute, industries, warnings: queryWording.warnings });
+          const search = await searching.ai
+            .searchWeb({ candidateId, criteria, queries, page: next.page, filters, location, route: queryWording.searchRoute, industries, warnings: queryWording.warnings, run: webSearches })
+            .finally(() => (report.searchFallback = webSearches.fallback));
           const searched = searching.provenance();
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));

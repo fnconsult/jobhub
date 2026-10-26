@@ -4,7 +4,7 @@ import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt,
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
-import { AiConfigError, DataResidencyError } from "./errors";
+import { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
 import { SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
@@ -132,6 +132,12 @@ export interface SearchRequest {
   queries?: JobSearchQuery[];
   /** Which page of results, from 1 (the default) up to the plan's `pages`. */
   page?: number;
+  /**
+   * The run the search belongs to (`createWebSearchRun`): once the Search provider serving it fails (key missing,
+   * 401/403, 429, an outage), it and every later search of the run go to the fallback Search provider (ADR-0043).
+   * Default: a run of its own, so a failed search still falls back once.
+   */
+  run?: WebSearchRun;
   /** The web-search provider and model (or depth) instead of the configured one: a task Playbook's (ADR-0026), one `searchModels` offers. */
   route?: Route;
   /**
@@ -282,6 +288,11 @@ export interface AiLayerOptions {
   identityRoute?: Route;
   /** Whether the Candidate gave EU AI consent. Without it, no Candidate has consented. */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
+  /**
+   * The fallback Search provider (ADR-0043): when the one serving a run's searches fails (key missing, 401/403, 429,
+   * an outage), the run goes on with it. None when it is not configured (its key missing), nor the one that failed.
+   */
+  searchFallback?: ProviderId;
   /** Where a warning goes (e.g. identity found in a call that did not declare it). Default: console.warn. */
   warn?: (message: string, details: Record<string, unknown>) => void;
   /**
@@ -302,6 +313,38 @@ const COUNTRY_CODE = /^[A-Z]{2}$/;
 const IDENTITY_CACHE_MS = 60_000;
 /** Candidates whose identity is kept at most; past it, all are read again. */
 const IDENTITY_CACHE_SIZE = 1_000;
+
+/** A run's switch to the fallback Search provider: from which, to which, and why (the Failure Reason of the failure). */
+export interface SearchFallback {
+  from: ProviderId;
+  to: ProviderId;
+  reason: FailureReason;
+}
+
+/** The web searches of one run (a Job discovery run): whether, and why, they went to the fallback Search provider. */
+export interface WebSearchRun {
+  /** Set by the AI layer when the run switches; null while it has not. */
+  fallback: SearchFallback | null;
+}
+
+/** A new run of web searches, served by the active Search provider until it fails. */
+export const createWebSearchRun = (): WebSearchRun => ({ fallback: null });
+
+/** Statuses after which a Search provider is not asked again in a run: refused key, rate limit, Tavily's spent plan (432, 433), timeouts. */
+const FALLBACK_STATUSES = new Set([401, 403, 408, 429, 432, 433]);
+
+/**
+ * The Failure Reason of `error` when it is a reason to switch to the fallback Search provider (ADR-0043): its key
+ * missing, a refused key, a rate limit or spent plan, an outage (a 5xx, no answer); null for anything else, such as
+ * a refusal of the request itself (400, 422).
+ */
+function fallbackReason(error: unknown): FailureReason | null {
+  if (error instanceof AiConfigError) return error.reason === "key_missing" ? "key_missing" : null;
+  if (!(error instanceof AiProviderError)) return null;
+  const { status } = error;
+  if (status !== undefined && status < 500 && !FALLBACK_STATUSES.has(status)) return null;
+  return failureOf(error).reason;
+}
 
 /**
  * The endpoint a route reaches among `providers`, or none when its provider is not configured. A provider
@@ -578,9 +621,19 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return { route, provider };
   };
 
+  /** The fallback Search provider, when one is set, its key entered, and it searches. */
+  const fallbackSearch = (): AiProvider | undefined => {
+    if (!options.searchFallback) return undefined;
+    const provider = endpointFor(options.providers, { provider: options.searchFallback });
+    return provider?.search ? provider : undefined;
+  };
+
   /**
-   * `query` must be built by search-query.ts: nothing else ever reaches the search provider, and it is redacted too.
-   * `override`: a task Playbook's web-search route; `warnings` and `fallback`: what its feature says of it (#260).
+   * `queries` must be built by search-query.ts: nothing else ever reaches the search provider, and they are redacted too.
+   * They go in as few calls as the provider serving them takes (its `queriesPerCall`), each recorded apart; a page past
+   * its last (`maxPages`) is not searched. `override`: a task Playbook's web-search route; `warnings` and `fallback`:
+   * what its feature says of it (#260). `run`: the run it belongs to, which falls back to the fallback Search provider
+   * for good once the one serving it fails (ADR-0043); without one, the search is a run of its own.
    */
   async function search({
     candidateId,
@@ -591,6 +644,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     warnings = [],
     fallback,
     signal,
+    run = createWebSearchRun(),
   }: {
     candidateId: string | null;
     queries: string[];
@@ -600,48 +654,75 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     warnings?: AiWarning[];
     fallback?: FailureReason;
     signal?: AbortSignal;
+    run?: WebSearchRun;
   }): Promise<SearchResult> {
     const fed = { warnings: () => warnings, ...(fallback ? { fallback } : {}) };
+    /** The provider serving the run: its fallback once it switched, else the task Playbook's or the configured one. */
+    const serving = (): { route: Route; provider: AiProvider } => {
+      const switchedTo = run.fallback && fallbackSearch();
+      return switchedTo ? { route: { provider: switchedTo.id }, provider: switchedTo } : searchProvider(override);
+    };
+    /** Whether the run switched to its fallback after `error` from `failed`: a reason to, a fallback to go to, not stopped. */
+    const switched = (error: unknown, failed: ProviderId | undefined): boolean => {
+      const reason = fallbackReason(error);
+      const to = fallbackSearch();
+      if (run.fallback || signal?.aborted || !reason || !failed || !to || to.id === failed) return false;
+      run.fallback = { from: failed, to: to.id, reason };
+      warn("Search provider failed: the run goes on with its fallback", { candidateId, from: failed, to: to.id, reason });
+      return true;
+    };
     let chosen: { route: Route; provider: AiProvider };
     try {
       // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
       if (filters?.country !== undefined && !COUNTRY_CODE.test(filters.country)) {
         throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
       }
-      chosen = searchProvider(override);
+      chosen = serving();
     } catch (error) {
       await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: asMessages(queries) }, fed);
-      throw error;
+      const configured = options.routes[SEARCH_TASK];
+      const failed = override?.provider ?? (typeof configured === "string" ? configured : configured?.provider);
+      if (!(error instanceof AiConfigError) || !switched(error, failed)) throw error;
+      chosen = serving();
     }
-    const { route, provider } = chosen;
     const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, queries);
     const sent = redaction.texts;
-    // As many calls as the provider needs: each carries up to its queries per call, and is recorded apart.
-    const perCall = Math.max(1, searchContractOf(provider).queriesPerCall);
     const calls: SearchResult[] = [];
-    for (let first = 0; first < sent.length; first += perCall) {
-      const batch = sent.slice(first, first + perCall);
-      const { output, ...facts } = await recorded(
-        { candidateId, task: SEARCH_TASK },
-        provider,
-        route,
-        { messages: asMessages(batch) },
-        () => provider.search!(batch.length === 1 ? batch[0]! : batch, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
-        (answer) => answer.answer,
-        { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
-        signal,
-      );
-      calls.push({
-        answer: output.answer,
-        sources: output.sources,
-        ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
-        provider: provider.id,
-        model: output.model,
-        usage: output.usage,
-        ...facts,
-      });
+    for (let next = 0; next < sent.length; ) {
+      const { route, provider } = chosen;
+      const contract = searchContractOf(provider);
+      if (page !== undefined && page > Math.max(1, contract.maxPages)) break;
+      const batch = sent.slice(next, next + Math.max(1, contract.queriesPerCall));
+      try {
+        const { output, ...facts } = await recorded(
+          { candidateId, task: SEARCH_TASK },
+          provider,
+          route,
+          { messages: asMessages(batch) },
+          () => provider.search!(batch.length === 1 ? batch[0]! : batch, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
+          (answer) => answer.answer,
+          { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
+          signal,
+        );
+        calls.push({
+          answer: output.answer,
+          sources: output.sources,
+          ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
+          provider: provider.id,
+          model: output.model,
+          usage: output.usage,
+          ...facts,
+        });
+        next += batch.length;
+      } catch (error) {
+        // The same queries again, on the fallback, batched as it takes them.
+        if (!switched(error, provider.id)) throw error;
+        chosen = serving();
+      }
     }
-    return together(calls);
+    if (calls.length > 0) return together(calls);
+    const { route, provider } = chosen;
+    return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok" };
   }
 
   /** Each query as one message of a search's transcript. */
@@ -739,6 +820,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         queries: (request.queries ?? [request.query]).map((query) => buildSearchQuery(request.criteria, query, location, request.industries)),
         ...(request.filters ? { filters: request.filters } : {}),
         ...(request.page ? { page: request.page } : {}),
+        ...(request.run ? { run: request.run } : {}),
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
         ...(request.signal ? { signal: request.signal } : {}),

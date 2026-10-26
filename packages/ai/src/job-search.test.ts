@@ -255,13 +255,16 @@ describe("paging a Job Search query", () => {
     expect((await plan(single)).pages).toBe(1);
   });
 
-  it("asks the web-search provider for the page wanted", async () => {
-    const { ai, perplexity, planned } = searchLayer({ en: ["CFO"] });
+  it("asks the web-search provider for the page wanted, and for none past its last", async () => {
+    const brave = createFakeProvider({ id: "brave", residency: "outside_eu", pages: 2 });
+    const ai = createAiLayer({ providers: [brave], routes: { web_search: "brave" }, usage: createMemoryUsageLog(), warn: () => {} });
 
     await ai.searchWeb({ candidateId: "cand-1", criteria });
-    await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("CFO", "en"), page: 2 });
+    await ai.searchWeb({ candidateId: "cand-1", criteria, page: 2 });
+    const past = await ai.searchWeb({ candidateId: "cand-1", criteria, page: 3 });
 
-    expect(perplexity.searches.map((search) => search.page)).toEqual([undefined, 2]);
+    expect(brave.searches.map((search) => search.page)).toEqual([undefined, 2]);
+    expect(past.sources).toEqual([]);
   });
 });
 

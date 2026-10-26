@@ -1,4 +1,4 @@
-import { createAiLayer } from "@jobhub/ai";
+import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
@@ -115,17 +115,22 @@ function setup(options: {
   taskPlaybooks?: TaskPlaybookReader;
   /** Another web-search provider configured, which a task Playbook may name. */
   otherSearch?: FakeProvider;
+  /** Thrown by every search of the active Search provider. */
+  searchFails?: Error;
+  /** The fallback Search provider (ADR-0043). Default: none. */
+  searchFallback?: "brave";
   /** The NAF and ROME-domain labels (#236). */
   industries?: () => Promise<IndustryReference>;
   /** Each web search waits for its signal to abort (#331). */
   searchPending?: boolean;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending, fail: options.searchFails });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
     providers: [search, llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
     routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
+    ...(options.searchFallback ? { searchFallback: options.searchFallback } : {}),
     usage: createMemoryUsageLog(),
   });
   const clock = fakeClock(options.now?.getTime());
@@ -587,6 +592,34 @@ describe("Job discovery", () => {
 
       expect(search.queries).toEqual([]);
       expect(brave.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon/);
+    });
+
+    it("goes on with the fallback Search provider once the active one fails, for the rest of the run, and says so (ADR-0043)", async () => {
+      const brave = createFakeProvider({ id: "brave", residency: "outside_eu", sources: [DAF_URL] });
+      const { discovery, search } = setup({
+        sources: [],
+        pages: { [DAF_URL]: { body: jobPostingPage({ title: "DAF", description: "Poste de DAF à Lyon." }) } },
+        otherSearch: brave,
+        searchFallback: "brave",
+        searchFails: new AiProviderError("perplexity", "HTTP 429 rate limited", 429),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      // French then English: the first fails on Perplexity and is served by Brave, as is the second.
+      expect(search.searches).toHaveLength(1);
+      expect(brave.searches).toHaveLength(2);
+      expect(report.searchFallback).toEqual({ from: "perplexity", to: "brave", reason: "rate_limited" });
+      expect(report.jobOffers.map((offer) => offer.title)).toEqual(["DAF"]);
+    });
+
+    it("fails as before when the active Search provider fails and the fallback's key is missing", async () => {
+      const { discovery } = setup({ sources: [], pages: {}, searchFallback: "brave", searchFails: new AiProviderError("perplexity", "HTTP 429", 429) });
+
+      const failure = await discovery.discover({ candidateId: "c", criteria }).catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(JobDiscoveryError);
+      expect((failure as JobDiscoveryError).partial.searchFallback).toBeNull();
     });
 
     it("does not call the LLM when the page has JobPosting data", async () => {

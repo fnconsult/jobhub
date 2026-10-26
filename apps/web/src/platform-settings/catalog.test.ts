@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { asksConfirmation, isEditable, parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
 
-/** Every Platform Setting ADR-0033 lists, by name. */
+/** Every Platform Setting ADR-0033 lists, by name, and ADR-0043's Search provider settings. */
 const ADR_0033 = [
   "ANTHROPIC_ENDPOINT",
   "BEDROCK_REGION",
@@ -13,6 +13,7 @@ const ADR_0033 = [
     `AI_${task}_MODEL`,
   ]),
   "AI_IDENTITY_MODEL",
+  "AI_WEB_SEARCH_FALLBACK_PROVIDER",
   "MAIL_FROM",
   "JOB_DIGEST_MIN_MATCH_SCORE",
   "JOB_DIGEST_TARGET_COUNT",
@@ -47,6 +48,7 @@ describe("the Platform Settings catalog", () => {
     expect(defaultOf("OPENAI_DATA_RESIDENCY")).toBe("eu");
     expect(defaultOf("AI_SCORING_PROVIDER")).toBe("anthropic");
     expect(defaultOf("AI_WEB_SEARCH_PROVIDER")).toBe("perplexity");
+    expect(defaultOf("AI_WEB_SEARCH_FALLBACK_PROVIDER")).toBe("brave");
     // Job titles take the Job Offer analysis' provider: nothing of their own.
     expect(defaultOf("AI_JOB_TITLES_PROVIDER")).toBe("");
     expect(defaultOf("AI_SCORING_MODEL")).toBe("");

@@ -32,6 +32,12 @@ const DEFAULT_TASK = { job_titles: "offer_analysis", back_office_assistant: "coa
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 
 const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
+/** The Search providers (ADR-0043): what web search and its fallback may name. */
+const SEARCH_PROVIDER_IDS = ["perplexity", "brave", "tavily"] as const satisfies readonly ProviderId[];
+/** The fallback Search provider's setting, and its value for none. */
+const FALLBACK_SETTING = "AI_WEB_SEARCH_FALLBACK_PROVIDER";
+const NO_FALLBACK = "none";
+const FALLBACK_CHOICES = [NO_FALLBACK, ...SEARCH_PROVIDER_IDS] as const;
 const OPENAI_DATA_RESIDENCIES = ["eu", "us"] as const;
 
 /** The code's defaults of the AI layer's settings that are not keys: what it uses when env sets nothing. */
@@ -40,6 +46,8 @@ const DEFAULTS = {
   BEDROCK_REGION: "eu-north-1",
   VERTEX_REGION: "europe-west1",
   OPENAI_DATA_RESIDENCY: "eu",
+  // Brave takes over a run when the active Search provider fails, once its key is entered (ADR-0043).
+  AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave",
 } as const;
 
 /**
@@ -58,12 +66,14 @@ export const AI_ROUTING_SETTINGS: ReadonlyArray<{ name: string; default: string;
     { name: taskKey(task, "MODEL"), default: "" },
   ]),
   { name: "AI_IDENTITY_MODEL", default: "" },
+  { name: FALLBACK_SETTING, default: DEFAULTS.AI_WEB_SEARCH_FALLBACK_PROVIDER, values: FALLBACK_CHOICES },
 ];
 
 /** Every environment variable the AI layer reads. `.env.example` must list them all. */
 export const AI_ENV_KEYS = [
   "AI_FAKE",
   "AI_IDENTITY_MODEL",
+  "AI_WEB_SEARCH_FALLBACK_PROVIDER",
   ...TASKS.flatMap((task) => [taskKey(task, "PROVIDER"), taskKey(task, "MODEL")]),
   "ANTHROPIC_ENDPOINT",
   "ANTHROPIC_API_KEY",
@@ -189,6 +199,18 @@ function identityProvider(env: Env, fake: boolean, fetch: typeof globalThis.fetc
   };
 }
 
+/**
+ * The fallback Search provider (AI_WEB_SEARCH_FALLBACK_PROVIDER): none with "none", and none when the default
+ * names the active one. Set to the active one, or to anything but a Search provider, it is refused.
+ */
+function searchFallbackFromEnv(env: Env, active: ProviderId): ProviderId | undefined {
+  const chosen = oneOf(env, FALLBACK_SETTING, FALLBACK_CHOICES, DEFAULTS.AI_WEB_SEARCH_FALLBACK_PROVIDER);
+  if (chosen === NO_FALLBACK) return undefined;
+  if (chosen !== active) return chosen;
+  if (env[FALLBACK_SETTING]?.trim()) throw new AiConfigError(`${FALLBACK_SETTING} must not be the active Search provider (${active})`);
+  return undefined;
+}
+
 /** Which provider (and model, when set) serves each task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL, else the defaults. */
 function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
   // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral, a
@@ -307,9 +329,11 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   if (!fake) providers.push(...offeredOnlyProviders(env, used, deps.fetch));
   if (deps.euAiConsent && !providers.some((provider) => provider.id === IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
+  const searchFallback = searchFallbackFromEnv(env, routes[SEARCH_TASK].provider);
   return createAiLayer({
     providers,
     routes,
+    ...(searchFallback ? { searchFallback } : {}),
     identityRoute: { provider: IDENTITY_PROVIDER, model: env.AI_IDENTITY_MODEL?.trim() || undefined },
     euAiConsent: deps.euAiConsent,
     identityOf: deps.identityOf,

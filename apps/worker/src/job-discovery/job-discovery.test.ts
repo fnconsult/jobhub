@@ -93,6 +93,8 @@ function setup(options: {
   titles?: string;
   /** How many pages of results the search provider gives a query. Default: 1. */
   searchPages?: number;
+  /** How many queries one call of the search provider takes. Default: 1. */
+  queriesPerCall?: number;
   /** The search provider's answer text. */
   answer?: string;
   pages: Record<string, Page>;
@@ -118,7 +120,7 @@ function setup(options: {
   /** Each web search waits for its signal to abort (#331). */
   searchPending?: boolean;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, pending: options.searchPending });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
@@ -272,6 +274,25 @@ describe("Job discovery", () => {
       expect(search.searches.map((s) => `${s.query.startsWith("Job offer") ? "en" : "fr"} ${s.page ?? 1}`)).toEqual(["fr 1", "en 1", "fr 2", "en 2"]);
       expect(jobOffers.all.map((offer) => offer.title)).toEqual(["DAF 1", "DAF 2"]);
       expect(report.funnel).toMatchObject({ providerUrls: 2, fetched: 2, extracted: 2 });
+    });
+
+    it("batches the plan's queries per call as the Search provider takes them, and searches each site apart", async () => {
+      const { discovery, search } = setup({
+        queriesPerCall: 5,
+        sources: [],
+        pages: {},
+        titles: JSON.stringify({ fr: ["DAF", "Directeur administratif"], en: ["CFO", "Finance Director", "Head of Finance"] }),
+        settings: async () => ({ sources: { france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true }, sites: [{ domain: "apec.fr", enabled: true }] }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      // 6 queries (3 titles in French and English): 5 in one call, then the last; the site's search on its own.
+      expect(search.searches.map((s) => [s.queries.length, s.filters?.includeDomains])).toEqual([
+        [5, undefined],
+        [1, undefined],
+        [1, ["apec.fr"]],
+      ]);
     });
 
     it("searches no further once the run has its Job Offers", async () => {
@@ -1143,9 +1164,9 @@ describe("Job discovery", () => {
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       // Fakes use 10 input and 5 output tokens per call. Job titles (Mistral default): 10 × $0.50/M + 5 × $1.50/M;
-      // each search (French, then English): $0.0025 + 10 × $0.20/M + 5 × $1.20/M;
+      // each search (French, then English): Perplexity's Search API, $0.001, no tokens;
       // each LLM read (Anthropic default): 10 × $5/M + 5 × $25/M; at €0.86 per $.
-      expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.002508 + 2 * 0.000175) * 0.86, 9);
+      expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.001 + 2 * 0.000175) * 0.86, 9);
     });
 
     it("keeps what a run measured before it failed", async () => {
@@ -1166,7 +1187,7 @@ describe("Job discovery", () => {
         skipped: [{ url: gone, reason: "gone" }],
         funnel: { providerUrls: 2, fetched: 1, extracted: 0, alreadyStored: 0 },
       });
-      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo((0.0000125 + 0.002508) * 0.86, 9);
+      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo((0.0000125 + 0.001) * 0.86, 9);
     });
   });
 
@@ -1229,14 +1250,14 @@ describe("Job discovery", () => {
       const { discovery, web, llm } = setup({
         sources: urls,
         pages: pagesFor(urls, () => ({ body: "<html><body><h1>Offres DAF</h1></body></html>" })),
-        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.00086. After two reads, €0.087.
         llmUsage: { inputTokens: 10_000, outputTokens: 0 },
       });
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       expect(llm.calls).toHaveLength(2);
-      expect(report.costEur).toBeCloseTo((0.0000125 + 0.002508 + 2 * 0.05) * 0.86, 9);
+      expect(report.costEur).toBeCloseTo((0.0000125 + 0.001 + 2 * 0.05) * 0.86, 9);
       expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 2));
     });
 

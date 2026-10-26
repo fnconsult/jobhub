@@ -265,6 +265,56 @@ describe("paging a Job Search query", () => {
   });
 });
 
+describe("searching several queries of a Job Search together (ADR-0043)", () => {
+  /** A layer on a Search provider taking `perCall` queries a call, whose job title step gives 2 French and 2 English variants. */
+  const batching = (perCall: number) => {
+    const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", queriesPerCall: perCall, sources: (query) => [`https://jobs.example/${encodeURIComponent(query.slice(0, 40))}`] });
+    const mistral = createFakeProvider({ id: "mistral", reply: JSON.stringify({ fr: ["DAF", "Directeur administratif"], en: ["CFO", "Finance Director"] }) });
+    const usage = createMemoryUsageLog();
+    const ai = createAiLayer({ providers: [search, mistral], routes: { web_search: "perplexity", job_titles: "mistral" }, usage });
+    return { ai, search, usage };
+  };
+
+  it("says how many queries one call of the Search provider takes", async () => {
+    const { ai } = batching(5);
+    expect((await ai.planJobSearch({ candidateId: "cand-1", criteria })).queriesPerCall).toBe(5);
+    expect((await batching(1).ai.planJobSearch({ candidateId: "cand-1", criteria })).queriesPerCall).toBe(1);
+  });
+
+  it("sends the queries in one call when the provider takes them all, and records it as one search with each query", async () => {
+    const { ai, search, usage } = batching(5);
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria });
+
+    const found = await ai.searchWeb({ candidateId: "cand-1", criteria, queries: plan.queries.slice(0, 5) });
+
+    expect(search.searches).toHaveLength(1);
+    expect(search.searches[0]!.queries).toHaveLength(5);
+    expect(found.sources).toHaveLength(5);
+    const searches = usage.entries.filter((entry) => entry.task === "web_search");
+    expect(searches).toHaveLength(1);
+    expect(searches[0]!.transcript.messages).toHaveLength(5);
+  });
+
+  it("splits them into as many calls as the provider needs, and returns their pages together", async () => {
+    const { ai, search, usage } = batching(2);
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria });
+
+    const found = await ai.searchWeb({ candidateId: "cand-1", criteria, queries: plan.queries.slice(0, 5) });
+
+    expect(search.searches.map((each) => each.queries.length)).toEqual([2, 2, 1]);
+    expect(found.sources).toHaveLength(5);
+    expect(usage.entries.filter((entry) => entry.task === "web_search")).toHaveLength(3);
+  });
+
+  it("refuses a query among them that planJobSearch did not issue", async () => {
+    const { ai, search } = batching(5);
+    const plan = await ai.planJobSearch({ candidateId: "cand-1", criteria });
+
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria, queries: [plan.queries[0]!, { ...plan.queries[1]! }] })).rejects.toThrow();
+    expect(search.searches).toHaveLength(0);
+  });
+});
+
 describe("a Job Search's queries, as the job-search-queries task Playbook words them (ADR-0026)", () => {
   it("are worded and planned as before with version 1, its built-in text", async () => {
     const mistral = createFakeProvider({ id: "mistral", reply: "{}" });

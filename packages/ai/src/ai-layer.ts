@@ -125,6 +125,11 @@ export interface SearchRequest {
    * as returned (any other, or a copy, is refused). Default: the Search Criteria's own title, in French.
    */
   query?: JobSearchQuery;
+  /**
+   * Several queries `planJobSearch` returned, searched together instead of `query`: in as few calls as the
+   * Search provider takes (its `queriesPerCall`, the plan's), their pages returned together.
+   */
+  queries?: JobSearchQuery[];
   /** Which page of results, from 1 (the default) up to the plan's `pages`. */
   page?: number;
   /** The web-search provider and model (or depth) instead of the configured one: a task Playbook's (ADR-0026), one `searchModels` offers. */
@@ -169,6 +174,8 @@ export interface JobSearchPlan {
   queries: JobSearchQuery[];
   /** How many pages of results the web-search provider can give one query (`SearchRequest.page`). */
   pages: number;
+  /** How many queries one call of the web-search provider takes (`SearchRequest.queries`). */
+  queriesPerCall: number;
   /** The job title step's AI call, for its cost; null when it failed (the plan then has the Search Criteria title alone). */
   call: GenerateResult | null;
 }
@@ -577,7 +584,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    */
   async function search({
     candidateId,
-    query,
+    queries,
     filters,
     page,
     override,
@@ -586,7 +593,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     signal,
   }: {
     candidateId: string | null;
-    query: string;
+    queries: string[];
     filters?: SearchFilters;
     page?: number;
     override?: Route;
@@ -603,32 +610,42 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       }
       chosen = searchProvider(override);
     } catch (error) {
-      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: [{ role: "user", content: query }] }, fed);
+      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: asMessages(queries) }, fed);
       throw error;
     }
     const { route, provider } = chosen;
-    const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, [query]);
-    const [sent = ""] = redaction.texts;
-    const { output, ...facts } = await recorded(
-      { candidateId, task: SEARCH_TASK },
-      provider,
-      route,
-      { messages: [{ role: "user", content: sent }] },
-      () => provider.search!(sent, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
-      (answer) => answer.answer,
-      { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
-      signal,
-    );
-    return {
-      answer: output.answer,
-      sources: output.sources,
-      ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
-      provider: provider.id,
-      model: output.model,
-      usage: output.usage,
-      ...facts,
-    };
+    const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, queries);
+    const sent = redaction.texts;
+    // As many calls as the provider needs: each carries up to its queries per call, and is recorded apart.
+    const perCall = Math.max(1, searchContractOf(provider).queriesPerCall);
+    const calls: SearchResult[] = [];
+    for (let first = 0; first < sent.length; first += perCall) {
+      const batch = sent.slice(first, first + perCall);
+      const { output, ...facts } = await recorded(
+        { candidateId, task: SEARCH_TASK },
+        provider,
+        route,
+        { messages: asMessages(batch) },
+        () => provider.search!(batch.length === 1 ? batch[0]! : batch, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
+        (answer) => answer.answer,
+        { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
+        signal,
+      );
+      calls.push({
+        answer: output.answer,
+        sources: output.sources,
+        ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
+        provider: provider.id,
+        model: output.model,
+        usage: output.usage,
+        ...facts,
+      });
+    }
+    return together(calls);
   }
+
+  /** Each query as one message of a search's transcript. */
+  const asMessages = (queries: readonly string[]): Message[] => queries.map((content) => ({ role: "user", content }));
 
   /** One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). */
   async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
@@ -688,7 +705,9 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     generate: (request) => generateAs(request, request.task),
 
     async planJobSearch({ candidateId, criteria, instructions, route }) {
-      const pages = Math.max(1, searchContractOf(searchProvider(route).provider).maxPages);
+      const contract = searchContractOf(searchProvider(route).provider);
+      const pages = Math.max(1, contract.maxPages);
+      const queriesPerCall = Math.max(1, contract.queriesPerCall);
       const titles = instructions?.titles;
       const { system, prompt } = jobTitlesPrompt(criteria, titles?.text);
       let call: GenerateResult | null = null;
@@ -710,13 +729,14 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, call };
+      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, queriesPerCall, call };
     },
 
     async searchWeb(request) {
+      const location = request.location ?? request.criteria.locations[0];
       return search({
         candidateId: request.candidateId,
-        query: buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0], request.industries),
+        queries: (request.queries ?? [request.query]).map((query) => buildSearchQuery(request.criteria, query, location, request.industries)),
         ...(request.filters ? { filters: request.filters } : {}),
         ...(request.page ? { page: request.page } : {}),
         ...(request.route ? { override: request.route } : {}),
@@ -728,7 +748,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     async searchCompany(request) {
       return search({
         candidateId: request.candidateId,
-        query: buildCompanyQuery(request.employer, request.instructions),
+        queries: [buildCompanyQuery(request.employer, request.instructions)],
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
         ...(request.signal ? { signal: request.signal } : {}),
@@ -743,7 +763,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       try {
         const found = await search({
           candidateId: request.candidateId,
-          query: buildCompanyNewsQuery(request),
+          queries: [buildCompanyNewsQuery(request)],
           filters: { maxAgeDays: COMPANY_NEWS_MAX_AGE_DAYS },
           ...(request.route ? { override: request.route } : {}),
           ...(request.warnings ? { warnings: request.warnings } : {}),
@@ -817,4 +837,28 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return choices;
   }
   return layer;
+}
+
+/**
+ * The calls of one search, as one result: their pages in order (each once), their dates, tokens and time added
+ * up, the outcome a warning when one was. One call is itself.
+ */
+function together(calls: SearchResult[]): SearchResult {
+  const [first, ...more] = calls;
+  if (!first) throw new AiConfigError("A web search needs a query");
+  if (more.length === 0) return first;
+  const last = calls[calls.length - 1]!;
+  const sourceDates = Object.assign({}, ...calls.map((call) => call.sourceDates ?? {})) as Record<string, Date>;
+  const sum = (count: (usage: TokenUsage) => number) => calls.reduce((total, call) => total + count(call.usage), 0);
+  return {
+    answer: calls.map((call) => call.answer).filter(Boolean).join("\n\n"),
+    sources: [...new Set(calls.flatMap((call) => call.sources))],
+    ...(Object.keys(sourceDates).length ? { sourceDates } : {}),
+    provider: last.provider,
+    model: last.model,
+    usage: { inputTokens: sum((usage) => usage.inputTokens), outputTokens: sum((usage) => usage.outputTokens) },
+    endpoint: last.endpoint,
+    durationMs: calls.reduce((total, call) => total + call.durationMs, 0),
+    outcome: calls.some((call) => call.outcome === "warning") ? "warning" : "ok",
+  };
 }

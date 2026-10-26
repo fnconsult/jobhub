@@ -6,7 +6,8 @@
  *
  * One run: up to 6 web searches through the AI layer, one per query of the Job
  * Search's plan (the Search Criteria title and up to 2 variants, in French and
- * English; built from the Search Criteria alone, ADR-0007), each steered away
+ * English; built from the Search Criteria alone, ADR-0007), as many to a call as the
+ * Search provider takes (Perplexity: 5, ADR-0043), each steered away
  * from forbidden sites and toward postings of the last 30 days. A query's next
  * page of results is searched only while its last page gave at least one new
  * readable posting (see search-pages.ts). Each result page is read politely
@@ -280,11 +281,22 @@ interface JobApi {
   >;
 }
 
-/** One web search of a run: a query of the Job Search's plan, restricted to one Job discovery site or not. */
+/**
+ * One web search of a run: queries of the Job Search's plan, as many as one call of the Search provider takes
+ * (ADR-0043), or the plan's first query restricted to one Job discovery site.
+ */
 interface PlannedSearch {
-  query: JobSearchQuery;
+  queries: JobSearchQuery[];
   /** The Job discovery site the search is restricted to. */
   site?: string;
+}
+
+/** `items` in groups of `size` (at least 1), in order. */
+function inGroupsOf<T>(items: readonly T[], size: number): T[][] {
+  const step = Math.max(1, Math.floor(size));
+  const groups: T[][] = [];
+  for (let first = 0; first < items.length; first += step) groups.push(items.slice(first, first + step));
+  return groups;
 }
 
 /** The Sectors' labels; when they cannot be read, the run goes on without naming any. */
@@ -550,19 +562,20 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           // Its searches go to the web-search provider the task Playbook names (else the configured one): paged as it pages.
           route: queryWording.searchRoute,
         });
-        // Each Job discovery site is searched on purpose too: the plan's first query, restricted to it.
+        // The plan's queries go in as few calls as the provider takes; each Job discovery site is searched on purpose
+        // too: the plan's first query, restricted to it.
         const first = plan.queries[0];
         const planned: PlannedSearch[] = [
-          ...plan.queries.map((query) => ({ query })),
-          ...(first ? searchedSites.map((site) => ({ query: first, site })) : []),
+          ...inGroupsOf(plan.queries, plan.queriesPerCall).map((queries) => ({ queries })),
+          ...(first ? searchedSites.map((site) => ({ queries: [first], site })) : []),
         ];
         const pager = searchPages(planned, plan.pages);
         for (let next = pager.next(); next && !budgetSpent(); next = pager.next()) {
           const before = found.size;
-          const { query, site } = next.query;
+          const { queries, site } = next.query;
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
           const searching = recording();
-          const search = await searching.ai.searchWeb({ candidateId, criteria, query, page: next.page, filters, location, route: queryWording.searchRoute, industries, warnings: queryWording.warnings });
+          const search = await searching.ai.searchWeb({ candidateId, criteria, queries, page: next.page, filters, location, route: queryWording.searchRoute, industries, warnings: queryWording.warnings });
           const searched = searching.provenance();
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
           const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));

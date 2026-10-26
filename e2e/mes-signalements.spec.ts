@@ -142,13 +142,19 @@ test.describe("« Mes signalements » and the Signalement notification (#377)", 
     await signInWithMagicLink(page, SUPER_ADMIN);
 
     await page.goto(`/admin/signalements/${id}`);
-    await page.getByRole("button", { name: tr(office.markAs, { status: office.statuses.vu }) }).click();
+    const markVu = page.getByRole("button", { name: tr(office.markAs, { status: office.statuses.vu }) });
+    await markVu.click();
+    // The saved status, rendered after the redirect, is the sync point: the notice reads the same after each change.
+    await expect(markVu).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("main").getByRole("status")).toHaveText(office.notices.status);
     await candidate.goto("/candidatures");
     await expect(candidate.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(notificationsOf(candidate)).toHaveCount(0);
 
-    await page.getByRole("button", { name: tr(office.markAs, { status: office.statuses.traite }) }).click();
+    const markTraite = page.getByRole("button", { name: tr(office.markAs, { status: office.statuses.traite }) });
+    await markTraite.click();
+    // The « vu » notice is still on screen, so only the pressed « traité » button shows the change was saved.
+    await expect(markTraite).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("main").getByRole("status")).toHaveText(office.notices.status);
     await candidate.goto("/agenda");
     const handled = notificationOf(candidate, /./);

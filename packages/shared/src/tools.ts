@@ -233,7 +233,7 @@ export const TOOLS = [
     runsIn: "both",
     keys: ["BRAVE_SEARCH_API_KEY"],
     settings: WEB_SEARCH_SETTINGS("BRAVE_MAX_PAGES"),
-    usage: { table: "ai_usage", provider: "brave" },
+    usage: { table: "ai_usage", provider: "brave", external: "brave" },
     residency: "outside_eu",
   },
   {
@@ -245,7 +245,7 @@ export const TOOLS = [
     runsIn: "both",
     keys: ["TAVILY_API_KEY"],
     settings: WEB_SEARCH_SETTINGS("TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL"),
-    usage: { table: "ai_usage", provider: "tavily" },
+    usage: { table: "ai_usage", provider: "tavily", external: "tavily" },
     residency: "outside_eu",
   },
   {

@@ -175,6 +175,7 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
       searchCompanyNewsWithCall: (request) => recordedNews(request),
       agentModels: () => ai.agentModels(),
       searchModels: () => ai.searchModels(),
+      webSearchAvailable: (route) => ai.webSearchAvailable(route),
       // An Eval Run's calls are no Candidate's content: nothing to keep.
       forEval: () => ai.forEval(),
     };

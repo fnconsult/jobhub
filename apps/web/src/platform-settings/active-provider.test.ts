@@ -70,10 +70,21 @@ describe.skipIf(!connectionString)("« Rendre actif » on Paramètres' Recherche
     ]);
   });
 
-  it("refuses a provider whose key is missing, as any AI route the AI layer would not build, and records the refusal", async () => {
-    expect(await changes.set(claire, "AI_WEB_SEARCH_PROVIDER", "brave")).toMatchObject({ ok: false, error: "refused", reason: "key_missing" });
+  it("makes a provider whose key is missing active all the same (ADR-0042: it warns, never blocks): web search is then unavailable, every other task unaffected (#399)", async () => {
+    const resolver = withPlatformSettings(
+      createSecretResolver({ env: ENV, load: async () => ({}), log: () => {} }),
+      createPlatformSettingsResolver({ env: ENV, load: platformSettingsReader(database).load, log: () => {} }),
+    );
+    await resolver.refresh();
+    const ai = liveObject(resolver, [...AI_ROUTING_NAMES, ...SEARCH_KEYS], (env) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }));
+    expect(ai.webSearchAvailable()).toBe(true);
 
+    expect(await changes.set(claire, "AI_WEB_SEARCH_PROVIDER", "brave")).toMatchObject({ ok: true, changed: true });
+    await resolver.refresh();
+
+    expect(ai.webSearchAvailable()).toBe(false);
+    await expect(ai.searchCompany({ candidateId: null, employer: "Jobbbox", instructions: "{{entreprise}}" })).rejects.toMatchObject({ name: "WebSearchUnavailable", reason: "key_missing" });
     const [entry] = await backOffice.journal({ section: "platform_settings" });
-    expect(entry).toMatchObject({ target: "AI_WEB_SEARCH_PROVIDER", outcome: "failed", failure: { reason: "key_missing", tried: "updated" } });
+    expect(entry).toMatchObject({ target: "AI_WEB_SEARCH_PROVIDER", action: "updated", after: { value: "brave", source: "back_office" } });
   });
 });

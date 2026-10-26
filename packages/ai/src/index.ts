@@ -41,7 +41,7 @@ export { checkAiRoutingChange } from "./routing-check";
 export type { AiRoutingCheckDeps, AiRoutingRefusal } from "./routing-check";
 export { findIdentity, identityIn } from "./identity-scan";
 export type { IdentityHit } from "./identity-scan";
-export { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
+export { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 export { givenNameOf, redactIdentity, REDACTION_NOTE } from "./redaction";
 export type { CandidateIdentity, RedactedKind, Redaction } from "./redaction";
 export { createAnthropicProvider } from "./providers/anthropic";

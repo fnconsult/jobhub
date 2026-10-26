@@ -621,6 +621,7 @@ function stoppable(ai: AiLayer, signal: AbortSignal | undefined): AiLayer {
     searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall({ ...request, signal }),
     agentModels: () => ai.agentModels(),
     searchModels: () => ai.searchModels(),
+    webSearchAvailable: (route) => ai.webSearchAvailable(route),
     forEval: () => stoppable(ai.forEval(), signal),
   };
 }
@@ -653,6 +654,7 @@ function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
     searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall(request),
     agentModels: () => ai.agentModels(),
     searchModels: () => ai.searchModels(),
+    webSearchAvailable: (route) => ai.webSearchAvailable(route),
     forEval: () => costing(ai.forEval(), spend),
   };
 }

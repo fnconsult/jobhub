@@ -294,8 +294,9 @@ function offeredOnlyProviders(env: Env, used: ProviderId[], fetch: typeof global
 /**
  * Builds the AI layer from environment variables (in production, ECS injects them from Secrets Manager).
  * Per task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL. Only providers some task uses need their keys.
- * Throws at start-up on a missing key or a task routed to a provider that cannot serve it (a web-search
- * provider for a text task); every call is redacted (redaction.ts, ADR-0007).
+ * Throws at start-up on a missing key of a text task's provider or a task routed to a provider that cannot
+ * serve it (a web-search provider for a text task); without the active Search provider's key, it starts
+ * with web search unavailable (#399). Every call is redacted (redaction.ts, ADR-0007).
  */
 export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps = {}): AiLayer {
   const fake = env.AI_FAKE?.trim() === "true";
@@ -303,7 +304,19 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
 
   const routes = routesFromEnv(env, fake);
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
-  const providers = used.flatMap((id) => (fake ? [createFakeProvider({ id })] : buildProviders(id, env, deps.fetch)));
+  // The active Search provider's key may be missing: web search alone is then unavailable (#399, ADR-0043).
+  const searchOnly = (id: ProviderId) => Object.entries(routes).every(([task, route]) => route.provider !== id || task === SEARCH_TASK);
+  const unconfigured: Partial<Record<ProviderId, string>> = {};
+  const providers = used.flatMap((id) => {
+    if (fake) return [createFakeProvider({ id })];
+    try {
+      return buildProviders(id, env, deps.fetch);
+    } catch (error) {
+      if (!(error instanceof AiConfigError) || error.reason !== "key_missing" || !searchOnly(id)) throw error;
+      unconfigured[id] = error.message;
+      return [];
+    }
+  });
   if (!fake) providers.push(...offeredOnlyProviders(env, used, deps.fetch));
   if (deps.euAiConsent && !providers.some((provider) => provider.id === IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
@@ -314,5 +327,6 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     euAiConsent: deps.euAiConsent,
     identityOf: deps.identityOf,
     usage: deps.usage ?? createConsoleUsageLog(),
+    unconfigured,
   });
 }

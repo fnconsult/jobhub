@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TOOLS } from "@jobhub/shared";
 import { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
-import { AiConfigError } from "./errors";
+import { AiConfigError, WebSearchUnavailable } from "./errors";
 import { createMemoryUsageLog } from "./testing";
 
 /** Answers every call like the provider at that host would, and records the hosts called. */
@@ -71,7 +71,6 @@ describe("AI layer configured from the environment", () => {
 
       expect(hosts).toEqual([host]);
       expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([["web_search", provider]]);
-      expect(() => createAiLayerFromEnv({ ...env, [key]: "" })).toThrow(new RegExp(key));
     },
   );
 
@@ -182,9 +181,47 @@ describe("AI layer configured from the environment", () => {
     ).not.toThrow();
   });
 
-  it("names the missing key of a provider in use", () => {
-    expect(() => createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k" })).toThrow(/PERPLEXITY_API_KEY/);
+  it("names the missing key of a text provider in use", () => {
     expect(() => createAiLayerFromEnv({ ...base, AI_WRITING_PROVIDER: "mistral" })).toThrow(/MISTRAL_API_KEY/);
+  });
+
+  describe("without the key of the active Search provider (#399)", () => {
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+
+    it("starts: every other task works, and web search is unavailable, naming the missing key", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k" }, { fetch, usage: createMemoryUsageLog() });
+
+      await expect(ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" })).resolves.toMatchObject({ text: "ok" });
+      expect(ai.webSearchAvailable()).toBe(false);
+      const search = ai.searchWeb({ candidateId: "c", criteria });
+      await expect(search).rejects.toBeInstanceOf(WebSearchUnavailable);
+      await expect(search).rejects.toThrow(/PERPLEXITY_API_KEY/);
+      await expect(ai.searchCompany({ candidateId: "c", employer: "Acme Ltd" })).rejects.toBeInstanceOf(WebSearchUnavailable);
+      expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
+    });
+
+    it.each([
+      ["brave", "BRAVE_SEARCH_API_KEY"],
+      ["tavily", "TAVILY_API_KEY"],
+    ])("starts with web search routed to %s and no %s", async (provider, key) => {
+      const ai = createAiLayerFromEnv({ ...base, AI_WEB_SEARCH_PROVIDER: provider }, { usage: createMemoryUsageLog() });
+      expect(ai.webSearchAvailable()).toBe(false);
+      await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toThrow(new RegExp(key));
+    });
+
+    it("searches with a task Playbook's Search provider whose key is entered", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k", BRAVE_SEARCH_API_KEY: "bk" }, { fetch, usage: createMemoryUsageLog() });
+
+      expect(ai.webSearchAvailable({ provider: "brave" })).toBe(true);
+      await ai.searchWeb({ candidateId: "c", criteria, route: { provider: "brave" } });
+      expect(hosts).toEqual(["api.search.brave.com"]);
+    });
+
+    it("is available once the key is entered", () => {
+      expect(createAiLayerFromEnv(base, { usage: createMemoryUsageLog() }).webSearchAvailable()).toBe(true);
+    });
   });
 
   it("does not need keys of providers no task uses", () => {

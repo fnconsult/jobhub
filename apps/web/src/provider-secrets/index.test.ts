@@ -217,6 +217,39 @@ describe.skipIf(!connectionString)("Provider Secrets, encrypted in the database 
     expect(JSON.stringify(rows)).not.toContain(ENV.MISTRAL_API_KEY);
   });
 
+  it("keeps each API's state from the latest test of its provider, until its keys are cleared (#400)", async () => {
+    expect(await secrets.apiAccess("france-travail")).toEqual([]);
+    tester.mockResolvedValue({ ok: true, apis: { la_bonne_boite: "ok", offres_emploi: "refused", romeo: "ok" } });
+
+    await secrets.replace(claire, "FRANCE_TRAVAIL_CLIENT_ID", "client-id-from-the-back-office", { saveAnyway: false });
+    expect(await secrets.apiAccess("france-travail")).toEqual([
+      { api: "la_bonne_boite", state: "ok", testedAt: expect.any(Date) },
+      { api: "offres_emploi", state: "refused", testedAt: expect.any(Date) },
+      { api: "romeo", state: "ok", testedAt: expect.any(Date) },
+    ]);
+
+    // The Test button's result replaces it, also when it failed.
+    tester.mockResolvedValue({ ok: false, detail: "HTTP 400 invalid_client", apis: { la_bonne_boite: "error", offres_emploi: "error", romeo: "error" } });
+    expect(await secrets.test(claire, "FRANCE_TRAVAIL_CLIENT_ID")).toMatchObject({ ok: false });
+    expect((await secrets.apiAccess("france-travail")).map((access) => access.state)).toEqual(["error", "error", "error"]);
+    // A provider with one API keeps none.
+    tester.mockResolvedValue({ ok: true });
+    await secrets.test(claire, "MISTRAL_API_KEY");
+    expect(await secrets.apiAccess("mistral")).toEqual([]);
+
+    await secrets.clear(claire, "FRANCE_TRAVAIL_CLIENT_ID");
+    expect(await secrets.apiAccess("france-travail")).toEqual([]);
+  });
+
+  it("a save its test refused leaves the states of the keys in use", async () => {
+    tester.mockResolvedValue({ ok: true, apis: { la_bonne_boite: "ok", offres_emploi: "refused", romeo: "ok" } });
+    await secrets.replace(claire, "FRANCE_TRAVAIL_CLIENT_ID", "client-id-from-the-back-office", { saveAnyway: false });
+    tester.mockResolvedValue({ ok: false, detail: "HTTP 400 invalid_client", apis: { la_bonne_boite: "error", offres_emploi: "error", romeo: "error" } });
+
+    expect(await secrets.replace(claire, "FRANCE_TRAVAIL_CLIENT_SECRET", "a-wrong-secret-value", { saveAnyway: false })).toMatchObject({ ok: false, error: "test_failed" });
+    expect((await secrets.apiAccess("france-travail")).map((access) => access.state)).toEqual(["ok", "refused", "ok"]);
+  });
+
   it("tells every listener, web and worker, once a change is committed", async () => {
     const heard = vi.fn();
     const stop = await listenForNotifications(database, PROVIDER_SECRETS_CHANNEL, heard);

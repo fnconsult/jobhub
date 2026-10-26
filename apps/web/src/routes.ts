@@ -23,6 +23,8 @@ export const routes = {
   accountSignIn: "/compte/connexion",
   accountPreferences: "/compte/preferences",
   accountTools: "/compte/outils",
+  /** « Mes signalements » (#377): the Candidate's Signalements and the team's replies; where the Signalement notification leads. */
+  accountSignalements: "/compte/signalements",
   accountData: "/compte/donnees",
   newProfile: "/profils/nouveau",
   profile: (id: string) => `/profils/${id}`,

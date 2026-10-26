@@ -5,12 +5,13 @@ import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
 import { JobSearchNotifications } from "@/components/JobSearchNotifications";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
+import { SignalementNotifications } from "@/components/SignalementNotifications";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import { getRequestLocale } from "@/i18n/server";
 import { currentHumanCoach } from "@/human-coaches/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
-import { jobbboxVersion } from "@/signalements/server";
+import { getSignalements, jobbboxVersion } from "@/signalements/server";
 
 /** The sidebar's Usage Meter; never fails the page: without billing, there is no meter. */
 async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
@@ -26,8 +27,9 @@ async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
 /**
  * The frame of every signed-in Candidate's page: the sidebar layout (see
  * SidebarLayout) around `children`, which it renders as the page's `<main>`,
- * topped by the Payment Failed Notice while there is one, and the
- * notifications of the Candidate's finished Job Searches. `currentProfileId`
+ * topped by the Payment Failed Notice while there is one, the
+ * notifications of the Candidate's finished Job Searches and those of their
+ * Signalements the team replied to or marked « traité » (#377). `currentProfileId`
  * is the Profile in view (or the one a Job Search or Job Digest belongs to):
  * the Profile switcher names it and the sidebar's Profile links lead to it.
  * `title` is the page's `<h1>`, shown in the Top Bar (see SidebarShell).
@@ -50,11 +52,12 @@ export async function CandidateLayout({
   aiActivity?: readonly ActivityElement[];
   children: ReactNode;
 }) {
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, humanCoach, isAdministrator, usage] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     getRequestLocale().then((locale) => getPaymentFailedNotice(candidateId, locale)),
     getJobSearches().notifications(candidateId),
+    getSignalements().notifications(candidateId),
     currentHumanCoach(),
     currentIsAdministrator(),
     weekUsage(candidateId),
@@ -74,6 +77,7 @@ export async function CandidateLayout({
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {jobSearchNotifications ? <JobSearchNotifications initial={jobSearchNotifications} /> : null}
+      <SignalementNotifications initial={signalementNotifications} />
       {children}
     </SidebarLayout>
   );

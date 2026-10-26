@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { keyHref } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { routes } from "@/routes";
 import type { ToolFigures } from "@/tools";
@@ -36,7 +37,7 @@ export default async function ToolsPage() {
   const figure = (figures: ToolFigures | null, value: (figures: ToolFigures) => string) => (figures ? value(figures) : t("admin.tools.notTraced"));
   const key = (name: string) =>
     readsSecrets && isProviderSecretName(name) ? (
-      <Link href={`${routes.adminProviderSecrets}?key=${encodeURIComponent(name)}`}>
+      <Link href={keyHref(name) ?? routes.adminPlatformSettings}>
         <code>{name}</code>
       </Link>
     ) : (

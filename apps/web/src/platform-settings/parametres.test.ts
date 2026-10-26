@@ -1,7 +1,7 @@
 import { toolById, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
-import { legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, type ProvidersState } from "./parametres";
+import { ADD_TYPES, addTypeFor, keyHref, legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, type ProvidersState } from "./parametres";
 import { snapshotOfSettings, type StoredPlatformSettings } from "./resolver";
 
 const tool = (id: string): Tool => toolById(id)!;
@@ -53,6 +53,12 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     expect(providerSheetHref(tool("stripe"))).toBe("/admin/parametres?tab=paiement&fournisseur=stripe");
     expect(providerSheetHref(tool("brevo-smtp"))).toBe("/admin/parametres?tab=e-mail&fournisseur=brevo-smtp");
     expect(providerSheetHref(tool("geo-api-gouv"))).toBeUndefined();
+  });
+
+  it("links a key to the sheet of the Tool it is for", () => {
+    expect(keyHref("PERPLEXITY_API_KEY")).toBe("/admin/parametres?tab=recherche-web&fournisseur=perplexity");
+    expect(keyHref("SMTP_URL")).toBe("/admin/parametres?tab=e-mail&fournisseur=brevo-smtp");
+    expect(keyHref("NOT_A_KEY")).toBeUndefined();
   });
 
   describe("the old addresses", () => {
@@ -128,6 +134,27 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     it("lists nothing on the tabs with no kind of Tool", () => {
       expect(possibleProviders(tab("extension"), stateOf())).toEqual([]);
       expect(possibleProviders(tab("environnement"), stateOf())).toEqual([]);
+    });
+  });
+
+  describe("« + Ajouter »", () => {
+    it("adds a provider, a key, a model, a source, a Job discovery site, a Job Site or a Sign-in Provider", () => {
+      expect(ADD_TYPES).toEqual(["provider", "key", "model", "source", "job_discovery_site", "job_site", "sign_in_provider"]);
+    });
+
+    it("preselects the type of the tab it is opened from, a type asked for over it, among those the Administrator may add", () => {
+      const all = ADD_TYPES;
+      expect(addTypeFor(tab("recherche-web"), undefined, all)).toBe("provider");
+      expect(addTypeFor(tab("ia"), undefined, all)).toBe("model");
+      expect(addTypeFor(tab("sources"), undefined, all)).toBe("source");
+      expect(addTypeFor(tab("e-mail"), undefined, all)).toBe("key");
+      expect(addTypeFor(tab("connexion"), undefined, all)).toBe("sign_in_provider");
+      expect(addTypeFor(tab("extension"), undefined, all)).toBe("job_site");
+      expect(addTypeFor(tab("extension"), "job_discovery_site", all)).toBe("job_discovery_site");
+      expect(addTypeFor(tab("extension"), "nonsense", all)).toBe("job_site");
+      // Without the right to add a key, the first type they may add.
+      expect(addTypeFor(tab("e-mail"), undefined, ["model", "source"])).toBe("model");
+      expect(addTypeFor(tab("e-mail"), "key", [])).toBeUndefined();
     });
   });
 });

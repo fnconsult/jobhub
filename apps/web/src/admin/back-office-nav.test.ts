@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { backOfficeAccess } from "./access";
-import { backOfficeNav } from "./back-office-nav";
+import { BACK_OFFICE_PAGES, backOfficeNav } from "./back-office-nav";
 
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
 
 describe("the Back Office navigation", () => {
-  it("shows a super-admin every section, grouped, Signalements first under Candidats, Plans, their Quotas and Coupons under Offre, Provider Secrets (Clés), Sign-in Providers (Connexion), AI consumption and AI message logs under Plateforme", () => {
+  it("shows a super-admin every section, grouped, Signalements first under Candidats, Plans, their Quotas and Coupons under Offre, Paramètres (with the former Clés, Connexion and Sites de recherche, #396), AI consumption and AI message logs under Plateforme", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
       ["candidates", [["signalements", "/admin/signalements"]]],
       [
@@ -29,12 +29,9 @@ describe("the Back Office navigation", () => {
       [
         "platform",
         [
-          ["providerSecrets", "/admin/cles"],
           ["platformSettings", "/admin/parametres"],
-          ["signInProviders", "/admin/connexion"],
           ["aiUsage", "/admin/consommation-ia"],
           ["aiMessages", "/admin/journaux-ia"],
-          ["searchSites", "/admin/sites"],
           ["tools", "/admin/outils"],
         ],
       ],
@@ -85,20 +82,28 @@ describe("the Back Office navigation", () => {
         ],
       ],
     ]);
-    // Support reads everything but Provider Secrets and the AI Message Log: the Unanswered Questions under Contenu, Connexion, Consommation IA and the search sites under Plateforme, read-only.
+    // Support reads everything but Provider Secrets and the AI Message Log: the Unanswered Questions under Contenu, Paramètres (Connexion and the search sites among its tabs) and Consommation IA under Plateforme, read-only.
     expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["candidates", "offer", "coaching", "content", "platform"]);
     expect(sections(backOfficeNav(backOfficeAccess(["support"])))[4]).toEqual([
       "platform",
       [
         ["platformSettings", "/admin/parametres"],
-        ["signInProviders", "/admin/connexion"],
         ["aiUsage", "/admin/consommation-ia"],
-        ["searchSites", "/admin/sites"],
         ["tools", "/admin/outils"],
       ],
     ]);
     // A Playbook editor sees the Coaching Playbooks alone, under Coaching (#225).
     expect(sections(backOfficeNav(backOfficeAccess(["playbook-editor"])))).toEqual([["coaching", [["coachingPlaybooks", "/admin/playbooks"]]]]);
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
+  });
+
+  it("has no entry for Clés, Connexion nor Sites de recherche, now tabs of Paramètres (#396), whose pages stay their resources' pages", () => {
+    const keys = backOfficeNav(backOfficeAccess(["super-admin"])).flatMap((group) => group.sections.map((section) => section.key));
+    expect(keys).not.toEqual(expect.arrayContaining(["providerSecrets"]));
+    expect(keys).not.toContain("signInProviders");
+    expect(keys).not.toContain("searchSites");
+    expect(BACK_OFFICE_PAGES.providerSecrets.href).toBe("/admin/parametres");
+    expect(BACK_OFFICE_PAGES.signInProviders.href).toBe("/admin/parametres?tab=connexion");
+    expect(BACK_OFFICE_PAGES.searchSites.href).toBe("/admin/parametres?tab=sources");
   });
 });

@@ -166,7 +166,7 @@ export function signInHooks(signIn: SignInSetup, baseURL: string) {
     if (decision === "test") {
       const nonce = (await currentOAuthState())?.[TEST_SIGN_IN];
       if (typeof nonce === "string" && nonce && (await signIn.completeTestSignIn?.(providerId, nonce))) {
-        throw ctx.redirect(new URL(`${routes.adminSignInProviders}?tested=${encodeURIComponent(providerId)}`, baseURL).toString());
+        throw ctx.redirect(new URL(`${routes.adminSignInProviders}&tested=${encodeURIComponent(providerId)}`, baseURL).toString());
       }
       return refuse(ctx, SIGN_IN_ERRORS.providerDisabled, "This provider is not enabled");
     }

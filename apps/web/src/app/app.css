@@ -4757,3 +4757,60 @@ textarea.title-edit {
 .my-signalement-reply .signalement-meta {
   white-space: normal;
 }
+
+/* Paramètres in tabs (#396, ADR-0042): the tabs are links (the tab is in the address), the active provider's card,
+   and a provider's sheet or « + Ajouter » in a side panel over the tab, closed by its link back to the tab. */
+.parametres-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.parametres-head > .lead {
+  flex: 1 1 24rem;
+  margin: 0;
+}
+
+.parametres-tabs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parametres-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.card {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.side-sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: min(32rem, 100vw);
+  padding: var(--space-4);
+  overflow-y: auto;
+  background: var(--color-background);
+  box-shadow: var(--shadow-overlay);
+}
+
+.side-sheet-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.side-sheet-head > h2 {
+  margin: 0;
+}

@@ -6,6 +6,7 @@
  *   parametresHref("sources", query, hash) a tab's address: the tab is in the URL, so a reload keeps it
  *   settingHref(name) / providerSheetHref  a Platform Setting's row, a Tool's sheet, on the tab that shows it
  *   legacyRedirect("cles", query)          where Clés, Connexion and Sites de recherche now are
+ *   addTypeFor(tab, asked, allowed)        what « + Ajouter » adds, preselected from the tab
  *   possibleProviders(tab, state)          « Fournisseurs possibles »: each Tool of the tab's kind, active or not,
  *                                          its keys, its state and what it serves
  *
@@ -56,6 +57,29 @@ export const PARAMETRES_TABS: readonly ParametresTab[] = [
   { id: "environment", slug: "environnement", toolCategories: [], settings: [] },
 ];
 
+/** What « + Ajouter » adds (#396): a provider (its key, on its sheet), a key, a model, a source, a Job discovery site, a Job Site or a Sign-in Provider. */
+export const ADD_TYPES = ["provider", "key", "model", "source", "job_discovery_site", "job_site", "sign_in_provider"] as const;
+export type AddType = (typeof ADD_TYPES)[number];
+
+/** The type « + Ajouter » offers first on each tab. */
+const ADD_TYPE_OF_TAB: Record<ParametresTabId, AddType> = {
+  web_search: "provider",
+  ai: "model",
+  sources: "source",
+  contact_enrichment: "provider",
+  email: "key",
+  billing: "key",
+  sign_in: "sign_in_provider",
+  extension: "job_site",
+  environment: "key",
+};
+
+/** The type « + Ajouter » shows: the one `asked` for, else the tab's, among those `allowed`; else the first allowed, none when none is. */
+export function addTypeFor(tab: ParametresTab, asked: string | undefined, allowed: readonly AddType[]): AddType | undefined {
+  const wanted = [asked, ADD_TYPE_OF_TAB[tab.id]].find((type): type is AddType => allowed.includes(type as AddType));
+  return wanted ?? allowed[0];
+}
+
 const byId = (id: ParametresTabId): ParametresTab => PARAMETRES_TABS.find((tab) => tab.id === id)!;
 
 /** The tab `slug` names (`?tab=`), the first one when it names none. */
@@ -86,6 +110,12 @@ export function settingHref(name: string): string {
 /** The Tool a key is for: the first that needs it (Brevo's API key: Brevo's API, its SMTP URL: Brevo's SMTP relay). */
 export const toolOfKey = (name: string): Tool | undefined => (TOOLS as readonly Tool[]).find((tool) => tool.keys.includes(name) && tabOfTool(tool));
 
+/** A key's place: the sheet of the Tool it is for. */
+export function keyHref(name: string): string | undefined {
+  const tool = toolOfKey(name);
+  return tool ? providerSheetHref(tool) : undefined;
+}
+
 /** What a test sign-in brings back to Connexion (TestSignInButton, auth/index.ts): kept through its old address. */
 const SIGN_IN_RETURN = ["tested", "testFailed", "error"] as const;
 
@@ -95,8 +125,7 @@ const first = (value: string | string[] | undefined): string | undefined => (Arr
 export function legacyRedirect(page: "cles" | "connexion" | "sites", query: Record<string, string | string[] | undefined>): string {
   switch (page) {
     case "cles": {
-      const tool = toolOfKey(first(query.key) ?? "");
-      return tool ? providerSheetHref(tool)! : parametresHref("web_search");
+      return keyHref(first(query.key) ?? "") ?? parametresHref("web_search");
     }
     case "connexion":
       return parametresHref("sign_in", Object.fromEntries(SIGN_IN_RETURN.map((name) => [name, first(query[name])])));

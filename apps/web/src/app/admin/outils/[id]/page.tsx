@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { keyHref, settingHref } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { routes } from "@/routes";
 import { LATEST_CALLS, type ToolCall } from "@/tools";
@@ -86,7 +87,7 @@ export default async function ToolPage({ params }: Params) {
                 <span key={name}>
                   {index > 0 ? ", " : null}
                   {readsSecrets && isProviderSecretName(name) ? (
-                    <Link href={`${routes.adminProviderSecrets}?key=${encodeURIComponent(name)}`}>
+                    <Link href={keyHref(name) ?? routes.adminPlatformSettings}>
                       <code>{name}</code>
                     </Link>
                   ) : (
@@ -127,7 +128,7 @@ export default async function ToolPage({ params }: Params) {
                   <tr key={setting.name} data-setting={setting.name}>
                     <th scope="row">
                       {readsSettings ? (
-                        <Link href={routes.adminPlatformSetting(setting.name)}>
+                        <Link href={settingHref(setting.name)}>
                           <code>{setting.name}</code>
                         </Link>
                       ) : (

@@ -7,9 +7,9 @@ import { latestToolCalls, toolCalls, toolsOverview, type CalledTool, type ToolCa
 
 /**
  * The values in use (Provider Secrets over env), the Platform Settings in use (read now, as
- * Paramètres reads them) and the Sign-in Providers enabled; none without a database.
+ * Paramètres reads them) and the Sign-in Providers enabled; none without a database. Paramètres' providers are read from it too.
  */
-async function currentState(): Promise<ToolsState> {
+export async function currentState(): Promise<ToolsState & { settings: Awaited<ReturnType<ReturnType<typeof getPlatformSettingsResolver>["refresh"]>> }> {
   const env = getSecretResolver().current().env;
   const settings = await getPlatformSettingsResolver().refresh();
   if (!process.env.DATABASE_URL) return { env, signInTypes: [], settings };

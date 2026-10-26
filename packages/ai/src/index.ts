@@ -51,7 +51,6 @@ export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/an
 export { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
 export { createPerplexityProvider } from "./providers/perplexity";
 export { createBraveProvider } from "./providers/brave";
-export { createLinkupProvider } from "./providers/linkup";
 export { createTavilyProvider } from "./providers/tavily";
 export { activityOf, FEATURE_STEPS, TOOL_STEPS } from "./activity";
 export { createProvenanceRecorder } from "./provenance-recorder";

@@ -206,7 +206,6 @@ export const ENV_ONLY_SETTINGS = {
   OPENAI_API_KEY: { kind: "secret", shown: false },
   BRAVE_SEARCH_API_KEY: { kind: "secret", shown: false },
   TAVILY_API_KEY: { kind: "secret", shown: false },
-  LINKUP_API_KEY: { kind: "secret", shown: false },
   // The Google client the Sign-in Providers are seeded with (Connexion), and its secret's fallback.
   GOOGLE_CLIENT_ID: { kind: "secret", shown: false },
   GOOGLE_CLIENT_SECRET: { kind: "secret", shown: false },

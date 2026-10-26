@@ -49,15 +49,12 @@ describe("the cost in € of an AI call", () => {
 
   it("prices a search-only provider's web search at its fee per request, whatever its depth", () => {
     // Search-only providers report no tokens: they bill per request.
-    const search = (provider: "brave" | "tavily" | "linkup", model: string) => costInEur({ provider, model, usage: usage(0, 0), sources: [] });
+    const search = (provider: "brave" | "tavily", model: string) => costInEur({ provider, model, usage: usage(0, 0), sources: [] });
     // Brave Search: $5 per 1,000 requests.
     expect(search("brave", "web")).toBeCloseTo(0.005 * 0.86, 9);
     // Tavily: $0.008 per credit; a basic search is 1 credit, an advanced one 2.
     expect(search("tavily", "basic")).toBeCloseTo(0.008 * 0.86, 9);
     expect(search("tavily", "advanced")).toBeCloseTo(0.016 * 0.86, 9);
-    // Linkup: €5 per 1,000 standard searches, €50 per 1,000 deep ones.
-    expect(search("linkup", "standard")).toBeCloseTo(0.005, 9);
-    expect(search("linkup", "deep")).toBeCloseTo(0.05, 9);
   });
 
   it.each(PROVIDER_IDS)("prices a web search by %s without throwing", (provider) => {

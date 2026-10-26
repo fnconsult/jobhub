@@ -1,8 +1,8 @@
 /**
- * Live contract check of the search-only web search adapters against the real APIs.
+ * Live contract check of the Brave and Tavily Search provider adapters against the real APIs.
  * Each search costs a request, so a provider only runs when asked, with its key:
  *
- *   WEB_SEARCH_LIVE=1 BRAVE_SEARCH_API_KEY=... TAVILY_API_KEY=... LINKUP_API_KEY=... \
+ *   WEB_SEARCH_LIVE=1 BRAVE_SEARCH_API_KEY=... TAVILY_API_KEY=... \
  *     npx vitest run packages/ai/src/providers/web-search.live.test.ts
  *
  * Each sends the request `searchWeb` sends (with a 30-day freshness window) and saves the
@@ -13,7 +13,6 @@ import { writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { AiProvider } from "../types";
 import { createBraveProvider } from "./brave";
-import { createLinkupProvider } from "./linkup";
 import { createTavilyProvider } from "./tavily";
 
 type Create = (options: { apiKey: string; fetch: typeof globalThis.fetch }) => AiProvider;
@@ -21,7 +20,6 @@ type Create = (options: { apiKey: string; fetch: typeof globalThis.fetch }) => A
 const PROVIDERS: { name: string; key: string; fixture: string; create: Create }[] = [
   { name: "Brave", key: "BRAVE_SEARCH_API_KEY", fixture: "brave-web-search", create: createBraveProvider },
   { name: "Tavily", key: "TAVILY_API_KEY", fixture: "tavily-search", create: createTavilyProvider },
-  { name: "Linkup", key: "LINKUP_API_KEY", fixture: "linkup-search", create: createLinkupProvider },
 ];
 
 for (const { name, key, fixture, create } of PROVIDERS) {

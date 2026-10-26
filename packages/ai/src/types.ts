@@ -6,7 +6,7 @@ import type { AiUsageProvider, FailureReason, Outcome, TechnicalReason } from "@
 import type { Effort } from "./effort";
 
 /** Each a registered Tool's (TOOLS, #233): a provider not registered does not type-check. */
-export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity", "brave", "tavily", "linkup"] as const satisfies readonly AiUsageProvider[];
+export const PROVIDER_IDS = ["anthropic", "mistral", "openai", "perplexity", "brave", "tavily"] as const satisfies readonly AiUsageProvider[];
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
 /**

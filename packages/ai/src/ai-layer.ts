@@ -83,7 +83,7 @@ export interface AgentModelChoice {
   endpoint: string;
   /** Where the endpoint its default model runs on processes data. */
   residency: Residency;
-  /** The model a Playbook Agent naming none gets; for a web search, the provider's own (a depth, for Tavily and Linkup). */
+  /** The model a Playbook Agent naming none gets; for a web search, the provider's own (a search type for Perplexity, a depth for Tavily). */
   defaultModel?: string;
   /** Each with how it takes effort (a web search ignores it) and where the endpoint serving it processes data. */
   models: { model: string; effort: EffortHandling; residency: Residency }[];

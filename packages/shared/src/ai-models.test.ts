@@ -21,10 +21,9 @@ describe("a model, named for people", () => {
   });
 
   it.each([
-    ["perplexity", "openai/gpt-6-luna", "Perplexity"],
+    ["perplexity", "fast", "Perplexity"],
     ["brave", "web", "Brave Search"],
     ["tavily", "advanced", "Tavily"],
-    ["linkup", "standard", "Linkup"],
   ])("a web search on %s (%s) is named for its provider", (provider, model, name) => {
     expect(describeModel(model, provider)).toEqual({ name, provider: name });
   });
@@ -50,7 +49,6 @@ describe("where a model ran, in words", () => {
     ["api.perplexity.ai", "Perplexity · hors UE", "Perplexity · outside the EU"],
     ["api.search.brave.com", "Brave Search · hors UE", "Brave Search · outside the EU"],
     ["api.tavily.com", "Tavily · hors UE", "Tavily · outside the EU"],
-    ["api.linkup.so", "Linkup · hors UE", "Linkup · outside the EU"],
   ])("%s ran at « %s »", (endpoint, fr, en) => {
     expect(whereItRan(endpoint)).toEqual({ fr, en });
   });

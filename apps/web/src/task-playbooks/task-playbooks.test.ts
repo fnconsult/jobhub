@@ -68,13 +68,13 @@ describe("what an AI task runs with (ADR-0026)", () => {
   it("leaves out, with a warning, a web-search provider the AI layer no longer offers: the configured route is used", async () => {
     const { ai } = layer();
     const warnings: string[] = [];
-    const served = (search: { provider: "tavily" | "linkup"; model: string | null }) => servedTasks({ "company-news-search": { content: "Actualité de {{entreprise}}", search } });
+    const served = (search: { provider: "tavily" | "brave"; model: string | null }) => servedTasks({ "company-news-search": { content: "Actualité de {{entreprise}}", search } });
 
-    expect((await taskRun(served({ provider: "linkup", model: null }), "company-news-search", ai, (message) => warnings.push(message))).searchRoute).toBeUndefined();
+    expect((await taskRun(served({ provider: "brave", model: null }), "company-news-search", ai, (message) => warnings.push(message))).searchRoute).toBeUndefined();
     expect((await taskRun(served({ provider: "tavily", model: "ultra" }), "company-news-search", ai, (message) => warnings.push(message))).searchRoute).toBeUndefined();
     // A caller whose AI layer offers no web search (a test double) gets the configured route too.
     expect((await taskRun(served({ provider: "tavily", model: null }), "company-news-search", { agentModels: () => [] }, (message) => warnings.push(message))).searchRoute).toBeUndefined();
-    expect(warnings).toEqual([expect.stringMatching(/web-search provider \(linkup default model\) is not offered/), expect.stringMatching(/tavily ultra/), expect.stringMatching(/tavily default model/)]);
+    expect(warnings).toEqual([expect.stringMatching(/web-search provider \(brave default model\) is not offered/), expect.stringMatching(/tavily ultra/), expect.stringMatching(/tavily default model/)]);
   });
 
   it("is nothing for a task that runs only from a served version, the Job Offer Summary, when none is", async () => {
@@ -120,11 +120,11 @@ describe("a Task Playbook's fallback is recorded on the AI call it runs, Outcome
 
   it("its web-search provider is no longer offered: task_playbook_search_not_offered on its search", async () => {
     const { ai, usage } = layer();
-    const run = await taskRun(servedTasks({ "company-facts-search": { content: "Qui est {{entreprise}} ?", search: { provider: "linkup", model: null } } }), "company-facts-search", ai, quiet);
+    const run = await taskRun(servedTasks({ "company-facts-search": { content: "Qui est {{entreprise}} ?", search: { provider: "brave", model: null } } }), "company-facts-search", ai, quiet);
 
     await ai.searchCompany({ candidateId: "cand-1", employer: "Acme", instructions: run.text(), route: run.searchRoute, warnings: run.warnings });
 
-    expect(usage.entries[0]).toMatchObject({ task: "web_search", outcome: "warning", reason: "task_playbook_search_not_offered", warnings: [{ reason: "task_playbook_search_not_offered", detail: expect.stringContaining("linkup") }] });
+    expect(usage.entries[0]).toMatchObject({ task: "web_search", outcome: "warning", reason: "task_playbook_search_not_offered", warnings: [{ reason: "task_playbook_search_not_offered", detail: expect.stringContaining("brave") }] });
   });
 
   it("a served version run as it is leaves the call ok", async () => {

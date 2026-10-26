@@ -60,11 +60,6 @@ const PRICES: Record<ProviderId, { default: Price; models?: [RegExp, Price][] }>
     default: { input: 0, output: 0, perSearch: 0.008 },
     models: [[/advanced/, { input: 0, output: 0, perSearch: 0.016 }]],
   },
-  // Linkup prices in €: €5 per 1,000 standard (the default), fast or flash searches, €50 per 1,000 deep ones.
-  linkup: {
-    default: { input: 0, output: 0, perSearch: 0.005 / EUR_PER_USD },
-    models: [[/deep/, { input: 0, output: 0, perSearch: 0.05 / EUR_PER_USD }]],
-  },
 };
 
 function priceOf(provider: ProviderId, model: string): Price {

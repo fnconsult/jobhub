@@ -3,7 +3,6 @@ import { AiConfigError } from "./errors";
 import { createAnthropicProvider, type AnthropicEndpoint } from "./providers/anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
 import { BRAVE_MAX_PAGES, createBraveProvider } from "./providers/brave";
-import { createLinkupProvider } from "./providers/linkup";
 import { createPerplexityProvider, PERPLEXITY_MAX_QUERIES, PERPLEXITY_SEARCH_TYPES } from "./providers/perplexity";
 import { createTavilyProvider, TAVILY_DEPTHS } from "./providers/tavily";
 import type { CandidateIdentity } from "./redaction";
@@ -111,7 +110,6 @@ export const AI_ENV_KEYS = [
   "PERPLEXITY_API_KEY",
   "BRAVE_SEARCH_API_KEY",
   "TAVILY_API_KEY",
-  "LINKUP_API_KEY",
 ] as const;
 
 export interface AiLayerDeps {
@@ -212,8 +210,6 @@ function buildProvider(id: Exclude<ProviderId, "anthropic">, env: Env, fetch: ty
       return createBraveProvider({ apiKey: required(env, "BRAVE_SEARCH_API_KEY"), maxPages: wholeIn(env, "BRAVE_MAX_PAGES", 1, BRAVE_MAX_PAGES, DEFAULTS.BRAVE_MAX_PAGES), fetch });
     case "tavily":
       return createTavilyProvider({ apiKey: required(env, "TAVILY_API_KEY"), depth: oneOf(env, "TAVILY_SEARCH_DEPTH", TAVILY_DEPTHS, DEFAULTS.TAVILY_SEARCH_DEPTH), fetch });
-    case "linkup":
-      return createLinkupProvider({ apiKey: required(env, "LINKUP_API_KEY"), fetch });
   }
 }
 
@@ -365,7 +361,6 @@ function offeredOnlyProviders(env: Env, used: ProviderId[], fetch: typeof global
     perplexity: Boolean(env.PERPLEXITY_API_KEY?.trim()),
     brave: Boolean(env.BRAVE_SEARCH_API_KEY?.trim()),
     tavily: Boolean(env.TAVILY_API_KEY?.trim()),
-    linkup: Boolean(env.LINKUP_API_KEY?.trim()),
   };
   return PROVIDER_IDS.filter((id) => entered[id] && !used.includes(id)).flatMap((id) => buildProviders(id, env, fetch));
 }

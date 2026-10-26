@@ -27,8 +27,8 @@ const MODELS: Record<string, { name: string; provider: string }> = {
   "gpt-5-nano": { name: "GPT-5 nano", provider: "OpenAI" },
 };
 
-/** Web-search providers, whose "model" is a preset or a depth: named for the provider. */
-const SEARCH_PROVIDERS: Record<string, string> = { perplexity: "Perplexity", brave: "Brave Search", tavily: "Tavily", linkup: "Linkup" };
+/** Web-search providers, whose "model" is a search type or a depth: named for the provider. */
+const SEARCH_PROVIDERS: Record<string, string> = { perplexity: "Perplexity", brave: "Brave Search", tavily: "Tavily" };
 
 /** A model's catalogue id: its endpoint's prefix (`eu.anthropic.`), its version (`-v1:0`, `@20260901`, `-20261001`, `-latest`) left out. */
 function catalogueId(model: string): string {
@@ -96,7 +96,6 @@ const HOSTS: Record<string, { platform: Translated; residency: Residency }> = {
   "api.perplexity.ai": { platform: { fr: "Perplexity", en: "Perplexity" }, residency: "outside_eu" },
   "api.search.brave.com": { platform: { fr: "Brave Search", en: "Brave Search" }, residency: "outside_eu" },
   "api.tavily.com": { platform: { fr: "Tavily", en: "Tavily" }, residency: "outside_eu" },
-  "api.linkup.so": { platform: { fr: "Linkup", en: "Linkup" }, residency: "outside_eu" },
 };
 
 /** Endpoints named by a platform and a region, e.g. "bedrock eu-north-1". */

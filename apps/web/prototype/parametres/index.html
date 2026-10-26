@@ -130,20 +130,20 @@ const P = {
     keys: [{ name: "PERPLEXITY_API_KEY", source: "bo", fp: "…x9Qa", by: "admin@jobbbox.ai", at: "21/10/2026" }],
     test: { ok: true, at: "26/10/2026 09:12", detail: "GET /v1/models · 200" },
     tools: [{ name: "Search API", cost: "0,001 $ / appel" }, { name: "fetch_url", cost: "0,0005 $ / appel" }],
-    params: [{ k: "Type de recherche", v: "fast", opts: ["fast", "pro"], src: "code" }, { k: "Pages max par requête", v: "5", src: "code" }, { k: "Résultats par page", v: "10", src: "code" }],
+    params: [{ k: "Type de recherche", v: "fast", opts: ["fast", "web"], src: "code" }, { k: "Requêtes par appel", v: "5", opts: ["1", "2", "3", "4", "5"], src: "code" }],
     filters: { domains: "inclure ou exclure", country: "oui", dates: "publication + mise à jour", pages: "5" },
     usedBy: ["web", "company"] },
   brave: { name: "Brave Search", region: "Hors UE (requêtes seules)",
     keys: [{ name: "BRAVE_SEARCH_API_KEY", source: "env", fp: "…7Lmw", by: "—", at: "—" }],
     test: { ok: true, at: "26/10/2026 09:12", detail: "GET /res/v1/web/search?q=test · 200" },
     tools: [{ name: "Web Search API", cost: "≈ 0,005 $ / appel" }],
-    params: [{ k: "Pages max par requête", v: "10", src: "code" }, { k: "Résultats par page", v: "20", src: "code" }],
+    params: [{ k: "Pages max par requête", v: "10", src: "code" }],
     filters: { domains: "inclure seulement", country: "oui", dates: "page_age", pages: "10" },
     usedBy: [] },
   tavily: { name: "Tavily", region: "Hors UE (requêtes seules)",
     keys: [{ name: "TAVILY_API_KEY", source: "missing" }],
     test: null, tools: [{ name: "Search", cost: "1 crédit (basic) / 2 (advanced)" }],
-    params: [{ k: "Profondeur", v: "basic", opts: ["basic", "advanced", "fast", "ultra-fast"], src: "code" }],
+    params: [{ k: "Profondeur", v: "basic", opts: ["basic", "fast", "advanced"], src: "code" }],
     filters: { domains: "inclure ou exclure", country: "oui (nom de pays)", dates: "publication", pages: "1" },
     usedBy: [] },
   linkup: { name: "Linkup", region: "UE/US/APAC (non garanti)", retired: true,
@@ -186,6 +186,11 @@ const U = [
       { k: "Pays", v: "FR", src: "code", def: "FR" },
       { k: "Ancienneté max des offres", v: "30 jours", src: "code", def: "30 jours" },
       { k: "Fournisseur de secours", v: "brave", type: "provider", src: "bo", def: "aucun" },
+      { k: "Résultats par requête", v: "20", src: "code", def: "20 (5 à 20)" },
+      { k: "Variantes de titre par langue", v: "3", src: "code", def: "3 (1 à 5)" },
+      { k: "Langues des requêtes", v: "FR + EN", opts: ["FR + EN", "FR", "EN"], src: "code", def: "FR + EN" },
+      { k: "Entreprises cibles par run", v: "5", src: "code", def: "5 (0 à 10)" },
+      { k: "Délai avant de revisiter une entreprise", v: "7 jours", src: "code", def: "7 jours (1 à 30)" },
     ],
     business: {
       budget: [{ k: "Offres par run", v: "30", src: "env", def: "30" }, { k: "Coût max par run", v: "0,08 €", src: "code", def: "0,08 €" }, { k: "Durée max par run", v: "90 s", src: "env", def: "90 s" }, { k: "Seuil d'alerte mensuel (recherche web)", v: "15 €", src: "bo", def: "aucun" }],
@@ -196,9 +201,10 @@ const U = [
   { id: "ai", label: "IA", active: null, providers: ["mistral", "anthropic", "bedrock"],
     tasks: [
       { t: "AI Coach (réponse)", p: "mistral", m: "mistral-large-latest", effort: "élevé", src: "env", def: "mistral · mistral-large-latest (env)", personal: true },
-      { t: "Lecture d'offre", p: "anthropic", m: "claude-sonnet-5-5", effort: "moyen", src: "bo", def: "mistral · mistral-medium-latest (code)", personal: false },
-      { t: "Variantes de titre", p: "anthropic", m: "claude-haiku-5-5", effort: "faible", src: "code", def: "anthropic · claude-haiku-5-5 (code)", personal: false },
+      { t: "Lecture d'offre", p: "anthropic", m: "claude-sonnet-5-5", effort: "moyen", src: "bo", def: "mistral · mistral-medium-latest (code)", personal: false, search: true },
+      { t: "Variantes de titre", p: "anthropic", m: "claude-haiku-5-5", effort: "faible", src: "code", def: "anthropic · claude-haiku-5-5 (code)", personal: false, search: true },
       { t: "Match Score", p: "mistral", m: "mistral-medium-latest", effort: "moyen", src: "env", def: "mistral · mistral-medium-latest (env)", personal: true },
+      { t: "Faits des Company Dossiers", p: "anthropic", m: "claude-haiku-5-5", effort: "faible", src: "code", def: "anthropic · claude-haiku-5-5 (code)", personal: false, search: true },
       { t: "CV adapté", p: "mistral", m: "mistral-large-latest", effort: "élevé", src: "env", def: "mistral · mistral-large-latest (env)", personal: true },
     ], settings: [{ k: "Routage des tâches avec identité", v: "Mistral (UE)", src: "code", def: "Mistral" }] },
   { id: "sources", label: "Sources", active: null, providers: ["france-travail", "perplexity", "ats"], settings: [],
@@ -246,6 +252,9 @@ const usageName = (id) => (id === "company" ? "Company Dossiers" : u(id)?.label 
 function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 1800); }
 // ---------- « ? » : l'Assistant du Back Office explique, en contexte ----------
 const ANSWERS = {
+  "Variantes de titre": "Cette tâche reçoit le seul intitulé des Search Criteria et propose jusqu'à 3 variantes par langue ; chacune devient une requête du plan. Un modèle plus capable trouve des intitulés plus justes, pour un coût de 0,004 € par run en moyenne.",
+  "Lecture d'offre": "Quand une page n'a pas de données JobPosting, cette tâche lit la page pour en tirer l'offre. C'est le premier poste de coût d'un run (82 %).",
+  "Faits des Company Dossiers": "Pour un employeur étranger, cette tâche lit les pages renvoyées par le Search provider et en extrait les faits du dossier (site, effectif, SIREN…). Pages publiques seulement, aucune donnée personnelle.",
   "Fournisseur actif": "C'est le Search provider qui reçoit les requêtes de la Job discovery et des Company Dossiers. Un changement s'applique au prochain appel ; un run déjà lancé garde le sien. Perplexity est le défaut (env : AI_WEB_SEARCH_PROVIDER). Brave ou Tavily changent les filtres gérés : voir la colonne des capacités.",
   "Fournisseur de secours": "Si le fournisseur actif échoue pendant un run (clé absente, 401/403, 429, panne), le run bascule sur celui-ci jusqu'à sa fin. Ce mois-ci, 61 runs ont basculé, sur 3 jours (9, 10 et 21 octobre). S'il n'a pas de clé, la bascule est sautée.",
   "Pays": "Seules les pages ciblant ce pays sont demandées au fournisseur. Valeur par défaut du code (FR) ; Tavily attend un nom de pays, l'adaptateur le traduit.",
@@ -537,6 +546,11 @@ function variantA() {
       <td class="small">${p.tools.map((t) => h(t.name)).join(", ") || "—"}</td><td class="small">${p.params.map((s) => `${h(s.k)} : ${h(s.v)}`).join("<br>") || "—"}</td>
       <td class="small">${[...p.usedBy.map(usageName), ...(PLAYBOOKS.some((b) => b.p === pid) ? [`${PLAYBOOKS.filter((b) => b.p === pid).length} Playbook Agent(s)`] : [])].join(", ") || "—"}</td>
       <td>${us.active && !isA ? `<button class="btn" data-activate="${pid}" ${ks === "ko" ? 'title="Clé absente : les appels échoueront tant qu\'elle n\'est pas saisie"' : ""}>Rendre actif${ks === "ko" ? " ⚠" : ""}</button>` : ""}</td></tr>`; }).join("")}</table>`;
+  if (us.id === "web") body += `<h2 class="sec">Tâches IA de la recherche</h2>
+      <p class="small muted">Les mêmes tâches que dans l'onglet IA : un changement ici s'y voit aussi.</p>
+      <table><tr><th>Tâche</th><th>Rôle dans la recherche</th><th>Modèle</th><th>Effort</th><th>Source</th><th></th></tr>
+      ${u("ai").tasks.map((t, i) => t.search ? `<tr class="click" data-task="${i}"><td>${h(t.t)}${ask(t.t)}</td><td class="small muted">${{ "Variantes de titre": "construit les requêtes du plan", "Lecture d'offre": "lit une page sans données JobPosting", "Faits des Company Dossiers": "extrait les faits d'un employeur étranger des pages trouvées" }[t.t]}</td>
+        <td><span class="small">${h(P[t.p].name)}</span> · <code>${h(t.m)}</code>${keyState(t.p)[0] === "ko" ? ' <span class="small ko">⚠ clé absente</span>' : ""}</td><td>${h(t.effort)}</td><td>${src(t.src)}</td><td><button class="btn" data-task="${i}">Modifier…</button></td></tr>` : "").join("")}</table>`;
   if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a></p>`;
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>

@@ -112,7 +112,7 @@
     <a href="#" data-page="dashboard" id="nav-dashboard">Dashboard</a>
     <h2>Offre</h2><a href="#">Offres</a><a href="#">Quotas</a><a href="#">Codes promo</a>
     <h2>Coaching</h2><a href="#">Coachs</a><a href="#">Playbooks</a>
-    <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a>
+    <h2>Plateforme</h2><a href="#" data-page="parametres" id="nav-parametres">Paramètres</a><a href="#">Consommation IA</a><a href="#">Journaux IA</a><a href="#" data-page="historique" id="nav-historique">Historique des recherches</a>
     <h2>Équipe</h2><a href="#">Administrateurs</a><a href="#">Journal</a>
     <p class="small" style="margin:16px 8px 0"><span class="ask" style="display:inline-block;text-align:center;line-height:18px">?</span> partout : l'Assistant du Back Office explique en contexte.</p>
     <p class="small muted" style="margin:12px 8px 0">Clés, Connexion et Sites de recherche sont désormais dans Paramètres.</p>
@@ -553,7 +553,7 @@ function variantA() {
       ${u("ai").tasks.map((t, i) => t.search ? `<tr class="click" data-task="${i}"><td>${h(t.t)}${ask(t.t)}</td><td class="small muted">${{ "Variantes de titre": "construit les requêtes du plan", "Lecture d'offre": "lit une page sans données JobPosting", "Faits des Company Dossiers": "extrait les faits d'un employeur étranger des pages trouvées" }[t.t]}</td>
         <td><span class="small">${h(P[t.p].name)}</span> · <code>${h(t.m)}</code>${keyState(t.p)[0] === "ko" ? ' <span class="small ko">⚠ clé absente</span>' : ""}</td><td>${h(t.effort)}</td><td>${src(t.src)}</td><td><button class="btn" data-task="${i}">Modifier…</button></td></tr>` : "").join("")}</table>`;
   if (us.id === "web") S.histHere = true;
-  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a></p>` + historyBlock();
+  if (us.business) body += businessBlock(us.business) + `<p class="small" style="margin-top:14px">Consommation et budget : <a href="#" data-page="dashboard">voir le Dashboard →</a> &nbsp; Runs passés : <a href="#" data-page="historique">Historique des recherches →</a></p>`;
   if (us.id !== "web" && us.id !== "ai" && us.settings.length && !us.active) body += `<h2 class="sec">Réglages</h2><div class="kv">${us.settings.map((s) => `<span>${h(s.k)}${ask(s.k)}</span>${settingInput(s)}${src(s.src)}`).join("")}</div>`;
   return `<div class="pagehead"><h1>Paramètres</h1><p>Qui Jobbbox appelle, avec quelles clés, quels outils et quels réglages.</p>${addButton()}</div>
     <div class="tabs">${tabsHtml()}</div>
@@ -648,7 +648,8 @@ const RUNS = Array.from({ length: 14 }, (_, i) => {
 function historyBlock() {
   const f = S.hist ?? (S.hist = { trigger: "all", fb: false });
   const rows = RUNS.filter((r) => (f.trigger === "all" || r.trigger === f.trigger) && (!f.fb || r.fb));
-  return `<h2 class="sec">Historique des recherches</h2>
+  return `<div class="pagehead"><h1>Historique des recherches</h1><p>Chaque run de la Job discovery, ses recherches et ce qu'elles ont donné.</p></div>
+    <p class="small muted">Requêtes et liens vers les Job Searches gardés 30 jours ; chiffres des runs gardés 24 mois. Super-admin et Support. <a href="#" data-page="parametres" data-tab="web">Réglages de la recherche web →</a></p>
     <div class="row small" style="margin-bottom:8px">
       <select data-hist="trigger"><option value="all">Tous les déclencheurs</option><option ${f.trigger === "Job Search" ? "selected" : ""}>Job Search</option><option ${f.trigger === "Job Digest" ? "selected" : ""}>Job Digest</option></select>
       <select><option>7 derniers jours</option><option>Aujourd'hui</option><option>30 derniers jours</option></select>
@@ -692,7 +693,8 @@ function render() {
   history.replaceState(null, "", url);
   document.getElementById("nav-dashboard").classList.toggle("on", S.page === "dashboard");
   document.getElementById("nav-parametres").classList.toggle("on", S.page === "parametres");
-  document.getElementById("main").innerHTML = S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
+  document.getElementById("nav-historique").classList.toggle("on", S.page === "historique");
+  document.getElementById("main").innerHTML = S.page === "historique" ? historyBlock() : S.page === "dashboard" ? dashboard() : { A: variantA, B: variantB, C: variantC }[S.variant]();
   document.getElementById("overlay").innerHTML = S.run ? runDrawer(S.run) : S.asking ? assistantDrawer(S.asking) : S.adding ? addDrawer() : S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }

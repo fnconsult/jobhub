@@ -81,7 +81,7 @@ export default defineConfig({
     command: "node e2e/support/web-server.mjs",
     url: `${webOrigin}/api/health`,
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: Number(process.env.E2E_WEB_SERVER_TIMEOUT ?? 120_000), // a loaded machine migrates slowly
     env: {
       NEXT_TELEMETRY_DISABLED: "1",
       // The e2e environment serves the latest Playbook Versions, validated or not: a production build

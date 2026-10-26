@@ -152,16 +152,16 @@ describe("the fallback as the environment sets it (AI_WEB_SEARCH_FALLBACK_PROVID
     return new Response(JSON.stringify({ web: { results: [{ title: "Offre", url: "https://jobs.example/offre" }] } }), { status: 200 });
   }) as typeof globalThis.fetch;
 
-  it("is Brave by default, used once its key is entered", async () => {
-    const ai = createAiLayerFromEnv({ ...keys, BRAVE_SEARCH_API_KEY: "bk" }, { fetch: down, usage: createMemoryUsageLog() });
+  it("is used once set, its key entered", async () => {
+    const ai = createAiLayerFromEnv({ ...keys, BRAVE_SEARCH_API_KEY: "bk", AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave" }, { fetch: down, usage: createMemoryUsageLog() });
     await expect(ai.searchWeb({ candidateId: "c", criteria })).resolves.toMatchObject({ provider: "brave" });
   });
 
-  it("is skipped without its key, and off with none", async () => {
-    const withoutKey = createAiLayerFromEnv(keys, { fetch: down, usage: createMemoryUsageLog() });
+  it("is none by default, and skipped without its key", async () => {
+    const byDefault = createAiLayerFromEnv({ ...keys, BRAVE_SEARCH_API_KEY: "bk" }, { fetch: down, usage: createMemoryUsageLog() });
+    await expect(byDefault.searchWeb({ candidateId: "c", criteria })).rejects.toMatchObject({ status: 429 });
+    const withoutKey = createAiLayerFromEnv({ ...keys, AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave" }, { fetch: down, usage: createMemoryUsageLog() });
     await expect(withoutKey.searchWeb({ candidateId: "c", criteria })).rejects.toMatchObject({ status: 429 });
-    const off = createAiLayerFromEnv({ ...keys, BRAVE_SEARCH_API_KEY: "bk", AI_WEB_SEARCH_FALLBACK_PROVIDER: "none" }, { fetch: down, usage: createMemoryUsageLog() });
-    await expect(off.searchWeb({ candidateId: "c", criteria })).rejects.toMatchObject({ status: 429 });
   });
 
   it("is refused when set to the active Search provider, or to a provider that does not search", () => {
@@ -169,9 +169,11 @@ describe("the fallback as the environment sets it (AI_WEB_SEARCH_FALLBACK_PROVID
     expect(() => createAiLayerFromEnv({ ...keys, AI_WEB_SEARCH_FALLBACK_PROVIDER: "mistral" }, { usage: createMemoryUsageLog() })).toThrow(AiConfigError);
   });
 
-  it("is no fallback by default when the active Search provider is Brave itself", async () => {
+  it("is refused when set to the active Search provider", async () => {
     const braveDown = (async () => new Response("busy", { status: 429 })) as typeof globalThis.fetch;
-    const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "b", BRAVE_SEARCH_API_KEY: "bk", AI_WEB_SEARCH_PROVIDER: "brave" }, { fetch: braveDown, usage: createMemoryUsageLog() });
+    const env = { AWS_BEARER_TOKEN_BEDROCK: "b", BRAVE_SEARCH_API_KEY: "bk", AI_WEB_SEARCH_PROVIDER: "brave" };
+    const ai = createAiLayerFromEnv(env, { fetch: braveDown, usage: createMemoryUsageLog() });
     await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toMatchObject({ status: 429 });
+    expect(() => createAiLayerFromEnv({ ...env, AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave" }, { usage: createMemoryUsageLog() })).toThrow(/must not be the active/);
   });
 });

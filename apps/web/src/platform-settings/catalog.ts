@@ -56,7 +56,7 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
     (setting): PlatformSetting => ({
       name: setting.name,
       group: "ai_routing",
-      type: setting.values ? { kind: "choice", values: setting.values } : { kind: "text" },
+      type: setting.values ? { kind: "choice", values: setting.values } : setting.range ? whole(setting.range.min, setting.range.max) : { kind: "text" },
       default: setting.default,
     }),
   ),

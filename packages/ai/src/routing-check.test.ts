@@ -108,9 +108,9 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
     });
 
     it("tests the web search's model with one search", async () => {
-      const { fetch, calls } = providerFetch({ unknownModels: ["deep"] });
+      const { fetch, calls } = providerFetch({ unknownModels: ["web"] });
 
-      expect((await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "deep" }, { fetch }))?.reason).toBe("test_failed");
+      expect((await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "web" }, { fetch }))?.reason).toBe("test_failed");
       expect(calls.map((call) => call.host)).toEqual(["api.perplexity.ai"]);
     });
 

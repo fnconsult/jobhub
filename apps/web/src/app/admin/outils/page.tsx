@@ -80,6 +80,7 @@ export default async function ToolsPage() {
                       {settingsFromEnv.length > 0 ? <> <EnvBadge text={t("admin.tools.envBadge")} label={t("admin.tools.envBadgeLabel", { settings: settingsFromEnv.join(", ") })} /></> : null}
                       {missingKeys.length > 0 ? <p>{t("admin.tools.missingKeys", { keys: missingKeys.join(", ") })}</p> : null}
                       {missingSettings.length > 0 ? <p>{t("admin.tools.missingSettings", { settings: missingSettings.join(", ") })}</p> : null}
+                      {status === "awaiting_access" ? <p>{t("admin.tools.accessRefused", { provider: tool.name })}</p> : null}
                     </td>
                     <td>
                       {tool.keys.length === 0

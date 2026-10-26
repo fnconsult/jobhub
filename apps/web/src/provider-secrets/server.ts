@@ -37,6 +37,16 @@ const envOnly: SecretResolver = {
   refresh: async () => snapshotOf(process.env, {}),
 };
 
+/**
+ * Whether France Travail refused Offres d'emploi at the latest test of the keys in use (#400): its
+ * Job discovery source then awaits access, and runs go on without it. Never without a database.
+ */
+export async function franceTravailAwaitingAccess(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+  const access = await getProviderSecrets().apiAccess("france-travail");
+  return access.some(({ api, state }) => api === "offres_emploi" && state === "refused");
+}
+
 /** The Back Office's Provider Secrets (the Clés section): their state, replacing, clearing and testing them. One per process, like the resolver. */
 export function getProviderSecrets(): ProviderSecrets {
   holder.__jobhubProviderSecretsStore ??= createProviderSecrets(sharedPool(), {

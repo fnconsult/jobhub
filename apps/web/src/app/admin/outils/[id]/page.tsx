@@ -77,6 +77,7 @@ export default async function ToolPage({ params }: Params) {
           ) : null}
           {row.missingKeys.length > 0 ? <> {t("admin.tools.missingKeys", { keys: row.missingKeys.join(", ") })}</> : null}
           {row.missingSettings.length > 0 ? <> {t("admin.tools.missingSettings", { settings: row.missingSettings.join(", ") })}</> : null}
+          {row.status === "awaiting_access" ? <> {t("admin.tools.accessRefused", { provider: row.tool.name })}</> : null}
         </dd>
         <dt>{t("admin.tools.keys")}</dt>
         <dd>

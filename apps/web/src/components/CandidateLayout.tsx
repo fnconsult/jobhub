@@ -10,6 +10,7 @@ import { getRequestLocale } from "@/i18n/server";
 import { currentHumanCoach } from "@/human-coaches/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
+import { jobbboxVersion } from "@/signalements/server";
 
 /** The sidebar's Usage Meter; never fails the page: without billing, there is no meter. */
 async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
@@ -69,6 +70,7 @@ export async function CandidateLayout({
       title={title}
       wide={wide}
       aiActivity={aiActivity}
+      version={jobbboxVersion()}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {jobSearchNotifications ? <JobSearchNotifications initial={jobSearchNotifications} /> : null}

@@ -3216,6 +3216,41 @@
     }
   },
   "signalement": {
+    "open": "Feedback",
+    "title": "Send feedback",
+    "typeLegend": "Kind of feedback",
+    "types": {
+      "bug": "Bug",
+      "idee": "Idea"
+    },
+    "label": {
+      "bug": "Describe the problem",
+      "idee": "Describe your idea"
+    },
+    "placeholder": {
+      "bug": "What you were doing, what happened, what you expected.",
+      "idee": "What you would like to be able to do, and why."
+    },
+    "count": "{{count}} / {{max}}",
+    "tooShort": "At least {{min}} characters, so the team understands.",
+    "notice": "Attached automatically: the page, the Jobbbox version, your browser, the language and the text size. No screenshot, no conversation with your coach.",
+    "showDetail": "Show details",
+    "hideDetail": "Hide details",
+    "detail": {
+      "page": "Page",
+      "version": "Jobbbox version",
+      "browser": "Browser",
+      "language": "Language",
+      "textSize": "Text size"
+    },
+    "readBy": "Read by the Jobbbox team, never by an AI",
+    "cancel": "Cancel",
+    "send": "Send",
+    "sending": "Sending…",
+    "failed": "Sending failed. Your message is kept: please try again.",
+    "thanks": "Thank you, it's sent.",
+    "thanksDetail": "The Jobbbox team reads every piece of feedback.",
+    "close": "Close",
     "tooMany": "You have sent a lot of feedback today. Please try again tomorrow."
   }
 }

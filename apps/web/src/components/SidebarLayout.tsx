@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
+import { SignalementButton } from "@/components/Signalement";
 import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ActivityElement } from "@/ai-activity/pane";
@@ -34,7 +35,8 @@ const LABELS = {
  * (see SidebarShell) with the Profile switcher and the Candidate's labelled links,
  * and in its foot the Usage Meter of the week's Plan Quotas (null when billing could not be read).
  * Its Top Bar has AI Activity's button, its pane the page's `aiActivity` elements (none: « Aucun contenu
- * produit par l'IA sur cette page »).
+ * produit par l'IA sur cette page »). Beside « Mon compte », on its row, the Signalement icon (#375), which opens the
+ * Signalement dialog; `version` is the Jobbbox version that dialog shows.
  */
 export function SidebarLayout({
   profiles,
@@ -46,6 +48,7 @@ export function SidebarLayout({
   title,
   wide = false,
   aiActivity = NO_AI_ACTIVITY,
+  version,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -57,6 +60,7 @@ export function SidebarLayout({
   title?: ReactNode;
   wide?: boolean;
   aiActivity?: readonly ActivityElement[];
+  version: string;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -75,10 +79,13 @@ export function SidebarLayout({
         foot={(closeDrawer) => (
           <>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
-            <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
-              <Icons.account />
-              {t("nav.account")}
-            </Link>
+            <div className="sidebar-account-row">
+              <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
+                <Icons.account />
+                {t("nav.account")}
+              </Link>
+              <SignalementButton version={version} />
+            </div>
           </>
         )}
         top={

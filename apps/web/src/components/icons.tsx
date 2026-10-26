@@ -1,7 +1,7 @@
 /**
  * Line icons from the Notion-like prototype (#132). Decoration only: each one
  * sits beside its label in words (ADR-0009: no icon-only function, but AI
- * Activity's stop icon, named by its aria-label), so it is hidden from screen readers.
+ * Activity's stop icon and the Sidebar's Signalement icon, named by their aria-label), so it is hidden from screen readers.
  */
 const PATHS = {
   menu: ["M4 7h16M4 12h16M4 17h16"],

@@ -2057,6 +2057,187 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   }
 }
 
+/* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------
+   An icon alone, on Mon compte's row, to its right, a 44 px target (ADR-0009 amendment #375: never the only way in, the Coach
+   Panel's foot keeps labelled links, #345). Named « Signalement », with that tooltip on hover and focus. */
+.sidebar-account-row {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.sidebar-account-row .sidebar-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.signalement-open {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: max(44px, var(--control-height));
+  height: max(44px, var(--control-height));
+  padding: 0;
+  color: var(--color-text);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+}
+
+.signalement-open:hover {
+  background: var(--color-surface-hover);
+}
+
+.signalement-tip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-1));
+  z-index: 5;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-meta);
+  color: var(--color-text);
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  background: var(--color-background);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-menu);
+}
+
+.signalement-open:hover .signalement-tip,
+.signalement-open:focus-visible .signalement-tip {
+  visibility: visible;
+}
+
+/* The glyphs share one skeleton; a subpath a glyph does not need is a point, which butt caps leave unseen. */
+.signalement-glyph {
+  overflow: visible;
+  stroke-linecap: butt;
+}
+
+@media (width >= 40rem) {
+  .signalement-dialog {
+    width: min(34rem, calc(100vw - 2 * var(--space-4)));
+  }
+}
+
+.signalement-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.signalement-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Bug / Idée: a two-way switch; the type chosen is bold and raised, not marked by colour alone. */
+.signalement-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  padding: 3px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.signalement-type {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.signalement-type input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.signalement-type:has(input:checked) {
+  font-weight: 600;
+  background: var(--color-background);
+  box-shadow: inset 0 -3px 0 var(--color-text);
+}
+
+.signalement-type:has(input:focus-visible) {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.signalement-form textarea {
+  width: 100%;
+}
+
+.signalement-count {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.signalement-meta {
+  margin: 0;
+  font-size: var(--font-size-meta);
+  color: var(--color-text-meta);
+  white-space: nowrap;
+}
+
+.signalement-context .signalement-meta {
+  white-space: normal;
+}
+
+.signalement-context {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.signalement-context p {
+  margin: 0;
+}
+
+.signalement-detail {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.signalement-detail dt {
+  font-weight: 400;
+  color: var(--color-text-meta);
+}
+
+.signalement-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.signalement-actions {
+  justify-content: flex-end;
+}
+
+.signalement-thanks p {
+  margin: 0;
+}
+
 /* A button that reads like the links beside it ("Modifier les critères" opens a dialog). */
 .link-action {
   padding: 0;

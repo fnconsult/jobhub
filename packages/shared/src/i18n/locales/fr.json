@@ -3216,6 +3216,41 @@
     }
   },
   "signalement": {
+    "open": "Signalement",
+    "title": "Envoyer un signalement",
+    "typeLegend": "Type de signalement",
+    "types": {
+      "bug": "Bug",
+      "idee": "Idée"
+    },
+    "label": {
+      "bug": "Décrivez le problème",
+      "idee": "Décrivez votre idée"
+    },
+    "placeholder": {
+      "bug": "Ce que vous faisiez, ce qui s'est passé, ce que vous attendiez.",
+      "idee": "Ce que vous aimeriez pouvoir faire, et pourquoi."
+    },
+    "count": "{{count}} / {{max}}",
+    "tooShort": "Au moins {{min}} caractères, pour que l'équipe comprenne.",
+    "notice": "Joints automatiquement : la page, la version de Jobbbox, votre navigateur, la langue et la taille du texte. Ni capture d'écran, ni conversation avec votre coach.",
+    "showDetail": "Voir le détail",
+    "hideDetail": "Masquer le détail",
+    "detail": {
+      "page": "Page",
+      "version": "Version de Jobbbox",
+      "browser": "Navigateur",
+      "language": "Langue",
+      "textSize": "Taille du texte"
+    },
+    "readBy": "Lu par l'équipe Jobbbox, jamais par une IA",
+    "cancel": "Annuler",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "failed": "L'envoi n'a pas abouti. Votre message est gardé : réessayez.",
+    "thanks": "Merci, c'est envoyé.",
+    "thanksDetail": "L'équipe Jobbbox lit chaque signalement.",
+    "close": "Fermer",
     "tooMany": "Vous avez envoyé beaucoup de signalements aujourd'hui, réessayez demain."
   }
 }

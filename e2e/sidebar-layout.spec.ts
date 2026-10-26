@@ -153,7 +153,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    const stops = NAV_LABELS.length + 9;
+    const stops = NAV_LABELS.length + 10;
     for (let i = 0; i < stops; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
@@ -165,6 +165,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       // The Usage Meter reads as its title and the week's percentage.
       `${fr.usageMeter.title} ${fr.usageMeter.percent.replace("{{percent}}", "0")}`,
       fr.nav.account,
+      // The Signalement icon, beside Mon compte on its row (#375).
+      fr.signalement.open,
       fr.account.signOut,
       fr.sidebar.collapse,
       // AI Activity (#332): a page with no AI content, so its button shows only its label.

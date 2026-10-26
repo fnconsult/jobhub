@@ -1,7 +1,8 @@
 // Preloaded into the worker (NODE_OPTIONS=--import) by e2e/job-discovery.spec.ts
 // to stand in for the whole outside world Job discovery talks to:
 //  - Perplexity's Search API (api.perplexity.ai), which "finds" the result
-//    pages listed in RESULT_PAGES below;
+//    pages listed in RESULT_PAGES below, and Brave's (api.search.brave.com, #399),
+//    which finds the same with any key;
 //  - Mistral's EU API (api.mistral.ai), which plays the LLM reading a page
 //    that has no JobPosting structured data;
 //  - the job sites themselves: a careers page with JobPosting JSON-LD, the same
@@ -372,6 +373,11 @@ function perplexity() {
   });
 }
 
+/** Brave's web search (GET /res/v1/web/search), finding the same pages (#399): the e2e spec checks the key it was sent. */
+function brave() {
+  return Response.json({ web: { results: RESULT_PAGES.map((url) => ({ url, title: "Offre", description: "" })) } });
+}
+
 /** Volume posting number `n`, distinct in title and text from every other. */
 const volumeText = (n) => `Poste en volume ${n} – réf. ${tag}. Entreprise ${n} recrute à Lyon.`;
 
@@ -435,6 +441,7 @@ globalThis.fetch = async (input, init = {}) => {
     return perplexity();
   }
   if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
+  if (url.origin === "https://api.search.brave.com") return brave();
 
   if (fjMode && url.hostname === "data.fantastic.jobs") return fantasticJobsSite(request, url);
   if (ftMode && FT_HOSTS.includes(url.hostname)) return franceTravailSite(url);

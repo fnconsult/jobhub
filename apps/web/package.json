@@ -30,7 +30,8 @@
     "./guardrails": "./src/guardrails/store.ts",
     "./task-playbooks": "./src/task-playbooks/worker.ts",
     "./candidate-identity": "./src/candidate-identity/index.ts",
-    "./reference-data": "./src/reference-data/index.ts"
+    "./reference-data": "./src/reference-data/index.ts",
+    "./target-companies": "./src/target-companies/index.ts"
   },
   "scripts": {
     "dev": "next dev",

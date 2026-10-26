@@ -170,11 +170,11 @@ const U = [
     alsoUsedBy: "Company Dossiers utilisent le même fournisseur de recherche." },
   { id: "ai", label: "IA", active: null, providers: ["mistral", "anthropic", "bedrock"],
     tasks: [
-      { t: "AI Coach (réponse)", p: "mistral", m: "mistral-large-latest", src: "env" },
-      { t: "Lecture d'offre", p: "anthropic", m: "claude-sonnet-5-5", src: "bo" },
-      { t: "Variantes de titre", p: "anthropic", m: "claude-haiku-5-5", src: "code" },
-      { t: "Match Score", p: "mistral", m: "mistral-medium-latest", src: "env" },
-      { t: "CV adapté", p: "mistral", m: "mistral-large-latest", src: "env" },
+      { t: "AI Coach (réponse)", p: "mistral", m: "mistral-large-latest", effort: "élevé", src: "env", def: "mistral · mistral-large-latest (env)", personal: true },
+      { t: "Lecture d'offre", p: "anthropic", m: "claude-sonnet-5-5", effort: "moyen", src: "bo", def: "mistral · mistral-medium-latest (code)", personal: false },
+      { t: "Variantes de titre", p: "anthropic", m: "claude-haiku-5-5", effort: "faible", src: "code", def: "anthropic · claude-haiku-5-5 (code)", personal: false },
+      { t: "Match Score", p: "mistral", m: "mistral-medium-latest", effort: "moyen", src: "env", def: "mistral · mistral-medium-latest (env)", personal: true },
+      { t: "CV adapté", p: "mistral", m: "mistral-large-latest", effort: "élevé", src: "env", def: "mistral · mistral-large-latest (env)", personal: true },
     ], settings: [{ k: "Routage des tâches avec identité", v: "Mistral (UE)", src: "code", def: "Mistral" }] },
   { id: "ft", label: "France Travail", active: "france-travail", providers: ["france-travail"], settings: [{ k: "Débit max", v: "2 appels/s", src: "code", def: "2 appels/s" }] },
   { id: "enrich", label: "Enrichissement de contacts", active: "lusha", providers: ["lusha", "kaspr", "apollo"], settings: [{ k: "Fournisseur actif", v: "lusha", type: "provider", src: "env", def: "lusha" }] },
@@ -192,7 +192,7 @@ const SRC = { bo: ["Back Office", "src-bo"], env: ["env", "src-env"], code: ["d�
 
 // ---------- state ----------
 const qs = new URLSearchParams(location.search);
-const S = { variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
+const S = { variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, task: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
 const VARIANTS = { A: "Onglets + fournisseur actif + tableau", B: "Usages à gauche + matrice comparative", C: "Grand tableau de réglages" };
 
 // ---------- helpers ----------
@@ -252,6 +252,25 @@ function playbookDrawer(i) {
   </aside>`;
 }
 
+const TASK_MODELS = { mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"], anthropic: ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"], bedrock: ["claude-sonnet-5-5 (eu-north-1)", "claude-haiku-5-5 (eu-north-1)"] };
+const EU = new Set(["mistral", "bedrock"]);
+function taskDrawer(i) {
+  const t = u("ai").tasks[i];
+  const opts = Object.entries(TASK_MODELS).flatMap(([pid, ms]) => ms.map((m) => { const blocked = t.personal && !EU.has(pid); return `<option value="${pid}|${h(m)}" ${t.p === pid && t.m === m ? "selected" : ""} ${blocked ? "disabled" : ""}>${h(P[pid].name)} · ${h(m)}${blocked ? " — hors UE, exclu" : ""}</option>`; })).join("");
+  return `<div class="scrim" data-close></div><aside class="drawer">
+    <div class="row" style="justify-content:space-between"><div><div class="small muted">Tâche IA</div><h2 style="margin:0">${h(t.t)}</h2></div><button class="btn ghost" data-close>Fermer ✕</button></div>
+    <p class="small">Valeur actuelle : ${src(t.src)} · défaut : <span class="muted">${h(t.def)}</span></p>
+    <div class="kv" style="grid-template-columns: 7rem 1fr">
+      <span>Modèle</span><select id="tkModel">${opts}</select>
+      <span>Effort</span><select id="tkEffort">${["faible", "moyen", "élevé"].map((e) => `<option ${t.effort === e ? "selected" : ""}>${e}</option>`).join("")}</select>
+    </div>
+    <div class="note">${t.personal ? "Cette tâche reçoit des données personnelles : seuls des modèles résidant dans l'UE sont proposés (ADR-0007), et les appels avec identité suivent l'EU AI Consent." : "Cette tâche ne reçoit aucune donnée personnelle : les modèles hors UE sont permis (ADR-0007)."}</div>
+    <div class="note">Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit au Journal (avant → après).</div>
+    <div class="row"><button class="btn primary" data-tksave="${i}">Enregistrer</button><button class="btn" data-tkreset="${i}">Rétablir le défaut</button><a href="#" class="small">Consommation IA · ${h(t.t)} →</a></div>
+    <p class="small muted" style="margin-top:20px">Droit requis : Paramètres non secrets.</p>
+  </aside>`;
+}
+
 function businessBlock(b, compact) {
   return `<h2 class="sec">Réglages de la Job discovery</h2>
   <div class="grid2">
@@ -270,8 +289,12 @@ function variantA() {
   const us = u(S.tab);
   let body = "";
   if (us.id === "ai") {
-    body = `<h2 class="sec">Tâches</h2><table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>
-      ${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td><select>${us.providers.map((p) => `<option ${p === t.p ? "selected" : ""}>${P[p].name}</option>`).join("")}</select></td><td><input value="${h(t.m)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px"></td><td>${src(t.src)}</td></tr>`).join("")}</table>
+    body = `<h2 class="sec">Tâches</h2>
+      <table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Effort</th><th>Données</th><th>Source</th><th>Clé du fournisseur</th><th></th></tr>
+      ${us.tasks.map((t, i) => { const [ks, kt] = keyState(t.p); return `<tr class="click" data-task="${i}"><td>${h(t.t)}</td><td>${h(P[t.p].name)}</td><td><code>${h(t.m)}</code></td><td>${h(t.effort)}</td>
+        <td class="small">${t.personal ? "personnelles : UE" : "sans donnée personnelle"}</td><td>${src(t.src)}</td>
+        <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "clé absente" : h(kt)}</span></td>
+        <td><button class="btn" data-task="${i}">Modifier…</button></td></tr>`; }).join("")}</table>
       <h2 class="sec">Playbook Agents</h2>
       <div class="note">Le modèle et l'effort d'un Playbook Agent font partie de sa Playbook Version : « Modifier… » ouvre le Coaching Playbook sur le côté : un changement crée une nouvelle Playbook Version en brouillon, servie en production une fois validée dans <a href="#">Playbooks</a> par une autre personne. Seuls des modèles résidant dans l'UE sont proposés.</div>
       <table><tr><th>Coaching Playbook</th><th>Fournisseur</th><th>Modèle</th><th>Effort</th><th>Version servie</th><th>Clé du fournisseur</th><th></th></tr>
@@ -373,14 +396,17 @@ function variantC() {
 function render() {
   const url = new URL(location); url.searchParams.set("variant", S.variant); url.searchParams.set("tab", S.tab); history.replaceState(null, "", url);
   document.getElementById("main").innerHTML = { A: variantA, B: variantB, C: variantC }[S.variant]();
-  document.getElementById("overlay").innerHTML = S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
+  document.getElementById("overlay").innerHTML = S.task != null ? taskDrawer(S.task) : S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
+  if (t.dataset.tksave) { const k = u("ai").tasks[+t.dataset.tksave]; const [pid, m] = document.getElementById("tkModel").value.split("|"); Object.assign(k, { p: pid, m, effort: document.getElementById("tkEffort").value, src: "bo" }); S.task = null; toast(`${k.t} : ${P[pid].name} · ${m}, dès le prochain appel`); return render(); }
+  if (t.dataset.tkreset) { const k = u("ai").tasks[+t.dataset.tkreset]; const [pid, m] = k.def.split(" (")[0].split(" · "); Object.assign(k, { p: pid, m, src: k.def.includes("(env)") ? "env" : "code" }); S.task = null; toast(`${k.t} : défaut rétabli`); return render(); }
+  if (t.dataset.task != null && !t.dataset.tksave) { S.task = +t.dataset.task; return render(); }
   if (t.dataset.pbsave) { const b = PLAYBOOKS[+t.dataset.pbsave]; const [pid, m] = document.getElementById("pbModel").value.split("|"); b.draft = { v: b.draft?.v ?? b.v + 1, p: pid, m, effort: document.getElementById("pbEffort").value }; S.playbook = null; toast(`${b.name} : version ${b.draft.v} en brouillon, à valider dans Playbooks`); return render(); }
   if (t.dataset.playbook != null && !t.dataset.pbsave) { S.playbook = +t.dataset.playbook; return render(); }
   if (t.id === "prev") return cycle(-1);
@@ -392,7 +418,7 @@ document.addEventListener("click", (e) => {
   if (t.dataset.sub) { S.sub = t.dataset.sub; return render(); }
   if (t.dataset.chip) { S.chip = t.dataset.chip; if (t.dataset.chip !== "all") S.tab = t.dataset.chip; return render(); }
   if (t.dataset.open) { if (e.target.closest("select,input,button") && !t.matches("button")) return; S.drawer = t.dataset.open; return render(); }
-  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; return render(); }
+  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; S.task = null; return render(); }
 });
 document.addEventListener("change", (e) => {
   if (e.target.id === "groupBy") { S.groupBy = e.target.value; return render(); }
@@ -405,7 +431,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea,select,[contenteditable]")) return;
   if (e.key === "ArrowLeft") cycle(-1);
   if (e.key === "ArrowRight") cycle(1);
-  if (e.key === "Escape" && (S.drawer || S.playbook != null)) { S.drawer = null; S.playbook = null; render(); }
+  if (e.key === "Escape" && (S.drawer || S.playbook != null || S.task != null)) { S.drawer = null; S.playbook = null; S.task = null; render(); }
 });
 render();
 </script>

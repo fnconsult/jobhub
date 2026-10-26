@@ -41,13 +41,16 @@ export interface ToolsState {
   signInTypes: readonly string[];
   /** The Platform Settings in use: the Back Office's, else env's, else the code's defaults. */
   settings: Pick<PlatformSettingsSnapshot, "setting">;
+  /** The Tools their provider refused at its latest connection test (France Travail without Offres d'emploi, #400). */
+  accessRefused?: readonly string[];
 }
 
 /**
  * `disabled`: a setting turns it off (« désactivé »); `setting_missing`: one it cannot be called
- * without is empty (« paramètre manquant »).
+ * without is empty (« paramètre manquant »); `awaiting_access`: configured, but its provider refused
+ * it access at the latest connection test (« en attente d'accès »).
  */
-export type ToolStatus = "configured" | "disabled" | "key_missing" | "setting_missing" | "not_configured" | "no_key_needed";
+export type ToolStatus = "configured" | "disabled" | "key_missing" | "setting_missing" | "awaiting_access" | "not_configured" | "no_key_needed";
 
 /** A setting of a Tool with its value in use, as its Outils page shows it. */
 export interface ToolSettingValue {
@@ -96,7 +99,7 @@ function turnsOff(setting: ToolSetting, value: string): boolean {
 /**
  * Whether `tool` can be called. A sign-in Tool: a Sign-in Provider of its type is enabled. Any
  * other: off while one of its settings turns it off; else every key it needs has a value, then
- * every setting it cannot be called without.
+ * every setting it cannot be called without, then its provider grants it access.
  */
 export function toolStatus(tool: Tool, state: ToolsState): ToolState {
   const declared = tool.settings ?? [];
@@ -114,6 +117,7 @@ export function toolStatus(tool: Tool, state: ToolsState): ToolState {
     if (declared.some((setting, index) => turnsOff(setting, values[index]!.value))) return "disabled";
     if (missingKeys.length > 0) return "key_missing";
     if (missingSettings.length > 0) return "setting_missing";
+    if (state.accessRefused?.includes(tool.id)) return "awaiting_access";
     return tool.keys.length === 0 && !declared.some((setting) => setting.required) ? "no_key_needed" : "configured";
   };
   return { status: status(), ...read };

@@ -6,6 +6,7 @@ export const STATUS_TONE: Record<ToolStatus, "success" | "danger" | undefined> =
   disabled: undefined,
   key_missing: "danger",
   setting_missing: "danger",
+  awaiting_access: "danger",
   not_configured: "danger",
   no_key_needed: undefined,
 };

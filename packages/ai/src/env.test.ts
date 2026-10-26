@@ -23,7 +23,7 @@ function recordingFetch() {
   return { fetch: fetch as typeof globalThis.fetch, hosts };
 }
 
-const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com", "api.linkup.so"];
+const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com"];
 
 const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
 
@@ -59,7 +59,6 @@ describe("AI layer configured from the environment", () => {
   it.each([
     ["brave", "BRAVE_SEARCH_API_KEY", "api.search.brave.com"],
     ["tavily", "TAVILY_API_KEY", "api.tavily.com"],
-    ["linkup", "LINKUP_API_KEY", "api.linkup.so"],
   ])(
     "routes web search to %s by AI_WEB_SEARCH_PROVIDER alone, with its own key",
     async (provider, key, host) => {
@@ -222,6 +221,26 @@ describe("AI layer configured from the environment", () => {
     it("is available once the key is entered", () => {
       expect(createAiLayerFromEnv(base, { usage: createMemoryUsageLog() }).webSearchAvailable()).toBe(true);
     });
+
+    it("goes to the fallback Search provider when its key is entered (ADR-0043): web search stays available", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const ai = createAiLayerFromEnv(
+        { AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily", TAVILY_API_KEY: "tk" },
+        { fetch, usage: createMemoryUsageLog() },
+      );
+
+      expect(ai.webSearchAvailable()).toBe(true);
+      await ai.searchWeb({ candidateId: "c", criteria });
+      await ai.searchCompany({ candidateId: "c", employer: "Acme Ltd" });
+      expect(hosts.filter((host) => WEB_SEARCH_HOSTS.includes(host))).toEqual(["api.tavily.com", "api.tavily.com"]);
+    });
+
+    it("is unavailable when the fallback Search provider's key is missing too, and the AI layer still starts", async () => {
+      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily" }, { usage: createMemoryUsageLog() });
+
+      expect(ai.webSearchAvailable()).toBe(false);
+      await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toThrow(/BRAVE_SEARCH_API_KEY/);
+    });
   });
 
   it("does not need keys of providers no task uses", () => {
@@ -362,11 +381,10 @@ describe("AI layer configured from the environment", () => {
     const searchOf = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).searchModels();
 
     it("are every web-search provider whose key is entered, each with its models or depths", () => {
-      expect(searchOf({ ...base, BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk", LINKUP_API_KEY: "lk" }).map(({ provider, defaultModel, models }) => ({ provider, defaultModel, models: models.map((each) => each.model) }))).toEqual([
-        { provider: "perplexity", defaultModel: "openai/gpt-6-luna", models: ["openai/gpt-6-luna"] },
+      expect(searchOf({ ...base, BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk" }).map(({ provider, defaultModel, models }) => ({ provider, defaultModel, models: models.map((each) => each.model) }))).toEqual([
+        { provider: "perplexity", defaultModel: "fast", models: ["fast", "web"] },
         { provider: "brave", defaultModel: "web", models: ["web"] },
         { provider: "tavily", defaultModel: "basic", models: ["basic", "advanced", "fast", "ultra-fast"] },
-        { provider: "linkup", defaultModel: "standard", models: ["standard", "fast", "deep", "flash"] },
       ]);
     });
 
@@ -375,7 +393,7 @@ describe("AI layer configured from the environment", () => {
     });
 
     it("put the configured web-search model first", () => {
-      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" })[0]!.models.map((each) => each.model)).toEqual(["sonar-pro", "openai/gpt-6-luna"]);
+      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "web" })[0]!.models.map((each) => each.model)).toEqual(["web", "fast"]);
     });
   });
 

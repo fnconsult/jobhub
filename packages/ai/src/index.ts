@@ -17,7 +17,7 @@
  * Every call, generation and web search, is redacted before it leaves (redaction.ts): email addresses and
  * phone numbers always, and what `identityOf` knows of the Candidate; a reply gets the values back.
  */
-export { createAiLayer } from "./ai-layer";
+export { createAiLayer, createWebSearchRun } from "./ai-layer";
 export type {
   AgentModelChoice,
   AiLayer,
@@ -32,8 +32,10 @@ export type {
   JobSearchPlanRequest,
   Route,
   SearchRequest,
+  SearchFallback,
   SearchResult,
   TaskInstructions,
+  WebSearchRun,
 } from "./ai-layer";
 export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
@@ -49,7 +51,6 @@ export type { AnthropicEndpoint, AnthropicProviderOptions } from "./providers/an
 export { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
 export { createPerplexityProvider } from "./providers/perplexity";
 export { createBraveProvider } from "./providers/brave";
-export { createLinkupProvider } from "./providers/linkup";
 export { createTavilyProvider } from "./providers/tavily";
 export { activityOf, FEATURE_STEPS, TOOL_STEPS } from "./activity";
 export { createProvenanceRecorder } from "./provenance-recorder";

@@ -110,7 +110,15 @@ const ENRICHMENT_PURPOSE: Translated = {
   fr: "Enrichissement de contacts : coordonnées professionnelles d'un contact chez un employeur. Seul le fournisseur actif est appelé.",
   en: "Contact enrichment: a contact's work details at an employer. Only the active provider is called.",
 };
-const WEB_SEARCH_SETTINGS: readonly ToolSetting[] = [{ name: "AI_WEB_SEARCH_PROVIDER" }, { name: "AI_WEB_SEARCH_MODEL" }];
+/**
+ * A Search provider's settings (ADR-0043): the active one and its fallback, then its own typed settings, and for
+ * Perplexity and Tavily AI_WEB_SEARCH_MODEL, which their typed settings replace, read for one more release (#398).
+ */
+const WEB_SEARCH_SETTINGS = (...own: string[]): readonly ToolSetting[] => [
+  { name: "AI_WEB_SEARCH_PROVIDER" },
+  { name: "AI_WEB_SEARCH_FALLBACK_PROVIDER" },
+  ...own.map((name) => ({ name })),
+];
 const JOB_DISCOVERY_BUDGET: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS" }, { name: "JOB_DISCOVERY_BUDGET_EUR" }, { name: "JOB_DISCOVERY_BUDGET_SECONDS" }];
 /** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015). */
 const ENRICHMENT_SETTINGS = (provider: string): readonly ToolSetting[] => [
@@ -212,7 +220,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/perplexity.ts",
     runsIn: "both",
     keys: ["PERPLEXITY_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS,
+    settings: WEB_SEARCH_SETTINGS("PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL"),
     usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
     residency: "outside_eu",
   },
@@ -224,7 +232,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/brave.ts",
     runsIn: "both",
     keys: ["BRAVE_SEARCH_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS,
+    settings: WEB_SEARCH_SETTINGS("BRAVE_MAX_PAGES"),
     usage: { table: "ai_usage", provider: "brave", external: "brave" },
     residency: "outside_eu",
   },
@@ -236,20 +244,8 @@ export const TOOLS = [
     module: "packages/ai/src/providers/tavily.ts",
     runsIn: "both",
     keys: ["TAVILY_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS,
+    settings: WEB_SEARCH_SETTINGS("TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL"),
     usage: { table: "ai_usage", provider: "tavily", external: "tavily" },
-    residency: "outside_eu",
-  },
-  {
-    id: "linkup",
-    name: "Linkup",
-    purpose: WEB_SEARCH_PURPOSE,
-    category: "web_search",
-    module: "packages/ai/src/providers/linkup.ts",
-    runsIn: "both",
-    keys: ["LINKUP_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS,
-    usage: { table: "ai_usage", provider: "linkup" },
     residency: "outside_eu",
   },
   {

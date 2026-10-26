@@ -179,6 +179,7 @@ function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): Discover
   metrics.costEur = report.costEur;
   metrics.franceTravail = { ...report.franceTravail };
   metrics.fantasticJobs = { ...report.fantasticJobs };
+  metrics.searchFallback = report.searchFallback ? { ...report.searchFallback } : null;
   return metrics;
 }
 
@@ -303,7 +304,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           .filter(([, count]) => count > 0)
           .map(([reason, count]) => `${reason}: ${count}`)
           .join(", ");
-        const { franceTravail, fantasticJobs } = report;
+        const { franceTravail, fantasticJobs, searchFallback } = report;
         log(
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}` +
@@ -312,7 +313,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
               : `, France Travail ${franceTravail.status} (${franceTravail.offers} Job Offer(s), ${franceTravail.calls} call(s))`) +
             (fantasticJobs.status === "off"
               ? ""
-              : `, Fantastic.jobs ${fantasticJobs.status} (${fantasticJobs.offers} Job Offer(s), ${fantasticJobs.calls} call(s), €${fantasticJobs.costEur})`),
+              : `, Fantastic.jobs ${fantasticJobs.status} (${fantasticJobs.offers} Job Offer(s), ${fantasticJobs.calls} call(s), €${fantasticJobs.costEur})`) +
+            (searchFallback ? `, web search fell back from ${searchFallback.from} to ${searchFallback.to} (${searchFallback.reason})` : ""),
         );
       },
     },

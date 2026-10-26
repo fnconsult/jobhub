@@ -201,11 +201,10 @@ test.describe("Job Search metrics (#109)", () => {
 
   test("records the cost in € (the job title step, the web searches and the LLM reading one page) and the duration", () => {
     const { costEur, durationMs } = search.metrics!;
-    // Each Perplexity search: 20 input + 40 output tokens at 0.2 / 1.2 $ per million, plus 0.0025 $ per search, at 0.86 €/$ = 0.0021947 €.
-    // The fake gives every query the same results: 4 searches (3 queries, then the first query's second page, #112).
+    // Perplexity's Search API: 0.001 $ a call of up to 5 queries, no tokens, at 0.86 €/$ = 0.00086 €. The plan's 3 queries go in one call (#398).
     // Mistral finds the job title variants (100 + 20 tokens) and reads one page (100 + 50 tokens): at most 0.0000688 € and 0.0001075 €.
-    expect(costEur).toBeGreaterThanOrEqual(4 * 0.0021947 - 1e-6);
-    expect(costEur).toBeLessThanOrEqual(4 * 0.0021947 + 0.0000688 + 0.0001075 + 1e-6);
+    expect(costEur).toBeGreaterThanOrEqual(0.00086 - 1e-6);
+    expect(costEur).toBeLessThanOrEqual(0.00086 + 0.0000688 + 0.0001075 + 1e-6);
     // From the Candidate starting it to its outcome.
     expect(durationMs).toBeGreaterThan(0);
     expect(Math.abs(durationMs - search.elapsed_ms)).toBeLessThanOrEqual(2);
@@ -265,7 +264,7 @@ test.describe("Job Search metrics (#109)", () => {
     });
     expect(run!.metrics.funnel.afterDedup).toBeGreaterThanOrEqual(3);
     expect(run!.metrics.funnel.matched).toBeLessThanOrEqual(run!.metrics.funnel.afterDedup);
-    expect(run!.metrics.costEur).toBeGreaterThanOrEqual(0.0021947 - 1e-6);
+    expect(run!.metrics.costEur).toBeGreaterThanOrEqual(0.00086 - 1e-6);
     expect(run!.metrics.durationMs).toBeGreaterThan(0);
     expect(run!.sent).toBeGreaterThan(0);
   });

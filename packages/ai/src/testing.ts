@@ -2,8 +2,10 @@
  * Test doubles for the AI layer: a fake provider that never leaves the process,
  * and an in-memory usage log. Import from "@jobhub/ai/testing".
  */
+import { DEFAULT_SEARCH_CONTRACT } from "./types";
 import type {
   AiProvider,
+  SearchContract,
   ProviderId,
   Residency,
   SearchOptions,
@@ -34,6 +36,10 @@ export interface FakeProviderOptions {
   tools?: ToolCall[];
   /** How many pages of results a search can give. Default: 1. */
   pages?: number;
+  /** How many queries one search may carry. Default: 1. */
+  queriesPerCall?: number;
+  /** Which filters it declares emulated (the AI layer then applies them). Default: none, all handled. */
+  emulates?: (keyof SearchContract["filters"])[];
   /** The models it offers a Playbook Agent. Default: its default model alone. */
   models?: string[];
   /** Thrown by every call (generation and search), after it is counted: a provider that fails, e.g. with an AiProviderError. */
@@ -48,10 +54,10 @@ export interface FakeProviderOptions {
 export interface FakeProvider extends AiProvider {
   /** Every text input received, in order. */
   readonly calls: TextInput[];
-  /** Every search query received, in order. */
+  /** Every search query received, in order (a search carrying several gives each). */
   readonly queries: string[];
-  /** Every search received, with its options (model, filters), in order. */
-  readonly searches: ({ query: string } & SearchOptions)[];
+  /** Every search received, with its queries (`query`: them joined by new lines) and options (model, filters), in order. */
+  readonly searches: ({ query: string; queries: string[] } & SearchOptions)[];
 }
 
 export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvider {
@@ -75,7 +81,18 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     calls,
     queries,
     searches,
-    ...(options.pages ? { searchPages: options.pages } : {}),
+    ...(options.pages || options.queriesPerCall || options.emulates
+      ? {
+          searchContract: {
+            queriesPerCall: options.queriesPerCall ?? 1,
+            maxPages: options.pages ?? 1,
+            filters: {
+              ...DEFAULT_SEARCH_CONTRACT.filters,
+              ...Object.fromEntries((options.emulates ?? []).map((name) => [name, "emulated"])),
+            },
+          },
+        }
+      : {}),
     async generate(input): Promise<TextOutput> {
       calls.push(input);
       await answering(input.signal);
@@ -83,12 +100,14 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
       const reply = options.reply ?? "fake reply";
       return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage, ...(options.tools ? { tools: options.tools } : {}) };
     },
-    async search(query, { model, filters, page, signal }): Promise<SearchOutput> {
-      queries.push(query);
-      searches.push({ query, model, filters, ...(page ? { page } : {}), ...(signal ? { signal } : {}) });
+    async search(asked, { model, filters, page, signal }): Promise<SearchOutput> {
+      const all = [asked].flat();
+      const query = all.join("\n");
+      queries.push(...all);
+      searches.push({ query, queries: all, model, filters, ...(page ? { page } : {}), ...(signal ? { signal } : {}) });
       await answering(signal);
       if (options.fail) throw options.fail;
-      const sources = typeof options.sources === "function" ? options.sources(query, { model, filters, page }) : (options.sources ?? []);
+      const sources = typeof options.sources === "function" ? all.flatMap((one) => (options.sources as (q: string, o: SearchOptions) => string[])(one, { model, filters, page })) : (options.sources ?? []);
       return {
         answer: options.answer ?? "fake answer",
         sources,

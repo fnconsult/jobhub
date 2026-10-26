@@ -1,4 +1,4 @@
-import { createAiLayer } from "@jobhub/ai";
+import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import type { SearchOptions } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
@@ -93,6 +93,8 @@ function setup(options: {
   titles?: string;
   /** How many pages of results the search provider gives a query. Default: 1. */
   searchPages?: number;
+  /** How many queries one call of the search provider takes. Default: 1. */
+  queriesPerCall?: number;
   /** The search provider's answer text. */
   answer?: string;
   pages: Record<string, Page>;
@@ -113,6 +115,10 @@ function setup(options: {
   taskPlaybooks?: TaskPlaybookReader;
   /** Another web-search provider configured, which a task Playbook may name. */
   otherSearch?: FakeProvider;
+  /** Thrown by every search of the active Search provider. */
+  searchFails?: Error;
+  /** The fallback Search provider (ADR-0043). Default: none. */
+  searchFallback?: "brave";
   /** The NAF and ROME-domain labels (#236). */
   industries?: () => Promise<IndustryReference>;
   /** Each web search waits for its signal to abort (#331). */
@@ -120,12 +126,13 @@ function setup(options: {
   /** The active Search provider's key is missing: web search is unavailable (#399). */
   searchKeyMissing?: boolean;
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, pending: options.searchPending });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending, fail: options.searchFails });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
   const ai = createAiLayer({
     providers: [...(options.searchKeyMissing ? [] : [search]), llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
     routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
+    ...(options.searchFallback ? { searchFallback: options.searchFallback } : {}),
     usage: createMemoryUsageLog(),
   });
   const clock = fakeClock(options.now?.getTime());
@@ -274,6 +281,25 @@ describe("Job discovery", () => {
       expect(search.searches.map((s) => `${s.query.startsWith("Job offer") ? "en" : "fr"} ${s.page ?? 1}`)).toEqual(["fr 1", "en 1", "fr 2", "en 2"]);
       expect(jobOffers.all.map((offer) => offer.title)).toEqual(["DAF 1", "DAF 2"]);
       expect(report.funnel).toMatchObject({ providerUrls: 2, fetched: 2, extracted: 2 });
+    });
+
+    it("batches the plan's queries per call as the Search provider takes them, and searches each site apart", async () => {
+      const { discovery, search } = setup({
+        queriesPerCall: 5,
+        sources: [],
+        pages: {},
+        titles: JSON.stringify({ fr: ["DAF", "Directeur administratif"], en: ["CFO", "Finance Director", "Head of Finance"] }),
+        settings: async () => ({ sources: { france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true }, sites: [{ domain: "apec.fr", enabled: true }] }),
+      });
+
+      await discovery.discover({ candidateId: "c", criteria });
+
+      // 6 queries (3 titles in French and English): 5 in one call, then the last; the site's search on its own.
+      expect(search.searches.map((s) => [s.queries.length, s.filters?.includeDomains])).toEqual([
+        [5, undefined],
+        [1, undefined],
+        [1, ["apec.fr"]],
+      ]);
     });
 
     it("searches no further once the run has its Job Offers", async () => {
@@ -568,6 +594,34 @@ describe("Job discovery", () => {
 
       expect(search.queries).toEqual([]);
       expect(brave.queries[0]).toMatch(/^Poste « Directeur financier » vers Lyon/);
+    });
+
+    it("goes on with the fallback Search provider once the active one fails, for the rest of the run, and says so (ADR-0043)", async () => {
+      const brave = createFakeProvider({ id: "brave", residency: "outside_eu", sources: [DAF_URL] });
+      const { discovery, search } = setup({
+        sources: [],
+        pages: { [DAF_URL]: { body: jobPostingPage({ title: "DAF", description: "Poste de DAF à Lyon." }) } },
+        otherSearch: brave,
+        searchFallback: "brave",
+        searchFails: new AiProviderError("perplexity", "HTTP 429 rate limited", 429),
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      // French then English: the first fails on Perplexity and is served by Brave, as is the second.
+      expect(search.searches).toHaveLength(1);
+      expect(brave.searches).toHaveLength(2);
+      expect(report.searchFallback).toEqual({ from: "perplexity", to: "brave", reason: "rate_limited" });
+      expect(report.jobOffers.map((offer) => offer.title)).toEqual(["DAF"]);
+    });
+
+    it("fails as before when the active Search provider fails and the fallback's key is missing", async () => {
+      const { discovery } = setup({ sources: [], pages: {}, searchFallback: "brave", searchFails: new AiProviderError("perplexity", "HTTP 429", 429) });
+
+      const failure = await discovery.discover({ candidateId: "c", criteria }).catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(JobDiscoveryError);
+      expect((failure as JobDiscoveryError).partial.searchFallback).toBeNull();
     });
 
     it("does not call the LLM when the page has JobPosting data", async () => {
@@ -1145,9 +1199,9 @@ describe("Job discovery", () => {
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       // Fakes use 10 input and 5 output tokens per call. Job titles (Mistral default): 10 × $0.50/M + 5 × $1.50/M;
-      // each search (French, then English): $0.0025 + 10 × $0.20/M + 5 × $1.20/M;
+      // each search (French, then English): Perplexity's Search API, $0.001, no tokens;
       // each LLM read (Anthropic default): 10 × $5/M + 5 × $25/M; at €0.86 per $.
-      expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.002508 + 2 * 0.000175) * 0.86, 9);
+      expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.001 + 2 * 0.000175) * 0.86, 9);
     });
 
     it("keeps what a run measured before it failed", async () => {
@@ -1168,7 +1222,7 @@ describe("Job discovery", () => {
         skipped: [{ url: gone, reason: "gone" }],
         funnel: { providerUrls: 2, fetched: 1, extracted: 0, alreadyStored: 0 },
       });
-      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo((0.0000125 + 0.002508) * 0.86, 9);
+      expect((failure as JobDiscoveryError).partial.costEur).toBeCloseTo((0.0000125 + 0.001) * 0.86, 9);
     });
   });
 
@@ -1231,14 +1285,14 @@ describe("Job discovery", () => {
       const { discovery, web, llm } = setup({
         sources: urls,
         pages: pagesFor(urls, () => ({ body: "<html><body><h1>Offres DAF</h1></body></html>" })),
-        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.0022. After two reads, €0.088.
+        // Each LLM read: 10,000 × $5/M = $0.05, €0.043. Search: €0.00086. After two reads, €0.087.
         llmUsage: { inputTokens: 10_000, outputTokens: 0 },
       });
 
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       expect(llm.calls).toHaveLength(2);
-      expect(report.costEur).toBeCloseTo((0.0000125 + 0.002508 + 2 * 0.05) * 0.86, 9);
+      expect(report.costEur).toBeCloseTo((0.0000125 + 0.001 + 2 * 0.05) * 0.86, 9);
       expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 2));
     });
 

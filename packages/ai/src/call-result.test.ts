@@ -8,7 +8,7 @@ import { createFakeProvider, createMemoryUsageLog } from "./testing";
 import type { AiProvider, ProviderId } from "./types";
 
 const TEXT_PROVIDERS = ["anthropic", "mistral", "openai"] as const satisfies readonly ProviderId[];
-const SEARCH_PROVIDERS = ["perplexity", "brave", "tavily", "linkup"] as const satisfies readonly ProviderId[];
+const SEARCH_PROVIDERS = ["perplexity", "brave", "tavily"] as const satisfies readonly ProviderId[];
 
 /** A provider whose every call takes `ms` on `clock`. */
 function taking(provider: AiProvider, clock: { now: number }, ms: number): AiProvider {

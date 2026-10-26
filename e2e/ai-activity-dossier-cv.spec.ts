@@ -90,7 +90,9 @@ async function expectNoAxeViolations(page: Page, selector: string) {
 }
 
 test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", () => {
-  test("a new dossier lists its sites with filtered links; one built before shows « non enregistré » with the sites its source names", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never the Company News JSON an LLM wrote,
+  // so the dossier has no news site to list. Company News from the pages themselves has no issue yet (ADR-0043).
+  test.fixme("a new dossier lists its sites with filtered links; one built before shows « non enregistré » with the sites its source names", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-dossier"));
     // The web search cites a LinkedIn profile and a script address besides the company's page: neither is a site.
     const dossier = await openDossier(page, await newApplication(page, "PersonLeak Inc"));
@@ -136,7 +138,9 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(oldSources.getByRole("link", { name: /^annuaire-entreprises\.data\.gouv\.fr\/entreprise\/552100554/ })).toHaveAttribute("href", REGISTER_PAGE);
   });
 
-  test("stopped mid-dossier from its page, the dossier keeps what was finished: its facts, its news not searched", async ({ page }) => {
+  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
+  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
+  test.fixme("stopped mid-dossier from its page, the dossier keeps what was finished: its facts, its news not searched", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-dossier-stop"));
     const applicationId = await newApplication(page, "Globex E2E_SLOW_NEWS");
     const dossier = await openDossier(page, applicationId);

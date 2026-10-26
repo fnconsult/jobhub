@@ -57,7 +57,7 @@ test.describe("Tools (Outils)", () => {
     for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data"]) {
       await expect(page.getByRole("heading", { level: 2, name: tools.categories[category] })).toBeVisible();
     }
-    for (const name of ["Perplexity", "Brave Search", "Tavily", "Linkup"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
+    for (const name of ["Perplexity", "Brave Search", "Tavily"]) await expect(toolRow(page, "web_search", name)).toBeVisible();
     for (const name of ["France Travail", "Greenhouse", "Lever", "Ashby", "APEC"]) await expect(toolRow(page, "job_discovery", name)).toBeVisible();
 
     // Configured from its key, linked to its provider's sheet in Paramètres (#396); Brave's key is missing (France Travail's keys are entered by its access spec, #400); a public API needs none.

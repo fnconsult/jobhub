@@ -67,6 +67,7 @@ function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport
     costEur: 0,
     franceTravail: { status: "off", offers: 0, calls: 0 },
     fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
+    searchFallback: null,
     ...report,
   };
 }
@@ -88,6 +89,7 @@ const measuredRun = discoveryReport({
   costEur: 0.0123,
   franceTravail: { status: "searched", offers: 1, calls: 2 },
   fantasticJobs: { status: "searched", offers: 3, calls: 1, costEur: 0.024 },
+  searchFallback: { from: "perplexity", to: "brave", reason: "rate_limited" },
 });
 
 /** What the Job Search or Job Digest keeps of `measuredRun`. */
@@ -97,6 +99,7 @@ const measuredMetrics = {
   costEur: 0.0123,
   franceTravail: { status: "searched", offers: 1, calls: 2 },
   fantasticJobs: { status: "searched", offers: 3, calls: 1, costEur: 0.024 },
+  searchFallback: { from: "perplexity", to: "brave", reason: "rate_limited" },
 };
 
 /**

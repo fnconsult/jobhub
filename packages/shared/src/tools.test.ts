@@ -5,7 +5,7 @@ describe("the Tools", () => {
   it("are every external tool the app calls, grouped by category in the Back Office's order", () => {
     expect(toolsByCategory().map(({ category, tools }) => [category, tools.map((tool) => tool.id)])).toEqual([
       ["ai_model", ["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]],
-      ["web_search", ["perplexity", "brave", "tavily", "linkup"]],
+      ["web_search", ["perplexity", "brave", "tavily"]],
       ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec", "job-site"]],
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
@@ -58,7 +58,10 @@ describe("the Tools", () => {
     expect(names("anthropic-vertex")).toEqual(["ANTHROPIC_ENDPOINT", "VERTEX_REGION", "VERTEX_PROJECT_ID"]);
     expect(names("openai")).toEqual(["OPENAI_DATA_RESIDENCY"]);
     expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL"]);
-    for (const id of ["perplexity", "brave", "tavily", "linkup"]) expect(names(id), id).toEqual(["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_MODEL"]);
+    const search = ["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_FALLBACK_PROVIDER"];
+    expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL"]);
+    expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES"]);
+    expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL"]);
     for (const id of ["brevo-api", "brevo-smtp"]) expect(names(id), id).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);

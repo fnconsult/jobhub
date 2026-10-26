@@ -131,7 +131,8 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: ["https://example.com/about"] });
     newsAnswer = JSON.stringify({ articles: [] });
     newsQueries = [];
-    perplexity.search = async (query) => {
+    perplexity.search = async (asked) => {
+      const query = [asked].flat().join("\n");
       if (query.startsWith("Articles de presse")) {
         newsQueries.push(query);
         if (newsAnswer instanceof Error) throw newsAnswer;
@@ -883,7 +884,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
       function stoppedBy(stop: AbortController, what: "news" | "any") {
         const search = perplexity.search!;
         perplexity.search = async (query, options) => {
-          if (what === "news" && !query.startsWith("Articles de presse")) return search(query, options);
+          if (what === "news" && ![query].flat().join("\n").startsWith("Articles de presse")) return search(query, options);
           stop.abort();
           throw stop.signal.reason;
         };

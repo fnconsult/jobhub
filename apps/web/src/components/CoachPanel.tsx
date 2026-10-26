@@ -10,7 +10,8 @@ import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/con
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import { CoachReplyText } from "@/components/CoachReplyText";
-import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions } from "@/components/CoachHelp";
+import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
+import { SignalementProvider, useOpenSignalement } from "@/components/Signalement";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
 import { createMentions, type Mentions } from "@/help-terms";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -162,8 +163,14 @@ type StoppedReply = { from: "stopped"; tokens: number; ms: number };
  */
 type HelpCard = { from: "help"; key: number; article: HelpArticle; answered: boolean };
 
+/**
+ * A message as the panel shows it, with what this browser alone knows of an AI Coach reply (#345, never saved):
+ * `couldNotAnswer`, the AI Coach marked the question as one it could not answer; `satisfied`, the Candidate's « Oui » or « Non ».
+ */
+type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean };
+
 /** What the panel lists: the saved messages, the replies stopped and the Help Articles opened since it opened. */
-type PanelMessage = CoachMessage | StoppedReply | HelpCard;
+type PanelMessage = ShownMessage | StoppedReply | HelpCard;
 
 const isHelpCard = (message: PanelMessage): message is HelpCard => message.from === "help";
 
@@ -190,6 +197,8 @@ type ReplyBody = {
   jobOffer?: JobOfferCardData;
   provenance?: Provenance | null;
   at?: string;
+  /** The AI Coach could not answer the question (#345). */
+  couldNotAnswer?: boolean;
 };
 
 /** The tokens a step spent: none for one stopped or failed (providers say nothing then). */
@@ -380,6 +389,8 @@ async function fetchConversation(
  */
 export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; children: ReactNode }) {
   const { t, i18n } = useTranslation();
+  // A Signalement from the panel (#345): only around the Candidate's pages (CandidateCoachPanel).
+  const signalement = useOpenSignalement();
   const panel = PANELS[kind];
   const texts = panel.texts;
   const id = useId();
@@ -420,6 +431,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // The help (#342): the Help Articles matching the draft, once the Candidate pauses; the one read last, whose title goes
   // with the next message; the question the AI Coach could not answer, for the help to answer instead.
   const help = panel.features.help;
+  const openSignalement = help ? signalement : null;
   const locale = helpLocale(i18n.language);
   const [query, setQuery] = useState("");
   const [readArticle, setReadArticle] = useState<{ id: string; title: string } | null>(null);
@@ -540,6 +552,16 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setFocusInput((n) => n + 1);
   }
 
+  /** « Poser la question à l'équipe » (#345, ADR-0035): a Question Signalement with the question and the reply that did not satisfy. */
+  function askTeam(question: string, coachReply: string) {
+    openSignalement?.({ kind: "question", question, coachReply });
+  }
+
+  /** The Candidate's « Oui » or « Non » under an AI Coach reply. */
+  function answerFeedback(index: number, satisfied: boolean) {
+    setMessages((shown) => shown.map((each, at) => (at === index && each.from === "coach" ? { ...each, satisfied } : each)));
+  }
+
   function startNewConversation() {
     setConversation(null);
     setAiDisclosure(true);
@@ -632,6 +654,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
           ...(blocked?.reply ? { blocked: true as const } : {}),
           ...(body.jobOffer ? { jobOffer: body.jobOffer } : {}),
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
+          ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
         },
       ]);
       const at = body.at;
@@ -718,6 +741,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         label: t(IN_VIEW_LABEL[inView.kind], { name: inView.name }),
       })
     : t("coachPanel.nothingInView");
+
+  // Why there is no reply, in words.
+  const failureText =
+    status === "invalid" ? t("coachPanel.errors.invalid") : failure ? t("coachPanel.failed", { reason: t(`failureReasons.${failure}`) }) : t(texts.unavailable);
 
   const contextText = panel.features.inView || !texts.context ? inViewLabel : t(texts.context);
   const conversationTitle = conversation ? conversation.title : t("coachPanel.newConversation");
@@ -875,6 +902,14 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                         {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
                         {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
+                        {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
+                          <ReplyFeedback
+                            couldNotAnswer={message.couldNotAnswer === true}
+                            satisfied={message.satisfied}
+                            onAnswer={(satisfied) => answerFeedback(index, satisfied)}
+                            onAskTeam={() => askTeam(questionBefore(messages, index), message.text)}
+                          />
+                        ) : null}
                       </li>
                       ),
                     )}
@@ -899,14 +934,18 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                   ) : null}
                   {status === "unavailable" || status === "invalid" ? (
                     <p className={failure ? "notice notice-failed" : "notice"} role="alert">
-                      {status === "invalid"
-                        ? t("coachPanel.errors.invalid")
-                        : failure
-                          ? t("coachPanel.failed", { reason: t(`failureReasons.${failure}`) })
-                          : t(texts.unavailable)}
+                      {failureText}
                     </p>
                   ) : null}
-                  {status === "unavailable" && unanswered !== null ? <HelpForUnanswered question={unanswered} locale={locale} onOpen={showArticle} /> : null}
+                  {status === "unavailable" && unanswered !== null ? (
+                    <HelpForUnanswered
+                      question={unanswered}
+                      locale={locale}
+                      onOpen={showArticle}
+                      // The team, directly: the AI Coach's unavailable message stands for its reply (#345).
+                      {...(openSignalement ? { onAskTeam: () => askTeam(unanswered, failureText) } : {})}
+                    />
+                  ) : null}
                   <div ref={messagesEnd} aria-hidden="true" />
                   {conversation && panel.features.memory ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
                 </div>
@@ -980,6 +1019,17 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                 </form>
               </>
             )}
+            {openSignalement ? (
+              // The panel's foot (#345): a Bug or an Idée, from every view; on phones, with the drawer's icon, the way in.
+              <nav className="coach-panel-foot" aria-label={t("coachPanel.team.foot")}>
+                <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "bug" })}>
+                  {t("coachPanel.team.reportProblem")}
+                </button>
+                <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "idee" })}>
+                  {t("coachPanel.team.suggestIdea")}
+                </button>
+              </nav>
+            ) : null}
           </aside>
         ) : null}
         <CoachPanelToggle floating />
@@ -993,14 +1043,27 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
  * pages carry the Back Office Assistant instead (BackOfficeLayout): only one
  * panel is ever mounted.
  */
-export function CandidateCoachPanel({ children }: { children: ReactNode }) {
+export function CandidateCoachPanel({ version, children }: { version: string; children: ReactNode }) {
   const pathname = usePathname();
   const inBackOffice = pathname === routes.admin || pathname.startsWith(`${routes.admin}/`);
   return inBackOffice ? (
     children
   ) : (
     <AiActivityLiveProvider>
-      <CoachPanel>{children}</CoachPanel>
+      {/* The Coach Panel's Signalements (#345): `version`, the Jobbbox version the dialog's detail shows. */}
+      <SignalementProvider version={version}>
+        <CoachPanel>{children}</CoachPanel>
+      </SignalementProvider>
     </AiActivityLiveProvider>
   );
+}
+
+/** The Candidate's message an AI Coach reply answers: the one just before it. */
+function questionBefore(messages: readonly PanelMessage[], index: number): string {
+  for (let at = index - 1; at >= 0; at--) {
+    const message = messages[at]!;
+    if (message.from === "candidate") return message.text;
+    if (message.from === "coach") break;
+  }
+  return "";
 }

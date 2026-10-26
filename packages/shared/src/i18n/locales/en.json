@@ -607,13 +607,25 @@
       "thanks": "Thank you! Ask another question whenever you like.",
       "askAbout": "About “{{title}}”: ",
       "unavailableHelp": "Here is what the help suggests:",
-      "noHelp": "The help has no article on this question. To reach the Jobbbox team, send feedback.",
-      "signalement": "Send feedback",
+      "noHelp": "The help has no article on this question.",
       "kinds": {
         "page": "Page",
         "glossary": "Word to know",
         "faq": "Frequent question"
       }
+    },
+    "team": {
+      "answered": "Does this answer your question?",
+      "yes": "Yes",
+      "no": "No",
+      "thanks": "Thank you for letting us know.",
+      "ask": "Ask the team",
+      "notSatisfied": "The Jobbbox team can answer you.",
+      "couldNotAnswer": "Your AI coach doesn't have this answer: the Jobbbox team can answer you.",
+      "unavailable": "The Jobbbox team can answer you too.",
+      "foot": "Feedback",
+      "reportProblem": "Report a problem",
+      "suggestIdea": "Suggest an idea"
     }
   },
   "provenanceLine": {
@@ -3330,6 +3342,17 @@
     "thanks": "Thank you, it's sent.",
     "thanksDetail": "The Jobbbox team reads every piece of feedback.",
     "close": "Close",
-    "tooMany": "You have sent a lot of feedback today. Please try again tomorrow."
+    "tooMany": "You have sent a lot of feedback today. Please try again tomorrow.",
+    "question": {
+      "title": "Ask the team",
+      "label": "Your question",
+      "placeholder": "What you want to know, and what the coach's reply was missing.",
+      "attached": "Attached automatically:",
+      "exchange": "Exchange: your question and the coach's reply (AI)",
+      "context": "the page, the Jobbbox version, your browser, the language and the text size",
+      "nothingElse": "Nothing else from the conversation.",
+      "yourQuestion": "Your question to the coach",
+      "coachReply": "The coach's reply (AI)"
+    }
   }
 }

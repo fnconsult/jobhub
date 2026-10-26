@@ -852,6 +852,34 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   color: var(--color-text);
 }
 
+/* The panel's foot (#345): « Signaler un problème » and « Proposer une idée », under every view. */
+.coach-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.coach-panel-foot .link-action,
+.reply-feedback .link-action {
+  min-height: var(--control-height);
+}
+
+/* Under an AI Coach reply (#345): « Cela répond à votre question ? Oui / Non », then the team. */
+.reply-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  align-items: center;
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+}
+
+p.reply-feedback {
+  display: block;
+}
+
 /* The Candidate's saved Coach Conversations, inside the Coach Panel. */
 .coach-conversations h3 {
   margin: 0;
@@ -2249,6 +2277,19 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 .signalement-context p {
   margin: 0;
+}
+
+/* A Question's attachments (#345): the exchange first, then the usual context. */
+.signalement-attached {
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+/* The question and the coach's reply, as sent: long ones keep their line breaks and scroll. */
+.signalement-exchange {
+  max-height: 8rem;
+  overflow-y: auto;
+  white-space: pre-line;
 }
 
 .signalement-detail {

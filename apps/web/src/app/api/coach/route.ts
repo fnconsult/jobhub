@@ -19,7 +19,8 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * A Guardrail message answers in the Candidate's Interface Language; `blocked` says whether the message and the reply are Blocked messages (#228).
  * A link in the message is read as a Job Offer: `jobOffer` is then the reply's Job Offer card { id, title, employer?, followed }.
  * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
- * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
+ * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
+ * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
  * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation }.
  *
  * Live (#328), with `Accept: application/x-ndjson`: 200, one JSON event per line as the reply runs:
@@ -49,8 +50,8 @@ export async function POST(request: Request) {
   return NextResponse.json(failureOf(result), { status: STATUS[result.error] });
 }
 
-function replyOf({ conversation, reply, blocked, jobOffer, provenance, at }: Extract<SendResult, { ok: true }>) {
-  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at };
+function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer }: Extract<SendResult, { ok: true }>) {
+  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer };
 }
 
 function failureOf(result: Extract<SendResult, { ok: false }>) {

@@ -122,6 +122,19 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     ]);
   });
 
+  it("says when the AI Coach could not answer, so the Coach Panel offers the team at once (#345); never saved", async () => {
+    coachReply = () => ({ ok: true, reply: "Je n'ai pas accès à vos paiements.", outcome: "replied", couldNotAnswer: true, cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [] });
+    const unanswered = await conversations.send(marie, { message: "Pourquoi ai-je été prélevé deux fois ?" });
+    coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [] });
+    if (!unanswered.ok) throw new Error("refused");
+    const answered = await conversations.send(marie, { conversationId: unanswered.conversation.id, message: "Et mon CV ?" });
+
+    expect(unanswered).toMatchObject({ ok: true, couldNotAnswer: true });
+    expect(answered).toMatchObject({ ok: true, couldNotAnswer: false });
+    const reopened = await conversations.open(marie, unanswered.conversation.id);
+    expect(reopened!.messages[1]).not.toHaveProperty("couldNotAnswer");
+  });
+
   it("gives the AI Coach the Help Article the Candidate read before asking, by its id, and never saves it (#342)", async () => {
     const sent = await conversations.send(marie, { message: "Et si je dépasse ?", helpArticle: { id: "faq-quota-renewal", title: "Quand mon quota se renouvelle-t-il ?" } });
     if (!sent.ok) throw new Error("refused");

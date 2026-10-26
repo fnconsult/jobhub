@@ -4,7 +4,8 @@
  * changes, so a key entered in the Back Office is used without a restart:
  *
  *   const worker = workerClients({ resolver, production, jobOffers, budget });
- *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job
+ *   worker.discovery();     // Job discovery, or why it is unavailable: asked on each job. Not for a missing Search
+ *                           // provider's key: the web search alone is then skipped (#399)
  *   worker.ai;              // the AI layer (Follow-ups), routed by the AI routing Platform Settings (#301)
  *   worker.franceTravail(); // France Travail, or null without its credentials
  *   worker.fantasticJobs(); // Fantastic.jobs, or null without FANTASTIC_JOBS_API_KEY

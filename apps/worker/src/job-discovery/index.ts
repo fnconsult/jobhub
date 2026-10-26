@@ -51,7 +51,9 @@
  * one web search, the plan's first query restricted to that site, after the
  * plan's own queries; a result page on a disabled site is skipped
  * (`site_disabled`). When the settings cannot be read, every source is searched
- * and no site is listed, as before the Back Office managed them.
+ * and no site is listed, as before the Back Office managed them. Without the key of
+ * its Search provider (#399), the web search is unavailable and skipped the same way:
+ * the other sources still run.
  *
  * A run searches and reads result pages in order until its budget runs out: 30
  * Job Offers, €0.08 or 90 s by default, whichever comes first (see JobDiscoveryBudget).
@@ -86,7 +88,7 @@
  * it stores the run's Provenance. A failed run's partial report has it too.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { costInEur, createProvenanceRecorder, readJobPage, type AiLayer, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, readJobPage, WebSearchUnavailable, type AiLayer, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
 import { servedTaskRun, taskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import {
   believablePostingDate,
@@ -374,6 +376,12 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         servedTaskRun(options.taskPlaybooks, "job-offer-reading", options.ai),
       ]);
       const offerReadingInstructions = offerReading?.instructions() ?? null;
+      // Without its Search provider's key, the web search is skipped like a disabled source (#399); the other sources run.
+      let webSearch = settings.sources.web_search;
+      if (webSearch && !options.ai.webSearchAvailable(queryWording.searchRoute)) {
+        webSearch = false;
+        console.warn("[job-discovery] the web search is unavailable (its Search provider's key is missing): skipped, the other sources are searched");
+      }
       const { funnel, skipped } = report;
       /** The share of the budget the location being searched may use up to (k/n for the k-th of n locations). */
       let share = 1;
@@ -588,8 +596,15 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             fantasticJobsSearched = true;
             await searchJobApi(fantasticJobs, "fantastic-jobs", report.fantasticJobs, location);
           }
-          if (budgetSpent() || !settings.sources.web_search) continue;
-          await searchTheWeb(location);
+          if (budgetSpent() || !webSearch) continue;
+          try {
+            await searchTheWeb(location);
+          } catch (error) {
+            // Its key cleared during the run: the web search is skipped from now on, as when unavailable at its start.
+            if (!(error instanceof WebSearchUnavailable)) throw error;
+            webSearch = false;
+            console.warn(`[job-discovery] the web search became unavailable during the run: ${error.message}`);
+          }
         }
       } catch (error) {
         report.jobOffers = [...found.values()];

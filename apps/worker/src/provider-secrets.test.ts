@@ -211,6 +211,48 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
   });
 });
 
+describe("the worker's web search, on the Search provider's Provider Secret (#399)", () => {
+  /** Web search on Brave, whose key neither env nor the database has yet. */
+  const BRAVE_ENV = { ...ENV, PERPLEXITY_API_KEY: "", AI_WEB_SEARCH_PROVIDER: "brave", MISTRAL_API_KEY: MISTRAL_NEW };
+  const BRAVE_KEY = "brave-key-from-back-office-42";
+  const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+
+  it("keeps Job discovery on without it: web search alone is unavailable", async () => {
+    const { resolver } = database({}, BRAVE_ENV);
+    await resolver.refresh();
+    const lines: string[] = [];
+    const worker = clients(resolver, fakeProviders().fetch, lines);
+
+    expect(worker.discovery()).toHaveProperty("discover");
+    expect(worker.ai.webSearchAvailable()).toBe(false);
+    await expect(worker.ai.searchWeb({ candidateId: "c-1", criteria })).rejects.toThrow(/BRAVE_SEARCH_API_KEY/);
+    await expect(worker.ai.generate(generate)).resolves.toMatchObject({ text: "ok" });
+  });
+
+  it("uses the key entered in the Back Office for its next search, without a restart", async () => {
+    const { stored, resolver } = database({}, BRAVE_ENV);
+    await resolver.refresh();
+    const sent: string[] = [];
+    const providers = fakeProviders();
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const request = new Request(input, init);
+      if (!request.url.startsWith("https://api.search.brave.com/")) return providers.fetch(input, init);
+      sent.push(request.headers.get("x-subscription-token")!);
+      return Response.json({ web: { results: [{ url: "https://emplois.example.fr/daf", title: "DAF", description: "DAF à Lyon" }] } });
+    }) as typeof globalThis.fetch;
+    const worker = clients(resolver, fetch, []);
+    expect(worker.ai.webSearchAvailable()).toBe(false);
+
+    stored.current = { BRAVE_SEARCH_API_KEY: { value: BRAVE_KEY, row: "r1" } };
+    await resolver.refresh();
+
+    expect(worker.ai.webSearchAvailable()).toBe(true);
+    const found = await worker.ai.searchWeb({ candidateId: "c-1", criteria });
+    expect(found.sources).toEqual(["https://emplois.example.fr/daf"]);
+    expect(sent).toEqual([BRAVE_KEY]);
+  });
+});
+
 describe("the worker's AI layer, on the AI routing Platform Settings (#301)", () => {
   it("routes the next AI call as the Back Office set it, without a restart; env's routing while it sets nothing", async () => {
     const { resolver } = database({ MISTRAL_API_KEY: { value: MISTRAL_NEW, row: "r1" } });

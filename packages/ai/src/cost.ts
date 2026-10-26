@@ -26,8 +26,8 @@ export const EUR_PER_USD = 0.86;
 
 /** Each provider's price for its default model, and for the other models it is routed to (matched by name). */
 const PRICES: Record<ProviderId, { default: Price; models?: [RegExp, Price][] }> = {
-  // Agent API preset "fast" with the web_search tool.
-  perplexity: { default: { input: 0.2, output: 1.2, perSearch: 0.0025 } },
+  // Search API (no tokens): $0.001 a call of 1 to 5 queries in its "fast" search type (the default), $0.005 in "web".
+  perplexity: { default: { input: 0, output: 0, perSearch: 0.001 }, models: [[/^web$/, { input: 0, output: 0, perSearch: 0.005 }]] },
   mistral: {
     default: { input: 0.5, output: 1.5 },
     models: [

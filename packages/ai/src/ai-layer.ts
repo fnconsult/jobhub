@@ -6,7 +6,7 @@ import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, DataResidencyError } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
-import { SEARCH_TASK, TEXT_TASKS } from "./types";
+import { SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
 
 export { AiConfigError, DataResidencyError };
@@ -688,7 +688,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     generate: (request) => generateAs(request, request.task),
 
     async planJobSearch({ candidateId, criteria, instructions, route }) {
-      const pages = Math.max(1, searchProvider(route).provider.searchPages ?? 1);
+      const pages = Math.max(1, searchContractOf(searchProvider(route).provider).maxPages);
       const titles = instructions?.titles;
       const { system, prompt } = jobTitlesPrompt(criteria, titles?.text);
       let call: GenerateResult | null = null;

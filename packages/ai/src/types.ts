@@ -110,25 +110,54 @@ export interface SearchOutput {
 }
 
 /**
- * Narrows a web search. Each provider applies what its API offers and ignores the rest,
- * so callers still check every result (e.g. ADR-0002's forbidden sites).
+ * Narrows a web search: one contract every Search provider honours (ADR-0043). A provider sends
+ * those its API offers (`handled`); the AI layer applies the others to the pages it returns
+ * (`emulated`, see `SearchContract`). Callers still check every result (e.g. ADR-0002's forbidden sites).
  * Never built from a Profile or CV: like the query, it is not personal data.
  */
 export interface SearchFilters {
-  /** Only pages on these sites (domain names such as "apec.fr"). */
+  /** Only pages on these sites (domain names such as "apec.fr"; a subdomain counts as its site). */
   includeDomains?: string[];
   /** No pages on these sites. */
   excludeDomains?: string[];
-  /** Only pages published within this many days. */
+  /** Only pages published within this many days (emulated only on pages whose date is known). */
   maxAgeDays?: number;
-  /** Favour pages from this country (ISO 3166-1 alpha-2, e.g. "FR"): a preference, not a restriction. */
+  /** Favour pages from this country (ISO 3166-1 alpha-2, e.g. "FR"): a preference, not a restriction, never emulated. */
   country?: string;
+  /** At most this many results per query. Default: the provider's most (20 for every Search provider). */
+  maxResults?: number;
 }
+
+/** The filters of the contract, by name. */
+export const SEARCH_FILTERS = ["includeDomains", "excludeDomains", "country", "maxAgeDays", "maxResults"] as const satisfies readonly (keyof SearchFilters)[];
+export type SearchFilterName = (typeof SEARCH_FILTERS)[number];
+
+/** `handled`: the provider is sent the filter; `emulated`: it is not, and the AI layer applies it to the pages returned. */
+export type FilterHandling = "handled" | "emulated";
+
+/** What a Search provider declares of itself (ADR-0043): how many queries one call takes, how far it pages, which filters it handles. */
+export interface SearchContract {
+  /** Queries one call may carry, billed as one search (Perplexity: up to 5). */
+  queriesPerCall: number;
+  /** Pages of results one query can be given (`SearchOptions.page`). */
+  maxPages: number;
+  filters: Record<SearchFilterName, FilterHandling>;
+}
+
+/** The contract of a provider that declares none: one query, one page, every filter left to it. */
+export const DEFAULT_SEARCH_CONTRACT: SearchContract = {
+  queriesPerCall: 1,
+  maxPages: 1,
+  filters: { includeDomains: "handled", excludeDomains: "handled", country: "handled", maxAgeDays: "handled", maxResults: "handled" },
+};
+
+/** `provider`'s search contract, or the default one. */
+export const searchContractOf = (provider: Pick<AiProvider, "searchContract">): SearchContract => provider.searchContract ?? DEFAULT_SEARCH_CONTRACT;
 
 export interface SearchOptions {
   model?: string;
   filters?: SearchFilters;
-  /** Which page of results, from 1 (the default) up to the provider's `searchPages`. */
+  /** Which page of results, from 1 (the default) up to the contract's `maxPages`. */
   page?: number;
   /** Stops the search (#325): the adapter passes it to its HTTP request and rejects with its reason once aborted. */
   signal?: AbortSignal;
@@ -145,9 +174,13 @@ export interface AiProvider {
   /** The text models it offers a Playbook Agent (#225), by the name this endpoint knows them by, its default model first. */
   readonly models?: readonly string[];
   generate?(input: TextInput): Promise<TextOutput>;
-  search?(query: string, options: SearchOptions): Promise<SearchOutput>;
-  /** How many pages of results `search` can give one query (see `SearchOptions.page`). Default: 1. */
-  readonly searchPages?: number;
+  /**
+   * One web search: a query, or up to `searchContract.queriesPerCall` of them in one call (more is refused).
+   * Their pages come back together, never attributed to a query.
+   */
+  search?(query: string | readonly string[], options: SearchOptions): Promise<SearchOutput>;
+  /** What a Search provider declares of itself. Default: `DEFAULT_SEARCH_CONTRACT`. */
+  readonly searchContract?: SearchContract;
 }
 
 /** A tool use as recorded: how often, whether the call succeeded, how long the call took, and its fee when billed. */

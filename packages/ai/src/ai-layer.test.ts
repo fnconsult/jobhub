@@ -294,8 +294,8 @@ describe("the usage of every AI call", () => {
 
     await ai.searchCompany({ candidateId: null, employer: "Acme" });
 
-    // Perplexity: $0.0025 per search.
-    expect(usage.entries[0]!.tools).toEqual([{ name: "web_search", count: 3, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(3 * 0.0025 * 0.86, 6) }]);
+    // Perplexity's Search API: $0.001 per search.
+    expect(usage.entries[0]!.tools).toEqual([{ name: "web_search", count: 3, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(3 * 0.001 * 0.86, 6) }]);
   });
 
   it("records a failed call with its prompt, no reply and nothing billed", async () => {

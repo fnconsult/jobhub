@@ -108,9 +108,9 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
     });
 
     it("tests the web search's model with one search", async () => {
-      const { fetch, calls } = providerFetch({ unknownModels: ["sonar-nope"] });
+      const { fetch, calls } = providerFetch({ unknownModels: ["deep"] });
 
-      expect((await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "sonar-nope" }, { fetch }))?.reason).toBe("test_failed");
+      expect((await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "deep" }, { fetch }))?.reason).toBe("test_failed");
       expect(calls.map((call) => call.host)).toEqual(["api.perplexity.ai"]);
     });
 
@@ -145,10 +145,10 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
       const { fetch } = providerFetch();
       const usage = createMemoryUsageLog();
 
-      expect(await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" }, { fetch, usage })).toBeNull();
+      expect(await checkAiRoutingChange(base, { ...base, AI_WEB_SEARCH_MODEL: "web" }, { fetch, usage })).toBeNull();
       await Promise.resolve();
 
-      expect(usage.entries).toEqual([expect.objectContaining({ candidateId: null, task: "web_search", provider: "perplexity", model: "sonar-pro", outcome: "ok" })]);
+      expect(usage.entries).toEqual([expect.objectContaining({ candidateId: null, task: "web_search", provider: "perplexity", model: "web", outcome: "ok" })]);
       expect(usage.entries[0]!.tools).toEqual([expect.objectContaining({ name: "web_search", count: 1, ok: true })]);
     });
 
@@ -167,7 +167,9 @@ function providerFetch(options: { unknownModels?: string[] } = {}) {
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
-    const body = JSON.parse(await request.text()) as { model: string; max_tokens?: number; max_output_tokens?: number };
+    const sent = JSON.parse(await request.text()) as { model?: string; search_type?: string; max_tokens?: number };
+    // Perplexity's Search API names its model as a search type.
+    const body = { ...sent, model: sent.model ?? sent.search_type ?? "" };
     calls.push({ host: url.hostname, model: body.model, ...(body.max_tokens === undefined ? {} : { maxTokens: body.max_tokens }) });
     const json = (status: number, payload: unknown) => new Response(JSON.stringify(payload), { status, headers: { "content-type": "application/json" } });
     if (options.unknownModels?.includes(body.model)) {
@@ -179,7 +181,7 @@ function providerFetch(options: { unknownModels?: string[] } = {}) {
       return json(200, { id: "m", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: "O" }], stop_reason: "max_tokens", usage: { input_tokens: 3, output_tokens: 1 } });
     }
     if (url.hostname === "api.perplexity.ai") {
-      return json(200, { status: "completed", model: body.model, output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }], usage: { input_tokens: 3, output_tokens: 2 } });
+      return json(200, { id: "s", results: [{ title: "Jobbbox", url: "https://jobbbox.example/", snippet: "ok", date: null, last_updated: null }] });
     }
     return json(200, { model: body.model, choices: [{ message: { content: "O" } }], usage: { prompt_tokens: 3, completion_tokens: 1 } });
   };

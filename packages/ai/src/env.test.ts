@@ -326,7 +326,7 @@ describe("AI layer configured from the environment", () => {
 
     it("are every web-search provider whose key is entered, each with its models or depths", () => {
       expect(searchOf({ ...base, BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk", LINKUP_API_KEY: "lk" }).map(({ provider, defaultModel, models }) => ({ provider, defaultModel, models: models.map((each) => each.model) }))).toEqual([
-        { provider: "perplexity", defaultModel: "openai/gpt-6-luna", models: ["openai/gpt-6-luna"] },
+        { provider: "perplexity", defaultModel: "fast", models: ["fast", "web"] },
         { provider: "brave", defaultModel: "web", models: ["web"] },
         { provider: "tavily", defaultModel: "basic", models: ["basic", "advanced", "fast", "ultra-fast"] },
         { provider: "linkup", defaultModel: "standard", models: ["standard", "fast", "deep", "flash"] },
@@ -338,7 +338,7 @@ describe("AI layer configured from the environment", () => {
     });
 
     it("put the configured web-search model first", () => {
-      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" })[0]!.models.map((each) => each.model)).toEqual(["sonar-pro", "openai/gpt-6-luna"]);
+      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "web" })[0]!.models.map((each) => each.model)).toEqual(["web", "fast"]);
     });
   });
 

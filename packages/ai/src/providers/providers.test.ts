@@ -338,15 +338,16 @@ describe("the models a provider offers a Playbook Agent (#225)", () => {
 });
 
 /**
- * A Perplexity Agent API (`POST /v1/responses`) answer to a web search. HAND-WRITTEN
- * from the API reference and the 'fast' preset's documented model, not recorded:
- * perplexity.live.test.ts records a real one (…recorded.json), checked below when present.
+ * A Perplexity Search API (`POST /search`) answer. HAND-WRITTEN from the API reference
+ * (docs/research/issue-398.md), not recorded: perplexity.live.test.ts records a real one
+ * (perplexity-search.recorded.json), checked below when present.
  */
-const perplexityReply = JSON.parse(readFileSync(new URL("./fixtures/perplexity-responses-search.json", import.meta.url), "utf8"));
-const recordedReplyUrl = new URL("./fixtures/perplexity-responses-search.recorded.json", import.meta.url);
+const perplexityReply = JSON.parse(readFileSync(new URL("./fixtures/perplexity-search.json", import.meta.url), "utf8"));
+const recordedReplyUrl = new URL("./fixtures/perplexity-search.recorded.json", import.meta.url);
+const today = () => new Date("2026-10-12T08:00:00Z");
 
-describe("Perplexity provider", () => {
-  it("searches the web through the Agent API with nothing but the query", async () => {
+describe("Perplexity provider (Search API)", () => {
+  it("searches through the Search API with the query, the fast search type and 20 results, no LLM", async () => {
     const { fetch, requests } = fakeFetch(perplexityReply);
     const provider = createPerplexityProvider({ apiKey: "pk", fetch });
 
@@ -354,59 +355,34 @@ describe("Perplexity provider", () => {
 
     expect(provider.residency).toBe("outside_eu");
     expect(provider.generate).toBeUndefined();
-    expect(requests[0]!.url).toBe("https://api.perplexity.ai/v1/responses");
+    expect(requests[0]!.url).toBe("https://api.perplexity.ai/search");
     expect(requests[0]!.headers.get("authorization")).toBe("Bearer pk");
-    expect(requests[0]!.body).toEqual({
-      preset: "fast",
-      input: "Offre d'emploi « DAF » à Lyon",
-      tools: [{ type: "web_search" }],
-      max_output_tokens: 2048,
-      store: false,
-    });
+    expect(requests[0]!.body).toEqual({ query: "Offre d'emploi « DAF » à Lyon", search_type: "fast", max_results: 20 });
   });
 
-  it("returns the answer, its sources (search results, then cited pages, each once) and the token usage", async () => {
+  it("maps the results to sources (each once), lists them in the answer, and bills one search, no tokens", async () => {
     const { fetch } = fakeFetch(perplexityReply);
 
     const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
 
     expect(output).toEqual({
-      answer: "Deux offres de DAF en CDI à Lyon : Acme Industrie [1] et un groupe industriel [2]. Les deux sont publiées depuis moins de deux semaines.",
+      answer:
+        "DAF H/F - CDI - Lyon | Acme Industrie\nhttps://carrieres.acme-industrie.example/offres/daf-lyon\nAcme Industrie recrute son Directeur administratif et financier (H/F) en CDI à Lyon.\n\n" +
+        "Directeur financier H/F\nhttps://www.cadremploi.example/emploi/daf-lyon-123\nGroupe industriel lyonnais, poste de DAF rattaché au Président.\n\n" +
+        "Offre DAF Lyon\nhttps://www.apec.example/offre/daf-lyon-456\nDirecteur administratif et financier, Lyon.",
       sources: [
         "https://carrieres.acme-industrie.example/offres/daf-lyon",
         "https://www.cadremploi.example/emploi/daf-lyon-123",
         "https://www.apec.example/offre/daf-lyon-456",
       ],
       sourceDates: expect.any(Object),
-      model: "openai/gpt-6-luna",
-      usage: { inputTokens: 812, outputTokens: 64 },
+      model: "fast",
+      usage: { inputTokens: 0, outputTokens: 0 },
       tools: [{ name: "web_search", count: 1 }],
     });
   });
 
-  it("says which pages the model fetched (fetch_url), and whether each fetch succeeded when the response says", async () => {
-    const fetched = (status?: string) => ({ type: "fetch_url_results", ...(status ? { status } : {}), contents: [{ url: "https://acme.example/jobs" }] });
-    const { fetch } = fakeFetch({ ...perplexityReply, output: [fetched("completed"), fetched("completed"), fetched("failed"), ...perplexityReply.output] });
-
-    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
-
-    expect(output.tools).toEqual([
-      { name: "web_search", count: 1 },
-      { name: "fetch_url", count: 2, ok: true },
-      { name: "fetch_url", count: 1, ok: false },
-    ]);
-  });
-
-  it("says how many web searches the model made: one per block of search results", async () => {
-    const searchResults = perplexityReply.output.find((item: { type: string }) => item.type === "search_results");
-    const { fetch } = fakeFetch({ ...perplexityReply, output: [searchResults, searchResults, ...perplexityReply.output] });
-
-    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
-
-    expect(output.tools).toEqual([{ name: "web_search", count: 3 }]);
-  });
-
-  it("dates the search results Perplexity gives a publication date (not their last update) for the freshness rule (#116)", async () => {
+  it("dates a result by its publication date, else by its last update (a weaker date), else not at all (#116)", async () => {
     const { fetch } = fakeFetch(perplexityReply);
 
     const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
@@ -417,32 +393,85 @@ describe("Perplexity provider", () => {
     });
   });
 
-  describe("narrowing a search with the web_search tool's own filters", () => {
-    const toolOf = async (options: Parameters<NonNullable<ReturnType<typeof createPerplexityProvider>["search"]>>[1]) => {
+  it("sends up to 5 queries in one call, billed as one search", async () => {
+    const { fetch, requests } = fakeFetch(perplexityReply);
+    const provider = createPerplexityProvider({ apiKey: "pk", fetch });
+
+    const output = await provider.search!(["DAF Lyon", "CFO Lyon", "Directeur financier Lyon"], {});
+
+    expect(provider.searchContract?.queriesPerCall).toBe(5);
+    expect(requests[0]!.body).toMatchObject({ query: ["DAF Lyon", "CFO Lyon", "Directeur financier Lyon"] });
+    expect(output.tools).toEqual([{ name: "web_search", count: 1 }]);
+    await expect(provider.search!(["1", "2", "3", "4", "5", "6"], {})).rejects.toThrow(/at most 5 queries/);
+  });
+
+  it("reads the results of several queries whether they come flat or grouped per query", async () => {
+    const [first, second] = perplexityReply.results;
+    const { fetch } = fakeFetch({ id: "x", results: [[first], [second]] });
+
+    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!(["a", "b"], {});
+
+    expect(output.sources).toEqual([first.url, second.url]);
+  });
+
+  it("asks for fewer queries per call, and the web search type, when its settings say so", async () => {
+    const { fetch, requests } = fakeFetch(perplexityReply);
+    const provider = createPerplexityProvider({ apiKey: "pk", fetch, searchType: "web", queriesPerCall: 2 });
+
+    const output = await provider.search!("q", {});
+
+    expect(provider.searchContract?.queriesPerCall).toBe(2);
+    expect(provider.defaultModel).toBe("web");
+    expect(requests[0]!.body).toMatchObject({ search_type: "web" });
+    expect(output.model).toBe("web");
+  });
+
+  it("takes a route's model as its search type (fast or web)", async () => {
+    const { fetch, requests } = fakeFetch(perplexityReply);
+    const provider = createPerplexityProvider({ apiKey: "pk", fetch });
+
+    await provider.search!("q", { model: "web" });
+
+    expect(provider.models).toEqual(["fast", "web"]);
+    expect(requests[0]!.body).toMatchObject({ search_type: "web" });
+  });
+
+  it("gives one page of results: it has no offset", () => {
+    expect(createPerplexityProvider({ apiKey: "pk" }).searchContract?.maxPages).toBe(1);
+  });
+
+  describe("narrowing a search with the Search API's own filters", () => {
+    const bodyOf = async (filters: Parameters<NonNullable<ReturnType<typeof createPerplexityProvider>["search"]>>[1]["filters"]) => {
       const { fetch, requests } = fakeFetch(perplexityReply);
-      await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", options);
-      return (requests[0]!.body as { tools: unknown[] }).tools[0];
+      await createPerplexityProvider({ apiKey: "pk", fetch, now: today }).search!("q", { filters });
+      return requests[0]!.body;
     };
 
-    it("excludes domains, keeps to a recency window and favours a country", async () => {
-      expect(await toolOf({ filters: { excludeDomains: ["linkedin.com", " indeed.fr "], maxAgeDays: 30, country: "FR" } })).toEqual({
-        type: "web_search",
-        filters: { search_domain_filter: ["-linkedin.com", "-indeed.fr"], search_recency_filter: "month" },
-        user_location: { country: "FR" },
+    it("declares every filter handled", () => {
+      expect(createPerplexityProvider({ apiKey: "pk" }).searchContract?.filters).toEqual({
+        includeDomains: "handled",
+        excludeDomains: "handled",
+        country: "handled",
+        maxAgeDays: "handled",
+        maxResults: "handled",
       });
     });
 
-    it("restricts to included domains alone: Perplexity cannot mix them with exclusions", async () => {
-      expect(await toolOf({ filters: { includeDomains: ["apec.fr", "cadremploi.fr"], excludeDomains: ["indeed.fr"] } })).toEqual({
-        type: "web_search",
-        filters: { search_domain_filter: ["apec.fr", "cadremploi.fr"] },
+    it("excludes domains, keeps to a recency window, sends a country code and a result count", async () => {
+      expect(await bodyOf({ excludeDomains: ["linkedin.com", " indeed.fr "], maxAgeDays: 30, country: "fr", maxResults: 10 })).toEqual({
+        query: "q",
+        search_type: "fast",
+        max_results: 10,
+        search_domain_filter: ["-linkedin.com", "-indeed.fr"],
+        search_recency_filter: "month",
+        country: "FR",
       });
     });
 
-    it("keeps to Perplexity's 20 domains", async () => {
+    it("keeps to Perplexity's 20 results and 20 domains", async () => {
       const domains = Array.from({ length: 25 }, (_, index) => `site${index}.fr`);
-      const tool = (await toolOf({ filters: { excludeDomains: domains } })) as { filters: { search_domain_filter: string[] } };
-      expect(tool.filters.search_domain_filter).toEqual(domains.slice(0, 20).map((domain) => `-${domain}`));
+      const body = await bodyOf({ excludeDomains: domains, maxResults: 50 });
+      expect(body).toMatchObject({ max_results: 20, search_domain_filter: domains.slice(0, 20).map((domain) => `-${domain}`) });
     });
 
     it.each([
@@ -452,57 +481,28 @@ describe("Perplexity provider", () => {
       [31, "month"],
       [200, "year"],
     ])("widens a %i-day freshness window to Perplexity's %s", async (maxAgeDays, recency) => {
-      expect(await toolOf({ filters: { maxAgeDays } })).toEqual({ type: "web_search", filters: { search_recency_filter: recency } });
+      expect(await bodyOf({ maxAgeDays })).toMatchObject({ search_recency_filter: recency });
     });
 
     it("applies no recency filter to a window longer than a year", async () => {
-      expect(await toolOf({ filters: { maxAgeDays: 400 } })).toEqual({ type: "web_search" });
+      expect(await bodyOf({ maxAgeDays: 400 })).not.toHaveProperty("search_recency_filter");
+    });
+
+    it("sends included domains alone (it cannot mix them with exclusions) and drops the excluded ones from what it returns", async () => {
+      const { fetch, requests } = fakeFetch(perplexityReply);
+
+      const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {
+        filters: { includeDomains: ["acme-industrie.example", "cadremploi.example"], excludeDomains: ["carrieres.acme-industrie.example"] },
+      });
+
+      expect(requests[0]!.body).toMatchObject({ search_domain_filter: ["acme-industrie.example", "cadremploi.example"] });
+      expect(output.sources).toEqual(["https://www.cadremploi.example/emploi/daf-lyon-123", "https://www.apec.example/offre/daf-lyon-456"]);
     });
   });
 
-  it("gives a further page of results by asking for more of them (it has no offset), up to 5 pages of 10", async () => {
-    const { fetch, requests } = fakeFetch(perplexityReply);
-    const provider = createPerplexityProvider({ apiKey: "pk", fetch });
-
-    await provider.search!("q", { page: 2 });
-    await provider.search!("q", { page: 5 });
-
-    expect(provider.searchPages).toBe(5);
-    expect(requests.map((request) => (request.body as { tools: unknown[] }).tools[0])).toEqual([
-      { type: "web_search", max_results: 20 },
-      { type: "web_search", max_results: 50 },
-    ]);
-  });
-
-  it("uses the configured model (provider/model) on top of the preset", async () => {
-    const { fetch, requests } = fakeFetch(perplexityReply);
-    await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", { model: "perplexity/sonar" });
-    expect(requests[0]!.body).toMatchObject({ preset: "fast", model: "perplexity/sonar" });
-  });
-
-  it("raises a provider error when the search did not complete, even on HTTP 200", async () => {
-    const { fetch } = fakeFetch({ ...perplexityReply, status: "failed", output: [], error: { code: "search_failed", message: "Search failed" } });
-    await expect(createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {})).rejects.toMatchObject({
-      name: "AiProviderError",
-      provider: "perplexity",
-      message: expect.stringContaining("Search failed"),
-    });
-  });
-
-  it("raises a provider error on an HTTP failure, such as the retired endpoint's 403", async () => {
-    const { fetch } = fakeFetch({ error: { code: "chat_completions_not_available", message: "Use /v1/responses" } }, 403);
-    await expect(createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {})).rejects.toMatchObject({ provider: "perplexity", status: 403 });
-  });
-
-  it.skipIf(!existsSync(recordedReplyUrl))("reads the answer, sources and usage of a reply recorded from the live API", async () => {
-    const { fetch } = fakeFetch(JSON.parse(readFileSync(recordedReplyUrl, "utf8")));
-
-    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
-
-    expect(output.answer.trim()).not.toBe("");
-    expect(output.sources.length).toBeGreaterThan(0);
-    expect(output.usage.inputTokens).toBeGreaterThan(0);
-    expect(output.usage.outputTokens).toBeGreaterThan(0);
+  it("raises a provider error on an HTTP failure, with its status (e.g. 429)", async () => {
+    const { fetch } = fakeFetch({ error: { message: "rate limited" } }, 429);
+    await expect(createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {})).rejects.toMatchObject({ name: "AiProviderError", provider: "perplexity", status: 429 });
   });
 
   it("raises a provider error when a 200 response is not JSON", async () => {
@@ -511,5 +511,14 @@ describe("Perplexity provider", () => {
       provider: "perplexity",
       status: 200,
     });
+  });
+
+  it.skipIf(!existsSync(recordedReplyUrl))("reads the sources of a reply recorded from the live API", async () => {
+    const { fetch } = fakeFetch(JSON.parse(readFileSync(recordedReplyUrl, "utf8")));
+
+    const output = await createPerplexityProvider({ apiKey: "pk", fetch }).search!("q", {});
+
+    expect(output.sources.length).toBeGreaterThan(0);
+    for (const source of output.sources) expect(source).toMatch(/^https?:\/\//);
   });
 });

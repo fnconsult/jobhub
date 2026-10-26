@@ -42,6 +42,8 @@ export interface WorkerClientsOptions {
   production: boolean;
   jobOffers: JobDiscoveryOptions["jobOffers"];
   budget?: JobDiscoveryOptions["budget"];
+  /** How Job discovery searches the web (#402), read at the start of each run. */
+  search?: JobDiscoveryOptions["search"];
   /** The Job discovery sources and sites set in the Back Office (#188), read at the start of each run. */
   settings?: JobDiscoveryOptions["settings"];
   /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
@@ -123,7 +125,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       log(`[worker] Job discovery is unavailable: ${error.message}`);
       return { unavailable: error.message };
     }
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, search: options.search, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 
   // Rebuilt when Brevo's key or MAIL_FROM changes in the Back Office. Each email sent is recorded with the other

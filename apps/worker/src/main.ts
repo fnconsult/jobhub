@@ -19,7 +19,7 @@ import { createSearchSites } from "@jobhub/web/search-sites";
 import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
 import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
 import { Pool } from "pg";
-import { jobDiscoveryBudgetFromEnv } from "./job-discovery";
+import { jobDiscoveryBudgetFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createJobs, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
@@ -48,6 +48,7 @@ const platformSettings = watchPlatformSettings({ database, env: process.env });
 await platformSettings.ready;
 const settingsEnv = () => platformSettings.resolver.current().env;
 jobDiscoveryBudgetFromEnv(settingsEnv());
+webSearchSettingsFromEnv(settingsEnv());
 jobDigestsConfigFromEnv(settingsEnv());
 
 const profiles = createProfiles(database);
@@ -74,6 +75,8 @@ const worker = workerClients({
   production: process.env.NODE_ENV === "production",
   jobOffers,
   budget: () => jobDiscoveryBudgetFromEnv(settingsEnv()),
+  // The web search's settings on Paramètres' Recherche web tab (#402): country, age, results per query, job titles, languages.
+  search: () => webSearchSettingsFromEnv(settingsEnv()),
   // The Job discovery sources and sites Administrators set in the Back Office, read at the start of each run.
   settings: () => searchSites.jobDiscoverySettings(),
   // The web searches name the Sectors wanted by their labels.

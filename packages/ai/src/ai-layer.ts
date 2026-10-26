@@ -1,6 +1,6 @@
 import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type Outcome, type SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
-import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
@@ -161,6 +161,8 @@ export interface JobSearchPlanRequest {
   instructions?: JobSearchInstructions;
   /** The web-search provider its searches will go to (`SearchRequest.route`), for how far they page; default: the configured one. */
   route?: Route;
+  /** How many job titles per language, and which languages (the web search's Platform Settings, #402); default: 3, in French and English. */
+  shape?: JobSearchShape;
 }
 
 /**
@@ -785,7 +787,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const layer: AiLayer = {
     generate: (request) => generateAs(request, request.task),
 
-    async planJobSearch({ candidateId, criteria, instructions, route }) {
+    async planJobSearch({ candidateId, criteria, instructions, route, shape }) {
       const contract = searchContractOf(searchProvider(route).provider);
       const pages = Math.max(1, contract.maxPages);
       const queriesPerCall = Math.max(1, contract.queriesPerCall);
@@ -810,7 +812,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, queriesPerCall, call };
+      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings, shape), pages, queriesPerCall, call };
     },
 
     async searchWeb(request) {

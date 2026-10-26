@@ -51,9 +51,12 @@ export function believablePostingDate(date: Date | undefined, now: Date): Date |
   return date.getTime() >= EARLIEST && date.getTime() <= now.getTime() + DAY_MS ? date : undefined;
 }
 
-/** Whether a posting first published at `postedAt` is more than MAX_POSTING_AGE_DAYS old at `now`. Undated: never. */
-export function isPostingTooOld(postedAt: Date | undefined, now: Date): boolean {
-  return postedAt !== undefined && now.getTime() - postedAt.getTime() > MAX_POSTING_AGE_DAYS * DAY_MS;
+/**
+ * Whether a posting first published at `postedAt` is more than `maxAgeDays` old at `now`: MAX_POSTING_AGE_DAYS by
+ * default, else the web search's setting (#402). Undated: never.
+ */
+export function isPostingTooOld(postedAt: Date | undefined, now: Date, maxAgeDays: number = MAX_POSTING_AGE_DAYS): boolean {
+  return postedAt !== undefined && now.getTime() - postedAt.getTime() > maxAgeDays * DAY_MS;
 }
 
 /** A Job Offer as Job Search results and Job Digests list it: with its Match Score. */

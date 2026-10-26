@@ -100,7 +100,6 @@ import {
   isOnDomain,
   isPostingTooOld,
   joinProvenance,
-  MAX_POSTING_AGE_DAYS,
   NO_INDUSTRY_REFERENCE,
   type DiscoveryMetrics,
   type IndustryReference,
@@ -116,6 +115,7 @@ import {
 } from "@jobhub/shared";
 import { atsToolOf, readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
+import { DEFAULT_WEB_SEARCH_SETTINGS, type WebSearchSettings } from "./search-settings";
 import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
 import { listingPageLinks } from "./listing-page";
@@ -137,6 +137,7 @@ import {
 
 export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
+export { DEFAULT_WEB_SEARCH_SETTINGS, webSearchSettingsFromEnv, type WebSearchSettings } from "./search-settings";
 export type { RefusalReason } from "@jobhub/shared/page-reading";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
 export { chargedCostEur, eurPerJobFromEnv, fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
@@ -169,6 +170,12 @@ export interface JobDiscoveryOptions {
    * each run: the worker's follows its Platform Settings, so a change applies to the next run (#299).
    */
   budget?: Partial<JobDiscoveryBudget> | (() => Partial<JobDiscoveryBudget>);
+  /**
+   * How the run searches the web (#402): the country favoured, the oldest posting kept, the results per query, the job
+   * titles per language and the languages; what it leaves out is DEFAULT_WEB_SEARCH_SETTINGS'. A getter is asked on each
+   * run: the worker's follows its Platform Settings, so a change applies to the next run.
+   */
+  search?: Partial<WebSearchSettings> | (() => Partial<WebSearchSettings>);
   /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
   /**
@@ -263,9 +270,6 @@ export interface JobDiscovery {
   discover(request: DiscoverRequest): Promise<DiscoveryReport>;
 }
 
-/** Job Searches look for jobs in France: the provider favours French pages. */
-const SEARCH_COUNTRY = "FR";
-
 export { DEFAULT_USER_AGENT } from "@jobhub/shared/page-reading";
 
 /**
@@ -330,16 +334,19 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const clock = options.clock ?? realClock;
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
   const forbiddenSites: readonly string[] = options.forbiddenSites ?? FORBIDDEN_SITES;
-  /**
-   * What each web search asks of the provider, where it can: no forbidden site (none could be read,
-   * and most are listing pages, #105), postings of the last 30 days (older ones are dropped), in France.
-   */
-  const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: SEARCH_COUNTRY };
 
   return {
     async discover({ candidateId, criteria, onEvent, signal }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
+      const web: WebSearchSettings = { ...DEFAULT_WEB_SEARCH_SETTINGS, ...(typeof options.search === "function" ? options.search() : options.search) };
+      /**
+       * What each web search asks of the provider, where it can: no forbidden site (none could be read, and most are
+       * listing pages, #105), postings of the last 30 days by default (older ones are dropped), in France by default,
+       * and as many results as the web search's settings say (#402).
+       */
+      const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: web.maxPostingAgeDays, country: web.country, maxResults: web.resultsPerQuery };
+      const tooOld = (postedAt: Date | undefined, now: Date) => isPostingTooOld(postedAt, now, web.maxPostingAgeDays);
       const settings = await readSettings(options.settings);
       const industries = await readIndustries(options.industries);
       const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;
@@ -418,7 +425,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
        * date is now more than 30 days ago: the freshness rule holds for every Job Offer a Job Search finds, stored or not.
        */
       const alreadyStored = (url: string, jobOffer: JobOffer) => {
-        if (isPostingTooOld(jobOffer.postedAt, new Date(clock.now()))) {
+        if (tooOld(jobOffer.postedAt, new Date(clock.now()))) {
           skipped.push({ url, reason: "too_old" });
           return;
         }
@@ -437,7 +444,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const now = new Date(clock.now());
         const { postedAt: stated, summary, sector, subsector, ...untrusted } = details;
         const postedAt = believablePostingDate(stated, now) ?? believablePostingDate(searchDate, now);
-        if (isPostingTooOld(postedAt, now)) {
+        if (tooOld(postedAt, now)) {
           skipped.push({ url, reason: "too_old" });
           return;
         }
@@ -454,7 +461,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         };
         const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", trusted);
         if (!captured.ok) skipped.push({ url, reason: "invalid" });
-        else if (isPostingTooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
+        else if (tooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
         else found.set(captured.jobOffer.id, captured.jobOffer);
       };
 
@@ -478,7 +485,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         // when that API cannot be read, its page is read below like any other.
         const reading = recording();
         const atsTool = settings.sources.ats_apis ? atsToolOf(url) : null;
-        const ats = atsTool ? await reading.step({ tool: atsTool }, () => readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()) })) : null;
+        const ats = atsTool ? await reading.step({ tool: atsTool }, () => readAtsPosting(url, { fetchJson: fetchAtsJson, now: new Date(clock.now()), maxAgeDays: web.maxPostingAgeDays })) : null;
         if (ats) {
           if (!ats.ok) {
             skipped.push({ url, reason: ats.reason });
@@ -569,6 +576,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           },
           // Its searches go to the web-search provider the task Playbook names (else the configured one): paged as it pages.
           route: queryWording.searchRoute,
+          // As many job titles per language, in the languages, the web search's settings say (#402).
+          shape: { titlesPerLanguage: web.titlesPerLanguage, languages: web.queryLanguages },
         });
         // The plan's queries go in as few calls as the provider takes; each Job discovery site is searched on purpose
         // too: the plan's first query, restricted to it.

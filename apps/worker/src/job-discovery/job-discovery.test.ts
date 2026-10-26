@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FantasticJobs, FantasticJobsSearch } from "./fantastic-jobs";
 import type { FranceTravail, FranceTravailSearch } from "./france-travail";
-import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
+import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore, type WebSearchSettings } from "./index";
 
 /** Serves, for each id given, that text as version 2 with no Playbook Agent, searching where it says (none: the configured route); nothing for any other id. */
 const servedTasks =
@@ -123,6 +123,8 @@ function setup(options: {
   industries?: () => Promise<IndustryReference>;
   /** Each web search waits for its signal to abort (#331). */
   searchPending?: boolean;
+  /** The web search's settings (#402). Default: the code's. */
+  search?: Partial<WebSearchSettings> | (() => Partial<WebSearchSettings>);
 }) {
   const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending, fail: options.searchFails });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
@@ -136,7 +138,7 @@ function setup(options: {
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, fantasticJobs: options.fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, fantasticJobs: options.fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, search: options.search });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -250,8 +252,26 @@ describe("Job discovery", () => {
         "Offre d'emploi « DAF » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
       ]);
       expect(search.searches.map((s) => s.filters)).toEqual(
-        Array(3).fill({ excludeDomains: ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"], maxAgeDays: 30, country: "FR" }),
+        Array(3).fill({ excludeDomains: ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"], maxAgeDays: 30, country: "FR", maxResults: 20 }),
       );
+    });
+
+    it("searches as the web search's settings say, read at the start of each run: country, age, results, job titles and languages (#402)", async () => {
+      let settings: Partial<WebSearchSettings> = { country: "BE", maxPostingAgeDays: 14, resultsPerQuery: 8, titlesPerLanguage: 1, queryLanguages: ["fr"] };
+      const { discovery, search } = setup({ sources: [], pages: {}, titles, search: () => settings });
+
+      await discovery.discover({ candidateId: "candidate-1", criteria });
+
+      expect(search.queries).toEqual(["Offre d'emploi « Directeur financier » à Lyon, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel"]);
+      expect(search.searches.map((s) => s.filters)).toEqual([
+        { excludeDomains: ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"], maxAgeDays: 14, country: "BE", maxResults: 8 },
+      ]);
+
+      // Changed between two runs: the next one follows.
+      settings = { resultsPerQuery: 5, queryLanguages: ["en"], titlesPerLanguage: 1 };
+      await discovery.discover({ candidateId: "candidate-1", criteria });
+      expect(search.searches.at(-1)!.filters).toMatchObject({ maxResults: 5, country: "FR", maxAgeDays: 30 });
+      expect(search.queries.at(-1)).toMatch(/^Job offer "Chief Financial Officer"/);
     });
 
     it("searches a query's next page only while its last page gave a new readable posting", async () => {
@@ -1020,6 +1040,20 @@ describe("Job discovery", () => {
         { title: "DAF sans date", postedAt: undefined },
       ]);
       expect(report.skipped).toEqual([{ url: OLD, reason: "too_old" }]);
+    });
+
+    it("drops a posting older than the maximum age the web search's settings say (#402)", async () => {
+      const { discovery } = setup({
+        sources: [RECENT, UNDATED],
+        pages: { [RECENT]: posting("DAF récent", { datePosted: "2026-09-20" }), [UNDATED]: posting("DAF sans date") },
+        now: NOW,
+        search: { maxPostingAgeDays: 3 },
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(report.jobOffers.map(({ title }) => title)).toEqual(["DAF sans date"]);
+      expect(report.skipped).toEqual([{ url: RECENT, reason: "too_old" }]);
     });
 
     it("takes the search provider's date for a page that states none, after the page's own", async () => {

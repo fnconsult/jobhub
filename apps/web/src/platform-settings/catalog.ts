@@ -181,6 +181,18 @@ export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetti
 }
 
 /**
+ * The Platform Setting `name` from `env`, else its code default, as its type parses it (a number, a choice, a country
+ * code…). A value the setting does not take throws, naming it.
+ */
+export function readSetting(env: Record<string, string | undefined>, name: string): string | number | boolean {
+  const setting = platformSetting(name);
+  if (!setting) throw new Error(`${name} is not a Platform Setting`);
+  const parsed = parseSetting(setting, env[name]?.trim() || setting.default);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.value;
+}
+
+/**
  * The number setting `name` from `env`, else its code default: how the Job Digest's and Job
  * discovery's env readers read theirs. A value the setting does not take throws, naming it.
  */

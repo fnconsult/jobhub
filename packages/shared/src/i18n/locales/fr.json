@@ -228,6 +228,7 @@
       "signIn": "Connexion",
       "preferences": "Préférences",
       "tools": "Outils",
+      "signalements": "Mes signalements",
       "data": "Mes données",
       "reminders": "Rappels"
     },
@@ -3353,6 +3354,49 @@
       "nothingElse": "Rien d'autre de la conversation.",
       "yourQuestion": "Votre question au coach",
       "coachReply": "Réponse du coach (IA)"
-    }
+    },
+    "seeMine": "Voir mes signalements"
+  },
+  "mySignalements": {
+    "title": "Mes signalements",
+    "intro": "Les bugs, idées et questions que vous avez envoyés à l'équipe Jobbbox, les plus récents d'abord, avec la réponse de l'équipe.",
+    "listLabel": "Vos signalements, les plus récents d'abord",
+    "empty": "Vous n'avez envoyé aucun signalement",
+    "emptyHint": "Un problème, une idée ? L'équipe Jobbbox lit chaque signalement.",
+    "reportProblem": "Signaler un problème",
+    "proposeIdea": "Proposer une idée",
+    "types": {
+      "bug": "Bug",
+      "idee": "Idée",
+      "question": "Question"
+    },
+    "heading": "{{type}} du {{date}}",
+    "status": "Statut : {{status}}",
+    "statuses": {
+      "nouveau": "Envoyé",
+      "vu": "Lu par l'équipe",
+      "traite": "Traité"
+    },
+    "attached": "Ce qui a été joint",
+    "attachedQuestion": "Votre question au coach",
+    "attachedCoachReply": "Réponse du coach",
+    "reply": "Réponse de l'équipe Jobbbox",
+    "repliedOn": "Le {{date}}",
+    "changedOn": "modifiée le {{date}}",
+    "delete": "Supprimer",
+    "deleteLabel": "Supprimer : {{heading}}",
+    "confirmDelete": "Supprimer ce signalement ? L'équipe Jobbbox ne le verra plus, et cela ne s'annule pas.",
+    "confirm": "Oui, supprimer",
+    "keep": "Non, garder",
+    "deleting": "Suppression…",
+    "deleteFailed": "La suppression n'a pas abouti. Réessayez.",
+    "deleted": "Signalement supprimé."
+  },
+  "signalementNotifications": {
+    "label": "Réponses à vos signalements",
+    "replied": "L'équipe Jobbbox a répondu à votre signalement du {{date}}",
+    "handled": "Votre signalement du {{date}} est traité",
+    "see": "Voir",
+    "dismiss": "Fermer"
   }
 }

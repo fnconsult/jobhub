@@ -2537,27 +2537,37 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 /* Job Search notifications: a finished Job Search, atop every workspace page,
-   aligned with the page's content column (.page). Said in words; the border only reinforces it. */
-.job-search-notifications {
+   aligned with the page's content column (.page). Said in words; the border only reinforces it.
+   Signalement notifications (#377) follow the same pattern. */
+.job-search-notifications,
+.signalement-notifications {
   width: calc(100% - 2 * var(--space-4));
   max-width: calc(44rem - 2 * var(--space-4));
   margin: 0 auto;
 }
 
 /* Its buttons reach the 44px floor (ADR-0009), links as well as buttons. */
-.job-search-notification .button {
+.job-search-notification .button,
+.signalement-notification .button {
   display: inline-flex;
   align-items: center;
   min-height: var(--control-height);
 }
 
-.workspace .job-search-notifications {
+.workspace .job-search-notifications,
+.workspace .signalement-notifications {
   width: auto;
   max-width: none;
   margin: 0 0 var(--space-6);
 }
 
-.job-search-notifications ul {
+/* While none is shown, the live region stays but takes no room. */
+.workspace .signalement-notifications:empty {
+  margin: 0;
+}
+
+.job-search-notifications ul,
+.signalement-notifications ul {
   display: grid;
   gap: var(--space-3);
   margin: var(--space-4) 0 0;
@@ -2565,11 +2575,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   list-style: none;
 }
 
-.job-search-notification p {
+.job-search-notification p,
+.signalement-notification p {
   margin: 0 0 var(--space-2);
 }
 
-.job-search-notification-done {
+.job-search-notification-done,
+.signalement-notification {
   border-left: 4px solid var(--color-accent);
 }
 
@@ -4678,4 +4690,70 @@ textarea.title-edit {
 
 .help-card-feedback p {
   flex-basis: 100%;
+}
+
+/* « Mes signalements » (#377): the Candidate's Signalements, newest first, each a card with its type (icon and word),
+   date, status and message, a Question's attachments collapsed, and the team's reply set off by an accent rule. */
+.my-signalements-status {
+  margin: 0;
+}
+
+.my-signalement-list {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-signalement {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.my-signalement h3,
+.my-signalement h4,
+.my-signalement p {
+  margin: 0;
+}
+
+.my-signalement-heading {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.my-signalement-attached summary {
+  min-height: var(--control-height);
+  line-height: var(--control-height);
+  cursor: pointer;
+}
+
+.my-signalement-attached dl {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.my-signalement-attached dt {
+  font-weight: 600;
+}
+
+.my-signalement-attached dd {
+  margin: 0 0 var(--space-2);
+}
+
+.my-signalement-reply {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: var(--space-3);
+  border-left: 4px solid var(--color-accent);
+}
+
+.my-signalement-reply .signalement-meta {
+  white-space: normal;
 }

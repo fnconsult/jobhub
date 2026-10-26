@@ -5,6 +5,7 @@ import { CandidateCoachPanel } from "@/components/CoachPanel";
 import { DocumentHead } from "@/design/document-head";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { jobbboxVersion } from "@/signalements/server";
 import "./app.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,7 +26,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       </head>
       <body>
         <I18nProvider locale={locale}>
-          {candidate ? <CandidateCoachPanel>{children}</CandidateCoachPanel> : children}
+          {candidate ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
         </I18nProvider>
       </body>
     </html>

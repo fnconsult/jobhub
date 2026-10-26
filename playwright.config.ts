@@ -15,7 +15,7 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // Sign-in emails land in E2E_SERVER_LOG (MAIL_TRANSPORT=console), and Google's
 // token endpoint is faked inside the server (e2e/support/fake-google.mjs), and so
 // is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs),
-// and so are the French company register and Perplexity's web search behind
+// and so are the French company register and Perplexity's and Brave's web searches behind
 // Company Dossiers (e2e/support/fake-company-sources.mjs), and so is Apollo, the
 // contact-data provider behind Enriched Contacts (e2e/support/fake-contact-provider.mjs), and so is
 // the careers site of a Job Offer link pasted in the Coach Panel (e2e/support/fake-coach-link-sites.mjs), and so is
@@ -125,7 +125,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test,company-facts-office@e2e.jobbbox.test",
       // Provider Secrets (#208): an obviously fake master key, for the providers' sheets in Paramètres (#396).
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
@@ -140,8 +140,10 @@ export default defineConfig({
       // Nor France Travail's: its access spec (#400) enters them on its sheet in Paramètres, its fake token endpoint answering.
       FRANCE_TRAVAIL_CLIENT_ID: "",
       FRANCE_TRAVAIL_CLIENT_SECRET: "",
-      // Nor Brave's, whatever the shell has: the Outils spec shows a key missing with it.
-      BRAVE_SEARCH_API_KEY: "",
+      // Brave's, faked: the company-facts-search Task Playbook may name it as its search provider (#405).
+      BRAVE_SEARCH_API_KEY: "e2e-brave-key",
+      // Nor Tavily's, whatever the shell has: the Outils and Paramètres specs show a key missing with it.
+      TAVILY_API_KEY: "",
       CONTACT_ENRICHMENT_DPA_SIGNED: "true",
     },
   },

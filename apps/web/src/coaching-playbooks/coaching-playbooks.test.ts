@@ -319,7 +319,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
       const old = await createThrowawayDatabase("test_task_playbooks_later");
       try {
         // Production before #405: version 1 alone, Human-validated.
-        await migrateCoachingPlaybooks(old.pool, () => ({ ...SEED, tasks: SEED.tasks.map(({ later: _, ...task }) => task) }));
+        await migrateCoachingPlaybooks(old.pool, () => ({ ...SEED, tasks: SEED.tasks.map((task) => ({ ...task, later: [] })) }));
         const after = createCoachingPlaybooks(old.pool, { serving: "latest", agentModels: () => MODELS, searchModels: () => SEARCH_MODELS, evalRunOn: async () => true });
         expect((await after.history("company-facts-search"))?.versions.map((version) => version.version)).toEqual([1]);
 

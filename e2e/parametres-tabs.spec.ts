@@ -10,7 +10,7 @@ import { newAddress } from "./support/mailbox";
 // key on its provider's sheet, a side panel), Connexion (its tab) and Sites de recherche (Sources, Recherche web,
 // Extension), whose old addresses redirect. The keys changed here are Kaspr's, which nothing else in the suite uses (the
 // fake Kaspr accepts keys starting e2e-kaspr-valid-, e2e/support/fake-contact-provider.mjs); the web search provider
-// made active is Brave, whose key the suite's server lacks.
+// made active is Tavily, whose key the suite's server lacks.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
@@ -171,9 +171,9 @@ test.describe("Paramètres in tabs (#396)", () => {
   test("« Rendre actif » a web search provider without its key warns first; the attempt is recorded", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(`${PATH}?tab=recherche-web`);
-    const brave = page.locator('tr[data-provider="brave"]');
-    await expect(brave).toContainText(texts.providers.keyMissing);
-    const makeActive = brave.getByRole("button", { name: `${texts.providers.makeActive} : Brave Search` });
+    const tavily = page.locator('tr[data-provider="tavily"]');
+    await expect(tavily).toContainText(texts.providers.keyMissing);
+    const makeActive = tavily.getByRole("button", { name: `${texts.providers.makeActive} : Tavily` });
     await expect(makeActive).toHaveAccessibleDescription(texts.providers.noKeyWarning);
     await makeActive.click();
 

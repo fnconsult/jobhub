@@ -40,7 +40,6 @@ export const TOOL_STEPS = {
   perplexity: "by_task",
   brave: "by_task",
   tavily: "by_task",
-  linkup: "by_task",
   "france-travail": "search",
   "fantastic-jobs": "search",
   greenhouse: "search",

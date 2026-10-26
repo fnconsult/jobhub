@@ -1,10 +1,10 @@
 # EU hosting and swappable AI providers
 
-CVs are sensitive personal data, and B2B outplacement buyers (ADR-0004) will check where data is stored. All data is stored in the EU. AI calls go through one provider-agnostic layer with adapters for Anthropic (Claude, the default), Mistral and OpenAI, and for web search Perplexity (the default), Brave, Tavily and Linkup.
+CVs are sensitive personal data, and B2B outplacement buyers (ADR-0004) will check where data is stored. All data is stored in the EU. AI calls go through one provider-agnostic layer with adapters for Anthropic (Claude, the default), Mistral and OpenAI, and for web search Perplexity (the default, its Search API), Brave and Tavily (Linkup dropped, ADR-0043).
 
 The rule for personal data (CVs, Profiles, Applications, Tailored Documents):
 - It is sent only to EU-resident endpoints: Claude through an EU region (AWS Bedrock eu-west-3 or Vertex AI EU), Mistral, or OpenAI with EU data residency.
-- The web search provider (Perplexity, Brave, Tavily or Linkup, ADR-0002) is used only for web search and receives only search queries built from Search Criteria or from an employer's name, never CV content or a person's name.
+- The web search provider (Perplexity, Brave or Tavily, ADR-0002) is used only for web search and receives only search queries built from Search Criteria or from an employer's name, never CV content or a person's name.
 
 ## Amendment: employer names in web search (issue #17)
 
@@ -19,7 +19,7 @@ What keeps this from carrying a person's name:
 
 ## Amendment: pluggable web search providers (issue #110)
 
-Web search can be served by Brave, Tavily or Linkup as well as Perplexity, chosen with `AI_WEB_SEARCH_PROVIDER` (Perplexity stays the default). We treat all of them as outside the EU: their data hosting was not established, so this decision does not rest on where they run. It rests on what they receive, which is the same as Perplexity: a query built only from Search Criteria (`buildSearchQuery`) or from an employer's name (`buildCompanyQuery`, see the amendment above), never Profile, CV or identity data. Sending such a query outside the EU does not move personal data there.
+Web search can be served by Brave or Tavily as well as Perplexity, chosen with `AI_WEB_SEARCH_PROVIDER` (Perplexity stays the default). We treat all of them as outside the EU: their data hosting was not established, so this decision does not rest on where they run. It rests on what they receive, which is the same as Perplexity: a query built only from Search Criteria (`buildSearchQuery`) or from an employer's name (`buildCompanyQuery`, see the amendment above), never Profile, CV or identity data. Sending such a query outside the EU does not move personal data there.
 
 What keeps it that way:
 - `searchWeb`, `searchCompany` and `searchCompanyNews` go through the single `web_search` route of the AI layer, and the layer builds the query itself: callers pass Search Criteria or an employer's name, never free text. Free-text fields are cleaned (no email or phone) and capped.

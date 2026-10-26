@@ -1,12 +1,11 @@
 /**
- * Contract tests of the search-only web search adapters (Brave, Tavily, Linkup).
+ * Contract tests of the Brave and Tavily Search provider adapters.
  * Every reply is a fixture: HAND-WRITTEN from each API reference (docs/research/issue-110.md),
  * or recorded by web-search.live.test.ts (…recorded.json, checked when present). No live call.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { createBraveProvider } from "./brave";
-import { createLinkupProvider } from "./linkup";
 import { createTavilyProvider } from "./tavily";
 
 interface Captured {
@@ -100,6 +99,53 @@ describe("Tavily provider", () => {
     expect(requests[0]!.body).not.toHaveProperty("filter_by_published_date");
   });
 
+  it("favours a country by its lowercase English name, which Tavily takes for general searches", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createTavilyProvider({ apiKey: "k", fetch });
+
+    await provider.search!(query, { filters: { country: "FR" } });
+    await provider.search!(query, { filters: { country: "gb" } });
+
+    expect(requests.map((request) => request.body)).toEqual([
+      expect.objectContaining({ country: "france", topic: "general" }),
+      expect.objectContaining({ country: "united kingdom", topic: "general" }),
+    ]);
+  });
+
+  it("sends no country it cannot name, rather than one Tavily would refuse", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+
+    await createTavilyProvider({ apiKey: "k", fetch }).search!(query, { filters: { country: "ZZ" } });
+
+    expect(requests[0]!.body).not.toHaveProperty("country");
+  });
+
+  it("asks for the result count the filter sets, up to Tavily's 20", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+
+    await createTavilyProvider({ apiKey: "k", fetch }).search!(query, { filters: { maxResults: 8 } });
+
+    expect(requests[0]!.body).toMatchObject({ max_results: 8 });
+  });
+
+  it("declares one query and one page a call, every filter handled", () => {
+    expect(createTavilyProvider({ apiKey: "k" }).searchContract).toEqual({
+      queriesPerCall: 1,
+      maxPages: 1,
+      filters: { includeDomains: "handled", excludeDomains: "handled", country: "handled", maxAgeDays: "handled", maxResults: "handled" },
+    });
+  });
+
+  it("takes its depth setting as the depth a route naming none gets", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+    const provider = createTavilyProvider({ apiKey: "k", fetch, depth: "advanced" });
+
+    await provider.search!(query, {});
+
+    expect(provider.defaultModel).toBe("advanced");
+    expect(requests[0]!.body).toMatchObject({ search_depth: "advanced" });
+  });
+
   it("raises a provider error on an HTTP failure, such as a spent plan (432)", async () => {
     const { fetch } = fakeFetch({ detail: { error: "Plan limit exceeded" } }, 432);
     await expect(createTavilyProvider({ apiKey: "k", fetch }).search!(query, {})).rejects.toMatchObject({
@@ -112,69 +158,6 @@ describe("Tavily provider", () => {
   it.skipIf(!existsSync(recordedUrl("tavily-search")))("reads the sources of a reply recorded from the live API", async () => {
     const { fetch } = fakeFetch(fixture("tavily-search.recorded"));
     const output = await createTavilyProvider({ apiKey: "k", fetch }).search!(query, {});
-    expect(output.sources.length).toBeGreaterThan(0);
-  });
-});
-
-describe("Linkup provider", () => {
-  const reply = fixture("linkup-search");
-
-  it("asks for search results with nothing but the query, its key and the result count", async () => {
-    const { fetch, requests } = fakeFetch(reply);
-    const provider = createLinkupProvider({ apiKey: "lk", fetch });
-
-    await provider.search!(query, {});
-
-    expect(provider.id).toBe("linkup");
-    expect(provider.residency).toBe("outside_eu");
-    expect(provider.generate).toBeUndefined();
-    expect(requests[0]!.method).toBe("POST");
-    expect(requests[0]!.url.href).toBe("https://api.linkup.so/v1/search");
-    expect(requests[0]!.headers.get("authorization")).toBe("Bearer lk");
-    expect(requests[0]!.body).toEqual({ q: query, depth: "standard", outputType: "searchResults", maxResults: 20 });
-  });
-
-  it("maps the text results to sources, leaving images out", async () => {
-    const { fetch } = fakeFetch(reply);
-
-    const output = await createLinkupProvider({ apiKey: "lk", fetch }).search!(query, {});
-
-    expect(output.sources).toEqual(["https://carrieres.acme-industrie.example/offres/daf-lyon", "https://www.cadremploi.example/emploi/daf-lyon-123"]);
-    expect(output.answer).toContain("Directeur financier H/F\nhttps://www.cadremploi.example/emploi/daf-lyon-123\nGroupe industriel lyonnais");
-    expect(output.answer).not.toContain("logo.png");
-    expect(output.model).toBe("standard");
-    expect(output.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
-  });
-
-  it("applies domain filters, and a freshness window as a start date (Linkup has no relative one)", async () => {
-    const { fetch, requests } = fakeFetch(reply);
-    const provider = createLinkupProvider({ apiKey: "lk", fetch, now: () => new Date("2026-10-12T08:00:00Z") });
-
-    await provider.search!(query, { model: "deep", filters: { includeDomains: ["apec.fr"], excludeDomains: ["indeed.fr"], maxAgeDays: 7 } });
-
-    expect(requests[0]!.body).toEqual({
-      q: query,
-      depth: "deep",
-      outputType: "searchResults",
-      maxResults: 20,
-      includeDomains: ["apec.fr"],
-      excludeDomains: ["indeed.fr"],
-      fromDate: "2026-10-05",
-    });
-  });
-
-  it("raises a provider error on an HTTP failure, such as no credits left (429)", async () => {
-    const { fetch } = fakeFetch({ error: { message: "Insufficient credits" } }, 429);
-    await expect(createLinkupProvider({ apiKey: "lk", fetch }).search!(query, {})).rejects.toMatchObject({
-      name: "AiProviderError",
-      provider: "linkup",
-      status: 429,
-    });
-  });
-
-  it.skipIf(!existsSync(recordedUrl("linkup-search")))("reads the sources of a reply recorded from the live API", async () => {
-    const { fetch } = fakeFetch(fixture("linkup-search.recorded"));
-    const output = await createLinkupProvider({ apiKey: "lk", fetch }).search!(query, {});
     expect(output.sources.length).toBeGreaterThan(0);
   });
 });
@@ -236,14 +219,47 @@ describe("Brave provider", () => {
 
     await provider.search!(query, { filters: { country: "fr" }, page: 3 });
 
-    expect(provider.searchPages).toBe(10);
+    expect(provider.searchContract?.maxPages).toBe(10);
     expect(Object.fromEntries(requests[0]!.url.searchParams)).toEqual({ q: query, count: "20", country: "FR", offset: "2" });
   });
 
-  it("has no exclusion filter, so excluded domains are left to the caller's own checks", async () => {
+  it("pages no further than its pages setting says", () => {
+    expect(createBraveProvider({ apiKey: "bk", maxPages: 3 }).searchContract?.maxPages).toBe(3);
+    expect(createBraveProvider({ apiKey: "bk", maxPages: 50 }).searchContract?.maxPages).toBe(10);
+  });
+
+  it("asks for the result count the filter sets, up to Brave's 20", async () => {
     const { fetch, requests } = fakeFetch(reply);
-    await createBraveProvider({ apiKey: "bk", fetch }).search!(query, { filters: { excludeDomains: ["indeed.fr"] } });
+    const provider = createBraveProvider({ apiKey: "bk", fetch });
+
+    await provider.search!(query, { filters: { maxResults: 5 } });
+    await provider.search!(query, { filters: { maxResults: 50 } });
+
+    expect(requests.map((request) => request.url.searchParams.get("count"))).toEqual(["5", "20"]);
+  });
+
+  it("declares one query a call and its excluded domains emulated: it has no such parameter", () => {
+    expect(createBraveProvider({ apiKey: "bk" }).searchContract).toEqual({
+      queriesPerCall: 1,
+      maxPages: 10,
+      filters: { includeDomains: "handled", excludeDomains: "emulated", country: "handled", maxAgeDays: "handled", maxResults: "handled" },
+    });
+  });
+
+  it("emulates excluded domains: sends none, and drops the pages it returns on them or their subdomains", async () => {
+    const { fetch, requests } = fakeFetch(reply);
+
+    const output = await createBraveProvider({ apiKey: "bk", fetch }).search!(query, { filters: { excludeDomains: ["indeed.fr", "acme-industrie.example"] } });
+
     expect(requests[0]!.url.searchParams.get("q")).toBe(query);
+    expect(output.sources).toEqual(["https://www.cadremploi.example/emploi/daf-lyon-123"]);
+    expect(output.answer).not.toContain("acme-industrie");
+    expect(output.sourceDates).toBeUndefined();
+  });
+
+  it("refuses more than one query a call", async () => {
+    const { fetch } = fakeFetch(reply);
+    await expect(createBraveProvider({ apiKey: "bk", fetch }).search!(["a", "b"], {})).rejects.toThrow(/one query/);
   });
 
   it("returns no sources when Brave finds no web results", async () => {

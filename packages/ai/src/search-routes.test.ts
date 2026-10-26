@@ -68,7 +68,7 @@ describe("a web search on a route of its own (ADR-0026)", () => {
     const { ai } = setUp();
 
     await expect(ai.searchCompany({ candidateId: "c", employer: "Acme", route: { provider: "mistral" } })).rejects.toThrow(AiConfigError);
-    await expect(ai.searchCompany({ candidateId: "c", employer: "Acme", route: { provider: "linkup" } })).rejects.toThrow(AiConfigError);
+    await expect(ai.searchCompany({ candidateId: "c", employer: "Acme", route: { provider: "openai" } })).rejects.toThrow(AiConfigError);
   });
 });
 

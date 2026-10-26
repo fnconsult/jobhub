@@ -175,7 +175,8 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
 
   test("searches with the Search Criteria only, never CV content or the Candidate's name (ADR-0007)", () => {
     const searches = requests().filter((r) => r.url.startsWith("https://api.perplexity.ai/"));
-    const queries: string[] = searches.map((search) => JSON.parse(search.body).input);
+    // Perplexity's Search API takes several queries in one call (#398).
+    const queries: string[] = searches.flatMap((search) => [JSON.parse(search.body).query].flat());
 
     // The Search Criteria are all there…
     expect(queries[0]).toContain("Directrice administrative et financière");
@@ -191,7 +192,7 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
     }
   });
 
-  test("searches each job title variant in French and English, and a further page only while the last one gave a new posting (#112)", () => {
+  test("searches each job title variant in French and English, together in one Search API call, one page (#112, #398)", () => {
     // The job title step is given the Search Criteria title alone.
     expect(jobTitleSteps()).toHaveLength(1);
     const titleStep = JSON.parse(jobTitleSteps()[0]!.body);
@@ -201,22 +202,19 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
     const searches = requests()
       .filter((r) => r.url.startsWith("https://api.perplexity.ai/"))
       .map((r) => JSON.parse(r.body));
-    // The fake web search gives the same results to every query: only the first page of the first query finds Job Offers,
-    // so it alone gets a second page, which finds nothing new.
-    expect(searches.map((search) => search.input.split(",")[0])).toEqual([
-      "Offre d'emploi « Directrice administrative et financière » à Lyon",
-      'Job offer "Chief Financial Officer" in Lyon',
-      "Offre d'emploi « DAF » à Lyon",
-      "Offre d'emploi « Directrice administrative et financière » à Lyon",
+    // Perplexity takes up to 5 queries a call and has one page of results per query: the plan's 3 queries go in one call.
+    expect(searches.map((search) => [search.query].flat().map((query: string) => query.split(",")[0]))).toEqual([
+      ["Offre d'emploi « Directrice administrative et financière » à Lyon", 'Job offer "Chief Financial Officer" in Lyon', "Offre d'emploi « DAF » à Lyon"],
     ]);
-    expect(searches.map((search) => search.tools[0].max_results)).toEqual([undefined, undefined, undefined, 20]);
-    // Each search keeps away from forbidden sites, keeps to the last month and favours France.
+    // Each search keeps away from forbidden sites, keeps to the last month and favours France, its fast search type.
     for (const search of searches) {
-      expect(search.tools[0].filters).toEqual({
+      expect(search).toMatchObject({
+        search_type: "fast",
+        max_results: 20,
         search_domain_filter: ["-linkedin.com", "-indeed.com", "-indeed.fr", "-glassdoor.com", "-glassdoor.fr"],
         search_recency_filter: "month",
+        country: "FR",
       });
-      expect(search.tools[0].user_location).toEqual({ country: "FR" });
     }
   });
 

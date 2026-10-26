@@ -2,10 +2,9 @@ import { createAiLayer, endpointFor, type AiLayer, type Route } from "./ai-layer
 import { AiConfigError } from "./errors";
 import { createAnthropicProvider, type AnthropicEndpoint } from "./providers/anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
-import { createBraveProvider } from "./providers/brave";
-import { createLinkupProvider } from "./providers/linkup";
-import { createPerplexityProvider } from "./providers/perplexity";
-import { createTavilyProvider } from "./providers/tavily";
+import { BRAVE_MAX_PAGES, createBraveProvider } from "./providers/brave";
+import { createPerplexityProvider, PERPLEXITY_MAX_QUERIES, PERPLEXITY_SEARCH_TYPES } from "./providers/perplexity";
+import { createTavilyProvider, TAVILY_DEPTHS } from "./providers/tavily";
 import type { CandidateIdentity } from "./redaction";
 import { createFakeProvider } from "./testing";
 import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type TextTask, type UsageLog } from "./types";
@@ -32,6 +31,12 @@ const DEFAULT_TASK = { job_titles: "offer_analysis", back_office_assistant: "coa
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 
 const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
+/** The Search providers (ADR-0043): what web search and its fallback may name. */
+const SEARCH_PROVIDER_IDS = ["perplexity", "brave", "tavily"] as const satisfies readonly ProviderId[];
+/** The fallback Search provider's setting, and its value for none. */
+const FALLBACK_SETTING = "AI_WEB_SEARCH_FALLBACK_PROVIDER";
+const NO_FALLBACK = "none";
+const FALLBACK_CHOICES = [NO_FALLBACK, ...SEARCH_PROVIDER_IDS] as const;
 const OPENAI_DATA_RESIDENCIES = ["eu", "us"] as const;
 
 /** The code's defaults of the AI layer's settings that are not keys: what it uses when env sets nothing. */
@@ -40,14 +45,38 @@ const DEFAULTS = {
   BEDROCK_REGION: "eu-north-1",
   VERTEX_REGION: "europe-west1",
   OPENAI_DATA_RESIDENCY: "eu",
+  // No fallback until one is chosen (ADR-0043).
+  AI_WEB_SEARCH_FALLBACK_PROVIDER: NO_FALLBACK,
+  PERPLEXITY_SEARCH_TYPE: "fast",
+  PERPLEXITY_QUERIES_PER_CALL: String(PERPLEXITY_MAX_QUERIES),
+  BRAVE_MAX_PAGES: String(BRAVE_MAX_PAGES),
+  TAVILY_SEARCH_DEPTH: "basic",
 } as const;
+
+/**
+ * Each Search provider's typed settings (#398), which replace AI_WEB_SEARCH_MODEL: the search type or depth a
+ * route naming none gets, and how many queries a call carries or pages a query is given.
+ */
+const SEARCH_PROVIDER_SETTINGS = [
+  { name: "PERPLEXITY_SEARCH_TYPE", default: DEFAULTS.PERPLEXITY_SEARCH_TYPE, values: PERPLEXITY_SEARCH_TYPES },
+  { name: "PERPLEXITY_QUERIES_PER_CALL", default: DEFAULTS.PERPLEXITY_QUERIES_PER_CALL, range: { min: 1, max: PERPLEXITY_MAX_QUERIES } },
+  { name: "BRAVE_MAX_PAGES", default: DEFAULTS.BRAVE_MAX_PAGES, range: { min: 1, max: BRAVE_MAX_PAGES } },
+  { name: "TAVILY_SEARCH_DEPTH", default: DEFAULTS.TAVILY_SEARCH_DEPTH, values: TAVILY_DEPTHS },
+] as const;
+
+/** What AI_WEB_SEARCH_MODEL may still name, per Search provider, and the setting that replaces it. */
+const LEGACY_SEARCH_MODELS: Partial<Record<ProviderId, { models: readonly string[]; setting?: string }>> = {
+  perplexity: { models: PERPLEXITY_SEARCH_TYPES, setting: "PERPLEXITY_SEARCH_TYPE" },
+  brave: { models: ["web"] },
+  tavily: { models: TAVILY_DEPTHS, setting: "TAVILY_SEARCH_DEPTH" },
+};
 
 /**
  * The AI layer's routing settings (ADR-0033's Platform Settings for AI routing): each with its code default
  * (empty: the code sets nothing, e.g. a model left to its provider's default, or a task taking another
  * task's provider) and, for a choice, the values env may hold. The keys and AI_FAKE are not among them.
  */
-export const AI_ROUTING_SETTINGS: ReadonlyArray<{ name: string; default: string; values?: readonly string[] }> = [
+export const AI_ROUTING_SETTINGS: ReadonlyArray<{ name: string; default: string; values?: readonly string[]; range?: { min: number; max: number } }> = [
   { name: "ANTHROPIC_ENDPOINT", default: DEFAULTS.ANTHROPIC_ENDPOINT, values: ANTHROPIC_ENDPOINTS },
   { name: "BEDROCK_REGION", default: DEFAULTS.BEDROCK_REGION },
   { name: "VERTEX_REGION", default: DEFAULTS.VERTEX_REGION },
@@ -58,12 +87,16 @@ export const AI_ROUTING_SETTINGS: ReadonlyArray<{ name: string; default: string;
     { name: taskKey(task, "MODEL"), default: "" },
   ]),
   { name: "AI_IDENTITY_MODEL", default: "" },
+  { name: FALLBACK_SETTING, default: DEFAULTS.AI_WEB_SEARCH_FALLBACK_PROVIDER, values: FALLBACK_CHOICES },
+  ...SEARCH_PROVIDER_SETTINGS,
 ];
 
 /** Every environment variable the AI layer reads. `.env.example` must list them all. */
 export const AI_ENV_KEYS = [
   "AI_FAKE",
   "AI_IDENTITY_MODEL",
+  "AI_WEB_SEARCH_FALLBACK_PROVIDER",
+  ...SEARCH_PROVIDER_SETTINGS.map((setting) => setting.name),
   ...TASKS.flatMap((task) => [taskKey(task, "PROVIDER"), taskKey(task, "MODEL")]),
   "ANTHROPIC_ENDPOINT",
   "ANTHROPIC_API_KEY",
@@ -77,7 +110,6 @@ export const AI_ENV_KEYS = [
   "PERPLEXITY_API_KEY",
   "BRAVE_SEARCH_API_KEY",
   "TAVILY_API_KEY",
-  "LINKUP_API_KEY",
 ] as const;
 
 export interface AiLayerDeps {
@@ -106,6 +138,14 @@ function oneOf<T extends string>(env: Env, key: string, allowed: readonly T[], f
   const value = env[key]?.trim() || fallback;
   if (!allowed.includes(value as T)) throw new AiConfigError(`${key} must be one of ${allowed.join(", ")} (got "${value}")`);
   return value as T;
+}
+
+/** A whole number from `min` to `max`, else `fallback` when env sets none. */
+function wholeIn(env: Env, key: string, min: number, max: number, fallback: string): number {
+  const value = env[key]?.trim() || fallback;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < min || number > max) throw new AiConfigError(`${key} must be a whole number from ${min} to ${max} (got "${value}")`);
+  return number;
 }
 
 /**
@@ -160,13 +200,16 @@ function buildProvider(id: Exclude<ProviderId, "anthropic">, env: Env, fetch: ty
         fetch,
       });
     case "perplexity":
-      return createPerplexityProvider({ apiKey: required(env, "PERPLEXITY_API_KEY"), fetch });
+      return createPerplexityProvider({
+        apiKey: required(env, "PERPLEXITY_API_KEY"),
+        searchType: oneOf(env, "PERPLEXITY_SEARCH_TYPE", PERPLEXITY_SEARCH_TYPES, DEFAULTS.PERPLEXITY_SEARCH_TYPE),
+        queriesPerCall: wholeIn(env, "PERPLEXITY_QUERIES_PER_CALL", 1, PERPLEXITY_MAX_QUERIES, DEFAULTS.PERPLEXITY_QUERIES_PER_CALL),
+        fetch,
+      });
     case "brave":
-      return createBraveProvider({ apiKey: required(env, "BRAVE_SEARCH_API_KEY"), fetch });
+      return createBraveProvider({ apiKey: required(env, "BRAVE_SEARCH_API_KEY"), maxPages: wholeIn(env, "BRAVE_MAX_PAGES", 1, BRAVE_MAX_PAGES, DEFAULTS.BRAVE_MAX_PAGES), fetch });
     case "tavily":
-      return createTavilyProvider({ apiKey: required(env, "TAVILY_API_KEY"), fetch });
-    case "linkup":
-      return createLinkupProvider({ apiKey: required(env, "LINKUP_API_KEY"), fetch });
+      return createTavilyProvider({ apiKey: required(env, "TAVILY_API_KEY"), depth: oneOf(env, "TAVILY_SEARCH_DEPTH", TAVILY_DEPTHS, DEFAULTS.TAVILY_SEARCH_DEPTH), fetch });
   }
 }
 
@@ -189,6 +232,36 @@ function identityProvider(env: Env, fake: boolean, fetch: typeof globalThis.fetc
   };
 }
 
+/**
+ * The model AI_WEB_SEARCH_MODEL names for the web search route, read for one more release (#398): kept when the
+ * provider offers it and its own typed setting is not set, else dropped. `notice`: what to tell whoever runs it.
+ */
+function legacySearchModel(env: Env, provider: ProviderId): { model?: string; notice?: string } {
+  const model = env[taskKey(SEARCH_TASK, "MODEL")]?.trim();
+  if (!model) return {};
+  const legacy = LEGACY_SEARCH_MODELS[provider];
+  if (!legacy?.models.includes(model)) {
+    return { notice: `AI_WEB_SEARCH_MODEL="${model}" is ignored: ${provider} offers ${legacy?.models.join(", ") ?? "no such choice"}; AI_WEB_SEARCH_MODEL will no longer be read after this release` };
+  }
+  const replacedBy = legacy.setting ? ` (use ${legacy.setting})` : "";
+  if (legacy.setting && env[legacy.setting]?.trim()) {
+    return { notice: `AI_WEB_SEARCH_MODEL is ignored: ${legacy.setting} is set, and AI_WEB_SEARCH_MODEL will no longer be read after this release` };
+  }
+  return { model, notice: `AI_WEB_SEARCH_MODEL is read for one more release${replacedBy}` };
+}
+
+/**
+ * The fallback Search provider (AI_WEB_SEARCH_FALLBACK_PROVIDER): none with "none", and none when the default
+ * names the active one. Set to the active one, or to anything but a Search provider, it is refused.
+ */
+function searchFallbackFromEnv(env: Env, active: ProviderId): ProviderId | undefined {
+  const chosen = oneOf(env, FALLBACK_SETTING, FALLBACK_CHOICES, DEFAULTS.AI_WEB_SEARCH_FALLBACK_PROVIDER);
+  if (chosen === NO_FALLBACK) return undefined;
+  if (chosen !== active) return chosen;
+  if (env[FALLBACK_SETTING]?.trim()) throw new AiConfigError(`${FALLBACK_SETTING} must not be the active Search provider (${active})`);
+  return undefined;
+}
+
 /** Which provider (and model, when set) serves each task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL, else the defaults. */
 function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
   // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral, a
@@ -203,7 +276,9 @@ function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
   for (const task of TASKS) {
     if (task in DEFAULT_TASK) continue;
     const provider = oneOf(env, taskKey(task, "PROVIDER"), PROVIDER_IDS, defaultProvider(task as keyof typeof DEFAULT_PROVIDER));
-    routes[task] = routeOf(provider, env[taskKey(task, "MODEL")]?.trim() || undefined);
+    // The web search's model is its provider's typed setting now (#398); the old setting is still read for one release.
+    const model = task === SEARCH_TASK ? legacySearchModel(env, provider).model : env[taskKey(task, "MODEL")]?.trim() || undefined;
+    routes[task] = routeOf(provider, model);
   }
   for (const [task, fallback] of Object.entries(DEFAULT_TASK) as [AiTask, AiTask][]) {
     const inherited = routes[fallback]!;
@@ -286,7 +361,6 @@ function offeredOnlyProviders(env: Env, used: ProviderId[], fetch: typeof global
     perplexity: Boolean(env.PERPLEXITY_API_KEY?.trim()),
     brave: Boolean(env.BRAVE_SEARCH_API_KEY?.trim()),
     tavily: Boolean(env.TAVILY_API_KEY?.trim()),
-    linkup: Boolean(env.LINKUP_API_KEY?.trim()),
   };
   return PROVIDER_IDS.filter((id) => entered[id] && !used.includes(id)).flatMap((id) => buildProviders(id, env, fetch));
 }
@@ -307,9 +381,13 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
   if (!fake) providers.push(...offeredOnlyProviders(env, used, deps.fetch));
   if (deps.euAiConsent && !providers.some((provider) => provider.id === IDENTITY_PROVIDER)) providers.push(identityProvider(env, fake, deps.fetch));
 
+  const searchFallback = searchFallbackFromEnv(env, routes[SEARCH_TASK].provider);
+  const { notice } = legacySearchModel(env, routes[SEARCH_TASK].provider);
+  if (notice) console.warn(`[ai] ${notice}`);
   return createAiLayer({
     providers,
     routes,
+    ...(searchFallback ? { searchFallback } : {}),
     identityRoute: { provider: IDENTITY_PROVIDER, model: env.AI_IDENTITY_MODEL?.trim() || undefined },
     euAiConsent: deps.euAiConsent,
     identityOf: deps.identityOf,

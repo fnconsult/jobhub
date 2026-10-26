@@ -46,28 +46,18 @@ function json(body: unknown): Response {
 function answer(url: URL, body: string): Response {
   const parsed = body ? JSON.parse(body) : {};
   const host = url.hostname;
-  // Lets a test simulate a provider outage.
+  // Lets a test simulate a provider outage, or one provider rate limited (E2E_RATE_LIMITED_HOSTS, comma-separated).
   if (body.includes("E2E_PROVIDER_DOWN") || url.search.includes("E2E_PROVIDER_DOWN")) return new Response("upstream unavailable", { status: 503 });
-  // Search-only providers (#110): answer with the checked-in fixtures of their API replies.
+  if ((process.env.E2E_RATE_LIMITED_HOSTS ?? "").split(",").includes(host)) return new Response("rate limited", { status: 429 });
+  // Search providers (#110, #398): answer with the checked-in fixtures of their API replies.
   const fixture = (name: string) => json(JSON.parse(readFileSync(path.resolve("packages/ai/src/providers/fixtures", `${name}.json`), "utf8")));
   if (host === "api.search.brave.com" && url.pathname === "/res/v1/web/search") return fixture("brave-web-search");
   if (host === "api.tavily.com" && url.pathname === "/search") return fixture("tavily-search");
-  if (host === "api.linkup.so" && url.pathname === "/v1/search") return fixture("linkup-search");
-  if (host === "api.perplexity.ai" && url.pathname === "/v1/responses") {
-    // E2E_PERPLEXITY_REPLY: a recorded Agent API response (JSON file) to answer with instead.
+  if (host === "api.perplexity.ai" && url.pathname === "/search") {
+    // E2E_PERPLEXITY_REPLY: a recorded Search API response (JSON file) to answer with instead.
     const recorded = process.env.E2E_PERPLEXITY_REPLY;
     if (recorded) return json(JSON.parse(readFileSync(recorded, "utf8")));
-    return json({
-      id: "resp_e2e",
-      object: "response",
-      status: "completed",
-      model: parsed.model ?? "openai/gpt-6-luna",
-      output: [
-        { type: "search_results", queries: ["e2e"], results: [{ id: 1, url: "https://jobs.example/offre-1", title: "Offre", snippet: "" }] },
-        { type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: `reply from ${host}`, annotations: [] }] },
-      ],
-      usage: { input_tokens: 120, output_tokens: 30, total_tokens: 150 },
-    });
+    return json({ id: "search_e2e", results: [{ title: "Offre", url: "https://jobs.example/offre-1", snippet: `reply from ${host}`, date: null, last_updated: null }] });
   }
   if (url.pathname.endsWith("/chat/completions")) {
     const reply = `reply from ${host}`;

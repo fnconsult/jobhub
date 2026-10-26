@@ -216,8 +216,8 @@ test.describe("Job discovery budget (#113)", () => {
   });
 
   test("JOB_DISCOVERY_BUDGET_EUR sets what a run may spend on AI calls before it stops", async () => {
-    // The web search and the job title step cost about EUR 0.0023 and each page the LLM reads about EUR 0.0001.
-    const tight = await discoveryRun({ count: 60, kind: "llm" }, { JOB_DISCOVERY_BUDGET_EUR: "0.0025" });
+    // The web search (one Search API call) and the job title step cost about EUR 0.0009 and each page the LLM reads about EUR 0.0001.
+    const tight = await discoveryRun({ count: 60, kind: "llm" }, { JOB_DISCOVERY_BUDGET_EUR: "0.0011" });
 
     expect(tight.llmCalls).toBeGreaterThanOrEqual(1);
     expect(tight.llmCalls).toBeLessThan(10);
@@ -226,7 +226,7 @@ test.describe("Job discovery budget (#113)", () => {
     expect(tight.pagesRead).toBe(tight.llmCalls);
 
     // A bigger budget reads more of the same pages.
-    const roomy = await discoveryRun({ count: 60, kind: "llm" }, { JOB_DISCOVERY_BUDGET_EUR: "0.0035" });
+    const roomy = await discoveryRun({ count: 60, kind: "llm" }, { JOB_DISCOVERY_BUDGET_EUR: "0.0021" });
     expect(roomy.llmCalls).toBeGreaterThan(tight.llmCalls);
     expect(roomy.llmCalls).toBeLessThan(30);
   });

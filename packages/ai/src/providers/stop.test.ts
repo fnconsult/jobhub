@@ -10,7 +10,6 @@ import type { AiProvider } from "../types";
 import { createAnthropicProvider } from "./anthropic";
 import { createBraveProvider } from "./brave";
 import { createMistralProvider, createOpenAiProvider } from "./chat-completions";
-import { createLinkupProvider } from "./linkup";
 import { createPerplexityProvider } from "./perplexity";
 import { createTavilyProvider } from "./tavily";
 
@@ -42,7 +41,6 @@ const SEARCH: [string, Adapter][] = [
   ["Perplexity", (fetch) => createPerplexityProvider({ apiKey: "k", fetch })],
   ["Brave", (fetch) => createBraveProvider({ apiKey: "k", fetch })],
   ["Tavily", (fetch) => createTavilyProvider({ apiKey: "k", fetch })],
-  ["Linkup", (fetch) => createLinkupProvider({ apiKey: "k", fetch })],
 ];
 
 const textInput = { messages: [{ role: "user" as const, content: "Bonjour" }], maxTokens: 100 };

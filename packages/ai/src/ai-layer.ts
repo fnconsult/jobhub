@@ -4,9 +4,9 @@ import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt,
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
-import { AiConfigError, DataResidencyError } from "./errors";
+import { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
-import { SEARCH_TASK, TEXT_TASKS } from "./types";
+import { SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
 
 export { AiConfigError, DataResidencyError };
@@ -83,7 +83,7 @@ export interface AgentModelChoice {
   endpoint: string;
   /** Where the endpoint its default model runs on processes data. */
   residency: Residency;
-  /** The model a Playbook Agent naming none gets; for a web search, the provider's own (a depth, for Tavily and Linkup). */
+  /** The model a Playbook Agent naming none gets; for a web search, the provider's own (a search type for Perplexity, a depth for Tavily). */
   defaultModel?: string;
   /** Each with how it takes effort (a web search ignores it) and where the endpoint serving it processes data. */
   models: { model: string; effort: EffortHandling; residency: Residency }[];
@@ -125,8 +125,19 @@ export interface SearchRequest {
    * as returned (any other, or a copy, is refused). Default: the Search Criteria's own title, in French.
    */
   query?: JobSearchQuery;
+  /**
+   * Several queries `planJobSearch` returned, searched together instead of `query`: in as few calls as the
+   * Search provider takes (its `queriesPerCall`, the plan's), their pages returned together.
+   */
+  queries?: JobSearchQuery[];
   /** Which page of results, from 1 (the default) up to the plan's `pages`. */
   page?: number;
+  /**
+   * The run the search belongs to (`createWebSearchRun`): once the Search provider serving it fails (key missing,
+   * 401/403, 429, an outage), it and every later search of the run go to the fallback Search provider (ADR-0043).
+   * Default: a run of its own, so a failed search still falls back once.
+   */
+  run?: WebSearchRun;
   /** The web-search provider and model (or depth) instead of the configured one: a task Playbook's (ADR-0026), one `searchModels` offers. */
   route?: Route;
   /**
@@ -169,6 +180,8 @@ export interface JobSearchPlan {
   queries: JobSearchQuery[];
   /** How many pages of results the web-search provider can give one query (`SearchRequest.page`). */
   pages: number;
+  /** How many queries one call of the web-search provider takes (`SearchRequest.queries`). */
+  queriesPerCall: number;
   /** The job title step's AI call, for its cost; null when it failed (the plan then has the Search Criteria title alone). */
   call: GenerateResult | null;
 }
@@ -275,6 +288,11 @@ export interface AiLayerOptions {
   identityRoute?: Route;
   /** Whether the Candidate gave EU AI consent. Without it, no Candidate has consented. */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
+  /**
+   * The fallback Search provider (ADR-0043): when the one serving a run's searches fails (key missing, 401/403, 429,
+   * an outage), the run goes on with it. None when it is not configured (its key missing), nor the one that failed.
+   */
+  searchFallback?: ProviderId;
   /** Where a warning goes (e.g. identity found in a call that did not declare it). Default: console.warn. */
   warn?: (message: string, details: Record<string, unknown>) => void;
   /**
@@ -295,6 +313,38 @@ const COUNTRY_CODE = /^[A-Z]{2}$/;
 const IDENTITY_CACHE_MS = 60_000;
 /** Candidates whose identity is kept at most; past it, all are read again. */
 const IDENTITY_CACHE_SIZE = 1_000;
+
+/** A run's switch to the fallback Search provider: from which, to which, and why (the Failure Reason of the failure). */
+export interface SearchFallback {
+  from: ProviderId;
+  to: ProviderId;
+  reason: FailureReason;
+}
+
+/** The web searches of one run (a Job discovery run): whether, and why, they went to the fallback Search provider. */
+export interface WebSearchRun {
+  /** Set by the AI layer when the run switches; null while it has not. */
+  fallback: SearchFallback | null;
+}
+
+/** A new run of web searches, served by the active Search provider until it fails. */
+export const createWebSearchRun = (): WebSearchRun => ({ fallback: null });
+
+/** Statuses after which a Search provider is not asked again in a run: refused key, rate limit, Tavily's spent plan (432, 433), timeouts. */
+const FALLBACK_STATUSES = new Set([401, 403, 408, 429, 432, 433]);
+
+/**
+ * The Failure Reason of `error` when it is a reason to switch to the fallback Search provider (ADR-0043): its key
+ * missing, a refused key, a rate limit or spent plan, an outage (a 5xx, no answer); null for anything else, such as
+ * a refusal of the request itself (400, 422).
+ */
+function fallbackReason(error: unknown): FailureReason | null {
+  if (error instanceof AiConfigError) return error.reason === "key_missing" ? "key_missing" : null;
+  if (!(error instanceof AiProviderError)) return null;
+  const { status } = error;
+  if (status !== undefined && status < 500 && !FALLBACK_STATUSES.has(status)) return null;
+  return failureOf(error).reason;
+}
 
 /**
  * The endpoint a route reaches among `providers`, or none when its provider is not configured. A provider
@@ -571,64 +621,112 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return { route, provider };
   };
 
+  /** The fallback Search provider, when one is set, its key entered, and it searches. */
+  const fallbackSearch = (): AiProvider | undefined => {
+    if (!options.searchFallback) return undefined;
+    const provider = endpointFor(options.providers, { provider: options.searchFallback });
+    return provider?.search ? provider : undefined;
+  };
+
   /**
-   * `query` must be built by search-query.ts: nothing else ever reaches the search provider, and it is redacted too.
-   * `override`: a task Playbook's web-search route; `warnings` and `fallback`: what its feature says of it (#260).
+   * `queries` must be built by search-query.ts: nothing else ever reaches the search provider, and they are redacted too.
+   * They go in as few calls as the provider serving them takes (its `queriesPerCall`), each recorded apart; a page past
+   * its last (`maxPages`) is not searched. `override`: a task Playbook's web-search route; `warnings` and `fallback`:
+   * what its feature says of it (#260). `run`: the run it belongs to, which falls back to the fallback Search provider
+   * for good once the one serving it fails (ADR-0043); without one, the search is a run of its own.
    */
   async function search({
     candidateId,
-    query,
+    queries,
     filters,
     page,
     override,
     warnings = [],
     fallback,
     signal,
+    run = createWebSearchRun(),
   }: {
     candidateId: string | null;
-    query: string;
+    queries: string[];
     filters?: SearchFilters;
     page?: number;
     override?: Route;
     warnings?: AiWarning[];
     fallback?: FailureReason;
     signal?: AbortSignal;
+    run?: WebSearchRun;
   }): Promise<SearchResult> {
     const fed = { warnings: () => warnings, ...(fallback ? { fallback } : {}) };
+    /** The provider serving the run: its fallback once it switched, else the task Playbook's or the configured one. */
+    const serving = (): { route: Route; provider: AiProvider } => {
+      const switchedTo = run.fallback && fallbackSearch();
+      return switchedTo ? { route: { provider: switchedTo.id }, provider: switchedTo } : searchProvider(override);
+    };
+    /** Whether the run switched to its fallback after `error` from `failed`: a reason to, a fallback to go to, not stopped. */
+    const switched = (error: unknown, failed: ProviderId | undefined): boolean => {
+      const reason = fallbackReason(error);
+      const to = fallbackSearch();
+      if (run.fallback || signal?.aborted || !reason || !failed || !to || to.id === failed) return false;
+      run.fallback = { from: failed, to: to.id, reason };
+      warn("Search provider failed: the run goes on with its fallback", { candidateId, from: failed, to: to.id, reason });
+      return true;
+    };
     let chosen: { route: Route; provider: AiProvider };
     try {
       // A filter names websites, a time window and a country (ADR-0007): a country is a code, never free text.
       if (filters?.country !== undefined && !COUNTRY_CODE.test(filters.country)) {
         throw new DataResidencyError("A web search's country filter must be a two-letter country code (ISO 3166-1 alpha-2)");
       }
-      chosen = searchProvider(override);
+      chosen = serving();
     } catch (error) {
-      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: [{ role: "user", content: query }] }, fed);
-      throw error;
+      await notSent(error, { candidateId, task: SEARCH_TASK }, { route: override }, { messages: asMessages(queries) }, fed);
+      const configured = options.routes[SEARCH_TASK];
+      const failed = override?.provider ?? (typeof configured === "string" ? configured : configured?.provider);
+      if (!(error instanceof AiConfigError) || !switched(error, failed)) throw error;
+      chosen = serving();
     }
+    const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, queries);
+    const sent = redaction.texts;
+    const calls: SearchResult[] = [];
+    for (let next = 0; next < sent.length; ) {
+      const { route, provider } = chosen;
+      const contract = searchContractOf(provider);
+      if (page !== undefined && page > Math.max(1, contract.maxPages)) break;
+      const batch = sent.slice(next, next + Math.max(1, contract.queriesPerCall));
+      try {
+        const { output, ...facts } = await recorded(
+          { candidateId, task: SEARCH_TASK },
+          provider,
+          route,
+          { messages: asMessages(batch) },
+          () => provider.search!(batch.length === 1 ? batch[0]! : batch, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
+          (answer) => answer.answer,
+          { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
+          signal,
+        );
+        calls.push({
+          answer: output.answer,
+          sources: output.sources,
+          ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
+          provider: provider.id,
+          model: output.model,
+          usage: output.usage,
+          ...facts,
+        });
+        next += batch.length;
+      } catch (error) {
+        // The same queries again, on the fallback, batched as it takes them.
+        if (!switched(error, provider.id)) throw error;
+        chosen = serving();
+      }
+    }
+    if (calls.length > 0) return together(calls);
     const { route, provider } = chosen;
-    const { redaction, warnings: redactionWarnings } = await redacted(SEARCH_TASK, candidateId, [query]);
-    const [sent = ""] = redaction.texts;
-    const { output, ...facts } = await recorded(
-      { candidateId, task: SEARCH_TASK },
-      provider,
-      route,
-      { messages: [{ role: "user", content: sent }] },
-      () => provider.search!(sent, { model: route.model, filters, ...(page && page > 1 ? { page } : {}), ...(signal ? { signal } : {}) }),
-      (answer) => answer.answer,
-      { ...fed, warnings: () => [...warnings, ...redactionWarnings] },
-      signal,
-    );
-    return {
-      answer: output.answer,
-      sources: output.sources,
-      ...(output.sourceDates ? { sourceDates: output.sourceDates } : {}),
-      provider: provider.id,
-      model: output.model,
-      usage: output.usage,
-      ...facts,
-    };
+    return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok" };
   }
+
+  /** Each query as one message of a search's transcript. */
+  const asMessages = (queries: readonly string[]): Message[] => queries.map((content) => ({ role: "user", content }));
 
   /** One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). */
   async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
@@ -688,7 +786,9 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     generate: (request) => generateAs(request, request.task),
 
     async planJobSearch({ candidateId, criteria, instructions, route }) {
-      const pages = Math.max(1, searchProvider(route).provider.searchPages ?? 1);
+      const contract = searchContractOf(searchProvider(route).provider);
+      const pages = Math.max(1, contract.maxPages);
+      const queriesPerCall = Math.max(1, contract.queriesPerCall);
       const titles = instructions?.titles;
       const { system, prompt } = jobTitlesPrompt(criteria, titles?.text);
       let call: GenerateResult | null = null;
@@ -710,15 +810,17 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, call };
+      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, queriesPerCall, call };
     },
 
     async searchWeb(request) {
+      const location = request.location ?? request.criteria.locations[0];
       return search({
         candidateId: request.candidateId,
-        query: buildSearchQuery(request.criteria, request.query, request.location ?? request.criteria.locations[0], request.industries),
+        queries: (request.queries ?? [request.query]).map((query) => buildSearchQuery(request.criteria, query, location, request.industries)),
         ...(request.filters ? { filters: request.filters } : {}),
         ...(request.page ? { page: request.page } : {}),
+        ...(request.run ? { run: request.run } : {}),
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
         ...(request.signal ? { signal: request.signal } : {}),
@@ -728,7 +830,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     async searchCompany(request) {
       return search({
         candidateId: request.candidateId,
-        query: buildCompanyQuery(request.employer, request.instructions),
+        queries: [buildCompanyQuery(request.employer, request.instructions)],
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
         ...(request.signal ? { signal: request.signal } : {}),
@@ -743,7 +845,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       try {
         const found = await search({
           candidateId: request.candidateId,
-          query: buildCompanyNewsQuery(request),
+          queries: [buildCompanyNewsQuery(request)],
           filters: { maxAgeDays: COMPANY_NEWS_MAX_AGE_DAYS },
           ...(request.route ? { override: request.route } : {}),
           ...(request.warnings ? { warnings: request.warnings } : {}),
@@ -817,4 +919,28 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     return choices;
   }
   return layer;
+}
+
+/**
+ * The calls of one search, as one result: their pages in order (each once), their dates, tokens and time added
+ * up, the outcome a warning when one was. One call is itself.
+ */
+function together(calls: SearchResult[]): SearchResult {
+  const [first, ...more] = calls;
+  if (!first) throw new AiConfigError("A web search needs a query");
+  if (more.length === 0) return first;
+  const last = calls[calls.length - 1]!;
+  const sourceDates = Object.assign({}, ...calls.map((call) => call.sourceDates ?? {})) as Record<string, Date>;
+  const sum = (count: (usage: TokenUsage) => number) => calls.reduce((total, call) => total + count(call.usage), 0);
+  return {
+    answer: calls.map((call) => call.answer).filter(Boolean).join("\n\n"),
+    sources: [...new Set(calls.flatMap((call) => call.sources))],
+    ...(Object.keys(sourceDates).length ? { sourceDates } : {}),
+    provider: last.provider,
+    model: last.model,
+    usage: { inputTokens: sum((usage) => usage.inputTokens), outputTokens: sum((usage) => usage.outputTokens) },
+    endpoint: last.endpoint,
+    durationMs: calls.reduce((total, call) => total + call.durationMs, 0),
+    outcome: calls.some((call) => call.outcome === "warning") ? "warning" : "ok",
+  };
 }

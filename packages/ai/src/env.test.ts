@@ -23,7 +23,7 @@ function recordingFetch() {
   return { fetch: fetch as typeof globalThis.fetch, hosts };
 }
 
-const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com", "api.linkup.so"];
+const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com"];
 
 const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
 
@@ -59,7 +59,6 @@ describe("AI layer configured from the environment", () => {
   it.each([
     ["brave", "BRAVE_SEARCH_API_KEY", "api.search.brave.com"],
     ["tavily", "TAVILY_API_KEY", "api.tavily.com"],
-    ["linkup", "LINKUP_API_KEY", "api.linkup.so"],
   ])(
     "routes web search to %s by AI_WEB_SEARCH_PROVIDER alone, with its own key",
     async (provider, key, host) => {
@@ -325,11 +324,10 @@ describe("AI layer configured from the environment", () => {
     const searchOf = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).searchModels();
 
     it("are every web-search provider whose key is entered, each with its models or depths", () => {
-      expect(searchOf({ ...base, BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk", LINKUP_API_KEY: "lk" }).map(({ provider, defaultModel, models }) => ({ provider, defaultModel, models: models.map((each) => each.model) }))).toEqual([
-        { provider: "perplexity", defaultModel: "openai/gpt-6-luna", models: ["openai/gpt-6-luna"] },
+      expect(searchOf({ ...base, BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk" }).map(({ provider, defaultModel, models }) => ({ provider, defaultModel, models: models.map((each) => each.model) }))).toEqual([
+        { provider: "perplexity", defaultModel: "fast", models: ["fast", "web"] },
         { provider: "brave", defaultModel: "web", models: ["web"] },
         { provider: "tavily", defaultModel: "basic", models: ["basic", "advanced", "fast", "ultra-fast"] },
-        { provider: "linkup", defaultModel: "standard", models: ["standard", "fast", "deep", "flash"] },
       ]);
     });
 
@@ -338,7 +336,7 @@ describe("AI layer configured from the environment", () => {
     });
 
     it("put the configured web-search model first", () => {
-      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "sonar-pro" })[0]!.models.map((each) => each.model)).toEqual(["sonar-pro", "openai/gpt-6-luna"]);
+      expect(searchOf({ ...base, AI_WEB_SEARCH_MODEL: "web" })[0]!.models.map((each) => each.model)).toEqual(["web", "fast"]);
     });
   });
 

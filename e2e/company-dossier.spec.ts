@@ -24,8 +24,10 @@ const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const playbooks = fr.admin.coachingPlaybooks;
 // Its own permanent super-admin (ADMIN_EMAILS): two sign-ins of one address at once can pick up each other's link.
 const FACTS_ADMIN = "company-facts-office@e2e.jobbbox.test";
+const keys = fr.admin.providerSecrets;
+const BRAVE_KEY = "BRAVE_SEARCH_API_KEY";
+const BRAVE_SHEET = "/admin/parametres?tab=recherche-web&fournisseur=brave";
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
-const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const masterCv = {
   fullName: "Marie Dupont",
@@ -151,31 +153,57 @@ test.describe("Company Dossier", () => {
     // latest version at once. Brave's fake finds the same pages as Perplexity's, so other dossiers built meanwhile read alike.
     const admin = await browser.newPage({ baseURL: origin, locale: "en-US" });
     await signInWithMagicLink(admin, FACTS_ADMIN);
-    await admin.goto("/admin/playbooks/company-facts-search");
-    await admin.getByLabel(playbooks.fields.searchModel).selectOption("brave|");
-    await admin.getByRole("button", { name: playbooks.detail.save }).click();
-    // Saved, or already so when the test is run again on the same server.
-    await expect(admin.getByRole("main").getByRole("status").or(admin.getByRole("main").getByRole("alert"))).toHaveText(
-      new RegExp(`^(${escape(tr(playbooks.notices.saved, { version: "2" }))}|${escape(playbooks.notices.unchanged)})$`),
-    );
+    // The suite's server has no Brave key (#399): the Super-admin enters a (faked) one on Brave's sheet, removed at the end.
+    const enterBraveKey = async () => {
+      await admin.goto(BRAVE_SHEET);
+      await admin.locator("summary", { hasText: tr(keys.replaceLegend, { name: BRAVE_KEY }) }).click();
+      await admin.getByLabel(tr(keys.newValue, { name: BRAVE_KEY })).fill(`e2e-brave-valid-${unique()}`);
+      await admin.getByRole("button", { name: tr(keys.replace, { name: BRAVE_KEY }) }).click();
+      await expect(admin.locator(`aside[data-sheet="brave"] [data-key="${BRAVE_KEY}"]`)).not.toContainText(keys.sources.missing);
+    };
+    const removeBraveKey = async () => {
+      await admin.goto(BRAVE_SHEET);
+      const clear = admin.getByRole("button", { name: tr(keys.clear, { name: BRAVE_KEY }) });
+      if (await clear.count()) await clear.click();
+      await expect(admin.locator(`aside[data-sheet="brave"] [data-key="${BRAVE_KEY}"]`)).toContainText(keys.sources.missing);
+    };
+    const notice = (on: Page) => on.getByRole("main").getByRole("status").or(on.getByRole("main").getByRole("alert"));
+    // Back to the configured provider, so that the other specs editing this Playbook meet no Brave they cannot serve.
+    const useConfiguredSearch = async () => {
+      await admin.goto("/admin/playbooks/company-facts-search");
+      await admin.getByLabel(playbooks.fields.searchModel).selectOption("");
+      await admin.getByRole("button", { name: playbooks.detail.save }).click();
+      await expect(notice(admin)).toBeVisible();
+    };
+    await enterBraveKey();
+    try {
+      await admin.goto("/admin/playbooks/company-facts-search");
+      await admin.getByLabel(playbooks.fields.searchModel).selectOption("brave|");
+      await admin.getByRole("button", { name: playbooks.detail.save }).click();
+      // Saved, or already so when the test is run again on the same server.
+    await expect(notice(admin)).toBeVisible();
     await admin.reload();
-    await expect(admin.getByLabel(playbooks.fields.searchModel)).toHaveValue("brave|");
-    await admin.close();
-    // Letters only: the employer's name is cleaned of anything shaped like a phone number before it is searched.
-    const employer = `Globex Robotics GmbH ${Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 6)}`;
-    const dossier = await openApplication(page, employer);
+      await expect(admin.getByLabel(playbooks.fields.searchModel)).toHaveValue("brave|");
+      // Letters only: the employer's name is cleaned of anything shaped like a phone number before it is searched.
+      const employer = `Globex Robotics GmbH ${Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 6)}`;
+      const dossier = await openApplication(page, employer);
 
-    await dossier.getByRole("button", { name: t.build }).click();
+      await dossier.getByRole("button", { name: t.build }).click();
 
-    await expect(dossier.getByText(t.reliability.less_reliable)).toBeVisible();
-    await expect(dossier.getByText("Allemagne")).toBeVisible();
-    await expect(dossier.getByText("Robotique industrielle")).toBeVisible();
-    await expect(dossier.getByText("1 200 salariés")).toBeVisible();
-    await expect(dossier.getByRole("link", { name: "https://globex-robotics.example/about" })).toBeVisible();
-    await expectNoPrivatePersonNamed(page);
-    // Brave served the search.
-    const searched = () => readFileSync(process.env.E2E_SERVER_LOG!, "utf8").split("\n").filter((line) => line.startsWith("[fake-brave] search: ") && line.includes(`« ${employer} »`));
-    await expect.poll(() => searched().length).toBeGreaterThan(0);
+      await expect(dossier.getByText(t.reliability.less_reliable)).toBeVisible();
+      await expect(dossier.getByText("Allemagne")).toBeVisible();
+      await expect(dossier.getByText("Robotique industrielle")).toBeVisible();
+      await expect(dossier.getByText("1 200 salariés")).toBeVisible();
+      await expect(dossier.getByRole("link", { name: "https://globex-robotics.example/about" })).toBeVisible();
+      await expectNoPrivatePersonNamed(page);
+      // Brave served the search.
+      const searched = () => readFileSync(process.env.E2E_SERVER_LOG!, "utf8").split("\n").filter((line) => line.startsWith("[fake-brave] search: ") && line.includes(`« ${employer} »`));
+      await expect.poll(() => searched().length).toBeGreaterThan(0);
+    } finally {
+      await useConfiguredSearch().catch(() => {});
+      await removeBraveKey().catch(() => {});
+      await admin.close();
+    }
   });
 
   test("a web dossier citing long source URLs fits a phone screen, with no sideways scroll (#172)", async ({ page }) => {

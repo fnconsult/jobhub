@@ -36,6 +36,12 @@ describe("journalFieldName", () => {
     expect(journalFieldName(t, "platform_settings", "source")).toBe("Source");
   });
 
+  it("names a Signalement's recorded status and reply (#376)", () => {
+    const t = createI18n("fr").t;
+    expect(journalFieldName(t, "signalements", "status")).toBe("Statut");
+    expect(journalFieldName(t, "signalements", "reply")).toBe("Réponse");
+  });
+
   it("is given only the fields declared for its section by a failure", () => {
     const declared: BackOfficeFailure = { section: "roles", target: "a@b.fr", tried: "added", reason: "unknown_account", field: "email" };
     // @ts-expect-error a field not declared in FAILURE_FIELDS for the section would have no label.

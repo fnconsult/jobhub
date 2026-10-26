@@ -10,6 +10,8 @@
  *    Conversation, so it stays readable once that conversation is deleted;
  *  - `changeStatus` and `reply`, the team's side (the Back Office, #376), on its transaction: any status in any
  *    direction, but a Question is marked `traite` only once it has a reply; one reply, editable until `traite`;
+ *  - `list`, `one` and `countToHandle`, what the team reads (#376): oldest first, of some types and statuses, each with
+ *    the Candidate's email and Plan; and how many are « à traiter » (TO_HANDLE_STATUSES);
  * and `signalementsOf(database, candidateId)` (the Candidate's own, for their Data export and « Mes signalements »),
  * `migrateSignalements(database)` and `purgeSignalements(database, now)` (the worker, nightly: RETENTION_MONTHS
  * after it was marked `traite`).
@@ -19,6 +21,7 @@
  *
  * The values (types, statuses, limits) are in ./values, the only list of each.
  */
+import { FREE_PLAN, type Plan } from "@jobhub/shared";
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import { resolveTextSize, type TextSizeSetting } from "@jobhub/shared/design";
 import type { Pool } from "pg";
@@ -37,6 +40,7 @@ import {
   SENDING_WINDOW_HOURS,
   SIGNALEMENT_STATUSES,
   SIGNALEMENT_TYPES,
+  TO_HANDLE_STATUSES,
   type SignalementStatus,
   type SignalementType,
 } from "./values";
@@ -72,6 +76,17 @@ export interface Signalement {
   createdAt: Date;
 }
 
+/** A Signalement as the team reads it (#376): with who sent it, by the Candidate's email and current Plan. */
+export interface SentSignalement extends Signalement {
+  candidate: { email: string; plan: Plan };
+}
+
+/** Which Signalements the team reads: of these types and statuses (default: every one). */
+export interface SignalementsFilter {
+  types?: readonly SignalementType[];
+  statuses?: readonly SignalementStatus[];
+}
+
 /** What the request says of where it comes from: the server's knowledge, never the sent body's. */
 export interface SendingContext {
   /** The request's User-Agent header, read to name the browser and then dropped. */
@@ -99,6 +114,12 @@ export interface Signalements {
   changeStatus(id: string, status: SignalementStatus, within?: Queryable): Promise<Changed | { refused: "reply_required" } | null>;
   /** Saves the team's reply (trimmed, at most REPLY_MAX_LENGTH), dated, on `within`. Null for no such Signalement; refused once it is `traite`. */
   reply(id: string, text: unknown, within?: Queryable): Promise<Changed | { errors: FieldError[] } | { refused: "already_handled" } | null>;
+  /** The team's list: those of `filter`'s types and statuses, oldest first. Changes nothing. */
+  list(filter?: SignalementsFilter): Promise<SentSignalement[]>;
+  /** One of them, in full; null for no such Signalement. Changes nothing: opening one does not mark it `vu`. */
+  one(id: string): Promise<SentSignalement | null>;
+  /** How many are « à traiter » (TO_HANDLE_STATUSES): what the Back Office's sidebar shows next to Signalements. */
+  countToHandle(): Promise<number>;
 }
 
 /** A Signalement before and after the team changed it: what the Back Office Audit records (#376). */
@@ -134,6 +155,17 @@ interface Row {
 
 const COLUMNS = `id::text, type, message, attached_question, attached_coach_reply, path, version, browser, interface_language, text_size,
   status, status_changed_at, reply, reply_updated_at, created_at`;
+
+interface SentRow extends Row {
+  email: string;
+  plan: Plan | null;
+}
+
+/** The columns of `signalement s` with its Candidate's email and Plan, for SentRow. */
+const SENT = `${COLUMNS.split(",").map((column) => `s.${column.trim()}`).join(", ")}, c.email, cp.plan
+  FROM signalement s JOIN candidate c ON c.id = s.candidate_id LEFT JOIN candidate_plan cp ON cp.candidate_id = s.candidate_id`;
+
+const sentFrom = (row: SentRow): SentSignalement => ({ ...fromRow(row), candidate: { email: row.email, plan: row.plan ?? FREE_PLAN } });
 
 const fromRow = (row: Row): Signalement => ({
   id: row.id,
@@ -258,6 +290,22 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       if (typeof reply !== "string") return { errors: [reply] };
       const { rows } = await within.query<Row>(`UPDATE signalement SET reply = $2, reply_updated_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, reply, now()]);
       return { before, after: fromRow(rows[0]!) };
+    },
+
+    async list({ types = SIGNALEMENT_TYPES, statuses = SIGNALEMENT_STATUSES } = {}) {
+      const { rows } = await database.query<SentRow>(`SELECT ${SENT} WHERE s.type = ANY($1::text[]) AND s.status = ANY($2::text[]) ORDER BY s.created_at, s.id`, [types, statuses]);
+      return rows.map(sentFrom);
+    },
+
+    async one(id) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await database.query<SentRow>(`SELECT ${SENT} WHERE s.id = $1`, [id]);
+      return rows[0] ? sentFrom(rows[0]) : null;
+    },
+
+    async countToHandle() {
+      const { rows } = await database.query<{ n: number }>(`SELECT count(*)::int AS n FROM signalement WHERE status = ANY($1::text[])`, [TO_HANDLE_STATUSES]);
+      return rows[0]!.n;
     },
   };
 }

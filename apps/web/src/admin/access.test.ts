@@ -86,6 +86,18 @@ describe("Back Office access", () => {
     }
   });
 
+  it("Support and super-admins read Signalements and change their status and reply; Help editors only read them; no other role sees them (#376)", () => {
+    for (const role of ["support", "super-admin"] as const) {
+      expect(backOfficeAccess([role]).can("signalements", "read"), role).toBe(true);
+      expect(backOfficeAccess([role]).can("signalements", "write"), role).toBe(true);
+    }
+    expect(backOfficeAccess(["help-editor"]).can("signalements", "read")).toBe(true);
+    expect(backOfficeAccess(["help-editor"]).can("signalements", "write")).toBe(false);
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) {
+      expect(backOfficeAccess([role]).can("signalements", "read"), role).toBe(false);
+    }
+  });
+
   it("super-admins and Support read the AI consumption; only super-admins read the AI Message Log (#218)", () => {
     expect(backOfficeAccess(["super-admin"]).can("aiUsage", "read")).toBe(true);
     expect(backOfficeAccess(["super-admin"]).can("aiMessages", "read")).toBe(true);

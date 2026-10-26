@@ -35,6 +35,7 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import type { ToolCall } from "@/tools";
 import { latestToolCallsNow } from "@/tools/server";
+import { isSignalementStatus } from "@/signalements/values";
 import { UNANSWERED_QUESTION_STATUSES, type UnansweredQuestionStatus } from "@/unanswered-questions";
 
 /** How many entries the Journal shows at most. */
@@ -145,6 +146,10 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     if (entrySection === "platform_settings" && field === "source" && (value === "back_office" || value === "env" || value === "default")) return t(`admin.platformSettings.sources.${value}`);
     if (entrySection === "unanswered_questions" && field === "status" && UNANSWERED_QUESTION_STATUSES.includes(value as UnansweredQuestionStatus)) {
       return t(`admin.unansweredQuestions.statuses.${value as UnansweredQuestionStatus}`);
+    }
+    if (entrySection === "signalements") {
+      if (field === "status" && isSignalementStatus(value)) return t(`admin.signalements.statuses.${value}`);
+      if (field === "reply" && (value === "none" || value === "written" || value === "changed")) return t(`admin.signalements.replyStates.${value}`);
     }
     if (entrySection === "eval_cases" && field === "inViewKind" && EVAL_IN_VIEW_KINDS.includes(value as EvalInView["kind"])) return t(`admin.evals.cases.inViewKinds.${value as EvalInView["kind"]}`);
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");

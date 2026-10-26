@@ -84,6 +84,15 @@ export const routes = {
   adminEvalRun: (id: string) => `/admin/evaluations/${encodeURIComponent(id)}`,
   /** The Guardrails (Garde-fous, #228): settings and Guardrail messages for super-admins, read by Support, with their Guardrail Triggers. */
   adminGuardrails: "/admin/garde-fous",
+  /**
+   * The Signalements (#376): « à traiter » by default, oldest first, or of one type (`type`) or status (`statut`: a
+   * status, or « tous »); and one of them.
+   */
+  adminSignalements: (filter: { type?: string; status?: string } = {}) => {
+    const query = new URLSearchParams({ ...(filter.type ? { type: filter.type } : {}), ...(filter.status ? { statut: filter.status } : {}) }).toString();
+    return `/admin/signalements${query ? `?${query}` : ""}`;
+  },
+  adminSignalement: (id: string) => `/admin/signalements/${encodeURIComponent(id)}`,
   /** « Questions sans réponse » (#344): the open Unanswered Questions, of one page (`route`, a route pattern) or language, or all. */
   adminUnansweredQuestions: (filter: { route?: string; language?: string } = {}) => {
     const query = new URLSearchParams({ ...(filter.route ? { page: filter.route } : {}), ...(filter.language ? { langue: filter.language } : {}) }).toString();

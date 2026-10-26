@@ -58,6 +58,7 @@ export const BACK_OFFICE_SECTIONS = [
   "eval_cases",
   "guardrails",
   "unanswered_questions",
+  "signalements",
   // Sections only an Administrator denied entry is in (#264): the pages that change nothing.
   "eval_runs",
   "coach_message_cost",
@@ -152,6 +153,7 @@ export const FAILURE_FIELDS = {
   sign_in_providers: ["enabled", "privateKey"],
   coaching_playbooks: ["version"],
   guardrails: ["setting"],
+  signalements: ["status", "reply"],
 } as const satisfies Partial<Record<BackOfficeSection, readonly string[]>>;
 
 /** The fields an attempt in `S` can fail on. */
@@ -223,6 +225,7 @@ const DENIED_SECTIONS = {
   tools: "tool_pages",
   evalRuns: "eval_runs",
   unansweredQuestions: "unanswered_questions",
+  signalements: "signalements",
 } as const satisfies Record<BackOfficeResource, BackOfficeSection>;
 
 /** The page an Administrator was denied `resource` on: the Back Office page it covers; Eval Runs are played from the Coaching Playbooks. */

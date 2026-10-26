@@ -192,7 +192,7 @@ const SRC = { bo: ["Back Office", "src-bo"], env: ["env", "src-env"], code: ["d�
 
 // ---------- state ----------
 const qs = new URLSearchParams(location.search);
-const S = { variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
+const S = { variant: (qs.get("variant") || "A").toUpperCase(), tab: qs.get("tab") || "web", drawer: null, playbook: null, chip: "web", groupBy: "usage", changed: new Set(), sub: "provider" };
 const VARIANTS = { A: "Onglets + fournisseur actif + tableau", B: "Usages à gauche + matrice comparative", C: "Grand tableau de réglages" };
 
 // ---------- helpers ----------
@@ -233,6 +233,25 @@ function drawer(pid) {
   </aside>`;
 }
 
+const EU_MODELS = { mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"], bedrock: ["claude-sonnet-5-5 (eu-north-1)", "claude-haiku-5-5 (eu-north-1)"] };
+function playbookDrawer(i) {
+  const b = PLAYBOOKS[i]; const d = b.draft;
+  const opts = Object.entries(EU_MODELS).flatMap(([pid, ms]) => ms.map((m) => `<option value="${pid}|${h(m)}" ${(d ? d.p === pid && d.m === m : b.p === pid && b.m === m) ? "selected" : ""}>${h(P[pid].name)} · ${h(m)}</option>`)).join("");
+  return `<div class="scrim" data-close></div><aside class="drawer">
+    <div class="row" style="justify-content:space-between"><div><div class="small muted">Coaching Playbook</div><h2 style="margin:0">${h(b.name)}</h2></div><button class="btn ghost" data-close>Fermer ✕</button></div>
+    <p class="small">Version servie : <b>v${b.v}</b> ${b.validated ? '<span class="ok">validée</span>' : '<span class="warn">non validée</span>'} ${d ? `· brouillon <b>v${d.v}</b> <span class="warn">à valider</span>` : ""}</p>
+    <h3>Playbook Agent</h3>
+    <div class="kv" style="grid-template-columns: 7rem 1fr">
+      <span>Modèle</span><select id="pbModel">${opts}</select>
+      <span>Effort</span><select id="pbEffort">${["faible", "moyen", "élevé"].map((e) => `<option ${(d ? d.effort : b.effort) === e ? "selected" : ""}>${e}</option>`).join("")}</select>
+    </div>
+    <p class="small muted">Quand le consulter : « ${h(b.name.toLowerCase())} » (inchangé, se modifie dans Playbooks).</p>
+    <div class="note">Enregistrer crée la <b>version ${d ? d.v : b.v + 1}</b> en brouillon, avec les mêmes règles et ce modèle. La version ${b.v} reste servie en production jusqu'à sa validation par une autre personne que vous.</div>
+    <div class="row"><button class="btn primary" data-pbsave="${i}">${d ? `Mettre à jour le brouillon v${d.v}` : `Créer la version ${b.v + 1} (brouillon)`}</button><a href="#" class="small">Ouvrir dans Playbooks (règles, sources, validation) →</a></div>
+    <p class="small muted" style="margin-top:20px">Droit requis : Playbook editor. La validation reste dans Playbooks.</p>
+  </aside>`;
+}
+
 function businessBlock(b, compact) {
   return `<h2 class="sec">Réglages de la Job discovery</h2>
   <div class="grid2">
@@ -253,13 +272,13 @@ function variantA() {
   if (us.id === "ai") {
     body = `<h2 class="sec">Tâches</h2><table><tr><th>Tâche</th><th>Fournisseur</th><th>Modèle</th><th>Source</th></tr>
       ${us.tasks.map((t) => `<tr><td>${h(t.t)}</td><td><select>${us.providers.map((p) => `<option ${p === t.p ? "selected" : ""}>${P[p].name}</option>`).join("")}</select></td><td><input value="${h(t.m)}" style="border:1px solid var(--border);border-radius:4px;padding:2px 6px"></td><td>${src(t.src)}</td></tr>`).join("")}</table>
-      <h2 class="sec">Playbook Agents <span class="small muted" style="font-weight:400">· lecture seule ici</span></h2>
-      <div class="note">Le modèle et l'effort d'un Playbook Agent font partie de sa Playbook Version : ils se modifient dans <a href="#">Playbooks</a>, comme une nouvelle version à valider. Seuls des modèles résidant dans l'UE sont proposés.</div>
+      <h2 class="sec">Playbook Agents</h2>
+      <div class="note">Le modèle et l'effort d'un Playbook Agent font partie de sa Playbook Version : « Modifier… » ouvre le Coaching Playbook sur le côté : un changement crée une nouvelle Playbook Version en brouillon, servie en production une fois validée dans <a href="#">Playbooks</a> par une autre personne. Seuls des modèles résidant dans l'UE sont proposés.</div>
       <table><tr><th>Coaching Playbook</th><th>Fournisseur</th><th>Modèle</th><th>Effort</th><th>Version servie</th><th>Clé du fournisseur</th><th></th></tr>
-      ${PLAYBOOKS.map((b) => { const [ks, kt] = keyState(b.p); return `<tr><td>${h(b.name)}</td><td>${h(P[b.p].name)}</td><td><code>${h(b.m)}</code></td><td>${h(b.effort)}</td>
+      ${PLAYBOOKS.map((b, i) => { const [ks, kt] = keyState(b.p); return `<tr class="click" data-playbook="${i}"><td>${h(b.name)}${b.draft ? ` <span class="pill src-env">v${b.draft.v} brouillon à valider</span>` : ""}</td><td>${h(P[b.p].name)}</td><td><code>${h(b.m)}</code></td><td>${h(b.effort)}</td>
         <td>${b.validated ? `v${b.v} <span class="small ok">validée</span>` : `v${b.v} <span class="small warn">non validée : pas servie en production</span>`}</td>
         <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "clé absente : agent écarté des réponses" : h(kt)}</span></td>
-        <td><a href="#" class="small">Modifier dans Playbooks →</a></td></tr>`; }).join("")}</table>`;
+        <td><button class="btn" data-playbook="${i}">Modifier…</button></td></tr>`; }).join("")}</table>`;
   } else if (us.active) {
     const a = P[us.active]; const [ks, kt] = keyState(us.active);
     body = `<div class="card surface" style="margin-top:16px">
@@ -354,14 +373,16 @@ function variantC() {
 function render() {
   const url = new URL(location); url.searchParams.set("variant", S.variant); url.searchParams.set("tab", S.tab); history.replaceState(null, "", url);
   document.getElementById("main").innerHTML = { A: variantA, B: variantB, C: variantC }[S.variant]();
-  document.getElementById("overlay").innerHTML = S.drawer ? drawer(S.drawer) : "";
+  document.getElementById("overlay").innerHTML = S.playbook != null ? playbookDrawer(S.playbook) : S.drawer ? drawer(S.drawer) : "";
   document.getElementById("proto").innerHTML = `<button id="prev" title="Variante précédente (←)">←</button><span><em>PROTOTYPE ${S.variant}</em>${VARIANTS[S.variant]}</span><button id="next" title="Variante suivante (→)">→</button>`;
 }
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
+  if (t.dataset.pbsave) { const b = PLAYBOOKS[+t.dataset.pbsave]; const [pid, m] = document.getElementById("pbModel").value.split("|"); b.draft = { v: b.draft?.v ?? b.v + 1, p: pid, m, effort: document.getElementById("pbEffort").value }; S.playbook = null; toast(`${b.name} : version ${b.draft.v} en brouillon, à valider dans Playbooks`); return render(); }
+  if (t.dataset.playbook != null && !t.dataset.pbsave) { S.playbook = +t.dataset.playbook; return render(); }
   if (t.id === "prev") return cycle(-1);
   if (t.id === "next") return cycle(1);
   if (t.id === "saveAll") { toast(`${S.changed.size} changement(s) enregistré(s), inscrits au Journal`); S.changed.clear(); return render(); }
@@ -371,7 +392,7 @@ document.addEventListener("click", (e) => {
   if (t.dataset.sub) { S.sub = t.dataset.sub; return render(); }
   if (t.dataset.chip) { S.chip = t.dataset.chip; if (t.dataset.chip !== "all") S.tab = t.dataset.chip; return render(); }
   if (t.dataset.open) { if (e.target.closest("select,input,button") && !t.matches("button")) return; S.drawer = t.dataset.open; return render(); }
-  if (t.hasAttribute("data-close")) { S.drawer = null; return render(); }
+  if (t.hasAttribute("data-close")) { S.drawer = null; S.playbook = null; return render(); }
 });
 document.addEventListener("change", (e) => {
   if (e.target.id === "groupBy") { S.groupBy = e.target.value; return render(); }
@@ -384,7 +405,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("input,textarea,select,[contenteditable]")) return;
   if (e.key === "ArrowLeft") cycle(-1);
   if (e.key === "ArrowRight") cycle(1);
-  if (e.key === "Escape" && S.drawer) { S.drawer = null; render(); }
+  if (e.key === "Escape" && (S.drawer || S.playbook != null)) { S.drawer = null; S.playbook = null; render(); }
 });
 render();
 </script>

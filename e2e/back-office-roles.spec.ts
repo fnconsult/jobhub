@@ -39,7 +39,7 @@ type Section = keyof typeof SECTIONS;
 const SOURCES = `${SECTIONS.platformSettings}?tab=sources`;
 
 /** The Back Office Roles, in the order the app lists them. */
-const ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "support"];
+const ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "platform-manager", "support"];
 
 /** A signed-in page of its own (cookies apart), as for another person on another computer. */
 async function personPage(browser: Browser, email: string): Promise<Page> {
@@ -208,6 +208,26 @@ test.describe("Back Office Roles", () => {
       jobDigest: "weekly",
     });
     expect(refused.status()).toBe(404);
+  });
+
+  test("Technique reaches the platform's sections and the Journal, never Appels IA nor the Administrateurs (#397)", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const technique = newAddress("platform-manager");
+    const techniquePage = await personPage(browser, technique);
+    await grant(page, technique, ["platform-manager"]);
+
+    // The keys, the Sign-in Providers and the search sites are on Paramètres' tabs (#396).
+    await expectSections(techniquePage, ["platformSettings", "aiUsage", "tools", "journal"]);
+    // Changes the search sites: the Sources' switches and the Job discovery sites (Recherche web tab).
+    await techniquePage.goto(SOURCES);
+    await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);
+    await expect(techniquePage.getByRole("button", { name: tr(admin.searchSites.disable, { name: admin.searchSites.sources.names.france_travail }) })).toBeEnabled();
+    await techniquePage.goto(`${SECTIONS.platformSettings}?tab=recherche-web`);
+    await expect(techniquePage.getByRole("button", { name: admin.searchSites.discoverySites.add, exact: true })).toBeEnabled();
+    // Reads the Sign-in Providers without changing them: the Connexion tab has no form.
+    await techniquePage.goto(`${SECTIONS.platformSettings}?tab=connexion`);
+    await expect(techniquePage.getByRole("heading", { name: admin.signInProviders.ssoTitle })).toBeVisible();
+    await expect(techniquePage.locator(".tabpanel form")).toHaveCount(0);
   });
 
   test("revoking a role takes effect on the next request", async ({ page, browser }) => {

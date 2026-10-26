@@ -121,7 +121,7 @@ export function ProvidersSection({
                 {rows.map((row) => (
                   <tr key={row.tool.id} data-provider={row.tool.id}>
                     <th scope="row">
-                      <Link href={parametresHref(tab.id, { fournisseur: row.tool.id })} aria-label={t("admin.platformSettings.providers.open", { name: row.tool.name })}>
+                      <Link prefetch={false} href={parametresHref(tab.id, { fournisseur: row.tool.id })} aria-label={t("admin.platformSettings.providers.open", { name: row.tool.name })}>
                         {row.tool.name}
                       </Link>
                       {row.active ? (

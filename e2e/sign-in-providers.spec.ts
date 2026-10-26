@@ -20,7 +20,7 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 const SSO = { id: "e2e-sso", name: "Jobbbox SSO", clientId: "jobbbox-e2e-web", secret: `e2e-oidc-secret-${Date.now()}` };
 const continueWithSso = tr(fr.signIn.continueWith, { provider: SSO.name });
 
-test.describe("Sign-in Providers (the Connexion section)", () => {
+test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
   test.describe.configure({ mode: "serial", timeout: 180_000 });
   let server: SignInServer;
   let superAdmin: Page;
@@ -54,7 +54,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
 
   test("env's Google client is a provider after the deployment, and Google sign-in still works", async ({ browser }) => {
     await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
-    await expect(superAdmin.getByRole("heading", { level: 1 })).toHaveText(sp.title);
+    await expect(superAdmin.getByRole("heading", { level: 1 })).toHaveText(fr.admin.platformSettings.title);
     const google = article(superAdmin, "Google");
     await expect(google).toContainText(sp.enabled);
     await expect(google).toContainText(`${server.origin}/api/auth/callback/google`);
@@ -237,7 +237,7 @@ test.describe("Sign-in Providers (the Connexion section)", () => {
 
     // The ADMIN_EMAILS super-admin, signed in by magic link, is exempt.
     await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
-    await expect(superAdmin.getByRole("heading", { level: 1 })).toHaveText(sp.title);
+    await expect(superAdmin.getByRole("heading", { level: 1 })).toHaveText(fr.admin.platformSettings.title);
 
     // Linked once from Mon compte, then signed in with it: the Back Office opens.
     await approveAtIssuer(support, { sub: `sso-${email}`, email, email_verified: true, name: "Support" }, SSO.clientId);

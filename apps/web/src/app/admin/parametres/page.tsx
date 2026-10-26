@@ -216,7 +216,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
       <div className="parametres-head">
         <p className="lead">{t("admin.platformSettings.intro")}</p>
         {allowed.length > 0 ? (
-          <Link className="button button-primary" href={parametresHref(tab.id, { ajouter: addTypeFor(tab, undefined, allowed) })}>
+          <Link prefetch={false} className="button button-primary" href={parametresHref(tab.id, { ajouter: addTypeFor(tab, undefined, allowed) })}>
             {t("admin.platformSettings.add.button")}
           </Link>
         ) : null}
@@ -227,7 +227,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
         <ul className="tablist parametres-tabs">
           {PARAMETRES_TABS.map((each) => (
             <li key={each.id}>
-              <Link className="tab" href={parametresHref(each.id)} data-state={each.id === tab.id ? TAB_STATE.shown : TAB_STATE.hidden} aria-current={each.id === tab.id ? CURRENT : undefined}>
+              <Link prefetch={false} className="tab" href={parametresHref(each.id)} data-state={each.id === tab.id ? TAB_STATE.shown : TAB_STATE.hidden} aria-current={each.id === tab.id ? CURRENT : undefined}>
                 {t(`admin.platformSettings.tabs.${each.id}`)}
               </Link>
             </li>
@@ -248,7 +248,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
               {t("admin.platformSettings.confirmDpa.yes")}
             </button>
           </form>
-          <Link href={parametresHref(tab.id, {}, `setting-${confirming.name}`)}>{t("admin.platformSettings.confirmDpa.cancel")}</Link>
+          <Link prefetch={false} href={parametresHref(tab.id, {}, `setting-${confirming.name}`)}>{t("admin.platformSettings.confirmDpa.cancel")}</Link>
         </section>
       ) : sheet ? null : (
         notices

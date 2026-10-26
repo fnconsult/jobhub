@@ -22,7 +22,7 @@ export function ProviderSheet({ ctx, row, secrets, notices }: { ctx: Ctx; row: P
     <aside className="side-sheet stack" aria-labelledby="sheet-title" data-sheet={tool.id}>
       <div className="side-sheet-head">
         <h2 id="sheet-title">{tool.name}</h2>
-        <Link className="button" href={parametresHref(tab.id)}>
+        <Link prefetch={false} className="button" href={parametresHref(tab.id)}>
           {t("admin.platformSettings.sheet.close")}
         </Link>
       </div>
@@ -65,7 +65,7 @@ export function ProviderSheet({ ctx, row, secrets, notices }: { ctx: Ctx; row: P
           <ul>
             {row.settings.map((setting) => (
               <li key={setting.name}>
-                <Link href={settingHref(setting.name)}>
+                <Link prefetch={false} href={settingHref(setting.name)}>
                   <code>{setting.name}</code>
                 </Link>{" "}
                 = {setting.value ? <code>{setting.value}</code> : t("admin.platformSettings.empty")} ({t(`admin.platformSettings.sources.${setting.source}`)})
@@ -76,7 +76,7 @@ export function ProviderSheet({ ctx, row, secrets, notices }: { ctx: Ctx; row: P
       </section>
 
       <p>
-        <Link href={routes.adminTool(tool.id)}>{t("admin.platformSettings.sheet.toolPage")}</Link>
+        <Link prefetch={false} href={routes.adminTool(tool.id)}>{t("admin.platformSettings.sheet.toolPage")}</Link>
       </p>
     </aside>
   );

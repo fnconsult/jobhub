@@ -78,7 +78,7 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
                     {providers.length > 0
                       ? providers.map((row) => (
                           <p key={row.tool.id}>
-                            <Link href={providerSheetHref(row.tool)!}>{row.tool.name}</Link>
+                            <Link prefetch={false} href={providerSheetHref(row.tool)!}>{row.tool.name}</Link>
                           </p>
                         ))
                       : t("admin.platformSettings.active.none")}

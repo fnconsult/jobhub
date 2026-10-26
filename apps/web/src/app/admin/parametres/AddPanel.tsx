@@ -53,7 +53,7 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
     <aside className="side-sheet stack" aria-labelledby="add-panel-title" data-add-panel={type}>
       <div className="side-sheet-head">
         <h2 id="add-panel-title">{t("admin.platformSettings.add.title")}</h2>
-        <Link className="button" href={parametresHref(ctx.tab.id)}>
+        <Link prefetch={false} className="button" href={parametresHref(ctx.tab.id)}>
           {t("admin.platformSettings.add.close")}
         </Link>
       </div>

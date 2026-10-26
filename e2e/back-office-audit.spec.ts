@@ -95,10 +95,11 @@ test.describe("the Back Office Journal", () => {
     await expect(page.getByRole("status")).toHaveText(sites.notices.siteRemoved);
     // Switch a Job discovery source off, then on again (other tests rely on it).
     await page.goto("/admin/parametres?tab=sources");
+    // The tab also says how many of its settings come from env (the e2e server's Job discovery budget).
     await page.getByRole("button", { name: tr(sites.disable, { name: franceTravail }) }).click();
-    await expect(page.getByRole("status")).toHaveText(sites.notices.saved);
+    await expect(page.getByRole("status").filter({ hasText: sites.notices.saved })).toHaveText(sites.notices.saved);
     await page.getByRole("button", { name: tr(sites.enable, { name: franceTravail }) }).click();
-    await expect(page.getByRole("status")).toHaveText(sites.notices.saved);
+    await expect(page.getByRole("status").filter({ hasText: sites.notices.saved })).toHaveText(sites.notices.saved);
 
     await page.goto("/admin/journal?section=job_discovery_sites");
     const siteRows = page.getByRole("row").filter({ hasText: domain });

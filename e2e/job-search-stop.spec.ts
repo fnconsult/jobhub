@@ -66,6 +66,8 @@ async function freshWorker() {
       AI_WEB_SEARCH_PROVIDER: "perplexity",
       MISTRAL_API_KEY: "e2e-mistral-key",
       PERPLEXITY_API_KEY: "e2e-perplexity-key",
+      // One query per call (#398 batches up to 5): the run has a next web search, after the first one's postings are read.
+      PERPLEXITY_QUERIES_PER_CALL: "1",
       JOB_DISCOVERY_BUDGET_JOB_OFFERS: "",
       JOB_DISCOVERY_BUDGET_EUR: "",
       JOB_DISCOVERY_BUDGET_SECONDS: "",

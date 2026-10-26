@@ -168,6 +168,80 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
     });
   });
 
+  describe("the Candidate's side: their notifications and deleting one (#377)", () => {
+    async function sent(change: Record<string, unknown> = {}) {
+      const result = await signalements.send(marie, bug(change), FROM_MARIE);
+      if (!result.ok) throw new Error("fixture Signalement refused");
+      return result.signalement;
+    }
+
+    it("tells the Candidate when the team replied or marked it « traité », newest first, never when it was only marked « vu »", async () => {
+      const seen = await sent();
+      now = new Date("2026-10-25T10:00:00Z");
+      const replied = await sent();
+      now = new Date("2026-10-25T11:00:00Z");
+      const handled = await sent();
+      now = new Date("2026-10-26T10:00:00Z");
+
+      await signalements.changeStatus(seen.id, "vu");
+      await signalements.reply(replied.id, "Merci, c'est corrigé.");
+      await signalements.changeStatus(handled.id, "traite");
+
+      expect(await signalements.notifications(marie)).toEqual([
+        { signalementId: handled.id, sentAt: "2026-10-25T11:00:00.000Z", replied: false },
+        { signalementId: replied.id, sentAt: "2026-10-25T10:00:00.000Z", replied: true },
+      ]);
+    });
+
+    it("closes one notification, or every one when the Section is opened; a reply saved later notifies again", async () => {
+      const first = await sent();
+      const second = await sent();
+      const jeans = await signalements.send(await candidate("jean.martin@example.fr"), bug(), FROM_MARIE);
+      if (!jeans.ok) throw new Error("fixture Signalement refused");
+      now = new Date("2026-10-26T10:00:00Z");
+      for (const { id } of [first, second, jeans.signalement]) await signalements.reply(id, "Merci, c'est corrigé.");
+
+      await signalements.closeNotifications(marie, first.id);
+      expect((await signalements.notifications(marie)).map((each) => each.signalementId)).toEqual([second.id]);
+      await signalements.closeNotifications(marie);
+      expect(await signalements.notifications(marie)).toEqual([]);
+
+      now = new Date("2026-10-27T10:00:00Z");
+      await signalements.reply(first.id, "Merci, c'est corrigé pour de bon.");
+      expect(await signalements.notifications(marie)).toEqual([{ signalementId: first.id, sentAt: first.createdAt.toISOString(), replied: true }]);
+    });
+
+    it("never closes another Candidate's notification", async () => {
+      const jean = await candidate("jean.martin@example.fr");
+      const jeans = await signalements.send(jean, bug(), FROM_MARIE);
+      if (!jeans.ok) throw new Error("fixture Signalement refused");
+      now = new Date("2026-10-26T10:00:00Z");
+      await signalements.changeStatus(jeans.signalement.id, "traite");
+
+      await signalements.closeNotifications(marie, jeans.signalement.id);
+      await signalements.closeNotifications(marie);
+      await signalements.closeNotifications(marie, "pas-un-id");
+
+      expect(await signalements.notifications(jean)).toEqual([{ signalementId: jeans.signalement.id, sentAt: "2026-10-25T09:30:00.000Z", replied: false }]);
+    });
+
+    it("deletes one of the Candidate's own, never another Candidate's", async () => {
+      const kept = await sent();
+      const deleted = await sent();
+      const jean = await candidate("jean.martin@example.fr");
+      const jeans = await signalements.send(jean, bug(), FROM_MARIE);
+      if (!jeans.ok) throw new Error("fixture Signalement refused");
+
+      expect(await signalements.remove(marie, deleted.id)).toBe(true);
+      expect(await signalements.remove(marie, deleted.id)).toBe(false);
+      expect(await signalements.remove(marie, jeans.signalement.id)).toBe(false);
+      expect(await signalements.remove(marie, "pas-un-id")).toBe(false);
+
+      expect((await signalementsOf(database, marie)).map(({ id }) => id)).toEqual([kept.id]);
+      expect((await signalementsOf(database, jean)).map(({ id }) => id)).toEqual([jeans.signalement.id]);
+    });
+  });
+
   describe("the purge, 12 months after a Signalement was marked « traité »", () => {
     async function sentAt(at: string, status?: "vu" | "traite", changedAt?: string) {
       now = new Date(at);

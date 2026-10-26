@@ -5,7 +5,7 @@
  * SECRETS_MASTER_KEYS only gives its versions.
  */
 import { secretCipherFromEnv } from "../provider-secrets/cipher";
-import { ENV_ONLY_SETTINGS, type EnvOnlyKind, type EnvOnlySettingName } from "./catalog";
+import { ENV_ONLY_SETTINGS, RETIRED_SETTINGS, type EnvOnlyKind, type EnvOnlySettingName, type RetiredBy, type RetiredSettingName } from "./catalog";
 
 type Env = Record<string, string | undefined>;
 
@@ -69,4 +69,9 @@ export function envOnlySettingsShown(env: Env): EnvOnlyRow[] {
     const mailToConsole = name === "MAIL_TRANSPORT" && raw === "console" && env.JOBHUB_TARGET?.trim() !== "e2e";
     return [{ name, kind: setting.kind, shown, warning: mailToConsole ? "mail_to_console" : null }];
   });
+}
+
+/** The variables Jobbbox no longer reads that `env` still sets, with what took their place; never their value (#396). */
+export function retiredSettingsSet(env: Env): { name: RetiredSettingName; replacedBy: RetiredBy }[] {
+  return (Object.entries(RETIRED_SETTINGS) as [RetiredSettingName, RetiredBy][]).filter(([name]) => env[name]?.trim()).map(([name, replacedBy]) => ({ name, replacedBy }));
 }

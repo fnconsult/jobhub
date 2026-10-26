@@ -8,7 +8,7 @@ import { join, relative } from "node:path";
 import { AI_ENV_KEYS } from "@jobhub/ai";
 import { describe, expect, it } from "vitest";
 import { PROVIDER_SECRET_NAMES } from "../provider-secrets/catalog";
-import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS } from "./catalog";
+import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS, RETIRED_SETTINGS } from "./catalog";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname;
 
@@ -57,6 +57,15 @@ describe("the guard on the Platform Settings", () => {
     expect(found.map(({ name }) => name)).toEqual(expect.arrayContaining(["DATABASE_URL", "AUTH_SECRET", "SECRETS_MASTER_KEYS", "JOB_DIGEST_TARGET_COUNT", "STRIPE_PRICE_STANDARD", "MISTRAL_API_KEY"]));
     const unknown = [...found, ...AI_ENV_KEYS.map((name) => ({ name, file: "packages/ai/src/env.ts (AI_ENV_KEYS)" }))].filter(({ name }) => !known.has(name));
     expect(unknown).toEqual([]);
+  });
+
+  it("reads none of the variables it lists as no longer read, which are nothing else either (#396)", () => {
+    const retired = Object.keys(RETIRED_SETTINGS);
+    expect(retired.length).toBeGreaterThan(0);
+    const read = new Set([...sourceFiles().flatMap((file) => envNamesIn(readFileSync(file, "utf8"))), ...AI_ENV_KEYS]);
+    expect(retired.filter((name) => read.has(name))).toEqual([]);
+    const known = new Set<string>([...PLATFORM_SETTINGS.map((setting) => setting.name), ...PROVIDER_SECRET_NAMES, ...Object.keys(ENV_ONLY_SETTINGS)]);
+    expect(retired.filter((name) => known.has(name))).toEqual([]);
   });
 
   it("never marks a Platform Setting as one only env holds", () => {

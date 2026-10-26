@@ -363,7 +363,7 @@ test.describe("Enriched Contacts set on Paramètres (#302)", () => {
     try {
       const office = await context.newPage();
       await signInWithMagicLink(office, SUPER_ADMIN);
-      await office.goto(`${server.origin}/admin/parametres`);
+      await office.goto(`${server.origin}/admin/parametres?tab=enrichissement`);
       await expect(office.getByText(texts.enrichedContactsHelp)).toBeVisible();
       const provider = office.locator('tr[data-setting="CONTACT_ENRICHMENT_PROVIDER"]');
       const dpa = office.locator('tr[data-setting="CONTACT_ENRICHMENT_DPA_SIGNED"]');

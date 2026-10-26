@@ -418,6 +418,15 @@ describe("Back Office Assistant", () => {
     expect(system.match(/<donnees>/g)?.length).toBe(system.match(/<\/donnees>/g)?.length);
   });
 
+  it("says the keys, the Sign-in Providers and the search sites are in Paramètres' tabs, and where the Stripe webhook's secret goes (#396)", async () => {
+    const { assistant, administrator } = assistantFor(["super-admin"]);
+    await assistant.reply(administrator, asked("Où mettre le secret du webhook Stripe ?"));
+    expect(prompt()).toContain("## Clés des fournisseurs (Provider Secrets) (page /admin/parametres)");
+    expect(prompt()).toContain("## Fournisseurs de connexion (SSO) (page /admin/parametres?tab=connexion)");
+    expect(prompt()).toContain("fiche du fournisseur Stripe, dans l'onglet Paiement de Paramètres (/admin/parametres?tab=paiement&fournisseur=stripe)");
+    expect(prompt()).not.toMatch(/\/admin\/(cles|connexion|sites)\b/);
+  });
+
   it("explains what the Provider Secrets and SSO settings are to the roles that read them, never a value", async () => {
     const saved = process.env.MISTRAL_API_KEY;
     process.env.MISTRAL_API_KEY = SECRET;

@@ -189,8 +189,18 @@ const U = [
   { id: "enrich", label: "Enrichissement de contacts", active: "lusha", providers: ["lusha", "kaspr", "apollo"], settings: [{ k: "Fournisseur actif", v: "lusha", type: "provider", src: "env", def: "lusha" }] },
   { id: "mail", label: "E-mail", active: "brevo", providers: ["brevo"], settings: [{ k: "Adresse d'envoi", v: "hello@jobbbox.ai", src: "env", def: "hello@jobbbox.ai" }] },
   { id: "pay", label: "Paiement", active: "stripe", providers: ["stripe"], settings: [] },
-  { id: "env", label: "Environnement 🔒", active: null, providers: [], settings: [] },
   { id: "signin", label: "Connexion", active: null, providers: ["google", "apple"], settings: [{ k: "SSO obligatoire pour les Administrateurs", v: "non", src: "bo", def: "non" }] },
+  { id: "extension", label: "Extension", active: null, providers: [], settings: [
+      { k: "Capture dans les iframes des sites d'emploi", v: "activée", opts: ["activée", "désactivée"], src: "code", def: "activée" },
+      { k: "Fréquence de relecture de la liste", v: "6 h", opts: ["15 min", "1 h", "6 h", "24 h"], src: "code", def: "6 h" },
+    ],
+    jobSites: [
+      { pat: "https://*.welcometothejungle.com/*", post: "https://*.welcometothejungle.com/*/jobs/*", builtIn: true, on: true },
+      { pat: "https://*.linkedin.com/*", post: "https://*.linkedin.com/jobs/view/*", builtIn: true, on: true },
+      { pat: "https://*.indeed.com/*", post: "", builtIn: true, on: false },
+      { pat: "https://*.gestmax.fr/*", post: "https://*.gestmax.fr/*/offre/*", builtIn: false, on: true },
+    ] },
+  { id: "env", label: "Environnement 🔒", active: null, providers: [], settings: [] }
 ];
 const PLAYBOOKS = [
   { name: "Positionnement après 40 ans", p: "mistral", m: "mistral-large-latest", effort: "élevé", v: 4, validated: true },
@@ -289,7 +299,7 @@ function businessBlock(b, compact) {
   </div>
   <h3>Job discovery sites</h3>
   <table><tr><th>Domaine</th><th>État</th><th>Effet</th><th></th></tr>${b.sites.map((s) => `<tr><td>${h(s.d)}</td><td>${s.on ? '<span class="ok">activé</span>' : '<span class="muted">désactivé</span>'}</td><td class="small muted">${s.on ? "1 requête restreinte à ce site par run" : "pages de ce site ignorées"}</td><td><button class="btn ghost">${s.on ? "Désactiver" : "Activer"}</button></td></tr>`).join("")}</table>
-  <div class="row" style="margin-top:8px"><input placeholder="exemple.fr" style="padding:3px 7px;border:1px solid var(--border);border-radius:4px"><button class="btn">Ajouter un site</button> <a href="#" class="small">Job Sites de l'extension →</a></div>`;
+  <div class="row" style="margin-top:8px"><input placeholder="exemple.fr" style="padding:3px 7px;border:1px solid var(--border);border-radius:4px"><button class="btn">Ajouter un site</button> <button class="btn ghost small" data-tab="extension">Job Sites de l'extension →</button></div>`;
 }
 
 function observeLinks(us) { return `<p class="small"><a href="#">Consommation IA · ${h(us.label)} →</a> &nbsp; <a href="#">Journaux IA · ${h(us.label)} →</a></p>`; }
@@ -337,7 +347,7 @@ const ADD_TYPES = {
       <span>Identifiant</span><input id="addName" placeholder="ex. mistral-medium-2610"><span>Résidence</span><select><option>UE</option><option>Hors UE</option></select>` },
   source: { label: "Source de la Job discovery", fields: () => `<span>Nom</span><input id="addName" placeholder="ex. Indeed Partner API"><span>Fournisseur</span><input placeholder="ex. indeed"><span>Clé</span><input type="password">` },
   site: { label: "Job discovery site", fields: () => `<span>Domaine</span><input id="addName" placeholder="exemple.fr"><span>État</span><select><option>activé</option><option>désactivé</option></select>` },
-  jobsite: { label: "Job Site de l'extension", fields: () => `<span>Domaine</span><input id="addName" placeholder="exemple.fr">` },
+  jobsite: { label: "Job Site de l'extension", fields: () => `<span>Motif d'adresse</span><input id="addName" placeholder="https://*.exemple.fr/*"><span>Pages d'offre</span><input placeholder="facultatif : https://*.exemple.fr/*/offre/*">` },
   signin: { label: "Fournisseur de connexion", fields: () => `<span>Type</span><select id="addName"><option>Microsoft</option><option>Apple</option><option>OIDC générique</option></select><span>Client ID</span><input><span>Client secret</span><input type="password">` },
 };
 const addButton = () => `<button class="btn primary" style="margin-left:auto" data-add>+ Ajouter</button>`;
@@ -372,6 +382,18 @@ function variantA() {
         <td>${b.validated ? `v${b.v} <span class="small ok">validée</span>` : `v${b.v} <span class="small warn">non validée : pas servie en production</span>`}</td>
         <td><span class="dot ${ks}"></span><span class="small ${ks === "ko" ? "ko" : ""}">${ks === "ko" ? "clé absente : agent écarté des réponses" : h(kt)}</span></td>
         <td><button class="btn" data-playbook="${i}">Modifier…</button></td></tr>`; }).join("")}</table>`;
+  } else if (us.jobSites) {
+    body = `<h2 class="sec">Réglages de l'extension</h2>
+      <div class="kv">${us.settings.map((x) => `<span>${h(x.k)}</span>${settingInput(x)}${src(x.src)}`).join("")}
+        <span>Origines autorisées</span><span class="small"><code>EXTENSION_ORIGINS</code> · chrome-extension://••••</span><button class="btn ghost" data-tab="env">Environnement 🔒 →</button></div>
+      <h2 class="sec">Job Sites</h2>
+      <p class="small muted">Les sites où l'extension affiche son badge « Analyser cette offre ». Les sites intégrés peuvent être désactivés, pas retirés ; un site ajouté n'a le badge que chez les personnes qui ont autorisé l'extension sur tous les sites. La capture manuelle reste possible partout.</p>
+      <table><tr><th>Motif d'adresse</th><th>Pages d'offre</th><th>Origine</th><th>État</th><th></th></tr>
+      ${us.jobSites.map((x, i) => `<tr><td><code>${h(x.pat)}</code></td><td class="small">${x.post ? `<code>${h(x.post)}</code>` : '<span class="muted">pages publiant une offre JobPosting</span>'}</td>
+        <td class="small">${x.builtIn ? "intégré à l'extension" : "ajouté"}</td><td>${x.on ? '<span class="ok">activé</span>' : '<span class="muted">désactivé</span>'}</td>
+        <td><button class="btn ghost" data-jobsite="${i}">${x.on ? "Désactiver" : "Activer"}</button>${x.builtIn ? "" : ` <button class="btn ghost" data-jobsite-rm="${i}">Retirer</button>`}</td></tr>`).join("")}</table>
+      <p class="small muted">Les changements atteignent l'extension en quelques minutes à quelques heures, sans nouvelle version.</p>`;
+    S.skipProviders = true;
   } else if (us.sources) {
     body = `<p class="muted" style="margin-top:14px">Où la Job discovery trouve des offres. Une source désactivée est ignorée par les Job Searches et les compléments du Job Digest.</p>
       <table><tr><th>Source</th><th>État</th><th>Fournisseur</th><th>Clé</th><th>Test</th><th></th></tr>
@@ -485,11 +507,14 @@ function render() {
 const keys = Object.keys(VARIANTS);
 const cycle = (d) => { S.variant = keys[(keys.indexOf(S.variant) + d + keys.length) % keys.length]; S.drawer = null; render(); };
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
+  const t = e.target.closest("[data-jobsite],[data-jobsite-rm],[data-add],[data-addsave],[data-source],[data-task],[data-tksave],[data-tkreset],[data-playbook],[data-pbsave],[data-tab],[data-open],[data-close],[data-activate],[data-test],[data-sub],[data-chip],#prev,#next,#saveAll");
   if (!t) return;
-  if (t.hasAttribute("data-add")) { S.adding = true; S.addType = S.tab === "sources" ? "source" : S.tab === "signin" ? "signin" : S.tab === "ai" ? "model" : "provider"; return render(); }
+  if (t.dataset.jobsite != null) { const x = u("extension").jobSites[+t.dataset.jobsite]; x.on = !x.on; toast(`${x.pat} ${x.on ? "activé" : "désactivé"}`); return render(); }
+  if (t.dataset.jobsiteRm != null) { const [x] = u("extension").jobSites.splice(+t.dataset.jobsiteRm, 1); toast(`${x.pat} retiré`); return render(); }
+  if (t.hasAttribute("data-add")) { S.adding = true; S.addType = S.tab === "extension" ? "jobsite" : S.tab === "sources" ? "source" : S.tab === "signin" ? "signin" : S.tab === "ai" ? "model" : "provider"; return render(); }
   if (t.hasAttribute("data-addsave")) { const n = document.getElementById("addName")?.value || "(sans nom)"; const label = ADD_TYPES[S.addType].label;
     if (S.addType === "site") u("web").business.sites.push({ d: n, on: true });
+    if (S.addType === "jobsite") u("extension").jobSites.push({ pat: n, post: "", builtIn: false, on: true });
     if (S.addType === "source") u("sources").sources.push({ k: n, pid: "ats", on: false, what: "Nouvelle source (désactivée tant que non testée)" });
     if (S.addType === "provider") { const id = n.toLowerCase().replace(/\W/g, ""); const us = u(document.getElementById("addUsage").value); P[id] = { name: n, region: "à préciser", keys: [{ name: n.toUpperCase().replace(/\W/g, "_") + "_API_KEY", source: document.getElementById("addKey").value ? "bo" : "missing", fp: "…" + (document.getElementById("addKey").value.slice(-4) || "") }], test: null, tools: [], params: [], usedBy: [] }; us.providers.push(id); S.tab = us.id; }
     S.adding = false; toast(`${label} « ${n} » ajouté, inscrit au Journal`); return render(); }

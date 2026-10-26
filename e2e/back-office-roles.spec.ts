@@ -40,7 +40,7 @@ const SECTIONS = {
 type Section = keyof typeof SECTIONS;
 
 /** The Back Office Roles, in the order the app lists them. */
-const ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "support"];
+const ROLES = ["super-admin", "plans-manager", "coach-manager", "playbook-editor", "help-editor", "platform-manager", "support"];
 
 /** A signed-in page of its own (cookies apart), as for another person on another computer. */
 async function personPage(browser: Browser, email: string): Promise<Page> {
@@ -204,6 +204,21 @@ test.describe("Back Office Roles", () => {
       jobDigest: "weekly",
     });
     expect(refused.status()).toBe(404);
+  });
+
+  test("Technique reaches the platform's sections and the Journal, never Appels IA nor the Administrateurs (#397)", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const technique = newAddress("platform-manager");
+    const techniquePage = await personPage(browser, technique);
+    await grant(page, technique, ["platform-manager"]);
+
+    await expectSections(techniquePage, ["providerSecrets", "platformSettings", "signInProviders", "aiUsage", "searchSites", "tools", "journal"]);
+    // Changes the search sites; reads the Sign-in Providers without changing them.
+    await techniquePage.goto(SECTIONS.searchSites);
+    await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);
+    await expect(techniquePage.getByRole("button", { name: admin.searchSites.discoverySites.add, exact: true })).toBeEnabled();
+    await techniquePage.goto(SECTIONS.signInProviders);
+    await expect(techniquePage.getByText(admin.readOnly)).toBeVisible();
   });
 
   test("revoking a role takes effect on the next request", async ({ page, browser }) => {

@@ -813,7 +813,8 @@
       "coach-manager": "Coach manager",
       "support": "Support",
       "playbook-editor": "Playbook editor",
-      "help-editor": "Help editor"
+      "help-editor": "Help editor",
+      "platform-manager": "Technique"
     },
     "nav": {
       "label": "Back office navigation",
@@ -1406,7 +1407,8 @@
         "coach-manager": "Human Coaches; reads the AI Coach cost.",
         "support": "Reads everything except provider secrets, and changes nothing.",
         "playbook-editor": "Writes, versions, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.",
-        "help-editor": "Reads the unanswered questions and marks them « Article written » or dismisses them."
+        "help-editor": "Reads the unanswered questions and marks them « Article written » or dismisses them.",
+        "platform-manager": "Sets the non-secret settings, the search sources and sites and the tools' prices; sees keys by their source and last 4 characters, without changing them; reads the consumption, the tools and the journal."
       },
       "errors": {
         "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",

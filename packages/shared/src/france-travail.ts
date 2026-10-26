@@ -77,7 +77,7 @@ export function createFranceTravailTokens(options: FranceTravailTokensOptions): 
     }
     const body = (await answer.json().catch(() => null)) as { access_token?: unknown; expires_in?: unknown; error?: unknown } | null;
     const error = typeof body?.error === "string" ? body.error : "";
-    const detail = `token refused (${answer.status}${error ? ` ${error}` : ""})`;
+    const detail = `token refused (HTTP ${answer.status}${error ? ` ${error}` : ""})`;
     if (error === "invalid_client" || answer.status === 401) return { ok: false, reason: "client_invalid", detail, calls: 1 };
     if (error === "invalid_scope" || answer.status === 400 || answer.status === 403) return { ok: false, reason: "refused", detail, calls: 1 };
     if (!answer.ok) return { ok: false, reason: "failed", detail: `token answered ${answer.status}`, calls: 1 };
@@ -122,7 +122,7 @@ export interface FranceTravailAccessCheck {
   /** `valid`: some API gave a token; `invalid`: the endpoint does not know the client; `unknown`: neither. */
   client: "valid" | "invalid" | "unknown";
   apis: Record<FranceTravailApi, FranceTravailApiAccess>;
-  /** What went wrong, API by API (`offres_emploi: token refused (400 invalid_scope)`); empty when nothing did. */
+  /** What went wrong, API by API (`offres_emploi: token refused (HTTP 400 invalid_scope)`); empty when nothing did. */
   detail: string;
 }
 

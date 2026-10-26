@@ -60,7 +60,7 @@ describe("France Travail tokens: one per API, each with only its own scopes", ()
     const server = fakeTokenEndpoint({ granted: WITHOUT_OFFRES, secret: "another" });
     const tokens = createFranceTravailTokens({ clientId: "id", clientSecret: "secret", fetch: server.fetch });
 
-    expect(await tokens.token("la_bonne_boite", NOW)).toEqual({ ok: false, reason: "client_invalid", detail: "token refused (400 invalid_client)", calls: 1 });
+    expect(await tokens.token("la_bonne_boite", NOW)).toEqual({ ok: false, reason: "client_invalid", detail: "token refused (HTTP 400 invalid_client)", calls: 1 });
     expect(server.scopesAsked).toHaveLength(1);
   });
 
@@ -106,7 +106,7 @@ describe("checking a France Travail client's access: the client with La Bonne Bo
     expect(await checkFranceTravailAccess(createFranceTravailTokens({ clientId: "id", clientSecret: "secret", fetch: server.fetch }), NOW)).toEqual({
       client: "valid",
       apis: { la_bonne_boite: "ok", offres_emploi: "refused", romeo: "ok" },
-      detail: expect.stringContaining("offres_emploi: token refused (400 invalid_scope)"),
+      detail: expect.stringContaining("offres_emploi: token refused (HTTP 400 invalid_scope)"),
     });
     expect(server.scopesAsked[0]).toBe("api_labonneboitev2 search office");
   });
@@ -117,7 +117,7 @@ describe("checking a France Travail client's access: the client with La Bonne Bo
     expect(await checkFranceTravailAccess(createFranceTravailTokens({ clientId: "id", clientSecret: "secret", fetch: server.fetch }), NOW)).toEqual({
       client: "invalid",
       apis: { la_bonne_boite: "error", offres_emploi: "error", romeo: "error" },
-      detail: "token refused (400 invalid_client)",
+      detail: "token refused (HTTP 400 invalid_client)",
     });
     expect(server.scopesAsked).toHaveLength(1);
   });

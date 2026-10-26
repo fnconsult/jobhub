@@ -42,8 +42,14 @@ const MAX_LENGTH = 4096;
 /** A test's detail when the key has no value at all. */
 const MISSING = "missing";
 
-/** Whether a provider accepts the keys in `env`: its cheapest authenticated call. The detail may be scrubbed further. */
-export type ConnectionTestResult = { ok: true } | { ok: false; detail: string };
+/** How a provider with several APIs answered for each (France Travail's, #400): granted, access refused by the provider, or an error. */
+export type ApiAccess = "ok" | "refused" | "error";
+
+/**
+ * Whether a provider accepts the keys in `env`: its cheapest authenticated call. The detail may be scrubbed further.
+ * `apis`: for a provider with several APIs, each one's access, by API.
+ */
+export type ConnectionTestResult = { ok: true; apis?: Record<string, ApiAccess> } | { ok: false; detail: string; apis?: Record<string, ApiAccess> };
 export type ConnectionTester = (provider: SecretProvider, env: Env) => Promise<ConnectionTestResult>;
 
 /** Where a key's value in use comes from: `unreadable` is a database row that does not open (env stands in). */
@@ -203,7 +209,7 @@ export function createProviderSecrets(database: Pool, deps: ProviderSecretsDeps)
   async function testWith(provider: SecretProvider, env: Env, secrets: readonly (string | undefined)[]): Promise<ConnectionTestResult> {
     try {
       const result = await deps.testConnection(provider, env);
-      return result.ok ? result : { ok: false, detail: scrubSecrets(result.detail, secrets).slice(0, 300) };
+      return result.ok ? result : { ...result, detail: scrubSecrets(result.detail, secrets).slice(0, 300) };
     } catch (error) {
       return { ok: false, detail: scrubSecrets(error instanceof Error ? error.message : String(error), secrets).slice(0, 300) };
     }

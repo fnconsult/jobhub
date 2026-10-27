@@ -16,8 +16,8 @@
  * are counted per role, Back Office Audit targets are masked, Human Coaches go by their public
  * name and bio), and any address left in the context is masked as a last resort.
  *
- * Guardrails (ADR-0022, #228): with `guardrails`, the question is checked for prompt injection before the
- * assistant sees it, and the reply for personal data leaks and secret disclosure; a blocked one is answered,
+ * Guardrails (ADR-0022, #228): with `guardrails`, the question (with an Explainable label's context, #407) is checked for
+ * prompt injection before the assistant sees it, and the reply for personal data leaks and secret disclosure; a blocked one is answered,
  * or replaced, by the Guardrail message in the Administrator's `language`. `outcome` says which happened.
  *
  * Task `back_office_assistant` (routed like `coaching` unless configured apart), EU endpoints only (ADR-0007), on behalf of the Administrator's own
@@ -45,8 +45,9 @@ import type { HumanCoach } from "../human-coaches";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages } from "./conversation";
+import { EXPLAINING, explainedSchema, explainedText } from "./explained";
 
-export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage } from "./conversation";
+export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage, type ExplainedItem } from "./conversation";
 
 /** The Back Office data the assistant reads, each source covered by one Back Office resource. */
 export interface BackOfficeAssistantSources {
@@ -111,7 +112,8 @@ const inputSchema = z.object({
   messages: z
     .array(
       z.discriminatedUnion("from", [
-        z.object({ from: z.literal("administrator"), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }),
+        // `explained`: the item an Explainable label asked about (#407), told with the question.
+        z.object({ from: z.literal("administrator"), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH), explained: explainedSchema.optional() }),
         // The assistant's own replies, as saved: they may run longer than what an Administrator may type.
         z.object({ from: z.literal("assistant"), text: z.string().trim().min(1).max(MAX_REPLY_LENGTH) }),
       ]),
@@ -468,13 +470,19 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const messages = recentMessages(parsed.data.messages);
+      // What an Administrator's message says to the AI: an Explainable label's context goes with its question, every
+      // time the conversation is answered. The Guardrail checks this same text: the context is untrusted input too.
+      const said = (message: (typeof messages)[number]) =>
+        message.from === "administrator" && message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text;
+      const administratorSaid = messages.filter((message) => message.from === "administrator").map(said);
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance (#327).
       const recorder = createProvenanceRecorder(deps.ai);
       try {
         const written: GenerateResult[] = [];
         const write = async (feedback: string | null) => {
           const [context, run] = await Promise.all([assistantContext(deps.sources, administrator.access), taskRun(deps.taskPlaybooks, "back-office-assistant", deps.ai)]);
-          const instructions = `${run.text()}\n${GUARDS}`;
+          const explaining = messages.some((message) => message.from === "administrator" && message.explained);
+          const instructions = `${run.text()}\n${GUARDS}${explaining ? `\n${EXPLAINING}` : ""}`;
           const result = await recorder.ai.generate({
             // Its own task, so it is counted apart from the AI Coach; routed like coaching.
             task: "back_office_assistant",
@@ -487,7 +495,9 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
             // the identity of the Candidate the call is made for. Whatever the Administrator types is still
             // scanned by the AI layer, and goes to Mistral with their EU AI consent.
             containsIdentity: false,
-            prompt: messages.map((message) => ({ role: message.from === "administrator" ? ("user" as const) : ("assistant" as const), content: message.text })),
+            prompt: messages.map((message) =>
+              message.from === "administrator" ? { role: "user" as const, content: said(message) } : { role: "assistant" as const, content: message.text },
+            ),
           });
           written.push(result);
           return { text: result.text.trim(), secrets: [instructions] };
@@ -497,8 +507,8 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
               candidateId: administrator.id,
               language: options.language ?? "fr",
               ai: recorder.ai,
-              message: messages.at(-1)!.text,
-              written: messages.filter((message) => message.from === "administrator").map((message) => message.text),
+              message: said(messages.at(-1)!),
+              written: administratorSaid,
               reply: write,
             })
           : { text: (await write(null)).text, outcome: "replied", checks: [] };

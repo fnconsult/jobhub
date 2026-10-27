@@ -1,10 +1,15 @@
 import { JOB_DISCOVERY_SOURCES, type JobDiscoverySource } from "@jobhub/shared";
 import Link from "next/link";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
+import { ExplainableLabel } from "@/components/ExplainableLabel";
 import { providerSheetHref, type PossibleProvider } from "@/platform-settings/parametres";
 import { setJobDiscoverySource, testSecret } from "./actions";
 import { Here, ScrollFrame, type Ctx } from "./context";
 import { KeyCell } from "./ProvidersSection";
+import { tabNameOf } from "./SettingName";
+
+/** What a source's Explainable label is (#407). */
+const SOURCE = "source";
 
 /** The Tools each Job discovery source calls: the web search's is the active Search provider. */
 const SOURCE_TOOLS: Record<Exclude<JobDiscoverySource, "web_search">, readonly string[]> = {
@@ -64,7 +69,20 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
               const why = unavailable(ctx, enabled, providers);
               return (
                 <tr key={source} data-source={source}>
-                  <th scope="row">{name}</th>
+                  <th scope="row">
+                    <ExplainableLabel
+                      item={{
+                        kind: SOURCE,
+                        id: source,
+                        tab: tabNameOf(ctx),
+                        value: t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled"),
+                        source: providers.map((row) => row.tool.name).join(", ") || t("admin.platformSettings.active.none"),
+                        state: why ?? t("admin.platformSettings.sources.available"),
+                      }}
+                    >
+                      {name}
+                    </ExplainableLabel>
+                  </th>
                   <td>
                     {t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}
                     {providers.some((row) => row.status === "awaiting_access") ? (

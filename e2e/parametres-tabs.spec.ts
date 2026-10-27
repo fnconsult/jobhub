@@ -202,7 +202,8 @@ test.describe("Paramètres in tabs (#396)", () => {
       await expect(supportPage.getByRole("main").locator("form"), slug).toHaveCount(0);
       await expect(supportPage.getByRole("link", { name: texts.add.button }), slug).toHaveCount(0);
       await expect(supportPage.getByRole("button", { name: new RegExp(texts.providers.makeActive) }), slug).toHaveCount(0);
-      for (const button of await supportPage.getByRole("main").getByRole("button").all()) await expect(button, slug).toBeDisabled();
+      // Explainable labels (#407) only ask the Back Office Assistant: they stay enabled.
+      for (const button of await supportPage.getByRole("main").locator("button:not(.explainable-label)").all()) await expect(button, slug).toBeDisabled();
       await expectAccessible(supportPage, `Support, ${slug}`);
     }
     // A provider's sheet: its key's state without its value, source nor actions.

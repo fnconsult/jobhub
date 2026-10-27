@@ -2,10 +2,15 @@ import Link from "next/link";
 import { BACK_OFFICE_PAGES, type BackOfficePage } from "@/admin/back-office-nav";
 import type { EnvOnlyRow, retiredSettingsSet } from "@/platform-settings/env-only";
 import { ScrollFrame, type Ctx } from "./context";
-import { ShownEnvValue } from "./SettingsTable";
+import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
+import { SettingName } from "./SettingName";
+import { ShownEnvValue, shownEnvText } from "./SettingsTable";
 
 /** The settings with a section of their own, linked from Environnement (ADR-0033). */
 const ELSEWHERE: BackOfficePage[] = ["planQuotas", "guardrails", "coachCost"];
+
+/** The tab's intro, as an Explainable label explains it (#407). */
+const INTRO: ExplainedContext = { kind: "intro", id: "environment" };
 
 /**
  * The Environnement tab (#396, last): what only the server's environment holds, read-only, each with why it stays
@@ -19,7 +24,12 @@ export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: rea
     <>
       <section className="stack" aria-labelledby="settings-env-only">
         <h2 id="settings-env-only">{t("admin.platformSettings.envOnly.title")}</h2>
-        <p>{t("admin.platformSettings.envOnly.intro")}</p>
+        <p>
+          {t("admin.platformSettings.envOnly.intro")}{" "}
+          <ExplainableLabel subject={t("admin.platformSettings.envOnly.title")} item={{ ...INTRO, tab: t("admin.platformSettings.tabs.environment") }}>
+            {t("admin.platformSettings.envOnly.why")}
+          </ExplainableLabel>
+        </p>
         {rows.some((row) => row.warning === "mail_to_console") ? (
           <p className="notice" role="alert">
             {t("admin.platformSettings.envOnly.mailToConsole")}
@@ -39,7 +49,11 @@ export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: rea
               {rows.map((row) => (
                 <tr key={row.name} id={`setting-${row.name}`} data-setting={row.name}>
                   <th scope="row">
-                    <code>{row.name}</code>
+                    <SettingName
+                      ctx={ctx}
+                      name={row.name}
+                      item={{ value: shownEnvText(ctx, row.shown), source: t("admin.platformSettings.sources.env"), state: t(`admin.platformSettings.environment.kinds.${row.kind === "bootstrap" ? "bootstrap" : "read_only"}`) }}
+                    />
                   </th>
                   <td data-value>
                     <ShownEnvValue ctx={ctx} value={row.shown} />

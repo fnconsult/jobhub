@@ -405,6 +405,10 @@ _Avoid_: Hidden employer, client
 A recurring email and in-app summary of new Job Offers matching a Profile's Search Criteria. Opted into per Profile, at a frequency the Candidate picks within the Plan Quota; it goes out at 07:00 Paris time (weekly ones on Monday). Its Job Offers come first from those already stored, Job discovery only topping them up. Only holds Job Offers never shown before for that Profile (in a Job Digest or a Job Search) and without an Application; nothing is sent when there are none. Stops for an Archived Profile; unsubscribing needs no sign-in. Never counts against the Candidate's other Plan Quotas.
 _Avoid_: Alert, newsletter, feed
 
+**Sending address**:
+One of the Candidate's own email addresses, from which an email they forward by hand is read as theirs: their account's, always, plus up to 10 they add. Not the Forwarding address, which is the one jobbbox gives them to forward to; a Forwarding address that is replaced or switched off is kept, so it is never given to anyone again.
+_Avoid_: Sender, from address
+
 **Company Dossier**:
 The research compiled about the employer behind a Job Offer from public data only: legal identity, address, financials and Suggested Contact Roles. Built from the French company register for a French employer; for a foreign one, from the pages the Search provider returns for the employer's name, whose facts the company-facts Task Playbook's agent reads, and marked less reliable. Never names a private person. Built only for a confirmed employer, and refused when the employer is not a company (e.g. a sole trader), in which case the Candidate is asked to name the hiring company. Holds the employer's Company News. Keeps the Provenance of every step of its build (the offer read, the register, the web and news searches); a dossier built after the Candidate confirms a Presumed Employer joins the reading that presumed it.
 _Avoid_: Company info, company profile

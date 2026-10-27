@@ -129,6 +129,17 @@ describe.skipIf(!connectionString)("Match Scoring (needs Postgres: DATABASE_URL)
     expect(await scoring.score(null, { jobOfferId: "00000000-0000-4000-8000-000000000000", cv: masterCv })).toEqual({ ok: false, error: "not_found" });
   });
 
+  it("scores a Job Offer private to the Candidate for them only: to another Candidate or a Guest it is unknown (ADR-0049)", async () => {
+    const privateOffer = await jobOffers.capture({ title: "DAF H/F, client confidentiel", content: "Mon client cherche son DAF à Lyon." }, "candidate", { privateTo: candidateId });
+    if (!privateOffer.ok) throw new Error("fixture Job Offer refused");
+    const cookie = await signInWithMagicLink(testAuth, "jean.martin@example.fr");
+    const otherId = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
+
+    expect(await scoring.score(candidateId, { jobOfferId: privateOffer.jobOffer.id, cv: masterCv })).toMatchObject({ ok: true });
+    expect(await scoring.score(otherId, { jobOfferId: privateOffer.jobOffer.id, cv: masterCv })).toEqual({ ok: false, error: "not_found" });
+    expect(await scoring.score(null, { jobOfferId: privateOffer.jobOffer.id, cv: masterCv })).toEqual({ ok: false, error: "not_found" });
+  });
+
   it("refuses a request without a Job Offer or a CV, naming the fields to fix", async () => {
     expect(await scoring.score(null, { cv: masterCv })).toEqual({ ok: false, error: "invalid", errors: [{ field: "jobOfferId", code: "required" }] });
     expect(await scoring.score(null, { jobOfferId })).toEqual({ ok: false, error: "invalid", errors: [{ field: "cv", code: "required" }] });

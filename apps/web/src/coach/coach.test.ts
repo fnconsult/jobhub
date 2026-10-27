@@ -110,7 +110,8 @@ const coachingSessionItem = (scheduledAt: string, more: Partial<Extract<AgendaIt
 interface Workspace {
   profiles: Profile[];
   applications: Application[];
-  jobOffers: JobOffer[];
+  /** `privateTo`: the Candidate a private Job Offer is private to (ADR-0049). */
+  jobOffers: (JobOffer & { privateTo?: string })[];
   jobSearches: JobSearch[];
   jobDigests: JobDigest[];
   memory: string[];
@@ -142,7 +143,10 @@ function sourcesOf(workspace: Workspace): CoachSources {
           interviews,
         })),
     },
-    jobOffers: { get: async (id) => workspace.jobOffers.find((o) => o.id === id) ?? null },
+    jobOffers: {
+      get: async (id, candidateId) =>
+        workspace.jobOffers.find((o) => o.id === id && (o.privateTo === undefined || o.privateTo === candidateId)) ?? null,
+    },
     jobSearches: {
       get: async (candidateId, id) => mine(candidateId, workspace.jobSearches).find((s) => s.id === id) ?? null,
       latest: async (candidateId, profileId) => mine(candidateId, workspace.jobSearches).find((s) => s.profile.id === profileId && s.status === "done") ?? null,
@@ -543,6 +547,19 @@ describe("the item In view, in full", () => {
     expect(context).toContain("DAF H/F");
     expect(context).toContain("Acme Industrie");
     expect(context).toContain("vous pilotez la clôture mensuelle");
+  });
+
+  it("a Job Offer private to the Candidate, but never one private to another Candidate (ADR-0049)", async () => {
+    const mine = { ...jobOffer, id: "offer-mine", title: "DAF pour un client confidentiel", privateTo: "marie" };
+    const theirs = { ...jobOffer, id: "offer-theirs", title: "RAF pour un autre client", content: "Mission confiée à Paul.", privateTo: "paul" };
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [mine, theirs] } });
+
+    await ask(coach, { kind: "job_offer", id: mine.id });
+    expect(contextOf(provider)).toContain("DAF pour un client confidentiel");
+
+    await ask(coach, { kind: "job_offer", id: theirs.id });
+    expect(contextOf(provider)).not.toContain("RAF pour un autre client");
+    expect(contextOf(provider)).not.toContain("Mission confiée à Paul.");
   });
 
   it("a Job Search: its Profile, when it ran and every Job Offer found with its Match Score", async () => {

@@ -351,8 +351,24 @@ A Job Offer a Discovery run stored for the first time; the Dashboard's cost per 
 Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, a posting too old, or a disabled Job discovery site).
 
 **Job discovery source**:
-Where Job discovery finds Job Offers: the France Travail search, the Fantastic.jobs search, the web search, or the public APIs of the ATS postings are read through (Greenhouse, Lever, Ashby). Administrators enable or disable each on the Sources tab of Paramètres; a disabled one is skipped by Job Searches and Job Digest top-ups (France Travail or Fantastic.jobs then counts as off, and an ATS posting is read from its page). All are enabled when the Back Office cannot be read.
+Where Job discovery finds Job Offers: the France Travail search, the Fantastic.jobs search, the web search, the public APIs of the ATS postings are read through (Greenhouse, Lever, Ashby), or Email intake, the one fed by the Candidate's mail rather than by a run. Administrators enable or disable each on the Sources tab of Paramètres; a disabled one is skipped by Job Searches and Job Digest top-ups (France Travail or Fantastic.jobs then counts as off, and an ATS posting is read from its page). All are enabled when the Back Office cannot be read.
 _Avoid_: Provider (alone), channel
+
+**Email intake**:
+The Job discovery source that turns the offer emails a Candidate receives in a Linked mailbox (job-board alerts, a careers site's alerts, a recruiter's message) into Job Offers, as they arrive rather than during a run: outside the Job discovery budget, counted against no Plan Quota, capped per Linked mailbox per day. Each Job Offer goes to the Profile whose Match Score for it is highest (rules, no AI), or to « Non classées » under 60, and shows in that Profile's « Reçues par email » section on the Recherches d'offres page and in its Job Digest; it starts no Job Search and no Job Search Notification. Its Posting date is the email's date unless the offer states one. An offer from a recruiter's message is private to that Candidate (ADR-0049); one from an alert is shared and deduplicated like any Job Offer. An alert offer that links to a Forbidden site makes no Job Offer: it is listed « À capturer », inviting the Candidate to open it and use Capture. Administrators enable or disable it on the Sources tab of Paramètres; each Received offer email is listed, without its content, in the Back Office's Activité, and connecting, disconnecting or blocking a Linked mailbox in the Journal.
+_Avoid_: Email import, mail scraping, inbox source
+
+**Linked mailbox**:
+A Candidate's own mailbox Jobbbox reads for Email intake (« Boîte reliée »): reached either by connecting it, or by the Candidate forwarding its offer emails to their Forwarding address. The Candidate can unlink it at any time.
+_Avoid_: Inbox, email account, mail connector
+
+**Forwarding address**:
+The address Jobbbox gives one Candidate (« Adresse de transfert ») to which they forward offer emails, by hand or by a filter in their own mailbox. It makes a Linked mailbox without Jobbbox holding any password or access; the Candidate can replace it with a new one, which ends the old.
+_Avoid_: Alias, inbound address
+
+**Received offer email**:
+One email Email intake took from a Linked mailbox, and its outcome: offers found (new or already stored), « autre » (not an offer: a newsletter, a profile view, an application's news), or set aside by a Guardrail. Its text is never kept once read; what is kept is the outcome, the sender's domain and the Job Offers it gave, whose Provenance has its steps (reading the email with the Email intake Tool, the AI step that read the offers, deduplication and Match Score by rules) and the sender's domain as a Provenance site.
+_Avoid_: Imported email, parsed email
 
 **Job discovery site**:
 A domain Administrators list in the Back Office for Job discovery. While enabled, it is searched on purpose: one web search of the run, the plan's first Job Search query, restricted to it. While disabled, a result page on it (or a subdomain) is skipped. Never a Forbidden site. Removing one never removes a Job Offer found on it.

@@ -12,6 +12,8 @@
  *   await targets.keepCareersSite("siren:552100554", url, now);     // found once, kept for every Profile
  *   await targets.add(candidateId, profileId, "Acme Industrie");    // the Candidate's own, resolved in the company register
  *   await targets.setAside(candidateId, profileId, id);             // for good: La Bonne Boite never brings it back
+ *   await targets.onProfile(candidateId, profileId);                // as the Profile's page shows them (#409), with the Job Offers found there
+ *   await targets.prepareSpontaneousApplication(candidateId, profileId, id); // { ok, applicationId }: its dossier, contacts and documents
  *   await webSearchableName(register, company);                     // { name } a web search may carry, else { refused } (ADR-0007)
  *
  * A company is the same across Profiles by its key: its SIREN when known (`siren:552100554`, an
@@ -20,6 +22,8 @@
  * Candidate, no Profile. A Profile's Target Companies go with it (and with its Candidate).
  */
 import type { Pool } from "pg";
+import type { Applications } from "../applications";
+import type { JobOffers } from "../job-offers";
 import { nameKey, sirenIn } from "../company-dossiers/company-names";
 import type { CompanyRegister } from "../company-dossiers/french-register";
 
@@ -104,7 +108,11 @@ export type AddTargetCompanyResult = { ok: true; company: TargetCompany } | { ok
 export interface TargetCompanyOnProfile extends TargetCompany {
   /** The Job Offers the Profile's Job Searches found there (their employer is the company, by name), newest first. */
   jobOffers: { id: string; title: string }[];
+  /** The Candidate's Spontaneous Application to it, once prepared (and while they keep it); null otherwise. */
+  spontaneousApplicationId: string | null;
 }
+
+export type PrepareSpontaneousApplicationResult = { ok: true; applicationId: string } | { ok: false; error: "not_found" };
 
 export interface TargetCompanies extends TargetCompanyStore {
   /**
@@ -113,6 +121,14 @@ export interface TargetCompanies extends TargetCompanyStore {
    * Null when the Profile is not the Candidate's.
    */
   onProfile(candidateId: string, profileId: string): Promise<TargetCompanyOnProfile[] | null>;
+  /**
+   * The Candidate's Spontaneous Application to one of the Profile's Target Companies, prepared the first time
+   * (« À postuler »): an Application with the Profile, on a Job Offer that is no posting, for the Profile's job
+   * (its Search Criteria title) at the company, where its Company Dossier is built, its Enriched Contacts looked for
+   * and its documents written. The same one afterwards, while the Candidate keeps it. `not_found`: the Profile is
+   * not theirs, or the company is not one of its Target Companies shown (set aside, or not a company).
+   */
+  prepareSpontaneousApplication(candidateId: string, profileId: string, id: string): Promise<PrepareSpontaneousApplicationResult>;
   /**
    * The Candidate adds a company by name to the Profile's Target Companies, as the company register lists it
    * (its registered name and SIREN) when it does, else under the name given. Refused when the Profile is not
@@ -127,6 +143,9 @@ export interface TargetCompanies extends TargetCompanyStore {
 export interface TargetCompaniesOptions {
   /** Where a company the Candidate adds is resolved. Default: none, so it is kept under the name given. */
   register?: CompanyRegister;
+  /** Where a Spontaneous Application's Job Offer and Application are made. Default: none, so none is prepared. */
+  jobOffers?: Pick<JobOffers, "capture">;
+  applications?: Pick<Applications, "save">;
   now?: () => Date;
 }
 
@@ -184,6 +203,9 @@ interface Row {
   not_a_company_at: Date | null;
 }
 
+/** A Target Company row as the Profile's page reads it: with the Spontaneous Application the Candidate still has. */
+type ShownRow = Row & { spontaneous_application_id: string | null };
+
 const COLUMNS = "id, company_key, name, origin, hiring_score, city, activity, headcount_min, headcount_max, added_at, last_visited_at, not_a_company_at";
 
 const companyOf = (row: Row): TargetCompany => ({
@@ -232,6 +254,22 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
     }
   }
 
+  /**
+   * The Profile's Target Companies its page shows (or the one with `id`): neither set aside nor « not a company », the
+   * Candidate's own first, then by hiring score, then by name; with their Spontaneous Application while it exists.
+   */
+  async function shown(profileId: string, id?: string): Promise<ShownRow[]> {
+    const { rows } = await database.query<ShownRow>(
+      `SELECT ${COLUMNS.split(", ").map((column) => `t.${column}`).join(", ")}, a.id AS spontaneous_application_id
+         FROM target_company t
+         LEFT JOIN application a ON a.id = t.spontaneous_application_id AND a.candidate_id = t.candidate_id
+        WHERE t.profile_id = $1 AND t.set_aside_at IS NULL AND t.not_a_company_at IS NULL AND ($2::uuid IS NULL OR t.id = $2::uuid)
+        ORDER BY t.origin = 'candidate' DESC, t.hiring_score DESC NULLS LAST, t.name, t.id`,
+      [profileId, id ?? null],
+    );
+    return rows;
+  }
+
   /** The Job Offers the Profile's Job Searches found, with their employer, newest first. */
   async function foundByJobSearches(candidateId: string, profileId: string) {
     const { rows } = await database.query<{ id: string; title: string; employer: string }>(
@@ -247,18 +285,42 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
   return {
     async onProfile(candidateId, profileId) {
       if (!(await owns(candidateId, profileId))) return null;
-      const [{ rows }, offers] = await Promise.all([
-        database.query<Row>(
-          `SELECT ${COLUMNS} FROM target_company WHERE profile_id = $1 AND set_aside_at IS NULL AND not_a_company_at IS NULL
-            ORDER BY origin = 'candidate' DESC, hiring_score DESC NULLS LAST, name, id`,
-          [profileId],
-        ),
-        foundByJobSearches(candidateId, profileId),
-      ]);
+      const [rows, offers] = await Promise.all([shown(profileId), foundByJobSearches(candidateId, profileId)]);
       return rows.map((row) => {
         const key = nameKey(row.name);
-        return { ...companyOf(row), jobOffers: offers.filter((offer) => nameKey(offer.employer) === key).map(({ id, title }) => ({ id, title })) };
+        return {
+          ...companyOf(row),
+          jobOffers: offers.filter((offer) => nameKey(offer.employer) === key).map(({ id, title }) => ({ id, title })),
+          spontaneousApplicationId: row.spontaneous_application_id,
+        };
       });
+    },
+
+    async prepareSpontaneousApplication(candidateId, profileId, id) {
+      const notFound = { ok: false, error: "not_found" } as const;
+      if (!UUID.test(id) || !options.jobOffers || !options.applications || !(await owns(candidateId, profileId))) return notFound;
+      const company = (await shown(profileId, id))[0];
+      if (!company) return notFound;
+      if (company.spontaneous_application_id) return { ok: true, applicationId: company.spontaneous_application_id };
+      const { rows } = await database.query<{ target_role: string }>("SELECT target_role FROM profile WHERE id = $1", [profileId]);
+      const job = rows[0]?.target_role.trim();
+      if (!job) return notFound;
+      const captured = await options.jobOffers.capture(
+        {
+          title: job,
+          // Its own text, so each company's (and each job's) is one Job Offer: shared by whoever applies there for it.
+          content: `Candidature spontanée : ${job} chez ${company.name}${company.city ? ` (${company.city})` : ""}.`,
+          employer: company.name,
+          ...(company.city && { location: company.city }),
+        },
+        "candidate",
+        { spontaneous: true },
+      );
+      if (!captured.ok) return notFound;
+      const saved = await options.applications.save(candidateId, { jobOfferId: captured.jobOffer.id, profileId });
+      if (!saved.ok) return notFound;
+      await database.query("UPDATE target_company SET spontaneous_application_id = $3 WHERE id = $1 AND profile_id = $2", [id, profileId, saved.application.id]);
+      return { ok: true, applicationId: saved.application.id };
     },
 
     async list(profileId) {
@@ -391,6 +453,8 @@ export async function migrateTargetCompanies(database: Pick<Pool, "query">): Pro
     -- La Bonne Boite's headcount band for the company (#409): max NULL for « min and more ».
     ALTER TABLE target_company ADD COLUMN IF NOT EXISTS headcount_min integer;
     ALTER TABLE target_company ADD COLUMN IF NOT EXISTS headcount_max integer;
+    -- The Candidate's Spontaneous Application to it (#409); one they deleted is no longer theirs (read through application).
+    ALTER TABLE target_company ADD COLUMN IF NOT EXISTS spontaneous_application_id uuid;
     CREATE INDEX IF NOT EXISTS target_company_candidate_id_idx ON target_company (candidate_id);
     -- What a Profile's La Bonne Boite companies were last fetched for (its job and area) and when.
     CREATE TABLE IF NOT EXISTS target_company_refresh (

@@ -1,16 +1,30 @@
+import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CompanyRegister, RegisteredCompany } from "../company-dossiers/french-register";
-import { migrateApplications } from "../applications";
+import { createApplications, migrateApplications, type Applications } from "../applications";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { migrateJobSearches } from "../job-searches";
-import { migrateProfiles } from "../profiles";
+import { createProfiles, migrateProfiles } from "../profiles";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
 import { companyKeyOf, createTargetCompanies, migrateTargetCompanies, webSearchableName, type TargetCompanies } from "./index";
 
 const connectionString = process.env.DATABASE_URL;
 const NOW = new Date("2026-10-26T08:00:00Z");
 const LATER = new Date("2026-11-30T08:00:00Z");
+
+const masterCv: MasterCvContent = {
+  fullName: "Marie Dupont",
+  headline: "Directrice financière",
+  email: "marie.dupont@example.fr",
+  phone: "",
+  location: "Lyon",
+  summary: "",
+  experience: [],
+  education: [],
+  skills: [],
+  languages: [],
+};
 
 const acme = { siret: "55210055400013", name: "ACME INDUSTRIE", hiringScore: 82.5, city: "Lyon", activity: "Fabrication de machines" };
 const beta = { siret: "38012986600025", name: "BETA LOGISTIQUE", hiringScore: 64, city: "Vénissieux" };
@@ -82,11 +96,9 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
 
   async function newProfile(candidateId: string): Promise<string> {
     await database.query("INSERT INTO candidate (id) VALUES ($1) ON CONFLICT DO NOTHING", [candidateId]);
-    const { rows } = await database.query<{ id: string }>(
-      "INSERT INTO profile (candidate_id, name, target_role, locations) VALUES ($1, 'DAF', 'Directeur financier', ARRAY['Lyon']) RETURNING id",
-      [candidateId],
-    );
-    return rows[0]!.id;
+    const created = await createProfiles(database).create(candidateId, { masterCv, searchCriteria: { targetRole: "Directeur financier", locations: ["Lyon"] } });
+    if (!created.ok) throw new Error("fixture Profile refused");
+    return created.profile.id;
   }
 
   beforeEach(async () => {
@@ -175,8 +187,11 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
 
   describe("on the Profile's page (#409)", () => {
     let jobOffers: JobOffers;
+    let applications: Applications;
     beforeEach(() => {
       jobOffers = createJobOffers(database);
+      applications = createApplications(database, { jobOffers, profiles: createProfiles(database) });
+      targets = createTargetCompanies(database, { now: () => NOW, register: register([{ siren: "552100554", name: "ACME INDUSTRIE" }]), jobOffers, applications });
     });
 
     /** A Job Offer at `employer`, found by a Job Search of the Profile. */
@@ -210,6 +225,39 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
 
       expect(shown?.find((company) => company.name === "ACME INDUSTRIE")?.jobOffers).toEqual([{ id: atAcme, title: "Directeur financier" }]);
       expect(shown?.find((company) => company.name === "BETA LOGISTIQUE")?.jobOffers).toEqual([]);
+    });
+
+    it("prepares one Spontaneous Application per Target Company: the Profile's job at the company, no posting", async () => {
+      await targets.refresh("candidate-1", profileId, { key: "k", companies: [acme, beta] }, NOW);
+      const acmeId = (await targets.list(profileId)).find((company) => company.name === "ACME INDUSTRIE")!.id;
+
+      const prepared = await targets.prepareSpontaneousApplication("candidate-1", profileId, acmeId);
+      if (!prepared.ok) throw new Error("not prepared");
+      const application = await applications.get("candidate-1", prepared.applicationId);
+      expect(application).toMatchObject({ status: "to_apply", profile: { id: profileId }, jobOffer: { title: "Directeur financier", employer: "ACME INDUSTRIE", location: "Lyon" } });
+      expect(application?.jobOffer.source.url).toBeUndefined();
+      const shown = await targets.onProfile("candidate-1", profileId);
+      expect(shown?.find((company) => company.id === acmeId)?.spontaneousApplicationId).toBe(prepared.applicationId);
+      expect(shown?.find((company) => company.name === "BETA LOGISTIQUE")?.spontaneousApplicationId).toBeNull();
+
+      // Prepared once: asked again, the same one.
+      expect(await targets.prepareSpontaneousApplication("candidate-1", profileId, acmeId)).toEqual(prepared);
+    });
+
+    it("prepares it again once the Candidate deleted it, and never for another's Profile or a company set aside", async () => {
+      await targets.refresh("candidate-1", profileId, { key: "k", companies: [acme, beta] }, NOW);
+      const [first, second] = await targets.list(profileId);
+      const prepared = await targets.prepareSpontaneousApplication("candidate-1", profileId, first!.id);
+      if (!prepared.ok) throw new Error("not prepared");
+      await database.query("DELETE FROM application WHERE id = $1", [prepared.applicationId]);
+
+      expect((await targets.onProfile("candidate-1", profileId))?.find((company) => company.id === first!.id)?.spontaneousApplicationId).toBeNull();
+      const again = await targets.prepareSpontaneousApplication("candidate-1", profileId, first!.id);
+      expect(again.ok && again.applicationId).not.toBe(prepared.applicationId);
+
+      expect(await targets.prepareSpontaneousApplication("candidate-2", profileId, second!.id)).toEqual({ ok: false, error: "not_found" });
+      await targets.setAside("candidate-1", profileId, second!.id);
+      expect(await targets.prepareSpontaneousApplication("candidate-1", profileId, second!.id)).toEqual({ ok: false, error: "not_found" });
     });
   });
 

@@ -23,6 +23,9 @@ const MODELS: AgentModelChoice[] = [
   { provider: "openai", endpoint: "api.openai.com", residency: "outside_eu", models: [{ model: "gpt-5", effort: "native", residency: "outside_eu" }] },
 ];
 
+/** The text models offered for the AI task a Playbook Agent serves: the EU ones alone for reading offer emails, as the AI layer offers them (ADR-0052). */
+const offeredFor = (task?: string): AgentModelChoice[] => (task === "offer_email_reading" ? MODELS.filter((choice) => choice.residency === "eu") : MODELS);
+
 /** The web-search providers the AI layer offers in these tests (ADR-0026). */
 const SEARCH_MODELS: AgentModelChoice[] = [
   { provider: "perplexity", endpoint: "api.perplexity.ai", residency: "outside_eu", defaultModel: "sonar", models: [{ model: "sonar", effort: "ignored", residency: "outside_eu" }] },
@@ -66,7 +69,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
   let database: Pool;
   /** Every version has had its Eval Run here: what validation needs of it is tested in evals/. */
   const playbooksFor = (serving: PlaybookServing) =>
-    createCoachingPlaybooks(database, { serving, agentModels: () => MODELS, searchModels: () => SEARCH_MODELS, evalRunOn: async () => true });
+    createCoachingPlaybooks(database, { serving, agentModels: offeredFor, searchModels: () => SEARCH_MODELS, evalRunOn: async () => true });
   let playbooks: CoachingPlaybooks;
 
   beforeEach(async () => {
@@ -345,7 +348,7 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
       const { tasks } = importedPlaybooks({ AI_WRITING_PROVIDER: "mistral", AI_WRITING_MODEL: "mistral-medium-3-5" });
 
       expect(tasks.map((task) => task.id)).toEqual(TASK_PLAYBOOKS.map((task) => task.id));
-      expect(tasks.filter((task) => task.validatedBy === null).map((task) => task.id)).toEqual(["job-offer-reading"]);
+      expect(tasks.filter((task) => task.validatedBy === null).map((task) => task.id)).toEqual(["job-offer-reading", "job-offer-email-reading"]);
       expect(tasks.find((task) => task.id === "cv-reading")?.validatedBy).toBe(IMPORT_VALIDATOR);
       expect(IMPORT_VALIDATOR).toBe("François Nader");
       expect(tasks.find((task) => task.id === "tailored-cv")?.agent).toEqual({ provider: "mistral", model: "mistral-medium-3-5", effort: null, consultWhen: "" });
@@ -445,6 +448,15 @@ describe.skipIf(!connectionString)("Coaching Playbooks, versioned in the databas
       // Since #405 company-facts-search reads its pages with a Playbook Agent.
       expect(await playbooks.save(claire, "company-facts-search", { content: factsText() })).toEqual({ ok: false, error: "invalid" });
       expect(await playbooks.save(claire, "company-facts-search", taskForm(factsText()))).toMatchObject({ ok: true, version: { agent: { provider: "mistral", model: "mistral-medium-3-5" } } });
+    });
+
+    it("reading offer emails, take only a Playbook Agent in the EU (ADR-0052)", async () => {
+      await migrateCoachingPlaybooks(database, () => ({ ...SEED, tasks: [...SEED.tasks, { id: "job-offer-email-reading", content: builtInInstructions("job-offer-email-reading"), agent: taskAgent, validatedBy: null }] }));
+      const text = builtInInstructions("job-offer-email-reading");
+
+      expect(await playbooks.save(claire, "job-offer-email-reading", taskForm(text, { provider: "openai", model: "gpt-5" }))).toEqual({ ok: false, error: "model_not_allowed" });
+      expect(await playbooks.save(claire, "cv-reading", taskForm("Lis le CV.", { provider: "openai", model: "gpt-5" }))).toMatchObject({ ok: true });
+      expect(await playbooks.save(claire, "job-offer-email-reading", taskForm(text, { provider: "anthropic", model: "anthropic.claude-opus-5-5" }))).toMatchObject({ ok: true, version: { agent: { provider: "anthropic" } } });
     });
 
     it("searching the web, take a web-search provider and model among those offered; none is the configured web-search route", async () => {

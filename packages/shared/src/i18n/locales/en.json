@@ -1945,6 +1945,7 @@
         "coaching": "Coaching",
         "cv_parsing": "CV reading",
         "offer_analysis": "Job Offer analysis",
+        "offer_email_reading": "Offer email reading",
         "job_titles": "Job title variants",
         "web_search": "Web search",
         "back_office_assistant": "Back Office Assistant",

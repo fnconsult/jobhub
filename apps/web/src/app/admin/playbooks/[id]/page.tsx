@@ -113,7 +113,6 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   const history = await getCoachingPlaybooks().history(decodeURIComponent(id));
   if (!history) notFound();
   const { playbook, versions } = history;
-  const models = getAi().agentModels();
   const searchModels = getAi().searchModels();
   const shown = isNotice(notice) ? notice : null;
   const selected: PlaybookVersion | undefined = requested ? versions.find((version) => String(version.version) === requested) : playbook.latest;
@@ -121,6 +120,8 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   const title = playbook.kind === "playbook" || playbook.kind === "task" ? playbook.title : t(`admin.coachingPlaybooks.kinds.${playbook.kind}`);
   // A task Playbook as the code knows it: the sections and slots its text must hold, and whether a Playbook Agent runs it.
   const task = playbook.kind === "task" ? taskPlaybookSeed(playbook.id) : undefined;
+  // The models its Playbook Agent may run on: the EU ones alone for a task that runs only in the EU (ADR-0052).
+  const models = getAi().agentModels(task?.aiTask);
   const versionName = (version: number) => t("admin.coachingPlaybooks.detail.versionLink", { version: String(version) });
   const accountName = (await getCurrentCandidate())?.name?.trim() ?? "";
   const latest = playbook.latest;

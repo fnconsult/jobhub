@@ -258,10 +258,11 @@ export interface AiLayer {
   searchCompanyNewsWithCall(request: CompanyNewsRequest): Promise<CompanyNews>;
   /**
    * The providers and models a Playbook Agent may use (#225): every text provider configured, outside the
-   * EU too, each with the models a route names for it, then those it offers. For a `task` that runs only in
-   * the EU (offer_email_reading, ADR-0052), only the EU-resident models.
+   * EU too, each with the models a route names for it, then those it offers. For a `task` (the AI task the
+   * Playbook Agent serves, a task Playbook's `aiTask`) that runs only in the EU (offer_email_reading,
+   * ADR-0052), only the EU-resident models.
    */
-  agentModels(task?: TextTask): AgentModelChoice[];
+  agentModels(task?: string): AgentModelChoice[];
   /**
    * The same layer for an Eval Run (#231, ADR-0023): each text call is recorded in AI Usage on the `eval` task
    * and for no Candidate (Eval Cases are fictional), yet keeps the route and data rules of its own task, so the
@@ -940,7 +941,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
 
     agentModels(task) {
       const choices = modelChoices((provider) => Boolean(provider.generate), [...Object.entries(options.routes).filter(([task]) => task !== SEARCH_TASK).map(([, route]) => route), identityRoute]);
-      if (task === undefined || !euOnly(task)) return choices;
+      if (task === undefined || !(task in TEXT_TASKS) || !euOnly(task as TextTask)) return choices;
       return choices.flatMap((choice) => {
         const models = choice.models.filter((model) => model.residency === "eu");
         return models.length === 0 ? [] : [{ ...choice, residency: "eu" as const, models }];

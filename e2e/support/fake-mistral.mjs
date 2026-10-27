@@ -55,6 +55,8 @@
 // For the Back Office Assistant (#205, "assistant du Back Office"), it says how many
 // messages it was sent; "E2E_SHOW_CONTEXT#<tag>" prints the whole system prompt to the
 // server log, so tests can check what the assistant is told for the asking Administrator's roles.
+// Asked from an Explainable label (#407, its question followed by "Contexte de l'élément"), it answers with the item's
+// label, value and source as it was told them: "« Pays » : valeur FR, source Défaut du code.".
 //
 // The Guardrails' AI checks (#228, "Tu contrôles le message" / "Tu contrôles la réponse") find
 // prompt injection in a message holding "E2E_GUARDRAIL_INJECTION" and out-of-scope advice in a
@@ -175,6 +177,8 @@ globalThis.fetch = async (input, init) => {
   if (system.includes("assistant du Back Office")) {
     const turns = body.messages.filter((message) => message.role !== "system").length;
     content = shown ? `E2E: system prompt ${shown[1] ?? "#"} in the server log` : said ? saidText(said, system, prompt) : `Réponse de l'assistant (${turns} message${turns > 1 ? "s" : ""})`;
+    const asked = body.messages.filter((message) => message.role === "user").at(-1)?.content ?? "";
+    if (!shown && !said && asked.includes("Contexte de l'élément")) content = explanation(asked);
   }
   if (system.includes("Tu relis une conversation")) {
     const said = [...prompt.matchAll(/^Candidat : (.+)$/gm)].map((match) => match[1].trim());
@@ -279,6 +283,13 @@ function saidText(said, system, prompt) {
   if (system.includes("Ta réponse précédente a été bloquée") && !prompt.includes("E2E_STUBBORN")) return "Voici une réponse recentrée sur votre recherche d'emploi.";
   // "[at]", "[sp]", "[dash]" stand for "@", " " and "-": the reply holds what the message does not (an email address the Candidate never wrote).
   return said.replaceAll("[at]", "@").replaceAll("[sp]", " ").replaceAll("[dash]", "-");
+}
+
+/** What the Back Office Assistant answers an Explainable label's question: the item's label, value and source it was told. */
+function explanation(asked) {
+  const field = (name) => new RegExp(`^${name} : (.+)$`, "m").exec(asked)?.[1]?.trim();
+  const told = [["valeur", "Valeur"], ["source", "Source"], ["état", "État"]].flatMap(([word, name]) => (field(name) ? [`${word} ${field(name)}`] : []));
+  return `« ${field("Libellé")} »${told.length ? ` : ${told.join(", ")}` : ""}.`;
 }
 
 /** Waits `ms`, or rejects with `signal`'s reason once it aborts, as fetch does. */

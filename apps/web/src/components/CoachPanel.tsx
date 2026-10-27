@@ -5,6 +5,7 @@ import type { ParseKeys } from "i18next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import type { CoachFocus } from "@/coach";
 import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
@@ -49,6 +50,8 @@ type Control = {
   mentions: Mentions | null;
   /** The AI Coach replies given here about the object of the page in view (#332). */
   repliesInView: readonly ReplyInView[];
+  /** Opens the panel and sends `question`, with the item an Explainable label asks about (#407); null in a panel without them. */
+  ask: ((question: string, explained: ExplainedItem) => void) | null;
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
@@ -79,6 +82,15 @@ const NO_HELP = () => {};
 export function usePageHelp(): { openHelp: (articleId: string) => void; mentions: Mentions } | null {
   const control = useContext(CoachPanelControl);
   return control?.mentions ? { openHelp: control.openHelp, mentions: control.mentions } : null;
+}
+
+/**
+ * Asks the Back Office Assistant about an item, from an Explainable label (#407, ADR-0042): the panel opens and sends
+ * `question` with `explained`, the item's context, in the conversation it has open. Null outside the Back Office
+ * Assistant (the Candidate's pages have HelpTerms instead).
+ */
+export function useAskAssistant(): ((question: string, explained: ExplainedItem) => void) | null {
+  return useContext(CoachPanelControl)?.ask ?? null;
 }
 
 /** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
@@ -174,6 +186,9 @@ type PanelMessage = ShownMessage | StoppedReply | HelpCard;
 
 const isHelpCard = (message: PanelMessage): message is HelpCard => message.from === "help";
 
+/** A conversation as the panel holds it: its summary (none before it is saved) and the messages shown. */
+type Conversation = { conversation: ConversationSummary | null; messages: PanelMessage[] };
+
 /** How long the box waits for the Candidate to stop typing before it looks in the help. */
 const SUGGEST_DELAY_MS = 150;
 
@@ -240,6 +255,8 @@ interface PanelConfig {
     inView: boolean;
     /** Help Articles first (#342, ADR-0035): suggested while the Candidate types, opened as cards, offered when the AI cannot answer. */
     help: boolean;
+    /** Questions asked from an Explainable label, with the item's context (#407). */
+    explain: boolean;
   };
   /**
    * `title`, the panel's visible title, and `badge`, by the message box, say the AI is an AI (AI Act art. 50(1), #324),
@@ -264,7 +281,7 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     sendLabel: "coachPanel.send",
     conversations: "/api/coach/conversations",
     storageKey: "jobhub.coachConversation",
-    features: { memory: true, inView: true, live: true, help: true },
+    features: { memory: true, inView: true, live: true, help: true, explain: false },
     texts: {
       open: "coachPanel.open",
       openShort: "coachPanel.openShort",
@@ -285,7 +302,7 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     sendLabel: "backOfficeAssistant.send",
     conversations: "/api/admin/assistant/conversations",
     storageKey: "jobhub.backOfficeAssistantConversation",
-    features: { memory: false, inView: false, live: false, help: false },
+    features: { memory: false, inView: false, live: false, help: false, explain: true },
     texts: {
       open: "backOfficeAssistant.open",
       title: "backOfficeAssistant.title",
@@ -467,24 +484,27 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     tellAiActivity?.(open);
   }, [tellAiActivity, open]);
 
-  function openPanel() {
+  /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
+  async function openPanel(): Promise<Conversation | null> {
     setOpen(true);
     // The first time the panel opens, reopen the conversation this browser had open.
-    if (restored.current) return;
+    if (restored.current) return null;
     restored.current = true;
     const conversationId = remembered(panel.storageKey);
-    if (!conversationId) return;
+    if (!conversationId) return null;
     setRestoring(true);
-    void fetchConversation(panel.conversations, conversationId).then((found) => {
-      if ("conversation" in found) {
-        const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
-        setConversation(summary);
-        setAiDisclosure(disclosed);
-        // A Help Article opened meanwhile (the panel opened on it) stays after the saved messages.
-        setMessages((shown) => [...saved, ...shown.filter(isHelpCard)]);
-      } else if (found.gone) remember(panel.storageKey, null);
-      setRestoring(false);
-    });
+    const found = await fetchConversation(panel.conversations, conversationId);
+    let reopened: Conversation | null = null;
+    if ("conversation" in found) {
+      const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
+      setConversation(summary);
+      setAiDisclosure(disclosed);
+      // A Help Article opened meanwhile (the panel opened on it) stays after the saved messages.
+      setMessages((shown) => [...saved, ...shown.filter(isHelpCard)]);
+      reopened = { conversation: summary, messages: saved };
+    } else if (found.gone) remember(panel.storageKey, null);
+    setRestoring(false);
+    return reopened;
   }
 
   function close() {
@@ -541,7 +561,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   function openHelp(articleId: string) {
     const article = help ? helpArticle(articleId, locale) : null;
     if (!article) return;
-    if (!open) openPanel();
+    if (!open) void openPanel();
     showArticle(article);
   }
 
@@ -607,13 +627,34 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     return true;
   }
 
-  async function send(event: FormEvent<HTMLFormElement>) {
+  /**
+   * An Explainable label's question (#407): sent at once, in the conversation open, or the one the panel reopens the
+   * first time it opens. Nothing while a reply is on its way or a conversation is coming back: the label can be clicked again.
+   */
+  function ask(question: string, explained: ExplainedItem) {
+    setView("chat");
+    if (open) {
+      if (status !== "sending" && !restoring) void sendMessage(question, explained);
+      return;
+    }
+    void openPanel().then((reopened) => sendMessage(question, explained, reopened ?? undefined));
+  }
+
+  function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const text = draft.trim();
-    if (!text || status === "sending" || restoring) return;
+    void sendMessage(draft.trim());
+  }
+
+  /**
+   * Sends `text`, the box's or an Explainable label's question with its item (`explained`), and shows the reply.
+   * `reopened`: the conversation the panel has just reopened, when this render does not hold it yet.
+   */
+  async function sendMessage(text: string, explained?: ExplainedItem, reopened?: Conversation) {
+    if (!text || status === "sending" || (restoring && !reopened)) return;
+    const { conversation: current, messages: before } = reopened ?? { conversation, messages };
     // What the reply is about, as the server keeps it: counted with that page in AI Activity.
     const about = kind === "coach" && inView && FOCUS_KINDS.has(inView.kind) ? focusKey(inView) : null;
-    const shown: PanelMessage[] = [...messages, { from: "candidate", text }];
+    const shown: PanelMessage[] = [...before, { from: "candidate", text }];
     setMessages(shown);
     setDraft("");
     setStatus("sending");
@@ -626,13 +667,13 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     const startedAt = Date.now();
     let spent = 0;
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
-    let asked: ConversationSummary | null = conversation;
+    let asked: ConversationSummary | null = current;
     if (panel.features.live) setLive({ step: null, tokens: 0 });
     const shownLive: RequestActionLive | null = panel.features.live && aiActivity ? aiActivity.requestAction("coach_reply", pathname, () => stop.abort()) : null;
 
     const giveBack = (error: Status, reason?: unknown) => {
       // Give the Candidate their message back to retry or shorten it.
-      setMessages(messages);
+      setMessages(before);
       setDraft(text);
       setStatus(error);
       setFailure(isFailureReason(reason) ? reason : null);
@@ -646,7 +687,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
       const blocked = body.blocked;
       setMessages([
-        ...messages,
+        ...before,
         { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
         {
           from: "coach",
@@ -691,10 +732,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
         headers: { "content-type": "application/json", ...(panel.features.live ? { accept: "application/x-ndjson" } : {}) },
         // The server holds the conversation: only the new message goes.
         body: JSON.stringify({
-          ...(conversation ? { conversationId: conversation.id } : {}),
+          ...(current ? { conversationId: current.id } : {}),
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
           ...(read ? { helpArticle: read } : {}),
+          ...(explained && panel.features.explain ? { explained } : {}),
           // The page in view, for a question the help missed (#344): the server keeps its route pattern alone.
           ...(help ? { route: pathname } : {}),
         }),
@@ -754,13 +796,14 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   const control: Control = {
     open,
     panelId: `${id}-panel`,
-    toggle: () => (open ? close() : openPanel()),
+    toggle: () => (open ? close() : void openPanel()),
     register,
     label: texts.open,
     ...(texts.openShort ? { shortLabel: texts.openShort } : {}),
     openHelp,
     mentions: help ? mentions : null,
     repliesInView,
+    ask: panel.features.explain ? ask : null,
   };
   // An empty conversation opens on the help (#342): only Help Articles opened so far, nothing sent.
   const showIntro = help && !restoring && messages.every(isHelpCard);

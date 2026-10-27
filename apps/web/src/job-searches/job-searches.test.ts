@@ -169,6 +169,17 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect((await jobSearches.get(candidateId, jobSearch.id))?.results.map((result) => result.jobOffer.id)).toEqual([published]);
   });
 
+  it("never shows, nor counts, a Job Offer private to another Candidate among its results (ADR-0049)", async () => {
+    const theirs = await jobOffers.capture({ title: "DAF H/F, client confidentiel", content: "Mon client cherche son DAF à Lyon." }, "candidate", { privateTo: otherCandidateId });
+    if (!theirs.ok) throw new Error("fixture Job Offer refused");
+    const published = await capture("Contrôleur de gestion", { location: "Lyon" });
+    const jobSearch = await started();
+    await jobSearches.record(jobSearch.id, { jobOfferIds: [theirs.jobOffer.id, published] });
+
+    expect((await jobSearches.get(candidateId, jobSearch.id))?.results.map((result) => result.jobOffer.id)).toEqual([published]);
+    expect((await jobSearches.notifications(candidateId)).notifications[0]?.outcome).toMatchObject({ status: "done", found: 1 });
+  });
+
   it("gives the Profile's latest done Job Search, with its results, to the Candidate only", async () => {
     expect(await jobSearches.latest(candidateId, profileId)).toBeNull();
     const older = await started();

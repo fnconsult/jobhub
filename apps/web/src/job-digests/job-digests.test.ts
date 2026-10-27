@@ -61,12 +61,12 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
   }
 
   /** A Job Offer stored now (on the test clock), by a Candidate unless `guest`, with a Posting date if `postedAt`. */
-  async function capture(title: string, details: object = {}, options: { guest?: boolean; storedAt?: Date; postedAt?: Date } = {}) {
+  async function capture(title: string, details: object = {}, options: { guest?: boolean; storedAt?: Date; postedAt?: Date; privateTo?: string } = {}) {
     captured++;
     const result = await jobOffers.capture(
       { source: { url: `https://carrieres.example.fr/${encodeURIComponent(title)}/${captured}` }, title, content: `${title} (${captured}). Poste à pourvoir.`, ...details },
       options.guest ? "guest" : "candidate",
-      options.postedAt ? { postedAt: options.postedAt } : {},
+      { ...(options.postedAt && { postedAt: options.postedAt }), ...(options.privateTo && { privateTo: options.privateTo }) },
     );
     if (!result.ok) throw new Error("fixture Job Offer refused");
     await database.query("UPDATE job_offer SET created_at = $2 WHERE id = $1", [result.jobOffer.id, options.storedAt ?? clock.now]);
@@ -74,7 +74,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
   }
 
   /** A Job Offer that fits the Profile: Match Score 100. */
-  const strong = (title: string, options?: { guest?: boolean; storedAt?: Date; postedAt?: Date }) =>
+  const strong = (title: string, options?: { guest?: boolean; storedAt?: Date; postedAt?: Date; privateTo?: string }) =>
     capture(title, { employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] }, options);
   /** A Job Offer that does not: Match Score 0. */
   const weak = (title: string) => capture(title, { location: "Marseille", contractType: "cdd", skills: ["Excel"] });
@@ -331,6 +331,18 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(spontaneous.jobOffer.id));
 
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
+    });
+
+    it("never offers a Job Offer private to another Candidate, stored or handed back by Job discovery, and offers the Candidate's own (ADR-0049)", async () => {
+      await subscribed();
+      const theirs = await strong("Offre d'un recruteur à Paul", { privateTo: otherCandidateId });
+      const mine = await strong("Offre d'un recruteur à Marie", { privateTo: candidateId });
+      const shared = await strong("Nouvelle");
+
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(theirs));
+
+      expect(digest?.results.map((result) => result.jobOffer.id).sort()).toEqual([mine, shared].sort());
+      expect(await jobDigests.get(candidateId, digest!.id)).toMatchObject({ results: expect.not.arrayContaining([expect.objectContaining({ jobOffer: expect.objectContaining({ id: theirs }) })]) });
     });
 
     it("leaves out the Job Offers a failed or a stopped Job Search kept and showed (#331)", async () => {

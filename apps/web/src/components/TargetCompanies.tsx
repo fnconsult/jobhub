@@ -237,8 +237,8 @@ export function TargetCompanies({ profileId, companies }: { profileId: string; c
 
 /**
  * France Travail, credited where La Bonne Boite's companies are shown: its terms ask for its logo. Its Tool's mark, the
- * same `Tool.logo` AI Activity shows: the official logo once France Travail gave it (#424), until then its name as a
- * wordmark (the logo is France Travail's to give, not to redraw).
+ * same `Tool.logo` AI Activity shows: its logo (#424), else its name as a wordmark (the logo is France Travail's to
+ * give, not to redraw).
  */
 function FranceTravailMark() {
   const mark = markOfTool(toolById("france-travail"));

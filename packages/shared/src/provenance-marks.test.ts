@@ -5,8 +5,8 @@ import { markOf, markOfTool, STEP_LABELS, stepLabel } from "./provenance-marks";
 import { toolById, TOOLS, type Tool } from "./tools";
 
 describe("a Tool's logo", () => {
-  it("is none until its owner allowed it in writing (#318): none yet", () => {
-    for (const tool of TOOLS as readonly Tool[]) expect(tool.logo, tool.id).toBeUndefined();
+  it("is none until its owner allowed it in writing (#318): France Travail's only (#424)", () => {
+    for (const tool of TOOLS as readonly Tool[]) expect(tool.logo, tool.id).toBe(tool.id === "france-travail" ? "/logos/france-travail.svg" : undefined);
   });
 
   it("can only be one of Jobbbox's own assets, never a third-party favicon", () => {
@@ -31,8 +31,13 @@ describe("what AI Activity shows for an element of a Provenance", () => {
   });
 
   it("is a Tool's name in text, without a logo while it has none", () => {
+    const step = { kind: "tool", activity: "search", tool: "fantastic-jobs", ms: 400, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 } as const;
+    expect(markOf(step)).toEqual({ text: "Fantastic.jobs" });
+  });
+
+  it("is a Tool's logo, with its name, once it has one: France Travail's (#424)", () => {
     const step = { kind: "tool", activity: "search", tool: "france-travail", ms: 400, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 } as const;
-    expect(markOf(step)).toEqual({ text: "France Travail" });
+    expect(markOf(step)).toEqual({ logo: "/logos/france-travail.svg", text: "France Travail" });
   });
 
   it("is the provider's name in text for an AI step, by the Tool that served it", () => {
@@ -46,11 +51,11 @@ describe("a Tool credited where its data is shown, as France Travail beside La B
   const franceTravail = toolById("france-travail")!;
 
   it("is its logo, with its name, once its owner allowed one: the same `Tool.logo` AI Activity shows", () => {
-    expect(markOfTool({ ...franceTravail, logo: "/logos/france-travail.svg" })).toEqual({ logo: "/logos/france-travail.svg", text: "France Travail" });
+    expect(markOfTool(franceTravail)).toEqual({ logo: "/logos/france-travail.svg", text: "France Travail" });
   });
 
   it("is its name in text while it has none", () => {
-    expect(markOfTool(franceTravail)).toEqual({ text: "France Travail" });
+    expect(markOfTool({ ...franceTravail, logo: undefined })).toEqual({ text: "France Travail" });
     expect(markOfTool(undefined)).toEqual({});
   });
 });

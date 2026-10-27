@@ -4,9 +4,9 @@
  * the worker alike.
  *
  *   const resolver = withPlatformSettings(secretResolver, platformSettingsResolver);
- *   const ai = liveObject(resolver, [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES], (env) => createAiLayerFromEnv(env));
+ *   const ai = liveObject(resolver, [...AI_SECRET_NAMES, ...AI_LAYER_SETTING_NAMES], (env) => createAiLayerFromEnv(env));
  */
-import { AI_ROUTING_SETTINGS, checkAiRoutingChange, type AiRoutingCheckDeps } from "@jobhub/ai";
+import { AI_ROUTING_SETTINGS, checkAiRoutingChange, PRICE_SETTING_NAMES, type AiRoutingCheckDeps } from "@jobhub/ai";
 import type { SecretResolver, SecretsSnapshot } from "../provider-secrets/resolver";
 import { PLATFORM_SETTINGS } from "./catalog";
 import type { PlatformSettingCheck } from "./index";
@@ -16,6 +16,9 @@ type Env = Record<string, string | undefined>;
 
 /** The AI routing Platform Settings' names: a change to one rebuilds the AI layer. */
 export const AI_ROUTING_NAMES: readonly string[] = AI_ROUTING_SETTINGS.map((setting) => setting.name);
+
+/** The Platform Settings the AI layer is built from: its routing, and the prices it records each call at (#403). A change to one rebuilds it. */
+export const AI_LAYER_SETTING_NAMES: readonly string[] = [...AI_ROUTING_NAMES, ...PRICE_SETTING_NAMES];
 
 const SETTING_NAMES = PLATFORM_SETTINGS.map((setting) => setting.name);
 

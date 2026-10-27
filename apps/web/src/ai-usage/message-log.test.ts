@@ -194,6 +194,24 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     expect(await tasks({ task: "nope", day: "yesterday", model: 3 })).toHaveLength(3);
   });
 
+  it("lists the calls one Candidate's run made: by their id, between two instants (Activité › Recherches' link, #404)", async () => {
+    const jean = await candidate("jean.martin@example.fr");
+    now = new Date("2026-10-17T07:59:59Z");
+    await ai.generate({ task: "scoring", candidateId: marie, prompt: "Avant" });
+    now = new Date("2026-10-17T08:00:30Z");
+    await ai.generate({ task: "scoring", candidateId: marie, prompt: "Pendant" });
+    await ai.generate({ task: "scoring", candidateId: jean, prompt: "Pendant, un autre" });
+    now = new Date("2026-10-17T08:02:00Z");
+    await ai.generate({ task: "coaching", candidateId: marie, prompt: "Après" });
+    await settled();
+
+    const listed = await logs.list({ candidate: marie, from: "2026-10-17T08:00:00.000Z", to: "2026-10-17T08:01:00.000Z" });
+
+    expect(listed.map((log) => `${log.task} ${log.candidate?.email} ${log.at.toISOString()}`)).toEqual(["scoring marie.dupont@example.fr 2026-10-17T08:00:30.000Z"]);
+    // An id or an instant that cannot be read is no filter.
+    expect(await logs.list({ candidate: "Robert'); DROP TABLE ai_usage;--", from: "hier" })).toHaveLength(4);
+  });
+
   it("purges message logs 30 days old, the usage stays", async () => {
     await ai.generate({ task: "coaching", candidateId: marie, prompt: "Bonjour" });
     await settled();

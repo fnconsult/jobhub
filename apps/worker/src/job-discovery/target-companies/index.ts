@@ -64,7 +64,8 @@ export interface TargetCompanyVisit {
   careersSite: string | null;
 }
 
-export type LaBonneBoiteStatus = "off" | "kept" | "searched" | "refused" | "failed";
+export type { LaBonneBoiteStatus } from "@jobhub/shared";
+import type { LaBonneBoiteStatus } from "@jobhub/shared";
 
 export interface TargetCompaniesForRun {
   /** `off`: France Travail is not configured; `kept`: the list fetched within the month was used; `searched`: it was fetched now. */

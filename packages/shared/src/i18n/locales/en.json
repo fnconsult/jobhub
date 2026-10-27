@@ -845,13 +845,15 @@
       "signInProviders": "Sign-in",
       "searchSites": "Search sites",
       "administrators": "Administrators",
-      "journal": "Journal",
+      "journal": "Administrator actions",
       "aiUsage": "AI consumption",
-      "aiMessages": "AI message logs",
+      "aiMessages": "AI calls",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Guardrails",
       "tools": "Tools",
-      "unansweredQuestions": "Unanswered questions"
+      "unansweredQuestions": "Unanswered questions",
+      "activity": "Activity",
+      "discoveryRuns": "Searches"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1032,7 +1034,7 @@
         "title": "Reset this week's usage",
         "intro": "Quotas are counted per week, from Monday 00:00 (Paris time). Resetting erases the current week's usage of every Candidate, for every quota: each starts again from zero until next Monday. Past weeks are kept.",
         "reason": "Reason for the reset",
-        "reasonHelp": "Required. It is recorded in the Back Office journal.",
+        "reasonHelp": "Required. It is recorded in Activity › Administrator actions.",
         "confirm": "I confirm resetting this week's usage for every Candidate.",
         "submit": "Reset for every Candidate",
         "done_one": "This week's usage reset: {{count}} Candidate affected.",
@@ -1271,7 +1273,7 @@
       "newValue": "New value of {{name}}",
       "newValueHelp": "Pasted here, it is tested with the provider, then encrypted. It will never be shown again.",
       "saveAnyway": "Save even if the connection test fails",
-      "saveAnywayHelp": "This choice is recorded in the journal.",
+      "saveAnywayHelp": "This choice is recorded in Activity.",
       "replace": "Test and save {{name}}",
       "clear": "Clear {{name}} (back to the environment)",
       "test": "Test {{name}}",
@@ -1295,7 +1297,7 @@
         }
       },
       "saved": "{{name}} replaced: the connection test passed.",
-      "savedUntested": "{{name}} replaced although the connection test failed. This is recorded in the journal.",
+      "savedUntested": "{{name}} replaced although the connection test failed. This is recorded in Activity.",
       "cleared": "{{name}} cleared: the environment's value is used again.",
       "testPassed": "{{name}}: the connection test passed.",
       "testFailed": "{{name}}: the connection test failed.",
@@ -1361,7 +1363,7 @@
         "missing": "Not set",
         "unreadable": "Set, unreadable",
         "keyVersions": "Set (versions: {{versions}})",
-        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server log.",
+        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server output.",
         "why": "Why do these settings stay in the environment?"
       },
       "elsewhere": {
@@ -1374,7 +1376,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is written to the Journal.",
+      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is recorded in Activity.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1392,12 +1394,12 @@
         "unchanged": "{{name}} already had this value: nothing changed.",
         "restored": "{{name}} restored: env's value applies, else the code's default.",
         "notRestored": "{{name}} had no Back Office value: nothing changed.",
-        "invalid": "Value refused for {{name}}: it takes {{rule}}. The attempt is in the Journal.",
+        "invalid": "Value refused for {{name}}: it takes {{rule}}. The attempt is recorded in Activity.",
         "empty": "Enter a value for {{name}}.",
         "not_editable": "{{name}} cannot be changed here yet.",
         "unconfirmed": "{{name}} waits for your confirmation.",
         "restoreUnconfirmed": "Restoring {{name}} waits for your confirmation.",
-        "refused": "{{name}} was not changed: {{reason}}. The attempt is in the Journal."
+        "refused": "{{name}} was not changed: {{reason}}. The attempt is recorded in Activity."
       },
       "journalFields": {
         "value": "Value",
@@ -1406,7 +1408,7 @@
       "enrichedContactsHelp": "Enriched contacts stay off until the DPA is marked signed, whatever the provider and its key. The chosen provider's key is entered on its sheet, in this tab.",
       "confirmDpa": {
         "title": "Mark the DPA signed?",
-        "question": "Do you confirm the data processing agreement (DPA) with the enriched contacts provider is signed? The code cannot check it: once the DPA is marked signed, enriched contacts turn on as soon as a provider is chosen and its key is entered. The confirmation is written to the Journal.",
+        "question": "Do you confirm the data processing agreement (DPA) with the enriched contacts provider is signed? The code cannot check it: once the DPA is marked signed, enriched contacts turn on as soon as a provider is chosen and its key is entered. The confirmation is recorded in Activity.",
         "yes": "Yes, the DPA is signed",
         "cancel": "Cancel"
       },
@@ -1649,13 +1651,13 @@
       "granted": "Roles granted: {{roles}}.",
       "revoked": "Role revoked.",
       "roleHelp": {
-        "super-admin": "The whole back office, Administrators and Journal included.",
+        "super-admin": "The whole back office, Administrators, AI calls and Administrator actions included.",
         "plans-manager": "Plans and their quotas.",
         "coach-manager": "Human Coaches; reads the AI Coach cost.",
         "support": "Reads everything except provider secrets, and changes nothing.",
         "playbook-editor": "Writes, versions, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.",
         "help-editor": "Reads the unanswered questions and marks them « Article written » or dismisses them.",
-        "platform-manager": "Sets the non-secret settings, the search sources and sites and the tools' prices; sees keys by their source and last 4 characters, without changing them; reads the consumption, the tools and the journal."
+        "platform-manager": "Sets the non-secret settings, the search sources and sites and the tools' prices; sees keys by their source and last 4 characters, without changing them; reads the consumption, the tools, and Activity's searches and Administrator actions."
       },
       "errors": {
         "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",
@@ -1668,7 +1670,6 @@
       }
     },
     "journal": {
-      "title": "Change journal",
       "intro": "Every change made in the back office: who, what, before and after, when; and every attempt refused or failed, with its reason, without the values entered. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
       "filter": "Show",
       "all": "All",
@@ -1684,7 +1685,7 @@
         "job_discovery_sites": "Job discovery sites",
         "job_sites": "Extension sites",
         "sign_in_providers": "Sign-in",
-        "ai_messages": "AI message logs",
+        "ai_messages": "Activity › AI calls",
         "coaching_playbooks": "Coaching Playbooks",
         "guardrails": "Guardrails",
         "eval_cases": "Eval Cases",
@@ -1693,9 +1694,10 @@
         "ai_usage": "AI consumption",
         "search_sites": "Search sites",
         "tool_pages": "Tools pages",
-        "journal": "Journal",
+        "journal": "Activity › Administrator actions",
         "unanswered_questions": "Unanswered questions",
-        "signalements": "Feedback"
+        "signalements": "Feedback",
+        "discovery_runs": "Activity › Searches"
       },
       "actions": {
         "added": "Added",
@@ -1854,8 +1856,8 @@
       "noReasons": "No failures nor warnings in this period."
     },
     "aiMessages": {
-      "title": "AI message logs",
-      "intro": "What each AI call said (prompt and reply), keys and secrets masked, kept {{days}} days for quality and debugging. Personal data: every log opened is written to the Back Office Journal.",
+      "title": "AI call",
+      "intro": "What each AI call said (prompt and reply), keys and secrets masked, kept {{days}} days for quality and debugging. Personal data: every call opened is recorded in Administrator actions.",
       "filter": "Filter",
       "task": "Task",
       "anyTask": "All",
@@ -1864,18 +1866,18 @@
       "day": "Day",
       "apply": "Filter",
       "reset": "Clear filters",
-      "caption": "AI message logs, newest first",
+      "caption": "AI calls, newest first",
       "at": "Date",
       "provider": "Provider and model",
       "candidate": "Candidate",
       "noCandidate": "None (Guest)",
       "result": "Result",
       "open": "Open",
-      "openLabel": "Open the log of {{at}}",
-      "none": "No log matches.",
+      "openLabel": "Open the call of {{at}}",
+      "none": "No call matches.",
       "limit": "The {{count}} newest are shown: filter to see others.",
-      "back": "Back to AI message logs",
-      "audited": "This view is written to the Back Office Journal.",
+      "back": "Back to AI calls",
+      "audited": "This view is recorded in Activity › Administrator actions.",
       "details": "Call details",
       "tokens": "Tokens (input, cached, output)",
       "cost": "Estimated cost",
@@ -1909,7 +1911,8 @@
       },
       "warnings": "Warnings",
       "noTechnical": "No technical detail recorded.",
-      "noReplyNotSent": "No reply: the call was not sent."
+      "noReplyNotSent": "No reply: the call was not sent.",
+      "ofRun": "The AI calls of one Job discovery run: its Candidate's, from its start to a minute after its end."
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
@@ -2127,7 +2130,7 @@
       },
       "triggers": {
         "title": "Triggers",
-        "intro": "Each block, flag or unavailable check of the last {{days}} days, per day (Paris time) and per guardrail, unavailable checks counted by reason. No Candidate, no conversation, no text: the text, if needed, stays in the AI message logs (30 days). Kept {{months}} months.",
+        "intro": "Each block, flag or unavailable check of the last {{days}} days, per day (Paris time) and per guardrail, unavailable checks counted by reason. No Candidate, no conversation, no text: the text, if needed, stays in Activity › AI calls (30 days). Kept {{months}} months.",
         "caption": "Guardrail triggers per day",
         "none": "No trigger over the period.",
         "day": "Day",
@@ -2278,7 +2281,7 @@
       "back": "Back",
       "cases": {
         "title": "Eval Cases",
-        "intro": "Fictional scenarios: a Candidate's situation, their message, possibly what they have in view, and what a good reply does, scored by the AI judge. They belong to the playbook, not to a version, and need no validation. Write them in French, with nothing of a real person. They stay in this environment and every change is in the Journal.",
+        "intro": "Fictional scenarios: a Candidate's situation, their message, possibly what they have in view, and what a good reply does, scored by the AI judge. They belong to the playbook, not to a version, and need no validation. Write them in French, with nothing of a real person. They stay in this environment and every change is recorded in Activity.",
         "none": "No Eval Case yet.",
         "writtenBy": "Written by {{author}} on {{date}}",
         "add": "Add an Eval Case",
@@ -2473,6 +2476,146 @@
       "settingsTitle": "Settings",
       "settingsIntro": "The platform settings this Tool depends on, read-only: they are changed on Settings.",
       "settingsCaption": "Settings of {{name}}"
+    },
+    "activity": {
+      "title": "Activity",
+      "tabsLabel": "Activity tabs",
+      "tabs": {
+        "discoveryRuns": "Searches",
+        "aiMessages": "AI calls",
+        "audit": "Administrator actions"
+      }
+    },
+    "discoveryRuns": {
+      "intro": "Every run of Job discovery, started by a Candidate's Job Search or to top up a Job Digest: its searches and what they gave. Queries, criteria and the link to the Candidate's Job Search are kept {{days}} days; the runs' figures, {{months}} months.",
+      "settingsLink": "Web search settings",
+      "filter": "Filter the runs",
+      "trigger": "Trigger",
+      "anyTrigger": "Every trigger",
+      "triggers": {
+        "job_search": "Job Search",
+        "job_digest": "Job Digest"
+      },
+      "period": "Period",
+      "periods": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "all": "Everything (24 months)"
+      },
+      "fallbackOnly": "Only switches to the fallback provider",
+      "apply": "Show",
+      "none": "No run in this period.",
+      "count_one": "{{count}} run",
+      "count_other": "{{count}} runs",
+      "limit": "Only the {{count}} most recent runs are shown.",
+      "caption": "Job discovery runs, newest first",
+      "at": "When",
+      "profile": "Profile",
+      "searches": "Searches",
+      "provider": "Provider",
+      "pagesRead": "Pages read",
+      "newOffers": "New / extracted Job Offers",
+      "stop": "Stop",
+      "duration": "Duration",
+      "cost": "Cost",
+      "open": "Open",
+      "openLabel": "Open the run of {{at}}",
+      "pseudonym": "Profile #{{pseudonym}}",
+      "purged": "Erased after 30 days",
+      "purgedTitle": "Queries and criteria erased",
+      "noWebSearch": "No web search",
+      "fellBack": "fallback",
+      "fallbackShort": "fallback",
+      "newOfExtracted": "{{new}} / {{extracted}}",
+      "stopReasons": {
+        "job_offers": "Job Offer limit",
+        "spend": "Spend limit",
+        "duration": "Time limit",
+        "exhausted": "Searches done",
+        "stopped": "Stopped by the Candidate",
+        "failed": "Failed"
+      },
+      "noCandidate": "Queries built from the Search Criteria alone; no Candidate name or email here.",
+      "close": "Close",
+      "stoppedBy": "stop: {{reason}}",
+      "fallbackDetail": "{{from}} failed ({{reason}}): the rest of the run went to {{to}}, the fallback provider.",
+      "funnelTitle": "Funnel (Discovery metrics)",
+      "funnel": {
+        "providerUrls": "URLs returned",
+        "fetched": "Pages read",
+        "extracted": "Job Offers extracted",
+        "alreadyStored": "Already stored",
+        "afterDedup": "After deduplication",
+        "matched": "Match Score ≥ 60"
+      },
+      "newJobOffers_one": "{{count}} new Job Offer, stored for the first time.",
+      "newJobOffers_other": "{{count}} new Job Offers, stored for the first time.",
+      "searchesTitle": "The run's searches",
+      "queriesPurged": "Queries erased after {{days}} days; the figures stay.",
+      "noSearch": "No web search in this run.",
+      "kind": "Kind",
+      "kinds": {
+        "plan": "Plan",
+        "target_company": "Target Company",
+        "site": "Site"
+      },
+      "query": "Query",
+      "page": "Page",
+      "results": "Results",
+      "newOffersShort": "New Job Offers",
+      "sourcesTitle": "Sources",
+      "sourceStatuses": {
+        "off": "off",
+        "searched": "searched",
+        "refused": "refused",
+        "failed": "failed"
+      },
+      "sourceOffers_one": "{{count}} Job Offer",
+      "sourceOffers_other": "{{count}} Job Offers",
+      "sourceCalls_one": "{{count}} call",
+      "sourceCalls_other": "{{count}} calls",
+      "skippedTitle": "Pages skipped",
+      "noneSkipped": "No page skipped.",
+      "skipReason": "Reason",
+      "pages": "Pages",
+      "skipReasons": {
+        "robots": "robots.txt or noindex",
+        "site_terms": "Forbidden site (terms of use)",
+        "bot_protection": "Bot protection",
+        "login_wall": "Sign-in required",
+        "not_public": "Not a public page",
+        "gone": "Posting closed or page gone",
+        "unreachable": "Site unreachable",
+        "not_a_job_offer": "Not a job posting",
+        "invalid": "Unreadable posting",
+        "too_old": "Too old (over 30 days)",
+        "site_disabled": "Job discovery site disabled"
+      },
+      "aiCallsLink": "This run's AI calls",
+      "jobSearchLink": "Open the Candidate's Job Search (recorded in Administrator actions)",
+      "queryPurged": "erased",
+      "jobSearch": {
+        "title": "A run's Job Search",
+        "back": "Back to the run",
+        "audited": "This view is recorded in Activity › Administrator actions.",
+        "startedAt": "Started",
+        "status": "Status",
+        "statuses": {
+          "searching": "Searching",
+          "done": "Done",
+          "failed": "Failed",
+          "stopped": "Stopped"
+        },
+        "criteria": "Criteria",
+        "results_one": "{{count}} Job Offer found",
+        "results_other": "{{count}} Job Offers found",
+        "noResult": "No Job Offer found.",
+        "offer": "Job Offer",
+        "employer": "Employer",
+        "location": "Location",
+        "matchScore": "Match Score"
+      }
     }
   },
   "backOfficeAssistant": {

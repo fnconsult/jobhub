@@ -54,7 +54,7 @@ const lastReply = (page: Page) => assistant(page).getByRole("list", { name: assi
 test.describe("Back Office Assistant", () => {
   test("a super-admin asks from any Back Office page and gets answers grounded in Back Office data, without secrets or addresses", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await page.goto("/admin/journal");
+    await page.goto("/admin/activite/actions");
     await openAssistant(page);
     await expect(assistant(page)).toContainText(assistantTexts.welcome);
     await expect(assistant(page)).toContainText(assistantTexts.readOnly);
@@ -77,7 +77,7 @@ test.describe("Back Office Assistant", () => {
     const prompt = await systemPromptShown(show);
     expect(prompt).toContain("Quotas des offres (Plan Quotas)");
     expect(prompt).toContain("Match Scores par semaine");
-    expect(prompt).toContain("Journal du Back Office");
+    expect(prompt).toContain("Activité › Actions des administrateurs (Back Office Audit)");
     expect(prompt).toContain("Rôles de l'Administrateur : Super-admin.");
     expect(prompt).not.toContain(MISTRAL_KEY);
     expect(prompt).not.toContain("@");
@@ -110,7 +110,7 @@ test.describe("Back Office Assistant", () => {
     expect(prompt).toContain("Coût du coach IA");
     expect(prompt).toContain("Hors des rôles de l'Administrateur");
     expect(prompt).toContain("Clés des fournisseurs (Provider Secrets)");
-    // Plan Quota figures and the Journal are outside their roles: never in the prompt.
+    // Plan Quota figures and Actions des administrateurs are outside their roles: never in the prompt.
     expect(prompt).not.toContain("Match Scores par semaine");
     expect(prompt).not.toContain("Les 30 derniers");
     expect(prompt).not.toContain(MISTRAL_KEY);

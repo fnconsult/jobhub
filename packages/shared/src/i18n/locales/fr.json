@@ -845,13 +845,15 @@
       "signInProviders": "Connexion",
       "searchSites": "Sites de recherche",
       "administrators": "Administrateurs",
-      "journal": "Journal",
+      "journal": "Actions des administrateurs",
       "aiUsage": "Consommation IA",
-      "aiMessages": "Journaux IA",
+      "aiMessages": "Appels IA",
       "coachingPlaybooks": "Playbooks",
       "guardrails": "Garde-fous",
       "tools": "Outils",
-      "unansweredQuestions": "Questions sans réponse"
+      "unansweredQuestions": "Questions sans réponse",
+      "activity": "Activité",
+      "discoveryRuns": "Recherches"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1032,7 +1034,7 @@
         "title": "Remettre à zéro l'usage de la semaine",
         "intro": "Les quotas se comptent par semaine, du lundi 0 h (heure de Paris). Remettre à zéro efface l'usage de la semaine en cours de tous les candidats, pour tous les quotas : chacun repart de zéro jusqu'à lundi prochain. Les semaines passées sont conservées.",
         "reason": "Raison de la remise à zéro",
-        "reasonHelp": "Obligatoire. Elle est enregistrée dans le journal du back office.",
+        "reasonHelp": "Obligatoire. Elle est inscrite dans Activité › Actions des administrateurs.",
         "confirm": "Je confirme la remise à zéro de l'usage de la semaine pour tous les candidats.",
         "submit": "Remettre à zéro pour tous les candidats",
         "done_one": "Usage de la semaine remis à zéro : {{count}} candidat concerné.",
@@ -1271,7 +1273,7 @@
       "newValue": "Nouvelle valeur de {{name}}",
       "newValueHelp": "Collée ici, elle est testée auprès du fournisseur puis chiffrée. Elle ne sera plus jamais affichée.",
       "saveAnyway": "Enregistrer même si le test de connexion échoue",
-      "saveAnywayHelp": "Ce choix est inscrit au journal.",
+      "saveAnywayHelp": "Ce choix est inscrit dans Activité.",
       "replace": "Tester et enregistrer {{name}}",
       "clear": "Effacer {{name}} (revenir à l'environnement)",
       "test": "Tester {{name}}",
@@ -1295,7 +1297,7 @@
         }
       },
       "saved": "{{name}} remplacée : le test de connexion a réussi.",
-      "savedUntested": "{{name}} remplacée malgré l'échec du test de connexion. C'est inscrit au journal.",
+      "savedUntested": "{{name}} remplacée malgré l'échec du test de connexion. C'est inscrit dans Activité.",
       "cleared": "{{name}} effacée : la valeur de l'environnement est de nouveau utilisée.",
       "testPassed": "{{name}} : le test de connexion a réussi.",
       "testFailed": "{{name}} : le test de connexion a échoué.",
@@ -1361,7 +1363,7 @@
         "missing": "Non défini",
         "unreadable": "Défini, illisible",
         "keyVersions": "Défini (versions : {{versions}})",
-        "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans le journal du serveur.",
+        "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans la sortie du serveur.",
         "why": "Pourquoi ces réglages restent-ils dans l'environnement ?"
       },
       "elsewhere": {
@@ -1374,7 +1376,7 @@
       "save": "Enregistrer",
       "restore": "Rétablir",
       "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
-      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite au Journal.",
+      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite dans Activité.",
       "rules": {
         "whole": "un nombre entier de {{min}} à {{max}}",
         "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
@@ -1392,12 +1394,12 @@
         "unchanged": "{{name}} avait déjà cette valeur : rien n'a changé.",
         "restored": "{{name}} rétabli : la valeur de l'environnement s'applique, sinon le défaut du code.",
         "notRestored": "{{name}} n'avait pas de valeur dans le back office : rien n'a changé.",
-        "invalid": "Valeur refusée pour {{name}} : il faut {{rule}}. La tentative est inscrite au Journal.",
+        "invalid": "Valeur refusée pour {{name}} : il faut {{rule}}. La tentative est inscrite dans Activité.",
         "empty": "Saisissez une valeur pour {{name}}.",
         "not_editable": "{{name}} ne se modifie pas encore ici.",
         "unconfirmed": "{{name}} attend votre confirmation.",
         "restoreUnconfirmed": "Le rétablissement de {{name}} attend votre confirmation.",
-        "refused": "{{name}} n'a pas été modifié : {{reason}}. La tentative est inscrite au Journal."
+        "refused": "{{name}} n'a pas été modifié : {{reason}}. La tentative est inscrite dans Activité."
       },
       "journalFields": {
         "value": "Valeur",
@@ -1406,7 +1408,7 @@
       "enrichedContactsHelp": "Les contacts enrichis restent désactivés tant que le DPA n'est pas marqué signé, quels que soient le fournisseur et sa clé. La clé du fournisseur choisi se saisit sur sa fiche, dans cet onglet.",
       "confirmDpa": {
         "title": "Marquer le DPA signé ?",
-        "question": "Confirmez-vous que l'accord de traitement des données (DPA) avec le fournisseur des contacts enrichis est signé ? Le code ne peut pas le vérifier : une fois le DPA marqué signé, les contacts enrichis s'activent dès qu'un fournisseur est choisi et que sa clé est saisie. La confirmation est inscrite au Journal.",
+        "question": "Confirmez-vous que l'accord de traitement des données (DPA) avec le fournisseur des contacts enrichis est signé ? Le code ne peut pas le vérifier : une fois le DPA marqué signé, les contacts enrichis s'activent dès qu'un fournisseur est choisi et que sa clé est saisie. La confirmation est inscrite dans Activité.",
         "yes": "Oui, le DPA est signé",
         "cancel": "Annuler"
       },
@@ -1649,13 +1651,13 @@
       "granted": "Rôles donnés : {{roles}}.",
       "revoked": "Rôle retiré.",
       "roleHelp": {
-        "super-admin": "Tout le back office, dont les administrateurs et le journal.",
+        "super-admin": "Tout le back office, dont les administrateurs, les appels IA et les actions des administrateurs.",
         "plans-manager": "Les offres et leurs quotas.",
         "coach-manager": "Les coachs humains ; consulte le coût de l'AI Coach.",
         "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier.",
         "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources.",
         "help-editor": "Lit les questions sans réponse et les marque « Article écrit » ou les écarte.",
-        "platform-manager": "Règle les paramètres non secrets, les sources et sites de recherche et les prix des outils ; voit les clés par leur source et leurs 4 derniers caractères, sans les changer ; lit la consommation, les outils et le journal."
+        "platform-manager": "Règle les paramètres non secrets, les sources et sites de recherche et les prix des outils ; voit les clés par leur source et leurs 4 derniers caractères, sans les changer ; lit la consommation, les outils, les recherches et les actions des administrateurs d'Activité."
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
@@ -1668,7 +1670,6 @@
       }
     },
     "journal": {
-      "title": "Journal des modifications",
       "intro": "Chaque modification faite dans le back office : qui, quoi, avant et après, quand ; et chaque tentative refusée ou échouée, avec sa raison, sans les valeurs saisies. Les valeurs secrètes ne sont jamais enregistrées, seulement leur remplacement. Chaque entrée est conservée {{years}} ans.",
       "filter": "Afficher",
       "all": "Tout",
@@ -1684,7 +1685,7 @@
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension",
         "sign_in_providers": "Connexion",
-        "ai_messages": "Journaux IA",
+        "ai_messages": "Activité › Appels IA",
         "coaching_playbooks": "Playbooks de coaching",
         "guardrails": "Garde-fous",
         "eval_cases": "Cas d'évaluation",
@@ -1693,9 +1694,10 @@
         "ai_usage": "Consommation IA",
         "search_sites": "Sites de recherche",
         "tool_pages": "Pages Outils",
-        "journal": "Journal",
+        "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
-        "signalements": "Signalements"
+        "signalements": "Signalements",
+        "discovery_runs": "Activité › Recherches"
       },
       "actions": {
         "added": "Ajout",
@@ -1854,8 +1856,8 @@
       "noReasons": "Aucun échec ni avertissement sur cette période."
     },
     "aiMessages": {
-      "title": "Journaux IA",
-      "intro": "Le texte de chaque appel à l'IA (prompt et réponse), clés et secrets masqués, gardé {{days}} jours pour la qualité et le débogage. Données personnelles : chaque journal ouvert est noté au Journal du back office.",
+      "title": "Appel IA",
+      "intro": "Le texte de chaque appel à l'IA (prompt et réponse), clés et secrets masqués, gardé {{days}} jours pour la qualité et le débogage. Données personnelles : chaque appel ouvert est inscrit dans Actions des administrateurs.",
       "filter": "Filtrer",
       "task": "Tâche",
       "anyTask": "Toutes",
@@ -1864,18 +1866,18 @@
       "day": "Jour",
       "apply": "Filtrer",
       "reset": "Effacer les filtres",
-      "caption": "Journaux IA, le plus récent d'abord",
+      "caption": "Appels IA, le plus récent d'abord",
       "at": "Date",
       "provider": "Fournisseur et modèle",
       "candidate": "Candidat",
       "noCandidate": "Aucun (invité)",
       "result": "Résultat",
       "open": "Ouvrir",
-      "openLabel": "Ouvrir le journal du {{at}}",
-      "none": "Aucun journal ne correspond.",
+      "openLabel": "Ouvrir l'appel du {{at}}",
+      "none": "Aucun appel ne correspond.",
       "limit": "Les {{count}} plus récents sont affichés : filtrez pour en voir d'autres.",
-      "back": "Retour aux journaux IA",
-      "audited": "Cette consultation est notée au Journal du back office.",
+      "back": "Retour aux appels IA",
+      "audited": "Cette consultation est inscrite dans Activité › Actions des administrateurs.",
       "details": "Détails de l'appel",
       "tokens": "Tokens (entrée, cache, sortie)",
       "cost": "Coût estimé",
@@ -1909,7 +1911,8 @@
       },
       "warnings": "Avertissements",
       "noTechnical": "Aucun détail technique enregistré.",
-      "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé."
+      "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé.",
+      "ofRun": "Les appels IA d'un run de recherche d'offres : ceux de son candidat, de son début à une minute après sa fin."
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",
@@ -2127,7 +2130,7 @@
       },
       "triggers": {
         "title": "Déclenchements",
-        "intro": "Chaque blocage, signalement ou contrôle indisponible des {{days}} derniers jours, par jour (heure de Paris) et par garde-fou, les contrôles indisponibles comptés par raison. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans les journaux IA (30 jours). Conservés {{months}} mois.",
+        "intro": "Chaque blocage, signalement ou contrôle indisponible des {{days}} derniers jours, par jour (heure de Paris) et par garde-fou, les contrôles indisponibles comptés par raison. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans Activité › Appels IA (30 jours). Conservés {{months}} mois.",
         "caption": "Déclenchements des garde-fous par jour",
         "none": "Aucun déclenchement sur la période.",
         "day": "Jour",
@@ -2278,7 +2281,7 @@
       "back": "Retour",
       "cases": {
         "title": "Cas d'évaluation",
-        "intro": "Des scénarios fictifs : la situation d'un candidat, son message, éventuellement ce qu'il consulte, et ce qu'une bonne réponse doit faire, noté par le juge IA. Ils appartiennent au playbook, pas à une version, et ne se valident pas. Rédigez-les en français, sans rien d'une personne réelle. Ils restent dans cet environnement et chaque modification est notée au Journal.",
+        "intro": "Des scénarios fictifs : la situation d'un candidat, son message, éventuellement ce qu'il consulte, et ce qu'une bonne réponse doit faire, noté par le juge IA. Ils appartiennent au playbook, pas à une version, et ne se valident pas. Rédigez-les en français, sans rien d'une personne réelle. Ils restent dans cet environnement et chaque modification est inscrite dans Activité.",
         "none": "Aucun cas d'évaluation pour l'instant.",
         "writtenBy": "Écrit par {{author}}, le {{date}}",
         "add": "Ajouter un cas d'évaluation",
@@ -2473,6 +2476,146 @@
       "settingsTitle": "Paramètres",
       "settingsIntro": "Les réglages de la plateforme dont dépend cet outil, en lecture seule : ils se changent dans Paramètres.",
       "settingsCaption": "Paramètres de {{name}}"
+    },
+    "activity": {
+      "title": "Activité",
+      "tabsLabel": "Onglets d'Activité",
+      "tabs": {
+        "discoveryRuns": "Recherches",
+        "aiMessages": "Appels IA",
+        "audit": "Actions des administrateurs"
+      }
+    },
+    "discoveryRuns": {
+      "intro": "Chaque run de la recherche d'offres (Job discovery), lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest : ses recherches et ce qu'elles ont donné. Les requêtes, les critères et le lien vers la recherche du candidat sont gardés {{days}} jours ; les chiffres des runs, {{months}} mois.",
+      "settingsLink": "Réglages de la recherche web",
+      "filter": "Filtrer les runs",
+      "trigger": "Déclencheur",
+      "anyTrigger": "Tous les déclencheurs",
+      "triggers": {
+        "job_search": "Recherche d'offres",
+        "job_digest": "Job Digest"
+      },
+      "period": "Période",
+      "periods": {
+        "today": "Aujourd'hui",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "all": "Tout (24 mois)"
+      },
+      "fallbackOnly": "Bascules sur le fournisseur de secours seulement",
+      "apply": "Afficher",
+      "none": "Aucun run sur cette période.",
+      "count_one": "{{count}} run",
+      "count_other": "{{count}} runs",
+      "limit": "Seuls les {{count}} runs les plus récents sont affichés.",
+      "caption": "Runs de la recherche d'offres, du plus récent au plus ancien",
+      "at": "Quand",
+      "profile": "Profil",
+      "searches": "Recherches",
+      "provider": "Fournisseur",
+      "pagesRead": "Pages lues",
+      "newOffers": "Offres nouvelles / extraites",
+      "stop": "Arrêt",
+      "duration": "Durée",
+      "cost": "Coût",
+      "open": "Ouvrir",
+      "openLabel": "Ouvrir le run du {{at}}",
+      "pseudonym": "Profil #{{pseudonym}}",
+      "purged": "Effacé après 30 jours",
+      "purgedTitle": "Requêtes et critères effacés",
+      "noWebSearch": "Pas de recherche web",
+      "fellBack": "secours",
+      "fallbackShort": "secours",
+      "newOfExtracted": "{{new}} / {{extracted}}",
+      "stopReasons": {
+        "job_offers": "Plafond d'offres",
+        "spend": "Plafond de coût",
+        "duration": "Plafond de durée",
+        "exhausted": "Fin des recherches",
+        "stopped": "Arrêté par le candidat",
+        "failed": "Échec"
+      },
+      "noCandidate": "Requêtes construites depuis les critères de recherche uniquement ; aucun nom ni e-mail de candidat ici.",
+      "close": "Fermer",
+      "stoppedBy": "arrêt : {{reason}}",
+      "fallbackDetail": "{{from}} a échoué ({{reason}}) : le reste du run est passé par {{to}}, le fournisseur de secours.",
+      "funnelTitle": "Entonnoir (Discovery metrics)",
+      "funnel": {
+        "providerUrls": "URLs renvoyées",
+        "fetched": "Pages lues",
+        "extracted": "Offres extraites",
+        "alreadyStored": "Déjà connues",
+        "afterDedup": "Après dédoublonnage",
+        "matched": "Match Score ≥ 60"
+      },
+      "newJobOffers_one": "{{count}} offre nouvelle, enregistrée pour la première fois.",
+      "newJobOffers_other": "{{count}} offres nouvelles, enregistrées pour la première fois.",
+      "searchesTitle": "Recherches du run",
+      "queriesPurged": "Requêtes effacées après {{days}} jours ; les chiffres restent.",
+      "noSearch": "Aucune recherche web dans ce run.",
+      "kind": "Type",
+      "kinds": {
+        "plan": "Plan",
+        "target_company": "Entreprise cible",
+        "site": "Site"
+      },
+      "query": "Requête",
+      "page": "Page",
+      "results": "Résultats",
+      "newOffersShort": "Offres nouvelles",
+      "sourcesTitle": "Sources",
+      "sourceStatuses": {
+        "off": "désactivée",
+        "searched": "interrogée",
+        "refused": "refusée",
+        "failed": "en échec"
+      },
+      "sourceOffers_one": "{{count}} offre",
+      "sourceOffers_other": "{{count}} offres",
+      "sourceCalls_one": "{{count}} appel",
+      "sourceCalls_other": "{{count}} appels",
+      "skippedTitle": "Pages écartées",
+      "noneSkipped": "Aucune page écartée.",
+      "skipReason": "Raison",
+      "pages": "Pages",
+      "skipReasons": {
+        "robots": "robots.txt ou noindex",
+        "site_terms": "Site interdit (conditions d'utilisation)",
+        "bot_protection": "Protection anti-robot",
+        "login_wall": "Connexion demandée",
+        "not_public": "Page non publique",
+        "gone": "Offre fermée ou page disparue",
+        "unreachable": "Site injoignable",
+        "not_a_job_offer": "Pas une offre d'emploi",
+        "invalid": "Offre illisible",
+        "too_old": "Trop ancienne (plus de 30 jours)",
+        "site_disabled": "Site de recherche désactivé"
+      },
+      "aiCallsLink": "Appels IA de ce run",
+      "jobSearchLink": "Ouvrir la recherche d'offres du candidat (inscrit dans Actions des administrateurs)",
+      "queryPurged": "effacée",
+      "jobSearch": {
+        "title": "Recherche d'offres d'un run",
+        "back": "Retour au run",
+        "audited": "Cette consultation est inscrite dans Activité › Actions des administrateurs.",
+        "startedAt": "Lancée le",
+        "status": "État",
+        "statuses": {
+          "searching": "En cours",
+          "done": "Terminée",
+          "failed": "Échouée",
+          "stopped": "Arrêtée"
+        },
+        "criteria": "Critères",
+        "results_one": "{{count}} offre trouvée",
+        "results_other": "{{count}} offres trouvées",
+        "noResult": "Aucune offre trouvée.",
+        "offer": "Offre",
+        "employer": "Employeur",
+        "location": "Lieu",
+        "matchScore": "Match Score"
+      }
     }
   },
   "backOfficeAssistant": {

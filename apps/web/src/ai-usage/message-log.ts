@@ -4,7 +4,7 @@
  * the AI layer's Postgres usage log (`createPostgresUsageLog`), with the call's Candidate when
  * there is one; purged with `purgeExpiredAiUsage`.
  *
- * Personal data, read by super-admins only (the `aiMessages` resource), on the Journaux IA page:
+ * Personal data, read by super-admins only (the `aiMessages` resource), on Activité › Appels IA (formerly Journaux IA):
  * `list` shows who, when, which task and model, the Outcome and Failure Reason, never the text; `open`
  * shows the text and the technical reason, and writes
  * the view to the Back Office Audit, in the same transaction, so no log is read without a trace.
@@ -53,7 +53,8 @@ export interface AiMessageLog extends AiMessageLogSummary {
 export interface AiMessageLogs {
   /**
    * The newest logs first, at most LIST_LIMIT. `filter` is untrusted (the page's query string):
-   * `{ task?, model?, email?, day?, outcome?, reason? }`, `day` a Paris date ("2026-10-17"); a field that cannot be read is ignored.
+   * `{ task?, model?, email?, day?, outcome?, reason?, candidate?, from?, to? }`, `day` a Paris date ("2026-10-17"), `candidate` a
+   * Candidate's id and `from` / `to` ISO instants (a Job discovery run's calls, #404); a field that cannot be read is ignored.
    */
   list(filter?: unknown): Promise<AiMessageLogSummary[]>;
   /** One log with its text, the view written to the Back Office Audit; null (nothing written) when there is none. */
@@ -75,6 +76,10 @@ const filterSchema = z.object({
   day: z.iso.date().optional().catch(undefined),
   outcome: z.enum(OUTCOMES).optional().catch(undefined),
   reason: z.enum(FAILURE_REASONS).optional().catch(undefined),
+  // One Candidate's calls between two instants: a Job discovery run's, from Activité › Recherches (#404).
+  candidate: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional().catch(undefined),
+  from: z.iso.datetime().optional().catch(undefined),
+  to: z.iso.datetime().optional().catch(undefined),
 });
 
 export type AiMessageLogFilter = z.infer<typeof filterSchema>;
@@ -106,6 +111,9 @@ export function createAiMessageLogs(database: Pool, deps: { backOffice: Pick<Bac
       // A code, whether the call's reason or one of its warnings (a failed call's).
       if (filter.reason) where((param) => `(u.reason = ${param} OR ${param} = ANY (u.warnings))`, filter.reason);
       if (filter.day) where((param) => `(m.at AT TIME ZONE 'Europe/Paris')::date = ${param}::date`, filter.day);
+      if (filter.candidate) where((param) => `m.candidate_id = ${param}`, filter.candidate);
+      if (filter.from) where((param) => `m.at >= ${param}::timestamptz`, filter.from);
+      if (filter.to) where((param) => `m.at <= ${param}::timestamptz`, filter.to);
       params.push(LIST_LIMIT);
       const { rows } = await database.query<AiMessageLogSummary>(
         `${SUMMARY} ${FROM} ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""} ORDER BY m.at DESC, m.id LIMIT $${params.length}`,

@@ -50,9 +50,11 @@ test.describe("the Back Office Journal", () => {
     await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Premium enregistrés.");
 
     await page.goto("/admin");
-    await page.getByRole("link", { name: fr.admin.sections.journal }).click();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(journal.title);
-    await expect(page).toHaveTitle(`${journal.title} · ${fr.admin.title}`);
+    // Activité › Actions des administrateurs (#404): its sidebar entry, then its tab.
+    await page.getByRole("navigation", { name: fr.admin.nav.label }).getByRole("link", { name: fr.admin.sections.activity, exact: true }).click();
+    await page.getByRole("navigation", { name: fr.admin.activity.tabsLabel }).getByRole("link", { name: fr.admin.activity.tabs.audit }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.activity.title);
+    await expect(page).toHaveTitle(`${fr.admin.activity.tabs.audit} · ${fr.admin.activity.title} · ${fr.admin.title}`);
 
     const coachRows = page.getByRole("row").filter({ hasText: email });
     await expect(coachRows).toHaveCount(2);
@@ -68,7 +70,7 @@ test.describe("the Back Office Journal", () => {
 
     const nav = page.getByRole("navigation", { name: journal.filter });
     await nav.getByRole("link", { name: journal.sections.human_coaches }).click();
-    await expect(page).toHaveURL(/\/admin\/journal\?section=human_coaches$/);
+    await expect(page).toHaveURL(/\/admin\/activite\/actions\?section=human_coaches$/);
     await expect(nav.getByRole("link", { name: journal.sections.human_coaches })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("row").filter({ hasText: email })).toHaveCount(2);
     await expect(page.getByRole("row").filter({ hasText: journal.sections.plan_quotas })).toHaveCount(0);

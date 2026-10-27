@@ -149,7 +149,7 @@ test.describe("Tools (Outils)", () => {
 
     await page.goto("/admin/journal");
     await page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/journal\?section=tools$/);
+    await expect(page).toHaveURL(/\/admin\/activite\/actions\?section=tools$/);
     await expect(page.getByRole("navigation", { name: journal.filter }).getByRole("link", { name: journal.tools, exact: true })).toHaveAttribute("aria-current", "page");
     const lines = page.getByRole("table", { name: journal.toolsCaption });
     const stripeCall = lines.getByRole("row").filter({ hasText: "webhooks.constructEvent" }).first();

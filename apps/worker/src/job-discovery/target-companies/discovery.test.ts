@@ -76,12 +76,12 @@ function memoryJobOffers(): JobOfferStore & { all: JobOffer[] } {
     },
     async capture(input, _by, trusted) {
       const same = all.find((offer) => offer.source.url === input.source.url);
-      if (same) return { ok: true, jobOffer: same };
+      if (same) return { ok: true, jobOffer: same, created: false };
       const { provenance, ...facts } = trusted ?? {};
       void provenance;
       const jobOffer = { id: `offer-${all.length + 1}`, ...(input as Omit<JobOffer, "id">), ...facts };
       all.push(jobOffer);
-      return { ok: true, jobOffer };
+      return { ok: true, jobOffer, created: true };
     },
   };
 }
@@ -175,6 +175,23 @@ describe("Job discovery visits the Profile's Target Companies (#406)", () => {
     expect(store.sites).toEqual(new Map([["siren:552100554", "https://job-boards.greenhouse.io/acme"]]));
     expect(web.fetched).not.toContain(posting);
     expect(search.queries.filter((query) => query.includes("ACME"))).toHaveLength(1);
+  });
+
+  it("lists each Target Company's web search among the run's searches, for Activité › Recherches (#404)", async () => {
+    const posting = "https://job-boards.greenhouse.io/acme/jobs/1001";
+    const { discovery } = setup({
+      sources: (query) => (query.includes("ACME") ? [posting] : []),
+      pages: { "https://boards-api.greenhouse.io/v1/boards/acme/jobs/1001": json(greenhouseJob(1001, "Directeur administratif et financier (H/F)", "Acme Industrie")) },
+    });
+
+    const report = await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    const targetSearches = report.searches.filter((each) => each.kind === "target_company");
+    expect(targetSearches.map(({ site, queries, page, results, newJobOffers }) => ({ site, queries, page, results, newJobOffers }))).toEqual([
+      { site: "ACME INDUSTRIE", queries: ['Directeur financier "ACME INDUSTRIE"'], page: 1, results: 1, newJobOffers: 1 },
+      { site: "BETA LOGISTIQUE", queries: ['Directeur financier "BETA LOGISTIQUE"'], page: 1, results: 0, newJobOffers: 0 },
+    ]);
+    expect(report.newJobOffers).toBe(1);
   });
 
   it("reuses a careers site found for another Profile: its board is read, with no web search, and only postings for the job are captured", async () => {

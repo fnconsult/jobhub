@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { costInEur, enrichmentCostInEur } from "./cost";
+import { costInEur, enrichmentCostInEur, LIST_PRICES, PRICE_SETTINGS, pricesFromEnv, toolCostInEur } from "./cost";
 import { PROVIDER_IDS } from "./types";
 
 const usage = (inputTokens: number, outputTokens: number) => ({ inputTokens, outputTokens });
@@ -61,6 +61,54 @@ describe("the cost in € of an AI call", () => {
     const cost = costInEur({ provider, model: "any-model", usage: usage(1_000, 500), sources: [] });
     expect(Number.isFinite(cost)).toBe(true);
     expect(cost).toBeGreaterThan(0);
+  });
+});
+
+describe("one recorded cost per billed unit, at the price in use (#403)", () => {
+  const webSearch = (count = 1) => ({ name: "web_search", count });
+
+  it("prices each billed unit at its list price by default: a Perplexity call, a Brave request, a Tavily credit", () => {
+    expect(toolCostInEur({ provider: "perplexity", model: "fast" }, webSearch())).toBeCloseTo(0.001 * 0.86, 12);
+    expect(toolCostInEur({ provider: "perplexity", model: "web" }, webSearch())).toBeCloseTo(0.005 * 0.86, 12);
+    expect(toolCostInEur({ provider: "brave", model: "web" }, webSearch(3))).toBeCloseTo(3 * 0.005 * 0.86, 12);
+    // Tavily bills credits: basic, fast and ultra-fast 1 a search, advanced 2.
+    expect(toolCostInEur({ provider: "tavily", model: "basic" }, webSearch())).toBeCloseTo(0.008 * 0.86, 12);
+    expect(toolCostInEur({ provider: "tavily", model: "advanced" }, webSearch(2))).toBeCloseTo(2 * 2 * 0.008 * 0.86, 12);
+  });
+
+  it("prices a unit at the price overriding its list price, converted at the EUR/USD rate in use", () => {
+    const prices = pricesFromEnv({ PERPLEXITY_FAST_SEARCH_PRICE_USD: "0.004", EUR_PER_USD: "0.9" });
+
+    expect(toolCostInEur({ provider: "perplexity", model: "fast" }, webSearch(), prices)).toBeCloseTo(0.004 * 0.9, 12);
+    // The other prices keep their list price, at the rate in use.
+    expect(toolCostInEur({ provider: "perplexity", model: "web" }, webSearch(), prices)).toBeCloseTo(0.005 * 0.9, 12);
+    expect(costInEur({ provider: "mistral", model: "mistral-large-latest", usage: usage(1_000_000, 0) }, prices)).toBeCloseTo(0.5 * 0.9, 9);
+  });
+
+  it("keeps the list price for a value that is not a price (empty, not a number, negative)", () => {
+    for (const value of ["", "abc", "-1"]) {
+      expect(toolCostInEur({ provider: "brave", model: "web" }, webSearch(), pricesFromEnv({ BRAVE_SEARCH_PRICE_USD: value }))).toBeCloseTo(0.005 * 0.86, 12);
+    }
+  });
+
+  it("has no price for a billed tool it does not know: null, « prix inconnu »", () => {
+    expect(toolCostInEur({ provider: "anthropic", model: "claude-opus-5" }, webSearch())).toBeNull();
+    expect(toolCostInEur({ provider: "perplexity", model: "fast" }, { name: "fetch_url", count: 1 })).toBeNull();
+  });
+
+  it("says each price's Tool, billed unit, list price, source and date", () => {
+    expect(PRICE_SETTINGS.map(({ name, provider, unit, default: value }) => [name, provider, unit, value])).toEqual([
+      ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "perplexity", "call", "0.001"],
+      ["PERPLEXITY_SEARCH_PRICE_USD", "perplexity", "call", "0.005"],
+      ["BRAVE_SEARCH_PRICE_USD", "brave", "request", "0.005"],
+      ["TAVILY_CREDIT_PRICE_USD", "tavily", "credit", "0.008"],
+      ["EUR_PER_USD", null, "rate", "0.86"],
+    ]);
+    for (const setting of PRICE_SETTINGS) {
+      expect(setting.source).toMatch(/^https:\/\//);
+      expect(setting.listedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+    expect(pricesFromEnv({})).toEqual(LIST_PRICES);
   });
 });
 

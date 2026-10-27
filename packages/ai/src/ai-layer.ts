@@ -2,7 +2,7 @@ import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, typ
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
-import { costInEur, toolCostInEur } from "./cost";
+import { costInEur, LIST_PRICES, toolCostInEur, type Prices } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
@@ -319,6 +319,11 @@ export interface AiLayerOptions {
    * an outage), the run goes on with it. None when it is not configured (its key missing), nor the one that failed.
    */
   searchFallback?: ProviderId;
+  /**
+   * The prices each call's tokens and billed units are recorded at (#403): the Platform Settings' (`pricesFromEnv`), so
+   * a price overridden on a Tool's sheet applies from the next call. Default: the list prices.
+   */
+  prices?: Prices;
   /** Where a warning goes (e.g. identity found in a call that did not declare it). Default: console.warn. */
   warn?: (message: string, details: Record<string, unknown>) => void;
   /**
@@ -390,6 +395,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
   const clock = options.clock ?? (() => performance.now());
   const identityRoute = options.identityRoute ?? DEFAULT_IDENTITY_ROUTE;
+  const prices = options.prices ?? LIST_PRICES;
   const routeFor = (task: AiTask): Route => {
     const route = options.routes[task];
     if (!route) throw new AiConfigError(`No provider configured for AI task "${task}"`);
@@ -577,8 +583,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const priced = { provider: provider.id, model: output.model };
     const warnings = recordable(notes.warnings(), unusableReply(notes, output) ?? undefined);
     const outcome = warnings[0] ? "warning" : "ok";
-    const tokensEur = costInEur({ ...priced, usage: output.usage });
-    const tools = called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) }));
+    const tokensEur = costInEur({ ...priced, usage: output.usage }, prices);
+    const tools = called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool, prices) }));
     log({
       ...base,
       model: output.model,

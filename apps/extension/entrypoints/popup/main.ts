@@ -1,4 +1,4 @@
-import { designTokens, renderDesignCss } from "@jobhub/shared/design";
+import { designTokens, renderDesignCss, trackScrolling } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import { browser } from "wxt/browser";
 import { ALL_SITES } from "../../src/all-sites-detection";
@@ -7,11 +7,14 @@ import { chooseFrame } from "../../src/frame-choice";
 import type { CapturedJobOffer, JobPage } from "../../src/job-page";
 import type { AnalyseReply, ExtensionMessage } from "../../src/messages";
 import { WEB_ORIGIN } from "../../src/web-app";
+// Inter, bundled with the extension: no request to a font CDN (ADR-0053).
+import "@fontsource-variable/inter";
 import "./popup.css";
 
 const style = document.createElement("style");
 style.textContent = renderDesignCss(designTokens);
 document.head.append(style);
+trackScrolling(document);
 
 function element(tag: string, text: string, className?: string): HTMLElement {
   const node = document.createElement(tag);

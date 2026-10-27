@@ -6,6 +6,11 @@
   box-sizing: border-box;
 }
 
+/* An element that only sets a Density for what it holds (the Back Office's frame): no box of its own. */
+.density-scope {
+  display: contents;
+}
+
 .page {
   max-width: 44rem;
   margin: 0 auto;

@@ -1,3 +1,4 @@
+import { SCROLLING_CLASS } from "./scrollbars";
 import { legacyColorAliases, type Density, type DesignTokens, type Theme } from "./tokens";
 
 /** `borderStrong` → `border-strong`, `chart1` → `chart-1`: a token's name as a CSS custom property. */
@@ -82,12 +83,12 @@ export function renderDesignCss(tokens: DesignTokens): string {
       rule("button, input, select, textarea", ["font: inherit;", "color: inherit;"]),
       // Inter's tabular figures, so numbers line up in columns and do not jump as they change.
       rule("table, time, data, .num", ["font-variant-numeric: tabular-nums;"]),
-      // Scrollbars show only while their area scrolls (`is-scrolling`, set by trackScrolling), thin (ADR-0053).
+      // Scrollbars show only while their area scrolls (set by trackScrolling), thin (ADR-0053).
       rule("*", ["scrollbar-width: thin;", "scrollbar-color: transparent transparent;"]),
-      rule(".is-scrolling", ["scrollbar-color: var(--color-border-strong) transparent;"]),
+      rule(`.${SCROLLING_CLASS}`, ["scrollbar-color: var(--color-border-strong) transparent;"]),
       rule("::-webkit-scrollbar", ["width: 8px;", "height: 8px;", "background: transparent;"]),
       rule("::-webkit-scrollbar-thumb", ["background: transparent;", "border-radius: 999px;"]),
-      rule(".is-scrolling::-webkit-scrollbar-thumb", ["background: var(--color-border-strong);"]),
+      rule(`.${SCROLLING_CLASS}::-webkit-scrollbar-thumb`, ["background: var(--color-border-strong);"]),
       `@media (prefers-reduced-motion: reduce) {\n${rule(":root", Object.keys(duration).map((name) => `--motion-${name}: 0ms;`))}\n}`,
     ].join("\n\n") + "\n"
   );

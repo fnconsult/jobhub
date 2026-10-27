@@ -140,6 +140,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "target_company_refresh", // issue #406: what a Profile's La Bonne Boite companies were last fetched for
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
+        "web_search_alert", // issue #403: the month's web search alert, once sent; no Candidate
         "workflow_agent_run",
       ]);
 

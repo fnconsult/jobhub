@@ -253,8 +253,11 @@ export interface AiUsageReport {
   byTask: (AiUsageRow & { task: string })[];
   /** Per day ("2026-10-17") or per month ("2026-10"), Paris time, newest first; only those with calls. */
   byTime: (AiUsageRow & { bucket: string })[];
-  /** Per provider and tool, most uses first; `calls` counts each use. */
-  tools: { provider: string; name: string; calls: number; failures: number; costEur: number | null }[];
+  /**
+   * Per provider and tool, most uses first; `calls` counts each use. `costEur` sums the uses whose price is known, null
+   * when none was; `unpricedCalls` counts those whose price was not known when made (« prix inconnu », #403), counted 0.
+   */
+  tools: { provider: string; name: string; calls: number; failures: number; costEur: number | null; unpricedCalls: number }[];
   /** Per provider and operation, most calls first. `costEur` is null when no call's cost is known. */
   externalApis: { provider: string; operation: string; calls: number; failures: number; costEur: number | null }[];
   /** The failed and warned calls per Outcome and Failure Reason, in all and per provider and model and per task; most calls first, failures before warnings. */
@@ -312,7 +315,7 @@ const REPORT = `
     -- Uses and failed uses in one unit: each row counts \`count\` uses.
     (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'name'), '[]')
        FROM (SELECT json_build_object('provider', provider, 'name', name, 'calls', sum(count), 'failures', coalesce(sum(count) FILTER (WHERE NOT ok), 0),
-                                      'costEur', sum(cost_eur))::jsonb AS row
+                                      'costEur', sum(cost_eur), 'unpricedCalls', coalesce(sum(count) FILTER (WHERE cost_eur IS NULL), 0))::jsonb AS row
                FROM tools GROUP BY provider, name) g) AS tools,
     (SELECT coalesce(json_agg(row ORDER BY (row->>'calls')::int DESC, row->>'provider', row->>'operation'), '[]')
        FROM (SELECT json_build_object('provider', provider, 'operation', operation, 'calls', count(*), 'failures', count(*) FILTER (WHERE NOT ok),

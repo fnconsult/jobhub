@@ -200,6 +200,10 @@
     "link": "Associer {{provider}} à mon compte",
     "failed": "L'association n'a pas abouti. Vérifiez que ce compte utilise la même adresse e-mail que votre compte Jobbbox, puis réessayez."
   },
+  "webSearchAlert": {
+    "subject": "Jobbbox : la recherche web a dépassé son seuil d'alerte de {{month}}",
+    "body": "Bonjour,\n\nLa recherche web a coûté {{spend}} en {{month}} (heure de Paris), au-delà du seuil d'alerte mensuel de {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Rien n'est coupé : la découverte d'offres et les dossiers entreprise continuent de chercher.\n\nCe montant est estimé aux prix en vigueur de chaque unité facturée (appel, requête, crédit), sans déduire les crédits gratuits des fournisseurs. Les prix et le seuil se règlent dans l'onglet Recherche web de Paramètres.\n\nLe détail est dans Consommation IA :\n{{url}}\n\nVous ne recevrez pas d'autre alerte ce mois-ci.\n\nL'équipe Jobbbox"
+  },
   "appleAlert": {
     "subject": "Jobbbox : la connexion avec Apple doit être réparée",
     "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres :\n{{url}}\n\nL'équipe Jobbbox",
@@ -1465,7 +1469,20 @@
         "noSettings": "Aucun paramètre propre.",
         "toolPage": "Ses appels, ses échecs et son coût dans Outils",
         "readOnlyKeys": "Seuls les super-admins remplacent, effacent ou testent une clé.",
-        "notSecretHelp": "Cette clé n'est pas encore une clé du back office : elle se règle dans l'environnement du serveur."
+        "notSecretHelp": "Cette clé n'est pas encore une clé du back office : elle se règle dans l'environnement du serveur.",
+        "pricesTitle": "Prix",
+        "pricesIntro": "Le prix de chaque unité facturée, en dollars, converti en euros au taux EUR_PER_USD. Par défaut, le prix public lu chez le fournisseur ; un prix changé ici vaut dès l'appel suivant, dans la Consommation IA comme dans le budget d'une recherche.",
+        "listPrice": "{{name}} : prix public {{price}} $ par {{unit}}, lu le {{date}}",
+        "listPriceSource": "source",
+        "units": {
+          "call": "appel",
+          "request": "requête",
+          "credit": "crédit",
+          "rate": "dollar"
+        },
+        "pricesCaption": "Prix de {{provider}}",
+        "unpriced_one": "Prix inconnu : {{count}} utilisation sur les 30 derniers jours (comptée 0).",
+        "unpriced_other": "Prix inconnu : {{count}} utilisations sur les 30 derniers jours (comptées 0)."
       },
       "environment": {
         "why": "Pourquoi dans l'environnement",
@@ -1763,6 +1780,12 @@
       "externalCost": "Coût des API externes",
       "totalCost": "Coût total",
       "unknownCost": "inconnu",
+      "unknownPrice_one": "prix inconnu ({{count}} utilisation, comptée 0)",
+      "unknownPrice_other": "prix inconnu ({{count}} utilisations, comptées 0)",
+      "alertBanner": "Le seuil d'alerte mensuel de la recherche web ({{threshold}}) est atteint : {{spend}} en {{month}}. Rien n'est coupé.",
+      "alertEmailed": "Les super-admins ont été prévenus par e-mail le {{at}}.",
+      "alertNotEmailedYet": "Les super-admins seront prévenus par e-mail dans les prochaines minutes.",
+      "alertSettings": "Seuil et prix dans Paramètres",
       "none": "Aucun appel sur cette période.",
       "byModelTitle": "Par fournisseur, point d'accès et modèle",
       "byModelCaption": "Appels à l'IA par fournisseur, point d'accès et modèle",

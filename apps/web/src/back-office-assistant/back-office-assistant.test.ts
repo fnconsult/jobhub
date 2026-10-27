@@ -97,7 +97,7 @@ function backOfficeData() {
         byModel: [{ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", calls: 9000, failures: 10, ...row, costEur: 40 }],
         byTask: [{ task: "coaching", calls: 7000, failures: 5, ...row, costEur: 30 }],
         byTime: [{ bucket: "2026-10-17", calls: 400, failures: 1, ...row, costEur: 1.5 }],
-        tools: [{ provider: "perplexity", name: "web_search", calls: 300, failures: 0, costEur: 1.29 }],
+        tools: [{ provider: "perplexity", name: "web_search", calls: 300, failures: 0, costEur: 1.29, unpricedCalls: 0 }],
         externalApis: [{ provider: "france_travail", operation: "GET /partenaire/offresdemploi/v2/offres/search", calls: 450, failures: 3, costEur: 0 }],
         failureReasons: { total: [], byModel: [], byTask: [] },
       };

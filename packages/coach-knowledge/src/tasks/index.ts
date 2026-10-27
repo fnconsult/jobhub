@@ -7,6 +7,7 @@
  *   taskSection(text, "fr");                               // the `## fr` section of a text, or null
  *   fillSlots("… {{entreprise}} …", { entreprise: "« Acme »" });
  *   taskInstructionsProblems(seed, text);                  // ["## en", "{{lieu}}"]: what a text lacks
+ *   runsOnAgent("company-facts-search", text);             // false for its version 1: the search alone
  *
  * A task Playbook's text is the rules part of the task's instructions only: the output shape the code
  * reads, its safety rules and the data it passes in stay in code. A text with sections holds one
@@ -112,6 +113,16 @@ export function taskInstructionsProblems(seed: TaskPlaybookSeed, text: string): 
     for (const slot of seed.slots ?? []) if (!held.includes(slot)) problems.push(`{{${slot}}}`);
   }
   return problems;
+}
+
+/**
+ * Whether a version's `text` runs on the task's Playbook Agent: never for a task without one, and not for a
+ * version lacking the section its agent reads (company-facts-search's version 1, the search alone, #405).
+ */
+export function runsOnAgent(id: TaskPlaybookId, text: string): boolean {
+  const seed: TaskPlaybookSeed = taskPlaybookSeed(id)!;
+  if (!seed.agent) return false;
+  return (seed.sections ?? []).every((section) => !section.agent || taskSection(text, section.key) !== null);
 }
 
 /**

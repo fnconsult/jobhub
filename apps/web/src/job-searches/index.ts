@@ -249,6 +249,8 @@ export async function migrateJobSearches(database: Pool): Promise<void> {
     ALTER TABLE job_search DROP CONSTRAINT IF EXISTS job_search_status_check;
     ALTER TABLE job_search ADD CONSTRAINT job_search_status_check CHECK (status IN ('searching', 'done', 'failed', 'stopped'));
     CREATE INDEX IF NOT EXISTS job_search_candidate_profile_idx ON job_search (candidate_id, profile_id, started_at DESC);
+    -- The month's runs, for the Back Office Dashboard (#408).
+    CREATE INDEX IF NOT EXISTS job_search_started_at_idx ON job_search (started_at);
   `);
 }
 

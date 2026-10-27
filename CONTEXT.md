@@ -336,10 +336,16 @@ What one run of Job discovery (a Job Search or a Job Digest top-up) measured: ho
 One run of Job discovery (a Job Search or a Job Digest top-up) as the Back Office's Recherches tab lists it, failed and stopped ones included: its Discovery metrics, its web searches (kind: plan, Target Company or site) with the query texts they actually sent, how many **new Job Offers** it stored for the first time, and its **Stop reason**. Its figures name no one and are kept 24 months; its Profile pseudonym, Search Criteria, query texts and link to the Job Search are kept 30 days, are part of the Candidate's Data export and go with their account or Profile (ADR-0047). A failure to record a run never stops the Job Search or Job Digest.
 
 **Stop reason**:
-Why a Discovery run ended, one of six: Job Offer limit, spend, duration (the Job discovery budget), searches done, stopped by the Candidate, or failed.
+Why a Discovery run ended, one of six: Job Offer limit, spend, duration (the first limit of the whole Job discovery budget it reached), searches done, stopped by the Candidate, or failed. Shown on the Back Office Dashboard and in Activité.
 
 **Profile pseudonym**:
 A Discovery run's label for a Profile, « Profil # » and 4 characters taken from a hash of the Profile's id: the same on every run of that Profile, never naming the Candidate. Gone with the other 30-day details, when the row reads « Effacé après 30 jours ».
+
+**Run cost item**:
+Where a Discovery run's cost went: page reading, plan, web search or Target Companies (everything spent while visiting the Target Companies). Kept in its Discovery metrics; the Back Office Dashboard averages it.
+
+**New Job Offer (of a run)**:
+A Job Offer a Discovery run stored for the first time; the Dashboard's cost per new Job Offer divides the runs' cost by them.
 
 **Skip reason**:
 Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, a posting too old, or a disabled Job discovery site).

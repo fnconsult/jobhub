@@ -60,7 +60,7 @@ test.describe("the Back Office's Coaching Playbooks", () => {
 
     // The editor's Back Office holds this section alone, under Coaching.
     await editor.goto("/admin");
-    await expect(editor.getByRole("navigation", { name: admin.nav.label }).getByRole("link")).toHaveText([admin.sections.coachingPlaybooks, admin.nav.account]);
+    await expect(editor.getByRole("navigation", { name: admin.nav.label }).getByRole("link")).toHaveText([admin.nav.dashboard, admin.sections.coachingPlaybooks, admin.nav.account]);
     await editor.goto("/admin/playbooks");
     await expect(editor.getByRole("heading", { level: 1 })).toHaveText(playbooks.title);
     await expect(editor.getByRole("row").filter({ hasText: playbooks.kinds.core_digest })).toContainText(playbooks.notValidated);

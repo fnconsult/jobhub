@@ -192,8 +192,8 @@ interface DiscoveryProfile {
 /**
  * What a Job discovery run measured, as a Job Search or Job Digest keeps it: its
  * funnel down to the Job Offers the Profile matches (Match Score of
- * FUNNEL_MATCH_SCORE or more against its current Master CV), skipped pages by reason, cost,
- * and the job APIs' parts (France Travail's, Fantastic.jobs').
+ * FUNNEL_MATCH_SCORE or more against its current Master CV), skipped pages by reason, cost (and per item),
+ * the job APIs' parts (France Travail's, Fantastic.jobs') and why it stopped.
  */
 function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): DiscoveryMetrics {
   const metrics = noDiscoveryMetrics();
@@ -207,6 +207,8 @@ function metricsOf(report: DiscoveryReport, profile: DiscoveryProfile): Discover
   metrics.fantasticJobs = { ...report.fantasticJobs };
   metrics.searchFallback = report.searchFallback ? { ...report.searchFallback } : null;
   metrics.targetCompanies = { ...report.targetCompanies };
+  // Where its cost went, for the Back Office Dashboard (#408); why it ended is the Discovery run's own (#404).
+  metrics.costByItem = { ...report.costByItem };
   return metrics;
 }
 

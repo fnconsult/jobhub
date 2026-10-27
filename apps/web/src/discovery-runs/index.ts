@@ -202,9 +202,8 @@ function summaryOf(row: RunRow): DiscoveryRunSummary {
 }
 
 function runOf(row: RunRow): DiscoveryRun {
-  const { searches: _count, ...summary } = summaryOf(row);
   return {
-    ...summary,
+    ...summaryOf(row),
     metrics: row.metrics,
     searches: row.searches.map((figures, index) => ({ ...figures, queries: row.queries?.[index] ?? [] })),
     queriesKept: row.queries !== null,
@@ -214,10 +213,16 @@ function runOf(row: RunRow): DiscoveryRun {
 }
 
 /** Only the known kinds of search are kept, whatever the record says. */
-const figuresOf = (search: DiscoverySearch): SearchFigures => {
-  const { queries: _queries, ...figures } = search;
-  return { ...figures, kind: DISCOVERY_SEARCH_KINDS.includes(search.kind) ? search.kind : "plan" };
-};
+const figuresOf = ({ kind, site, page, provider, fallback, results, newJobOffers, costEur }: DiscoverySearch): SearchFigures => ({
+  kind: DISCOVERY_SEARCH_KINDS.includes(kind) ? kind : "plan",
+  ...(site ? { site } : {}),
+  page,
+  provider,
+  fallback,
+  results,
+  newJobOffers,
+  costEur,
+});
 
 export function createDiscoveryRuns(database: Pool, deps: { backOffice?: Pick<BackOffice, "record">; now?: () => Date } = {}): DiscoveryRuns {
   const now = deps.now ?? (() => new Date());
@@ -289,6 +294,18 @@ export function createDiscoveryRuns(database: Pool, deps: { backOffice?: Pick<Ba
       );
     },
   };
+}
+
+/** How long after a run's end its last AI call may still be recorded. */
+const AI_CALLS_MARGIN_MS = 60_000;
+
+/**
+ * The Appels IA filter of a run's AI calls (#404): its Candidate's, from its start to a minute after its end. Null once
+ * the run no longer names its Candidate (purged, or the account deleted), as their AI Message Log is gone too.
+ */
+export function runAiCalls(run: Pick<DiscoveryRun, "candidateId" | "startedAt" | "durationMs">): { candidate: string; from: string; to: string } | null {
+  if (!run.candidateId) return null;
+  return { candidate: run.candidateId, from: run.startedAt.toISOString(), to: new Date(run.startedAt.getTime() + run.durationMs + AI_CALLS_MARGIN_MS).toISOString() };
 }
 
 /** The Candidate's runs whose query texts are still kept, newest first: what their Data export holds of them. */

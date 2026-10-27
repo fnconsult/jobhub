@@ -410,7 +410,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             const kept = readProvenance(provenance);
             return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(kept && { provenance: kept }) };
           }),
-          jobDiscoveryRuns: discoveryRuns.filter((run) => run.profileId === id).map(({ profileId: _profileId, ...run }) => run),
+          jobDiscoveryRuns: discoveryRuns.flatMap(({ profileId, ...run }) => (profileId === id ? [run] : [])),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,
           jobDigests: jobDigestsOf(id).map(({ provenance, ...jobDigest }) => {
             const kept = readProvenance(provenance);

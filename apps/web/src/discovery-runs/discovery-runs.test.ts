@@ -7,7 +7,7 @@ import { migrateBilling } from "../billing";
 import { migrateJobOffers } from "../job-offers";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles } from "../profiles";
-import { createDiscoveryRuns, discoveryRunsOf, migrateDiscoveryRuns, purgeExpiredDiscoveryRuns, type DiscoveryRunRecord, type DiscoveryRuns } from "./index";
+import { createDiscoveryRuns, discoveryRunsOf, migrateDiscoveryRuns, purgeExpiredDiscoveryRuns, runAiCalls, type DiscoveryRunRecord, type DiscoveryRuns } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -40,6 +40,15 @@ const metrics: DiscoveryMetrics = {
   fantasticJobs: { status: "searched", offers: 2, calls: 1, costEur: 0.004 },
   searchFallback: { from: "perplexity", to: "brave", reason: "rate_limited" },
 };
+
+describe("a run's Appels IA (#404)", () => {
+  it("are its Candidate's AI calls from its start to a minute after its end, none once its Candidate is purged", () => {
+    const startedAt = new Date("2026-10-26T15:02:00Z");
+
+    expect(runAiCalls({ candidateId: "cand-1", startedAt, durationMs: 47_000 })).toEqual({ candidate: "cand-1", from: "2026-10-26T15:02:00.000Z", to: "2026-10-26T15:03:47.000Z" });
+    expect(runAiCalls({ candidateId: null, startedAt, durationMs: 47_000 })).toBeNull();
+  });
+});
 
 describe.skipIf(!connectionString)("Job discovery runs, as Activité › Recherches shows them (#404; needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
@@ -181,7 +190,7 @@ describe.skipIf(!connectionString)("Job discovery runs, as Activité › Recherc
       const purged = await runs.get(id);
       expect(purged).toMatchObject({
         profile: null,
-        searches: searches.map(({ queries: _queries, ...figures }) => ({ ...figures, queries: [] })),
+        searches: searches.map((search) => ({ ...search, queries: [] })),
         queriesKept: false,
         candidateId: null,
         hasJobSearch: false,

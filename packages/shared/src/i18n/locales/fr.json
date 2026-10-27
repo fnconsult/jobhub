@@ -229,6 +229,7 @@
       "profiles": "Profils",
       "followUps": "Relances",
       "euAi": "IA européenne",
+      "emailIntake": "Réception par email",
       "signIn": "Connexion",
       "preferences": "Préférences",
       "tools": "Outils",
@@ -261,6 +262,36 @@
     "delete": "Supprimer définitivement mon compte",
     "confirmMismatch": "Cette adresse ne correspond pas à celle de votre compte. Rien n'a été supprimé.",
     "deleteError": "La suppression n'a pas pu aboutir. Rien n'a été supprimé : réessayez dans un moment."
+  },
+  "emailIntake": {
+    "title": "Réception par email",
+    "explanation": "Transférez à votre adresse de transfert les emails d'offres que vous recevez (alertes des sites d'emploi, messages de recruteurs) : Jobbbox en tire des offres pour vos profils. Seul le texte des emails transférés est lu, jamais leurs pièces jointes, et il n'est pas gardé : seules les offres le sont. Vous pouvez arrêter à tout moment.",
+    "off": "La réception par email est désactivée.",
+    "switchOn": "Activer la réception par email",
+    "onSince": "Réception par email activée le {{date}}.",
+    "addressLabel": "Votre adresse de transfert",
+    "copy": "Copier l'adresse",
+    "copied": "Adresse copiée.",
+    "copyFailed": "La copie a échoué : sélectionnez l'adresse et copiez-la.",
+    "replace": "Remplacer l'adresse",
+    "switchOff": "Désactiver",
+    "cancel": "Annuler",
+    "confirmReplace": "Une nouvelle adresse vous sera donnée. L'adresse actuelle cessera aussitôt de fonctionner : ce qui y arrivera sera écarté sans être lu. Pensez à mettre à jour vos transferts.",
+    "confirmSwitchOff": "Votre adresse de transfert cessera aussitôt de fonctionner : ce qui y arrivera sera écarté sans être lu. Les offres déjà reçues restent.",
+    "sending": {
+      "title": "Vos adresses d'envoi",
+      "explanation": "Un email que vous transférez à la main est lu s'il vient de l'une de vos adresses.",
+      "account": "{{address}} (adresse de votre compte)",
+      "addLabel": "Ajouter une adresse à vous",
+      "add": "Ajouter",
+      "remove": "Retirer",
+      "removeLabel": "Retirer {{address}}"
+    },
+    "errors": {
+      "error": "Une erreur est survenue. Réessayez.",
+      "invalid": "Saisissez une adresse e-mail valide.",
+      "too_many": "Vous avez déjà ajouté 10 adresses : retirez-en une d'abord."
+    }
   },
   "euAiConsent": {
     "title": "IA européenne pour vos données d'identité",
@@ -1495,7 +1526,8 @@
         "model": "un modèle de {{provider}}, choisi dans la liste ou saisi ; il est testé par un appel à l'enregistrement",
         "url": "une URL en https",
         "sender": "un expéditeur d'e-mail, par exemple Jobbbox <hello@jobbbox.ai>",
-        "country": "un code pays à deux lettres, par exemple FR"
+        "country": "un code pays à deux lettres, par exemple FR",
+        "domain": "un nom de domaine, par exemple alertes.jobbbox.ai"
       },
       "notices": {
         "saved": "{{name}} enregistré : la nouvelle valeur s'applique en quelques secondes, sans redémarrage.",
@@ -1650,6 +1682,7 @@
         "JOB_DIGEST_TARGET_COUNT": "Offres visées par Job Digest",
         "JOB_DIGEST_FIRST_LOOK_BACK_DAYS": "Jours relus par le premier Job Digest",
         "MAIL_FROM": "Expéditeur des e-mails",
+        "EMAIL_INTAKE_DOMAIN": "Domaine des adresses de transfert (Réception par email)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",

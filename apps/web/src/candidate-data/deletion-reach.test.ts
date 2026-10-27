@@ -70,7 +70,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     );
 
     expect(blocking).toEqual([]);
-    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement"]));
+    expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement", "forwarding_address", "sending_address"]));
   });
 
   it("every table naming a Candidate hangs off the Candidate table, so none is forgotten", async () => {

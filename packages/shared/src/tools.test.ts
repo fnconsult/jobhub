@@ -65,7 +65,8 @@ describe("the Tools", () => {
     expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", ...filters]);
     expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", ...filters]);
     expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", ...filters]);
-    for (const id of ["brevo-api", "brevo-smtp"]) expect(names(id), id).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
+    expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT", "EMAIL_INTAKE_DOMAIN"]);
+    expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);
     const budget = ["JOB_DISCOVERY_BUDGET_JOB_OFFERS", "JOB_DISCOVERY_BUDGET_EUR", "JOB_DISCOVERY_BUDGET_SECONDS"];
@@ -89,7 +90,7 @@ describe("the Tools", () => {
       { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
     ]);
     // MAIL_TRANSPORT=console writes emails to the server's log: Brevo is not called.
-    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }]);
+    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }, { name: "EMAIL_INTAKE_DOMAIN" }]);
   });
 
   it("are unknown by any other id", () => {

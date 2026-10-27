@@ -427,7 +427,8 @@ export const TOOLS = [
     module: MAILER_MODULE,
     runsIn: "both",
     keys: ["BREVO_API_KEY"],
-    settings: MAIL_SETTINGS,
+    // Brevo Inbound Parsing receives the emails sent to the Candidates' Forwarding addresses (ADR-0050).
+    settings: [...MAIL_SETTINGS, { name: "EMAIL_INTAKE_DOMAIN" }],
     usage: { table: "external_api_usage", provider: "brevo" },
     residency: "unknown",
   },

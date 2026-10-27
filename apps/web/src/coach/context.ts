@@ -339,7 +339,7 @@ async function inViewText(
       return application ? applicationText(application) : null;
     }
     case "job_offer": {
-      const jobOffer = await sources.jobOffers.get(focus.id);
+      const jobOffer = await sources.jobOffers.get(focus.id, candidateId);
       return jobOffer ? `Le candidat consulte une offre d'emploi.\n${jobOfferText(jobOffer)}` : null;
     }
     case "job_search": {

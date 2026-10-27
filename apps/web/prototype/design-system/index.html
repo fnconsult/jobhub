@@ -488,6 +488,58 @@ td .who { display: flex; align-items: center; gap: .625rem; }
 @media (max-width: 56rem) { .cols, .doc-page, .plans { grid-template-columns: 1fr; } .vstage { grid-template-columns: 1fr; } .thumbs { display: none; } .ag-day { grid-template-columns: 1fr; } }
 
 #sigdialog { width: min(34rem, 92vw); }
+
+/* ───────────── Documentation (public pages: Légal, Nouveautés) ───────────── */
+.site { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); overflow: hidden; }
+.site-head { display: flex; align-items: center; gap: 1.5rem; padding: .875rem 1.75rem; border-bottom: 1px solid var(--border); }
+.site-head .ws { margin: 0; padding: 0; }
+.site-head nav { display: flex; gap: 1.25rem; font-size: var(--fs-small); }
+.site-head nav a { color: var(--muted); } .site-head nav a.on { color: var(--text); font-weight: 500; }
+.site-head .sp { flex: 1; }
+.doc { display: grid; grid-template-columns: 13rem minmax(0, 1fr) 12rem; gap: 2.5rem; padding: 2.5rem 1.75rem 3rem; }
+.doc-nav { display: grid; gap: .125rem; align-content: start; position: sticky; top: 4rem; }
+.doc-nav .grp { font-size: var(--fs-meta); color: var(--meta); padding: 0 .5rem .375rem; font-weight: 500; }
+.doc-nav a { padding: .3125rem .5rem; border-radius: var(--r-sm); color: var(--muted); font-size: var(--fs-small); }
+.doc-nav a:hover { background: var(--hover); text-decoration: none; }
+.doc-nav a.on { color: var(--text); background: var(--surface); font-weight: 500; }
+.prose { max-width: 42rem; }
+.prose .display { font-size: clamp(2rem, 3.2vw, 2.75rem); line-height: 1.1; letter-spacing: -.025em; font-weight: 500; margin: .375rem 0 .75rem; }
+.prose .stamp { display: flex; flex-wrap: wrap; gap: .5rem 1rem; color: var(--meta); font-size: var(--fs-meta); padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1.75rem; }
+.prose h2 { font-size: 1.25rem; margin: 2.25rem 0 .75rem; display: flex; gap: .625rem; align-items: baseline; scroll-margin-top: 4rem; }
+.prose h2 .no { color: var(--meta); font-variant-numeric: tabular-nums; font-size: .9em; font-weight: 400; }
+.prose p, .prose li { color: var(--text); line-height: 1.7; }
+.prose p + p { margin-top: .875rem; }
+.prose ul { padding-left: 1.25rem; margin: .75rem 0; display: grid; gap: .375rem; }
+.tldr { background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--r-card); padding: 1rem 1.25rem; }
+.tldr b { display: block; margin-bottom: .375rem; color: var(--accent); font-size: var(--fs-small); }
+.tldr ul { margin: 0; }
+.toc { position: sticky; top: 4rem; align-self: start; display: grid; gap: .25rem; font-size: var(--fs-meta); border-left: 1px solid var(--border); padding-left: 1rem; }
+.toc .grp { color: var(--meta); font-weight: 500; margin-bottom: .25rem; }
+.toc a { color: var(--muted); margin-left: -1rem; padding-left: calc(1rem - 2px); border-left: 2px solid transparent; }
+.toc a.on { color: var(--accent); border-left-color: var(--accent); }
+.doc-foot { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+
+.cl-head { padding: 3rem 1.75rem 1.5rem; display: grid; gap: .75rem; max-width: 52rem; }
+.cl-head .display { font-size: clamp(2.25rem, 4vw, 3.25rem); line-height: 1.05; letter-spacing: -.03em; font-weight: 500; margin: 0; }
+.cl-filters { display: flex; gap: .375rem; flex-wrap: wrap; padding: 0 1.75rem 1.5rem; border-bottom: 1px solid var(--border); }
+.cl-filters .btn.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.release { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 2.5rem; padding: 2.5rem 1.75rem; border-bottom: 1px solid var(--border); }
+.release:last-child { border-bottom: 0; }
+.release .when { position: sticky; top: 4rem; align-self: start; display: grid; gap: .25rem; }
+.release .when time { font-weight: 500; }
+.release .when .ver { font: .8125rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--meta); }
+.release h3 { font: 500 1.5rem/1.2 var(--font-display); letter-spacing: -.015em; margin: .5rem 0 .625rem; }
+.release .body { max-width: 44rem; display: grid; gap: 1rem; }
+.release .body p { line-height: 1.7; color: var(--muted); }
+.shot { border: 1px solid var(--border); border-radius: calc(var(--r-card) + 2px); overflow: hidden; background: linear-gradient(160deg, var(--accent-soft), var(--bg) 60%); padding: 1.25rem 1.25rem 0; }
+.shot .win { background: var(--bg); border: 1px solid var(--border); border-bottom: 0; border-radius: 8px 8px 0 0; box-shadow: var(--shadow-pop); height: 11rem; display: grid; grid-template-columns: 7rem 1fr; overflow: hidden; }
+.shot .win .sb { background: var(--nav); border-right: 1px solid var(--border); padding: .625rem; display: grid; gap: .375rem; align-content: start; }
+.shot .win .sb i, .shot .win .mn i { display: block; height: .4375rem; border-radius: 4px; background: var(--hover); }
+.shot .win .mn { padding: .875rem; display: grid; gap: .5rem; align-content: start; }
+.shot .win .mn i.a { background: var(--accent); width: 30%; height: .875rem; border-radius: 999px; }
+.changes { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.changes li { display: grid; grid-template-columns: 6rem 1fr; gap: .75rem; align-items: baseline; font-size: var(--fs-small); }
+@media (max-width: 56rem) { .doc { grid-template-columns: 1fr; } .doc-nav, .toc { position: static; } .toc { display: none; } .release { grid-template-columns: 1fr; gap: 1rem; } .release .when { position: static; } }
 #sigdialog .body { padding: 1.25rem; }
 
 /* Extension side panel mock */
@@ -587,6 +639,9 @@ td .who { display: flex; align-items: center; gap: .625rem; }
     <div class="grp">Autres surfaces</div>
     <a href="#extension"><svg class="ico"><use href="#i-cal"/></svg> Extension</a>
     <a href="#emails"><svg class="ico"><use href="#i-mail"/></svg> E-mails</a>
+    <div class="grp">Documentation</div>
+    <a href="#legal"><svg class="ico"><use href="#i-check"/></svg> Légal</a>
+    <a href="#changelog"><svg class="ico"><use href="#i-pulse"/></svg> Nouveautés</a>
     <div class="meter" style="margin-top:auto;border-top:1px solid var(--border);border-radius:0;padding-top:.75rem">
       <button data-meter aria-expanded="false" aria-label="Hebdomadaire : 18 sur 43 utilisés (42 %)">
         <span class="top"><span>Hebdomadaire</span><span class="num">42 %</span></span>
@@ -1143,6 +1198,74 @@ td .who { display: flex; align-items: center; gap: .625rem; }
         </div>
       </section>
 
+      <!-- Légal -->
+      <section class="ds" id="legal">
+        <header><h2>Documentation · Légal</h2><span class="meta">page publique, sans Sidebar</span></header>
+        <div class="site">
+          <div class="site-head"><span class="ws"><span class="logo">J</span> Jobbbox</span><nav><a href="#changelog">Nouveautés</a><a href="#aide">Aide</a><a href="#legal" class="on">Légal</a></nav><span class="sp"></span><button class="btn sm">Se connecter</button></div>
+          <div class="doc">
+            <nav class="doc-nav" aria-label="Documents légaux">
+              <div class="grp">Légal</div>
+              <a href="#legal">Conditions d'utilisation</a><a href="#legal" class="on" aria-current="page">Politique de confidentialité</a><a href="#legal">Cookies</a><a href="#legal">Sous-traitants et IA</a><a href="#legal">Mentions légales</a>
+            </nav>
+            <article class="prose">
+              <div class="eyebrow">Légal</div>
+              <h1 class="display">Politique de confidentialité</h1>
+              <div class="stamp"><span>En vigueur depuis le 12 octobre 2026</span><span>Version 3.2</span><a href="#legal">Versions précédentes</a></div>
+              <div class="tldr"><b>En bref</b><ul><li>Vos données restent hébergées dans l'Union européenne.</li><li>Votre identité n'est envoyée qu'à une IA européenne, avec votre accord.</li><li>Vous téléchargez ou supprimez tout depuis Mon compte, à tout moment.</li></ul></div>
+              <h2 id="lg-1"><span class="no">1.</span> Qui est responsable de vos données</h2>
+              <p>Jobbbox est édité par FN Consult, qui décide de l'usage de vos données et répond de leur protection. Pour toute question, écrivez à <a href="#legal">privacy@jobbbox.ai</a>.</p>
+              <h2 id="lg-2"><span class="no">2.</span> Ce que nous collectons</h2>
+              <p>Ce que vous nous donnez : votre adresse e-mail, vos CV, vos critères de recherche, vos candidatures et vos échanges avec votre coach.</p>
+              <ul><li>Les offres d'emploi que vous enregistrez ou que votre coach trouve.</li><li>Votre utilisation des quotas de votre offre, chaque semaine.</li></ul>
+              <h2 id="lg-3"><span class="no">3.</span> L'IA et vos données</h2>
+              <p>Une demande qui contient vos données d'identité est traitée par Mistral AI, en Europe, si vous l'avez accepté. Les autres demandes ne contiennent ni votre nom ni vos coordonnées.</p>
+              <h2 id="lg-4"><span class="no">4.</span> Vos droits</h2>
+              <p>Accès, rectification, export et suppression : tout se fait depuis Mon compte › Mes données, sans nous écrire.</p>
+              <div class="doc-foot"><button class="btn sm"><svg class="ico"><use href="#i-down"/></svg> Télécharger en PDF</button><button class="btn sm quiet">Une question ? Écrivez-nous</button></div>
+            </article>
+            <nav class="toc" aria-label="Sur cette page"><span class="grp">Sur cette page</span><a href="#lg-1" class="on">Qui est responsable</a><a href="#lg-2">Ce que nous collectons</a><a href="#lg-3">L'IA et vos données</a><a href="#lg-4">Vos droits</a></nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nouveautés -->
+      <section class="ds" id="changelog">
+        <header><h2>Documentation · Nouveautés</h2><span class="meta">changelog public, une version par bloc</span></header>
+        <div class="site">
+          <div class="site-head"><span class="ws"><span class="logo">J</span> Jobbbox</span><nav><a href="#changelog" class="on">Nouveautés</a><a href="#aide">Aide</a><a href="#legal">Légal</a></nav><span class="sp"></span><button class="btn sm">Se connecter</button></div>
+          <div class="cl-head">
+            <div class="eyebrow">Nouveautés</div>
+            <h1 class="display">Ce qui change dans Jobbbox</h1>
+            <p class="muted">Chaque version, ce qu'elle apporte aux candidats, à l'extension et au Back Office.</p>
+            <div class="row"><input class="input" placeholder="Votre adresse e-mail" style="max-width:18rem"><button class="btn primary">Recevoir les nouveautés</button></div>
+          </div>
+          <div class="cl-filters" role="group" aria-label="Filtrer"><button class="btn chip on">Tout</button><button class="btn chip">Candidat</button><button class="btn chip">Extension</button><button class="btn chip">Back Office</button><button class="btn chip">Corrections</button></div>
+          <article class="release">
+            <div class="when"><time datetime="2026-10-27">27 octobre 2026</time><span class="ver">v0.49.0</span></div>
+            <div class="body">
+              <div class="row" style="gap:.375rem"><span class="pill accent">Nouveau</span><span class="pill">Candidat</span></div>
+              <h3>Entreprises cibles sur votre profil</h3>
+              <p>Listez les entreprises qui vous intéressent : votre coach les surveille et vous prévient dès qu'une offre y paraît.</p>
+              <div class="shot"><div class="win"><div class="sb"><i></i><i style="width:70%"></i><i></i><i style="width:60%"></i></div><div class="mn"><i class="a"></i><i></i><i style="width:80%"></i><i style="width:65%"></i><i></i></div></div></div>
+              <ul class="changes">
+                <li><span class="pill success">Amélioré</span><span>Le Match Score explique ce qui manque, compétence par compétence.</span></li>
+                <li><span class="pill warn">Corrigé</span><span>Le Job Digest ne répète plus une offre déjà enregistrée.</span></li>
+              </ul>
+            </div>
+          </article>
+          <article class="release">
+            <div class="when"><time datetime="2026-10-20">20 octobre 2026</time><span class="ver">v0.48.0</span></div>
+            <div class="body">
+              <div class="row" style="gap:.375rem"><span class="pill accent">Nouveau</span><span class="pill">Back Office</span></div>
+              <h3>Un Dashboard et une page Activité</h3>
+              <p>Consommation, budget et santé de la recherche d'offres sur une seule page ; recherches, appels IA et actions des administrateurs regroupés dans Activité.</p>
+              <ul class="changes"><li><span class="pill warn">Corrigé</span><span>Un fournisseur sans clé affiche un avertissement au lieu d'une erreur.</span></li></ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <!-- Extension -->
       <section class="ds" id="extension">
         <header><h2>Extension · Side Panel</h2><span class="meta">à droite de la page, comme Claude ou ChatGPT</span></header>
@@ -1462,6 +1585,9 @@ document.querySelectorAll("[data-ag]").forEach(b => b.onclick = () => {
   ["list", "week", "month"].forEach(v => document.getElementById("ag-" + v).hidden = v !== b.dataset.ag);
   document.getElementById("agperiod").textContent = PERIOD[b.dataset.ag];
 });
+
+document.querySelectorAll(".toc a").forEach(a => a.onclick = () => document.querySelectorAll(".toc a").forEach(x => x.classList.toggle("on", x === a)));
+document.querySelectorAll(".cl-filters .btn").forEach(b => b.onclick = () => document.querySelectorAll(".cl-filters .btn").forEach(x => x.classList.toggle("on", x === b)));
 
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id)); }), { rootMargin: "-30% 0px -65% 0px" });
 document.querySelectorAll(".ds").forEach(s => io.observe(s));

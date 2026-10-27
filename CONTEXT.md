@@ -332,6 +332,15 @@ France Travail's code for a job, derived from the Search Criteria title; a title
 **Discovery metrics**:
 What one run of Job discovery (a Job Search or a Job Digest top-up) measured: how many Job Offers each step kept (provider URLs, pages read, Job Offers extracted, already stored, left after deduplication, with a Match Score of 60 or more), the pages skipped by Skip reason, and the estimated cost in euros. Costs are estimates from list prices, not billed amounts. Duration is the Candidate's wait (start to outcome) for a Job Search, and the worker's run time for a Job Digest.
 
+**Run stop reason**:
+Why a Job discovery run ended: the first limit of its budget reached (Job Offers, spend or duration), the searches ran out, or the Candidate stopped it. A failed run has none. Shown on the Back Office Dashboard and in Activité.
+
+**Run cost item**:
+Where a Job discovery run's cost went: page reading, plan, web search or Target Companies (everything spent while visiting the Target Companies).
+
+**New Job Offer (of a run)**:
+A Job Offer the run found that was stored after the run started; the Dashboard's cost per new Job Offer divides a run's cost by them.
+
 **Skip reason**:
 Why a result page gave no Job Offer (for example a Forbidden site, robots.txt, an unreadable page, a closed posting, a posting too old, or a disabled Job discovery site).
 

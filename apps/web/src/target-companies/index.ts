@@ -100,7 +100,19 @@ export interface TargetCompanyStore {
  */
 export type AddTargetCompanyResult = { ok: true; company: TargetCompany } | { ok: false; error: "invalid" | "exists" | "not_a_company" };
 
+/** A Target Company as the Candidate sees it on the Profile's page (« Entreprises cibles », #409). */
+export interface TargetCompanyOnProfile extends TargetCompany {
+  /** The Job Offers the Profile's Job Searches found there (their employer is the company, by name), newest first. */
+  jobOffers: { id: string; title: string }[];
+}
+
 export interface TargetCompanies extends TargetCompanyStore {
+  /**
+   * The Profile's Target Companies as its page shows them: the Candidate's own first, then La Bonne Boite's best
+   * hiring first, then by name; those set aside, and those the company register said are not companies, left out.
+   * Null when the Profile is not the Candidate's.
+   */
+  onProfile(candidateId: string, profileId: string): Promise<TargetCompanyOnProfile[] | null>;
   /**
    * The Candidate adds a company by name to the Profile's Target Companies, as the company register lists it
    * (its registered name and SIREN) when it does, else under the name given. Refused when the Profile is not
@@ -220,7 +232,35 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
     }
   }
 
+  /** The Job Offers the Profile's Job Searches found, with their employer, newest first. */
+  async function foundByJobSearches(candidateId: string, profileId: string) {
+    const { rows } = await database.query<{ id: string; title: string; employer: string }>(
+      `SELECT o.id, o.title, o.employer FROM job_offer o
+        WHERE o.employer IS NOT NULL
+          AND o.id IN (SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2)
+        ORDER BY o.created_at DESC, o.id`,
+      [profileId, candidateId],
+    );
+    return rows;
+  }
+
   return {
+    async onProfile(candidateId, profileId) {
+      if (!(await owns(candidateId, profileId))) return null;
+      const [{ rows }, offers] = await Promise.all([
+        database.query<Row>(
+          `SELECT ${COLUMNS} FROM target_company WHERE profile_id = $1 AND set_aside_at IS NULL AND not_a_company_at IS NULL
+            ORDER BY origin = 'candidate' DESC, hiring_score DESC NULLS LAST, name, id`,
+          [profileId],
+        ),
+        foundByJobSearches(candidateId, profileId),
+      ]);
+      return rows.map((row) => {
+        const key = nameKey(row.name);
+        return { ...companyOf(row), jobOffers: offers.filter((offer) => nameKey(offer.employer) === key).map(({ id, title }) => ({ id, title })) };
+      });
+    },
+
     async list(profileId) {
       if (!UUID.test(profileId)) return [];
       const { rows } = await database.query<Row>(`SELECT ${COLUMNS} FROM target_company WHERE profile_id = $1 AND set_aside_at IS NULL`, [profileId]);

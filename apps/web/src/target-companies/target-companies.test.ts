@@ -1,6 +1,9 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { CompanyRegister, RegisteredCompany } from "../company-dossiers/french-register";
+import { migrateApplications } from "../applications";
+import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
+import { migrateJobSearches } from "../job-searches";
 import { migrateProfiles } from "../profiles";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
 import { companyKeyOf, createTargetCompanies, migrateTargetCompanies, webSearchableName, type TargetCompanies } from "./index";
@@ -92,6 +95,9 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
     // The candidate table as far as Profiles need it.
     await database.query("CREATE TABLE IF NOT EXISTS candidate (id text PRIMARY KEY)");
     await migrateProfiles(database);
+    await migrateJobOffers(database);
+    await migrateApplications(database);
+    await migrateJobSearches(database);
     await migrateTargetCompanies(database);
     await migrateTargetCompanies(database);
     targets = createTargetCompanies(database, { now: () => NOW, register: register([{ siren: "552100554", name: "ACME INDUSTRIE" }]) });
@@ -165,6 +171,46 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
 
     expect(await soleTrader.add("candidate-1", profileId, "Jean Dupont")).toEqual({ ok: false, error: "not_a_company" });
     expect(await soleTrader.list(profileId)).toEqual([]);
+  });
+
+  describe("on the Profile's page (#409)", () => {
+    let jobOffers: JobOffers;
+    beforeEach(() => {
+      jobOffers = createJobOffers(database);
+    });
+
+    /** A Job Offer at `employer`, found by a Job Search of the Profile. */
+    async function foundBy(profile: string, candidateId: string, title: string, employer: string): Promise<string> {
+      const captured = await jobOffers.capture({ title, content: `${title} chez ${employer}`, employer, source: { url: `https://jobs.example/${encodeURIComponent(title + employer)}` } });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      await database.query("INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at) VALUES ($1, $2, 'done', $3, $4)", [candidateId, profile, [captured.jobOffer.id], NOW]);
+      return captured.jobOffer.id;
+    }
+
+    it("shows the Candidate's own first, then La Bonne Boite's by hiring score, none set aside nor « not a company »", async () => {
+      await targets.refresh("candidate-1", profileId, { key: "k", companies: [beta, acme, gamma, { siret: "81234567800012", name: "JEAN DUPONT", hiringScore: 99 }] }, NOW);
+      await createTargetCompanies(database, { now: () => NOW, register: register([]) }).add("candidate-1", profileId, "Tisserands du Rhône");
+      const listed = await targets.list(profileId);
+      await targets.setAside("candidate-1", profileId, listed.find((company) => company.name === "GAMMA CONSEIL")!.id);
+      await targets.notACompany(profileId, [listed.find((company) => company.name === "JEAN DUPONT")!.id], NOW);
+
+      const shown = await targets.onProfile("candidate-1", profileId);
+
+      expect(shown?.map((company) => company.name)).toEqual(["Tisserands du Rhône", "ACME INDUSTRIE", "BETA LOGISTIQUE"]);
+      expect(await targets.onProfile("candidate-2", profileId)).toBeNull();
+    });
+
+    it("lists the Job Offers the Profile's Job Searches found there, by the employer's name", async () => {
+      await targets.refresh("candidate-1", profileId, { key: "k", companies: [acme, beta] }, NOW);
+      const atAcme = await foundBy(profileId, "candidate-1", "Directeur financier", "Acme Industrie SAS");
+      await foundBy(profileId, "candidate-1", "Contrôleur de gestion", "Autre Société");
+      await foundBy(otherProfileId, "candidate-2", "Responsable comptable", "ACME INDUSTRIE");
+
+      const shown = await targets.onProfile("candidate-1", profileId);
+
+      expect(shown?.find((company) => company.name === "ACME INDUSTRIE")?.jobOffers).toEqual([{ id: atAcme, title: "Directeur financier" }]);
+      expect(shown?.find((company) => company.name === "BETA LOGISTIQUE")?.jobOffers).toEqual([]);
+    });
   });
 
   it("records the visits of Job discovery", async () => {

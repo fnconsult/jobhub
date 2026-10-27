@@ -6,9 +6,11 @@
  *
  * One module in front of Postgres, reading what others record: AI Usage (`ai_usage`, through the same report as
  * Consommation IA, so the two always agree for the same month) and the Job Searches' Discovery metrics
- * (`job_search.metrics`). Read-only; nothing personal comes out, only sums and counts.
+ * (`job_search.metrics`). Read-only; nothing personal comes out, only sums and counts. A Job Digest top-up keeps no
+ * record of its run yet (its metrics go to the log): its runs are not counted, its AI calls are (in the spend).
  */
 import { SEARCH_PROVIDER_IDS, SEARCH_TASK } from "@jobhub/ai";
+import { RUN_COST_ITEMS, RUN_STOP_REASONS, type RunCostItem, type RunStopReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { aiUsageMonths, aiUsagePeriod, aiUsageReport } from "../ai-usage/index";
 
@@ -46,11 +48,77 @@ export interface JobDiscoveryDashboard {
     /** Every day of the month so far, the first first. */
     days: WebSearchDay[];
   };
+  /** The month's Job discovery runs: its Job Searches that ran (done, stopped, or failed while searching). */
+  runs: {
+    count: number;
+    /** JOB_DISCOVERY_BUDGET_EUR in use. */
+    budgetEur: number;
+    /** Null with no run. */
+    averageCostEur: number | null;
+    /** The Job Offers the runs found that were not stored before they started. */
+    newJobOffers: number;
+    /** Null with no new Job Offer. */
+    costPerNewJobOfferEur: number | null;
+    /** The runs that switched to the fallback Search provider (ADR-0043). */
+    fellBack: number;
+    /** How many runs ended each way, every way listed in order: `failed` while searching; `unknown` for one from before #408. */
+    stopReasons: { reason: DashboardStopReason; runs: number }[];
+    /** The runs that kept their cost by item (#408): `averageCostByItem` is over them, every item listed in order (0 with none). */
+    itemizedRuns: number;
+    averageCostByItem: { item: RunCostItem; eur: number }[];
+  };
   /** The month's AI calls, as Consommation IA counts them: how many, how many failed, and the tools used with no known price. */
   calls: { calls: number; failures: number; unpricedTools: number };
 }
 
+/** Why a run ended, as the Dashboard counts it. */
+export const DASHBOARD_STOP_REASONS = [...RUN_STOP_REASONS, "failed", "unknown"] as const;
+export type DashboardStopReason = (typeof DASHBOARD_STOP_REASONS)[number];
+
 const TIME_ZONE = "Europe/Paris";
+
+/**
+ * The month's Job Searches that ran: done, stopped, or failed while searching (not those Job discovery never ran for),
+ * each with its Discovery metrics and how many of the Job Offers it found were stored after it started (new to it).
+ */
+const RUNS = `
+  SELECT s.status, s.metrics,
+         (SELECT count(*) FROM job_offer o WHERE o.id = ANY(s.job_offer_ids) AND o.created_at >= s.started_at)::int AS "newJobOffers"
+    FROM job_search s
+   WHERE s.started_at >= $1::timestamp AT TIME ZONE '${TIME_ZONE}' AND s.started_at < $2::timestamp AT TIME ZONE '${TIME_ZONE}'
+     AND (s.status IN ('done', 'stopped') OR s.failure = 'discovery_failed')`;
+
+interface RunRow {
+  status: "done" | "stopped" | "failed";
+  metrics: { costEur?: number; searchFallback?: unknown; stopReason?: string; costByItem?: Partial<Record<RunCostItem, number>> } | null;
+  newJobOffers: number;
+}
+
+/** Why `run` ended, as the Dashboard counts it. */
+function stopReasonOf(run: RunRow): DashboardStopReason {
+  if (run.status === "failed") return "failed";
+  if (run.status === "stopped") return "stopped";
+  const recorded = run.metrics?.stopReason;
+  return RUN_STOP_REASONS.includes(recorded as RunStopReason) ? (recorded as RunStopReason) : "unknown";
+}
+
+/** The runs' figures, from their rows. */
+function runFigures(rows: RunRow[], budgetEur: number): JobDiscoveryDashboard["runs"] {
+  const costEur = rows.reduce((sum, run) => sum + (run.metrics?.costEur ?? 0), 0);
+  const newJobOffers = rows.reduce((sum, run) => sum + run.newJobOffers, 0);
+  const itemized = rows.flatMap((run) => (run.metrics?.costByItem ? [run.metrics.costByItem] : []));
+  return {
+    count: rows.length,
+    budgetEur,
+    averageCostEur: rows.length === 0 ? null : costEur / rows.length,
+    newJobOffers,
+    costPerNewJobOfferEur: newJobOffers === 0 ? null : costEur / newJobOffers,
+    fellBack: rows.filter((run) => typeof run.metrics?.searchFallback === "object" && run.metrics.searchFallback !== null).length,
+    stopReasons: DASHBOARD_STOP_REASONS.map((reason) => ({ reason, runs: rows.filter((run) => stopReasonOf(run) === reason).length })),
+    itemizedRuns: itemized.length,
+    averageCostByItem: RUN_COST_ITEMS.map((item) => ({ item, eur: itemized.length === 0 ? 0 : itemized.reduce((sum, items) => sum + (items[item] ?? 0), 0) / itemized.length })),
+  };
+}
 
 /** The web search spend per Paris day and provider: each call's tokens and tools' fees, as Consommation IA sums them. */
 const WEB_SEARCH_DAYS = `
@@ -76,9 +144,10 @@ export async function jobDiscoveryDashboard(database: Pick<Pool, "query">, setti
   const daysInMonth = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
   const daysSoFar = Number(today.slice(8, 10));
 
-  const [{ rows }, report] = await Promise.all([
+  const [{ rows }, report, runs] = await Promise.all([
     database.query<{ day: string; provider: string; eur: number }>(WEB_SEARCH_DAYS, [period.from, period.to, SEARCH_TASK]),
     aiUsageReport(database, period),
+    database.query<RunRow>(RUNS, [period.from, period.to]),
   ]);
   let cumulativeEur = 0;
   const days = Array.from({ length: daysSoFar }, (_, index): WebSearchDay => {
@@ -101,6 +170,7 @@ export async function jobDiscoveryDashboard(database: Pick<Pool, "query">, setti
       providers: inCatalogOrder(rows.filter((row) => Number(row.eur) > 0).map((row) => row.provider)),
       days,
     },
+    runs: runFigures(runs.rows, settings.runBudgetEur),
     calls: { calls: report.totals.calls, failures: report.totals.failures, unpricedTools: report.tools.filter((tool) => tool.unpricedCalls > 0).length },
   };
 }

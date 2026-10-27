@@ -211,7 +211,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .status { display: inline-flex; align-items: center; gap: .4375rem; font-size: var(--fs-small); }
 .count { background: var(--accent); color: var(--on-accent); font-size: .6875rem; font-weight: 600; border-radius: 999px; padding: 0 .375rem; line-height: 1.1rem; margin-left: auto; }
 
-.tabs { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; overflow-x: auto; }
+.tabs { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tabs button { border: 0; background: none; font: 500 var(--fs-small) var(--font); color: var(--muted); padding: .5rem 0; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
 .tabs button.on { color: var(--text); border-bottom-color: var(--text); }
 [data-variant="C"] .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
@@ -367,6 +367,120 @@ td .who { display: flex; align-items: center; gap: .625rem; }
 .sig-actions { display: flex; gap: .5rem; justify-content: flex-end; align-items: center; }
 .sig-actions .sig-meta { margin-right: auto; }
 .sig-thanks { display: grid; gap: .25rem; padding: .75rem 1rem; background: var(--success-soft); border-radius: var(--r-sm); color: var(--success); }
+/* ───────────── Candidate pages ───────────── */
+.frame-page { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--canvas); overflow: hidden; }
+.frame-page > .ph-head { padding: 1.25rem 1.5rem 0; background: var(--bg); border-bottom: 1px solid var(--border); }
+.eyebrow { font-size: var(--fs-meta); color: var(--meta); font-weight: 500; }
+.ph-head .title-row { display: flex; align-items: center; gap: .75rem; margin: .125rem 0 1rem; flex-wrap: wrap; }
+.ph-head .title-row .actions { margin-left: auto; display: flex; gap: .5rem; }
+.ph-head .tabs { margin: 0; border: 0; }
+.frame-page > .ph-body { padding: 1.5rem; display: grid; gap: var(--gap); }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: var(--gap); align-items: start; }
+.chips-edit { display: flex; flex-wrap: wrap; gap: .375rem; }
+.chips-edit .pill { font-size: var(--fs-small); padding: .1875rem .625rem; }
+.job { display: grid; grid-template-columns: 2.25rem 1fr auto; gap: .25rem .75rem; padding: .875rem 0; border-top: 1px solid var(--border); }
+.job:first-child { border-top: 0; padding-top: 0; }
+.job .co { width: 2.25rem; height: 2.25rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; font-weight: 600; font-size: .75rem; color: var(--muted); }
+.savebar { position: sticky; bottom: 0; display: flex; align-items: center; gap: .75rem; padding: .75rem 1.5rem; background: var(--bg); border-top: 1px solid var(--border); box-shadow: 0 -6px 16px rgb(20 20 40 / 6%); }
+.savebar .dot { background: var(--warn-dot); }
+.savebar .sp { flex: 1; }
+
+.drop { border: 1.5px dashed var(--border-strong); border-radius: var(--r-card); padding: 2rem 1.5rem; text-align: center; background: var(--bg); display: grid; gap: .5rem; justify-items: center; transition: background .15s, border-color .15s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop .art { width: 3rem; height: 3rem; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.drop .art svg { width: 1.5rem; height: 1.5rem; }
+.filerow { display: grid; grid-template-columns: 2.5rem 1fr auto; gap: .25rem .875rem; align-items: center; padding: .875rem 1rem; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); }
+.fileicon { width: 2.5rem; height: 3rem; border-radius: 6px; display: grid; place-items: end center; padding-bottom: .375rem; font-size: .625rem; font-weight: 700; color: #fff; position: relative; }
+.fileicon.pdf { background: #d6453d; } .fileicon.docx { background: #2f62c8; }
+.fileicon::before { content: ""; position: absolute; top: 0; right: 0; width: .75rem; height: .75rem; background: linear-gradient(225deg, var(--bg) 50%, rgb(255 255 255 / 45%) 50%); border-bottom-left-radius: 3px; }
+.progress { grid-column: 2 / -1; height: .3125rem; background: var(--surface); border-radius: 999px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 62%; background: var(--accent); border-radius: 999px; }
+
+.viewer { border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; background: var(--surface); display: grid; grid-template-rows: auto 1fr; }
+.vbar { display: flex; align-items: center; gap: .5rem; padding: .5rem .75rem; background: var(--bg); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.vbar .name { font-weight: 500; font-size: var(--fs-small); display: flex; gap: .5rem; align-items: center; min-width: 0; }
+.vbar .sp { flex: 1; }
+.vbar .zoom { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: var(--r-ctl); height: calc(var(--ctl-h) - .5rem); }
+.vbar .zoom button { all: unset; cursor: pointer; padding: 0 .625rem; color: var(--muted); font-weight: 600; }
+.vbar .zoom span { font-size: var(--fs-meta); min-width: 3rem; text-align: center; font-variant-numeric: tabular-nums; }
+.vstage { display: grid; grid-template-columns: 6.5rem 1fr; min-height: 30rem; max-height: 36rem; }
+.thumbs { border-right: 1px solid var(--border); padding: .75rem; display: grid; gap: .75rem; align-content: start; overflow: auto; background: var(--bg); }
+.thumbs button { all: unset; cursor: pointer; display: grid; gap: .25rem; justify-items: center; font-size: .6875rem; color: var(--meta); }
+.thumbs .mini { width: 4.5rem; height: 6.25rem; background: #fff; border: 1px solid var(--border); border-radius: 3px; box-shadow: 0 1px 2px rgb(0 0 0 / 6%); padding: .375rem; display: grid; gap: 3px; align-content: start; }
+.thumbs .mini i { height: 3px; background: #e6e6ec; border-radius: 2px; }
+.thumbs button.on .mini { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pages { overflow: auto; padding: 1.5rem; display: grid; justify-items: center; gap: 1rem; }
+.paper { width: min(34rem, 100%); aspect-ratio: 1 / 1.414; background: #fff; color: #1b1b26; box-shadow: 0 1px 3px rgb(0 0 0 / 10%), 0 8px 24px rgb(0 0 0 / 6%); border-radius: 2px; padding: 2.25rem 2.5rem; font: 10.5px/1.5 "Inter", sans-serif; display: grid; gap: .625rem; align-content: start; }
+.paper h5 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.paper h6 { margin: .5rem 0 0; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #4f5fe0; border-bottom: 1px solid #e6e6ec; padding-bottom: 3px; }
+.paper p { margin: 0; color: #3a3a48; }
+.paper .ln { height: 5px; background: #ececf2; border-radius: 3px; }
+.mark { background: #fff2b8; border-radius: 2px; padding: 0 1px; }
+.doc-page { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; min-height: 34rem; }
+.doc-side { border-left: 1px solid var(--border); background: var(--bg); padding: 1.25rem; display: grid; gap: 1rem; align-content: start; }
+
+.plan-cur { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+.plan { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); padding: 1.25rem; display: grid; gap: .875rem; align-content: start; position: relative; }
+.plan.cur { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.plan.reco::before { content: "Conseillée"; position: absolute; top: -.6875rem; left: 1.25rem; background: var(--accent); color: var(--on-accent); font-size: .6875rem; font-weight: 600; padding: .0625rem .5rem; border-radius: 999px; }
+.plan .price { font-size: 1.75rem; font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.plan .price small { font-size: var(--fs-small); color: var(--meta); font-weight: 400; letter-spacing: 0; }
+.plan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; font-size: var(--fs-small); }
+.plan li { display: flex; gap: .5rem; align-items: baseline; }
+.plan li::before { content: "✓"; color: var(--success); font-weight: 600; }
+.plan li.no { color: var(--meta); } .plan li.no::before { content: "—"; color: var(--meta); }
+.usage { display: grid; gap: .875rem; }
+.usage .u { display: grid; grid-template-columns: 1fr auto; gap: .25rem 1rem; font-size: var(--fs-small); }
+.usage .u .bar { grid-column: 1 / -1; margin-top: 0; }
+.usage .u.full .bar > i { background: var(--danger); }
+
+.meter { display: grid; gap: .375rem; padding: .625rem .5rem; border-radius: var(--r-sm); }
+.meter button { all: unset; cursor: pointer; display: grid; gap: .375rem; border-radius: var(--r-sm); padding: .375rem; margin: -.375rem; }
+.meter button:hover { background: var(--hover); }
+.meter .top { display: flex; justify-content: space-between; font-weight: 600; font-size: var(--fs-small); }
+.meter .bar { margin-top: 0; background: var(--bg); }
+.meter-pop { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg); box-shadow: var(--shadow-pop); padding: 1rem; display: grid; gap: .75rem; width: 19rem; }
+.nav .meter { margin: .25rem 0 .25rem; }
+.nav-pop { position: fixed; left: .625rem; bottom: 8.5rem; z-index: 20; display: none; }
+.nav-pop.on { display: grid; }
+
+.ag-head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.ag-head .period { font-weight: 600; margin: 0 .5rem; }
+.ag-head .sp { flex: 1; }
+.ag-day { display: grid; grid-template-columns: 7rem 1fr; gap: 1rem; padding: .875rem 0; border-top: 1px solid var(--border); }
+.ag-day:first-of-type { border-top: 0; }
+.ag-day .d { font-weight: 600; } .ag-day .d small { display: block; color: var(--meta); font-weight: 400; font-size: var(--fs-meta); }
+.ag-item { display: grid; grid-template-columns: 4rem 1rem 1fr auto; gap: .25rem .75rem; align-items: center; padding: .375rem .5rem; border-radius: var(--r-sm); }
+.ag-item:hover { background: var(--surface); }
+.ag-item .t { font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--fs-small); }
+.shape { width: .625rem; height: .625rem; display: inline-block; }
+.shape.disc { border-radius: 50%; background: var(--accent); }
+.shape.diamond { border: 2px solid var(--chart-2); transform: rotate(45deg); width: .5625rem; height: .5625rem; }
+.ag-item.past { opacity: .55; }
+.ag-item.cancel .what { text-decoration: line-through; }
+.week { display: grid; grid-template-columns: 3rem repeat(7, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; background: var(--bg); font-size: var(--fs-meta); }
+.week > div { border-left: 1px solid var(--border); min-height: 2.75rem; padding: .25rem; position: relative; }
+.week > .h { min-height: auto; padding: .5rem .375rem; font-weight: 600; text-align: center; border-bottom: 1px solid var(--border); color: var(--muted); }
+.week > .h.today { color: var(--accent); }
+.week > .hr { border-left: 0; color: var(--meta); text-align: right; padding-right: .375rem; border-top: 1px solid var(--border); }
+.week > .c { border-top: 1px solid var(--border); }
+.ev { border-radius: 6px; padding: .25rem .375rem; font-size: .75rem; line-height: 1.25; }
+.ev.int { background: var(--accent-soft); color: var(--accent); border-left: 3px solid var(--accent); }
+.ev.coach { background: color-mix(in srgb, var(--chart-2) 14%, var(--bg)); color: var(--text); border-left: 3px solid var(--chart-2); }
+.month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; background: var(--bg); }
+.month > div { min-height: 4.5rem; border-left: 1px solid var(--border); border-top: 1px solid var(--border); padding: .375rem; font-size: var(--fs-meta); display: grid; align-content: start; gap: .25rem; cursor: pointer; }
+.month > div:nth-child(7n+1) { border-left: 0; }
+.month > .h { min-height: auto; border-top: 0; text-align: center; font-weight: 600; color: var(--muted); cursor: default; }
+.month > .out { color: var(--meta); background: var(--surface); }
+.month > .past .n { color: var(--meta); }
+.month > .today .n { background: var(--accent); color: var(--on-accent); border-radius: 999px; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; font-weight: 600; }
+.month > .chosen { box-shadow: inset 0 0 0 2px var(--accent); }
+.month .marks { display: flex; gap: .25rem; }
+.unsched { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; border: 1px dashed var(--border-strong); border-radius: var(--r-card); background: var(--bg); margin-bottom: 1rem; flex-wrap: wrap; }
+
+@media (max-width: 56rem) { .cols, .doc-page, .plans { grid-template-columns: 1fr; } .vstage { grid-template-columns: 1fr; } .thumbs { display: none; } .ag-day { grid-template-columns: 1fr; } }
+
 #sigdialog { width: min(34rem, 92vw); }
 #sigdialog .body { padding: 1.25rem; }
 
@@ -435,6 +549,7 @@ td .who { display: flex; align-items: center; gap: .625rem; }
   <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
 </svg>
 
@@ -456,9 +571,25 @@ td .who { display: flex; align-items: center; gap: .625rem; }
     <a href="#signalements"><svg class="ico"><use href="#i-warn"/></svg> Signalements</a>
     <div class="grp">Surfaces</div>
     <a href="#candidat"><svg class="ico"><use href="#i-users"/></svg> Côté candidat</a>
+    <div class="grp">Pages candidat</div>
+    <a href="#profil"><svg class="ico"><use href="#i-users"/></svg> Profil</a>
+    <a href="#televersement"><svg class="ico"><use href="#i-plus"/></svg> Téléversement</a>
+    <a href="#visionneuse"><svg class="ico"><use href="#i-brief"/></svg> Visionneuse PDF / DOCX</a>
+    <a href="#abonnement"><svg class="ico"><use href="#i-check"/></svg> Abonnement</a>
+    <a href="#quota"><svg class="ico"><use href="#i-chart"/></svg> Quota</a>
+    <a href="#agenda"><svg class="ico"><use href="#i-cal"/></svg> Agenda</a>
+    <div class="grp">Autres surfaces</div>
     <a href="#extension"><svg class="ico"><use href="#i-cal"/></svg> Extension</a>
     <a href="#emails"><svg class="ico"><use href="#i-mail"/></svg> E-mails</a>
-    <div class="foot foot-row"><a href="#"><svg class="ico"><use href="#i-users"/></svg> Mon compte</a><button class="sig-open" aria-label="Signalement" data-sig-open><svg class="sig-glyph" viewBox="0 0 24 24" aria-hidden="true"><path data-sig="bug"/></svg><span class="tip" aria-hidden="true">Signalement</span></button></div>
+    <div class="meter" style="margin-top:auto;border-top:1px solid var(--border);border-radius:0;padding-top:.75rem">
+      <button data-meter aria-expanded="false" aria-label="Hebdomadaire : 18 sur 43 utilisés (42 %)">
+        <span class="top"><span>Hebdomadaire</span><span class="num">42 %</span></span>
+        <span class="bar"><i style="width:42%"></i></span>
+        <span class="meta">Votre quota se renouvelle lundi minuit</span>
+      </button>
+    </div>
+    <div class="nav-pop meter-pop" id="navpop" role="dialog" aria-label="Utilisation de la semaine"></div>
+    <div class="foot foot-row" style="margin-top:0"><a href="#"><svg class="ico"><use href="#i-users"/></svg> Mon compte</a><button class="sig-open" aria-label="Signalement" data-sig-open><svg class="sig-glyph" viewBox="0 0 24 24" aria-hidden="true"><path data-sig="bug"/></svg><span class="tip" aria-hidden="true">Signalement</span></button></div>
   </nav>
 
   <div class="main">
@@ -790,6 +921,222 @@ td .who { display: flex; align-items: center; gap: .625rem; }
         </div>
       </section>
 
+      <!-- Profil -->
+      <section class="ds" id="profil">
+        <header><h2>Profil</h2><span class="meta">page · Sections en onglets, barre d'enregistrement</span></header>
+        <div class="frame-page">
+          <div class="ph-head">
+            <div class="eyebrow">Profil</div>
+            <div class="title-row"><h1 style="font-size:var(--fs-h2)">Head of BU / Professional Services</h1><span class="pill success">Actif</span>
+              <div class="actions"><button class="btn sm"><svg class="ico"><use href="#i-search"/></svg> Chercher des offres</button><button class="btn sm">Télécharger</button></div></div>
+            <div class="tabs" role="tablist"><button>Propositions <span class="count" style="margin-left:.25rem">3</span></button><button class="on">CV de référence</button><button>ATS Score</button><button>Entreprises cibles</button><button>Télécharger</button><button>Gérer</button></div>
+          </div>
+          <div class="ph-body">
+            <div class="cols">
+              <div style="display:grid;gap:var(--gap)">
+                <div class="card">
+                  <h3>Résumé <span class="end meta">Version 4 · enregistrée le 21 octobre</span></h3>
+                  <textarea class="input" rows="4">Directeur de business unit, 18 ans dans le conseil en transformation. P&amp;L de 24 M€, équipes de 60 consultants, lancement de deux offres.</textarea>
+                </div>
+                <div class="card">
+                  <h3>Compétences</h3>
+                  <div class="chips-edit"><span class="pill">Pilotage P&amp;L</span><span class="pill">Management d'équipes</span><span class="pill">Avant-vente</span><span class="pill">Transformation</span><span class="pill accent">+ Lean Six Sigma</span><button class="btn sm quiet">+ Ajouter</button></div>
+                </div>
+                <div class="card">
+                  <h3>Expériences <span class="end"><button class="btn sm quiet">Éditeur complet →</button></span></h3>
+                  <div class="job"><span class="co">AC</span><div><b>Directeur de BU</b><div class="meta">Accenture · Paris · 2019 – aujourd'hui</div></div><button class="btn sm quiet">Modifier</button></div>
+                  <div class="job"><span class="co">CG</span><div><b>Senior Manager</b><div class="meta">Capgemini Invent · Paris · 2012 – 2019</div></div><button class="btn sm quiet">Modifier</button></div>
+                  <p class="meta">Vos coordonnées, vos postes, vos formations et vos langues se modifient dans l'éditeur complet du CV de référence.</p>
+                </div>
+              </div>
+              <div style="display:grid;gap:var(--gap)">
+                <div class="card">
+                  <h3>Critères de recherche <span class="end"><button class="btn sm quiet">Modifier</button></span></h3>
+                  <div style="display:grid;gap:.5rem;font-size:var(--fs-small)">
+                    <div class="row" style="justify-content:space-between"><span class="muted">Lieux</span><span>Île-de-France · Lyon</span></div>
+                    <div class="row" style="justify-content:space-between"><span class="muted">Contrat</span><span>CDI</span></div>
+                    <div class="row" style="justify-content:space-between"><span class="muted">Salaire minimum</span><span class="num">110 000 €</span></div>
+                    <div class="row" style="justify-content:space-between"><span class="muted">Télétravail</span><span>Partiel</span></div>
+                  </div>
+                </div>
+                <div class="card stat" style="display:flex;align-items:center;gap:1rem">
+                  <div class="ring" style="--p:74;margin:0">74</div>
+                  <div><div class="lbl"><button class="help-term">ATS Score</button></div><div class="meta">Lisible par les logiciels de recrutement. 2 conseils.</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="savebar"><span class="status"><i class="dot"></i> Modifications non enregistrées</span><span class="sp"></span><button class="btn">Annuler</button><button class="btn primary" data-toast-msg="Version 5 de votre CV de référence enregistrée.">Enregistrer la version 5</button></div>
+        </div>
+      </section>
+
+      <!-- Téléversement -->
+      <section class="ds" id="televersement">
+        <header><h2>Téléversement de fichier</h2><span class="meta">CV · PDF ou Word (.docx), 10 Mo maximum</span></header>
+        <div class="grid2">
+          <div style="display:grid;gap:var(--gap);align-content:start">
+            <div class="drop" id="drop">
+              <span class="art"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+              <b>Glissez votre CV ici</b>
+              <span class="muted">ou</span>
+              <label class="btn primary">Choisir un fichier<input type="file" accept=".pdf,.docx" hidden></label>
+              <span class="meta">Format PDF ou Word (.docx), 10 Mo maximum.</span>
+            </div>
+            <p class="meta">Pas de CV sous la main ? <button class="link">Partir de zéro</button></p>
+          </div>
+          <div style="display:grid;gap:.75rem;align-content:start">
+            <div class="label-col">Fichier choisi</div>
+            <div class="filerow"><span class="fileicon pdf">PDF</span><div><b>CV-Francois-2026.pdf</b><div class="meta">412 Ko · 2 pages</div></div><button class="btn sm quiet" aria-label="Retirer le fichier"><svg class="ico"><use href="#i-x"/></svg></button></div>
+            <div class="label-col">Lecture en cours</div>
+            <div class="filerow"><span class="fileicon docx">DOCX</span><div><b>CV-Francois-2026.docx</b><div class="step" style="margin:0"><svg class="glyph" data-activity="read" data-live></svg> Lecture de votre CV en cours…</div></div><button class="stopbtn" title="Arrêter la lecture du CV" aria-label="Arrêter la lecture du CV"><i></i></button><div class="progress"><i></i></div></div>
+            <div class="label-col">Erreur</div>
+            <div class="note danger"><svg class="ico"><use href="#i-warn"/></svg><div><b>Ce fichier dépasse 10 Mo.</b>Enregistrez votre CV dans un fichier plus léger et réessayez.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Visionneuse -->
+      <section class="ds" id="visionneuse">
+        <header><h2>Visionneuse PDF / DOCX</h2><span class="meta">composant, puis page de document</span></header>
+        <div class="viewer" style="margin-bottom:var(--gap)">
+          <div class="vbar">
+            <span class="name"><span class="fileicon pdf" style="width:1.5rem;height:1.75rem;font-size:.5rem;padding-bottom:.125rem">PDF</span> CV-Francois-2026.pdf</span>
+            <span class="sp"></span>
+            <span class="meta num" id="vpage">Page 1 sur 2</span>
+            <span class="zoom"><button aria-label="Réduire" data-zoom="-1">−</button><span id="vzoom">100 %</span><button aria-label="Agrandir" data-zoom="1">+</button></span>
+            <button class="btn sm">Ajuster</button>
+            <button class="btn sm"><svg class="ico"><use href="#i-down"/></svg> Télécharger</button>
+          </div>
+          <div class="vstage">
+            <div class="thumbs"><button class="on" data-pg="1"><span class="mini"><i style="width:60%"></i><i></i><i></i><i style="width:80%"></i><i></i><i style="width:70%"></i></span>1</button><button data-pg="2"><span class="mini"><i></i><i style="width:50%"></i><i></i><i></i><i style="width:65%"></i></span>2</button></div>
+            <div class="pages" id="vpages">
+              <div class="paper" id="paper">
+                <h5>François Nader</h5><p>Directeur de business unit · Paris · francois@exemple.fr</p>
+                <h6>Résumé</h6><p>Directeur de business unit, 18 ans dans le conseil en transformation. <span class="mark">P&amp;L de 24 M€</span>, équipes de 60 consultants.</p>
+                <h6>Expériences</h6><p><b>Directeur de BU</b> — Accenture, 2019 – aujourd'hui</p><div class="ln" style="width:92%"></div><div class="ln" style="width:85%"></div><div class="ln" style="width:70%"></div>
+                <p><b>Senior Manager</b> — Capgemini Invent, 2012 – 2019</p><div class="ln" style="width:88%"></div><div class="ln" style="width:76%"></div>
+                <h6>Compétences</h6><p>Pilotage P&amp;L · Management · Avant-vente · Transformation</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-page">
+          <div class="ph-head">
+            <div class="eyebrow"><a href="#">← Candidature · Mistral AI</a></div>
+            <div class="title-row"><h1 style="font-size:var(--fs-h2)">Documents adaptés</h1><span class="pill accent">Brouillon</span></div>
+            <div class="tabs"><button class="on">CV adapté</button><button>Lettre de motivation</button><button>Message d'approche</button></div>
+          </div>
+          <div class="doc-page">
+            <div class="viewer" style="border:0;border-radius:0">
+              <div class="vbar"><span class="name"><span class="fileicon docx" style="width:1.5rem;height:1.75rem;font-size:.45rem;padding-bottom:.125rem">DOCX</span> CV adapté – Chief of Staff.docx</span><span class="sp"></span><span class="meta">Aperçu du fichier Word, mise en page fidèle à l'export</span></div>
+              <div class="pages" style="max-height:28rem"><div class="paper"><h5>François Nader</h5><p>Chief of Staff · Paris</p><h6>Résumé</h6><p>Bras droit de direction commerciale, <span class="mark">pilotage de forecast</span> et de comités, 18 ans de conseil.</p><h6>Expériences</h6><div class="ln" style="width:90%"></div><div class="ln" style="width:80%"></div><div class="ln" style="width:85%"></div><div class="ln" style="width:60%"></div></div></div>
+            </div>
+            <aside class="doc-side">
+              <div><div class="label-col">Adapté à</div><b>Chief of Staff – SEUR Sales</b><div class="meta">Mistral AI · Match Score 78</div></div>
+              <div class="note info" style="padding:.625rem .75rem"><svg class="ico"><use href="#i-info"/></svg><div>Surligné : ce qui a changé par rapport à votre CV de référence. Rien n'est inventé.</div></div>
+              <div style="display:grid;gap:.5rem"><button class="btn primary" style="justify-content:center">Valider ce CV</button><button class="btn" style="justify-content:center">Télécharger en PDF</button><button class="btn" style="justify-content:center">Télécharger en Word</button></div>
+              <div class="meta">Version 2 · il y a 5 min</div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- Abonnement -->
+      <section class="ds" id="abonnement">
+        <header><h2>Mon abonnement</h2><span class="meta">Mon compte › Abonnement</span></header>
+        <div class="grid2" style="margin-bottom:var(--gap)">
+          <div class="card">
+            <div class="plan-cur"><div><div class="eyebrow">Votre offre actuelle</div><h2>Standard</h2><div class="meta">19 € par mois · prochain paiement le 4 novembre</div></div><span style="margin-left:auto" class="pill success">Active</span></div>
+            <div class="row" style="margin-top:1rem"><button class="btn">Gérer mon abonnement</button><button class="btn quiet">Factures et moyen de paiement</button></div>
+            <p class="meta" style="margin-top:.75rem">Changement d'offre ou résiliation : tout se fait sur la page sécurisée de notre prestataire de paiement, Stripe.</p>
+          </div>
+          <div class="card">
+            <h3>Votre utilisation cette semaine <span class="end meta">renouvelée lundi minuit</span></h3>
+            <div class="usage">
+              <div class="u"><span>Recherches d'offres</span><span class="num">3 sur 5</span><span class="bar"><i style="width:60%"></i></span></div>
+              <div class="u full"><span>Match Scores</span><span class="num">20 sur 20</span><span class="bar"><i style="width:100%"></i></span></div>
+              <div class="u"><span>ATS Scores</span><span class="num">1 sur 5</span><span class="bar"><i style="width:20%"></i></span></div>
+              <div class="u"><span>Profils</span><span class="num">2 sur 3</span><span class="bar"><i style="width:66%"></i></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="note warn" style="margin-bottom:var(--gap)"><svg class="ico"><use href="#i-warn"/></svg><div><b>Votre dernier paiement n'a pas abouti.</b>Votre offre reste active pendant que Stripe réessaie. <button class="link">Mettre à jour mon moyen de paiement</button></div></div>
+        <h3 style="margin:1.5rem 0 1rem">Les offres</h3>
+        <div class="plans">
+          <div class="plan"><div><h3>Gratuite</h3><div class="price">0 €</div></div><ul><li>1 profil</li><li>2 recherches d'offres par semaine</li><li>5 Match Scores par semaine</li><li class="no">ATS Score non compris</li><li class="no">Job Digest non compris</li></ul><button class="btn">Choisir l'offre Gratuite</button></div>
+          <div class="plan cur"><div><h3>Standard <span class="pill accent" style="margin-left:.25rem">Votre offre</span></h3><div class="price">19 € <small>/ mois</small></div></div><ul><li>3 profils</li><li>5 recherches d'offres par semaine</li><li>20 Match Scores par semaine</li><li>5 ATS Scores par semaine</li><li>Job Digest chaque semaine</li></ul><button class="btn" disabled>Votre offre</button></div>
+          <div class="plan reco"><div><h3>Premium</h3><div class="price">39 € <small>/ mois</small></div></div><ul><li>Profils illimités</li><li>Recherches d'offres illimitées</li><li>Match Scores illimités</li><li>20 ATS Scores par semaine</li><li>Job Digest quotidien</li><li>−20 % sur les séances de coaching</li></ul><button class="btn primary">Choisir l'offre Premium</button></div>
+        </div>
+        <div class="row" style="margin-top:var(--gap)"><input class="input" placeholder="Code promo" style="max-width:14rem"><button class="btn">Appliquer</button><span class="meta">Code BIENVENUE : −50 % le premier mois, valable sur Standard et Premium.</span></div>
+      </section>
+
+      <!-- Quota -->
+      <section class="ds" id="quota">
+        <header><h2>Visualisation du quota</h2><span class="meta">Usage Meter au pied de la Sidebar · cliquez celui de la Sidebar</span></header>
+        <div class="grid2">
+          <div style="display:grid;gap:var(--gap);align-content:start">
+            <div class="label-col">Compteur</div>
+            <div style="max-width:15rem;background:var(--nav);border:1px solid var(--border);border-radius:var(--r-sm)" class="meter">
+              <span class="top"><span>Hebdomadaire</span><span class="num">42 %</span></span><span class="bar"><i style="width:42%"></i></span><span class="meta">Votre quota se renouvelle lundi minuit</span>
+            </div>
+            <div style="max-width:15rem;background:var(--nav);border:1px solid var(--border);border-radius:var(--r-sm)" class="meter">
+              <span class="top"><span>Hebdomadaire</span><span class="num" style="color:var(--danger)">100 %</span></span><span class="bar"><i style="width:100%;background:var(--danger)"></i></span><span class="meta">Votre quota se renouvelle lundi minuit</span>
+            </div>
+            <div class="label-col">Limite atteinte</div>
+            <div class="card" style="display:grid;gap:.625rem">
+              <h3 style="margin:0">Vous avez atteint la limite de votre offre</h3>
+              <p class="muted">Vous avez utilisé les 20 Match Scores compris cette semaine dans l'offre Standard. Votre quota se renouvelle chaque lundi.</p>
+              <p>Avec l'offre Premium, vous pouvez en faire davantage.</p>
+              <div class="row"><button class="btn primary">Découvrir l'offre Premium</button><button class="btn quiet">Plus tard</button></div>
+            </div>
+          </div>
+          <div style="display:grid;gap:.75rem;align-content:start">
+            <div class="label-col">Carte ouverte depuis le compteur</div>
+            <div class="meter-pop" id="quotacard"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Agenda -->
+      <section class="ds" id="agenda">
+        <header><h2>Agenda</h2><span class="meta">Entretiens et rendez-vous · liste, semaine, mois</span></header>
+        <div class="frame-page">
+          <div class="ph-head" style="padding-bottom:1rem">
+            <div class="title-row" style="margin-bottom:0"><h1 style="font-size:var(--fs-h2)">Entretiens et rendez-vous</h1><div class="actions"><button class="btn primary sm"><svg class="ico"><use href="#i-plus"/></svg> Ajouter un entretien</button></div></div>
+          </div>
+          <div class="ph-body">
+            <div class="ag-head">
+              <div class="seg" role="group" aria-label="Affichage de l'agenda" id="agviews"><button data-ag="list" class="on">Liste</button><button data-ag="week">Semaine</button><button data-ag="month">Mois</button></div>
+              <span class="sp"></span>
+              <button class="btn sm" aria-label="Précédent">←</button><button class="btn sm">Aujourd'hui</button><button class="btn sm" aria-label="Suivant">→</button>
+              <span class="period" id="agperiod">À venir</span>
+            </div>
+            <div class="unsched"><span class="shape diamond"></span><div><b>À planifier</b> · Séance de coaching avec Camille Martin, 60 min<div class="meta">Réservez votre créneau sur la page Cal.com du coach, puis saisissez la date ici.</div></div><button class="btn sm" style="margin-left:auto">Saisir la date</button></div>
+            <div id="ag-list">
+              <div class="ag-day"><div class="d">Aujourd'hui<small>mardi 27 octobre</small></div><div>
+                <div class="ag-item past"><span class="t">09:30</span><span class="shape disc"></span><span class="what"><b>Entretien</b> · Iliad / Free — Process Excellence Analyst</span><span class="meta">Passé</span></div>
+                <div class="ag-item"><span class="t">16:00</span><span class="shape disc"></span><span class="what"><b>Entretien</b> · Mistral AI — Chief of Staff</span><button class="btn sm quiet">Ajouter à mon calendrier</button></div>
+              </div></div>
+              <div class="ag-day"><div class="d">Jeudi<small>29 octobre</small></div><div>
+                <div class="ag-item"><span class="t">11:00</span><span class="shape diamond"></span><span class="what"><b>Séance de coaching</b> · avec Camille Martin · 60 min</span><span class="pill warn">Reporté · prévu le 28</span></div>
+              </div></div>
+              <div class="ag-day"><div class="d">Lundi<small>2 novembre</small></div><div>
+                <div class="ag-item cancel"><span class="t">14:30</span><span class="shape disc"></span><span class="what"><b>Entretien</b> · Capgemini — Directeur conseil</span><span class="meta">Annulé le 26 octobre</span></div>
+              </div></div>
+              <div style="padding-top:.75rem"><button class="link">Voir les rendez-vous passés</button></div>
+            </div>
+            <div id="ag-week" hidden>
+              <div class="week" id="weekgrid"></div>
+            </div>
+            <div id="ag-month" hidden>
+              <div class="month" id="monthgrid"></div>
+              <div class="card" style="margin-top:var(--gap)"><h3>Jeudi 29 octobre</h3><div class="ag-item" style="padding:0"><span class="t">11:00</span><span class="shape diamond"></span><span class="what"><b>Séance de coaching</b> · avec Camille Martin</span><span class="pill warn">Reporté</span></div></div>
+            </div>
+            <div class="row meta" style="margin-top:1rem"><span class="status"><span class="shape disc"></span> Entretien</span><span class="status"><span class="shape diamond"></span> Séance de coaching</span><span>Les rendez-vous passés sont estompés.</span></div>
+          </div>
+        </div>
+      </section>
+
       <!-- Extension -->
       <section class="ds" id="extension">
         <header><h2>Extension · Side Panel</h2><span class="meta">à droite de la page, comme Claude ou ChatGPT</span></header>
@@ -1054,6 +1401,55 @@ document.querySelectorAll("[data-sig-open]").forEach(b => b.addEventListener("cl
   dlgSt.type = b.dataset.sigOpen || dlgSt.type; dlgSt.sent = false; dlgSt.prev = dlgSt.type;
   sigForm(document.getElementById("sigDialogBody"), dlgSt, closeSig, false); dlg.classList.add("on"); scrim.classList.add("on");
 }));
+
+/* ── Candidate pages ── */
+const QUOTA_CARD = `<div class="top" style="display:flex;justify-content:space-between;font-weight:600"><span>Cette semaine</span><span class="pill accent">Standard</span></div>
+  <div class="usage">
+    <div class="u"><span>Recherches d'offres</span><span class="num">3 sur 5</span><span class="bar"><i style="width:60%"></i></span></div>
+    <div class="u full"><span>Match Scores</span><span class="num">20 sur 20</span><span class="bar"><i style="width:100%"></i></span></div>
+    <div class="u"><span>ATS Scores</span><span class="num">1 sur 5</span><span class="bar"><i style="width:20%"></i></span></div>
+    <div class="u"><span>Contacts enrichis</span><span class="meta">Non compris</span></div>
+    <div class="u"><span>Job Digest</span><span>chaque lundi</span></div>
+  </div>
+  <div class="meta">Votre quota se renouvelle lundi minuit.</div>
+  <a href="#abonnement" class="btn sm" style="justify-content:center">Voir mon abonnement</a>`;
+document.getElementById("quotacard").innerHTML = QUOTA_CARD;
+const navpop = document.getElementById("navpop"); navpop.innerHTML = QUOTA_CARD;
+const meterBtn = document.querySelector("[data-meter]");
+meterBtn.onclick = e => { e.stopPropagation(); const on = navpop.classList.toggle("on"); meterBtn.setAttribute("aria-expanded", on); };
+addEventListener("keydown", e => { if (e.key === "Escape") { navpop.classList.remove("on"); meterBtn.setAttribute("aria-expanded", false); } });
+addEventListener("click", e => { if (!navpop.contains(e.target)) navpop.classList.remove("on"); });
+document.querySelectorAll("[data-toast-msg]").forEach(b => b.onclick = () => toast(b.dataset.toastMsg));
+
+const drop = document.getElementById("drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); if (t === "drop") toast("Fichier reçu · lecture de votre CV"); }));
+
+let zoom = 100; const paper = document.getElementById("paper");
+document.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => { zoom = Math.max(50, Math.min(200, zoom + 25 * +b.dataset.zoom)); document.getElementById("vzoom").textContent = zoom + " %"; paper.style.width = `min(${34 * zoom / 100}rem, ${zoom}%)`; });
+document.querySelectorAll("[data-pg]").forEach(b => b.onclick = () => { document.querySelectorAll("[data-pg]").forEach(x => x.classList.toggle("on", x === b)); document.getElementById("vpage").textContent = `Page ${b.dataset.pg} sur 2`; });
+
+const DAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const wk = ["<div class='h'></div>", ...[26, 27, 28, 29, 30, 31, 1].map((d, i) => `<div class="h${d === 27 ? " today" : ""}">${DAYS[i]} ${d}</div>`)];
+const EVENTS = { "1-9": `<div class="ev int" style="opacity:.55">09:30 Iliad / Free</div>`, "1-16": `<div class="ev int">16:00 Mistral AI</div>`, "3-11": `<div class="ev coach">11:00 Coaching · C. Martin</div>` };
+for (let h = 9; h <= 18; h++) { wk.push(`<div class="hr">${h}h</div>`); for (let d = 0; d < 7; d++) wk.push(`<div class="c">${EVENTS[`${d}-${h}`] || ""}</div>`); }
+document.getElementById("weekgrid").innerHTML = wk.join("");
+const mo = DAYS.map(d => `<div class="h">${d}</div>`);
+const MARKS = { 14: "disc", 20: "diamond", 27: "disc disc", 29: "diamond", 5: "disc" };
+[28, 29, 30].forEach(d => mo.push(`<div class="out"><span class="n">${d}</span></div>`));
+for (let d = 1; d <= 31; d++) {
+  const cls = [d < 27 ? "past" : "", d === 27 ? "today" : "", d === 29 ? "chosen" : ""].join(" ");
+  const marks = (MARKS[d] || "").split(" ").filter(Boolean).map(m => `<span class="shape ${m}"${d < 27 ? ' style="opacity:.5"' : ""}></span>`).join("");
+  mo.push(`<div class="${cls}"><span class="n">${d}</span><span class="marks">${marks}</span></div>`);
+}
+mo.push(`<div class="out"><span class="n">1</span></div>`);
+document.getElementById("monthgrid").innerHTML = mo.join("");
+const PERIOD = { list: "À venir", week: "Semaine du 26 octobre", month: "Octobre 2026" };
+document.querySelectorAll("[data-ag]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-ag]").forEach(x => x.classList.toggle("on", x === b));
+  ["list", "week", "month"].forEach(v => document.getElementById("ag-" + v).hidden = v !== b.dataset.ag);
+  document.getElementById("agperiod").textContent = PERIOD[b.dataset.ag];
+});
 
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) document.querySelectorAll(".nav a").forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id)); }), { rootMargin: "-30% 0px -65% 0px" });
 document.querySelectorAll(".ds").forEach(s => io.observe(s));

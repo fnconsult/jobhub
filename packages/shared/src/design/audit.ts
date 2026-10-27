@@ -1,8 +1,13 @@
-import type { DesignTokens } from "./tokens";
+import type { Density, DesignTokens, Theme } from "./tokens";
 
-export const MIN_BODY_TEXT_PX = 16;
+/** The smallest body and metadata text of each Density, in px at the « small » text size (ADR-0009 and its amendments). */
+export const DENSITY_FLOORS: Record<Density, { body: number; meta: number }> = {
+  confort: { body: 16, meta: 13 },
+  compact: { body: 14, meta: 12.5 },
+};
+export const MIN_BODY_TEXT_PX = DENSITY_FLOORS.confort.body;
 /** Metadata text may be smaller than body text, never below this (ADR-0009 amendment, #317). */
-export const MIN_META_TEXT_PX = 13;
+export const MIN_META_TEXT_PX = DENSITY_FLOORS.confort.meta;
 export const AA_TEXT_CONTRAST = 4.5;
 export const AA_NON_TEXT_CONTRAST = 3;
 
@@ -10,13 +15,18 @@ export type AccessibilityViolation = {
   rule: "contrast" | "min-body-size";
   token: string;
   detail: string;
+  theme?: Theme;
+  density?: Density;
 };
 
 type ColorToken = keyof DesignTokens["color"];
 
-/** Colours text may take: each is audited at AA on every surface (onAccent on accent). */
-export const TEXT_COLORS: ColorToken[] = ["text", "textSecondary", "textMeta", "accent", "danger", "success"];
-const SURFACES: ColorToken[] = ["background", "surface", "surfaceHover", "dangerSurface"];
+/** Colours text may take: each is audited at AA on every surface, in both themes (onAccent on the accent). */
+export const TEXT_COLORS: ColorToken[] = ["text", "secondary", "meta", "accent", "success", "warn", "danger"];
+const SURFACES: ColorToken[] = ["background", "canvas", "nav", "surface", "hover", "accentSoft", "successSoft", "warnSoft", "dangerSoft"];
+/** Graphics that carry meaning (the focus ring, chart series): 3:1 against the background (WCAG 1.4.11). */
+const GRAPHICS: ColorToken[] = ["accent", "chart1", "chart2"];
+const THEMES: Theme[] = ["light", "dark"];
 
 function channel(hex: string, offset: number): number {
   const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
@@ -37,45 +47,49 @@ export function contrastRatio(foreground: string, background: string): number {
 }
 
 /**
- * Checks design tokens against ADR-0009: AA contrast for every text colour on
- * every surface, 3:1 for the focus ring, and no type size (at any text-size
- * setting) below 16px. Returns an empty list when the tokens comply.
+ * Checks design tokens against ADR-0009 and ADR-0053, in the light and the dark theme: AA contrast for every text
+ * colour on every surface, onAccent on the accent at rest and on hover, 3:1 for the graphics; and in each Density,
+ * no type size below its body floor nor metadata below its metadata floor (Confort 16 / 13px, Compact 14 / 12.5px),
+ * and no text-size setting that takes Confort body text under 16px. Returns an empty list when the tokens comply.
  */
 export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[] {
   const violations: AccessibilityViolation[] = [];
-  const { color } = tokens;
 
-  const requireContrast = (token: ColorToken, on: ColorToken, minimum: number) => {
-    const ratio = contrastRatio(color[token], color[on]);
-    if (ratio < minimum) {
-      violations.push({
-        rule: "contrast",
-        token,
-        detail: `${token} on ${on} is ${ratio.toFixed(2)}:1, needs ${minimum}:1`,
-      });
+  for (const theme of THEMES) {
+    const color = (token: ColorToken) => tokens.color[token][theme];
+    const requireContrast = (token: ColorToken, on: ColorToken, minimum: number) => {
+      const ratio = contrastRatio(color(token), color(on));
+      if (ratio < minimum) {
+        violations.push({ rule: "contrast", token, theme, detail: `${token} on ${on} (${theme}) is ${ratio.toFixed(2)}:1, needs ${minimum}:1` });
+      }
+    };
+    for (const text of TEXT_COLORS) {
+      for (const surface of SURFACES) requireContrast(text, surface, AA_TEXT_CONTRAST);
     }
-  };
-
-  for (const text of TEXT_COLORS) {
-    for (const surface of SURFACES) requireContrast(text, surface, AA_TEXT_CONTRAST);
+    requireContrast("onAccent", "accent", AA_TEXT_CONTRAST);
+    requireContrast("onAccent", "accentHover", AA_TEXT_CONTRAST);
+    for (const graphic of GRAPHICS) requireContrast(graphic, "background", AA_NON_TEXT_CONTRAST);
   }
-  requireContrast("onAccent", "accent", AA_TEXT_CONTRAST);
-  requireContrast("focusRing", "background", AA_NON_TEXT_CONTRAST);
 
-  for (const [name, px] of Object.entries(tokens.fontSize)) {
-    if (px < MIN_BODY_TEXT_PX) {
-      violations.push({ rule: "min-body-size", token: name, detail: `${name} is ${px}px, needs ${MIN_BODY_TEXT_PX}px` });
+  for (const [density, floor] of Object.entries(DENSITY_FLOORS) as [Density, (typeof DENSITY_FLOORS)[Density]][]) {
+    const { fontSize, metaFontSize } = tokens.density[density];
+    for (const [name, px] of Object.entries(fontSize)) {
+      if (px < floor.body) {
+        violations.push({ rule: "min-body-size", token: name, density, detail: `${name} is ${px}px in ${density}, needs ${floor.body}px` });
+      }
+    }
+    if (metaFontSize < floor.meta) {
+      violations.push({ rule: "min-body-size", token: "metaFontSize", density, detail: `metadata is ${metaFontSize}px in ${density}, needs ${floor.meta}px` });
     }
   }
-  if (tokens.metaFontSize < MIN_META_TEXT_PX) {
-    violations.push({ rule: "min-body-size", token: "metaFontSize", detail: `metadata is ${tokens.metaFontSize}px, needs ${MIN_META_TEXT_PX}px` });
-  }
+
   for (const [setting, factor] of Object.entries(tokens.textSize)) {
-    const px = tokens.fontSize.body * factor;
+    const px = tokens.density.confort.fontSize.body * factor;
     if (px < MIN_BODY_TEXT_PX) {
       violations.push({
         rule: "min-body-size",
         token: `textSize.${setting}`,
+        density: "confort",
         detail: `body text at "${setting}" is ${px}px, needs ${MIN_BODY_TEXT_PX}px`,
       });
     }

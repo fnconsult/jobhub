@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { auditStylesheet, designTokens, renderDesignCss } from "../../packages/shared/src/design";
+import { auditStylesheet } from "../../packages/shared/src/design";
 
 // The clickable prototype of the Notion-like layout (#132), published as an artifact.
 const html = readFileSync(new URL("./notion-layout.html", import.meta.url), "utf8");
@@ -15,9 +15,9 @@ const visibleText = (markup: string) =>
     .trim();
 
 describe("Notion-like layout prototype", () => {
-  it("styles itself with the design tokens, unchanged", () => {
+  it("keeps the Notion look's tokens it was drawn with, a frozen record of #132 since ADR-0053 (#461)", () => {
     const tokens = styles.find((s) => s.attrs.includes('id="design-tokens"'));
-    expect(tokens?.css.trim()).toBe(renderDesignCss(designTokens).trim());
+    expect(tokens?.css).toContain("--color-text: #37352f;");
   });
 
   it("stays on the ADR-0009 floor in every stylesheet", () => {

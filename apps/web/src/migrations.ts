@@ -19,6 +19,7 @@ import { importedPlaybooks } from "./coaching-playbooks/import";
 import { migrateCoachingPlaybooks } from "./coaching-playbooks/index";
 import { migrateCoachMemory } from "./coach-memory/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
+import { migrateDiscoveryRuns } from "./discovery-runs/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateEvals } from "./evals/index";
@@ -69,6 +70,7 @@ export async function migrateDatabase(
     ["Plans and Plan Quotas are up to date", () => migrateBilling(database)],
     ["Job Searches are up to date", () => migrateJobSearches(database)],
     ["Job Digests are up to date", () => migrateJobDigests(database)],
+    ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],

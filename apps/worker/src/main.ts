@@ -3,6 +3,7 @@ import { createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets } fr
 import { createApplications } from "@jobhub/web/applications";
 import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
+import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
@@ -119,6 +120,7 @@ const jobs = createJobs({
   profiles,
   // A failed Job Search gives its Plan Quota use back. Releasing needs no Stripe, only the quota table.
   jobSearches: createJobSearchReports(database, { quotas: billing }),
+  discoveryRuns: createDiscoveryRuns(database),
   // Without an AI key the AI call fails and the Follow-up falls back to its template.
   followUps: followUpsFromEnv(database, process.env, worker.ai, mailer),
   jobDigests: createJobDigests(database, {

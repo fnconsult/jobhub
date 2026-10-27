@@ -147,6 +147,18 @@ describe("web search", () => {
     expect(perplexity.queries[0]).toBe("Offre d'emploi « DAF appelez le » à Paris");
   });
 
+  it("says which query texts it sent, as sent: redacted, for the run that recorded them (#404)", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog() });
+
+    const result = await ai.searchWeb({
+      candidateId: "cand-1",
+      criteria: { targetRole: "DAF jean.dupont@mail.fr", locations: ["Paris"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+    });
+
+    expect(result.queries).toEqual(["Offre d'emploi « DAF » à Paris"]);
+  });
+
   it("refuses to use the search-only provider for text tasks", () => {
     const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });
     const searchOnly = { ...perplexity, generate: undefined };

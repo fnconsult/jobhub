@@ -201,4 +201,11 @@ describe("Back Office access", () => {
       expect(backOfficeAccess([role]).can("evalRuns", "write"), role).toBe(false);
     }
   });
+
+  it("super-admins, Technique and Support read Activité › Recherches; only super-admins open the Job Search behind a run (#404)", () => {
+    for (const role of ["super-admin", "platform-manager", "support"] as const) expect(backOfficeAccess([role]).can("discoveryRuns", "read"), role).toBe(true);
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor", "help-editor"] as const) expect(backOfficeAccess([role]).can("discoveryRuns", "read"), role).toBe(false);
+    expect(backOfficeAccess(["super-admin"]).can("jobSearches", "read")).toBe(true);
+    for (const role of ["platform-manager", "support"] as const) expect(backOfficeAccess([role]).can("jobSearches", "read"), role).toBe(false);
+  });
 });

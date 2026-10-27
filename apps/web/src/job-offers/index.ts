@@ -73,7 +73,8 @@ export type FieldsFromText = Pick<
 /** What `fillFromText` and `summarize` are given by their reading: the fields read, and the Provenance of that reading. */
 export type TextReading = FieldsFromText & { provenance?: Provenance };
 
-export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer } | { ok: false; errors: FieldError[] };
+/** `created`: stored just now, not found already stored (a Job discovery run's new Job Offers, #404). */
+export type CaptureJobOfferResult = { ok: true; jobOffer: JobOffer; created: boolean } | { ok: false; errors: FieldError[] };
 
 /** Who captured a posting: a signed-in Candidate, or a Guest (no account). */
 export type Captor = "candidate" | "guest";
@@ -384,7 +385,7 @@ export function createJobOffers(database: Pool): JobOffers {
           trusted.spontaneous === true,
         ],
       );
-      if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]) };
+      if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]), created: true };
 
       // Already captured: the same URL first, else the same text.
       const existing = await database.query<JobOfferRow>(
@@ -423,7 +424,7 @@ export function createJobOffers(database: Pool): JobOffers {
           row.subsector = subsector ?? null;
         }
       }
-      return { ok: true, jobOffer: jobOfferFrom(row) };
+      return { ok: true, jobOffer: jobOfferFrom(row), created: false };
     },
 
     async keepForCandidate(id) {

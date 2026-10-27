@@ -115,17 +115,38 @@ export const routes = {
   adminSignInProviders: "/admin/parametres?tab=connexion",
   /** The AI consumption report (Consommation IA), over a period ("7d", "2026-09"...): super-admins and Support. */
   adminAiUsage: (period?: string) => (period ? `/admin/consommation-ia?periode=${encodeURIComponent(period)}` : "/admin/consommation-ia"),
-  /** The AI Message Log (Journaux IA): the list, filtered, or one log; super-admins only, every log read is audited. */
+  /**
+   * Back Office Activity (« Activité », #404, ADR-0042): one page, a tab each for Recherches (the Job discovery runs),
+   * Appels IA (the AI Message Log) and Actions des administrateurs (the Back Office Audit). Its own address opens the
+   * first tab the Administrator may read.
+   */
+  adminActivity: "/admin/activite",
+  /** Recherches: every Job discovery run, filtered (`declencheur`, `periode`, `secours`), and one run's panel (`run`); super-admins, Technique and Support. */
+  adminDiscoveryRuns: (filter: { trigger?: string; period?: string; fallback?: boolean; run?: string } = {}) => {
+    const query = new URLSearchParams({
+      ...(filter.trigger ? { declencheur: filter.trigger } : {}),
+      ...(filter.period ? { periode: filter.period } : {}),
+      ...(filter.fallback ? { secours: "1" } : {}),
+      ...(filter.run ? { run: filter.run } : {}),
+    }).toString();
+    return `/admin/activite/recherches${query ? `?${query}` : ""}`;
+  },
+  /** The Job Search behind a run: super-admins only, each opening written to the Back Office Audit. */
+  adminDiscoveryRunJobSearch: (runId: string) => `/admin/activite/recherches/${encodeURIComponent(runId)}/recherche`,
+  /** Appels IA (the AI Message Log, formerly Journaux IA): the list, filtered, or one call; super-admins only, every call opened is audited. */
   adminAiMessages: (filter?: Record<string, string>) => {
     const query = new URLSearchParams(Object.entries(filter ?? {}).filter(([, value]) => value)).toString();
-    return query ? `/admin/journaux-ia?${query}` : "/admin/journaux-ia";
+    return query ? `/admin/activite/appels-ia?${query}` : "/admin/activite/appels-ia";
   },
-  adminAiMessage: (id: string) => `/admin/journaux-ia/${encodeURIComponent(id)}`,
+  adminAiMessage: (id: string) => `/admin/activite/appels-ia/${encodeURIComponent(id)}`,
   /** Administrators and their Back Office Roles. */
   adminAdministrators: "/admin/administrateurs",
-  /** The Back Office Audit, newest first; with a section, only its changes; with an Outcome, only the succeeded or the failed. */
-  adminJournal: (filter: { section?: string; outcome?: string } = {}) => {
+  /**
+   * Actions des administrateurs (the Back Office Audit, formerly Journal), newest first; with a section, only its changes;
+   * with an Outcome, only the succeeded or the failed.
+   */
+  adminAudit: (filter: { section?: string; outcome?: string } = {}) => {
     const query = new URLSearchParams(Object.entries(filter).filter((entry): entry is [string, string] => Boolean(entry[1]))).toString();
-    return query ? `/admin/journal?${query}` : "/admin/journal";
+    return query ? `/admin/activite/actions?${query}` : "/admin/activite/actions";
   },
 } as const;

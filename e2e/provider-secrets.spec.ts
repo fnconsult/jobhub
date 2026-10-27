@@ -124,7 +124,7 @@ test.describe("Provider Secrets (on a provider's sheet in Paramètres)", () => {
 
     // Only the failures, still of this section; each one's technical detail on demand.
     await page.getByRole("navigation", { name: admin.journal.outcomeFilter }).getByRole("link", { name: admin.journal.outcomeFilters.failed }).click();
-    await expect(page).toHaveURL(/\/admin\/journal\?section=provider_secrets&outcome=failed$/);
+    await expect(page).toHaveURL(/\/admin\/activite\/actions\?section=provider_secrets&outcome=failed$/);
     await expect(entries).toHaveCount(2);
     const detail = entries.nth(1).locator("details");
     await expect(detail.getByText(admin.journal.technical.status)).toBeHidden();

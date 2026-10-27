@@ -59,7 +59,18 @@ interface Ats {
   apiUrl(url: URL): string | null;
   /** The posting, or null when the answer does not hold it. */
   read(data: unknown, url: URL): AtsPosting | null;
+  /** The company board a posting or board URL is on (its hosted page), or null when `url` is not on this ATS. */
+  board(url: URL): string | null;
+  /** The API URL listing every posting of the board `board` (as `board` gives it). */
+  boardApiUrl(board: URL): string;
+  /** The postings of a board's API answer, each at its own address, unlisted ones left out. */
+  readBoard(data: unknown): { url: string; posting: AtsPosting }[];
 }
+
+/** The first path segment of `url`: an ATS board's name ("acme" in jobs.lever.co/acme/…), or null. */
+const boardName = (url: URL) => /^\/([^/?#]+)/.exec(url.pathname)?.[1] ?? null;
+/** Path segments that are an ATS's own pages, never a company's board. */
+const NOT_BOARDS = new Set(["embed", "api", "v1", "v0", "jobs", "careers"]);
 
 const greenhouse: Ats = {
   tool: "greenhouse",
@@ -82,6 +93,21 @@ const greenhouse: Ats = {
     const postedAt = date(data.first_published);
     if (postedAt) details.postedAt = postedAt;
     return { details, closesAt: date(data.application_deadline) };
+  },
+  board(url) {
+    const name = /^(job-)?boards\.greenhouse\.io$/i.test(url.hostname) ? boardName(url) : null;
+    return name && !NOT_BOARDS.has(name.toLowerCase()) ? `https://job-boards.greenhouse.io/${name}` : null;
+  },
+  boardApiUrl(board) {
+    return `https://boards-api.greenhouse.io/v1/boards/${boardName(board)}/jobs?content=true`;
+  },
+  readBoard(data) {
+    const jobs = isObject(data) && Array.isArray(data.jobs) ? data.jobs.filter(isObject) : [];
+    return jobs.flatMap((job) => {
+      const url = str(job.absolute_url);
+      const posting = url && URL.canParse(url) ? greenhouse.read(job, new URL(url)) : null;
+      return url && posting ? [{ url, posting }] : [];
+    });
   },
 };
 
@@ -136,6 +162,23 @@ const lever: Ats = {
     if (postedAt) details.postedAt = postedAt;
     return { details };
   },
+  board(url) {
+    const host = /^jobs\.(eu\.)?lever\.co$/i.exec(url.hostname);
+    const name = host ? boardName(url) : null;
+    return name && !NOT_BOARDS.has(name.toLowerCase()) ? `https://jobs.${host![1] ?? ""}lever.co/${name}` : null;
+  },
+  boardApiUrl(board) {
+    const eu = /^jobs\.eu\./i.test(board.hostname) ? "eu." : "";
+    return `https://api.${eu}lever.co/v0/postings/${boardName(board)}?mode=json`;
+  },
+  readBoard(data) {
+    const postings = Array.isArray(data) ? data.filter(isObject) : [];
+    return postings.flatMap((item) => {
+      const url = str(item.hostedUrl);
+      const posting = url && URL.canParse(url) ? lever.read(item, new URL(url)) : null;
+      return url && posting ? [{ url, posting }] : [];
+    });
+  },
 };
 
 /**
@@ -152,22 +195,44 @@ const ashby: Ats = {
   },
   read(data, url) {
     const id = /^\/[^/]+\/([0-9a-f-]{36})/i.exec(url.pathname)?.[1]?.toLowerCase();
-    const jobs = isObject(data) && Array.isArray(data.jobs) ? data.jobs.filter(isObject) : [];
-    const job = jobs.find((candidate) => typeof candidate.id === "string" && candidate.id.toLowerCase() === id);
-    if (!job) return null;
-    const title = str(job.title);
-    const content = str(job.descriptionPlain) ?? (typeof job.descriptionHtml === "string" ? htmlToText(job.descriptionHtml) : undefined);
-    if (!title || !content) return null;
-    const details: JobOfferDetails = { title, content };
-    const location = str(job.location);
-    if (location) details.location = location;
-    const remote = remoteWork(job.workplaceType) ?? (job.isRemote === true ? "full_remote" : undefined);
-    if (remote) details.remoteWork = remote;
-    const postedAt = date(job.publishedAt);
-    if (postedAt) details.postedAt = postedAt;
-    return { details };
+    const job = ashbyJobs(data).find((candidate) => typeof candidate.id === "string" && candidate.id.toLowerCase() === id);
+    return job ? readAshbyJob(job) : null;
+  },
+  board(url) {
+    const name = url.hostname.toLowerCase() === "jobs.ashbyhq.com" ? boardName(url) : null;
+    return name && !NOT_BOARDS.has(name.toLowerCase()) ? `https://jobs.ashbyhq.com/${name}` : null;
+  },
+  boardApiUrl(board) {
+    return `https://api.ashbyhq.com/posting-api/job-board/${boardName(board)}`;
+  },
+  readBoard(data) {
+    return ashbyJobs(data)
+      .filter((job) => job.isListed !== false)
+      .flatMap((job) => {
+        const url = str(job.jobUrl);
+        const posting = url ? readAshbyJob(job) : null;
+        return url && posting ? [{ url, posting }] : [];
+      });
   },
 };
+
+/** The jobs of an Ashby board answer. */
+const ashbyJobs = (data: unknown): Json[] => (isObject(data) && Array.isArray(data.jobs) ? data.jobs.filter(isObject) : []);
+
+/** One job of an Ashby board, or null without a title or a description. */
+function readAshbyJob(job: Json): AtsPosting | null {
+  const title = str(job.title);
+  const content = str(job.descriptionPlain) ?? (typeof job.descriptionHtml === "string" ? htmlToText(job.descriptionHtml) : undefined);
+  if (!title || !content) return null;
+  const details: JobOfferDetails = { title, content };
+  const location = str(job.location);
+  if (location) details.location = location;
+  const remote = remoteWork(job.workplaceType) ?? (job.isRemote === true ? "full_remote" : undefined);
+  if (remote) details.remoteWork = remote;
+  const postedAt = date(job.publishedAt);
+  if (postedAt) details.postedAt = postedAt;
+  return { details };
+}
 
 const ATS: readonly Ats[] = [greenhouse, lever, ashby];
 
@@ -204,4 +269,46 @@ export async function readAtsPosting(address: string, options: AtsReadOptions): 
     return { ok: true, details: posting.details };
   }
   return null;
+}
+
+/** The company board (its hosted page: job-boards.greenhouse.io/acme, jobs.lever.co/acme, jobs.ashbyhq.com/acme) `address` is on, or null. */
+export function atsBoardOf(address: string): string | null {
+  if (!URL.canParse(address)) return null;
+  const url = new URL(address);
+  for (const ats of ATS) {
+    const board = ats.board(url);
+    if (board) return board;
+  }
+  return null;
+}
+
+/** The ATS (a Tool) whose board `address` is, or null when it is no board on Greenhouse, Lever or Ashby. */
+export function atsBoardToolOf(address: string): Ats["tool"] | null {
+  if (!URL.canParse(address)) return null;
+  const url = new URL(address);
+  return ATS.find((ats) => ats.board(url) !== null)?.tool ?? null;
+}
+
+export type AtsBoardReading =
+  | { ok: true; tool: Ats["tool"]; postings: { url: string; details: JobOfferDetails }[] }
+  | { ok: false; reason: "gone" | Extract<RefusalReason, "bot_protection"> };
+
+/**
+ * Every open posting of a company's board on Greenhouse, Lever or Ashby (a Target Company's careers site, #406),
+ * through that ATS's public JSON API: those closed, past their deadline or first published more than
+ * MAX_POSTING_AGE_DAYS ago left out, each at its own address. Null when `board` is no such board, or its API
+ * could not be read (down, too large, not JSON, kept out by robots.txt); `gone` when the board is no more.
+ */
+export async function readAtsBoard(board: string, options: AtsReadOptions): Promise<AtsBoardReading | null> {
+  const address = atsBoardOf(board);
+  if (!address) return null;
+  const url = new URL(address);
+  const ats = ATS.find((each) => each.board(url) !== null)!;
+  const answer = await options.fetchJson(ats.boardApiUrl(url));
+  if (!answer.ok) return answer.reason === "gone" || answer.reason === "bot_protection" ? { ok: false, reason: answer.reason } : null;
+  const postings = ats
+    .readBoard(answer.data)
+    .filter(({ posting }) => !(posting.closesAt && posting.closesAt < options.now) && !isPostingTooOld(posting.details.postedAt, options.now))
+    .map(({ url: postingUrl, posting }) => ({ url: postingUrl, details: posting.details }));
+  return { ok: true, tool: ats.tool, postings };
 }

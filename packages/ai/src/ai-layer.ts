@@ -1,6 +1,6 @@
 import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type Outcome, type SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
-import { buildCompanyQuery, buildSearchQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery, buildTargetCompanyQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
@@ -147,6 +147,12 @@ export interface SearchRequest {
   location?: string;
   /** The NAF labels the Search Criteria's Sectors are named by (#236); without them, none is named. */
   industries?: IndustryReference;
+  /**
+   * A Target Company's name (#406): the search is then `query`'s job title and that name alone (« title + company »),
+   * nothing else of the Search Criteria, to find that company's postings. A company's name only, as the company register
+   * lists it: never a sole trader's, a private person's (ADR-0007, #406 amendment).
+   */
+  employer?: string;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
   warnings?: AiWarning[];
   /** Stops the search (see `GenerateRequest.signal`). */
@@ -856,7 +862,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       const location = request.location ?? request.criteria.locations[0];
       return search({
         candidateId: request.candidateId,
-        queries: (request.queries ?? [request.query]).map((query) => buildSearchQuery(request.criteria, query, location, request.industries)),
+        queries:
+          request.employer !== undefined
+            ? [buildTargetCompanyQuery(request.query, request.employer)]
+            : (request.queries ?? [request.query]).map((query) => buildSearchQuery(request.criteria, query, location, request.industries)),
         ...(request.filters ? { filters: request.filters } : {}),
         ...(request.page ? { page: request.page } : {}),
         ...(request.run ? { run: request.run } : {}),

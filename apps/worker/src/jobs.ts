@@ -274,7 +274,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const stop = jobSearchId ? watchStop(() => deps.jobSearches.stopRequested(jobSearchId), deps.stopCheckMs ?? STOP_CHECK_MS) : null;
         let report;
         try {
-          report = await discovery.discover({ candidateId: target.candidateId, criteria: profile.searchCriteria, onEvent: progress?.onEvent, signal: stop?.signal });
+          report = await discovery.discover({ candidateId: target.candidateId, profileId: target.profileId, criteria: profile.searchCriteria, onEvent: progress?.onEvent, signal: stop?.signal });
         } catch (error) {
           stop?.end();
           // The Candidate is waiting for this Job Search: say it failed rather than retry it later.
@@ -304,7 +304,7 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           .filter(([, count]) => count > 0)
           .map(([reason, count]) => `${reason}: ${count}`)
           .join(", ");
-        const { franceTravail, fantasticJobs, searchFallback } = report;
+        const { franceTravail, fantasticJobs, searchFallback, targetCompanies } = report;
         log(
           `[job-discovery] profile ${target.profileId}: ${report.jobOffers.length} Job Offer(s), ` +
             `${report.skipped.length} page(s) skipped${detail ? ` (${detail})` : ""}` +
@@ -314,7 +314,10 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             (fantasticJobs.status === "off"
               ? ""
               : `, Fantastic.jobs ${fantasticJobs.status} (${fantasticJobs.offers} Job Offer(s), ${fantasticJobs.calls} call(s), €${fantasticJobs.costEur})`) +
-            (searchFallback ? `, web search fell back from ${searchFallback.from} to ${searchFallback.to} (${searchFallback.reason})` : ""),
+            (searchFallback ? `, web search fell back from ${searchFallback.from} to ${searchFallback.to} (${searchFallback.reason})` : "") +
+            (targetCompanies.visited > 0 || targetCompanies.laBonneBoite !== "off"
+              ? `, Target Companies: ${targetCompanies.visited} visited (${targetCompanies.offers} Job Offer(s)), La Bonne Boite ${targetCompanies.laBonneBoite} (${targetCompanies.calls} call(s))`
+              : ""),
         );
       },
     },

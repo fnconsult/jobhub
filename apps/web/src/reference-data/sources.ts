@@ -4,6 +4,7 @@
  *
  *   fetchNaf(fetch)          NAF rév. 2 sections and divisions, French and English, from INSEE's SPARQL endpoint
  *   fetchRomeDomains(fetch)  ROME 4.0 professional domains, French only, from France Travail's open data archive
+ *   fetchRomeJobs(fetch)     ROME 4.0 jobs (code → label), from the same archive: what Job discovery's ROME table is checked against (#406)
  *
  * Each throws when its source does not answer what it should, so the labels kept stay as they were.
  */
@@ -87,4 +88,22 @@ export async function fetchRomeDomains(fetch: typeof globalThis.fetch): Promise<
   const versionFile = zipEntry(archive, (name) => /(^|\/)version\.txt$/.test(name));
   const version = versionFile ? /version\s*:\s*(\d+)/i.exec(decoded(versionFile))?.[1] : undefined;
   return version ? { domains, version: `ROME 4.0 v${version}` } : { domains };
+}
+
+/** ROME 4.0's jobs ("M1205" → its label), from the archive's code list; and the ROME version. Each job once, by its own code. */
+export async function fetchRomeJobs(fetch: typeof globalThis.fetch): Promise<{ jobs: Map<string, string>; version?: string }> {
+  const archive = new Uint8Array(await (await download(fetch, ROME_OPEN_DATA_URL, "application/zip, application/octet-stream")).arrayBuffer());
+  const list = zipEntry(archive, (name) => /referentiel_code_rome[^/]*\.json$/.test(name));
+  if (!list) throw new Error("the ROME archive holds no job code list");
+  const parsed: unknown = JSON.parse(decoded(list));
+  const jobs = new Map<string, string>();
+  for (const job of (Array.isArray(parsed) ? parsed : []).filter(isObject)) {
+    const [code, label] = [text(job.code_rome), text(job.libelle)];
+    // A job's variants carry their parent's code: the job itself is the one whose parent is itself (or that has none).
+    if (code && label && /^[A-Z]\d{4}$/.test(code) && (job.code_rome_parent === undefined || job.code_rome_parent === null || job.code_rome_parent === code) && !jobs.has(code)) jobs.set(code, label);
+  }
+  if (jobs.size === 0) throw new Error("the ROME code list holds no job");
+  const versionFile = zipEntry(archive, (name) => /(^|\/)version\.txt$/.test(name));
+  const version = versionFile ? /version\s*:\s*(\d+)/i.exec(decoded(versionFile))?.[1] : undefined;
+  return version ? { jobs, version: `ROME 4.0 v${version}` } : { jobs };
 }

@@ -270,6 +270,7 @@ function freshnessSite(url) {
 //  - "ok": a token, then E2E_DISCOVERY_FT_COUNT offers (as many as the request's `range` allows), each created 2 days ago;
 //  - "search-refused": a token, then HTTP 403 on the search; "token-refused": HTTP 401 on the token endpoint;
 //  - "failed": a token, then HTTP 500 on the search.
+// La Bonne Boite and ROMEO, which a run asks for its Target Companies (#406), answer no company and no ROME code.
 // The offers' public pages (candidat.francetravail.fr) are never part of the fake web: they must never be requested.
 const ftMode = process.env.E2E_DISCOVERY_FT ?? "";
 const ftCount = Number(process.env.E2E_DISCOVERY_FT_COUNT ?? 3);
@@ -292,6 +293,9 @@ function franceTravailSite(url) {
     return json({ access_token: `ft-token-${tag}`, token_type: "Bearer", expires_in: 1499, scope: "api_offresdemploiv2 o2dsoffre" });
   }
   if (url.hostname === "api.francetravail.io") {
+    // La Bonne Boite and ROMEO, asked for the Target Companies (#406): no company, no ROME code.
+    if (url.pathname.startsWith("/partenaire/labonneboite/")) return json({ hits: 0, items: [] });
+    if (url.pathname.startsWith("/partenaire/romeo/")) return json([]);
     if (ftMode === "search-refused") return json({ message: "forbidden" }, 403);
     if (ftMode === "failed") return json({ message: "boom" }, 500);
     const end = Number(/^0-(\d+)$/.exec(url.searchParams.get("range") ?? "")?.[1] ?? 14);

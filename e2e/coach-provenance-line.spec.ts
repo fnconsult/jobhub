@@ -58,8 +58,8 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     // No cost, prompt, AI task, Playbook Agent or internal id.
     const shown = await line.innerText();
     expect(shown).not.toMatch(/€|eur|coaching|guardrail|playbook|mistral-large-latest|[0-9a-f]{8}-[0-9a-f]{4}-/i);
-    // Its words are metadata: 0.8125rem (13px at the standard size, 16px root) in #6b6a67.
-    expect(await line.evaluate((element) => getComputedStyle(element).color)).toBe("rgb(107, 106, 103)");
+    // Its words are metadata: 0.8125rem (13px at the standard size, 16px root) in the metadata colour (#686978).
+    expect(await line.evaluate((element) => getComputedStyle(element).color)).toBe("rgb(104, 105, 120)");
     expect(await line.evaluate((element) => parseFloat(getComputedStyle(element).fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeCloseTo(0.8125, 4);
 
     // No author is shown; screen readers hear both.

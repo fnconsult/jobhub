@@ -2,11 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-
-interface ForwardingAddress {
-  address: string;
-  activatedAt: Date;
-}
+import type { ForwardingAddress } from "@/email-intake";
 
 /** What waits for the Candidate's confirmation: both stop the address in use at once. */
 type Pending = "replace" | "switchOff" | null;

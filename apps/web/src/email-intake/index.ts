@@ -3,7 +3,8 @@
  * Jobbbox gives them to forward their offer emails to. Switching Email intake on gives one and
  * records the date; replacing it or switching Email intake off stops the old one at once, and the
  * inbound route's lookup (`candidateAt`) no longer knows it. A stopped address is kept, marked
- * replaced or off, so it is never given again, to anyone.
+ * replaced or off, so it is not given again while the account lasts; once the account is deleted
+ * (its rows cascade away), only the 80 random bits of the local part keep it from coming back.
  *
  * Also the Candidate's own sending addresses (#437): their account's and those they add, from
  * which an email they forward by hand is theirs to read.

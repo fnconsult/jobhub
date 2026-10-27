@@ -39,6 +39,7 @@ import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateTargetCompanies } from "./target-companies/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
+import { migrateWebSearchAlerts } from "./web-search-alert/index";
 
 /**
  * Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date").
@@ -81,6 +82,7 @@ export async function migrateDatabase(
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
+    ["Web search alerts are up to date", () => migrateWebSearchAlerts(database)],
     ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env))],
     ["Guardrails are up to date", () => migrateGuardrails(database)],
     ["Eval Cases and Eval Runs are up to date", () => migrateEvals(database)],

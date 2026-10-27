@@ -1,4 +1,5 @@
 import { createAiLayer, endpointFor, type AiLayer, type Route } from "./ai-layer";
+import { pricesFromEnv } from "./cost";
 import { AiConfigError } from "./errors";
 import { createAnthropicProvider, type AnthropicEndpoint } from "./providers/anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./providers/chat-completions";
@@ -433,6 +434,8 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     euAiConsent: deps.euAiConsent,
     identityOf: deps.identityOf,
     unconfigured,
+    // The billed units' prices and the EUR/USD rate in use (#403): a price overridden on a Tool's sheet is recorded from the next call.
+    prices: pricesFromEnv(env),
     usage: deps.usage ?? createConsoleUsageLog(),
   });
 }

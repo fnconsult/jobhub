@@ -3,7 +3,7 @@ import { getAiUsageLog } from "@/ai-usage/server";
 import { candidateIdentityOf } from "@/candidate-identity";
 import { sharedPool } from "@/database/pool";
 import { getEuAiConsents } from "@/eu-ai-consent/server";
-import { AI_ROUTING_NAMES, withPlatformSettings } from "@/platform-settings/ai-routing";
+import { AI_LAYER_SETTING_NAMES, withPlatformSettings } from "@/platform-settings/ai-routing";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { AI_SECRET_NAMES } from "@/provider-secrets/catalog";
 import { liveObject } from "@/provider-secrets/resolver";
@@ -14,7 +14,7 @@ let instance: AiLayer | undefined;
 /**
  * The app's AI layer (ADR-0007), configured from the environment with the Provider
  * Secrets and the AI routing Platform Settings over it (ADR-0033), and rebuilt when one
- * of its keys is replaced in the Back Office, or its routing changed on Paramètres (#301).
+ * of its keys is replaced in the Back Office, or its routing (#301) or a price (#403) changed on Paramètres.
  * A Candidate's identity-bearing calls go to Mistral once they gave EU AI consent.
  * Every call is redacted before it leaves: what their account and latest Master CV say
  * of their identity, and every email and phone number (ADR-0007).
@@ -22,7 +22,7 @@ let instance: AiLayer | undefined;
  * A text task routed to a provider whose key is missing fails its calls as key_missing; the others work.
  */
 export function getAi(): AiLayer {
-  instance ??= liveObject(withPlatformSettings(getSecretResolver(), getPlatformSettingsResolver()), [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES], (env) =>
+  instance ??= liveObject(withPlatformSettings(getSecretResolver(), getPlatformSettingsResolver()), [...AI_SECRET_NAMES, ...AI_LAYER_SETTING_NAMES], (env) =>
     createAiLayerFromEnv(env, {
       euAiConsent: (candidateId) => getEuAiConsents().has(candidateId),
       identityOf: candidateIdentityOf(sharedPool()),

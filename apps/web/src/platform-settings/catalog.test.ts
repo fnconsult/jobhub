@@ -42,10 +42,13 @@ const WEB_SEARCH = [
   "WEB_SEARCH_MONTHLY_ALERT_EUR",
 ];
 
+/** The prices of the Tools' billed units and the EUR/USD rate (#403), overridden on each Tool's sheet. */
+const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "BRAVE_SEARCH_PRICE_USD", "TAVILY_CREDIT_PRICE_USD", "EUR_PER_USD"];
+
 describe("the Platform Settings catalog", () => {
-  it("holds every Platform Setting of ADR-0033 and the web search's bounded settings, once each", () => {
+  it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -82,6 +85,19 @@ describe("the Platform Settings catalog", () => {
     expect(defaultOf("CONTACT_ENRICHMENT_PROVIDER")).toBe("");
     expect(defaultOf("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("false");
     expect(defaultOf("EXTENSION_STORE_URL")).toBe("");
+    // The list prices, in US dollars per billed unit, and € per US dollar (#403).
+    expect(defaultOf("PERPLEXITY_FAST_SEARCH_PRICE_USD")).toBe("0.001");
+    expect(defaultOf("TAVILY_CREDIT_PRICE_USD")).toBe("0.008");
+    expect(defaultOf("EUR_PER_USD")).toBe("0.86");
+  });
+
+  it("takes a price of 0 or more, and a EUR/USD rate above 0, editable on Paramètres (#403)", () => {
+    const price = platformSetting("BRAVE_SEARCH_PRICE_USD")!;
+    expect(isEditable(price)).toBe(true);
+    expect(parseSetting(price, "0")).toEqual({ ok: true, value: 0 });
+    expect(parseSetting(price, "0.0045")).toEqual({ ok: true, value: 0.0045 });
+    expect(parseSetting(price, "-1")).toMatchObject({ ok: false });
+    expect(parseSetting(platformSetting("EUR_PER_USD")!, "0")).toMatchObject({ ok: false });
   });
 
   it("gives the web search's bounded settings the defaults #386 decided", () => {

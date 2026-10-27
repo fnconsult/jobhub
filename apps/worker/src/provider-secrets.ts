@@ -11,15 +11,15 @@
  *   worker.fantasticJobs(); // Fantastic.jobs, or null without FANTASTIC_JOBS_API_KEY
  *   worker.mailer;          // BREVO_API_KEY or SMTP_URL (Brevo), and MAIL_FROM from the Platform Settings (#300)
  *
- * The AI layer is also rebuilt when an AI routing Platform Setting changes (`platformSettings`), so a provider, model or
- * endpoint set on Paramètres is used for the next call. A key refused by its provider (401/403, an SMTP 535, France Travail's or Fantastic.jobs' refusal) is
+ * The AI layer is also rebuilt when an AI routing Platform Setting or a price changes (`platformSettings`), so a provider, model,
+ * endpoint or price (#403) set on Paramètres is used for the next call. A key refused by its provider (401/403, an SMTP 535, France Travail's or Fantastic.jobs' refusal) is
  * read again from the database and the call made once more if it changed.
  */
 import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
 import { createFrenchRegister } from "@jobhub/web/company-register";
 import { liveMailer } from "@jobhub/web/mailers";
-import { AI_ROUTING_NAMES, createPlatformSettingsResolver, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
+import { AI_LAYER_SETTING_NAMES, createPlatformSettingsResolver, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
 import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
 import type { TargetCompanyStore } from "@jobhub/web/target-companies";
 import {
@@ -98,7 +98,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage, tolerateMissingKeys: true });
   // The AI layer's keys and its routing: rebuilt when one of either changes.
   const aiResolver = options.platformSettings ? withPlatformSettings(resolver, options.platformSettings) : resolver;
-  const aiNames = [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES];
+  const aiNames = [...AI_SECRET_NAMES, ...AI_LAYER_SETTING_NAMES];
   const ai = liveObject(aiResolver, aiNames, buildAi);
 
   const franceTravailConfigured = rebuilding(resolver, FRANCE_TRAVAIL_SECRET_NAMES, (env) => franceTravailFromEnv(env) !== null);

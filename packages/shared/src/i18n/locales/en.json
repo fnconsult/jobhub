@@ -200,6 +200,10 @@
     "link": "Link {{provider}} to my account",
     "failed": "Linking didn't go through. Check that this account uses the same email address as your Jobbbox account, then try again."
   },
+  "webSearchAlert": {
+    "subject": "Jobbbox: web search crossed its alert threshold for {{month}}",
+    "body": "Hello,\n\nWeb search cost {{spend}} in {{month}} (Paris time), past its monthly alert threshold of {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Nothing is cut: Job discovery and Company Dossiers keep searching.\n\nThis amount is estimated at the price in use of each billed unit (call, request, credit), with no provider's free credits taken off. Prices and the threshold are set on Paramètres' Recherche web tab.\n\nThe details are in Consommation IA:\n{{url}}\n\nYou will get no other alert this month.\n\nThe Jobbbox team"
+  },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
     "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings:\n{{url}}\n\nThe Jobbbox team",
@@ -1502,7 +1506,20 @@
         "noSettings": "No settings of its own.",
         "toolPage": "Its calls, failures and cost in Tools",
         "readOnlyKeys": "Only super-admins replace, clear or test a key.",
-        "notSecretHelp": "This key is not a back office key yet: it is set in the server's environment."
+        "notSecretHelp": "This key is not a back office key yet: it is set in the server's environment.",
+        "pricesTitle": "Prices",
+        "pricesIntro": "The price of each billed unit, in dollars, converted to euros at the EUR_PER_USD rate. By default the provider's list price; a price changed here applies from the next call, in Consommation IA as in a search's budget.",
+        "listPrice": "{{name}}: list price ${{price}} per {{unit}}, read on {{date}}",
+        "listPriceSource": "source",
+        "units": {
+          "call": "call",
+          "request": "request",
+          "credit": "credit",
+          "rate": "dollar"
+        },
+        "pricesCaption": "{{provider}}'s prices",
+        "unpriced_one": "Unknown price: {{count}} use over the last 30 days (counted 0).",
+        "unpriced_other": "Unknown price: {{count}} uses over the last 30 days (counted 0)."
       },
       "environment": {
         "why": "Why in the environment",
@@ -1800,6 +1817,12 @@
       "externalCost": "External APIs' cost",
       "totalCost": "Total cost",
       "unknownCost": "unknown",
+      "unknownPrice_one": "unknown price ({{count}} use, counted 0)",
+      "unknownPrice_other": "unknown price ({{count}} uses, counted 0)",
+      "alertBanner": "Web search reached its monthly alert threshold ({{threshold}}): {{spend}} in {{month}}. Nothing is cut.",
+      "alertEmailed": "Super-admins were emailed on {{at}}.",
+      "alertNotEmailedYet": "Super-admins will be emailed within minutes.",
+      "alertSettings": "Threshold and prices in Paramètres",
       "none": "No calls in this period.",
       "byModelTitle": "By provider, endpoint and model",
       "byModelCaption": "AI calls by provider, endpoint and model",

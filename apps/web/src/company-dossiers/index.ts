@@ -53,7 +53,7 @@
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
 import { AiConfigError, AiProviderError, createProvenanceRecorder, readCompanyFacts, WebSearchUnavailable, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
-import { taskSection } from "@jobhub/coach-knowledge/tasks";
+import { runsOnAgent } from "@jobhub/coach-knowledge/tasks";
 import { failureOf, isPersonPage, joinProvenance, provenanceLink, readProvenance, siteDomainOf, type FailureReason, type Provenance, type ProvenanceEvent, type ProvenanceSite } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
@@ -564,7 +564,7 @@ export function createCompanyDossiers(
   async function webFactsFor(candidateId: string, employer: string, recorder: ProvenanceRecorder, signal?: AbortSignal): Promise<{ answer: string; sources: string[] }> {
     const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
     const search = { candidateId, employer, route: run.searchRoute, warnings: run.warnings };
-    if (taskSection(run.text(), "lecture") === null) return recorder.ai.searchCompany({ ...search, instructions: run.text() });
+    if (!runsOnAgent("company-facts-search", run.text())) return recorder.ai.searchCompany({ ...search, instructions: run.text() });
     const pages = await recorder.ai.searchCompany({ ...search, instructions: run.text("requête"), forReading: true });
     if (signal?.aborted) throw new BuildStopped();
     const answer = await readCompanyFacts(recorder.aiFor("company_facts_reading"), { candidateId, employer, pages, reading: run.instructions("lecture") });

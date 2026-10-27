@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { builtInInstructions, fillSlots, slotsIn, TASK_PLAYBOOKS, taskInstructionsProblems, taskPlaybookSeed, taskSection, taskSections } from "./index";
+import { builtInInstructions, fillSlots, runsOnAgent, slotsIn, TASK_PLAYBOOKS, taskInstructionsProblems, taskPlaybookSeed, taskSection, taskSections } from "./index";
 
 describe("task Playbooks as written in this repo (ADR-0026)", () => {
   it("each has a stable id, a French title and a version 1 its own task can read", () => {
@@ -53,6 +53,15 @@ describe("task Playbooks as written in this repo (ADR-0026)", () => {
     expect(builtInInstructions("company-facts-search", "requête")).toContain("{{entreprise}}");
     expect(builtInInstructions("company-facts-search", "lecture")).toMatch(/pages/);
     expect(TASK_PLAYBOOKS.filter((task) => "firstVersion" in task).map((task) => task.id)).toEqual(["company-facts-search"]);
+  });
+
+  it("tell whether a version's text runs on the task's Playbook Agent: never without one, and a version 1 that had none runs the search alone (#405)", () => {
+    expect(runsOnAgent("company-news-search", "{{entreprise}} actualités")).toBe(false);
+    expect(runsOnAgent("job-search-queries", "Règles")).toBe(true);
+    // company-facts-search's agent reads its `## lecture`: a version without it (version 1) is the search alone.
+    expect(runsOnAgent("company-facts-search", taskPlaybookSeed("company-facts-search")!.firstVersion!.instructions)).toBe(false);
+    expect(runsOnAgent("company-facts-search", "## requête\n\n{{entreprise}}")).toBe(false);
+    expect(runsOnAgent("company-facts-search", builtInInstructions("company-facts-search"))).toBe(true);
   });
 
   it("fill slots with the values given, any other left out", () => {

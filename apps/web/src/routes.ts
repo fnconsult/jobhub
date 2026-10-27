@@ -20,6 +20,8 @@ export const routes = {
   accountFollowUps: "/compte/relances",
   accountReminders: "/compte/rappels",
   accountEuAi: "/compte/ia-europeenne",
+  /** « Réception par email » (#441): Email intake and the Candidate's Forwarding address. */
+  accountEmailIntake: "/compte/reception-email",
   accountSignIn: "/compte/connexion",
   accountPreferences: "/compte/preferences",
   accountTools: "/compte/outils",

@@ -114,7 +114,7 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
       <dl className="kpis">
         <div className="kpi">
           <dt>{t("admin.dashboard.jobDiscovery.webSpend")}</dt>
-          <dd className="kpi-value">{eur.format(webSearch.spendEur)}</dd>
+          <dd className="kpi-value">{fine.format(webSearch.spendEur)}</dd>
           <dd className="kpi-sub">{thresholdShare === null ? t("admin.dashboard.jobDiscovery.noThreshold") : t("admin.dashboard.jobDiscovery.ofThreshold", { percent: percent.format(thresholdShare), threshold: eur.format(webSearch.thresholdEur) })}</dd>
           {thresholdShare === null ? null : (
             <dd className="kpi-bar" aria-hidden="true">

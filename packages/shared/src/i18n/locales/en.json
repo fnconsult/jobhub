@@ -1680,7 +1680,8 @@
           "unknown_sources": "This Playbook's latest version cites missing Sources: fix it in Playbooks.",
           "sources_cited": "This change is refused: fix this Playbook in Playbooks."
         }
-      }
+      },
+      "dashboardLink": "Web search consumption and budget: see the Dashboard"
     },
     "administrators": {
       "title": "Administrators",

@@ -71,10 +71,14 @@ async function revoke(superAdmin: Page, email: string, role: string) {
 /** Checks `page` reaches exactly `allowed`: in the sidebar and by URL; every other section is absent and answers 404. */
 async function expectSections(page: Page, allowed: Section[]) {
   await page.goto("/admin");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(admin.title);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(admin.dashboard.title);
   const links = backOfficeNav(page).getByRole("link");
-  // Signalements carries its « à traiter » count after its name, for those who change them (#376).
-  await expect(links).toHaveText([...allowed.map((section) => (section === "signalements" ? new RegExp(`^${admin.sections[section]}`) : admin.sections[section])), admin.nav.account]);
+  // The Dashboard first, for everyone (#408). Signalements carries its « à traiter » count after its name, for those who change them (#376).
+  await expect(links).toHaveText([
+    admin.nav.dashboard,
+    ...allowed.map((section) => (section === "signalements" ? new RegExp(`^${admin.sections[section]}`) : admin.sections[section])),
+    admin.nav.account,
+  ]);
   for (const [section, path] of Object.entries(SECTIONS) as [Section, string][]) {
     const response = await page.goto(path);
     if (allowed.includes(section)) {
@@ -139,7 +143,7 @@ test.describe("Back Office Roles", () => {
 
     // Their next page already has the Back Office link, and the Back Office.
     await person.goto("/admin");
-    await expect(person.getByRole("heading", { level: 1 })).toHaveText(admin.title);
+    await expect(person.getByRole("heading", { level: 1 })).toHaveText(admin.dashboard.title);
   });
 
   test("each role reaches exactly its sections; Support reads without any way to save", async ({ page, browser }) => {

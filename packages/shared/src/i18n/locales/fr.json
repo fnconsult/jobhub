@@ -1680,7 +1680,8 @@
           "unknown_sources": "La dernière version de ce Playbook cite des Sources absentes : corrigez-la dans Playbooks.",
           "sources_cited": "Ce changement est refusé : corrigez ce Playbook dans Playbooks."
         }
-      }
+      },
+      "dashboardLink": "Consommation et budget de la recherche web : voir le Dashboard"
     },
     "administrators": {
       "title": "Administrateurs",

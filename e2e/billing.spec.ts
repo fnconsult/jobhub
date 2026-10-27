@@ -484,7 +484,7 @@ test.describe("back office", () => {
     await expect(page).toHaveURL(/\/connexion\/back-office$/);
     await signInWithMagicLink(page, ADMINISTRATOR);
     await page.goto("/admin");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.admin.dashboard.title);
     await expect(page.getByRole("link", { name: fr.admin.sections.planQuotas })).toBeVisible();
     await expect(page.getByText(fr.admin.sections.humanCoaches)).toBeVisible();
   });

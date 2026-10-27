@@ -1480,7 +1480,7 @@
           "credit": "crédit",
           "rate": "dollar"
         },
-        "pricesCaption": "Prix de {{provider}} et taux EUR/USD",
+        "pricesCaption": "Prix de {{provider}}",
         "unpriced_one": "Prix inconnu : {{count}} utilisation sur les 30 derniers jours (comptée 0).",
         "unpriced_other": "Prix inconnu : {{count}} utilisations sur les 30 derniers jours (comptées 0)."
       },

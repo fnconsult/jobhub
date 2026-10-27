@@ -121,6 +121,7 @@ function PricesSection({ ctx, row, settings, unpricedCalls }: { ctx: Ctx; row: P
   const names = pricesOfTool(row.tool);
   if (names.length === 0 && unpricedCalls === 0) return null;
   const prices = PRICE_SETTINGS.filter((price) => names.includes(price.name) || (names.length > 0 && price.unit === "rate"));
+  const rate = names.length > 0 ? settings.find((setting) => setting.name === "EUR_PER_USD") : undefined;
   return (
     <section className="stack" aria-labelledby="sheet-prices">
       <h3 id="sheet-prices">{t("admin.platformSettings.sheet.pricesTitle")}</h3>
@@ -144,7 +145,16 @@ function PricesSection({ ctx, row, settings, unpricedCalls }: { ctx: Ctx; row: P
               </li>
             ))}
           </ul>
-          <SettingsTable ctx={ctx} caption={t("admin.platformSettings.sheet.pricesCaption", { provider: row.tool.name })} names={prices.map((price) => price.name)} settings={settings} envOnly={[]} />
+          <SettingsTable ctx={ctx} caption={t("admin.platformSettings.sheet.pricesCaption", { provider: row.tool.name })} names={names} settings={settings} envOnly={[]} />
+          {/* The rate is on the tab's own settings, under the sheet: linked, not drawn twice. */}
+          {rate ? (
+            <p>
+              <Link prefetch={false} href={settingHref(rate.name)}>
+                <code>{rate.name}</code>
+              </Link>{" "}
+              = <code>{rate.value}</code> ({t(`admin.platformSettings.sources.${rate.source}`)})
+            </p>
+          ) : null}
         </>
       ) : null}
     </section>

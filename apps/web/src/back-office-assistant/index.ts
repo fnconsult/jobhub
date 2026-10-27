@@ -16,8 +16,8 @@
  * are counted per role, Journal targets are masked, Human Coaches go by their public
  * name and bio), and any address left in the context is masked as a last resort.
  *
- * Guardrails (ADR-0022, #228): with `guardrails`, the question is checked for prompt injection before the
- * assistant sees it, and the reply for personal data leaks and secret disclosure; a blocked one is answered,
+ * Guardrails (ADR-0022, #228): with `guardrails`, the question (with an Explainable label's context, #407) is checked for
+ * prompt injection before the assistant sees it, and the reply for personal data leaks and secret disclosure; a blocked one is answered,
  * or replaced, by the Guardrail message in the Administrator's `language`. `outcome` says which happened.
  *
  * Task `back_office_assistant` (routed like `coaching` unless configured apart), EU endpoints only (ADR-0007), on behalf of the Administrator's own
@@ -460,6 +460,10 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const messages = recentMessages(parsed.data.messages);
+      // What an Administrator's message says to the AI: an Explainable label's context goes with its question, every
+      // time the conversation is answered. The Guardrail checks this same text: the context is untrusted input too.
+      const said = (message: (typeof messages)[number]) => (message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text);
+      const administratorSaid = messages.filter((message) => message.from === "administrator").map(said);
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance (#327).
       const recorder = createProvenanceRecorder(deps.ai);
       try {
@@ -481,10 +485,7 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
             // scanned by the AI layer, and goes to Mistral with their EU AI consent.
             containsIdentity: false,
             prompt: messages.map((message) =>
-              message.from === "administrator"
-                ? // An Explainable label's context goes with its question, every time the conversation is answered.
-                  { role: "user" as const, content: message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text }
-                : { role: "assistant" as const, content: message.text },
+              message.from === "administrator" ? { role: "user" as const, content: said(message) } : { role: "assistant" as const, content: message.text },
             ),
           });
           written.push(result);
@@ -495,8 +496,8 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
               candidateId: administrator.id,
               language: options.language ?? "fr",
               ai: recorder.ai,
-              message: messages.at(-1)!.text,
-              written: messages.filter((message) => message.from === "administrator").map((message) => message.text),
+              message: said(messages.at(-1)!),
+              written: administratorSaid,
               reply: write,
             })
           : { text: (await write(null)).text, outcome: "replied", checks: [] };

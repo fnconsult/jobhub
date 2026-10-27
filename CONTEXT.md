@@ -566,6 +566,22 @@ _Avoid_: Header, navbar
 One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels, Mes signalements or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
 _Avoid_: Tab, sub-page, panel
 
+**Design System**:
+The one set of colours, type, spacing and components every Jobbbox surface is drawn with: the Candidate's pages, the Back Office, the extension's Side Panel and the emails. It has a light and a dark theme and two Densities. Its look follows Mercury's; its finish follows the Paramètres prototype.
+_Avoid_: Theme, style guide, UI kit
+
+**Density**:
+How tightly a surface of the Design System is set. Confort on the Candidate's pages, the extension and the emails, with the 16 px body-text floor and the Text Size. Compact in the Back Office, for Administrators, with smaller text and tighter rows. Never chosen by the person.
+_Avoid_: Compact mode, zoom
+
+**Design System page**:
+The Back Office page, under Plateforme, that shows every component and colour of the Design System, in both Densities and both themes, as the reference that screens are checked against. Every Back Office Role can read it.
+_Avoid_: Storybook, style guide
+
+**Side Panel**:
+The extension's pane docked to the right of the browser's page, beside the job posting the person is reading, where Capture, the Match Score and the extension's other functions live. It replaces the popup and is opened by the toolbar icon or a Job Site's badge.
+_Avoid_: Popup, sidebar (that is the web app's Sidebar)
+
 ### Delivery
 
 **Agent Run**:

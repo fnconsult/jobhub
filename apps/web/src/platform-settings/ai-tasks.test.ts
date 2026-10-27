@@ -158,6 +158,22 @@ describe("the search tasks on the Recherche web tab (#386, #402)", () => {
     expect(rows[0]!.playbook).toMatchObject({ id: "job-search-queries", searches: true });
     expect(rows[1]!.playbook).toBeNull();
   });
+
+  it("shows company-facts-search on its Playbook Agent once its served version reads the pages, else on its search alone (#405)", () => {
+    const reading = "## requête\n\n{{entreprise}} entreprise\n\n## lecture\n\nLis les pages.";
+    const onAgent = searchTaskRows(
+      withVersions([playbook("company-facts-search", "task", version("company-facts-search", 3, { content: reading, agent: { provider: "mistral", model: "mistral-small-latest", effort: "low", consultWhen: "" }, search: { provider: "brave", model: null } }))]),
+      stateOf(),
+    ).find((row) => row.id === "company-facts-search");
+    // Version 1 as imported: the query alone, no agent, no web-search provider named: the configured web-search route.
+    const searchAlone = searchTaskRows(
+      withVersions([playbook("company-facts-search", "task", version("company-facts-search", 1, { content: "Fiche d'entreprise de {{entreprise}}", agent: null }))]),
+      stateOf(),
+    ).find((row) => row.id === "company-facts-search");
+
+    expect(onAgent).toMatchObject({ provider: "mistral", model: "mistral-small-latest", effort: "low", source: { kind: "playbook", version: 3 }, keyMissing: false });
+    expect(searchAlone).toMatchObject({ provider: "perplexity", model: null, effort: null, source: { kind: "setting", name: "AI_WEB_SEARCH_PROVIDER", source: "default" } });
+  });
 });
 
 describe("a Playbook Agent changed on Paramètres (#402)", () => {

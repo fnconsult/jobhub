@@ -5,12 +5,12 @@
  *   const figures = await jobDiscoveryDashboard(database, { now, thresholdEur, runBudgetEur });
  *
  * One module in front of Postgres, reading what others record: AI Usage (`ai_usage`, through the same report as
- * Consommation IA, so the two always agree for the same month) and the Job Searches' Discovery metrics
- * (`job_search.metrics`). Read-only; nothing personal comes out, only sums and counts. A Job Digest top-up keeps no
- * record of its run yet (its metrics go to the log): its runs are not counted, its AI calls are (in the spend).
+ * Consommation IA, so the two always agree for the same month) and the Discovery runs (`discovery_run`, #404: a Job
+ * Search's or a Job Digest top-up's, as Activité › Recherches lists them). Read-only; nothing personal comes out, only
+ * sums and counts.
  */
 import { SEARCH_PROVIDER_IDS, SEARCH_TASK } from "@jobhub/ai";
-import { RUN_COST_ITEMS, RUN_STOP_REASONS, type RunCostItem, type RunStopReason } from "@jobhub/shared";
+import { DISCOVERY_STOP_REASONS, RUN_COST_ITEMS, type DiscoveryMetrics, type DiscoveryStopReason, type RunCostItem } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { aiUsageMonths, aiUsagePeriod, aiUsageReport } from "../ai-usage/index";
 
@@ -48,21 +48,21 @@ export interface JobDiscoveryDashboard {
     /** Every day of the month so far, the first first. */
     days: WebSearchDay[];
   };
-  /** The month's Job discovery runs: its Job Searches that ran (done, stopped, or failed while searching). */
+  /** The month's Job discovery runs, as Activité › Recherches records them (#404): Job Searches' and Job Digest top-ups', failed ones too. */
   runs: {
     count: number;
     /** JOB_DISCOVERY_BUDGET_EUR in use. */
     budgetEur: number;
     /** Null with no run. */
     averageCostEur: number | null;
-    /** The Job Offers the runs found that were not stored before they started. */
+    /** The Job Offers the runs stored for the first time. */
     newJobOffers: number;
     /** Null with no new Job Offer. */
     costPerNewJobOfferEur: number | null;
     /** The runs that switched to the fallback Search provider (ADR-0043). */
     fellBack: number;
-    /** How many runs ended each way, every way listed in order: `failed` while searching; `unknown` for one from before #408. */
-    stopReasons: { reason: DashboardStopReason; runs: number }[];
+    /** How many runs ended each way, every way listed in order. */
+    stopReasons: { reason: DiscoveryStopReason; runs: number }[];
     /** The runs that kept their cost by item (#408): `averageCostByItem` is over them, every item listed in order (0 with none). */
     itemizedRuns: number;
     averageCostByItem: { item: RunCostItem; eur: number }[];
@@ -71,50 +71,33 @@ export interface JobDiscoveryDashboard {
   calls: { calls: number; failures: number; unpricedTools: number };
 }
 
-/** Why a run ended, as the Dashboard counts it. */
-export const DASHBOARD_STOP_REASONS = [...RUN_STOP_REASONS, "failed", "unknown"] as const;
-export type DashboardStopReason = (typeof DASHBOARD_STOP_REASONS)[number];
-
 const TIME_ZONE = "Europe/Paris";
 
-/**
- * The month's Job Searches that ran: done, stopped, or failed while searching (not those Job discovery never ran for),
- * each with its Discovery metrics and how many of the Job Offers it found were stored after it started (new to it).
- */
+/** The month's Discovery runs (#404), each with its stop reason, its new Job Offers and its Discovery metrics. */
 const RUNS = `
-  SELECT s.status, s.metrics,
-         (SELECT count(*) FROM job_offer o WHERE o.id = ANY(s.job_offer_ids) AND o.created_at >= s.started_at)::int AS "newJobOffers"
-    FROM job_search s
-   WHERE s.started_at >= $1::timestamp AT TIME ZONE '${TIME_ZONE}' AND s.started_at < $2::timestamp AT TIME ZONE '${TIME_ZONE}'
-     AND (s.status IN ('done', 'stopped') OR s.failure = 'discovery_failed')`;
+  SELECT r.stop_reason AS "stopReason", r.new_job_offers AS "newJobOffers", r.metrics
+    FROM discovery_run r
+   WHERE r.started_at >= $1::timestamp AT TIME ZONE '${TIME_ZONE}' AND r.started_at < $2::timestamp AT TIME ZONE '${TIME_ZONE}'`;
 
 interface RunRow {
-  status: "done" | "stopped" | "failed";
-  metrics: { costEur?: number; searchFallback?: unknown; stopReason?: string; costByItem?: Partial<Record<RunCostItem, number>> } | null;
+  stopReason: string;
   newJobOffers: number;
-}
-
-/** Why `run` ended, as the Dashboard counts it. */
-function stopReasonOf(run: RunRow): DashboardStopReason {
-  if (run.status === "failed") return "failed";
-  if (run.status === "stopped") return "stopped";
-  const recorded = run.metrics?.stopReason;
-  return RUN_STOP_REASONS.includes(recorded as RunStopReason) ? (recorded as RunStopReason) : "unknown";
+  metrics: Partial<Pick<DiscoveryMetrics, "costEur" | "searchFallback">> & { costByItem?: Partial<Record<RunCostItem, number>> };
 }
 
 /** The runs' figures, from their rows. */
 function runFigures(rows: RunRow[], budgetEur: number): JobDiscoveryDashboard["runs"] {
-  const costEur = rows.reduce((sum, run) => sum + (run.metrics?.costEur ?? 0), 0);
+  const costEur = rows.reduce((sum, run) => sum + (run.metrics.costEur ?? 0), 0);
   const newJobOffers = rows.reduce((sum, run) => sum + run.newJobOffers, 0);
-  const itemized = rows.flatMap((run) => (run.metrics?.costByItem ? [run.metrics.costByItem] : []));
+  const itemized = rows.flatMap((run) => (run.metrics.costByItem ? [run.metrics.costByItem] : []));
   return {
     count: rows.length,
     budgetEur,
     averageCostEur: rows.length === 0 ? null : costEur / rows.length,
     newJobOffers,
     costPerNewJobOfferEur: newJobOffers === 0 ? null : costEur / newJobOffers,
-    fellBack: rows.filter((run) => typeof run.metrics?.searchFallback === "object" && run.metrics.searchFallback !== null).length,
-    stopReasons: DASHBOARD_STOP_REASONS.map((reason) => ({ reason, runs: rows.filter((run) => stopReasonOf(run) === reason).length })),
+    fellBack: rows.filter((run) => typeof run.metrics.searchFallback === "object" && run.metrics.searchFallback !== null).length,
+    stopReasons: DISCOVERY_STOP_REASONS.map((reason) => ({ reason, runs: rows.filter((run) => run.stopReason === reason).length })),
     itemizedRuns: itemized.length,
     averageCostByItem: RUN_COST_ITEMS.map((item) => ({ item, eur: itemized.length === 0 ? 0 : itemized.reduce((sum, items) => sum + (items[item] ?? 0), 0) / itemized.length })),
   };

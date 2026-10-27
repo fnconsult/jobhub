@@ -15,8 +15,12 @@ export type Permission = "read" | "write";
 const statements = {
   /** Administrators and their Back Office Roles (the Administrateurs section). */
   roles: ["read", "write"],
-  /** The Back Office Audit (the Journal). */
+  /** The Back Office Audit (Activité › Actions des administrateurs). */
   audit: ["read"],
+  /** Every run of Job discovery, its searches and Discovery metrics (Activité › Recherches, #404): no Candidate named. */
+  discoveryRuns: ["read"],
+  /** The Job Search behind a run, opened from Activité › Recherches: the Candidate's own data, every opening audited (#404). */
+  jobSearches: ["read"],
   planQuotas: ["read", "write"],
   /** Plans and their per-Plan features. */
   plans: ["read", "write"],
@@ -32,7 +36,7 @@ const statements = {
   searchSites: ["read", "write"],
   /** The AI consumption report (Consommation IA): aggregates, read-only. */
   aiUsage: ["read"],
-  /** The AI Message Log (Journaux IA): what AI calls said, personal data; every read is audited. */
+  /** The AI Message Log (Activité › Appels IA): what AI calls said, personal data; every read is audited. */
   aiMessages: ["read"],
   /** The Coaching Playbooks, the Core Digest and the Sources list (#225): write covers creating, versioning, validating and archiving. */
   coachingPlaybooks: ["read", "write"],
@@ -71,7 +75,7 @@ const ROLES = {
   "help-editor": control.newRole({ unansweredQuestions: ["read", "write"], signalements: READ }),
   // « Technique » (#397, ADR-0042): changes every non-secret setting of Paramètres (the Tools' prices among them), the
   // Job discovery sources and sites and the Job Sites; sees Provider Secrets by their source and last 4 characters only,
-  // never replaces one; reads what the Dashboard sums up and the Back Office Audit. Never the AI Message Log.
+  // never replaces one; reads what the Dashboard sums up, the Back Office Audit and the Job discovery runs. Never the AI Message Log.
   "platform-manager": control.newRole({
     platformSettings: ["read", "write"],
     searchSites: ["read", "write"],
@@ -80,8 +84,10 @@ const ROLES = {
     tools: READ,
     aiUsage: READ,
     audit: READ,
+    discoveryRuns: READ,
   }),
-  // Reads everything but Provider Secrets and the AI Message Log, and triages Signalements; the team's own sections (Administrateurs, Journal) stay with super-admins.
+  // Reads everything but Provider Secrets, the AI Message Log and the Job Search behind a run, and triages Signalements; the team's own
+  // sections (Administrateurs, Actions des administrateurs) stay with super-admins.
   support: control.newRole({
     planQuotas: READ,
     plans: READ,
@@ -98,6 +104,7 @@ const ROLES = {
     platformSettings: READ,
     unansweredQuestions: READ,
     signalements: ["read", "write"],
+    discoveryRuns: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

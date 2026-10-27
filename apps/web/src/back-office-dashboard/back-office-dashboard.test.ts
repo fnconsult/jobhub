@@ -1,27 +1,15 @@
 import type { UsageEntry } from "@jobhub/ai";
-import { noDiscoveryMetrics, type DiscoveryMetrics, type MasterCvContent } from "@jobhub/shared";
+import { noDiscoveryMetrics, type DiscoveryMetrics, type DiscoveryStopReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { aiUsagePeriod, aiUsageReport, createPostgresUsageLog, migrateAiUsage } from "../ai-usage";
-import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "../billing";
-import { createJobOffers, migrateJobOffers } from "../job-offers";
-import { createJobSearches, migrateJobSearches, type JobSearchOutcome } from "../job-searches";
-import { createProfiles, migrateProfiles } from "../profiles";
+import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
+import { migrateBilling } from "../billing";
+import { migrateDiscoveryRuns } from "../discovery-runs";
+import { migrateJobOffers } from "../job-offers";
+import { migrateJobSearches } from "../job-searches";
+import { migrateProfiles } from "../profiles";
 import { jobDiscoveryDashboard } from "./index";
-
-const masterCv: MasterCvContent = {
-  fullName: "Marie Dupont",
-  headline: "Directrice financière",
-  email: "marie.dupont@example.fr",
-  phone: "",
-  location: "Lyon",
-  summary: "",
-  experience: [],
-  education: [],
-  skills: ["IFRS"],
-  languages: [],
-};
 
 /** One AI call, at `at`: a Mistral scoring call of €0.001 unless said otherwise. */
 function call(at: string, overrides: Partial<UsageEntry> = {}): UsageEntry {
@@ -62,59 +50,30 @@ function search(at: string, provider: "perplexity" | "brave", units: number, uni
 describe.skipIf(!connectionString)("the Back Office Dashboard's Job discovery figures (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
   let database: Pool;
-  /** The Candidate whose Job Searches the runs are, and their Profile: created with the first one. */
-  let candidate: { id: string; profileId: string } | undefined;
   // Monday 26 October 2026, 10:00 in Paris: the month so far is 26 days of 31.
   const now = new Date("2026-10-26T09:00:00Z");
   const settings = { now, thresholdEur: 2, runBudgetEur: 0.08 };
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
-    candidate = undefined;
     database = testAuth.database;
     await migrateAiUsage(database);
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateBilling(database);
     await migrateJobSearches(database);
+    await migrateDiscoveryRuns(database);
   });
   afterEach(async () => {
     await testAuth.stop();
   });
 
-  /**
-   * One Job Search started at `at` and ended with `outcome` and `metrics`; `found` names the Job Offers it found, each
-   * first stored at the time given (a Job Offer stored before the run started is not new to it).
-   */
-  async function jobSearch(at: string, outcome: "done" | "stopped" | "discovery_failed" | "unavailable", metrics: Partial<DiscoveryMetrics>, found: string[] = []) {
-    const clock = { now: new Date(at) };
-    const billing = createBilling({ database, baseURL: "http://localhost:3000", now: () => clock.now });
-    await billing.setPlanQuotas("free", { ...STARTING_PLAN_QUOTAS.free, jobSearches: 100 });
-    const profiles = createProfiles(database);
-    const jobOffers = createJobOffers(database);
-    const searches = createJobSearches(database, { profiles, jobOffers, applications: {} as never, quotas: billing, queue: { send: async () => undefined }, now: () => clock.now });
-    candidate ??= await (async () => {
-      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
-      const id = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
-      const created = await profiles.create(id, { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"], remoteWorkOptions: [] } });
-      if (!created.ok) throw new Error("fixture Profile refused");
-      return { id, profileId: created.profile.id };
-    })();
-    const { id: candidateId, profileId } = candidate;
-    const started = await searches.start(candidateId, { profileId });
-    if (!started.ok) throw new Error(`fixture Job Search refused: ${JSON.stringify(started)}`);
-    const jobOfferIds: string[] = [];
-    for (const storedAt of found) {
-      const captured = await jobOffers.capture({ source: { url: `https://carrieres.example.fr/${jobOfferIds.length}-${storedAt}` }, title: "DAF H/F", content: `DAF à Lyon, ${storedAt}.` }, "candidate");
-      if (!captured.ok) throw new Error("fixture Job Offer refused");
-      await database.query(`UPDATE job_offer SET created_at = $2 WHERE id = $1`, [captured.jobOffer.id, new Date(storedAt)]);
-      jobOfferIds.push(captured.jobOffer.id);
-    }
-    clock.now = new Date(new Date(at).getTime() + 30_000);
-    const measured = { ...noDiscoveryMetrics(), ...metrics };
-    const ended: JobSearchOutcome =
-      outcome === "done" ? { jobOfferIds, metrics: measured } : outcome === "stopped" ? { stopped: true, jobOfferIds, metrics: measured } : { failed: outcome, jobOfferIds, metrics: measured };
-    await searches.record(started.jobSearch.id, ended);
+  /** One Discovery run (#404) started at `at`, as the worker records it: its figures, which name no one. */
+  async function run(at: string, stopReason: DiscoveryStopReason, newJobOffers: number, metrics: Partial<DiscoveryMetrics>, trigger: "job_search" | "job_digest" = "job_search") {
+    await database.query(
+      `INSERT INTO discovery_run (started_at, trigger, duration_ms, stop_reason, new_job_offers, metrics, searches) VALUES ($1, $2, 30000, $3, $4, $5, '[]')`,
+      [new Date(at), trigger, stopReason, newJobOffers, JSON.stringify({ ...noDiscoveryMetrics(), ...metrics })],
+    );
   }
 
   async function record(...entries: UsageEntry[]) {
@@ -181,25 +140,18 @@ describe.skipIf(!connectionString)("the Back Office Dashboard's Job discovery fi
     expect(dashboard.calls).toEqual({ calls: 5, failures: 1, unpricedTools: 1 });
   });
 
-  describe("the month's Job discovery runs: its Job Searches", () => {
+  describe("the month's Job discovery runs: its Discovery runs, Job Searches' and Job Digest top-ups'", () => {
     const items = (page_reading: number, plan: number, web_search: number, target_companies: number) => ({ page_reading, plan, web_search, target_companies });
     const fellBack = { from: "perplexity", to: "brave", reason: "rate_limited" };
 
     async function seedRuns() {
-      await jobSearch("2026-10-03T08:00:00Z", "done", { costEur: 0.04, stopReason: "job_offers", costByItem: items(0.03, 0.004, 0.002, 0.004), searchFallback: fellBack }, [
-        "2026-10-03T08:00:10Z",
-        "2026-10-03T08:00:20Z",
-        // Stored by an earlier run: found again, not new.
-        "2026-09-12T08:00:00Z",
-      ]);
-      await jobSearch("2026-10-05T08:00:00Z", "stopped", { costEur: 0.02, stopReason: "stopped", costByItem: items(0.015, 0.003, 0.002, 0), searchFallback: null }, ["2026-10-05T08:00:10Z"]);
-      await jobSearch("2026-10-06T08:00:00Z", "discovery_failed", { costEur: 0.01, costByItem: items(0.006, 0.003, 0.001, 0) });
-      // A run from before stop reasons and items were kept.
-      await jobSearch("2026-10-07T08:00:00Z", "done", { costEur: 0.03 });
-      // Job discovery never ran: not a run.
-      await jobSearch("2026-10-08T08:00:00Z", "unavailable", {});
+      await run("2026-10-03T08:00:00Z", "job_offers", 2, { costEur: 0.04, costByItem: items(0.03, 0.004, 0.002, 0.004), searchFallback: fellBack });
+      await run("2026-10-05T08:00:00Z", "stopped", 1, { costEur: 0.02, costByItem: items(0.015, 0.003, 0.002, 0), searchFallback: null });
+      await run("2026-10-06T08:00:00Z", "failed", 0, { costEur: 0.01, costByItem: items(0.006, 0.003, 0.001, 0) });
+      // A Job Digest's top-up, from before items were kept.
+      await run("2026-10-07T08:00:00Z", "exhausted", 0, { costEur: 0.03 }, "job_digest");
       // Last month's.
-      await jobSearch("2026-09-28T08:00:00Z", "done", { costEur: 0.5, stopReason: "spend", costByItem: items(0.5, 0, 0, 0) });
+      await run("2026-09-28T08:00:00Z", "spend", 4, { costEur: 0.5, costByItem: items(0.5, 0, 0, 0) });
     }
 
     it("counts the runs, their average cost against the run budget, and their cost per new Job Offer", async () => {
@@ -212,7 +164,7 @@ describe.skipIf(!connectionString)("the Back Office Dashboard's Job discovery fi
       expect(runs.costPerNewJobOfferEur).toBeCloseTo(0.1 / 3, 12);
     });
 
-    it("says why the runs stopped, every reason listed, failed and unrecorded ones apart", async () => {
+    it("says why the runs stopped, every reason listed", async () => {
       await seedRuns();
 
       const { runs } = await jobDiscoveryDashboard(database, settings);
@@ -221,10 +173,9 @@ describe.skipIf(!connectionString)("the Back Office Dashboard's Job discovery fi
         { reason: "job_offers", runs: 1 },
         { reason: "spend", runs: 0 },
         { reason: "duration", runs: 0 },
-        { reason: "searches_done", runs: 0 },
+        { reason: "exhausted", runs: 1 },
         { reason: "stopped", runs: 1 },
         { reason: "failed", runs: 1 },
-        { reason: "unknown", runs: 1 },
       ]);
     });
 

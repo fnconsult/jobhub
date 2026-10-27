@@ -18,11 +18,15 @@ export const BACK_OFFICE_PAGES = {
   platformSettings: { href: routes.adminPlatformSettings, resource: "platformSettings" },
   signInProviders: { href: routes.adminSignInProviders, resource: "ssoProviders" },
   aiUsage: { href: routes.adminAiUsage(), resource: "aiUsage" },
+  // Activité (#404): one sidebar entry, read by whoever reads its Recherches (every reader of its other tabs does); its tabs
+  // are the pages a denied Administrator is recorded on.
+  discoveryRuns: { href: routes.adminDiscoveryRuns(), resource: "discoveryRuns" },
+  activity: { href: routes.adminActivity, resource: "discoveryRuns" },
   aiMessages: { href: routes.adminAiMessages(), resource: "aiMessages" },
   searchSites: { href: routes.adminSearchSites, resource: "searchSites" },
   tools: { href: routes.adminTools, resource: "tools" },
   administrators: { href: routes.adminAdministrators, resource: "roles" },
-  journal: { href: routes.adminJournal(), resource: "audit" },
+  journal: { href: routes.adminAudit(), resource: "audit" },
 } as const satisfies Record<string, { href: string; resource: BackOfficeResource }>;
 
 export type BackOfficePage = keyof typeof BACK_OFFICE_PAGES;
@@ -35,8 +39,8 @@ const GROUPS = [
   { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost", "coachingPlaybooks", "guardrails"] },
   { key: "content", sections: ["unansweredQuestions"] },
-  { key: "platform", sections: ["platformSettings", "aiUsage", "aiMessages", "tools"] },
-  { key: "team", sections: ["administrators", "journal"] },
+  { key: "platform", sections: ["platformSettings", "aiUsage", "activity", "tools"] },
+  { key: "team", sections: ["administrators"] },
 ] as const satisfies ReadonlyArray<{ key: string; sections: readonly BackOfficePage[] }>;
 
 export type BackOfficeNavGroupKey = (typeof GROUPS)[number]["key"];

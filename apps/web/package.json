@@ -11,6 +11,7 @@
     "./job-offers": "./src/job-offers/index.ts",
     "./profiles": "./src/profiles/index.ts",
     "./job-searches": "./src/job-searches/index.ts",
+    "./discovery-runs": "./src/discovery-runs/index.ts",
     "./follow-ups": "./src/follow-ups/index.ts",
     "./follow-ups/env": "./src/follow-ups/env.ts",
     "./job-digests": "./src/job-digests/index.ts",

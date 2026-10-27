@@ -82,18 +82,28 @@ export interface DiscoveryMetrics {
    * Reason that made it switch. Null when it did not; absent for a run from before the fallback.
    */
   searchFallback?: SearchFallbackMetrics | null;
-  /** Why the run ended (#408); absent for a run that failed, and for one from before it was kept. */
-  stopReason?: RunStopReason;
-  /** Where `costEur` went, per item (#408); absent for a run from before it was kept. */
+  /** The Target Companies' part (#406); absent for a run from before Target Companies were added. */
+  targetCompanies?: TargetCompaniesMetrics;
+  /** Where `costEur` went, per item (#408); absent for a run from before it was kept. Its stop reason is the Discovery run's (#404). */
   costByItem?: Record<RunCostItem, number>;
 }
 
 /**
- * Why a Job discovery run ended (#408): the first limit of its Job discovery budget it reached (`job_offers`, `spend`,
- * `duration`), its searches ran out before any (`searches_done`), or the Candidate stopped it (`stopped`).
+ * How La Bonne Boite's list of Target Companies went in a run: `off` (France Travail not configured, or no Profile),
+ * `kept` (fetched within the month), `searched` (fetched now), `refused` or `failed`.
  */
-export const RUN_STOP_REASONS = ["job_offers", "spend", "duration", "searches_done", "stopped"] as const;
-export type RunStopReason = (typeof RUN_STOP_REASONS)[number];
+export type LaBonneBoiteStatus = "off" | "kept" | "searched" | "refused" | "failed";
+
+/** The Target Companies' part of a run (#406). */
+export interface TargetCompaniesMetrics {
+  laBonneBoite: LaBonneBoiteStatus;
+  /** HTTP calls made to France Travail for it (tokens, ROMEO, La Bonne Boite). */
+  calls: number;
+  /** Target Companies visited. */
+  visited: number;
+  /** Job Offers they gave, new or already stored, after the freshness rule. */
+  offers: number;
+}
 
 /**
  * The items a run's AI cost goes to (#408): reading pages (the LLM), the plan (job title variants), the web
@@ -108,6 +118,44 @@ export interface SearchFallbackMetrics {
   to: string;
   reason: string;
 }
+
+/**
+ * What a web search of a run was for (#404): one of the Job Search's plan's queries, a Target Company, or a Job
+ * discovery site searched on purpose.
+ */
+export const DISCOVERY_SEARCH_KINDS = ["plan", "target_company", "site"] as const;
+export type DiscoverySearchKind = (typeof DISCOVERY_SEARCH_KINDS)[number];
+
+/** One web search of a run, as Activité › Recherches shows it (#404). */
+export interface DiscoverySearch {
+  kind: DiscoverySearchKind;
+  /** The Job discovery site it was restricted to (`site`), or the Target Company it searched (`target_company`). */
+  site?: string;
+  /**
+   * The query texts sent, as sent (after Redaction): built from the Search Criteria or an employer's name alone, never
+   * a Candidate's name. Personal enough to be kept 30 days only, unlike the figures beside them.
+   */
+  queries: string[];
+  /** Which page of results, from 1. */
+  page: number;
+  /** The Search provider that served it, by its id. */
+  provider: string;
+  /** Served by the fallback Search provider, once the active one failed (ADR-0043). */
+  fallback: boolean;
+  /** Distinct result URLs it gave. */
+  results: number;
+  /** Job Offers stored for the first time from the pages it led to. */
+  newJobOffers: number;
+  /** Its estimated cost in €: the search itself, not the pages read after it. */
+  costEur: number;
+}
+
+/**
+ * Why a run of Job discovery ended (#404): a limit of its Job discovery budget reached (`job_offers`, `spend`,
+ * `duration`), every search done before any was (`exhausted`), the Candidate stopping it (`stopped`), or an error (`failed`).
+ */
+export const DISCOVERY_STOP_REASONS = ["job_offers", "spend", "duration", "exhausted", "stopped", "failed"] as const;
+export type DiscoveryStopReason = (typeof DISCOVERY_STOP_REASONS)[number];
 
 /** The metrics of a run where Job discovery found nothing, or never ran. */
 export function noDiscoveryMetrics(): DiscoveryMetrics {

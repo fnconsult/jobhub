@@ -203,6 +203,20 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
       expect(await jobOffers.findBySourceUrl(posting.source.url)).toEqual(shared.jobOffer);
     });
 
+    it("is told apart from a shared one on a database made before private Job Offers, once migrated again", async () => {
+      // Before ADR-0049, a URL and a text were each unique across all Job Offers.
+      await throwaway.pool.query(`ALTER TABLE job_offer ADD CONSTRAINT job_offer_url_key_key UNIQUE (url_key),
+                                                     ADD CONSTRAINT job_offer_content_fingerprint_key UNIQUE (content_fingerprint)`);
+      await migrateJobOffers(throwaway.pool);
+      await migrateJobOffers(throwaway.pool);
+
+      const shared = await jobOffers.capture(posting);
+      const privateOffer = await jobOffers.capture({ ...posting, title: fromRecruiter.title }, "candidate", { privateTo: "candidate-1" });
+
+      expect(privateOffer).toMatchObject({ ok: true, created: true, jobOffer: { title: fromRecruiter.title } });
+      expect(shared.ok && privateOffer.ok && shared.jobOffer.id !== privateOffer.jobOffer.id).toBe(true);
+    });
+
     it("is seen by its Candidate only: never by another Candidate, nor a Guest, nor found by its URL for them", async () => {
       const captured = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "candidate-1" });
       if (!captured.ok) throw new Error("not captured");

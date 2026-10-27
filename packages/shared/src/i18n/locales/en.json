@@ -1359,7 +1359,7 @@
         "missing": "Not set",
         "unreadable": "Set, unreadable",
         "keyVersions": "Set (versions: {{versions}})",
-        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server log."
+        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server output."
       },
       "elsewhere": {
         "title": "Set in their own section",
@@ -1548,7 +1548,6 @@
       }
     },
     "journal": {
-      "title": "Administrator actions",
       "intro": "Every change made in the back office: who, what, before and after, when; and every attempt refused or failed, with its reason, without the values entered. Secret values are never recorded, only that they were replaced. Each entry is kept {{years}} years.",
       "filter": "Show",
       "all": "All",

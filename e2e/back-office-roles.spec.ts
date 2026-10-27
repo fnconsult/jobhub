@@ -6,7 +6,7 @@ import { newAddress } from "./support/mailbox";
 // Issue #204: Back Office Roles. ADMIN_EMAILS members are permanent super-admins;
 // they grant roles to existing accounts on the Administrateurs page. Each role
 // reaches only its sections (the others are left out of the sidebar and answer
-// 404), Support reads without saving, and every grant and revoke is in the Journal.
+// 404), Support reads without saving, and every grant and revoke is in Activité › Actions des administrateurs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const page404 = fr.notFound.title;
@@ -29,12 +29,18 @@ const SECTIONS = {
   unansweredQuestions: "/admin/questions-sans-reponse",
   platformSettings: "/admin/parametres",
   aiUsage: "/admin/consommation-ia",
-  aiMessages: "/admin/journaux-ia",
+  activity: "/admin/activite",
   tools: "/admin/outils",
   administrators: "/admin/administrateurs",
-  journal: "/admin/journal",
 } as const;
 type Section = keyof typeof SECTIONS;
+/** Activité's tabs (#404): no sidebar entry of their own, each with its readers. */
+const ACTIVITY_TABS = {
+  discoveryRuns: "/admin/activite/recherches",
+  aiMessages: "/admin/activite/appels-ia",
+  journal: "/admin/activite/actions",
+} as const;
+type ActivityTab = keyof typeof ACTIVITY_TABS;
 /** The Job discovery sources: Paramètres' Sources tab, formerly Sites de recherche (#396). */
 const SOURCES = `${SECTIONS.platformSettings}?tab=sources`;
 
@@ -68,8 +74,11 @@ async function revoke(superAdmin: Page, email: string, role: string) {
   await expect(superAdmin.getByRole("status")).toHaveText(admin.administrators.revoked);
 }
 
-/** Checks `page` reaches exactly `allowed`: in the sidebar and by URL; every other section is absent and answers 404. */
-async function expectSections(page: Page, allowed: Section[]) {
+/**
+ * Checks `page` reaches exactly `allowed`: in the sidebar and by URL; every other section is absent and answers 404. The
+ * same for Activité's tabs, `tabs` (#404).
+ */
+async function expectSections(page: Page, allowed: Section[], tabs: ActivityTab[] = []) {
   await page.goto("/admin");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(admin.title);
   const links = backOfficeNav(page).getByRole("link");
@@ -84,6 +93,10 @@ async function expectSections(page: Page, allowed: Section[]) {
       expect(response?.status(), path).toBe(404);
       await expect(page.getByRole("heading", { level: 1 }), path).toHaveText(page404);
     }
+  }
+  for (const [tab, path] of Object.entries(ACTIVITY_TABS) as [ActivityTab, string][]) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(tabs.includes(tab) ? 200 : 404);
   }
 }
 
@@ -103,7 +116,7 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "aiMessages", "tools", "administrators", "journal"]);
+    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
@@ -162,7 +175,8 @@ test.describe("Back Office Roles", () => {
     await coachesPage.goto(SECTIONS.humanCoaches);
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
-    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "tools"]);
+    // Support reads Activité's Recherches, never its Appels IA nor its Actions des administrateurs (#404).
+    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools"], ["discoveryRuns"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
@@ -210,14 +224,14 @@ test.describe("Back Office Roles", () => {
     expect(refused.status()).toBe(404);
   });
 
-  test("Technique reaches the platform's sections and the Journal, never Appels IA nor the Administrateurs (#397)", async ({ page, browser }) => {
+  test("Technique reaches the platform's sections, Activité's Recherches and Actions des administrateurs, never Appels IA nor the Administrateurs (#397, #404)", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const technique = newAddress("platform-manager");
     const techniquePage = await personPage(browser, technique);
     await grant(page, technique, ["platform-manager"]);
 
     // The keys, the Sign-in Providers and the search sites are on Paramètres' tabs (#396).
-    await expectSections(techniquePage, ["platformSettings", "aiUsage", "tools", "journal"]);
+    await expectSections(techniquePage, ["platformSettings", "aiUsage", "activity", "tools"], ["discoveryRuns", "journal"]);
     // Changes the search sites: the Sources' switches and the Job discovery sites (Recherche web tab).
     await techniquePage.goto(SOURCES);
     await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);
@@ -292,7 +306,7 @@ test.describe("Back Office Roles", () => {
     expect((await person.goto(SECTIONS.administrators))?.status()).toBe(404);
   });
 
-  test("grants and revokes are in the Journal, which only super-admins read", async ({ page, browser }) => {
+  test("grants and revokes are in Actions des administrateurs, which a Coach manager does not read", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const email = newAddress("journal-roles");
     const person = await personPage(browser, email);
@@ -300,7 +314,7 @@ test.describe("Back Office Roles", () => {
     await grant(page, email, ["coach-manager"]);
     await revoke(page, email, "support");
 
-    await page.goto(`${SECTIONS.journal}?section=roles`);
+    await page.goto(`${ACTIVITY_TABS.journal}?section=roles`);
     const rows = page.getByRole("row").filter({ hasText: email });
     await expect(rows).toHaveCount(3);
     await expect(rows.nth(0)).toContainText(admin.journal.actions.updated);
@@ -315,10 +329,10 @@ test.describe("Back Office Roles", () => {
     }
 
     // A Coach manager does not read it.
-    expect((await person.goto(SECTIONS.journal))?.status()).toBe(404);
+    expect((await person.goto(ACTIVITY_TABS.journal))?.status()).toBe(404);
   });
 
-  test("an Administrator opening a section outside their roles is in the Journal, once a minute; a Candidate with no role is not (#264)", async ({ page, browser }) => {
+  test("an Administrator opening a section outside their roles is in Actions des administrateurs, once a minute; a Candidate with no role is not (#264)", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const support = newAddress("denied-support");
     const supportPage = await personPage(browser, support);
@@ -329,20 +343,20 @@ test.describe("Back Office Roles", () => {
     const second = new Date().getSeconds();
     if (second >= 45) await page.waitForTimeout((61 - second) * 1000);
 
-    expect((await supportPage.goto(SECTIONS.aiMessages))?.status()).toBe(404);
+    expect((await supportPage.goto(ACTIVITY_TABS.aiMessages))?.status()).toBe(404);
     expect((await supportPage.reload())?.status()).toBe(404);
     expect((await candidatePage.goto("/admin"))?.status()).toBe(404);
 
-    await page.goto(`${SECTIONS.journal}?section=ai_messages&outcome=failed`);
+    await page.goto(`${ACTIVITY_TABS.journal}?section=ai_messages&outcome=failed`);
     const denied = page.getByRole("row").filter({ hasText: support });
     await expect(denied).toHaveCount(1);
     await expect(denied).toContainText(admin.journal.sections.ai_messages);
-    await expect(denied).toContainText(SECTIONS.aiMessages);
+    await expect(denied).toContainText(ACTIVITY_TABS.aiMessages);
     await expect(denied).toContainText(admin.journal.actions.denied);
     await expect(denied).toContainText(admin.journal.outcomes.failed);
     await expect(denied).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.viewed, reason: fr.failureReasons.role_missing }));
     // Nobody to attribute it to: a Candidate with no Back Office Role leaves nothing.
-    await page.goto(SECTIONS.journal);
+    await page.goto(ACTIVITY_TABS.journal);
     await expect(page.getByRole("row").filter({ hasText: candidate })).toHaveCount(0);
   });
 });

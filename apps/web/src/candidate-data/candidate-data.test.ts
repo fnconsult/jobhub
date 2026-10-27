@@ -1,7 +1,7 @@
 import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import { rulesProvenance, type MasterCvContent, type Provenance } from "@jobhub/shared";
+import { noDiscoveryMetrics, rulesProvenance, type MasterCvContent, type Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApplications, type Applications } from "../applications";
@@ -23,6 +23,7 @@ import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
 import { createAppointmentReminders } from "../appointment-reminders";
 import { createSignalements } from "../signalements";
+import { createDiscoveryRuns } from "../discovery-runs";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -188,6 +189,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         ],
         atsScore: null,
         jobSearches: [],
+        jobDiscoveryRuns: [],
         jobDigest: null,
         jobDigests: [],
       },
@@ -449,6 +451,36 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(searching).toMatchObject({ status: "searching" });
     expect(searching).not.toHaveProperty("provenance");
     expect(searching).not.toHaveProperty("progress");
+  });
+
+  it("the export holds each Profile's Job discovery runs of the last 30 days, with the query texts each search sent (#404)", async () => {
+    const profileId = await createProfile(candidateId, "DAF");
+    const runs = createDiscoveryRuns(database);
+    const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+    const id = await runs.record({
+      trigger: "job_digest",
+      startedAt: new Date("2026-10-20T05:00:00Z"),
+      durationMs: 30_000,
+      candidateId,
+      profileId,
+      jobSearchId: null,
+      criteria,
+      metrics: noDiscoveryMetrics(),
+      stopReason: "exhausted",
+      newJobOffers: 0,
+      searches: [{ kind: "site", site: "apec.fr", queries: ["Offre d'emploi « DAF » à Lyon"], page: 1, provider: "perplexity", fallback: false, results: 0, newJobOffers: 0, costEur: 0.00086 }],
+    });
+
+    expect((await candidateData.export(candidateId)).profiles[0]!.jobDiscoveryRuns).toEqual([
+      {
+        id,
+        startedAt: new Date("2026-10-20T05:00:00Z"),
+        trigger: "job_digest",
+        jobSearchId: null,
+        criteria,
+        searches: [{ kind: "site", site: "apec.fr", queries: ["Offre d'emploi « DAF » à Lyon"], page: 1, provider: "perplexity" }],
+      },
+    ]);
   });
 
   it("the export holds each Profile's Job Digest settings and the Job Digests sent, with their Provenance when kept (#336), but not the secret unsubscribe link", async () => {

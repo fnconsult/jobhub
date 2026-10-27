@@ -35,6 +35,7 @@ import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type Save
 import type { CoachMessage } from "../coach";
 import { SAVED_REPLY_COLUMNS, savedReplyProvenance, type SavedReply } from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
+import { discoveryRunsOf, type ExportedDiscoveryRun } from "../discovery-runs";
 import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
 import type { CoachingSession, CoachReview } from "../human-coaches";
@@ -57,6 +58,11 @@ export interface ExportedProfile {
   atsScore: Omit<KeptAtsScore, "provenance"> | null;
   /** Newest first. */
   jobSearches: ExportedJobSearch[];
+  /**
+   * The runs of Job discovery for the Profile of the last 30 days (#404), newest first: when, what started them, the Search
+   * Criteria and each search's query texts. Older ones keep only figures of no one, outside the export.
+   */
+  jobDiscoveryRuns: Omit<ExportedDiscoveryRun, "profileId">[];
   /** The Candidate's Job Digest settings for the Profile, or null when they never opted in. */
   jobDigest: ExportedJobDigestSettings | null;
   /** The Job Digests sent for the Profile, newest first, each with what made it (ADR-0034, #336) when it was kept. */
@@ -300,6 +306,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
   job_search: "profiles[].jobSearches (each one's Provenance, not its live steps)",
+  discovery_run_detail: "profiles[].jobDiscoveryRuns (the last 30 days' runs: criteria and each search's query texts; their figures are of no one)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
   application: "applications",
@@ -364,7 +371,7 @@ function exportedDossier(row: (Omit<ExportedCompanyDossier, "provenance"> & { pr
 
 export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
-    const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf] = await Promise.all([
+    const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf, discoveryRuns] = await Promise.all([
       deps.profiles.list(candidateId),
       grouped<Omit<KeptAtsScore, "provenance">>(
       `SELECT s.profile_id AS key, s.version, s.score, s.computed_at AS "computedAt" FROM ats_score s JOIN profile p ON p.id = s.profile_id
@@ -386,6 +393,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds", provenance FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
         candidateId,
       ),
+      discoveryRunsOf(database, candidateId),
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
@@ -402,6 +410,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             const kept = readProvenance(provenance);
             return { ...jobSearch, ...(stopRequestedAt && { stopRequestedAt }), ...(kept && { provenance: kept }) };
           }),
+          jobDiscoveryRuns: discoveryRuns.filter((run) => run.profileId === id).map(({ profileId: _profileId, ...run }) => run),
           jobDigest: jobDigestSettingsOf(id)[0] ?? null,
           jobDigests: jobDigestsOf(id).map(({ provenance, ...jobDigest }) => {
             const kept = readProvenance(provenance);

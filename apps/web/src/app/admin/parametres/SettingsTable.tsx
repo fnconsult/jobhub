@@ -3,6 +3,7 @@ import type { EnvOnlyRow, ShownValue } from "@/platform-settings/env-only";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import { restoreSetting, saveSetting } from "./actions";
 import { Here, ScrollFrame, type Ctx } from "./context";
+import { SettingName } from "./SettingName";
 import { SOURCE_TONE } from "./tone";
 
 /** What a boolean setting takes, as env holds it. */
@@ -13,16 +14,33 @@ const choicesOf = (type: PlatformSettingType): readonly string[] => (type.kind =
 /** An AI routing setting naming a model: picked from its provider's known models, or typed, and tested on save (#301). */
 export const isModelSetting = (setting: PlatformSetting) => setting.group === "ai_routing" && setting.name.endsWith("_MODEL");
 
-/** A value only env holds, as Paramètres shows it: never a secret. */
-export function ShownEnvValue({ ctx, value }: { ctx: Ctx; value: ShownValue }) {
+/** A value only env holds, in words: never a secret. */
+export function shownEnvText(ctx: Ctx, value: ShownValue): string {
   switch (value.kind) {
     case "value":
-      return <code>{value.value}</code>;
+      return value.value;
     case "key_versions":
-      return <>{ctx.t("admin.platformSettings.envOnly.keyVersions", { versions: value.versions.join(", ") })}</>;
+      return ctx.t("admin.platformSettings.envOnly.keyVersions", { versions: value.versions.join(", ") });
     default:
-      return <>{ctx.t(`admin.platformSettings.envOnly.${value.kind}`)}</>;
+      return ctx.t(`admin.platformSettings.envOnly.${value.kind}`);
   }
+}
+
+/** A value only env holds, as Paramètres shows it: never a secret. */
+export function ShownEnvValue({ ctx, value }: { ctx: Ctx; value: ShownValue }) {
+  return value.kind === "value" ? <code>{value.value}</code> : <>{shownEnvText(ctx, value)}</>;
+}
+
+/** What a Platform Setting's row says of its state, for the Back Office Assistant (#407): its default, and its flags. */
+function settingState(ctx: Ctx, setting: ResolvedPlatformSetting): string {
+  const { t } = ctx;
+  return [
+    `${t("admin.platformSettings.default")} : ${setting.default || t("admin.platformSettings.empty")}`,
+    setting.differsFromDefault ? t("admin.platformSettings.differsFlag") : null,
+    setting.valid ? null : t("admin.platformSettings.invalidFlag"),
+  ]
+    .filter(Boolean)
+    .join(" ; ");
 }
 
 /**
@@ -58,7 +76,7 @@ export function SettingsTable({ ctx, caption, names, settings, envOnly }: { ctx:
           {platform.map((setting) => (
             <tr key={setting.name} id={`setting-${setting.name}`} data-setting={setting.name}>
               <th scope="row">
-                <code>{setting.name}</code>
+                <SettingName ctx={ctx} name={setting.name} item={{ value: setting.value, source: t(`admin.platformSettings.sources.${setting.source}`), state: settingState(ctx, setting) }} />
               </th>
               <td>
                 {value(setting.value)}
@@ -85,7 +103,7 @@ export function SettingsTable({ ctx, caption, names, settings, envOnly }: { ctx:
           {fromEnv.map((row) => (
             <tr key={row.name} id={`setting-${row.name}`} data-setting={row.name}>
               <th scope="row">
-                <code>{row.name}</code>
+                <SettingName ctx={ctx} name={row.name} item={{ value: shownEnvText(ctx, row.shown), source: t("admin.platformSettings.sources.env"), state: t("admin.platformSettings.active.readOnlyFromEnv") }} />
               </th>
               <td>
                 <ShownEnvValue ctx={ctx} value={row.shown} />

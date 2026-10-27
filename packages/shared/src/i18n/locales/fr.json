@@ -1400,7 +1400,8 @@
         "missing": "Non défini",
         "unreadable": "Défini, illisible",
         "keyVersions": "Défini (versions : {{versions}})",
-        "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans la sortie du serveur."
+        "mailToConsole": "MAIL_TRANSPORT=console : les e-mails ne partent pas, ils sont seulement écrits dans la sortie du serveur.",
+        "why": "Pourquoi ces réglages restent-ils dans l'environnement ?"
       },
       "elsewhere": {
         "title": "Réglés dans leur propre section",
@@ -1566,6 +1567,25 @@
         "close": "Fermer",
         "keyValue": "Valeur de la clé"
       },
+      "explain": {
+        "why": "Pourquoi ?"
+      },
+      "labels": {
+        "JOB_DISCOVERY_COUNTRY": "Pays",
+        "JOB_DISCOVERY_BUDGET_JOB_OFFERS": "Offres trouvées par run, au plus",
+        "JOB_DISCOVERY_BUDGET_EUR": "Coût IA d'un run, au plus (€)",
+        "JOB_DISCOVERY_BUDGET_SECONDS": "Durée d'un run, au plus (s)",
+        "JOB_DIGEST_MIN_MATCH_SCORE": "Match Score minimum du Job Digest",
+        "JOB_DIGEST_TARGET_COUNT": "Offres visées par Job Digest",
+        "JOB_DIGEST_FIRST_LOOK_BACK_DAYS": "Jours relus par le premier Job Digest",
+        "MAIL_FROM": "Expéditeur des e-mails",
+        "MAIL_TRANSPORT": "Envoi des e-mails",
+        "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
+        "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
+        "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
+        "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
+        "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
+        },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
         "sourcePlaybook": "Playbook, version {{version}}",
@@ -2647,7 +2667,10 @@
     "author": "Assistant",
     "retention": "Vos conversations avec l'assistant sont conservées 12 mois après leur dernier message, puis supprimées. Personne d'autre ne les voit.",
     "noConversations": "Vous n'avez pas encore de conversation avec l'assistant.",
-    "send": "Envoyer"
+    "send": "Envoyer",
+    "explain": {
+      "question": "Explique-moi « {{label}} » ici."
+    }
   },
   "applicationStatuses": {
     "to_apply": "À postuler",

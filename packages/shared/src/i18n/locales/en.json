@@ -1400,7 +1400,8 @@
         "missing": "Not set",
         "unreadable": "Set, unreadable",
         "keyVersions": "Set (versions: {{versions}})",
-        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server output."
+        "mailToConsole": "MAIL_TRANSPORT=console: emails are not sent, only written to the server output.",
+        "why": "Why do these settings stay in the environment?"
       },
       "elsewhere": {
         "title": "Set in their own section",
@@ -1566,6 +1567,25 @@
         "close": "Close",
         "keyValue": "Key value"
       },
+      "explain": {
+        "why": "Why?"
+      },
+      "labels": {
+        "JOB_DISCOVERY_COUNTRY": "Country",
+        "JOB_DISCOVERY_BUDGET_JOB_OFFERS": "Job Offers found per run, at most",
+        "JOB_DISCOVERY_BUDGET_EUR": "AI cost of a run, at most (€)",
+        "JOB_DISCOVERY_BUDGET_SECONDS": "Length of a run, at most (s)",
+        "JOB_DIGEST_MIN_MATCH_SCORE": "Job Digest's lowest Match Score",
+        "JOB_DIGEST_TARGET_COUNT": "Job Offers a Job Digest aims for",
+        "JOB_DIGEST_FIRST_LOOK_BACK_DAYS": "Days the first Job Digest looks back",
+        "MAIL_FROM": "Email sender",
+        "MAIL_TRANSPORT": "Email sending",
+        "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
+        "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
+        "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
+        "AI_WEB_SEARCH_PROVIDER": "Web search provider",
+        "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
+        },
       "aiTasks": {
         "providerDefault": "default model",
         "sourcePlaybook": "Playbook, version {{version}}",
@@ -2647,7 +2667,10 @@
     "author": "Assistant",
     "retention": "Your conversations with the assistant are kept for 12 months after their last message, then deleted. Nobody else sees them.",
     "noConversations": "You have no conversation with the assistant yet.",
-    "send": "Send"
+    "send": "Send",
+    "explain": {
+      "question": "Explain « {{label}} » to me here."
+    }
   },
   "applicationStatuses": {
     "to_apply": "To apply",

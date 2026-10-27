@@ -30,7 +30,7 @@ import type { Pool } from "pg";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
-import type { AssistantMessage } from "../back-office-assistant";
+import type { AssistantMessage, ExplainedItem } from "../back-office-assistant";
 import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type SavedAssistantReply } from "../back-office-assistant/conversations";
 import type { CoachMessage } from "../coach";
 import { SAVED_REPLY_COLUMNS, savedReplyProvenance, type SavedReply } from "../coach-conversations";
@@ -349,7 +349,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   action_card: "actionCards",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
-  back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance; no AI costs)",
+  back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
   signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
 };
@@ -625,8 +625,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
            FROM back_office_assistant_conversation WHERE candidate_id = $1 ORDER BY last_message_at DESC, id`,
         candidateId,
       ),
-      grouped<Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> & SavedAssistantReply & { blocked: true | null }>(
-        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.created_at AS "sentAt", ${SAVED_ASSISTANT_REPLY_COLUMNS}
+      grouped<Pick<ExportedAssistantConversation["messages"][number], "from" | "text" | "sentAt"> & SavedAssistantReply & { blocked: true | null; explained: ExplainedItem | null }>(
+        `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.explained, m.created_at AS "sentAt", ${SAVED_ASSISTANT_REPLY_COLUMNS}
            FROM back_office_assistant_message m JOIN back_office_assistant_conversation c ON c.id = m.conversation_id
           WHERE c.candidate_id = $1 ORDER BY m.seq`,
         candidateId,
@@ -636,7 +636,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       ...conversation,
       messages: messagesOf(conversation.id).map((message) => {
         const provenance = message.from === "assistant" ? savedAssistantReplyProvenance(message) : null;
-        return { from: message.from, text: message.text, sentAt: message.sentAt, ...(message.blocked ? { blocked: message.blocked } : {}), ...(provenance ? { provenance } : {}) };
+        return { from: message.from, text: message.text, sentAt: message.sentAt, ...(message.blocked ? { blocked: message.blocked } : {}), ...(message.explained ? { explained: message.explained } : {}), ...(provenance ? { provenance } : {}) };
       }),
     }));
   }

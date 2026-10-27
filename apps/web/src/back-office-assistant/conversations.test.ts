@@ -232,6 +232,23 @@ describe.skipIf(!connectionString)("Back Office Assistant conversations (needs P
     expect(messages[2]).toEqual({ from: "assistant", text: "Sans rien", at: "2026-09-01T08:00:09.000Z", provenance: null });
   });
 
+  it("keeps the item an Explainable label asked about with its question, and tells it again with each later message (#407)", async () => {
+    const explained = { label: "Pays", page: "/admin/parametres", tab: "Recherche web", kind: "setting", id: "JOB_DISCOVERY_COUNTRY", value: "FR", source: "Défaut du code" };
+    const first = await conversations.send(claire, { message: "Explique-moi « Pays » ici.", explained });
+    if (!first.ok) throw new Error("refused");
+    await conversations.send(claire, { conversationId: first.conversation.id, message: "Et si je le change ?" });
+
+    expect(asked[0]!.input.messages).toEqual([{ from: "administrator", text: "Explique-moi « Pays » ici.", explained }]);
+    expect(asked[1]!.input.messages).toEqual([
+      { from: "administrator", text: "Explique-moi « Pays » ici.", explained },
+      { from: "assistant", text: "Réponse 1" },
+      { from: "administrator", text: "Et si je le change ?" },
+    ]);
+    // The Administrator reads their question as they sent it.
+    expect((await conversations.open(claire.id, first.conversation.id))!.messages[0]).toEqual({ from: "administrator", text: "Explique-moi « Pays » ici." });
+    expect(await conversations.send(claire, { message: "Explique-moi", explained: { ...explained, kind: "secret" } })).toEqual({ ok: false, error: "invalid" });
+  });
+
   it("saves nothing when the assistant cannot answer, and refuses bad input", async () => {
     assistantReply = () => ({ ok: false, error: "unavailable" });
 

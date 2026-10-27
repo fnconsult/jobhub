@@ -1,11 +1,34 @@
 import type { AiTask } from "@jobhub/ai";
 import Link from "next/link";
+import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
 import type { EnvOnlyRow } from "@/platform-settings/env-only";
 import { parametresHref, type KeyState, type PossibleProvider } from "@/platform-settings/parametres";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import { saveSetting } from "./actions";
 import { Here, ScrollFrame, type Ctx } from "./context";
+import { tabNameOf } from "./SettingName";
 import { SettingsTable } from "./SettingsTable";
+
+/** A missing-key warning, as an Explainable label explains it (#407). */
+const KEY_MISSING: ExplainedContext = { kind: "warning", id: "key_missing" };
+const ACTIVE_NO_KEY = "active-no-key";
+
+/**
+ * « Pourquoi ? » after a missing-key warning (#407): asks the Back Office Assistant why, with the provider and the keys
+ * it lacks (by name, never a value).
+ */
+function WhyMissingKey({ ctx, warning, warningId, rows }: { ctx: Ctx; warning: string; warningId: string; rows: readonly PossibleProvider[] }) {
+  const missing = rows.flatMap((row) => row.keys.filter((key) => !key.set).map((key) => key.name));
+  return (
+    <ExplainableLabel
+      subject={warning}
+      describedBy={warningId}
+      item={{ ...KEY_MISSING, tab: tabNameOf(ctx), source: rows.map((row) => row.tool.name).join(", "), state: missing.join(", ") }}
+    >
+      {ctx.t("admin.platformSettings.explain.why")}
+    </ExplainableLabel>
+  );
+}
 
 const KEY_TONE: Record<NonNullable<KeyState["source"]>, "success" | "accent" | "danger"> = { database: "success", env: "accent", missing: "danger", unreadable: "danger" };
 const STATUS_TONE: Record<PossibleProvider["status"], "success" | "accent" | "danger" | undefined> = {
@@ -95,7 +118,10 @@ export function ProvidersSection({
           <p data-active-provider>{t("admin.platformSettings.active.inUse", { names: active.length > 0 ? active.map((row) => row.tool.name).join(", ") : t("admin.platformSettings.active.none") })}</p>
         )}
         {tab.activeSetting && active.some(missingKey) ? (
-          <p className="notice">{t("admin.platformSettings.active.noKey")}</p>
+          <p className="notice">
+            <span id={ACTIVE_NO_KEY}>{t("admin.platformSettings.active.noKey")}</span>{" "}
+            <WhyMissingKey ctx={ctx} warning={t("admin.platformSettings.active.noKey")} warningId={ACTIVE_NO_KEY} rows={active.filter(missingKey)} />
+          </p>
         ) : null}
         {tab.id === "contact_enrichment" ? <p>{t("admin.platformSettings.enrichedContactsHelp")}</p> : null}
         <SettingsTable ctx={ctx} caption={t("admin.platformSettings.active.settingsCaption", { tab: tabName })} names={tab.settings} settings={settings} envOnly={envOnly} />
@@ -162,7 +188,12 @@ export function ProvidersSection({
                               {t("admin.platformSettings.providers.makeActive")}
                               <span className="visually-hidden"> : {row.tool.name}</span>
                             </button>
-                            {missingKey(row) ? <p id={`no-key-${row.tool.id}`}>{t("admin.platformSettings.providers.noKeyWarning")}</p> : null}
+                            {missingKey(row) ? (
+                              <p>
+                                <span id={`no-key-${row.tool.id}`}>{t("admin.platformSettings.providers.noKeyWarning")}</span>{" "}
+                                <WhyMissingKey ctx={ctx} warning={t("admin.platformSettings.providers.noKeyWarning")} warningId={`no-key-${row.tool.id}`} rows={[row]} />
+                              </p>
+                            ) : null}
                           </form>
                         ) : null}
                       </td>

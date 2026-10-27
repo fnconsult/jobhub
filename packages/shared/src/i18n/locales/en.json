@@ -1380,7 +1380,8 @@
         "text": "some text",
         "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
         "url": "an https URL",
-        "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>"
+        "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>",
+        "country": "a two-letter country code, such as FR"
       },
       "notices": {
         "saved": "{{name}} saved: the new value applies within seconds, without a restart.",

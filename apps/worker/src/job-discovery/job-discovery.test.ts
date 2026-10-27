@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FantasticJobs, FantasticJobsSearch } from "./fantastic-jobs";
 import type { FranceTravail, FranceTravailSearch } from "./france-travail";
-import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore } from "./index";
+import { createJobDiscovery, JobDiscoveryError, type JobDiscoveryBudget, type JobOfferStore, type WebSearchSettings } from "./index";
 
 /** Serves, for each id given, that text as version 2 with no Playbook Agent, searching where it says (none: the configured route); nothing for any other id. */
 const servedTasks =
@@ -101,6 +101,7 @@ function setup(options: {
   reply?: string | (() => string);
   existing?: JobOffer[];
   budget?: Partial<JobDiscoveryBudget> | (() => Partial<JobDiscoveryBudget>);
+  search?: Partial<WebSearchSettings> | (() => Partial<WebSearchSettings>);
   /** Tokens each LLM read uses. */
   llmUsage?: { inputTokens: number; outputTokens: number };
   /** When the run starts. Default: the epoch. */
@@ -138,7 +139,7 @@ function setup(options: {
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
-  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, fantasticJobs: options.fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries });
+  const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, search: options.search, franceTravail: options.franceTravail, fantasticJobs: options.fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries });
   return { discovery, search, llm, titles, web, jobOffers };
 }
 
@@ -254,6 +255,19 @@ describe("Job discovery", () => {
       expect(search.searches.map((s) => s.filters)).toEqual(
         Array(3).fill({ excludeDomains: ["linkedin.com", "indeed.com", "indeed.fr", "glassdoor.com", "glassdoor.fr"], maxAgeDays: 30, country: "FR" }),
       );
+    });
+
+    it("favours the country the web search's settings name, read on each run (#402, #407)", async () => {
+      let country = "BE";
+      const { discovery, search } = setup({ sources: [], pages: {}, titles, search: () => ({ country }) });
+
+      await discovery.discover({ candidateId: "candidate-1", criteria });
+      country = "CH";
+      await discovery.discover({ candidateId: "candidate-1", criteria });
+
+      expect(new Set(search.searches.map((s) => s.filters?.country))).toEqual(new Set(["BE", "CH"]));
+      expect(search.searches[0]!.filters?.country).toBe("BE");
+      expect(search.searches.at(-1)!.filters?.country).toBe("CH");
     });
 
     it("searches a query's next page only while its last page gave a new readable posting", async () => {

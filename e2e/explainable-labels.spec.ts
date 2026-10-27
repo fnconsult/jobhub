@@ -49,8 +49,8 @@ test.describe("Explainable labels", () => {
   test("clicking « Pays » opens the Assistant with the question and an answer mentioning the setting's value and source", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(`${PATH}?tab=recherche-web`);
-    // The web search's country is a Platform Setting from #402: until it is merged, its row is not on the page.
-    test.skip((await page.locator('tr[data-setting="JOB_DISCOVERY_COUNTRY"]').count()) === 0, "JOB_DISCOVERY_COUNTRY arrives with #402");
+    // The web search's country (JOB_DISCOVERY_COUNTRY), a Platform Setting on Recherche web: env leaves it to the code's FR.
+    await expect(page.locator('tr[data-setting="JOB_DISCOVERY_COUNTRY"]')).toHaveCount(1);
     await explains(page, texts.labels.JOB_DISCOVERY_COUNTRY, "FR", texts.sources.default);
   });
 

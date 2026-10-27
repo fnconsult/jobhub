@@ -122,6 +122,7 @@ import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
 import { listingPageLinks } from "./listing-page";
 import { searchPages } from "./search-pages";
+import { DEFAULT_WEB_SEARCH_SETTINGS, type WebSearchSettings } from "./search-settings";
 import {
   countJobPostings,
   createPoliteFetcher,
@@ -139,6 +140,7 @@ import {
 
 export { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 export { DEFAULT_BUDGET, jobDiscoveryBudgetFromEnv, type JobDiscoveryBudget } from "./budget";
+export { DEFAULT_WEB_SEARCH_SETTINGS, webSearchSettingsFromEnv, type WebSearchSettings } from "./search-settings";
 export type { RefusalReason } from "@jobhub/shared/page-reading";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
 export { chargedCostEur, eurPerJobFromEnv, fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
@@ -171,6 +173,11 @@ export interface JobDiscoveryOptions {
    * each run: the worker's follows its Platform Settings, so a change applies to the next run (#299).
    */
   budget?: Partial<JobDiscoveryBudget> | (() => Partial<JobDiscoveryBudget>);
+  /**
+   * How the run searches the web (#402): the country favoured; what it leaves out is DEFAULT_WEB_SEARCH_SETTINGS'. A
+   * getter is asked on each run: the worker's follows its Platform Settings, so a change applies to the next run.
+   */
+  search?: Partial<WebSearchSettings> | (() => Partial<WebSearchSettings>);
   /** For waiting out robots.txt Crawl-delay and timing the budget. Default: real time. */
   clock?: Clock;
   /**
@@ -265,9 +272,6 @@ export interface JobDiscovery {
   discover(request: DiscoverRequest): Promise<DiscoveryReport>;
 }
 
-/** Job Searches look for jobs in France: the provider favours French pages. */
-const SEARCH_COUNTRY = "FR";
-
 export { DEFAULT_USER_AGENT } from "@jobhub/shared/page-reading";
 
 /**
@@ -332,16 +336,18 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const clock = options.clock ?? realClock;
   const userAgent = options.userAgent ?? DEFAULT_USER_AGENT;
   const forbiddenSites: readonly string[] = options.forbiddenSites ?? FORBIDDEN_SITES;
-  /**
-   * What each web search asks of the provider, where it can: no forbidden site (none could be read,
-   * and most are listing pages, #105), postings of the last 30 days (older ones are dropped), in France.
-   */
-  const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: SEARCH_COUNTRY };
 
   return {
     async discover({ candidateId, criteria, onEvent, signal }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
+      const web: WebSearchSettings = { ...DEFAULT_WEB_SEARCH_SETTINGS, ...(typeof options.search === "function" ? options.search() : options.search) };
+      /**
+       * What each web search asks of the provider, where it can: no forbidden site (none could be read, and most are
+       * listing pages, #105), postings of the last 30 days (older ones are dropped), in the country the web search's
+       * settings name (France by default, #402).
+       */
+      const searchFilters: SearchFilters = { excludeDomains: [...forbiddenSites], maxAgeDays: MAX_POSTING_AGE_DAYS, country: web.country };
       const settings = await readSettings(options.settings);
       const industries = await readIndustries(options.industries);
       const configuredFranceTravail = typeof options.franceTravail === "function" ? options.franceTravail() : options.franceTravail;

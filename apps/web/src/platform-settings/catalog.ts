@@ -17,7 +17,7 @@ import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/t
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -32,7 +32,9 @@ export type PlatformSettingType =
   /** An email sender our mailers send as: "Jobbbox <hello@jobbbox.ai>", or a bare address. */
   | { kind: "sender" }
   /** "true" or "false". */
-  | { kind: "boolean" };
+  | { kind: "boolean" }
+  /** A two-letter country code (ISO 3166-1 alpha-2), kept in upper case: a filter names a country by its code, never in words (ADR-0007). */
+  | { kind: "country" };
 
 export interface PlatformSetting {
   /** The environment variable of the same name. */
@@ -60,6 +62,8 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
       default: setting.default,
     }),
   ),
+  // The web search of Job discovery (#386, #402), on Paramètres' Recherche web tab: the country its pages are favoured from.
+  { name: "JOB_DISCOVERY_COUNTRY", group: "web_search", type: { kind: "country" }, default: "FR" },
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
@@ -88,7 +92,7 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
  * AI routing (#301), the email sender (#300), Enriched Contacts (#302) and the extension's store page (#303).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "web_search", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);
@@ -117,6 +121,8 @@ function rule(type: PlatformSettingType): string {
       return "an email sender, such as Jobbbox <hello@jobbbox.ai>";
     case "boolean":
       return "true or false";
+    case "country":
+      return "a two-letter country code, such as FR";
   }
 }
 
@@ -154,7 +160,21 @@ export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetti
       return isSender(value) ? { ok: true, value } : refused;
     case "boolean":
       return value === "true" || value === "false" ? { ok: true, value: value === "true" } : refused;
+    case "country":
+      return /^[a-z]{2}$/i.test(value) ? { ok: true, value: value.toUpperCase() } : refused;
   }
+}
+
+/**
+ * The Platform Setting `name` from `env`, else its code default, as its type parses it (a number, a choice, a country
+ * code…). A value the setting does not take throws, naming it.
+ */
+export function readSetting(env: Record<string, string | undefined>, name: string): string | number | boolean {
+  const setting = platformSetting(name);
+  if (!setting) throw new Error(`${name} is not a Platform Setting`);
+  const parsed = parseSetting(setting, env[name]?.trim() || setting.default);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.value;
 }
 
 /**

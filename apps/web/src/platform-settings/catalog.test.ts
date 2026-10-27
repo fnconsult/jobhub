@@ -30,10 +30,13 @@ const ADR_0033 = [
   "EXTENSION_STORE_URL",
 ];
 
+/** The web search's bounded settings (#386, #402) on Paramètres' Recherche web tab: its country, so far (#407 explains it). */
+const WEB_SEARCH = ["JOB_DISCOVERY_COUNTRY"];
+
 describe("the Platform Settings catalog", () => {
-  it("holds every Platform Setting of ADR-0033, once each", () => {
+  it("holds every Platform Setting of ADR-0033 and the web search's bounded settings, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -70,6 +73,18 @@ describe("the Platform Settings catalog", () => {
     expect(defaultOf("CONTACT_ENRICHMENT_PROVIDER")).toBe("");
     expect(defaultOf("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("false");
     expect(defaultOf("EXTENSION_STORE_URL")).toBe("");
+  });
+
+  it("gives the web search's country the default #386 decided, editable on Paramètres", () => {
+    expect(platformSetting("JOB_DISCOVERY_COUNTRY")).toMatchObject({ group: "web_search", default: "FR" });
+    expect(isEditable(platformSetting("JOB_DISCOVERY_COUNTRY")!)).toBe(true);
+  });
+
+  it("takes a country as a two-letter code, kept in upper case", () => {
+    const country = platformSetting("JOB_DISCOVERY_COUNTRY")!;
+    expect(parseSetting(country, " be ")).toEqual({ ok: true, value: "BE" });
+    expect(parseSetting(country, "France")).toMatchObject({ ok: false, error: expect.stringContaining("a two-letter country code") });
+    expect(parseSetting(country, "F1")).toMatchObject({ ok: false });
   });
 
   it("puts each setting in its group", () => {

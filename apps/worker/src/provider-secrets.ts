@@ -43,6 +43,7 @@ export interface WorkerClientsOptions {
   production: boolean;
   jobOffers: JobDiscoveryOptions["jobOffers"];
   budget?: JobDiscoveryOptions["budget"];
+  search?: JobDiscoveryOptions["search"];
   /** The Job discovery sources and sites set in the Back Office (#188), read at the start of each run. */
   settings?: JobDiscoveryOptions["settings"];
   /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
@@ -127,7 +128,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     }
     // Without its Search provider's key, Job discovery still runs, its web search skipped like a source that is off (#399).
     if (!built.webSearchAvailable()) log("[worker] Job discovery runs without the web search: its Search provider's key is not set");
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, search: options.search, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
   });
 
   // Rebuilt when Brevo's key or MAIL_FROM changes in the Back Office. Each email sent is recorded with the other

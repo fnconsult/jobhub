@@ -1380,7 +1380,8 @@
         "text": "du texte",
         "model": "un modèle de {{provider}}, choisi dans la liste ou saisi ; il est testé par un appel à l'enregistrement",
         "url": "une URL en https",
-        "sender": "un expéditeur d'e-mail, par exemple Jobbbox <hello@jobbbox.ai>"
+        "sender": "un expéditeur d'e-mail, par exemple Jobbbox <hello@jobbbox.ai>",
+        "country": "un code pays à deux lettres, par exemple FR"
       },
       "notices": {
         "saved": "{{name}} enregistré : la nouvelle valeur s'applique en quelques secondes, sans redémarrage.",

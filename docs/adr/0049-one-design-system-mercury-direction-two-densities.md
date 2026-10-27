@@ -12,6 +12,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
 - **Type is Inter**, self-hosted (no Google Fonts), with tabular figures for numbers. The system font stack is the fallback.
 - **Icons come from Lucide only** (ISC licence), drawn inline at stroke 1.7. Every function keeps its visible label (ADR-0009). The Activity glyphs and the Signalement glyphs stay our own.
 - **Motion is short and functional**: 150–220 ms ease-out on drawers, dialogs, toasts and hovers. Data never animates, and nothing moves under `prefers-reduced-motion`.
+- **Scrollbars show only while their area scrolls**: thin, transparent at rest. The content still says there is more (a cut-off row, a fade), so nothing relies on seeing a scrollbar.
 - **Everything is in `rem`**, so the Text Size applies to both Densities, the Back Office included.
 - **A logo is out of scope**: a wordmark and monogram are designed separately. Until then, a square « J » in the accent colour stands in.
 - **Migration order**:

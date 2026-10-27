@@ -1,4 +1,4 @@
-import { EUR_PER_USD, SEARCH_TASK, TEXT_TASKS } from "@jobhub/ai";
+import { pricesFromEnv, SEARCH_TASK, TEXT_TASKS } from "@jobhub/ai";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
@@ -6,7 +6,10 @@ import { aiUsageMonths, aiUsagePeriod, type AiUsageRow, type FailureReasonCount 
 import { aiUsageReportOf } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { settingHref } from "@/platform-settings/parametres";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { routes } from "@/routes";
+import { currentWebSearchAlert } from "@/web-search-alert/server";
 
 const DAY_PERIODS = ["7d", "30d", "90d", "12m"] as const;
 const TASKS = [...Object.keys(TEXT_TASKS), SEARCH_TASK];
@@ -24,7 +27,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * Super-admins and Support follow what AI costs (#218): every AI call, the tools its model used
  * and the external API calls, over a period, in totals and per provider, endpoint and model, task and day
  * (or month), and its failed and warned calls per Failure Reason (#262): codes and their wording only,
- * never a technical reason. Read-only.
+ * never a technical reason. Read-only. A billed tool whose price is not known shows « prix inconnu » with its uses,
+ * counted 0; a banner says when this month's web search spend reached its alert threshold (#403).
  */
 export default async function AiUsagePage({ searchParams }: { searchParams: Promise<{ periode?: string }> }) {
   const { access } = await requireBackOffice("aiUsage");
@@ -33,8 +37,10 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
   const requested = (await searchParams).periode;
   const now = new Date();
   const period = aiUsagePeriod(requested, now);
-  const report = await aiUsageReportOf(period.key);
+  const [report, alert] = await Promise.all([aiUsageReportOf(period.key), currentWebSearchAlert()]);
   const { totals } = report;
+  // The EUR/USD rate in use (#403): the Back Office's, else env's, else the code's.
+  const eurPerUsd = pricesFromEnv(getPlatformSettingsResolver().current().env).eurPerUsd;
 
   const eur = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 4 });
   const number = new Intl.NumberFormat(locale);
@@ -42,6 +48,12 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
   const day = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" });
   const month = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" });
   const cost = (value: number | null) => (value === null ? t("admin.aiUsage.unknownCost") : eur.format(value));
+  /** A tool's cost: its priced uses, and « prix inconnu » with how many were not, counted 0 (#403). */
+  const toolCost = (tool: { costEur: number | null; unpricedCalls: number }) => {
+    const unpriced = tool.unpricedCalls > 0 ? t("admin.aiUsage.unknownPrice", { count: tool.unpricedCalls }) : null;
+    if (tool.costEur === null) return unpriced ?? t("admin.aiUsage.unknownCost");
+    return unpriced ? `${eur.format(tool.costEur)} + ${unpriced}` : eur.format(tool.costEur);
+  };
   const rate = (failures: number, calls: number) => (calls === 0 ? "–" : percent.format(failures / calls));
   const taskName = (task: string) => (TASKS.includes(task) ? t(`admin.aiUsage.tasks.${task as Task}`) : task);
   const bucketName = (bucket: string) => (bucket.length === 7 ? month.format(new Date(`${bucket}-01T00:00:00Z`)) : day.format(new Date(`${bucket}T00:00:00Z`)));
@@ -95,8 +107,19 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
 
   return (
     <BackOfficeLayout access={access} title={t("admin.aiUsage.title")}>
+      {alert.crossed ? (
+        <section className="notice stack" role="status" data-alert="web-search">
+          <p>
+            <strong>{t("admin.aiUsage.alertBanner", { threshold: eur.format(alert.thresholdEur), spend: eur.format(alert.spendEur), month: month.format(new Date(`${alert.month}-01T00:00:00Z`)) })}</strong>
+          </p>
+          <p>{alert.emailedAt ? t("admin.aiUsage.alertEmailed", { at: new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }).format(alert.emailedAt) }) : t("admin.aiUsage.alertNotEmailedYet")}</p>
+          <p>
+            <Link prefetch={false} href={settingHref("WEB_SEARCH_MONTHLY_ALERT_EUR")}>{t("admin.aiUsage.alertSettings")}</Link>
+          </p>
+        </section>
+      ) : null}
       <p className="lead">{t("admin.aiUsage.intro")}</p>
-      <p>{t("admin.aiUsage.estimate", { rate: number.format(EUR_PER_USD) })}</p>
+      <p>{t("admin.aiUsage.estimate", { rate: number.format(eurPerUsd) })}</p>
       {readsCoachCost ? (
         <p>
           <Link href={routes.adminCoachCost}>{t("admin.aiUsage.coachCostLink")}</Link>
@@ -327,7 +350,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
                   <td>{tool.provider}</td>
                   <td>{number.format(tool.calls)}</td>
                   <td>{number.format(tool.failures)}</td>
-                  <td>{cost(tool.costEur)}</td>
+                  <td>{toolCost(tool)}</td>
                 </tr>
               ))}
             </tbody>

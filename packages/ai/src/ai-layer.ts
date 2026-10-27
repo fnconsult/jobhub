@@ -2,7 +2,7 @@ import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, typ
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, buildTargetCompanyQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
-import { costInEur, toolCostInEur } from "./cost";
+import { costInEur, LIST_PRICES, toolCostInEur, type Prices } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
@@ -100,6 +100,11 @@ export interface CallFacts {
   durationMs: number;
   /** ok, or warning when the feature it served ran degraded (its warnings, or a reply it could not use). */
   outcome: Exclude<Outcome, "failed">;
+  /**
+   * What AI Usage recorded it cost, in €: its tokens and the fees of its billed units (a search call, a credit), each
+   * at the price in use when it was made; a unit whose price is not known counts 0 (#403). What a run's budget spends.
+   */
+  costEur: number;
 }
 
 export interface GenerateResult extends CallFacts {
@@ -320,6 +325,11 @@ export interface AiLayerOptions {
    * an outage), the run goes on with it. None when it is not configured (its key missing), nor the one that failed.
    */
   searchFallback?: ProviderId;
+  /**
+   * The prices each call's tokens and billed units are recorded at (#403): the Platform Settings' (`pricesFromEnv`), so
+   * a price overridden on a Tool's sheet applies from the next call. Default: the list prices.
+   */
+  prices?: Prices;
   /** Where a warning goes (e.g. identity found in a call that did not declare it). Default: console.warn. */
   warn?: (message: string, details: Record<string, unknown>) => void;
   /**
@@ -391,6 +401,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const now = options.now ?? (() => new Date());
   const clock = options.clock ?? (() => performance.now());
   const identityRoute = options.identityRoute ?? DEFAULT_IDENTITY_ROUTE;
+  const prices = options.prices ?? LIST_PRICES;
   const routeFor = (task: AiTask): Route => {
     const route = options.routes[task];
     if (!route) throw new AiConfigError(`No provider configured for AI task "${task}"`);
@@ -578,6 +589,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const priced = { provider: provider.id, model: output.model };
     const warnings = recordable(notes.warnings(), unusableReply(notes, output) ?? undefined);
     const outcome = warnings[0] ? "warning" : "ok";
+    const tokensEur = costInEur({ ...priced, usage: output.usage }, prices);
+    const tools = called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool, prices) }));
     log({
       ...base,
       model: output.model,
@@ -585,11 +598,12 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       ...(warnings[0] ? { outcome, reason: warnings[0].reason, warnings } : { outcome }),
       sent: true,
       durationMs,
-      costEur: costInEur({ ...priced, usage: output.usage }),
-      tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) })),
+      costEur: tokensEur,
+      tools,
       transcript: { ...said, reply: replyOf(output) },
     });
-    return { output, endpoint: provider.endpoint, durationMs, outcome };
+    const costEur = tools.reduce((sum, tool) => sum + (tool.costEur ?? 0), tokensEur);
+    return { output, endpoint: provider.endpoint, durationMs, outcome, costEur };
   }
 
   /** The warning of an `output` its feature cannot use (`CallNotes.unusable`), or null; a check that throws refuses it. */
@@ -767,7 +781,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     }
     if (calls.length > 0) return together(calls);
     const { route, provider } = chosen;
-    return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok" };
+    return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok", costEur: 0 };
   }
 
   /** Each query as one message of a search's transcript. */
@@ -1000,5 +1014,6 @@ function together(calls: SearchResult[]): SearchResult {
     endpoint: last.endpoint,
     durationMs: calls.reduce((total, call) => total + call.durationMs, 0),
     outcome: calls.some((call) => call.outcome === "warning") ? "warning" : "ok",
+    costEur: calls.reduce((total, call) => total + call.costEur, 0),
   };
 }

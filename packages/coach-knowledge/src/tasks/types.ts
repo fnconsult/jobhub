@@ -5,6 +5,11 @@ export interface TaskPlaybookSection {
   label: string;
   /** The `{{slot}}` it must hold, where the code puts a value in (cleaned, never personal data). */
   slots?: readonly string[];
+  /**
+   * The rules its Playbook Agent reads, when an earlier version had no agent (#405): a version without this
+   * section runs as that one did, without its agent.
+   */
+  agent?: boolean;
 }
 
 /**

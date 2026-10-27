@@ -676,8 +676,18 @@ The Back Office page where Administrators read the Back Office Audit, newest fir
 _Avoid_: Audit page, changelog
 
 **AI Usage**:
-What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost), duration, Outcome (ok, warning or failed) and the Failure Reason's code, also for a call stopped before it was sent (missing configuration, data residency); with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period, with failures and warnings counted per Failure Reason (also on Outils).
+What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost; a Tool's billed units at its Price), duration, Outcome (ok, warning or failed) and the Failure Reason's code, also for a call stopped before it was sent (missing configuration, data residency); with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period, with failures and warnings counted per Failure Reason (also on Outils).
 _Avoid_: AI bill, token log, metering
+
+**Billed unit**:
+What a Tool charges for: a Perplexity Search API call (1 to 5 queries), a Brave request, a Tavily credit (2 for an advanced search). A call that bills several units is counted once per unit.
+_Avoid_: search count
+
+**Price (of a Tool)**:
+A Platform Setting giving a Tool's cost per Billed unit; its code default is the list price, with its source URL and date, and Technique and super-admins may override it on the Tool's sheet in Paramètres (the EUR/USD rate on the Recherche web tab). It applies from the next call. Token prices are not Platform Settings. A billed use with no known Price is recorded with no cost, counts 0 and shows « prix inconnu » with its number of uses. Job discovery's budget sums the same recorded cost as AI Usage.
+
+**Web search alert**:
+One email per month to super-admins, and a banner in Consommation IA, when the Paris-time month's web search spend (recorded cost at list price, no free allowance deducted) reaches `WEB_SEARCH_MONTHLY_ALERT_EUR`; 0 sends nothing. It never cuts a search.
 
 **AI Message Log**:
 What one AI call said, as sent: its system text and messages after Redaction, and the reply as it came (none when the call failed, or was not sent), keys and secrets scrubbed, with the Candidate it was made for (none for a Guest), and the call's Outcome with its Failure Reason, technical detail included. Kept 30 days for quality and debugging, then purged; deleted with the account and in the Candidate's Data export. The Candidate's Data export holds each failed call's Failure Reason code and French wording, never its technical detail. Only super-admins read it, on the Appels IA tab of the Back Office Activity page, filterable by Outcome and Failure Reason, and every log they open is written to the Back Office Audit.

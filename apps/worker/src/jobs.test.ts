@@ -809,6 +809,8 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
   let throwaway: Awaited<ReturnType<typeof createThrowawayDatabase>>;
   beforeEach(async () => {
     throwaway = await createThrowawayDatabase("test_worker_jobs");
+    // The candidate table as far as private Job Offers need it.
+    await throwaway.pool.query("CREATE TABLE IF NOT EXISTS candidate (id text PRIMARY KEY)");
     await migrateJobOffers(throwaway.pool);
   });
   afterEach(async () => {

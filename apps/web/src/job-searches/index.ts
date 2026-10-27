@@ -54,7 +54,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import type { Applications } from "../applications";
 import type { QuotaDecision } from "../billing";
-import type { JobOffers } from "../job-offers";
+import { visibleTo, type JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
 import { fieldErrors, type FieldError } from "../validation";
 
@@ -360,7 +360,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
     let results: JobSearchResult[] = [];
     if (status !== "searching" && row.job_offer_ids.length > 0) {
       const [found, saved] = await Promise.all([
-        Promise.all(row.job_offer_ids.map((id) => deps.jobOffers.get(id))),
+        Promise.all(row.job_offer_ids.map((id) => deps.jobOffers.get(id, candidateId))),
         deps.applications.list(candidateId),
       ]);
       const applicationOf = new Map(saved.map((application) => [application.jobOffer.id, application.id]));
@@ -464,7 +464,7 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         provenance: unknown;
       }>(
         `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.failure, s.started_at, s.finished_at, s.progress, s.provenance,
-                (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL) AS found
+                (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL AND ${visibleTo("$1", "o")}) AS found
          FROM job_search s JOIN profile p ON p.id = s.profile_id
          WHERE s.candidate_id = $1 AND (s.notification_pending OR s.status = 'searching')
          ORDER BY s.finished_at DESC NULLS FIRST, s.started_at DESC`,

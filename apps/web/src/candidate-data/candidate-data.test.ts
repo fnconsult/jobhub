@@ -920,6 +920,40 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(rows).toEqual([]);
   });
 
+  it("deleting the account deletes the Candidate's private Job Offers, even one they applied to, and keeps shared ones and another Candidate's (ADR-0049)", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    const fromRecruiter = { title: "DAF H/F, client confidentiel", content: "Mon client cherche son DAF à Lyon." };
+    const mine = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: candidateId });
+    const theirs = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: other });
+    if (!mine.ok || !theirs.ok) throw new Error("fixture Job Offer refused");
+    const applied = await applications.save(candidateId, { jobOfferId: mine.jobOffer.id, profileId: await createProfile(candidateId, "DAF") });
+    expect(applied.ok).toBe(true);
+    const shared = await saveApplication(candidateId, await createProfile(candidateId, "DSI"));
+
+    await candidateData.delete(candidateId);
+
+    expect((await database.query("SELECT 1 FROM job_offer WHERE id = $1", [mine.jobOffer.id])).rows).toEqual([]);
+    expect(await jobOffers.get(theirs.jobOffer.id, other)).toMatchObject({ title: fromRecruiter.title });
+    expect(await jobOffers.get(shared.jobOffer.id)).toMatchObject({ title: "DAF H/F" });
+  });
+
+  it("the export holds the Candidate's private Job Offers (ADR-0049), never another Candidate's nor shared ones", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    const mine = await jobOffers.capture(
+      { source: { url: "https://cabinet-recrutement.example/mission/42" }, title: "DAF H/F, client confidentiel", content: "Mon client cherche son DAF à Lyon." },
+      "candidate",
+      { privateTo: candidateId },
+    );
+    await jobOffers.capture({ title: "RAF H/F", content: "Mission confiée à Paul." }, "candidate", { privateTo: other });
+    await jobOffers.capture(OFFER);
+    if (!mine.ok) throw new Error("fixture Job Offer refused");
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.privateJobOffers).toEqual([{ ...mine.jobOffer, createdAt: expect.any(Date) }]);
+    expect((await candidateData.export(other)).privateJobOffers).toEqual([expect.objectContaining({ title: "RAF H/F" })]);
+  });
+
   it("signing up again with the same email after deletion starts an empty account", async () => {
     await createProfile(candidateId, "DAF");
     await candidateData.delete(candidateId);

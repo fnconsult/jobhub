@@ -233,6 +233,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "job_digest", from_column: "profile_id", to_table: "profile" },
         { from_table: "job_digest_subscription", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_digest_subscription", from_column: "profile_id", to_table: "profile" },
+        // A Job Offer private to a Candidate (ADR-0049, #443) goes with them; a shared one names no one.
+        { from_table: "job_offer", from_column: "private_to_candidate_id", to_table: "candidate" },
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },

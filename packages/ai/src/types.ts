@@ -13,7 +13,8 @@ export type ProviderId = (typeof PROVIDER_IDS)[number];
  * What a text call is for. Each task is routed to a provider by configuration.
  * Whether a task carries personal data is noted here, for information: its default route prefers an
  * EU-resident endpoint (env.ts). No task is refused an endpoint for it any more: every call is redacted
- * before it leaves (redaction.ts, ADR-0007 amendment of 2026-10-20).
+ * before it leaves (redaction.ts, ADR-0007 amendment of 2026-10-20), but for a task marked `euOnly`, which
+ * carries what Redaction does not take out: its calls are refused any endpoint outside the EU.
  */
 export const TEXT_TASKS = {
   /** Match Score, ATS Score, ATS Fixes: reads CVs. */
@@ -38,8 +39,16 @@ export const TEXT_TASKS = {
   offer_analysis: { personalData: false },
   /** Job title variants for a Job Search's queries: given the Search Criteria title alone. */
   job_titles: { personalData: false },
-} as const satisfies Record<string, { personalData: boolean }>;
+  /**
+   * Email intake reading a Received offer email (ADR-0052): it may name a recruiter or a contact, which
+   * Redaction does not take out, so it runs only on an EU endpoint, whatever the Candidate's EU AI Consent.
+   */
+  offer_email_reading: { personalData: true, euOnly: true },
+} as const satisfies Record<string, { personalData: boolean; euOnly?: true }>;
 export type TextTask = keyof typeof TEXT_TASKS;
+
+/** Whether `task`'s calls are refused any endpoint outside the EU (ADR-0052), whatever EU AI Consent. */
+export const euOnly = (task: TextTask): boolean => "euOnly" in TEXT_TASKS[task];
 
 /** The web-search task. Only ever receives a query built from Search Criteria, or from an employer's names and website for a Company Dossier and its Company News. */
 export const SEARCH_TASK = "web_search";

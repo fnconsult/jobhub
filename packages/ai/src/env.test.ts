@@ -135,6 +135,18 @@ describe("AI layer configured from the environment", () => {
     expect(hosts).toEqual(["api.anthropic.com"]);
   });
 
+  it("reads offer emails on an EU endpoint by default: Claude on Bedrock, else Mistral; and refuses them outside the EU as configured (ADR-0052)", async () => {
+    const { fetch, hosts } = recordingFetch();
+    const usage = createMemoryUsageLog();
+    const read = (env: Record<string, string>) => createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "offer_email_reading", candidateId: "c", prompt: "Offre" });
+
+    await read(base);
+    await read({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk" });
+    await expect(read({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_OFFER_EMAIL_READING_PROVIDER: "anthropic" })).rejects.toThrow(/only on an EU-resident endpoint/);
+
+    expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.mistral.ai"]);
+  });
+
   describe("Claude endpoint chosen by the keys entered (ANTHROPIC_ENDPOINT=auto, the default)", () => {
     const keys = { PERPLEXITY_API_KEY: "pk", MISTRAL_API_KEY: "mk" };
     const run = async (env: Record<string, string>) => {
@@ -410,7 +422,7 @@ describe("AI layer configured from the environment", () => {
     const providers = modelSettingProviders({ AI_COACHING_PROVIDER: "mistral", AI_WEB_SEARCH_PROVIDER: "tavily" });
 
     expect(providers).toMatchObject({ AI_SCORING_MODEL: "anthropic", AI_COACHING_MODEL: "mistral", AI_GUARDRAIL_MODEL: "mistral", AI_WEB_SEARCH_MODEL: "tavily", AI_IDENTITY_MODEL: "mistral" });
-    expect(Object.keys(providers)).toHaveLength(11);
+    expect(Object.keys(providers)).toHaveLength(12);
   });
 
   describe("web-search providers a task Playbook may choose (ADR-0026)", () => {

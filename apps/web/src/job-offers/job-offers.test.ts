@@ -45,6 +45,9 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
 
   beforeEach(async () => {
     throwaway = await createThrowawayDatabase("test_job_offers");
+    // The candidate table as far as private Job Offers need it.
+    await throwaway.pool.query("CREATE TABLE IF NOT EXISTS candidate (id text PRIMARY KEY)");
+    await throwaway.pool.query("INSERT INTO candidate (id) VALUES ('candidate-1'), ('candidate-2')");
     await migrateJobOffers(throwaway.pool);
     jobOffers = createJobOffers(throwaway.pool);
   });
@@ -177,6 +180,80 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     expect(found).toEqual(captured.ok && captured.jobOffer);
     expect(await jobOffers.findBySourceUrl("https://www.apec.fr/candidat/offre/999")).toBeNull();
     expect(await jobOffers.findBySourceUrl("pas une url")).toBeNull();
+  });
+
+  describe("a Job Offer private to one Candidate (ADR-0049)", () => {
+    const fromRecruiter = {
+      ...posting,
+      title: "DAF H/F pour un client confidentiel",
+      content: "Mon client, un groupe industriel lyonnais, cherche son DAF. Rémunération 150 k€.",
+      employer: undefined,
+    };
+
+    it("makes two Job Offers when a private offer and a shared one have the same URL; the shared one never shows the private one's data", async () => {
+      const privateOffer = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "candidate-1" });
+      const shared = await jobOffers.capture(posting);
+
+      expect(privateOffer.ok && shared.ok).toBe(true);
+      if (!privateOffer.ok || !shared.ok) return;
+      expect(shared.created).toBe(true);
+      expect(shared.jobOffer.id).not.toBe(privateOffer.jobOffer.id);
+      expect(shared.jobOffer).toEqual({ id: expect.any(String), ...posting });
+      expect(await jobOffers.get(shared.jobOffer.id, "candidate-1")).toEqual(shared.jobOffer);
+      expect(await jobOffers.findBySourceUrl(posting.source.url)).toEqual(shared.jobOffer);
+    });
+
+    it("is told apart from a shared one on a database made before private Job Offers, once migrated again", async () => {
+      // Before ADR-0049, a URL and a text were each unique across all Job Offers.
+      await throwaway.pool.query(`ALTER TABLE job_offer ADD CONSTRAINT job_offer_url_key_key UNIQUE (url_key),
+                                                     ADD CONSTRAINT job_offer_content_fingerprint_key UNIQUE (content_fingerprint)`);
+      await migrateJobOffers(throwaway.pool);
+      await migrateJobOffers(throwaway.pool);
+
+      const shared = await jobOffers.capture(posting);
+      const privateOffer = await jobOffers.capture({ ...posting, title: fromRecruiter.title }, "candidate", { privateTo: "candidate-1" });
+
+      expect(privateOffer).toMatchObject({ ok: true, created: true, jobOffer: { title: fromRecruiter.title } });
+      expect(shared.ok && privateOffer.ok && shared.jobOffer.id !== privateOffer.jobOffer.id).toBe(true);
+    });
+
+    it("is seen by its Candidate only: never by another Candidate, nor a Guest, nor found by its URL for them", async () => {
+      const captured = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "candidate-1" });
+      if (!captured.ok) throw new Error("not captured");
+      const { id } = captured.jobOffer;
+
+      expect(await jobOffers.get(id, "candidate-1")).toEqual(captured.jobOffer);
+      expect(await jobOffers.findBySourceUrl(posting.source.url, "candidate-1")).toEqual(captured.jobOffer);
+      expect(await jobOffers.get(id, "candidate-2")).toBeNull();
+      expect(await jobOffers.get(id)).toBeNull();
+      expect(await jobOffers.findBySourceUrl(posting.source.url, "candidate-2")).toBeNull();
+      expect(await jobOffers.findBySourceUrl(posting.source.url)).toBeNull();
+      expect(await jobOffers.keepForCandidate(id, "candidate-2")).toBeNull();
+      expect(await jobOffers.keepForCandidate(id, "candidate-1")).toEqual(captured.jobOffer);
+    });
+
+    it("is deduplicated against its Candidate's own private Job Offers only, never another Candidate's or a shared one's text", async () => {
+      const shared = await jobOffers.capture({ ...fromRecruiter, source: {} });
+      const first = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "candidate-1" });
+      const again = await jobOffers.capture({ ...fromRecruiter, source: {} }, "candidate", { privateTo: "candidate-1" });
+      const another = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "candidate-2" });
+      if (!shared.ok || !first.ok || !again.ok || !another.ok) throw new Error("not captured");
+
+      expect(first.created).toBe(true);
+      expect(again).toMatchObject({ created: false, jobOffer: { id: first.jobOffer.id } });
+      expect(another.created).toBe(true);
+      expect(new Set([shared.jobOffer.id, first.jobOffer.id, another.jobOffer.id]).size).toBe(3);
+      expect(await jobOffers.findBySourceUrl(posting.source.url, "candidate-2")).toEqual(another.jobOffer);
+    });
+
+    it("prefers the Candidate's private Job Offer to the shared one when both come from the same URL", async () => {
+      const shared = await jobOffers.capture(posting);
+      const privateOffer = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "candidate-1" });
+      if (!shared.ok || !privateOffer.ok) throw new Error("not captured");
+
+      expect(await jobOffers.findBySourceUrl(posting.source.url, "candidate-1")).toEqual(privateOffer.jobOffer);
+      expect(await jobOffers.findBySourceUrl(posting.source.url, "candidate-2")).toEqual(shared.jobOffer);
+    });
   });
 
   describe("a Job Offer captured by a Guest (ADR-0003)", () => {

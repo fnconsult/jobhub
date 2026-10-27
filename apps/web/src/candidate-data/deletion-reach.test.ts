@@ -9,10 +9,18 @@ import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support
 import { EXPORTED_TABLES, OPERATIONS_RECORD_TABLES } from "./index";
 
 /** Tables kept when a Candidate is deleted (ADR-0010): shared, not personal data. */
-const KEPT = ["job_offer", "plan_quota"];
+const KEPT = ["plan_quota"];
+
+/**
+ * Tables whose rows are a Candidate's only when one column names them, by a key deleted with them, and otherwise
+ * shared and kept: a Job Offer private to a Candidate (ADR-0049). Rows referencing one are that Candidate's own (no one
+ * else sees it), tied to them by their own keys: the sweep does not go on through these tables.
+ */
+const TIED_WHEN_PRIVATE: Record<string, string> = { job_offer: "private_to_candidate_id" };
 
 interface ForeignKey {
   table: string;
+  column: string;
   references: string;
   onDelete: "cascade" | "set null" | "other";
 }
@@ -25,9 +33,10 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     throwaway = await createThrowawayDatabase("test_deletion_reach");
     await migrateDatabase({ database: throwaway.pool, baseURL: BASE_URL, secret: "test-secret-test-secret-test-secret-0123", mailer: { send: async () => {} } });
     const { rows } = await throwaway.pool.query<ForeignKey>(
-      `SELECT c.conrelid::regclass::text AS table, c.confrelid::regclass::text AS references,
+      `SELECT c.conrelid::regclass::text AS table, a.attname AS column, c.confrelid::regclass::text AS references,
               CASE c.confdeltype WHEN 'c' THEN 'cascade' WHEN 'n' THEN 'set null' ELSE 'other' END AS "onDelete"
-         FROM pg_constraint c WHERE c.contype = 'f'`,
+         FROM pg_constraint c JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+        WHERE c.contype = 'f'`,
     );
     foreignKeys = rows;
   }, 60_000);
@@ -41,7 +50,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     for (let grew = true; grew; ) {
       grew = false;
       for (const key of foreignKeys) {
-        if (tied.has(key.references) && !tied.has(key.table)) {
+        if (tied.has(key.references) && !(key.references in TIED_WHEN_PRIVATE) && !tied.has(key.table)) {
           tied.add(key.table);
           grew = true;
         }
@@ -56,7 +65,9 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
   }
 
   it("every table tied to a Candidate, directly or through their Profiles, Applications..., is deleted with them", () => {
-    const blocking = foreignKeys.filter((key) => tablesTiedToCandidate().has(key.references) && candidateDataTables().includes(key.table) && key.onDelete !== "cascade");
+    const blocking = foreignKeys.filter(
+      (key) => tablesTiedToCandidate().has(key.references) && !(key.references in TIED_WHEN_PRIVATE) && candidateDataTables().includes(key.table) && key.onDelete !== "cascade",
+    );
 
     expect(blocking).toEqual([]);
     expect([...tablesTiedToCandidate()]).toEqual(expect.arrayContaining(["profile", "master_cv_version", "application", "tailored_cv", "tailored_document", "session", "coach_conversation", "coach_message", "coach_memory_item", "signalement", "forwarding_address", "sending_address"]));
@@ -82,7 +93,7 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
 
   it("Jobbbox's operations record outlives the Candidate: their id is set to null, nothing hangs off it, and it is not exported", () => {
     for (const table of Object.keys(OPERATIONS_RECORD_TABLES)) {
-      expect(foreignKeys.filter((key) => key.table === table && key.references === "candidate")).toEqual([{ table, references: "candidate", onDelete: "set null" }]);
+      expect(foreignKeys.filter((key) => key.table === table && key.references === "candidate")).toEqual([{ table, column: expect.any(String), references: "candidate", onDelete: "set null" }]);
       expect(foreignKeys.filter((key) => key.references === table)).toEqual([]);
       expect(EXPORTED_TABLES).not.toHaveProperty(table);
     }
@@ -127,8 +138,31 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(EXPORTED_TABLES).not.toHaveProperty("unanswered_question");
   });
 
-  it("shared Job Offers and Plan Quotas are not tied to any Candidate, so they are kept", () => {
+  it("Plan Quotas are not tied to any Candidate, so they are kept", () => {
     expect([...tablesTiedToCandidate()].filter((table) => KEPT.includes(table))).toEqual([]);
+  });
+
+  it("a Job Offer is tied to a Candidate only while private to them (ADR-0049): by its own column, deleted with them", () => {
+    for (const [table, column] of Object.entries(TIED_WHEN_PRIVATE)) {
+      expect(foreignKeys.filter((key) => key.table === table && key.references === "candidate")).toEqual([{ table, column, references: "candidate", onDelete: "cascade" }]);
+    }
+  });
+
+  it("deleting a Candidate deletes their private Job Offers, and keeps shared ones and another Candidate's (ADR-0049)", async () => {
+    const database = throwaway.pool;
+    await database.query(`INSERT INTO candidate (id, name, email, "emailVerified", "interfaceLanguage", "createdAt", "updatedAt") VALUES
+      ('marie', 'Marie', 'marie@example.fr', true, 'fr', now(), now()), ('paul', 'Paul', 'paul@example.fr', true, 'fr', now(), now())`);
+    const jobOffers = createJobOffers(database);
+    const fromRecruiter = { title: "DAF H/F, client confidentiel", content: "Mon client cherche son DAF à Lyon." };
+    const hers = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "marie" });
+    const his = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: "paul" });
+    const shared = await jobOffers.capture(fromRecruiter);
+    if (!hers.ok || !his.ok || !shared.ok) throw new Error("not captured");
+
+    await database.query(`DELETE FROM candidate WHERE id = 'marie'`);
+
+    const { rows } = await database.query<{ id: string }>(`SELECT id FROM job_offer ORDER BY created_at`);
+    expect(rows.map((row) => row.id).sort()).toEqual([his.jobOffer.id, shared.jobOffer.id].sort());
   });
 
   it("a shared Job Offer's Provenance names no Candidate, whoever's search found it (#329)", async () => {
@@ -148,6 +182,6 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(rows.map((row) => row.provenance !== null)).toEqual([true, false]);
     expect(rows.map((row) => row.provenance ?? "").join()).not.toContain(candidateId);
     expect(rows[0]!.provenance).toMatch(/"offer_analysis"/);
-    expect([...tablesTiedToCandidate()]).not.toContain("job_offer");
+    expect(rows.map((row) => row.provenance ?? "").join()).not.toContain(candidateId);
   });
 });

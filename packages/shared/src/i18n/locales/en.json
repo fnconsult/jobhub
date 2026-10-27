@@ -1486,7 +1486,8 @@
           "key_missing": "Unavailable: key missing ({{names}})",
           "setting_missing": "Unavailable: setting missing ({{names}})",
           "disabled": "Unavailable: turned off by a setting",
-          "not_configured": "Unavailable: not configured"
+          "not_configured": "Unavailable: not configured",
+          "playbook_pending": "Unavailable: awaiting validation of the playbook"
         }
       },
       "empty": "(none)",
@@ -1978,6 +1979,7 @@
         "coaching": "Coaching",
         "cv_parsing": "CV reading",
         "offer_analysis": "Job Offer analysis",
+        "offer_email_reading": "Offer email reading",
         "job_titles": "Job title variants",
         "web_search": "Web search",
         "back_office_assistant": "Back Office Assistant",

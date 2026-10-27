@@ -12,7 +12,7 @@
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent
- *    (never which Administrator handled them). Profiles and Applications
+ *    (never which Administrator handled them); the Job Offers private to them (ADR-0049). Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -21,8 +21,9 @@
  *    closed first (no paid Plan outlives the account), then the Candidate goes,
  *    and with them everything tied to them (every table holding their data
  *    hangs off theirs with ON DELETE CASCADE: Profiles, CVs, Applications,
- *    Tailored Documents, sessions...). Job Offers are not personal data and may
- *    be referenced by other Candidates: they are kept.
+ *    Tailored Documents, sessions...). Shared Job Offers are not personal data and may
+ *    be referenced by other Candidates: they are kept. A Job Offer private to the
+ *    Candidate (ADR-0049) is theirs alone: it goes with them.
  */
 import { failureReasonWording } from "@jobhub/shared/i18n";
 import { isFailureReason, readProvenance, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
@@ -41,6 +42,7 @@ import type { ContactProviderId } from "../enriched-contacts";
 import type { FollowUpDelays } from "../follow-ups";
 import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
+import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
@@ -273,6 +275,8 @@ export interface CandidateDataExport {
    * context, status and the team's reply, with their dates; never which Administrator changed it or replied.
    */
   signalements: Signalement[];
+  /** The Job Offers private to the Candidate (ADR-0049: a role a recruiter's message offered them), newest first. */
+  privateJobOffers: ExportedPrivateJobOffer[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -357,6 +361,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
   signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
+  job_offer: "privateJobOffers (only the Job Offers private to the Candidate, ADR-0049; shared ones are no one's and are kept)",
 };
 
 /**
@@ -648,7 +653,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
@@ -693,10 +698,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           })),
         ),
         signalementsOf(database, candidateId),
+        privateJobOffersOf(database, candidateId),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers };
     },
 
     async delete(candidateId) {

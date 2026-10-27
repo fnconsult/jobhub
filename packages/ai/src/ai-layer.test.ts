@@ -52,6 +52,46 @@ describe("AI layer", () => {
       expect(usage.entries.map((entry) => entry.endpoint)).toEqual(["bedrock eu-west-3", "api.anthropic.com"]);
     });
 
+    describe("but reading an offer email (offer_email_reading) runs only on an EU endpoint, whatever EU AI Consent (ADR-0052)", () => {
+      it("refuses the call routed outside the EU, before anything is sent, and records why", async () => {
+        const openai = usOpenAi();
+        const usage = createMemoryUsageLog();
+        const ai = createAiLayer({ providers: [openai], routes: { offer_email_reading: "openai" }, usage, warn: () => {} });
+
+        await expect(ai.generate({ task: "offer_email_reading", candidateId: "c", prompt: "Offre : DAF chez Acme, recrutée par Jeanne Martin" })).rejects.toThrow(DataResidencyError);
+        expect(openai.calls).toHaveLength(0);
+        expect(usage.entries).toEqual([expect.objectContaining({ task: "offer_email_reading", provider: "openai", outcome: "failed", reason: "data_residency", sent: false })]);
+      });
+
+      it("refuses a Playbook Agent outside the EU too, and serves a consenting Candidate's call in the EU", async () => {
+        const mistral = createFakeProvider({ id: "mistral" });
+        const openai = usOpenAi();
+        const ai = createAiLayer({ providers: [mistral, openai], routes: { offer_email_reading: "mistral" }, usage: createMemoryUsageLog(), euAiConsent: async () => true, warn: () => {} });
+
+        await expect(ai.generate({ task: "offer_email_reading", candidateId: "c", prompt: "Offre", route: { provider: "openai" } })).rejects.toThrow(DataResidencyError);
+        await expect(ai.generate({ task: "offer_email_reading", candidateId: "c", prompt: "Offre", containsIdentity: true })).resolves.toMatchObject({ provider: "mistral" });
+        expect(openai.calls).toHaveLength(0);
+      });
+
+      it("takes a provider's EU endpoint when it has one", async () => {
+        const direct = { ...createFakeProvider({ id: "anthropic", residency: "outside_eu" }), endpoint: "api.anthropic.com" };
+        const bedrock = { ...createFakeProvider({ id: "anthropic" }), endpoint: "bedrock eu-west-3" };
+        const ai = createAiLayer({ providers: [direct, bedrock], routes: { offer_email_reading: "anthropic" }, usage: createMemoryUsageLog() });
+
+        await expect(ai.generate({ task: "offer_email_reading", candidateId: "c", prompt: "Offre" })).resolves.toMatchObject({ endpoint: "bedrock eu-west-3" });
+      });
+
+      it("offers only EU models for its Playbook Agent", () => {
+        const mistral = createFakeProvider({ id: "mistral", models: ["mistral-medium-latest"] });
+        const openai = { ...usOpenAi(), models: ["gpt-5"] };
+        const ai = createAiLayer({ providers: [mistral, openai], routes: { writing: "openai", offer_email_reading: "mistral" }, usage: createMemoryUsageLog() });
+
+        expect(ai.agentModels().map((choice) => choice.provider)).toEqual(["mistral", "openai"]);
+        expect(ai.agentModels("offer_email_reading").map((choice) => choice.provider)).toEqual(["mistral"]);
+        expect(ai.agentModels("writing").map((choice) => choice.provider)).toEqual(["mistral", "openai"]);
+      });
+    });
+
     it("still refuses to route a text task to a web-search provider, which cannot write", () => {
       expect(() => createAiLayer({ providers: [{ ...createFakeProvider({ id: "perplexity", residency: "outside_eu" }), generate: undefined }], routes: { scoring: "perplexity" }, usage: createMemoryUsageLog() })).toThrow(AiConfigError);
     });

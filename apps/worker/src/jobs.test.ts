@@ -68,6 +68,7 @@ function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport
     franceTravail: { status: "off", offers: 0, calls: 0 },
     fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
     searchFallback: null,
+    targetCompanies: { laBonneBoite: "off", calls: 0, visited: 0, offers: 0 },
     ...report,
   };
 }
@@ -184,13 +185,26 @@ function setup(
 }
 
 describe("the Job discovery job", () => {
-  it("searches with the Profile's current Search Criteria", async () => {
+  it("searches with the Profile's current Search Criteria, for that Profile (its Target Companies, #406)", async () => {
     const { run, runs, logs } = setup();
 
     await run({ candidateId: "candidate-1", profileId: "profile-1" });
 
-    expect(runs).toEqual([{ candidateId: "candidate-1", criteria, onEvent: undefined }]);
+    expect(runs).toEqual([{ candidateId: "candidate-1", profileId: "profile-1", criteria, onEvent: undefined }]);
     expect(logs).toEqual(["[job-discovery] profile profile-1: 0 Job Offer(s), 1 page(s) skipped (site_terms: 1)"]);
+  });
+
+  it("logs the Target Companies' part when La Bonne Boite is configured or some were visited (#406)", async () => {
+    const visited = setup(async () => discoveryReport({ jobOffers: found, targetCompanies: { laBonneBoite: "kept", calls: 0, visited: 3, offers: 2 } }));
+    const refused = setup(async () => discoveryReport({ targetCompanies: { laBonneBoite: "refused", calls: 1, visited: 0, offers: 0 } }));
+
+    await visited.run({ candidateId: "candidate-1", profileId: "profile-1" });
+    await refused.run({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect([...visited.logs, ...refused.logs]).toEqual([
+      "[job-discovery] profile profile-1: 2 Job Offer(s), 0 page(s) skipped, Target Companies: 3 visited (2 Job Offer(s)), La Bonne Boite kept (0 call(s))",
+      "[job-discovery] profile profile-1: 0 Job Offer(s), 0 page(s) skipped, Target Companies: 0 visited (0 Job Offer(s)), La Bonne Boite refused (1 call(s))",
+    ]);
   });
 
   it("logs France Travail's part when it is configured", async () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { readAtsPosting, type JsonResult } from "./ats";
+import { atsBoardOf, readAtsBoard, readAtsPosting, type JsonResult } from "./ats";
 
 const fixture = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/ats/${name}`, import.meta.url), "utf8"));
 
@@ -186,5 +186,68 @@ describe("Reading a Greenhouse, Lever or Ashby posting through its JSON API", ()
       expect(await read("pas une adresse")).toBeNull();
       expect(apis.asked).toEqual([]);
     });
+  });
+});
+
+describe("Reading a company's whole board on Greenhouse, Lever or Ashby, for a Target Company (#406)", () => {
+  it("knows a company's board from any of its postings' or board's addresses", () => {
+    expect(atsBoardOf("https://job-boards.greenhouse.io/gitlab/jobs/8860302002")).toBe("https://job-boards.greenhouse.io/gitlab");
+    expect(atsBoardOf("https://boards.greenhouse.io/gitlab")).toBe("https://job-boards.greenhouse.io/gitlab");
+    expect(atsBoardOf("https://jobs.lever.co/leverdemo/ad208490-4052-4f91-a57e-433f2d1e484b/apply")).toBe("https://jobs.lever.co/leverdemo");
+    expect(atsBoardOf("https://jobs.eu.lever.co/acme")).toBe("https://jobs.eu.lever.co/acme");
+    expect(atsBoardOf("https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2/application")).toBe("https://jobs.ashbyhq.com/ashby");
+    expect(atsBoardOf("https://boards.greenhouse.io/embed/job_board?for=gitlab")).toBeNull();
+    expect(atsBoardOf("https://www.acme.fr/carrieres")).toBeNull();
+    expect(atsBoardOf("not a url")).toBeNull();
+  });
+
+  const greenhouseJob = fixture("greenhouse-job.json") as Record<string, unknown>;
+  const leverPosting = fixture("lever-posting.json") as Record<string, unknown>;
+  const ashbyBoard = fixture("ashby-job-board.json") as { jobs: Record<string, unknown>[] };
+
+  it("reads a Greenhouse board's open postings, each at its own address", async () => {
+    const API = "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs?content=true";
+    const old = { ...greenhouseJob, id: 1, absolute_url: "https://job-boards.greenhouse.io/gitlab/jobs/1", first_published: "2026-01-02T00:00:00Z" };
+    const apis = fakeApis({ [API]: { ok: true, data: { jobs: [greenhouseJob, old] } } });
+
+    const board = await readAtsBoard("https://job-boards.greenhouse.io/gitlab", { ...apis, now: new Date("2026-10-05T00:00:00Z") });
+
+    expect(apis.asked).toEqual([API]);
+    expect(board).toEqual({
+      ok: true,
+      tool: "greenhouse",
+      postings: [{ url: "https://job-boards.greenhouse.io/gitlab/jobs/8860302002", details: expect.objectContaining({ title: "Account Executive - France", employer: "GitLab" }) }],
+    });
+  });
+
+  it("reads a Lever board, on Lever's EU host for an EU board", async () => {
+    const API = "https://api.eu.lever.co/v0/postings/leverdemo?mode=json";
+    const apis = fakeApis({ [API]: { ok: true, data: [leverPosting] } });
+
+    const board = await readAtsBoard("https://jobs.eu.lever.co/leverdemo", { ...apis, now: new Date(Number(leverPosting.createdAt) + days(2)) });
+
+    expect(board).toEqual({
+      ok: true,
+      tool: "lever",
+      postings: [{ url: "https://jobs.lever.co/leverdemo/ad208490-4052-4f91-a57e-433f2d1e484b", details: expect.objectContaining({ title: leverPosting.text }) }],
+    });
+  });
+
+  it("reads an Ashby board's listed postings only", async () => {
+    const API = "https://api.ashbyhq.com/posting-api/job-board/ashby";
+    const listed = ashbyBoard.jobs[1]!;
+    const unlisted = { ...listed, id: "00000000-0000-4000-8000-000000000001", jobUrl: "https://jobs.ashbyhq.com/ashby/00000000-0000-4000-8000-000000000001", isListed: false };
+    const apis = fakeApis({ [API]: { ok: true, data: { jobs: [listed, unlisted] } } });
+
+    const board = await readAtsBoard("https://jobs.ashbyhq.com/ashby", { ...apis, now: new Date(Date.parse(String(listed.publishedAt)) + days(1)) });
+
+    expect(board).toMatchObject({ ok: true, tool: "ashby", postings: [{ url: listed.jobUrl, details: { title: listed.title } }] });
+  });
+
+  it("gives null for no board, or a board whose API cannot be read; an anti-bot check is said", async () => {
+    expect(await readAtsBoard("https://www.acme.fr/carrieres", { ...fakeApis({}), now: new Date() })).toBeNull();
+    expect(await readAtsBoard("https://jobs.lever.co/acme", { fetchJson: async () => ({ ok: false, reason: "unreachable" }), now: new Date() })).toBeNull();
+    expect(await readAtsBoard("https://jobs.lever.co/acme", { fetchJson: async () => ({ ok: false, reason: "bot_protection" }), now: new Date() })).toEqual({ ok: false, reason: "bot_protection" });
+    expect(await readAtsBoard("https://jobs.lever.co/acme", { fetchJson: async () => ({ ok: false, reason: "gone" }), now: new Date() })).toEqual({ ok: false, reason: "gone" });
   });
 });

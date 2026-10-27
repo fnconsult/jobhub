@@ -1,0 +1,56 @@
+{
+  "hits": 3,
+  "params": { "rome": ["M1205"], "citycode": "69123", "distance": 30, "page": 1, "page_size": 20 },
+  "resolved_params": {
+    "jobs": [{ "type": "rome", "value": "M1205", "display": "Direction administrative et financière" }],
+    "locations": [{ "type": "citycode", "value": "69123", "display": "Lyon", "geo": { "lat": 45.767, "lon": 4.8343 } }]
+  },
+  "items": [
+    {
+      "id": 101,
+      "siret": "55210055400013",
+      "company_name": "ACME INDUSTRIE",
+      "office_name": "ACME INDUSTRIE LYON",
+      "headcount_min": "250",
+      "headcount_max": "499",
+      "naf": "2829B",
+      "naf_label": "Fabrication d'autres machines d'usage général",
+      "rome": "M1205",
+      "location": { "lat": 45.75, "lon": 4.85 },
+      "city": "Lyon",
+      "citycode": "69123",
+      "postcode": "69007",
+      "department": "Rhône",
+      "department_number": "69",
+      "region": "Auvergne-Rhône-Alpes",
+      "hiring_potential": 82.5,
+      "is_high_potential": true
+    },
+    {
+      "id": 102,
+      "siret": "38012986600025",
+      "company_name": "BETA LOGISTIQUE",
+      "office_name": "",
+      "headcount_min": "50",
+      "headcount_max": "99",
+      "naf": "5210B",
+      "naf_label": "Entreposage et stockage non frigorifique",
+      "rome": "M1205",
+      "location": { "lat": 45.73, "lon": 4.91 },
+      "city": "Vénissieux",
+      "citycode": "69259",
+      "postcode": "69200",
+      "department": "Rhône",
+      "department_number": "69",
+      "region": "Auvergne-Rhône-Alpes",
+      "hiring_potential": 64,
+      "is_high_potential": true
+    },
+    {
+      "id": 103,
+      "siret": "",
+      "company_name": "",
+      "hiring_potential": 50
+    }
+  ]
+}

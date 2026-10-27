@@ -84,3 +84,16 @@ Its limits, stated plainly:
 - A company sharing the Candidate's last name is redacted too (« Dupont Conseil » becomes « [NOM DE FAMILLE] Conseil » in a web search).
 
 Exception (ADR-0033, #301): a save on the Back Office's Paramètres that would route a task with personal data, or the identity route, outside the EU is refused with `data_residency`. Only saves there are checked; a configuration from env still starts as above.
+
+## Amendment: Target Company names in web search (issue #406)
+
+Job discovery now aims at a Profile's Target Companies (CONTEXT.md): companies La Bonne Boite gives as likely to hire for the Profile's job and area, and companies the Candidate adds by name. One without a known careers site is looked for with one web search « title + company » (`buildTargetCompanyQuery`): one of the job titles `planJobSearch` issued, and the company's name. A company's name is about the company, not the Candidate, as for a Company Dossier (issue #17). Sending it outside the EU does not move personal data there.
+
+But neither source is sure to give a company. La Bonne Boite lists establishments by SIRET, and a sole trader's establishment carries the trader's own name. A Candidate can type anyone's name. So the rule of the #17 amendment holds here too: a sole trader's name (a private person's) is never sent.
+
+What keeps it that way:
+- Before the web search, the company register (recherche-entreprises.api.gouv.fr, a French public API) is asked about the company (`webSearchableName`). With a SIREN (La Bonne Boite's SIRET gives one, as does a company the Candidate added that the register resolved), the register is asked by the SIREN alone, and the name goes only when the register lists that SIREN as a company. A sole trader, or a SIREN the register does not list, gets no web search. That answer is kept for the Profile's Target Company (`not_a_company_at`), and Job discovery no longer picks it, so it does not take one of a run's places, and one register call, in every run. Without a SIREN (a company the register does not list, a foreign one mostly), the name goes unless the register lists it as a sole trader's name, or the name holds a SIREN.
+- When the register cannot answer, nothing is sent. The Target Company is not visited, and it is due again at the next run.
+- A Candidate adding a name the register lists as a sole trader's is refused (`not_a_company`). They are asked to name the company instead.
+- The query is built by the AI layer, never by the caller: the title must be one `planJobSearch` issued, and both fields are cleaned like Search Criteria (no email or phone) and capped.
+- Only the job and the area go to La Bonne Boite (France Travail, a French public API). The worker's log names a skipped company by its SIREN, never by its name.

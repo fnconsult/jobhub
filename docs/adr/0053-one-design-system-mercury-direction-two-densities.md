@@ -4,7 +4,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
 
 - **Mercury is the visual direction**: its palette structure, buttons, shell, tables, charts, detail drawer and empty states. The Paramètres prototype stays the bar for finish: hairlines, muted secondary text, provenance pills, status dot plus words. This replaces ADR-0009's "Notion-like" look. The look chosen is variant A of the Design System prototype (branch `prototype/design-system`), named « Mercury pur »: cool greys, an indigo accent, pill-shaped controls, a Top Bar with search. The replies of the Coach and the Assistant are unframed text after their Activity glyph.
 - **The refresh covers the skin, the components and the shell, and the layout of pages**: hierarchy, grouping and the length of intro texts. It does not change routes or navigation.
-- **Surfaces**: the Candidate app and the Back Office come first. The browser extension takes the tokens and the simple components and moves into a side panel (ADR-0050). Emails become sober branded HTML with a plain-text part, last.
+- **Surfaces**: the Candidate app and the Back Office come first. The browser extension takes the tokens and the simple components and moves into a side panel (ADR-0054). Emails become sober branded HTML with a plain-text part, last.
 - **One Design System, two Densities**: Confort on the Candidate side (ADR-0009's floor, the Text Size) and Compact in the Back Office (amendment to ADR-0009).
 - **Dark mode is prepared from the start**: every semantic token has a light and a dark value. Dark mode follows `prefers-color-scheme` and a choice in Préférences, and ships once the screens are migrated.
 - **A component layer on our tokens, ADR-0018 kept**: Button, Field, Table, Tabs, Drawer, Dialog, Badge/Pill, Toast, EmptyState, Card/Stat and PageHeader. Each has its own CSS beside it, on the tokens, in cascade layers. Radix stays for the complex widgets. `app.css` shrinks as screens migrate.
@@ -21,7 +21,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
   2. The shell on both sides: Sidebar, Top Bar, Coach Panel and Back Office Assistant.
   3. The Back Office: Paramètres, Dashboard and Activité first (their prototype is the yardstick), then the rest.
   4. The Candidate side: Recherches d'offres, Candidatures, Agenda, Profile, Mon compte.
-  5. The extension's Side Panel (ADR-0050).
+  5. The extension's Side Panel (ADR-0054).
   6. HTML emails.
   7. Dark mode switched on.
 - **Verified three ways**:

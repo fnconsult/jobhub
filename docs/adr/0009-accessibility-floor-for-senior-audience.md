@@ -54,11 +54,11 @@ One more exception, asked in #375 (part of #278):
 
 The exception covers this icon only. Every other function still needs a visible label.
 
-## Amendment: the Back Office's Compact Density (ADR-0049, 2026-10-27)
+## Amendment: the Back Office's Compact Density (ADR-0053, 2026-10-27)
 
 The Back Office is read by Administrators, not by Candidates. It uses the Compact Density:
 - body text at least 0.875rem (14 px) and metadata at least 0.78125rem (12.5 px), still in `rem`
 - contrast stays at least 4.5:1, and every function keeps a visible label
 - these are tokens of the Compact Density, checked by the token audit like the Confort ones
 
-The Candidate's pages, the extension and the emails keep the Confort Density and the floor above. The look is no longer "Notion-like": the visual direction is Mercury's (ADR-0049). "Don't grey text" still holds.
+The Candidate's pages, the extension and the emails keep the Confort Density and the floor above. The look is no longer "Notion-like": the visual direction is Mercury's (ADR-0053). "Don't grey text" still holds.

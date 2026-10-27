@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -219,5 +219,41 @@ test.describe("Back Office « Activité » (#404)", () => {
     expect((await support.goto("/admin/journaux-ia"))?.status()).toBe(404);
     expect((await support.goto(`/admin/activite/recherches/${runId}/recherche`))?.status()).toBe(404);
     expect((await support.goto("/admin/activite/actions"))?.status()).toBe(404);
+  });
+
+  // Last: the nightly purge empties the run's query texts at 30 days and keeps its figures.
+  test("the worker's purge removes a run's query texts after 30 days and keeps its figures", async ({ browser }) => {
+    const office = await personPage(browser, SUPER_ADMIN);
+    const purge = (hours: number) => {
+      const result = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "discovery-runs.purge", String(hours)], {
+        env: { ...process.env, DATABASE_URL: databaseUrl, MAIL_TRANSPORT: "console" },
+        encoding: "utf8",
+      });
+      expect(result.status, result.stderr).toBe(0);
+    };
+    const queryTexts = `« ${targetRole} » à Lyon`;
+    const open = async () => {
+      await office.goto(`/admin/activite/recherches?periode=all&run=${runId}`);
+      return office.locator(`[data-run-panel="${runId}"]`);
+    };
+
+    // Twenty-nine days on: still kept.
+    purge(29 * 24);
+    let panel = await open();
+    await expect(panel.getByTestId("run-searches")).toContainText(queryTexts);
+    await expect(panel.getByText(tr(runs.queriesPurged, { days: 30 }))).toHaveCount(0);
+    expect(await query("SELECT 1 FROM discovery_run_detail WHERE run_id = $1", [runId])).toHaveLength(1);
+
+    // Thirty-one days on: the query texts, criteria and Job Search link are gone, the figures stay.
+    purge(31 * 24);
+    expect(await query("SELECT 1 FROM discovery_run_detail WHERE run_id = $1", [runId])).toHaveLength(0);
+    expect(await query("SELECT 1 FROM discovery_run WHERE id = $1", [runId])).toHaveLength(1);
+    panel = await open();
+    await expect(panel.getByText(tr(runs.queriesPurged, { days: 30 }))).toBeVisible();
+    await expect(panel.getByTestId("run-searches")).not.toContainText(queryTexts);
+    await expect(panel.getByRole("heading", { name: runs.funnelTitle })).toBeVisible();
+    await expect(panel.getByText(runs.funnel.providerUrls)).toBeVisible();
+    await expect(office.locator(`tr[data-run="${runId}"]`)).toContainText(runs.purged);
+    await expect(panel.getByRole("link", { name: runs.jobSearchLink })).toHaveCount(0);
   });
 });

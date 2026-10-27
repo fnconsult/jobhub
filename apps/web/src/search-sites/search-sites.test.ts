@@ -130,6 +130,8 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     });
 
     it("removing one keeps the Job Offers found on it", async () => {
+      // The candidate table as far as private Job Offers need it.
+      await database.query("CREATE TABLE IF NOT EXISTS candidate (id text PRIMARY KEY)");
       await migrateJobOffers(database);
       const captured = await createJobOffers(database).capture({
         source: { url: "https://www.apec.fr/candidat/offre/1" },

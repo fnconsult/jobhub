@@ -346,7 +346,7 @@ export function createApplications(
 
   async function applicationFrom(candidateId: string, row: ApplicationRow): Promise<Application> {
     const [jobOffer, profile, interviews] = await Promise.all([
-      jobOffers.get(row.job_offer_id),
+      jobOffers.get(row.job_offer_id, candidateId),
       profiles.get(candidateId, row.profile_id),
       interviewsOf([row.id]),
     ]);
@@ -384,7 +384,7 @@ export function createApplications(
       if (!profile) return { ok: false, error: "not_found" };
       // An Application holds on to its Job Offer: one a Guest captured must lose
       // its Guest expiry (ADR-0003), or the Guest clean-up would try to delete it.
-      const jobOffer = await jobOffers.keepForCandidate(jobOfferId);
+      const jobOffer = await jobOffers.keepForCandidate(jobOfferId, candidateId);
       if (!jobOffer) return { ok: false, error: "not_found" };
 
       const inserted = await database.query<ApplicationRow>(

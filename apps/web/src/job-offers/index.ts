@@ -11,7 +11,11 @@
  * their content (ignoring case and spacing), so one posting seen on two sites
  * is one Job Offer.
  * A Job Offer belongs to no one: Candidates and Guests share it, so it needs no
- * account and is kept when a Candidate deletes theirs (ADR-0010). One that only
+ * account and is kept when a Candidate deletes theirs (ADR-0010). Except a private
+ * one (ADR-0049: from a recruiter's message, `TrustedFacts.privateTo`): only its
+ * Candidate sees it (`get`, `findBySourceUrl` and `keepForCandidate` take who reads,
+ * other modules' SQL filters with `visibleTo`), it is never merged with a shared
+ * Job Offer or another Candidate's, and it is deleted with its Candidate. One that only
  * Guests captured is forgotten within 24 hours (ADR-0003): see
  * `forgetExpiredGuestCaptures`, which the worker runs on a schedule. A Candidate
  * capturing it, or saving it as an Application (`keepForCandidate`), keeps it
@@ -98,6 +102,20 @@ export interface TrustedFacts {
    * published nothing. Never offered in a Job Digest.
    */
   spontaneous?: true;
+  /**
+   * The Candidate it is private to (ADR-0049): a role a recruiter's message offered them. Only they see it; it is
+   * deduplicated only against their own private Job Offers, and deleted with their account.
+   */
+  privateTo?: string;
+}
+
+/**
+ * SQL keeping the Job Offers `candidateParam` (a query parameter, e.g. "$2", null for a Guest or anyone) may see:
+ * the shared ones and their own private ones. `alias`: the job_offer table's alias in the query, if any.
+ */
+export function visibleTo(candidateParam: string, alias?: string): string {
+  const column = `${alias ? `${alias}.` : ""}private_to_candidate_id`;
+  return `(${column} IS NULL OR ${column} = ${candidateParam}::text)`;
 }
 
 // A Date the caller built from what it read, never text to coerce: nothing from a request body reaches it.
@@ -113,15 +131,21 @@ export interface JobOffers {
    */
   capture(input: unknown, capturedBy?: Captor, trusted?: TrustedFacts): Promise<CaptureJobOfferResult>;
   /**
-   * A Candidate now holds on to this Job Offer (they saved it as an Application,
+   * The Candidate now holds on to this Job Offer (they saved it as an Application,
    * perhaps from what they did as a Guest), so it is never forgotten as a Guest
-   * capture. Returns it, or null if there is none with this id.
+   * capture. Returns it, or null if there is none with this id they may see.
    */
-  keepForCandidate(id: string): Promise<JobOffer | null>;
-  /** The Job Offer, or null if there is none with this id. */
-  get(id: string): Promise<JobOffer | null>;
-  /** The Job Offer captured from this source URL (ignoring tracking parameters), or null. */
-  findBySourceUrl(url: string): Promise<JobOffer | null>;
+  keepForCandidate(id: string, candidateId: string): Promise<JobOffer | null>;
+  /**
+   * The Job Offer, or null if there is none with this id that `candidateId` may see: a private Job Offer only its
+   * Candidate sees; without `candidateId` (a Guest, anyone), only shared ones are seen.
+   */
+  get(id: string, candidateId?: string | null): Promise<JobOffer | null>;
+  /**
+   * The Job Offer captured from this source URL (ignoring tracking parameters) that `candidateId` may see, their
+   * private one first; without `candidateId`, only a shared one. Null if none.
+   */
+  findBySourceUrl(url: string, candidateId?: string | null): Promise<JobOffer | null>;
   /**
    * Fills the fields the Job Offer lacks from what `read` finds in its text, once per Job Offer:
    * after a read that succeeded (even one finding nothing), `read` is never called for it again.
@@ -351,15 +375,18 @@ export function createJobOffers(database: Pool): JobOffers {
       }
       const url = offer.source.url;
       const keys = [url ? urlKey(url) : null, contentFingerprint(offer.content)];
+      // Deduplicated within its visibility only: shared with shared, private with the same Candidate's private.
+      const privateTo = trusted.privateTo ?? null;
 
       const { rows } = await database.query<JobOfferRow>(
         `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
                                 contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
-                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance, spontaneous)
+                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance, spontaneous,
+                                private_to_candidate_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END,
                  $17::text, CASE WHEN $17::text IS NOT NULL THEN now() END,
-                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb, $21)
+                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb, $21, $22)
          ON CONFLICT DO NOTHING
          RETURNING ${COLUMNS}`,
         [
@@ -383,6 +410,7 @@ export function createJobOffers(database: Pool): JobOffers {
           (sector && subsector) ?? null,
           storable(trusted.provenance),
           trusted.spontaneous === true,
+          privateTo,
         ],
       );
       if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]), created: true };
@@ -390,10 +418,10 @@ export function createJobOffers(database: Pool): JobOffers {
       // Already captured: the same URL first, else the same text.
       const existing = await database.query<JobOfferRow>(
         `SELECT ${COLUMNS} FROM job_offer
-          WHERE url_key = $1 OR content_fingerprint = $2
+          WHERE (url_key = $1 OR content_fingerprint = $2) AND private_to_candidate_id IS NOT DISTINCT FROM $3::text
           ORDER BY (url_key IS NOT DISTINCT FROM $1) DESC, created_at
           LIMIT 1`,
-        keys,
+        [...keys, privateTo],
       );
       const row = existing.rows[0]!;
       if (capturedBy === "candidate") {
@@ -427,24 +455,28 @@ export function createJobOffers(database: Pool): JobOffers {
       return { ok: true, jobOffer: jobOfferFrom(row), created: false };
     },
 
-    async keepForCandidate(id) {
+    async keepForCandidate(id, candidateId) {
       if (!UUID.test(id)) return null;
       const { rows } = await database.query<JobOfferRow>(
-        `UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 RETURNING ${COLUMNS}`,
-        [id],
+        `UPDATE job_offer SET guest_expires_at = NULL WHERE id = $1 AND ${visibleTo("$2")} RETURNING ${COLUMNS}`,
+        [id, candidateId],
       );
       return rows[0] ? jobOfferFrom(rows[0]) : null;
     },
 
-    async get(id) {
+    async get(id, candidateId = null) {
       if (!UUID.test(id)) return null;
-      const { rows } = await database.query<JobOfferRow>(`SELECT ${COLUMNS} FROM job_offer WHERE id = $1`, [id]);
+      const { rows } = await database.query<JobOfferRow>(`SELECT ${COLUMNS} FROM job_offer WHERE id = $1 AND ${visibleTo("$2")}`, [id, candidateId]);
       return rows[0] ? jobOfferFrom(rows[0]) : null;
     },
 
-    async findBySourceUrl(url) {
+    async findBySourceUrl(url, candidateId = null) {
       if (!URL.canParse(url)) return null;
-      const { rows } = await database.query<JobOfferRow>(`SELECT ${COLUMNS} FROM job_offer WHERE url_key = $1`, [urlKey(url)]);
+      const { rows } = await database.query<JobOfferRow>(
+        `SELECT ${COLUMNS} FROM job_offer WHERE url_key = $1 AND ${visibleTo("$2")}
+          ORDER BY private_to_candidate_id IS NULL, created_at LIMIT 1`,
+        [urlKey(url), candidateId],
+      );
       return rows[0] ? jobOfferFrom(rows[0]) : null;
     },
 
@@ -494,8 +526,8 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS job_offer (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      url_key text UNIQUE,
-      content_fingerprint text NOT NULL UNIQUE,
+      url_key text,
+      content_fingerprint text NOT NULL,
       source_url text,
       source_name text,
       title text NOT NULL,
@@ -532,5 +564,13 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS sector_read_at timestamptz;
     -- Its Provenance (ADR-0034): how it was obtained and its summary written, never a Candidate; null: « modèle non enregistré ».
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS provenance jsonb;
+    -- The Candidate it is private to (ADR-0049), deleted with them; null: shared.
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS private_to_candidate_id text REFERENCES candidate (id) ON DELETE CASCADE;
+    -- One posting per visibility: a private Job Offer is never merged with a shared one or another Candidate's.
+    CREATE UNIQUE INDEX IF NOT EXISTS job_offer_url_key_per_visibility ON job_offer (url_key, COALESCE(private_to_candidate_id, ''));
+    CREATE UNIQUE INDEX IF NOT EXISTS job_offer_content_fingerprint_per_visibility ON job_offer (content_fingerprint, COALESCE(private_to_candidate_id, ''));
+    ALTER TABLE job_offer DROP CONSTRAINT IF EXISTS job_offer_url_key_key;
+    ALTER TABLE job_offer DROP CONSTRAINT IF EXISTS job_offer_content_fingerprint_key;
+    CREATE INDEX IF NOT EXISTS job_offer_private_to_candidate_id ON job_offer (private_to_candidate_id) WHERE private_to_candidate_id IS NOT NULL;
   `);
 }

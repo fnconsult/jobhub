@@ -12,11 +12,12 @@
 // BIBENDUM (SIREN 552100557), as for Michelin; SIREN 123456789 gets the
 // all-null record the live register answers it with; anything else finds nothing.
 //
-// Perplexity's Search API (POST /search, ADR-0043) returns pages, never written text: for any company,
-// a page about "Globex Robotics" in Germany whose text names a CEO (Hans Müller) the dossier must drop.
-// For "PersonLeak", pages naming a person and their home address, a LinkedIn profile among them, none
-// of which may reach the page. For "Bibendum", a page giving the group's SIREN. Until the company-facts
-// Task Playbook's agent reads such pages (#405), no facts are written from them.
+// Perplexity's Search API (POST /search, ADR-0043) and Brave's web search (GET /res/v1/web/search) return the
+// same pages, never written text: for any company, a page about "Globex Robotics" in Germany whose text names a
+// CEO (Hans Müller) the dossier must drop. For "PersonLeak", pages naming a person and their home address, a
+// LinkedIn profile among them, none of which may reach the page. For "Bibendum", a page giving the group's SIREN.
+// The company-facts-search Task Playbook's agent reads them (#405, e2e/support/fake-mistral.mjs). Each Brave
+// search is printed to the server log ("[fake-brave] search: <query>"), so a test can tell Brave served it.
 //
 // Its search for an employer's Company News (the query asking for "Articles de presse") answers
 // with three article pages: one from last month; one older than twelve months and one whose title
@@ -35,6 +36,35 @@ function answerAfter(ms, signal) {
 
 /** The calendar day `days` ago, YYYY-MM-DD. */
 const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+
+/** Brave's web search: the result pages, each with its title, URL and description, its matches highlighted as Brave does. */
+function bravePages(pages) {
+  return Response.json({
+    type: "search",
+    web: { type: "search", results: pages.map(({ url, title = "", snippet = "" }) => ({ title: `<strong>${title}</strong>`, url, description: snippet })) },
+  });
+}
+
+/** The pages a web search finds about the company its query names (not its Company News). */
+function companyPages(query) {
+  if (query.includes("PersonLeak")) {
+    return [
+      { url: "https://www.linkedin.com/in/john-smith-austin", title: "John Smith - PersonLeak", snippet: "Home office of John Smith, 12 Elm St, Austin." },
+      { url: "javascript:alert(1)", title: "PersonLeak" },
+      { url: "https://personleak.example/about", title: "About PersonLeak", snippet: "Software, founded by Jane Doe. 12 employees." },
+    ];
+  }
+  if (query.includes("Bibendum")) return [{ url: "https://bibendum.example/groupe", title: "Le groupe Bibendum", snippet: "Compagnie Générale des Établissements Bibendum, SIREN 552 100 557." }];
+  // "Weitblick Energie AG" (#172): a web search citing a source by a long URL with no break in it.
+  if (query.includes("Weitblick Energie")) {
+    return [
+      { url: "https://assets.weitblick-energie.example/weitblick/assets/api/uuid:3f1c9a2e-7b4d-4e8a-9c61-2d5f0b8e4a17/251113-press-release-en.pdf", title: "Weitblick Energie AG press release", snippet: "Energy, Germany." },
+    ];
+  }
+  // "Atlantis Labs" (#95): a web dossier that names no country the people search knows.
+  if (query.includes("Atlantis Labs")) return [{ url: "https://atlantis-labs.example/about", title: "Atlantis Labs", snippet: "Robotics, Atlantis." }];
+  return [{ url: "https://globex-robotics.example/about", title: "About Globex Robotics", snippet: "Industrial robotics, Munich, Germany. 1,200 employees, €300M revenue (2024). CEO: Hans Müller." }];
+}
 
 /** Perplexity's Search API (POST /search): the result pages, each with its title, URL, snippet and date when known. */
 function perplexityPages(pages) {
@@ -120,29 +150,12 @@ globalThis.fetch = async (input, init) => {
           ];
       return perplexityPages(articles.map(({ url, title, outlet, date }) => ({ url, title: `${title} - ${outlet}`, date })));
     }
-    if (query.includes("PersonLeak")) {
-      return perplexityPages([
-        { url: "https://www.linkedin.com/in/john-smith-austin", title: "John Smith - PersonLeak", snippet: "Home office of John Smith, 12 Elm St, Austin." },
-        { url: "javascript:alert(1)", title: "PersonLeak" },
-        { url: "https://personleak.example/about", title: "About PersonLeak", snippet: "Software, founded by Jane Doe. 12 employees." },
-      ]);
-    }
-    if (query.includes("Bibendum")) {
-      return perplexityPages([{ url: "https://bibendum.example/groupe", title: "Le groupe Bibendum", snippet: "Compagnie Générale des Établissements Bibendum, SIREN 552 100 557." }]);
-    }
-    // "Weitblick Energie AG" (#172): a web search citing a source by a long URL with no break in it.
-    if (query.includes("Weitblick Energie")) {
-      return perplexityPages([
-        { url: "https://assets.weitblick-energie.example/weitblick/assets/api/uuid:3f1c9a2e-7b4d-4e8a-9c61-2d5f0b8e4a17/251113-press-release-en.pdf", title: "Weitblick Energie AG press release", snippet: "Energy, Germany." },
-      ]);
-    }
-    // "Atlantis Labs" (#95): a web dossier that names no country the people search knows.
-    if (query.includes("Atlantis Labs")) {
-      return perplexityPages([{ url: "https://atlantis-labs.example/about", title: "Atlantis Labs", snippet: "Robotics, Atlantis." }]);
-    }
-    return perplexityPages([
-      { url: "https://globex-robotics.example/about", title: "About Globex Robotics", snippet: "Industrial robotics, Munich, Germany. 1,200 employees, €300M revenue (2024). CEO: Hans Müller." },
-    ]);
+    return perplexityPages(companyPages(query));
+  }
+  if (url.origin === "https://api.search.brave.com" && url.pathname === "/res/v1/web/search") {
+    const query = url.searchParams.get("q") ?? "";
+    console.log(`[fake-brave] search: ${query}`);
+    return bravePages(companyPages(query));
   }
   return realFetch(input, init);
 };

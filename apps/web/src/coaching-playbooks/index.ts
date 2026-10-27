@@ -12,7 +12,8 @@
  *  - what an AI task uses   `servedTask(id)`: one task Playbook's served version, its Playbook Agent and
  *                           its web-search provider
  * and `migrateCoachingPlaybooks(database, seed)` creates its tables, once imports `seed`'s coaching
- * knowledge as version 1 of each, and adds each task Playbook still missing (see ./import).
+ * knowledge as version 1 of each, adds each task Playbook still missing (see ./import), and each later
+ * version of a task Playbook written in the code that it was not given yet (#405).
  *
  * Rules kept here, whoever calls:
  *  - A version not yet Human-validated is edited in place, each author noted; changing a
@@ -138,13 +139,15 @@ export interface ServedTaskPlaybook {
 
 /**
  * Version 1 of each, as the import writes it, by "import": the coaching knowledge not validated; a task
- * Playbook validated under `validatedBy` when given (ADR-0026), else not.
+ * Playbook validated under `validatedBy` when given (ADR-0026), else not. A task Playbook's `later`
+ * versions (#405): written in the code after its version 1, each imported once, as the next version, by
+ * "import" and not validated, so production keeps serving what it served until a person validates it.
  */
 export interface PlaybookSeed {
   sources: string;
   coreDigest: string;
   playbooks: { id: string; content: string; agent: PlaybookAgent }[];
-  tasks: { id: string; content: string; agent: PlaybookAgent | null; validatedBy: string | null }[];
+  tasks: { id: string; content: string; agent: PlaybookAgent | null; validatedBy: string | null; later?: { content: string; agent: PlaybookAgent | null }[] }[];
 }
 
 /** Who saves a version: an Administrator, by the email they sign in with. */
@@ -265,18 +268,36 @@ export async function migrateCoachingPlaybooks(database: Pool, seed: () => Playb
         await insertVersion(client, id, 1, content, agent, [IMPORT_AUTHOR]);
       }
     }
-    for (const { id, content, agent, validatedBy } of tasks) {
+    for (const { id, content, agent, validatedBy, later = [] } of tasks) {
       const { rows: added } = await client.query("INSERT INTO coaching_playbook (id, kind) VALUES ($1, 'task') ON CONFLICT (id) DO NOTHING RETURNING id", [id]);
-      if (added.length === 0) continue;
-      await insertVersion(client, id, 1, content, agent, [IMPORT_AUTHOR]);
-      if (validatedBy) {
-        await client.query(
-          "UPDATE playbook_version SET validated_by_name = $2, validated_by_email = $3, validated_at = clock_timestamp() WHERE playbook_id = $1 AND version = 1",
-          [id, validatedBy, IMPORT_AUTHOR],
-        );
+      if (added.length > 0) {
+        await insertVersion(client, id, 1, content, agent, [IMPORT_AUTHOR]);
+        if (validatedBy) {
+          await client.query(
+            "UPDATE playbook_version SET validated_by_name = $2, validated_by_email = $3, validated_at = clock_timestamp() WHERE playbook_id = $1 AND version = 1",
+            [id, validatedBy, IMPORT_AUTHOR],
+          );
+        }
       }
+      await importLater(client, id, later);
     }
   });
+}
+
+/**
+ * Adds the `later` versions of task Playbook `id` it was not given yet, each as its next version, by "import",
+ * not validated. The import's own versions, version 1 included, are those it first wrote (an Administrator
+ * editing one in place is added to its authors): as many as it holds, so many of the seed's it was given.
+ */
+async function importLater(client: Queryable, id: string, later: readonly { content: string; agent: PlaybookAgent | null }[]): Promise<void> {
+  if (later.length === 0) return;
+  const { rows } = await client.query<{ imported: number; latest: number }>(
+    "SELECT count(*) FILTER (WHERE authors[1] = $2)::int AS imported, max(version) AS latest FROM playbook_version WHERE playbook_id = $1",
+    [id, IMPORT_AUTHOR],
+  );
+  const { imported } = rows[0]!;
+  let { latest } = rows[0]!;
+  for (const version of later.slice(Math.max(0, imported - 1))) await insertVersion(client, id, ++latest, version.content, version.agent, [IMPORT_AUTHOR]);
 }
 
 interface VersionRow {

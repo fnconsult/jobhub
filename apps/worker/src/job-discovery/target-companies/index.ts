@@ -18,8 +18,8 @@
  * leave (ADR-0007). La Bonne Boite refused or down is skipped like an unavailable source: the list
  * stays as it was, and it is asked again next run.
  *
- * A run visits up to `max` of them (JOB_DISCOVERY_TARGET_COMPANIES, 5 by default), the Candidate's
- * own first, then by hiring score, none visited within `revisitDays` (JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS,
+ * A run visits up to `max` of them (JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN, 5 by default), the Candidate's
+ * own first, then by hiring score, none visited within `revisitDays` (JOB_DISCOVERY_COMPANY_REVISIT_DAYS,
  * 7 by default); those set aside never, nor those the company register said are not companies (a sole trader's name
  * never goes to a web search, so no careers site is found for it). Never throws: what cannot be read gives no visit.
  *
@@ -51,9 +51,9 @@ export interface TargetCompanySettings {
   revisitDays: number;
 }
 
-/** JOB_DISCOVERY_TARGET_COMPANIES and JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS (Platform Settings: bounds and defaults are the catalog's). */
+/** JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN and JOB_DISCOVERY_COMPANY_REVISIT_DAYS: the web search's Platform Settings (#402; bounds and defaults are the catalog's). */
 export function targetCompanySettingsFromEnv(env: Record<string, string | undefined>): TargetCompanySettings {
-  return { max: readNumberSetting(env, "JOB_DISCOVERY_TARGET_COMPANIES"), revisitDays: readNumberSetting(env, "JOB_DISCOVERY_TARGET_COMPANY_REVISIT_DAYS") };
+  return { max: readNumberSetting(env, "JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN"), revisitDays: readNumberSetting(env, "JOB_DISCOVERY_COMPANY_REVISIT_DAYS") };
 }
 
 /** One Target Company to visit in this run, and its careers site (or ATS board) when one is known. */

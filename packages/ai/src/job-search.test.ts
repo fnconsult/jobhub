@@ -195,6 +195,22 @@ describe("planning a Job Search", () => {
     ]);
   });
 
+  it("plans as many job titles per language, and in the languages, the web search's settings say (#402)", async () => {
+    const reply = JSON.stringify({ fr: ["DAF", "Responsable administratif et financier", "Contrôleur financier", "Trésorier"], en: ["Chief Financial Officer", "Finance Director", "Head of Finance"] });
+
+    const five = await planningLayer(reply).ai.planJobSearch({ candidateId: "cand-1", criteria, shape: { titlesPerLanguage: 5, languages: ["fr"] } });
+    expect(five.queries).toEqual([
+      { title: "Directeur Financier", language: "fr" },
+      { title: "DAF", language: "fr" },
+      { title: "Responsable administratif et financier", language: "fr" },
+      { title: "Contrôleur financier", language: "fr" },
+      { title: "Trésorier", language: "fr" },
+    ]);
+
+    const one = await planningLayer(reply).ai.planJobSearch({ candidateId: "cand-1", criteria, shape: { titlesPerLanguage: 1, languages: ["en"] } });
+    expect(one.queries).toEqual([{ title: "Chief Financial Officer", language: "en" }]);
+  });
+
   it("gives the AI step the Search Criteria title alone, without the contact details typed into it", async () => {
     const { ai, mistral } = planningLayer("{}");
     const leaky = { ...criteria, targetRole: "DAF jean.dupont@mail.fr 06 12 34 56 78", cv: "Jean Dupont, né le 3 mars 1965" } as SearchCriteria;

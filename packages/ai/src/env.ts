@@ -126,7 +126,17 @@ export interface AiLayerDeps {
    * it, only email addresses and phone numbers are, by their shape. Must not throw (a failure is only warned about).
    */
   identityOf?: (candidateId: string) => Promise<CandidateIdentity | null>;
+  /**
+   * A text task routed to a provider whose key is missing: true starts the layer all the same, that task's calls failing
+   * as key_missing, so a route chosen on Paramètres before its key is entered warns and never blocks (ADR-0042); default
+   * false: start-up stops, naming the key. The Search provider's key is not concerned.
+   */
+  tolerateMissingKeys?: boolean;
 }
+
+/** Whether `error` says a provider's key is missing (an API key or token, not a setting such as VERTEX_PROJECT_ID). */
+const isMissingKey = (error: unknown): error is AiConfigError =>
+  error instanceof AiConfigError && error.reason === "key_missing" && /Missing environment variable \w+(_API_KEY|_TOKEN_\w+)\b/.test(error.message);
 
 function required(env: Env, key: string): string {
   const value = env[key]?.trim();
@@ -297,6 +307,23 @@ export function taskRouteFromEnv(env: Env, task: AiTask): Route {
 }
 
 /**
+ * The smallest model `provider` offers through the endpoint `env` reaches it by: the last of its models, which
+ * each text provider lists largest first (claude-haiku, mistral-small, gpt-5-mini). What a Playbook Agent that
+ * only reads a few pages runs on by default (#405). Undefined when it cannot be told here (its key missing, a
+ * provider offering a single model, fakes): its default model is then the one used.
+ */
+export function smallModelFromEnv(env: Env, provider: ProviderId): string | undefined {
+  if (env.AI_FAKE?.trim() === "true") return undefined;
+  try {
+    const [endpoint] = buildProviders(provider, env, undefined);
+    const models = endpoint?.generate ? (endpoint.models ?? []) : [];
+    return models.length > 1 ? models.at(-1) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The provider whose model each model setting names, as `env` routes it, without needing any key:
  * AI_<TASK>_MODEL its task's provider, AI_IDENTITY_MODEL Mistral's. What Paramètres offers known models by (#301).
  */
@@ -378,7 +405,8 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
 
   const routes = routesFromEnv(env, fake);
   const used = [...new Set(Object.values(routes).map((route) => route.provider))];
-  // The active Search provider's key may be missing: web search alone is then unavailable (#399, ADR-0043).
+  // A provider only text tasks use may wait for its key, when tolerated (ADR-0042); the active Search provider's key may be missing too: web search alone is then unavailable (#399, ADR-0043).
+  const textOnly = (id: ProviderId) => routes[SEARCH_TASK].provider !== id;
   const searchOnly = (id: ProviderId) => Object.entries(routes).every(([task, route]) => route.provider !== id || task === SEARCH_TASK);
   const unconfigured: Partial<Record<ProviderId, string>> = {};
   const providers = used.flatMap((id) => {
@@ -386,7 +414,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     try {
       return buildProviders(id, env, deps.fetch);
     } catch (error) {
-      if (!(error instanceof AiConfigError) || error.reason !== "key_missing" || !searchOnly(id)) throw error;
+      if (!isMissingKey(error) || !(searchOnly(id) || (deps.tolerateMissingKeys && textOnly(id)))) throw error;
       unconfigured[id] = error.message;
       return [];
     }
@@ -404,7 +432,7 @@ export function createAiLayerFromEnv(env: Env = process.env, deps: AiLayerDeps =
     identityRoute: { provider: IDENTITY_PROVIDER, model: env.AI_IDENTITY_MODEL?.trim() || undefined },
     euAiConsent: deps.euAiConsent,
     identityOf: deps.identityOf,
-    usage: deps.usage ?? createConsoleUsageLog(),
     unconfigured,
+    usage: deps.usage ?? createConsoleUsageLog(),
   });
 }

@@ -1,6 +1,6 @@
 import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type Outcome, type SearchCriteria } from "@jobhub/shared";
 import { findIdentity } from "./identity-scan";
-import { buildCompanyQuery, buildSearchQuery, buildTargetCompanyQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type QueryLanguage } from "./search-query";
+import { buildCompanyQuery, buildSearchQuery, buildTargetCompanyQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
 import { costInEur, toolCostInEur } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
@@ -167,6 +167,8 @@ export interface JobSearchPlanRequest {
   instructions?: JobSearchInstructions;
   /** The web-search provider its searches will go to (`SearchRequest.route`), for how far they page; default: the configured one. */
   route?: Route;
+  /** How many job titles per language, and which languages (the web search's Platform Settings, #402); default: 3, in French and English. */
+  shape?: JobSearchShape;
 }
 
 /**
@@ -197,10 +199,16 @@ export interface CompanySearchRequest {
   /** The only input: the employer's name, as the Job Offer or the Candidate gives it. Never a person. */
   employer: string;
   /**
-   * The "company-facts-search" task Playbook's served text, `{{entreprise}}` standing for the employer;
-   * default: its built-in text. The JSON keys and "name no person" are always added.
+   * The "company-facts-search" task Playbook's words, `{{entreprise}}` standing for the employer: its served
+   * query (`## requête`) with `forReading`, else its version 1 text; default: the built-in one.
    */
   instructions?: string;
+  /**
+   * The pages are for its Playbook Agent to read (`readCompanyFacts`, #405): the query is the task Playbook's
+   * words alone. Without it, as version 1 worded it: asking for the facts as JSON and that no person be named,
+   * which a Search provider, returning pages, never writes.
+   */
+  forReading?: boolean;
   /** The web-search provider and model instead of the configured one (see `SearchRequest.route`). */
   route?: Route;
   /** The degraded paths its feature took (a task Playbook's fallback), recorded with the search (see `GenerateRequest.warnings`). */
@@ -301,6 +309,13 @@ export interface AiLayerOptions {
   /** Whether the Candidate gave EU AI consent. Without it, no Candidate has consented. */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
   /**
+   * Why a provider is missing from `providers`, by provider (the key it lacks). A text task routed to one does not stop
+   * the layer from starting: its calls fail as key_missing, with this said (ADR-0042: a provider with no key warns,
+   * never blocks). A Search provider without its key leaves web search unavailable (#399), and its WebSearchUnavailable
+   * says why.
+   */
+  unconfigured?: Partial<Record<ProviderId, string>>;
+  /**
    * The fallback Search provider (ADR-0043): when the one serving a run's searches fails (key missing, 401/403, 429,
    * an outage), the run goes on with it. None when it is not configured (its key missing), nor the one that failed.
    */
@@ -313,11 +328,6 @@ export interface AiLayerOptions {
    * or when it fails, only email addresses and phone numbers are, by their shape.
    */
   identityOf?: (candidateId: string) => Promise<CandidateIdentity | null>;
-  /**
-   * Why a provider is missing from `providers`, by provider (e.g. the key it lacks): a Search provider without its key
-   * leaves web search unavailable (#399), and its WebSearchUnavailable says why.
-   */
-  unconfigured?: Partial<Record<ProviderId, string>>;
 }
 
 const DEFAULT_MAX_TOKENS = 4096;
@@ -389,7 +399,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const providerFor = (route: Route, euFirst = false): AiProvider => {
     const provider = endpointFor(options.providers, route, euFirst);
     // Its key was never entered: a provider is configured with its key.
-    if (!provider) throw new AiConfigError(`AI provider "${route.provider}" is not configured`, { reason: "key_missing" });
+    if (!provider) throw new AiConfigError(options.unconfigured?.[route.provider] ?? `AI provider "${route.provider}" is not configured`, { reason: "key_missing" });
     return provider;
   };
 
@@ -407,6 +417,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   // Fail fast at start-up on a task routed to a provider that cannot serve it. A Search provider not configured leaves
   // web search unavailable, and only it (#399).
   for (const task of Object.keys(options.routes) as AiTask[]) {
+    // A text task on a provider whose key is missing starts all the same: its calls fail as key_missing (ADR-0042).
+    if (task !== SEARCH_TASK && options.unconfigured?.[routeFor(task).provider] !== undefined && !endpointFor(options.providers, routeFor(task))) continue;
     if (task === SEARCH_TASK) {
       const provider = endpointFor(options.providers, routeFor(task));
       if (provider && !provider.search) throw new AiConfigError(`AI provider "${provider.id}" cannot search the web`);
@@ -818,7 +830,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   const layer: AiLayer = {
     generate: (request) => generateAs(request, request.task),
 
-    async planJobSearch({ candidateId, criteria, instructions, route }) {
+    async planJobSearch({ candidateId, criteria, instructions, route, shape }) {
       const contract = searchContractOf(servingSearch(route));
       const pages = Math.max(1, contract.maxPages);
       const queriesPerCall = Math.max(1, contract.queriesPerCall);
@@ -843,7 +855,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings), pages, queriesPerCall, call };
+      return { queries: jobSearchQueries(criteria, call?.text ?? null, instructions?.openings, shape), pages, queriesPerCall, call };
     },
 
     async searchWeb(request) {
@@ -866,7 +878,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     async searchCompany(request) {
       return search({
         candidateId: request.candidateId,
-        queries: [buildCompanyQuery(request.employer, request.instructions)],
+        queries: [buildCompanyQuery(request.employer, request.instructions, { forReading: request.forReading === true })],
         ...(request.route ? { override: request.route } : {}),
         ...(request.warnings ? { warnings: request.warnings } : {}),
         ...(request.signal ? { signal: request.signal } : {}),

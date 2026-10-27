@@ -48,6 +48,8 @@ export interface WorkerClientsOptions {
   production: boolean;
   jobOffers: JobDiscoveryOptions["jobOffers"];
   budget?: JobDiscoveryOptions["budget"];
+  /** How Job discovery searches the web (#402), read at the start of each run. */
+  search?: JobDiscoveryOptions["search"];
   /** The Job discovery sources and sites set in the Back Office (#188), read at the start of each run. */
   settings?: JobDiscoveryOptions["settings"];
   /** The task Playbooks Job discovery runs with (ADR-0026), read at the start of each run. */
@@ -91,7 +93,9 @@ const refusedSearch = (answer: unknown) => (answer as { ok?: boolean; reason?: s
 export function workerClients(options: WorkerClientsOptions): WorkerClients {
   const { resolver } = options;
   const log = options.log ?? ((line: string) => console.info(line));
-  const buildAi = (env: Env) => createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage });
+  // A text task routed on Paramètres to a provider whose key is not entered yet fails its own calls, nothing else (ADR-0042).
+  const buildAi = (env: Env) =>
+    createAiLayerFromEnv(env, { euAiConsent: options.euAiConsent, identityOf: options.identityOf, fetch: options.fetch, usage: options.usage, tolerateMissingKeys: true });
   // The AI layer's keys and its routing: rebuilt when one of either changes.
   const aiResolver = options.platformSettings ? withPlatformSettings(resolver, options.platformSettings) : resolver;
   const aiNames = [...AI_SECRET_NAMES, ...AI_ROUTING_NAMES];
@@ -148,7 +152,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     }
     // Without its Search provider's key, Job discovery still runs, its web search skipped like a source that is off (#399).
     if (!built.webSearchAvailable()) log("[worker] Job discovery runs without the web search: its Search provider's key is not set");
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis, targetCompanies });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, search: options.search, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis, targetCompanies });
   });
 
   // Rebuilt when Brevo's key or MAIL_FROM changes in the Back Office. Each email sent is recorded with the other

@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
+import { expectNoPrivatePersonNamed, openApplication } from "./support/company-dossier";
 import { newAddress } from "./support/mailbox";
 
 // Issue #399: Brave's and Tavily's keys are Provider Secrets, and a missing key of the active Search provider only makes
@@ -14,8 +15,10 @@ import { newAddress } from "./support/mailbox";
 // the real worker (apps/worker, `tsx src/main.ts`) on the same database, its web searches routed to Brave and answered
 // by e2e/support/fake-job-sites.mjs, which logs every request the worker sends.
 //
-// One spec holds the Back Office and the worker scenarios: both change the one BRAVE_SEARCH_API_KEY row of the suite's
-// database, which no other spec may see change meanwhile.
+// One spec holds every scenario that changes the one BRAVE_SEARCH_API_KEY row of the suite's database, which no other spec
+// may see change meanwhile: the Back Office's and the worker's, and a foreign employer's Company Dossier with Brave as the
+// company-facts-search Task Playbook's Search provider (#405), which needs Brave's key to be offered at all. Its tests run
+// one after another (one file, one worker of the worker project), each leaving the row as it found it: no key.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const keys = fr.admin.providerSecrets;
 const origin = process.env.E2E_WEB_ORIGIN!;
@@ -234,6 +237,59 @@ test.describe("Brave's and Tavily's keys as Provider Secrets; a missing search k
       expect(worker.output()).not.toContain(VALID_KEY);
     } finally {
       await worker.stop();
+    }
+  });
+});
+
+test.describe("a Company Dossier with Brave as the Search provider (#405)", () => {
+  const playbooks = fr.admin.coachingPlaybooks;
+  const dossierTexts = fr.companyDossier;
+  const PLAYBOOK = "/admin/playbooks/company-facts-search";
+  const notice = (page: Page) => page.getByRole("main").getByRole("status").or(page.getByRole("main").getByRole("alert"));
+
+  test("a foreign employer's Company Dossier has facts with Brave as provider (#405)", async ({ page, browser }) => {
+    // Building a dossier calls the (faked) web search and the Playbook Agent, then refreshes the page.
+    const slow = expect.configure({ timeout: 15_000 });
+    const office = await adminPage(browser);
+    try {
+      // A Search provider without its key is not offered (#399): the Super-admin enters a (faked) Brave key first.
+      await replaceKey(office, `e2e-brave-valid-${runId}-dossier`);
+      await expect(sheetOf(office).getByRole("status")).toHaveText(tr(keys.saved, { name: NAME }));
+      // The company-facts-search Task Playbook names Brave as its « Moteur de recherche » (ADR-0026); e2e serves its latest
+      // version at once. Brave's fake finds the same pages as Perplexity's, so other dossiers built meanwhile read alike.
+      await office.goto(PLAYBOOK);
+      await office.getByLabel(playbooks.fields.searchModel).selectOption("brave|");
+      await office.getByRole("button", { name: playbooks.detail.save }).click();
+      await expect(notice(office)).toBeVisible();
+      await office.reload();
+      await expect(office.getByLabel(playbooks.fields.searchModel)).toHaveValue("brave|");
+
+      // Letters only: the employer's name is cleaned of anything shaped like a phone number before it is searched.
+      const employer = `Globex Robotics GmbH ${Math.random().toString(36).replace(/[^a-z]/g, "").slice(0, 6)}`;
+      const dossier = await openApplication(page, employer);
+      await dossier.getByRole("button", { name: dossierTexts.build }).click();
+
+      await slow(dossier.getByText(dossierTexts.reliability.less_reliable)).toBeVisible();
+      await slow(dossier.getByText("Allemagne")).toBeVisible();
+      await slow(dossier.getByText("Robotique industrielle")).toBeVisible();
+      await slow(dossier.getByText("1 200 salariés")).toBeVisible();
+      await slow(dossier.getByRole("link", { name: "https://globex-robotics.example/about" })).toBeVisible();
+      await expectNoPrivatePersonNamed(page);
+      // Brave served the search (e2e/support/fake-company-sources.mjs logs each one).
+      const searched = () => readFileSync(process.env.E2E_SERVER_LOG!, "utf8").split("\n").filter((line) => line.startsWith("[fake-brave] search: ") && line.includes(`« ${employer} »`));
+      await expect.poll(() => searched().length).toBeGreaterThan(0);
+    } finally {
+      // Back to the configured provider, so that the other specs building foreign dossiers meet no Brave without its key,
+      // then no key, as the suite's server started.
+      try {
+        await office.goto(PLAYBOOK);
+        await office.getByLabel(playbooks.fields.searchModel).selectOption("");
+        await office.getByRole("button", { name: playbooks.detail.save }).click();
+        await expect(notice(office)).toBeVisible();
+        await clearKey(office);
+      } finally {
+        await office.context().close().catch(() => {});
+      }
     }
   });
 });

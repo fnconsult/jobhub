@@ -427,14 +427,11 @@ test.describe("Enriched Contacts people search country (#95)", () => {
   const cases = [
     { name: "the Job Offer names no country and the employer is on the French register: France", employer: "Acme Industrie", location: "Lyon", country: "FR", apollo: "france" },
     { name: "the Job Offer's country wins over the employer's: Londres, Royaume-Uni", employer: "Acme Industrie", location: "Londres, Royaume-Uni", country: "GB", apollo: "united kingdom" },
-    { name: "the Job Offer names no country and the web dossier gives Germany", employer: "Globex Robotics", location: "Lyon", country: "DE", apollo: "germany", webFacts: true },
+    { name: "the Job Offer names no country and the web dossier gives Germany", employer: "Globex Robotics", location: "Lyon", country: "DE", apollo: "germany" },
     { name: "no country anywhere: the search is not narrowed", employer: "Atlantis Labs", location: "Lyon", country: undefined, apollo: undefined },
   ];
-  /**
-   * The cases searched today. #398 dropped Perplexity's Agent API: Search providers return pages, never written facts,
-   * so a web dossier gives no country until the company-facts Task Playbook's agent reads it from the pages (#405, ADR-0043).
-   */
-  const searched = cases.filter((c) => !("webFacts" in c));
+  /** Every case is searched: the web dossier's country is read in the pages found by the company-facts Task Playbook's agent (#405). */
+  const searched = cases;
 
   /** A new Candidate (a page of their own) saves the Job Offer and starts the search on `server`; returns once the server has answered. */
   async function search(browser: Browser, server: { origin: string }, where: { employer: string; location: string }) {

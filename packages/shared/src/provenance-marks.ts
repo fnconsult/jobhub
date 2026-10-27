@@ -5,6 +5,8 @@
  *
  *   markOf(site)   👤 the Candidate's data, 🌐 a site (its domain in text)
  *   markOf(step)   « J » Jobbbox's rules; a Tool's or AI provider's logo or name
+ *   markOfTool(t)  a Tool's logo or name, wherever its data is credited (France Travail beside La Bonne Boite's
+ *                  Target Companies, #409): one `Tool.logo`, so a logo allowed once shows everywhere
  *
  * And what a step is called while it runs (#328), beside its Activity's glyph: `stepLabel(step)`, worded by
  * `aiActivity.steps.<label>` in every interface language.
@@ -33,13 +35,14 @@ export function markOf(element: ProvenanceSite | ProvenanceStep): ProvenanceMark
     case "rules":
       return { glyph: PROVENANCE_GLYPHS.rules };
     case "tool":
-      return toolMark(toolById(element.tool));
+      return markOfTool(toolById(element.tool));
     case "ai":
-      return element.provider ? toolMark(toolOfUsage({ table: "ai_usage", provider: element.provider, endpoint: element.endpoint ?? "" })) : {};
+      return element.provider ? markOfTool(toolOfUsage({ table: "ai_usage", provider: element.provider, endpoint: element.endpoint ?? "" })) : {};
   }
 }
 
-function toolMark(tool: Tool | undefined): ProvenanceMark {
+/** A Tool's logo (with its name) once its owner allowed one, else its name in text; nothing for an unknown Tool. */
+export function markOfTool(tool: Tool | undefined): ProvenanceMark {
   if (!tool) return {};
   return tool.logo ? { logo: tool.logo, text: tool.name } : { text: tool.name };
 }

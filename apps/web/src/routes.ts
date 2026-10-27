@@ -1,7 +1,7 @@
 import type { CalendarView } from "./agenda/calendar";
 
 /** The Sections of a Profile's page, in order (ADR-0024). */
-export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score", "telecharger", "gerer"] as const;
+export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score", "entreprises-cibles", "telecharger", "gerer"] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
 /** The Sections of an Application's page, in order (ADR-0024). */

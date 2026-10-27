@@ -46,6 +46,8 @@ export interface LaBonneBoiteCompany {
   city?: string;
   /** Its NAF activity, as La Bonne Boite labels it. */
   activity?: string;
+  /** Its headcount band; no `max` for « `min` and more » (#409). */
+  headcount?: { min: number; max?: number };
 }
 
 /** Where to look: around a commune (its INSEE code), or a place La Bonne Boite reads itself. */
@@ -134,6 +136,19 @@ function createCaller(options: FranceTravailApisOptions) {
 const outcome = (error: unknown, calls: number) =>
   ({ ok: false, reason: error instanceof Refused ? "refused" : "failed", detail: error instanceof Error ? error.message : String(error), calls }) as const;
 
+/** A whole number of employees, given as a figure or as text ("250"); undefined otherwise. */
+const employees = (value: unknown): number | undefined => {
+  const figure = typeof value === "number" ? value : typeof value === "string" && /^\s*\d+\s*$/.test(value) ? Number(value) : NaN;
+  return Number.isInteger(figure) && figure >= 0 ? figure : undefined;
+};
+
+/** An item's headcount band (`headcount_min`, `headcount_max`): none without a minimum, no `max` for an open-ended one. */
+function headcountIn(item: Record<string, unknown>): LaBonneBoiteCompany["headcount"] {
+  const [min, max] = [employees(item.headcount_min), employees(item.headcount_max)];
+  if (min === undefined) return undefined;
+  return max !== undefined && max >= min ? { min, max } : { min };
+}
+
 /** The companies of a `/recherche` answer that name an establishment, best hiring first. */
 export function readCompanies(answer: unknown): LaBonneBoiteCompany[] {
   const items = isObject(answer) && Array.isArray(answer.items) ? answer.items.filter(isObject) : [];
@@ -145,6 +160,8 @@ export function readCompanies(answer: unknown): LaBonneBoiteCompany[] {
     const [city, activity] = [str(item.city), str(item.naf_label)];
     if (city) company.city = city;
     if (activity) company.activity = activity;
+    const headcount = headcountIn(item);
+    if (headcount) company.headcount = headcount;
     companies.push(company);
   }
   return companies.sort((a, b) => b.hiringScore - a.hiringScore);

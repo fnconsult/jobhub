@@ -318,6 +318,21 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
     });
 
+    it("leaves out a Spontaneous Application's Job Offer, whoever prepared it: it is no posting (#409)", async () => {
+      await subscribed();
+      const spontaneous = await jobOffers.capture(
+        { title: "Directeur financier", content: "Candidature spontanée : Directeur financier chez Acme Industrie (Lyon).", employer: "Acme Industrie", location: "Lyon", contractType: "cdi", skills: ["IFRS", "SAP"] },
+        "candidate",
+        { spontaneous: true },
+      );
+      if (!spontaneous.ok) throw new Error("fixture Job Offer refused");
+      const fresh = await strong("Nouvelle");
+
+      const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered(spontaneous.jobOffer.id));
+
+      expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([fresh]);
+    });
+
     it("leaves out the Job Offers a failed or a stopped Job Search kept and showed (#331)", async () => {
       await subscribed();
       const keptByFailed = await strong("Gardée par une recherche échouée");

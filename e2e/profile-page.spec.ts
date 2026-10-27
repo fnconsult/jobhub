@@ -73,7 +73,7 @@ test.describe("the Profile page as a document", () => {
 
     // No Action Cards yet: no Propositions; the page shows its first Section, the Master CV.
     const s = fr.profilePage.sections;
-    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s.telecharger, s.gerer]);
+    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s["entreprises-cibles"], s.telecharger, s.gerer]);
     await expect(sectionLink(page, s["cv-de-reference"])).toHaveAttribute("aria-current", "page");
     const cv = masterCvSection(page);
     await expect(cv.getByText(/^Version 1 · enregistrée le \w+ \d+ \w+ \d{4}$/)).toBeVisible();

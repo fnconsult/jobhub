@@ -268,6 +268,8 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "france_travail" },
     residency: "eu",
     residencyNote: { fr: "Service public français ; aucune donnée personnelle envoyée.", en: "French public service; no personal data sent." },
+    // La Bonne Boite's terms ask for it where its companies are shown (#409); the owner's OK and its source are on #424.
+    logo: "/logos/france-travail.svg",
   },
   {
     id: "fantastic-jobs",

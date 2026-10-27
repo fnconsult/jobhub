@@ -396,7 +396,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     const { rows } = await database.query<{ id: string }>(
       `SELECT id FROM job_offer
         WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
-          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL
+          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous
         ORDER BY created_at DESC LIMIT $5`,
       [profileId, candidateId, new Date(at.getTime() - firstLookBackDays * DAY_MS), at, POOL_MAX],
     );
@@ -407,7 +407,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
   async function eligible(ids: string[], at: Date): Promise<string[]> {
     if (ids.length === 0) return [];
     const { rows } = await database.query<{ id: string }>(
-      `SELECT id FROM job_offer WHERE id = ANY($1::uuid[]) AND guest_expires_at IS NULL AND expired_at IS NULL
+      `SELECT id FROM job_offer WHERE id = ANY($1::uuid[]) AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous
           AND (posted_at IS NULL OR posted_at >= $2)`,
       [ids, new Date(at.getTime() - MAX_POSTING_AGE_DAYS * DAY_MS)],
     );

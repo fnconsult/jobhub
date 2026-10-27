@@ -10,9 +10,11 @@ import { CvExportForm } from "@/components/CvExportForm";
 import { anyOfInWords, contractTypesInWords, remoteWorkOptionsInWords } from "@/components/job-search-words";
 import { MasterCvDocument } from "@/components/MasterCvDocument";
 import { ProfileActions } from "@/components/ProfileActions";
+import { TargetCompanies } from "@/components/TargetCompanies";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { PROFILE_SECTIONS, type ProfileSection, routes } from "@/routes";
+import { getTargetCompanies } from "@/target-companies/server";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -52,6 +54,8 @@ export async function ProfileSectionPage({ id, section }: { id: string; section:
       return <MasterCv page={page} />;
     case "ats-score":
       return <AtsScore page={page} t={t} />;
+    case "entreprises-cibles":
+      return <TargetCompaniesSection page={page} />;
     case "telecharger":
       return <CvExportForm profileId={page.profile.id} t={t} />;
     case "gerer":
@@ -115,6 +119,29 @@ async function AtsScore({ page, t }: { page: Page; t: T }) {
       atsScore={atsScore}
       proposalsHref={proposalsHref}
       t={t}
+    />
+  );
+}
+
+/** « Entreprises cibles » (#409): the Profile's Target Companies and what the Candidate can do there. */
+async function TargetCompaniesSection({ page }: { page: Page }) {
+  const { candidateId, profile } = page;
+  const companies = (await getTargetCompanies().onProfile(candidateId, profile.id)) ?? [];
+  return (
+    <TargetCompanies
+      key={`target-companies-${profile.id}`}
+      profileId={profile.id}
+      companies={companies.map((company) => ({
+        id: company.id,
+        name: company.name,
+        own: company.origin === "candidate",
+        city: company.city,
+        activity: company.activity,
+        headcount: company.headcount,
+        hiringScore: company.hiringScore,
+        jobOffers: company.jobOffers,
+        spontaneousApplicationId: company.spontaneousApplicationId,
+      }))}
     />
   );
 }

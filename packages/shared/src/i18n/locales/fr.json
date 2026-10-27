@@ -458,6 +458,7 @@
       "propositions": "Propositions",
       "cv-de-reference": "CV de référence",
       "ats-score": "ATS Score",
+      "entreprises-cibles": "Entreprises cibles",
       "telecharger": "Télécharger",
       "gerer": "Gérer"
     }
@@ -479,6 +480,42 @@
     "restore": "Restaurer ce profil",
     "working": "Enregistrement en cours…",
     "error": "La modification n'a pas pu être enregistrée. Veuillez réessayer."
+  },
+  "targetCompanies": {
+    "title": "Entreprises cibles",
+    "intro": "Les entreprises que la recherche d'offres vise pour ce profil : celles que La Bonne Boite donne comme susceptibles de recruter pour votre métier et votre zone, et celles que vous ajoutez. Elles peuvent recruter sans avoir publié d'offre : une candidature spontanée y a sa place.",
+    "source": "Entreprises à fort potentiel d'embauche : La Bonne Boite, un service de",
+    "listLabel": "Les entreprises cibles du profil",
+    "empty": "Aucune entreprise cible pour l'instant. La prochaine recherche d'offres demandera à La Bonne Boite les entreprises qui recrutent pour votre métier et votre zone ; vous pouvez aussi en ajouter une.",
+    "yours": "Ajoutée par vous",
+    "hiringScore": "Potentiel d'embauche {{score}}/100",
+    "offersFound_one": "{{count}} offre trouvée chez elle",
+    "offersFound_other": "{{count}} offres trouvées chez elle",
+    "noOffers": "Aucune offre trouvée chez elle pour l'instant",
+    "offersLabel": "Offres trouvées chez {{name}}",
+    "openDossier": "Dossier entreprise",
+    "findContacts": "Contacts enrichis",
+    "prepareApplication": "Préparer une candidature spontanée",
+    "seeApplication": "Voir la candidature spontanée",
+    "spontaneousHint": "Le dossier entreprise, les contacts enrichis et la lettre se préparent dans une candidature spontanée, ajoutée à vos candidatures « À postuler ».",
+    "setAside": "Écarter",
+    "setAsideConfirm": "Écarter {{name}} pour de bon ? Elle ne reviendra plus pour ce profil.",
+    "confirmSetAside": "Oui, l'écarter",
+    "cancel": "Annuler",
+    "setAsideDone": "{{name}} est écartée.",
+    "addTitle": "Ajouter une entreprise",
+    "addLabel": "Nom de l'entreprise",
+    "addHint": "Son nom ou son SIREN : elle est cherchée dans le registre des entreprises et passe avant celles de La Bonne Boite.",
+    "add": "Ajouter",
+    "adding": "Recherche dans le registre…",
+    "added": "{{name}} est ajoutée.",
+    "working": "Un instant…",
+    "failed": "L'action n'a pas abouti. Réessayez dans un instant.",
+    "errors": {
+      "invalid": "Indiquez le nom d'une entreprise.",
+      "exists": "Cette entreprise est déjà parmi les entreprises cibles de ce profil, ou vous l'avez écartée.",
+      "not_a_company": "Le registre des entreprises donne ce nom pour celui d'un entrepreneur individuel, une personne : indiquez le nom d'une entreprise."
+    }
   },
   "searchCriteriaEditor": {
     "hint": "Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres. Les modifier ne renomme pas le profil.",

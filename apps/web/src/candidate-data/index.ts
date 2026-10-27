@@ -74,6 +74,8 @@ export interface ExportedTargetCompany {
   hiringScore: number | null;
   city: string | null;
   activity: string | null;
+  /** La Bonne Boite's headcount band (#409); `max` null for « `min` and more ». */
+  headcount: { min: number; max: number | null } | null;
   addedAt: Date;
   lastVisitedAt: Date | null;
   /** When the company register said it is not a company, so Job discovery no longer visits it. */
@@ -407,8 +409,9 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       `SELECT profile_id AS key, id, sent_at AS "sentAt", job_offer_ids::text[] AS "jobOfferIds", provenance FROM job_digest WHERE candidate_id = $1 ORDER BY sent_at DESC, id`,
         candidateId,
       ),
-      grouped<ExportedTargetCompany>(
-      `SELECT profile_id AS key, name, origin, hiring_score AS "hiringScore", city, activity, added_at AS "addedAt", last_visited_at AS "lastVisitedAt",
+      grouped<Omit<ExportedTargetCompany, "headcount"> & { headcountMin: number | null; headcountMax: number | null }>(
+      `SELECT profile_id AS key, name, origin, hiring_score AS "hiringScore", city, activity, headcount_min AS "headcountMin", headcount_max AS "headcountMax",
+              added_at AS "addedAt", last_visited_at AS "lastVisitedAt",
               not_a_company_at AS "notACompanyAt", set_aside_at AS "setAsideAt"
          FROM target_company WHERE candidate_id = $1 ORDER BY added_at, id`,
         candidateId,
@@ -438,7 +441,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             const kept = readProvenance(provenance);
             return { ...jobDigest, ...(kept && { provenance: kept }) };
           }),
-          targetCompanies: targetCompaniesOf(id).map((company) => ({ ...company, hiringScore: company.hiringScore === null ? null : Number(company.hiringScore) })),
+          targetCompanies: targetCompaniesOf(id).map(({ headcountMin, headcountMax, ...company }) => ({
+            ...company,
+            hiringScore: company.hiringScore === null ? null : Number(company.hiringScore),
+            headcount: headcountMin === null ? null : { min: headcountMin, max: headcountMax },
+          })),
           targetCompaniesRefreshedAt: refreshesOf(id)[0]?.refreshedAt ?? null,
         };
       }),

@@ -491,10 +491,10 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("secret-unsubscribe-token");
   });
 
-  it("the export holds each Profile's Target Companies, set aside ones included, and when La Bonne Boite's were last fetched (#406)", async () => {
+  it("the export holds each Profile's Target Companies, set aside ones included, their headcount (#409), and when La Bonne Boite's were last fetched (#406)", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     const targets = createTargetCompanies(database, { now: () => new Date("2026-10-01T08:00:00Z") });
-    await targets.refresh(candidateId, profileId, { key: "daf|lyon", companies: [{ siret: "55210055400013", name: "ACME INDUSTRIE", hiringScore: 82.5, city: "Lyon" }] }, new Date("2026-10-02T08:00:00Z"));
+    await targets.refresh(candidateId, profileId, { key: "daf|lyon", companies: [{ siret: "55210055400013", name: "ACME INDUSTRIE", hiringScore: 82.5, city: "Lyon", headcount: { min: 250, max: 499 } }] }, new Date("2026-10-02T08:00:00Z"));
     const added = await targets.add(candidateId, profileId, "Tisserands du Rhône");
     if (!added.ok) throw new Error("fixture Target Company refused");
     await targets.setAside(candidateId, profileId, added.company.id);
@@ -503,8 +503,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect(exported.profiles.find((profile) => profile.id === profileId)).toMatchObject({
       targetCompanies: [
-        { name: "Tisserands du Rhône", origin: "candidate", hiringScore: null, city: null, activity: null, addedAt: new Date("2026-10-01T08:00:00Z"), lastVisitedAt: null, notACompanyAt: null, setAsideAt: new Date("2026-10-01T08:00:00Z") },
-        { name: "ACME INDUSTRIE", origin: "la_bonne_boite", hiringScore: 82.5, city: "Lyon", activity: null, addedAt: new Date("2026-10-02T08:00:00Z"), lastVisitedAt: null, notACompanyAt: null, setAsideAt: null },
+        { name: "Tisserands du Rhône", origin: "candidate", hiringScore: null, city: null, activity: null, headcount: null, addedAt: new Date("2026-10-01T08:00:00Z"), lastVisitedAt: null, notACompanyAt: null, setAsideAt: new Date("2026-10-01T08:00:00Z") },
+        { name: "ACME INDUSTRIE", origin: "la_bonne_boite", hiringScore: 82.5, city: "Lyon", activity: null, headcount: { min: 250, max: 499 }, addedAt: new Date("2026-10-02T08:00:00Z"), lastVisitedAt: null, notACompanyAt: null, setAsideAt: null },
       ],
       targetCompaniesRefreshedAt: new Date("2026-10-02T08:00:00Z"),
     });

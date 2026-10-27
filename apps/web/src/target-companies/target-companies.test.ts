@@ -116,6 +116,19 @@ describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_U
     expect(await targets.list(otherProfileId)).toEqual([]);
   });
 
+  it("keeps La Bonne Boite's headcount band for each company, none for the Candidate's own (#409)", async () => {
+    await targets.refresh("candidate-1", profileId, { key: "k", companies: [{ ...acme, headcount: { min: 250, max: 499 } }, { ...beta, headcount: { min: 10000 } }, gamma] }, NOW);
+    await createTargetCompanies(database, { now: () => NOW, register: register([]) }).add("candidate-1", profileId, "Tisserands du Rhône");
+
+    const headcounts = Object.fromEntries((await targets.list(profileId)).map((company) => [company.name, company.headcount]));
+    expect(headcounts).toEqual({
+      "ACME INDUSTRIE": { min: 250, max: 499 },
+      "BETA LOGISTIQUE": { min: 10000, max: null },
+      "GAMMA CONSEIL": null,
+      "Tisserands du Rhône": null,
+    });
+  });
+
   it("drops the companies La Bonne Boite no longer gives, but never brings back one set aside", async () => {
     await targets.refresh("candidate-1", profileId, { key: "k", companies: [acme, beta] }, NOW);
     const betaId = (await targets.list(profileId)).find((company) => company.name === "BETA LOGISTIQUE")!.id;

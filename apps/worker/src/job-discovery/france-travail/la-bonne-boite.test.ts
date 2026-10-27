@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { createFranceTravailApis } from "./la-bonne-boite";
+import { createFranceTravailApis, readCompanies } from "./la-bonne-boite";
 
 // Synthetic, shaped as La Bonne Boite's OpenAPI describes `/recherche` (docs/research/france-travail-apis.md §3.4).
 const ANSWER = readFileSync(new URL("../fixtures/france-travail/la-bonne-boite-recherche.synthetic.json", import.meta.url), "utf8");
@@ -58,6 +58,18 @@ function setup(answers?: Parameters<typeof fakeFranceTravail>[0]) {
 
 const AROUND_LYON = { citycode: "69123", distanceKm: 30 };
 
+describe("readCompanies: a company's headcount band (#409)", () => {
+  const item = (headcount: Record<string, unknown>) => ({ items: [{ siret: "55210055400013", company_name: "ACME", hiring_potential: 50, ...headcount }] });
+
+  it("reads it from figures or text, open-ended without a maximum, and leaves out one that does not read", () => {
+    expect(readCompanies(item({ headcount_min: 10000, headcount_max: null }))[0]!.headcount).toEqual({ min: 10000 });
+    expect(readCompanies(item({ headcount_min: "20", headcount_max: "49" }))[0]!.headcount).toEqual({ min: 20, max: 49 });
+    expect(readCompanies(item({ headcount_min: "beaucoup", headcount_max: "49" }))[0]!.headcount).toBeUndefined();
+    expect(readCompanies(item({ headcount_min: "50", headcount_max: "10" }))[0]!.headcount).toEqual({ min: 50 });
+    expect(readCompanies(item({}))[0]!.headcount).toBeUndefined();
+  });
+});
+
 describe("La Bonne Boite (#406)", () => {
   it("asks its own token, then searches by ROME codes around a commune, and reads the companies best hiring first", async () => {
     const { api, laBonneBoite } = setup();
@@ -68,8 +80,8 @@ describe("La Bonne Boite (#406)", () => {
       ok: true,
       calls: 2,
       companies: [
-        { siret: "55210055400013", name: "ACME INDUSTRIE", hiringScore: 82.5, city: "Lyon", activity: "Fabrication d'autres machines d'usage général" },
-        { siret: "38012986600025", name: "BETA LOGISTIQUE", hiringScore: 64, city: "Vénissieux", activity: "Entreposage et stockage non frigorifique" },
+        { siret: "55210055400013", name: "ACME INDUSTRIE", hiringScore: 82.5, city: "Lyon", activity: "Fabrication d'autres machines d'usage général", headcount: { min: 250, max: 499 } },
+        { siret: "38012986600025", name: "BETA LOGISTIQUE", hiringScore: 64, city: "Vénissieux", activity: "Entreposage et stockage non frigorifique", headcount: { min: 50, max: 99 } },
       ],
     });
     expect(new URLSearchParams(api.tokens()[0]!.body).get("scope")).toBe("api_labonneboitev2 search office");

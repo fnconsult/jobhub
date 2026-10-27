@@ -37,6 +37,8 @@ export interface TargetCompany {
   city: string | null;
   /** Its activity, as La Bonne Boite labels its NAF code. */
   activity: string | null;
+  /** Its headcount band, as La Bonne Boite gives it (`max` null: « min and more »); null for one the Candidate added. */
+  headcount: Headcount | null;
   addedAt: Date;
   /** When Job discovery last read its careers site or searched for its postings; null: never. */
   lastVisitedAt: Date | null;
@@ -47,6 +49,12 @@ export interface TargetCompany {
   notACompanyAt: Date | null;
 }
 
+/** A headcount band: from `min` to `max` employees; `max` null for « `min` and more ». */
+export interface Headcount {
+  min: number;
+  max: number | null;
+}
+
 /** A company La Bonne Boite gave: one establishment (its SIRET) and its hiring potential. */
 export interface LaBonneBoiteEntry {
   siret: string;
@@ -54,6 +62,8 @@ export interface LaBonneBoiteEntry {
   hiringScore: number;
   city?: string;
   activity?: string;
+  /** Its headcount band; `max` left out for « `min` and more ». */
+  headcount?: { min: number; max?: number | null };
 }
 
 /** La Bonne Boite's answer for a Profile: what it was asked for (`key`: its job and area), and the companies. */
@@ -155,12 +165,14 @@ interface Row {
   hiring_score: number | null;
   city: string | null;
   activity: string | null;
+  headcount_min: number | null;
+  headcount_max: number | null;
   added_at: Date;
   last_visited_at: Date | null;
   not_a_company_at: Date | null;
 }
 
-const COLUMNS = "id, company_key, name, origin, hiring_score, city, activity, added_at, last_visited_at, not_a_company_at";
+const COLUMNS = "id, company_key, name, origin, hiring_score, city, activity, headcount_min, headcount_max, added_at, last_visited_at, not_a_company_at";
 
 const companyOf = (row: Row): TargetCompany => ({
   id: row.id,
@@ -170,10 +182,18 @@ const companyOf = (row: Row): TargetCompany => ({
   hiringScore: row.hiring_score === null ? null : Number(row.hiring_score),
   city: row.city,
   activity: row.activity,
+  headcount: row.headcount_min === null ? null : { min: row.headcount_min, max: row.headcount_max },
   addedAt: row.added_at,
   lastVisitedAt: row.last_visited_at,
   notACompanyAt: row.not_a_company_at,
 });
+
+/** A headcount band as stored: whole non-negative figures, `max` not below `min`; none when La Bonne Boite gave none that reads. */
+function headcountOf(company: LaBonneBoiteEntry): [number | null, number | null] {
+  const { min, max } = company.headcount ?? {};
+  if (typeof min !== "number" || !Number.isInteger(min) || min < 0) return [null, null];
+  return [min, typeof max === "number" && Number.isInteger(max) && max >= min ? max : null];
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -231,12 +251,13 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
         );
         for (const company of companies) {
           await client.query(
-            `INSERT INTO target_company (profile_id, candidate_id, company_key, name, origin, hiring_score, city, activity, added_at)
-             VALUES ($1, $2, $3, $4, 'la_bonne_boite', $5, $6, $7, $8)
+            `INSERT INTO target_company (profile_id, candidate_id, company_key, name, origin, hiring_score, city, activity, headcount_min, headcount_max, added_at)
+             VALUES ($1, $2, $3, $4, 'la_bonne_boite', $5, $6, $7, $8, $9, $10)
              ON CONFLICT (profile_id, company_key) DO UPDATE
-               SET hiring_score = EXCLUDED.hiring_score, city = EXCLUDED.city, activity = EXCLUDED.activity
+               SET hiring_score = EXCLUDED.hiring_score, city = EXCLUDED.city, activity = EXCLUDED.activity,
+                   headcount_min = EXCLUDED.headcount_min, headcount_max = EXCLUDED.headcount_max
              WHERE target_company.origin = 'la_bonne_boite'`,
-            [profileId, candidateId, company.key, company.name.slice(0, MAX_NAME_LENGTH), company.hiringScore, company.city ?? null, company.activity ?? null, at],
+            [profileId, candidateId, company.key, company.name.slice(0, MAX_NAME_LENGTH), company.hiringScore, company.city ?? null, company.activity ?? null, ...headcountOf(company), at],
           );
         }
         await client.query(
@@ -327,6 +348,9 @@ export async function migrateTargetCompanies(database: Pick<Pool, "query">): Pro
     );
     -- When the company register said it is not a company (a sole trader's, a SIREN it does not list): never picked again.
     ALTER TABLE target_company ADD COLUMN IF NOT EXISTS not_a_company_at timestamptz;
+    -- La Bonne Boite's headcount band for the company (#409): max NULL for « min and more ».
+    ALTER TABLE target_company ADD COLUMN IF NOT EXISTS headcount_min integer;
+    ALTER TABLE target_company ADD COLUMN IF NOT EXISTS headcount_max integer;
     CREATE INDEX IF NOT EXISTS target_company_candidate_id_idx ON target_company (candidate_id);
     -- What a Profile's La Bonne Boite companies were last fetched for (its job and area) and when.
     CREATE TABLE IF NOT EXISTS target_company_refresh (

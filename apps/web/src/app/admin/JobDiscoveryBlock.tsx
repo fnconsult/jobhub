@@ -125,7 +125,11 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
         <div className="kpi">
           <dt>{t("admin.dashboard.jobDiscovery.averageRun")}</dt>
           <dd className="kpi-value">{runs.averageCostEur === null ? t("admin.dashboard.jobDiscovery.noValue") : fine.format(runs.averageCostEur)}</dd>
-          <dd className="kpi-sub">{t("admin.dashboard.jobDiscovery.ofBudget", { budget: fine.format(runs.budgetEur), percent: runs.averageCostEur === null ? t("admin.dashboard.jobDiscovery.noValue") : share(runs.averageCostEur, runs.budgetEur) })}</dd>
+          <dd className="kpi-sub">
+            {runs.averageCostEur === null
+              ? t("admin.dashboard.jobDiscovery.budgetOnly", { budget: fine.format(runs.budgetEur) })
+              : t("admin.dashboard.jobDiscovery.ofBudget", { budget: fine.format(runs.budgetEur), percent: share(runs.averageCostEur, runs.budgetEur) })}
+          </dd>
         </div>
         <div className="kpi">
           <dt>{t("admin.dashboard.jobDiscovery.costPerNewOffer")}</dt>
@@ -172,7 +176,7 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
             </ul>
             <ChartTips label={t("admin.dashboard.jobDiscovery.dailyTitle")}>
               <div className="chart-plot">
-                {axis(dailyTop, (value) => eur.format(value))}
+                {axis(dailyTop, (value) => fine.format(value))}
                 <div className="chart-columns" style={{ gridTemplateColumns: `repeat(${figures.daysInMonth}, 1fr)` }}>
                   {monthDays.map((day, index) =>
                     day ? (
@@ -234,7 +238,7 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
           </p>
           <ChartTips label={t("admin.dashboard.jobDiscovery.cumulativeTitle")}>
             <div className="chart-plot">
-              {axis(cumulativeTop, (value) => eur.format(value))}
+              {axis(cumulativeTop, (value) => fine.format(value))}
               <svg className="chart-lines" viewBox={`0 0 ${figures.daysInMonth} 100`} preserveAspectRatio="none" aria-hidden="true">
                 {webSearch.thresholdEur > 0 ? <line className="chart-threshold" x1={0} x2={figures.daysInMonth} y1={y(webSearch.thresholdEur)} y2={y(webSearch.thresholdEur)} /> : null}
                 {last ? <line className="chart-estimate" x1={webSearch.days.length - 0.5} y1={y(last.cumulativeEur)} x2={figures.daysInMonth - 0.5} y2={y(webSearch.monthEndEstimateEur)} /> : null}

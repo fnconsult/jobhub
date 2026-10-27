@@ -823,6 +823,7 @@
         "noThreshold": "No alert threshold",
         "averageRun": "Average cost of a run",
         "ofBudget": "budget {{budget}} · {{percent}} used",
+        "budgetOnly": "budget {{budget}}",
         "costPerNewOffer": "Cost per new Job Offer",
         "newOffers_one": "{{count}} new Job Offer",
         "newOffers_other": "{{count}} new Job Offers",

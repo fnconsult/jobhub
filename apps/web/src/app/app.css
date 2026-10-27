@@ -4861,6 +4861,11 @@ textarea.title-edit {
   margin: 0;
 }
 
+/* Its tiles and charts take the page's width (a .stack lines its children up at their own width). */
+.dashboard-block > * {
+  align-self: stretch;
+}
+
 .dashboard-period {
   color: var(--color-text-meta);
   font-size: var(--font-size-body);
@@ -5150,6 +5155,10 @@ textarea.title-edit {
 }
 
 @media (width < 40rem) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chart-plot,
   .chart-x {
     margin-left: 3.5rem;

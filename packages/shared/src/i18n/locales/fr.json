@@ -823,6 +823,7 @@
         "noThreshold": "Aucun seuil d'alerte",
         "averageRun": "Coût moyen d'un run",
         "ofBudget": "budget {{budget}} · {{percent}} utilisé",
+        "budgetOnly": "budget {{budget}}",
         "costPerNewOffer": "Coût par nouvelle offre",
         "newOffers_one": "{{count}} nouvelle offre",
         "newOffers_other": "{{count}} nouvelles offres",

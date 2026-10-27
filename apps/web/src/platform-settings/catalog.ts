@@ -12,9 +12,13 @@
  * Provider Secret (a test scans the code for them).
  */
 import { AI_ROUTING_SETTINGS } from "@jobhub/ai";
+import { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/mailers";
 import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
+
+/** The languages a Job Search's queries are worded in (JOB_DISCOVERY_QUERY_LANGUAGES): both, or one. */
+export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
 export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"] as const;
@@ -51,6 +55,7 @@ export interface PlatformSetting {
 const MAX_DISCOVERY_SECONDS = SEARCH_TIMEOUT_MS / 1000 - 5 * 60;
 
 const whole = (min: number, max: number): PlatformSettingType => ({ kind: "number", whole: true, min, max });
+const decimal = (min: number, max: number): PlatformSettingType => ({ kind: "number", whole: false, min, max });
 const aboveZero = (max: number, isWhole: boolean): PlatformSettingType => ({ kind: "number", whole: isWhole, min: 0, max, aboveMin: true });
 
 export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
@@ -62,8 +67,18 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
       default: setting.default,
     }),
   ),
-  // The web search of Job discovery (#386, #402), on Paramètres' Recherche web tab: the country its pages are favoured from.
+  // The web search of Job discovery (#386, #402), on Paramètres' Recherche web tab: the country its pages are favoured from,
+  // how old a posting may be, how many results a query asks for, how many job titles and in which languages its queries
+  // are worded, how many Target Companies a run visits and how long before one is visited again (#406), and the monthly
+  // web search spend that alerts super-admins (#403; 0: no alert, nothing is ever cut).
   { name: "JOB_DISCOVERY_COUNTRY", group: "web_search", type: { kind: "country" }, default: "FR" },
+  { name: "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", group: "web_search", type: whole(1, 90), default: String(MAX_POSTING_AGE_DAYS) },
+  { name: "JOB_DISCOVERY_RESULTS_PER_QUERY", group: "web_search", type: whole(5, 20), default: "20" },
+  { name: "JOB_DISCOVERY_TITLES_PER_LANGUAGE", group: "web_search", type: whole(1, 5), default: "3" },
+  { name: "JOB_DISCOVERY_QUERY_LANGUAGES", group: "web_search", type: { kind: "choice", values: QUERY_LANGUAGE_CHOICES, lowerCase: true }, default: "fr+en" },
+  { name: "JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN", group: "web_search", type: whole(0, 10), default: "5" },
+  { name: "JOB_DISCOVERY_COMPANY_REVISIT_DAYS", group: "web_search", type: whole(1, 30), default: "7" },
+  { name: "WEB_SEARCH_MONTHLY_ALERT_EUR", group: "web_search", type: decimal(0, 1000), default: "2" },
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },

@@ -81,6 +81,8 @@ export const FEATURE_STEPS = {
   read_job_page: "read",
   /** `offer_analysis` judging whether a posting is from a recruiting agency, for a Company Dossier. */
   company_dossier_agency_check: "think",
+  /** `offer_analysis`: the company-facts-search task Playbook's agent reading the pages found about the employer (#405). */
+  company_facts_reading: "read",
   /** `coaching` choosing which Playbook Agents to consult. */
   coach_choice: "think",
   /** `coaching`: a Playbook Agent advising the AI Coach. */

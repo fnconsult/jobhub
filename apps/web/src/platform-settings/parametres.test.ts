@@ -41,8 +41,10 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     for (const name of ["AI_WEB_SEARCH_FALLBACK_PROVIDER", "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "BRAVE_MAX_PAGES", "TAVILY_SEARCH_DEPTH"]) {
       expect(settingHref(name), name).toBe(`/admin/parametres?tab=recherche-web#setting-${name}`);
     }
-    // The web search's bounded settings (#402): its country, so far.
-    expect(settingHref("JOB_DISCOVERY_COUNTRY")).toBe("/admin/parametres?tab=recherche-web#setting-JOB_DISCOVERY_COUNTRY");
+    // The web search's bounded settings (#402).
+    for (const name of ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_RESULTS_PER_QUERY", "JOB_DISCOVERY_QUERY_LANGUAGES", "WEB_SEARCH_MONTHLY_ALERT_EUR"]) {
+      expect(settingHref(name), name).toBe(`/admin/parametres?tab=recherche-web#setting-${name}`);
+    }
     expect(settingHref("AI_IDENTITY_MODEL")).toBe("/admin/parametres?tab=ia#setting-AI_IDENTITY_MODEL");
     expect(settingHref("JOB_DISCOVERY_BUDGET_EUR")).toBe("/admin/parametres?tab=sources#setting-JOB_DISCOVERY_BUDGET_EUR");
     expect(settingHref("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("/admin/parametres?tab=enrichissement#setting-CONTACT_ENRICHMENT_DPA_SIGNED");

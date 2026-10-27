@@ -1529,6 +1529,90 @@
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
+        },
+      "aiTasks": {
+        "providerDefault": "modèle par défaut",
+        "sourcePlaybook": "Playbook, version {{version}}",
+        "keySet": "clé saisie",
+        "keyMissing": "clé absente : appels en échec",
+        "noKeyOption": "clé absente",
+        "effortNone": "celui du modèle",
+        "edit": "Modifier…",
+        "editLabel": "Modifier : {{name}}",
+        "searchTitle": "Tâches IA de la recherche",
+        "searchIntro": "Les mêmes tâches que dans l'onglet IA : « Modifier… » ouvre leur Playbook Agent sur le côté, et un changement y crée une version brouillon à valider dans Playbooks.",
+        "roles": {
+          "job-search-queries": "prépare les requêtes du plan : variantes de titre",
+          "job-offer-reading": "lit une page d'offre sans données JobPosting",
+          "company-facts-search": "trouve les faits d'un employeur étranger dans les pages trouvées",
+          "company-news-search": "trouve l'actualité d'un employeur"
+        },
+        "columns": {
+          "task": "Tâche",
+          "role": "Rôle dans la recherche",
+          "runsOn": "Fournisseur · modèle",
+          "effort": "Effort",
+          "source": "Source",
+          "key": "Clé du fournisseur",
+          "data": "Données",
+          "playbook": "Playbook",
+          "version": "Version",
+          "actions": "Actions"
+        },
+        "routesTitle": "Tâches",
+        "routesIntro": "Le fournisseur et le modèle de chaque tâche IA : un Paramètre de plateforme, appliqué dès le prochain appel. Un fournisseur sans clé est signalé, jamais refusé.",
+        "personalData": "données personnelles",
+        "noPersonalData": "sans donnée personnelle",
+        "agentsTitle": "Playbook Agents",
+        "agentsIntro": "Le modèle et l'effort d'un Playbook Agent font partie de sa Playbook Version : un changement crée une version brouillon, servie en production une fois validée dans Playbooks par une autre personne.",
+        "agentsUnreadable": "Les Playbook Agents n'ont pas pu être lus.",
+        "kinds": {
+          "playbook": "Coaching Playbook",
+          "task": "Playbook de tâche"
+        },
+        "validatedVersion": "v{{version}} validée, servie en production",
+        "noValidated": "aucune version validée",
+        "draftVersion": "v{{version}} brouillon à valider",
+        "keyWarning": "La clé de {{provider}} n'est pas saisie : les appels de cette tâche échoueront tant qu'elle ne l'est pas. L'enregistrement reste possible.",
+        "agentKeyWarning": "La clé de {{provider}} n'est pas saisie : ce Playbook Agent est écarté tant qu'elle ne l'est pas.",
+        "routePanel": {
+          "kicker": "Tâche IA",
+          "provider": "Fournisseur",
+          "providerHelp": "Un fournisseur hors UE reçoit des appels expurgés de l'identité du Candidat ; un fournisseur sans clé peut être choisi, ses appels échouent jusqu'à ce qu'elle soit saisie.",
+          "model": "Modèle",
+          "modelHelp": "Vide : le modèle par défaut du fournisseur. Un modèle saisi est testé par un appel à l'enregistrement, sauf si la clé du fournisseur manque.",
+          "personalData": "Cette tâche reçoit des données personnelles : un fournisseur hors UE est refusé à l'enregistrement, et les appels avec identité suivent le consentement IA UE.",
+          "noPersonalData": "Cette tâche ne reçoit aucune donnée personnelle : un fournisseur hors UE est permis.",
+          "applies": "Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit dans le Journal.",
+          "restore": "Rétablir le défaut",
+          "usage": "Consommation IA"
+        },
+        "playbookPanel": {
+          "served": "Version servie ici : v{{version}}",
+          "noServed": "Aucune version servie ici.",
+          "model": "Modèle du Playbook Agent",
+          "createsDraft": "Enregistrer crée la version {{version}} en brouillon, avec les mêmes règles et ce modèle. La version validée reste servie en production jusqu'à ce qu'une autre personne que vous valide la nouvelle dans Playbooks.",
+          "updatesDraft": "Enregistrer met à jour le brouillon v{{version}}, avec les mêmes règles et ce modèle ; il reste à valider dans Playbooks.",
+          "create": "Créer la version {{version}} (brouillon)",
+          "update": "Mettre à jour le brouillon v{{version}}",
+          "open": "Ouvrir dans Playbooks : règles, sources, validation"
+        },
+        "notices": {
+          "routeSaved": "Route enregistrée : elle s'applique dès le prochain appel, sans redémarrage.",
+          "routeUnchanged": "La route avait déjà ces valeurs : rien n'a changé.",
+          "routeRestored": "Route rétablie : la valeur de l'environnement s'applique, sinon le défaut du code."
+        },
+        "agentNotices": {
+          "created": "Version {{version}} créée en brouillon : à valider dans Playbooks. La version validée reste servie en production.",
+          "updated": "Brouillon v{{version}} mis à jour : à valider dans Playbooks.",
+          "unchanged": "Le Playbook Agent avait déjà ce modèle et cet effort : rien n'a changé.",
+          "invalid": "Ce choix n'est pas valable : rien n'a été enregistré.",
+          "not_found": "Ce Playbook n'existe pas.",
+          "model_not_allowed": "Ce modèle n'est pas proposé ici (sa clé n'est pas saisie) : rien n'a été enregistré.",
+          "task_instructions": "La dernière version de ce Playbook ne convient plus à sa tâche : corrigez-la dans Playbooks.",
+          "unknown_sources": "La dernière version de ce Playbook cite des Sources absentes : corrigez-la dans Playbooks.",
+          "sources_cited": "Ce changement est refusé : corrigez ce Playbook dans Playbooks."
+        }
       }
     },
     "administrators": {

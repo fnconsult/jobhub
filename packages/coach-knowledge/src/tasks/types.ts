@@ -28,7 +28,7 @@ export interface TaskPlaybookSeed {
    * those configured, or the configured `web_search` route when it names none (ADR-0026).
    */
   search: boolean;
-  /** Imported Human-validated (by François Nader, ADR-0026), so production kept running it. */
+  /** Version 1 imported Human-validated (by François Nader, ADR-0026), so production kept running it. */
   validatedAtImport: boolean;
   /** The sections its text must have; none: the whole text is the instructions. */
   sections?: readonly TaskPlaybookSection[];
@@ -36,6 +36,13 @@ export interface TaskPlaybookSeed {
   slots?: readonly string[];
   /** Longest text, in characters, when it goes into a web-search query. */
   maxLength?: number;
-  /** Version 1: the instructions, in Markdown. */
+  /** The instructions, in Markdown: version 1, or the text that came after it when `firstVersion` is given. */
   instructions: string;
+  /**
+   * Version 1 as first imported, when the text written here (`instructions`) came after it and changed how
+   * the task runs (#405): its text, and whether a Playbook Agent ran it. `instructions` is then imported as a
+   * later version, not Human-validated, so production keeps running version 1 until a person validates it
+   * (ADR-0026). The code reads `instructions` as its built-in text, and checks edits against its shape.
+   */
+  firstVersion?: { instructions: string; agent: boolean };
 }

@@ -59,8 +59,8 @@ describe("the Tools", () => {
     expect(names("openai")).toEqual(["OPENAI_DATA_RESIDENCY"]);
     expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL"]);
     const search = ["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_FALLBACK_PROVIDER"];
-    // And the filters Job discovery sends every Search provider (#402): its country, so far.
-    const filters = ["JOB_DISCOVERY_COUNTRY"];
+    // And the filters Job discovery sends every Search provider (#402).
+    const filters = ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "JOB_DISCOVERY_RESULTS_PER_QUERY"];
     expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", ...filters]);
     expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", ...filters]);
     expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", ...filters]);

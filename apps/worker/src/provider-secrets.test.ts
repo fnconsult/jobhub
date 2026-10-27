@@ -59,18 +59,32 @@ function clients(resolver: ReturnType<typeof database>["resolver"], fetch: typeo
 }
 
 describe("the worker's clients, on Provider Secrets (#208)", () => {
-  it("turns Job discovery on once its key is entered in the Back Office, without a restart", async () => {
-    const { stored, resolver } = database();
+  it("keeps Job discovery on without its web search's key, said in the log, and searches once the key is entered, without a restart (#399)", async () => {
+    const withoutSearchKey = Object.fromEntries(Object.entries(ENV).filter(([name]) => name !== "PERPLEXITY_API_KEY"));
+    const { stored, resolver } = database({ MISTRAL_API_KEY: { value: MISTRAL_OLD, row: "r1" } }, withoutSearchKey);
     await resolver.refresh();
     const lines: string[] = [];
     const worker = clients(resolver, fakeProviders().fetch, lines);
 
-    expect(worker.discovery()).toEqual({ unavailable: expect.stringContaining("MISTRAL_API_KEY") });
-    stored.current = { MISTRAL_API_KEY: { value: MISTRAL_NEW, row: "r1" } };
-    await resolver.refresh();
-
-    expect(worker.discovery()).not.toHaveProperty("unavailable");
     expect(worker.discovery()).toHaveProperty("discover");
+    expect(lines.join("\n")).toContain("without the web search");
+    stored.current = { ...stored.current, PERPLEXITY_API_KEY: { value: "perplexity-key-entered-5678", row: "r2" } };
+    await resolver.refresh();
+    lines.length = 0;
+
+    expect(worker.discovery()).toHaveProperty("discover");
+    expect(lines.join("\n")).not.toContain("without the web search");
+  });
+
+  it("keeps Job discovery on while a text task's provider waits for its key: that task's calls fail as key_missing (ADR-0042)", async () => {
+    const { resolver } = database();
+    await resolver.refresh();
+    const lines: string[] = [];
+    const worker = clients(resolver, fakeProviders().fetch, lines);
+
+    expect(worker.discovery()).toHaveProperty("discover");
+    await expect(worker.ai.generate(generate)).rejects.toThrow(/MISTRAL_API_KEY/);
+    expect(lines.map((line) => (line.startsWith("{") ? JSON.parse(line) : line))).toContainEqual(expect.objectContaining({ task: "scoring", outcome: "failed", reason: "key_missing" }));
   });
 
   it("uses a key replaced in the Back Office for its next AI call", async () => {

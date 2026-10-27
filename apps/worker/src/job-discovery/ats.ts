@@ -28,6 +28,8 @@ export interface AtsReadOptions {
   /** Reads an API URL (politely: robots.txt, site terms). */
   fetchJson: (url: string) => Promise<JsonResult>;
   now: Date;
+  /** The oldest a posting may be, in days (the web search's setting, #402). Default: MAX_POSTING_AGE_DAYS. */
+  maxAgeDays?: number;
 }
 
 type Json = Record<string, unknown>;
@@ -198,7 +200,7 @@ export async function readAtsPosting(address: string, options: AtsReadOptions): 
     const posting = ats.read(answer.data, url);
     if (!posting || (posting.closesAt && posting.closesAt < options.now)) return { ok: false, reason: "gone" };
     const { postedAt } = posting.details;
-    if (isPostingTooOld(postedAt, options.now)) return { ok: false, reason: "too_old" };
+    if (isPostingTooOld(postedAt, options.now, options.maxAgeDays)) return { ok: false, reason: "too_old" };
     return { ok: true, details: posting.details };
   }
   return null;

@@ -1,5 +1,5 @@
-import { AiProviderError, createAiLayer, type AiLayer } from "@jobhub/ai";
-import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
+import { AiProviderError, createAiLayer, type AiLayer, type TextInput } from "@jobhub/ai";
+import { createFakeProvider, createMemoryUsageLog, type FakeProvider, type MemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -7,7 +7,7 @@ import { createApplications, migrateApplications, type Applications } from "../a
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
-import { servedTasks } from "../task-playbooks/test-support";
+import { servedTasks, taskAgent } from "../task-playbooks/test-support";
 import { CompanyRegisterUnavailable, type CompanyRegister, type RegisteredCompany } from "./french-register";
 import { createCompanyDossiers, dossierSites, migrateCompanyDossiers, type CompanyDossiers } from "./index";
 
@@ -74,6 +74,9 @@ function fakeRegister(companies: RegisteredCompany[] = []) {
   return register;
 }
 
+/** Whether a text call is the company-facts-search agent reading the pages found (#405). */
+const readsPages = (input: TextInput) => input.messages.some((message) => message.content.includes("<pages>"));
+
 describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
   let jobOffers: JobOffers;
@@ -88,8 +91,12 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
   let profileId: string;
   /** What the offer analysis answers: is the posting from a recruiting agency, and for whom. */
   let analysis: { recruitingAgency: boolean; presumedEmployer: string | null; presumedEmployerDescription?: string | null } | string;
+  /** What the company-facts-search task Playbook's agent writes, reading the pages (#405). */
   let webAnswer: string;
+  /** The pages the company web search returns, as a Search provider lists them; and their addresses. */
+  let webPages: string;
   let webSources: string[];
+  let usage: MemoryUsageLog;
   /** What the Company News search answers, or an error it fails with; its queries are kept apart from the company search's. */
   let newsAnswer: string | Error;
   let newsQueries: string[];
@@ -126,8 +133,13 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     register = fakeRegister([acme]);
     analysis = { recruitingAgency: false, presumedEmployer: null };
     webAnswer = "{}";
+    webPages = "About\nhttps://example.com/about\nA company.";
     webSources = ["https://example.com/about"];
-    mistral = createFakeProvider({ id: "mistral", reply: () => (typeof analysis === "string" ? analysis : JSON.stringify(analysis)) });
+    mistral = createFakeProvider({
+      id: "mistral",
+      models: ["fake-mistral", "mistral-small-latest"],
+      reply: (input) => (readsPages(input) ? webAnswer : typeof analysis === "string" ? analysis : JSON.stringify(analysis)),
+    });
     perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: ["https://example.com/about"] });
     newsAnswer = JSON.stringify({ articles: [] });
     newsQueries = [];
@@ -139,9 +151,10 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
         return { answer: newsAnswer, sources: [], model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
       }
       perplexity.queries.push(query);
-      return { answer: webAnswer, sources: webSources, model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
+      return { answer: webPages, sources: webSources, model: "fake", usage: { inputTokens: 1, outputTokens: 1 } };
     };
-    ai = createAiLayer({ providers: [mistral, perplexity], routes: { offer_analysis: "mistral", web_search: "perplexity" }, usage: createMemoryUsageLog() });
+    usage = createMemoryUsageLog();
+    ai = createAiLayer({ providers: [mistral, perplexity], routes: { offer_analysis: "mistral", web_search: "perplexity" }, usage });
     dossiers = createCompanyDossiers(database, { applications, register, ai });
     candidateId = await signIn("marie.dupont@example.fr");
     otherCandidateId = await signIn("paul.martin@example.fr");
@@ -375,6 +388,85 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
   });
 
   describe("foreign employers", () => {
+    it("reads the facts in the pages the web search returned with the company-facts-search task Playbook's agent, its call kept in Provenance and AI Usage (#405)", async () => {
+      register.companies = [];
+      webPages = "About Globex\nhttps://globex.example/about\nIndustrial robotics, Munich, Germany. CEO: Hans Müller.";
+      webSources = ["https://globex.example/about"];
+      webAnswer = JSON.stringify({ country: "Allemagne", headquarters: "Munich", industry: "Robotique industrielle", siren: null });
+      const applicationId = await applicationFor({ employer: "Globex GmbH" });
+
+      const result = await dossiers.build(candidateId, applicationId);
+
+      expect(result).toMatchObject({
+        ok: true,
+        state: {
+          dossier: { source: "web", reliability: "less_reliable", country: "Allemagne", address: "Munich", industry: "Robotique industrielle", sources: ["https://globex.example/about"] },
+          provenance: {
+            steps: [
+              { kind: "ai", activity: "think", task: "offer_analysis" },
+              { kind: "tool", tool: "recherche-entreprises" },
+              { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", count: 2 },
+              { kind: "ai", activity: "read", task: "offer_analysis", provider: "mistral", outcome: "ok", count: 1 },
+            ],
+          },
+        },
+      });
+      // The agent read the pages; the search was asked for pages only, never the JSON.
+      const reading = mistral.calls.filter(readsPages);
+      expect(reading).toHaveLength(1);
+      expect(reading[0]!.messages.at(-1)!.content).toContain("Industrial robotics, Munich, Germany.");
+      expect(perplexity.queries[0]).toMatch(/^« Globex GmbH » entreprise/);
+      expect(perplexity.queries[0]).not.toMatch(/JSON/);
+      expect(JSON.stringify(result)).not.toContain("Müller");
+      expect(usage.entries.map((entry) => entry.task)).toEqual(["offer_analysis", "web_search", "offer_analysis", "web_search"]);
+    });
+
+    it("runs the reading on the Playbook Agent the served version names (#405)", async () => {
+      register.companies = [];
+      webAnswer = JSON.stringify({ country: "Allemagne" });
+      const database = testAuth.auth.options.database as Pool;
+      const content = "## requête\n\nSociété {{entreprise}}\n\n## lecture\n\nLis les pages.";
+      const taskPlaybooks = servedTasks({ "company-facts-search": { content, agent: taskAgent("mistral", "mistral-small-latest") } });
+      const served = createCompanyDossiers(database, { applications, register, ai, taskPlaybooks });
+
+      const result = await served.build(candidateId, await applicationFor({ employer: "Globex GmbH" }));
+
+      expect(result).toMatchObject({ ok: true, state: { dossier: { country: "Allemagne" } } });
+      expect(perplexity.queries[0]).toBe("Société « Globex GmbH »");
+      const [reading] = mistral.calls.filter(readsPages);
+      expect(reading).toMatchObject({ model: "mistral-small-latest", system: expect.stringMatching(/^Lis les pages\./) });
+    });
+
+    it("with a version 1 served (production, until a person validates version 2) searches as before and reads no page: a Search provider's pages then give no facts (#405)", async () => {
+      register.companies = [];
+      webPages = "About Globex\nhttps://globex.example/about\nIndustrial robotics, Munich, Germany.";
+      webAnswer = JSON.stringify({ country: "Allemagne" });
+      const database = testAuth.auth.options.database as Pool;
+      const taskPlaybooks = servedTasks({ "company-facts-search": { content: "Fiche d'entreprise de {{entreprise}}." } });
+      const served = createCompanyDossiers(database, { applications, register, ai, taskPlaybooks });
+
+      const result = await served.build(candidateId, await applicationFor({ employer: "Globex GmbH" }));
+
+      expect(result).toMatchObject({ ok: true, state: { status: "built", dossier: { source: "web", reliability: "less_reliable", sources: ["https://example.com/about"] } } });
+      if (!result.ok || result.state.status !== "built" || result.state.dossier.source !== "web") throw new Error("no web dossier");
+      expect(result.state.dossier).not.toHaveProperty("country");
+      expect(perplexity.queries[0]).toMatch(/^Fiche d'entreprise de « Globex GmbH »\. Réponds uniquement par un objet JSON/);
+      expect(mistral.calls.filter(readsPages)).toEqual([]);
+    });
+
+    it("changes nothing when the agent could not read the pages: its Failure Reason, as for the search (#405)", async () => {
+      register.companies = [];
+      const generate = mistral.generate!;
+      mistral.generate = async (input) => {
+        if (readsPages(input)) throw new AiProviderError("mistral", "503 Service Unavailable", 503);
+        return generate(input);
+      };
+      const applicationId = await applicationFor({ employer: "Globex GmbH" });
+
+      expect(await dossiers.build(candidateId, applicationId)).toMatchObject({ ok: false, error: "unavailable" });
+      expect(await dossiers.get(candidateId, applicationId)).toEqual({ status: "not_built" });
+    });
+
     it("builds a dossier from web sources, labelled less reliable, keeping only the facts asked for", async () => {
       register.companies = [];
       webAnswer = JSON.stringify({
@@ -744,7 +836,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
     });
   });
 
-  it("words both web searches as their served task Playbooks say, the employer cleaned, the JSON asked and no person named (ADR-0026)", async () => {
+  it("words both web searches as their served version 1 task Playbooks say, the employer cleaned, the JSON asked and no person named (ADR-0026)", async () => {
     const database = testAuth.auth.options.database as Pool;
     const taskPlaybooks = servedTasks({
       "company-facts-search": { content: "Fiche courte de {{entreprise}}." },
@@ -819,6 +911,7 @@ describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_U
               { kind: "ai", task: "offer_analysis" },
               { kind: "tool", tool: "recherche-entreprises" },
               { kind: "ai", activity: "web_search", task: "web_search", provider: "perplexity", count: 2 },
+              { kind: "ai", activity: "read", task: "offer_analysis", provider: "mistral" },
             ],
             sites: [{ kind: "web", domain: "globex.example", links: ["https://globex.example/about"] }],
           },

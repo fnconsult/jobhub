@@ -84,6 +84,12 @@
 // The AI judge of Eval Runs (#231, "Tu es le juge des évaluations") scores every reply 8 out of 10, or 2 when the
 // criteria hold "E2E_JUDGE_LOW", with a reason in French.
 //
+// For the company-facts-search Task Playbook's agent (task offer_analysis, #405), sent the pages a web search found
+// between <pages> and </pages>, it writes the facts those pages give, as a model would, keyed by the site they come
+// from (e2e/support/fake-company-sources.mjs): Globex Robotics' with its CEO's name under "ceo", PersonLeak's with
+// a person in its headquarters and industry and a LinkedIn profile as its website, all of which the app must drop;
+// Bibendum's SIREN. Anything else: no facts ("{}").
+//
 // For the fields of a Job Offer read from its text (task offer_analysis, the second
 // phase of a Match Score, #94), it finds none ("{}"), unless the text holds
 // "E2E_OFFER_FIELDS=<json>", which it returns as the fields read. Either way it adds a
@@ -194,6 +200,7 @@ globalThis.fetch = async (input, init) => {
     }
     if (prompt.includes("E2E_ECHO_RULES")) content = JSON.stringify({ summary: system.trim().split("\n").at(-1).trim() });
   }
+  if (prompt.includes("<pages>")) content = JSON.stringify(factsInPages(prompt));
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);
     const presumed = /Client présumé : (.+)/.exec(prompt)?.[1]?.trim() ?? null;
@@ -277,6 +284,35 @@ globalThis.fetch = async (input, init) => {
   }
   return completion(body, content);
 };
+
+/** The facts the pages between <pages> and </pages> give, by the site they come from (fake-company-sources.mjs). */
+function factsInPages(prompt) {
+  const pages = /<pages>([\s\S]*)<\/pages>/.exec(prompt)?.[1] ?? "";
+  if (pages.includes("personleak.example")) {
+    return {
+      country: "États-Unis",
+      headquarters: "Home office of John Smith, 12 Elm St, Austin",
+      industry: "Software, founded by Jane Doe",
+      headcount: "12 salariés",
+      website: "https://www.linkedin.com/in/john-smith-austin",
+    };
+  }
+  if (pages.includes("bibendum.example")) return { country: "France", siren: "552 100 557" };
+  if (pages.includes("weitblick-energie.example")) return { country: "Allemagne", industry: "Énergie" };
+  if (pages.includes("atlantis-labs.example")) return { headquarters: "Atlantis", industry: "Robotique", website: "atlantis-labs.example" };
+  if (pages.includes("globex-robotics.example")) {
+    return {
+      country: "Allemagne",
+      headquarters: "Munich",
+      industry: "Robotique industrielle",
+      headcount: "1 200 salariés",
+      revenue: "300 M€ (2024)",
+      website: "globex-robotics.example",
+      ceo: "Hans Müller",
+    };
+  }
+  return {};
+}
 
 /** What E2E_COACH_SAY has an assistant reply: the text, or a clean one when it is asked to write again (and not stubborn). */
 function saidText(said, system, prompt) {

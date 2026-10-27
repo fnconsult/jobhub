@@ -30,8 +30,17 @@ const ADR_0033 = [
   "EXTENSION_STORE_URL",
 ];
 
-/** The web search's bounded settings (#386, #402) on Paramètres' Recherche web tab: its country, so far (#407 explains it). */
-const WEB_SEARCH = ["JOB_DISCOVERY_COUNTRY"];
+/** The web search's bounded settings (#386, #402), on Paramètres' Recherche web tab. */
+const WEB_SEARCH = [
+  "JOB_DISCOVERY_COUNTRY",
+  "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS",
+  "JOB_DISCOVERY_RESULTS_PER_QUERY",
+  "JOB_DISCOVERY_TITLES_PER_LANGUAGE",
+  "JOB_DISCOVERY_QUERY_LANGUAGES",
+  "JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN",
+  "JOB_DISCOVERY_COMPANY_REVISIT_DAYS",
+  "WEB_SEARCH_MONTHLY_ALERT_EUR",
+];
 
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033 and the web search's bounded settings, once each", () => {
@@ -75,9 +84,38 @@ describe("the Platform Settings catalog", () => {
     expect(defaultOf("EXTENSION_STORE_URL")).toBe("");
   });
 
-  it("gives the web search's country the default #386 decided, editable on Paramètres", () => {
-    expect(platformSetting("JOB_DISCOVERY_COUNTRY")).toMatchObject({ group: "web_search", default: "FR" });
-    expect(isEditable(platformSetting("JOB_DISCOVERY_COUNTRY")!)).toBe(true);
+  it("gives the web search's bounded settings the defaults #386 decided", () => {
+    const defaultOf = (name: string) => platformSetting(name)?.default;
+    expect(defaultOf("JOB_DISCOVERY_COUNTRY")).toBe("FR");
+    expect(defaultOf("JOB_DISCOVERY_MAX_POSTING_AGE_DAYS")).toBe("30");
+    expect(defaultOf("JOB_DISCOVERY_RESULTS_PER_QUERY")).toBe("20");
+    expect(defaultOf("JOB_DISCOVERY_TITLES_PER_LANGUAGE")).toBe("3");
+    expect(defaultOf("JOB_DISCOVERY_QUERY_LANGUAGES")).toBe("fr+en");
+    expect(defaultOf("JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN")).toBe("5");
+    expect(defaultOf("JOB_DISCOVERY_COMPANY_REVISIT_DAYS")).toBe("7");
+    expect(defaultOf("WEB_SEARCH_MONTHLY_ALERT_EUR")).toBe("2");
+    for (const name of WEB_SEARCH) expect(platformSetting(name)?.group, name).toBe("web_search");
+  });
+
+  it("refuses a web search setting out of its bounds, with the reason", () => {
+    const parse = (name: string, raw: string) => parseSetting(platformSetting(name)!, raw);
+    expect(parse("JOB_DISCOVERY_RESULTS_PER_QUERY", "5")).toEqual({ ok: true, value: 5 });
+    expect(parse("JOB_DISCOVERY_RESULTS_PER_QUERY", "20")).toEqual({ ok: true, value: 20 });
+    expect(parse("JOB_DISCOVERY_RESULTS_PER_QUERY", "4")).toEqual({ ok: false, error: 'JOB_DISCOVERY_RESULTS_PER_QUERY must be a whole number from 5 to 20 (got "4")' });
+    expect(parse("JOB_DISCOVERY_RESULTS_PER_QUERY", "21")).toMatchObject({ ok: false });
+    expect(parse("JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "0")).toMatchObject({ ok: false });
+    expect(parse("JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "90")).toEqual({ ok: true, value: 90 });
+    expect(parse("JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "91")).toMatchObject({ ok: false });
+    expect(parse("JOB_DISCOVERY_TITLES_PER_LANGUAGE", "6")).toMatchObject({ ok: false });
+    expect(parse("JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN", "0")).toEqual({ ok: true, value: 0 });
+    expect(parse("JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN", "11")).toMatchObject({ ok: false });
+    expect(parse("JOB_DISCOVERY_COMPANY_REVISIT_DAYS", "31")).toMatchObject({ ok: false });
+    expect(parse("JOB_DISCOVERY_QUERY_LANGUAGES", "fr")).toEqual({ ok: true, value: "fr" });
+    expect(parse("JOB_DISCOVERY_QUERY_LANGUAGES", "de")).toMatchObject({ ok: false });
+    // 0: no alert.
+    expect(parse("WEB_SEARCH_MONTHLY_ALERT_EUR", "0")).toEqual({ ok: true, value: 0 });
+    expect(parse("WEB_SEARCH_MONTHLY_ALERT_EUR", "12.5")).toEqual({ ok: true, value: 12.5 });
+    expect(parse("WEB_SEARCH_MONTHLY_ALERT_EUR", "-1")).toMatchObject({ ok: false });
   });
 
   it("takes a country as a two-letter code, kept in upper case", () => {

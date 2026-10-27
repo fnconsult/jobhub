@@ -75,7 +75,7 @@ const worker = workerClients({
   production: process.env.NODE_ENV === "production",
   jobOffers,
   budget: () => jobDiscoveryBudgetFromEnv(settingsEnv()),
-  // The web search's settings on Paramètres' Recherche web tab (#402): the country its pages are favoured from.
+  // The web search's settings on Paramètres' Recherche web tab (#402): country, age, results per query, job titles, languages.
   search: () => webSearchSettingsFromEnv(settingsEnv()),
   // The Job discovery sources and sites Administrators set in the Back Office, read at the start of each run.
   settings: () => searchSites.jobDiscoverySettings(),

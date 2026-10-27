@@ -9,7 +9,7 @@ import { newAddress } from "./support/mailbox";
 // E-mail, Paiement, Connexion), then Extension and, last, Environnement, the tab in the address. It absorbs Clés (each
 // key on its provider's sheet, a side panel), Connexion (its tab) and Sites de recherche (Sources, Recherche web,
 // Extension), whose old addresses redirect. The keys changed here are Kaspr's, which nothing else in the suite uses (the
-// fake Kaspr accepts keys starting e2e-kaspr-valid-, e2e/support/fake-contact-provider.mjs). Brave, whose key the suite's
+// fake Kaspr accepts keys starting e2e-kaspr-valid-, e2e/support/fake-contact-provider.mjs). Tavily, whose key the suite's
 // server lacks, is never actually made active here: since #399 that change is saved (ADR-0042: it warns, never blocks)
 // and would leave every parallel spec without a web search; active-provider.test.ts covers it.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -172,10 +172,11 @@ test.describe("Paramètres in tabs (#396)", () => {
   test("« Rendre actif » a web search provider without its key warns first, never blocks (#399)", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(`${PATH}?tab=recherche-web`);
-    const brave = page.locator('tr[data-provider="brave"]');
+    // Tavily, not Brave: the Search providers' keys spec (#399, the worker project, run alongside) enters a Brave key meanwhile.
+    const tavily = page.locator('tr[data-provider="tavily"]');
     // A Provider Secret since #399: shown as the Provider Secrets are, « Absente ».
-    await expect(brave).toContainText(keys.sources.missing);
-    const makeActive = brave.getByRole("button", { name: `${texts.providers.makeActive} : Brave Search` });
+    await expect(tavily).toContainText(keys.sources.missing);
+    const makeActive = tavily.getByRole("button", { name: `${texts.providers.makeActive} : Tavily` });
     await expect(makeActive).toBeEnabled();
     await expect(makeActive).toHaveAccessibleDescription(texts.providers.noKeyWarning);
     // Not clicked: saved since #399 (web search alone unavailable, active-provider.test.ts), it would leave the parallel

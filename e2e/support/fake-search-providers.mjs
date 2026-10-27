@@ -9,7 +9,8 @@ const refused = (key) => Response.json({ error: `invalid key ${key}` }, { status
 globalThis.fetch = async (input, init) => {
   const request = input instanceof Request ? input : new Request(String(input), init);
   const url = new URL(request.url);
-  if (url.origin === "https://api.search.brave.com" && url.pathname === "/res/v1/web/search") {
+  // Only the connection test's search (q=jobbbox): the Company Dossiers' searches go to fake-company-sources.mjs (#405).
+  if (url.origin === "https://api.search.brave.com" && url.pathname === "/res/v1/web/search" && url.searchParams.get("q") === "jobbbox") {
     const key = request.headers.get("x-subscription-token") ?? "";
     if (!key.startsWith("e2e-brave-valid-")) return refused(key);
     return Response.json({ type: "search", web: { type: "search", results: [{ url: "https://example.com/", title: "Example", description: "" }] } });

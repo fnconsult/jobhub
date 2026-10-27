@@ -55,6 +55,18 @@ describe("what an AI task runs with (ADR-0026)", () => {
     expect(warnings).toHaveLength(2);
   });
 
+  it("leaves out, with a warning, a Playbook Agent outside the EU for reading offer emails: the task's configured route is used (ADR-0052)", async () => {
+    const mistral = createFakeProvider({ id: "mistral" });
+    const openai = createFakeProvider({ id: "openai", residency: "outside_eu", models: ["gpt-5"] });
+    const ai = createAiLayer({ providers: [mistral, openai], routes: { offer_email_reading: "mistral", writing: "openai" }, usage: createMemoryUsageLog(), warn: () => {} });
+    const warnings: string[] = [];
+    const served = (id: "job-offer-email-reading" | "tailored-cv") => servedTasks({ [id]: { content: "## fr\n\nLis.\n\n## en\n\nRead.", agent: taskAgent("openai", "gpt-5") } });
+
+    expect((await taskRun(served("job-offer-email-reading"), "job-offer-email-reading", ai, (message) => warnings.push(message))).agent).not.toHaveProperty("route");
+    expect((await taskRun(served("tailored-cv"), "tailored-cv", ai, (message) => warnings.push(message))).agent).toMatchObject({ route: { provider: "openai", model: "gpt-5" } });
+    expect(warnings).toEqual([expect.stringMatching(/"job-offer-email-reading": its Playbook Agent \(openai gpt-5\) is not offered/)]);
+  });
+
   it("searches the web on the provider and model its served version names, else on the configured web-search route", async () => {
     const { ai } = layer();
     const facts = "Qui est {{entreprise}} ?";

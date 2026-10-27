@@ -20,6 +20,8 @@ const DEFAULT_PROVIDER: Record<Exclude<AiTask, keyof typeof DEFAULT_TASK>, Provi
   coaching: "anthropic",
   cv_parsing: "anthropic",
   offer_analysis: "anthropic",
+  /** Claude where it is reached in the EU, else Mistral, as every task with personal data: never outside the EU (ADR-0052). */
+  offer_email_reading: "anthropic",
   web_search: "perplexity",
 };
 /**

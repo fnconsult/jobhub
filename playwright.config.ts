@@ -61,7 +61,7 @@ export default defineConfig({
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|help-content-package)\.spec\.ts/ },
-    { name: "ai", testMatch: /ai\.spec\.ts/ },
+    { name: "ai", testMatch: /(ai|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
     // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.
@@ -100,6 +100,7 @@ export default defineConfig({
       AI_COACHING_PROVIDER: "mistral",
       AI_CV_PARSING_PROVIDER: "mistral",
       AI_OFFER_ANALYSIS_PROVIDER: "mistral",
+      AI_OFFER_EMAIL_READING_PROVIDER: "mistral",
       MISTRAL_API_KEY: "e2e-mistral-key",
       // An older .env's endpoint (ADR-0033): Paramètres shows it from env, flagged as differing from the default (#298).
       // No task runs on Claude here, and no Claude key is set, so nothing reaches Bedrock.

@@ -13,6 +13,6 @@ let instance: CoachingPlaybooks | undefined;
  * after an Eval Run on it (ADR-0023).
  */
 export function getCoachingPlaybooks(): CoachingPlaybooks {
-  instance ??= createCoachingPlaybooks(sharedPool(), { serving: playbookServing(process.env), agentModels: () => getAi().agentModels(), searchModels: () => getAi().searchModels(), evalRunOn: hasEvalRunOn });
+  instance ??= createCoachingPlaybooks(sharedPool(), { serving: playbookServing(process.env), agentModels: (task) => getAi().agentModels(task), searchModels: () => getAi().searchModels(), evalRunOn: hasEvalRunOn });
   return instance;
 }

@@ -851,3 +851,7 @@ _Avoid_: Ticket, support request, Retour
 **Signalement notification**:
 A message shown atop every workspace page when the team replied to one of the Candidate's Signalements or marked it « traité » (one only, when both happened; being marked « vu » gives none): « L'équipe Jobbbox a répondu à votre signalement du 25 octobre » or « Votre signalement du 25 octobre est traité », dated by when it was sent, with « Voir » leading to « Mes signalements ». In-app only, no email, no badge on Mon compte or in the Sidebar; checked on each page change, never polled. It stays until the Candidate closes it or opens « Mes signalements », where none is shown and which closes them all; a reply or « traité » saved afterwards notifies again. Follows the Job Search Notification's pattern.
 _Avoid_: Alert, toast, badge, reply email
+
+**Held back**:
+Said of a source (Email intake) that counts as off whatever its switch, because something it needs is not ready: Email intake while no version of its Task Playbook is served, shown « Indisponible : en attente de validation du playbook ». It runs again by itself once a person validates the playbook (any version, on staging).
+_Avoid_: Disabled, paused

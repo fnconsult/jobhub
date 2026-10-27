@@ -23,7 +23,7 @@
  * its warning on the console only.
  */
 import type { AiLayer, AiWarning, GenerateRequest, Route, TaskInstructions } from "@jobhub/ai";
-import { builtInInstructions, taskSection, type TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
+import { builtInInstructions, taskPlaybookSeed, taskSection, type TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
 import type { PlaybookAgent, PlaybookSearch, ServedTaskPlaybook } from "../coaching-playbooks";
 
 export type { TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
@@ -69,10 +69,13 @@ const noting =
     warnings.push({ reason, detail: message });
   };
 
-/** The Playbook Agent as the AI layer takes it; none, with a warning, when the AI layer no longer offers its model. */
-function agentFor(id: string, agent: PlaybookAgent | null, ai: Offers, note: Note): Pick<GenerateRequest, "route" | "effort"> {
+/**
+ * The Playbook Agent as the AI layer takes it; none, with a warning, when the AI layer does not offer its model for
+ * the task (no longer, or outside the EU for a task that runs only in the EU, ADR-0052).
+ */
+function agentFor(id: TaskPlaybookId, agent: PlaybookAgent | null, ai: Offers, note: Note): Pick<GenerateRequest, "route" | "effort"> {
   if (!agent) return {};
-  const choice = ai.agentModels().find((each) => each.provider === agent.provider);
+  const choice = ai.agentModels(taskPlaybookSeed(id)?.aiTask).find((each) => each.provider === agent.provider);
   if (!choice || (agent.model !== null && !choice.models.some((each) => each.model === agent.model))) {
     note("task_playbook_agent_not_offered", `task Playbook "${id}": its Playbook Agent (${agent.provider} ${agent.model ?? "default model"}) is not offered here, the task's configured route is used`);
     return {};

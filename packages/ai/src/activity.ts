@@ -20,6 +20,8 @@ const TASK_STEPS = {
   /** A Job Offer's summary; reading the page is the `read_job_page` feature step. */
   offer_analysis: "think_write",
   scoring: "think",
+  /** Reading a Received offer email for its offers (Email intake, ADR-0052). */
+  offer_email_reading: "read",
   coaching: "think_write",
   back_office_assistant: "think_write",
   guardrail: "think",

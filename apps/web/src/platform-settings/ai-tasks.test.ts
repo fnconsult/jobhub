@@ -48,7 +48,7 @@ describe("the AI tasks' routes on the IA tab (#402)", () => {
   it("lists each text task with its provider, model, the source of its provider setting and its personal data", () => {
     const routes = aiTaskRoutes(stateOf(ENV, { AI_SCORING_MODEL: { value: "mistral-small-latest", updatedBy: "claire@jobbbox.fr", updatedAt: AT } }));
 
-    expect(routes.map((route) => route.task)).toEqual(["scoring", "writing", "coaching", "back_office_assistant", "guardrail", "eval", "cv_parsing", "offer_analysis", "job_titles"]);
+    expect(routes.map((route) => route.task)).toEqual(["scoring", "writing", "coaching", "back_office_assistant", "guardrail", "eval", "cv_parsing", "offer_analysis", "job_titles", "offer_email_reading"]);
     expect(routes.find((route) => route.task === "scoring")).toEqual({
       task: "scoring",
       providerSetting: "AI_SCORING_PROVIDER",

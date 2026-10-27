@@ -21,6 +21,7 @@ import { companyNewsSearch } from "./company-news-search";
 import { coverLetter } from "./cover-letter";
 import { cvReading } from "./cv-reading";
 import { followUp } from "./follow-up";
+import { jobOfferEmailReading } from "./job-offer-email-reading";
 import { jobOfferReading } from "./job-offer-reading";
 import { jobSearchQueries } from "./job-search-queries";
 import { outreachMessage } from "./outreach-message";
@@ -32,6 +33,7 @@ export type { TaskPlaybookSeed, TaskPlaybookSection } from "./types";
 /** Every task Playbook, in the order the Back Office lists them. */
 export const TASK_PLAYBOOKS = [
   jobOfferReading,
+  jobOfferEmailReading,
   cvReading,
   tailoredCv,
   coverLetter,

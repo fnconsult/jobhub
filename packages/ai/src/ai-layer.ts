@@ -100,6 +100,11 @@ export interface CallFacts {
   durationMs: number;
   /** ok, or warning when the feature it served ran degraded (its warnings, or a reply it could not use). */
   outcome: Exclude<Outcome, "failed">;
+  /**
+   * What AI Usage recorded it cost, in €: its tokens and the fees of its billed units (a search call, a credit), each
+   * at the price in use when it was made; a unit whose price is not known counts 0 (#403). What a run's budget spends.
+   */
+  costEur: number;
 }
 
 export interface GenerateResult extends CallFacts {
@@ -572,6 +577,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const priced = { provider: provider.id, model: output.model };
     const warnings = recordable(notes.warnings(), unusableReply(notes, output) ?? undefined);
     const outcome = warnings[0] ? "warning" : "ok";
+    const tokensEur = costInEur({ ...priced, usage: output.usage });
+    const tools = called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) }));
     log({
       ...base,
       model: output.model,
@@ -579,11 +586,12 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       ...(warnings[0] ? { outcome, reason: warnings[0].reason, warnings } : { outcome }),
       sent: true,
       durationMs,
-      costEur: costInEur({ ...priced, usage: output.usage }),
-      tools: called.map((tool) => ({ name: tool.name, count: tool.count, ok: tool.ok ?? true, durationMs, costEur: toolCostInEur(priced, tool) })),
+      costEur: tokensEur,
+      tools,
       transcript: { ...said, reply: replyOf(output) },
     });
-    return { output, endpoint: provider.endpoint, durationMs, outcome };
+    const costEur = tools.reduce((sum, tool) => sum + (tool.costEur ?? 0), tokensEur);
+    return { output, endpoint: provider.endpoint, durationMs, outcome, costEur };
   }
 
   /** The warning of an `output` its feature cannot use (`CallNotes.unusable`), or null; a check that throws refuses it. */
@@ -761,7 +769,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     }
     if (calls.length > 0) return together(calls);
     const { route, provider } = chosen;
-    return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok" };
+    return { answer: "", sources: [], provider: provider.id, model: route.model ?? provider.defaultModel ?? provider.id, usage: { inputTokens: 0, outputTokens: 0 }, endpoint: provider.endpoint, durationMs: 0, outcome: "ok", costEur: 0 };
   }
 
   /** Each query as one message of a search's transcript. */
@@ -991,5 +999,6 @@ function together(calls: SearchResult[]): SearchResult {
     endpoint: last.endpoint,
     durationMs: calls.reduce((total, call) => total + call.durationMs, 0),
     outcome: calls.some((call) => call.outcome === "warning") ? "warning" : "ok",
+    costEur: calls.reduce((total, call) => total + call.costEur, 0),
   };
 }

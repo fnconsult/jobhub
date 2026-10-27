@@ -1472,6 +1472,16 @@ nav + nav > .journal-filter {
   margin: var(--space-3) 0 0;
 }
 
+/* No score column: what can be done there goes under what is known of it (the Profile's page is a .document). */
+.target-companies .row,
+.document .target-companies .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4) 0;
+}
+
 .france-travail-mark {
   display: inline-flex;
   align-items: center;

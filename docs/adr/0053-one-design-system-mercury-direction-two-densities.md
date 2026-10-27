@@ -9,6 +9,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
 - **Dark mode is prepared from the start**: every semantic token has a light and a dark value. Dark mode follows `prefers-color-scheme` and a choice in Préférences, and ships once the screens are migrated.
 - **A component layer on our tokens, ADR-0018 kept**: Button, Field, Table, Tabs, Drawer, Dialog, Badge/Pill, Toast, EmptyState, Card/Stat and PageHeader. Each has its own CSS beside it, on the tokens, in cascade layers. Radix stays for the complex widgets. `app.css` shrinks as screens migrate.
 - **Accessibility stays checked in CI**: the token audit (ADR-0009) covers both themes and both Densities. The screenshot specs also run axe.
+- **The Notion prototype is frozen**: `docs/prototypes/notion-layout.html` keeps the Notion tokens it was drawn with, as a record of #132; its tests check those values, not the live tokens.
 - **Type is Inter**, self-hosted (no Google Fonts), with tabular figures for numbers. The system font stack is the fallback.
 - **Icons come from Lucide only** (ISC licence), drawn inline at stroke 1.7. Every function keeps its visible label (ADR-0009). The Activity glyphs and the Signalement glyphs stay our own.
 - **Motion is short and functional**: 150–220 ms ease-out on drawers, dialogs, toasts and hovers. Data never animates, and nothing moves under `prefers-reduced-motion`.

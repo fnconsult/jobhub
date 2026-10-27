@@ -63,3 +63,31 @@ test("a private Job Offer is seen by its Candidate only: never by another Candid
   expect(sharedOffer).toMatchObject({ title: "Directeur administratif et financier", content: `Annonce publique du poste ${tag}.` });
   expect((await request.get(`/api/job-offers/${sharedOffer.id}`)).status()).toBe(200);
 });
+
+test("a private Job Offer is in its Candidate's Data export only, and deleting the account deletes it without touching another Candidate's", async ({ browser, request }) => {
+  const marie = await signedIn(browser, "privee-export-marie");
+  const paul = await signedIn(browser, "privee-export-paul");
+  const store = async (owner: string, title: string, suffix: string) => {
+    const [row] = await query<{ id: string }>(
+      `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, private_to_candidate_id)
+       VALUES ($1, $2, $3, 'recruteur-e2e.example', $4, 'Message du recruteur.', $5) RETURNING id`,
+      [`recruteur-e2e.example/export/${tag}/${suffix}`, `private-export-${tag}-${suffix}`, `https://recruteur-e2e.example/export/${tag}/${suffix}`, title, owner],
+    );
+    return row!.id;
+  };
+  const hers = await store(marie.candidateId, "Mission de Marie", "marie");
+  const his = await store(paul.candidateId, "Mission de Paul", "paul");
+
+  const exported = await (await marie.page.request.get("/api/account/export")).json();
+  expect(exported.privateJobOffers.map((offer: { title: string }) => offer.title)).toEqual(["Mission de Marie"]);
+  const pauls = await (await paul.page.request.get("/api/account/export")).json();
+  expect(pauls.privateJobOffers.map((offer: { title: string }) => offer.title)).toEqual(["Mission de Paul"]);
+
+  const email = (await query<{ email: string }>(`SELECT email FROM candidate WHERE id = $1`, [marie.candidateId]))[0]!.email;
+  const deleted = await marie.page.request.delete("/api/account", { data: { email }, headers: { origin } });
+  expect(deleted.status(), await deleted.text()).toBe(204);
+
+  expect(await query(`SELECT 1 FROM job_offer WHERE id = $1`, [hers])).toHaveLength(0);
+  expect((await paul.page.request.get(`/api/job-offers/${his}`)).status()).toBe(200);
+  expect((await request.get(`/api/job-offers/${hers}`)).status()).toBe(404);
+});

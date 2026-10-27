@@ -15,7 +15,7 @@ import { webPort as e2eWebPort } from "./e2e/support/ports";
 // Sign-in emails land in E2E_SERVER_LOG (MAIL_TRANSPORT=console), and Google's
 // token endpoint is faked inside the server (e2e/support/fake-google.mjs), and so
 // is Mistral's API, which serves every AI task (e2e/support/fake-mistral.mjs),
-// and so are the French company register and Perplexity's web search behind
+// and so are the French company register and Perplexity's and Brave's web searches behind
 // Company Dossiers (e2e/support/fake-company-sources.mjs), and so is Apollo, the
 // contact-data provider behind Enriched Contacts (e2e/support/fake-contact-provider.mjs), and so are
 // Brave and Tavily, for their keys' connection tests (e2e/support/fake-search-providers.mjs), and so is

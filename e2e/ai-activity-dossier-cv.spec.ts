@@ -138,9 +138,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(oldSources.getByRole("link", { name: /^annuaire-entreprises\.data\.gouv\.fr\/entreprise\/552100554/ })).toHaveAttribute("href", REGISTER_PAGE);
   });
 
-  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
-  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
-  test.fixme("stopped mid-dossier from its page, the dossier keeps what was finished: its facts, its news not searched", async ({ page }) => {
+  test("stopped mid-dossier from its page, the dossier keeps what was finished: its facts, its news not searched", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-dossier-stop"));
     const applicationId = await newApplication(page, "Globex E2E_SLOW_NEWS");
     const dossier = await openDossier(page, applicationId);

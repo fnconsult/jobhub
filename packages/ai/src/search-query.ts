@@ -199,18 +199,21 @@ function distinctTitles(titles: string[], most: number): string[] {
 /** The keys a company web search is asked to answer with. */
 export const COMPANY_FACTS = ["country", "headquarters", "industry", "headcount", "revenue", "website", "siren"] as const;
 
+/** The longest company query sent, the employer's name in it: a search engine reads keywords, not a page of text. */
+const COMPANY_QUERY_MAX_LENGTH = 600;
+
 /**
  * The only text ever sent to the web-search provider for a Company Dossier: built
  * from the employer's name alone (a company, not a person), cleaned like Search
  * Criteria, in the "company-facts-search" task Playbook's words (`instructions`, its
- * `{{entreprise}}` the name; default: its built-in text). It always asks for company
- * facts as JSON and for no person to be named.
+ * `{{entreprise}}` the name). For pages its Playbook Agent reads (`forReading`, #405), its
+ * query alone (default: the built-in `## requête`). Else as version 1 worded it (default: its
+ * text), asking for company facts as JSON and for no person to be named.
  */
-export function buildCompanyQuery(employer: string, instructions?: string): string {
-  const words = instructions !== undefined && slotsIn(instructions).includes("entreprise") ? instructions : builtInInstructions("company-facts-search");
-  return (
-    `${taskQueryText(fillSlots(words, { entreprise: `« ${clean(employer)} »` }), "company-facts-search")} ` +
-    `Réponds uniquement par un objet JSON avec les clés ${COMPANY_FACTS.join(", ")} (texte court, null si inconnu). ` +
-    `Ne nomme aucune personne.`
-  );
+export function buildCompanyQuery(employer: string, instructions?: string, { forReading = false }: { forReading?: boolean } = {}): string {
+  const builtIn = forReading ? builtInInstructions("company-facts-search", "requête") : taskPlaybookSeed("company-facts-search")!.firstVersion!.instructions;
+  const words = instructions !== undefined && slotsIn(instructions).includes("entreprise") ? instructions : builtIn;
+  const query = taskQueryText(fillSlots(words, { entreprise: `« ${clean(employer)} »` }), "company-facts-search").slice(0, COMPANY_QUERY_MAX_LENGTH);
+  if (forReading) return query;
+  return `${query} Réponds uniquement par un objet JSON avec les clés ${COMPANY_FACTS.join(", ")} (texte court, null si inconnu). Ne nomme aucune personne.`;
 }

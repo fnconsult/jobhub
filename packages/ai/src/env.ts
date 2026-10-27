@@ -307,6 +307,23 @@ export function taskRouteFromEnv(env: Env, task: AiTask): Route {
 }
 
 /**
+ * The smallest model `provider` offers through the endpoint `env` reaches it by: the last of its models, which
+ * each text provider lists largest first (claude-haiku, mistral-small, gpt-5-mini). What a Playbook Agent that
+ * only reads a few pages runs on by default (#405). Undefined when it cannot be told here (its key missing, a
+ * provider offering a single model, fakes): its default model is then the one used.
+ */
+export function smallModelFromEnv(env: Env, provider: ProviderId): string | undefined {
+  if (env.AI_FAKE?.trim() === "true") return undefined;
+  try {
+    const [endpoint] = buildProviders(provider, env, undefined);
+    const models = endpoint?.generate ? (endpoint.models ?? []) : [];
+    return models.length > 1 ? models.at(-1) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The provider whose model each model setting names, as `env` routes it, without needing any key:
  * AI_<TASK>_MODEL its task's provider, AI_IDENTITY_MODEL Mistral's. What Paramètres offers known models by (#301).
  */

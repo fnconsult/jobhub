@@ -222,10 +222,13 @@ test.describe("the Back Office's Coaching Playbooks", () => {
 
     const tasks = page.getByRole("table", { name: playbooks.tasks.caption });
     await expect(page.getByRole("heading", { level: 2, name: playbooks.tasks.title })).toBeVisible();
-    for (const id of ["cv-reading", "tailored-cv", "cover-letter", "outreach-message", "follow-up", "coach-memory", "company-facts-search", "company-news-search", "job-search-queries", "back-office-assistant"]) {
-      await expect(tasks.getByRole("row").filter({ has: page.locator("code", { hasText: new RegExp(`^${id}$`) }) })).toContainText("François Nader");
+    const row = (id: string) => tasks.getByRole("row").filter({ has: page.locator("code", { hasText: new RegExp(`^${id}$`) }) });
+    for (const id of ["cv-reading", "tailored-cv", "cover-letter", "outreach-message", "follow-up", "coach-memory", "company-news-search", "job-search-queries", "back-office-assistant"]) {
+      await expect(row(id)).toContainText("François Nader");
     }
-    await expect(tasks.getByRole("row").filter({ hasText: "job-offer-reading" })).toContainText(playbooks.notValidated);
+    await expect(row("job-offer-reading")).toContainText(playbooks.notValidated);
+    // #405: its version 2, whose Playbook Agent reads the pages found, imported not validated after its validated version 1.
+    await expect(row("company-facts-search")).toContainText(`${tr(playbooks.version, { version: "2" })}, ${playbooks.notValidated}`);
     await expect(tasks.getByRole("row").filter({ hasText: "company-news-search" })).toContainText(playbooks.tasks.webSearch);
     // The AI Coach's own table holds none of them.
     await expect(page.getByRole("table", { name: playbooks.caption }).getByRole("row").filter({ hasText: "cv-reading" })).toHaveCount(0);
@@ -275,7 +278,7 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await page.goto("/admin/playbooks/company-facts-search");
     await page.getByLabel(playbooks.fields.taskContent).fill("Fiche de l'entreprise : pays et effectif.");
     await page.getByRole("button", { name: playbooks.detail.save }).click();
-    await expect(alert(page)).toHaveText(tr(playbooks.notices.task_instructions, { list: "{{entreprise}}" }));
+    await expect(alert(page)).toHaveText(tr(playbooks.notices.task_instructions, { list: "## requête, ## lecture" }));
   });
 
   test("the Back Office offers only allowed models, and says when a model ignores the effort", async ({ page }) => {

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireBackOffice } from "@/admin/server";
+import { dashboardBlocks } from "@/back-office-dashboard/blocks";
 import { getAi } from "@/ai/server";
 import { aiUsageReportOf } from "@/ai-usage/server";
 import { applyLatestSignIn } from "@/auth/server";
@@ -18,6 +19,7 @@ import { isProviderSecretName, type ProviderSecretName } from "@/provider-secret
 import { secretCipherFromEnv } from "@/provider-secrets/cipher";
 import type { ProviderSecretStatus } from "@/provider-secrets/index";
 import { getProviderSecrets } from "@/provider-secrets/server";
+import { routes } from "@/routes";
 import { getSearchSites } from "@/search-sites/server";
 import type { SignInProviderStatus } from "@/sign-in-providers/index";
 import { getSignInProviders } from "@/sign-in-providers/server";
@@ -332,6 +334,14 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
       ) : null}
 
       <div className="tabpanel" data-tab={tab.id}>
+        {/* Its consumption and budget figures are on the Dashboard, for those who read them (#408). */}
+        {tab.id === "web_search" && dashboardBlocks(access).includes("jobDiscovery") ? (
+          <p>
+            <Link prefetch={false} href={routes.admin}>
+              {t("admin.platformSettings.dashboardLink")}
+            </Link>
+          </p>
+        ) : null}
         {tab.id === "environment" ? (
           <EnvironmentSection ctx={ctx} rows={envOnly} retired={retiredSettingsSet(process.env)} />
         ) : (

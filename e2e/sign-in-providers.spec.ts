@@ -216,7 +216,7 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
     await superAdmin.getByRole("button", { name: fr.admin.administrators.grant }).click();
     await expect(superAdmin.getByRole("status")).toBeVisible();
     await support.goto(`${server.origin}/admin`);
-    await expect(support.getByRole("heading", { level: 1 })).toHaveText(fr.admin.title);
+    await expect(support.getByRole("heading", { level: 1 })).toHaveText(fr.admin.dashboard.title);
 
     await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);
     await superAdmin.getByRole("checkbox", { name: sp.ssoLabel }).check();
@@ -246,7 +246,7 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
     await support.goto(`${server.origin}/connexion/back-office`);
     await support.getByRole("button", { name: continueWithSso }).click();
     await expect(support).toHaveURL(`${server.origin}/admin`);
-    await expect(support.getByRole("heading", { level: 1 })).toHaveText(fr.admin.title);
+    await expect(support.getByRole("heading", { level: 1 })).toHaveText(fr.admin.dashboard.title);
     expect((await support.request.get(assistant)).status()).toBe(200);
 
     await superAdmin.getByRole("checkbox", { name: sp.ssoLabel }).uncheck();

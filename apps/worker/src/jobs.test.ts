@@ -74,6 +74,7 @@ function discoveryReport(report: Partial<DiscoveryReport> = {}): DiscoveryReport
     newJobOffers: 0,
     stopReason: "exhausted",
     targetCompanies: { laBonneBoite: "off", calls: 0, visited: 0, offers: 0 },
+    costByItem: { page_reading: 0, plan: 0, web_search: 0, target_companies: 0 },
     ...report,
   };
 }
@@ -97,6 +98,7 @@ const measuredRun = discoveryReport({
   fantasticJobs: { status: "searched", offers: 3, calls: 1, costEur: 0.024 },
   searchFallback: { from: "perplexity", to: "brave", reason: "rate_limited" },
   targetCompanies: { laBonneBoite: "searched", calls: 3, visited: 2, offers: 1 },
+  costByItem: { page_reading: 0.01, plan: 0.0003, web_search: 0.002, target_companies: 0 },
 });
 
 /** What the Job Search or Job Digest keeps of `measuredRun`. */
@@ -108,6 +110,7 @@ const measuredMetrics = {
   fantasticJobs: { status: "searched", offers: 3, calls: 1, costEur: 0.024 },
   searchFallback: { from: "perplexity", to: "brave", reason: "rate_limited" },
   targetCompanies: { laBonneBoite: "searched", calls: 3, visited: 2, offers: 1 },
+  costByItem: { page_reading: 0.01, plan: 0.0003, web_search: 0.002, target_companies: 0 },
 };
 
 /**

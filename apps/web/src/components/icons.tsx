@@ -55,6 +55,8 @@ const PATHS = {
   platformSettings: ["M4 6h16M4 12h16M4 18h16", "M14 4v4M8 10v4M16 16v4"],
   // A door with an arrow in: Sign-in Providers (#209).
   signInProviders: ["M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4", "M10 16l4-4-4-4M14 12H4"],
+  // Four tiles: the Back Office Dashboard (#408).
+  dashboard: ["M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z"],
   // A rising line on axes: AI consumption (#218).
   aiUsage: ["M4 4v16h16", "M8 15l3.5-4 3 2.5L19 8"],
   // A page under a magnifier: the AI Message Log, Activité › Appels IA (#218).

@@ -33,7 +33,7 @@ const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpp
 
 const ANTHROPIC_ENDPOINTS = ["auto", "bedrock", "vertex", "direct"] as const;
 /** The Search providers (ADR-0043): what web search and its fallback may name. */
-const SEARCH_PROVIDER_IDS = ["perplexity", "brave", "tavily"] as const satisfies readonly ProviderId[];
+export const SEARCH_PROVIDER_IDS = ["perplexity", "brave", "tavily"] as const satisfies readonly ProviderId[];
 /** The fallback Search provider's setting, and its value for none. */
 const FALLBACK_SETTING = "AI_WEB_SEARCH_FALLBACK_PROVIDER";
 const NO_FALLBACK = "none";

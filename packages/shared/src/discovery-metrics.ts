@@ -84,6 +84,8 @@ export interface DiscoveryMetrics {
   searchFallback?: SearchFallbackMetrics | null;
   /** The Target Companies' part (#406); absent for a run from before Target Companies were added. */
   targetCompanies?: TargetCompaniesMetrics;
+  /** Where `costEur` went, per item (#408); absent for a run from before it was kept. Its stop reason is the Discovery run's (#404). */
+  costByItem?: Record<RunCostItem, number>;
 }
 
 /**
@@ -102,6 +104,13 @@ export interface TargetCompaniesMetrics {
   /** Job Offers they gave, new or already stored, after the freshness rule. */
   offers: number;
 }
+
+/**
+ * The items a run's AI cost goes to (#408): reading pages (the LLM), the plan (job title variants), the web
+ * searches, and visiting the Target Companies (their web searches and the pages read from them).
+ */
+export const RUN_COST_ITEMS = ["page_reading", "plan", "web_search", "target_companies"] as const;
+export type RunCostItem = (typeof RUN_COST_ITEMS)[number];
 
 /** A run's switch to the fallback Search provider, by provider id and Failure Reason code. */
 export interface SearchFallbackMetrics {

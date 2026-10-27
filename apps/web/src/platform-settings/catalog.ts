@@ -37,6 +37,8 @@ export type PlatformSettingType =
   | { kind: "sender" }
   /** "true" or "false". */
   | { kind: "boolean" }
+  /** A domain name, such as alertes.jobbbox.ai, kept in lower case. */
+  | { kind: "domain" }
   /** A two-letter country code (ISO 3166-1 alpha-2), kept in upper case: a filter names a country by its code, never in words (ADR-0007). */
   | { kind: "country" };
 
@@ -83,6 +85,8 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // Tool's sheet. AI Usage records each call at the prices in use, and a Job discovery run's budget spends that cost.
   ...PRICE_SETTINGS.map((price): PlatformSetting => ({ name: price.name, group: "prices", type: price.unit === "rate" ? decimal(0.01, 100) : decimal(0, 100), default: price.default })),
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
+  // Email intake (#441, ADR-0050): the domain the Candidates' Forwarding addresses are on, whose emails Brevo Inbound Parsing receives.
+  { name: "EMAIL_INTAKE_DOMAIN", group: "email", type: { kind: "domain" }, default: "alertes.jobbbox.ai" },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
   { name: "JOB_DIGEST_TARGET_COUNT", group: "job_digest", type: whole(1, 100), default: "10" },
@@ -139,10 +143,15 @@ function rule(type: PlatformSettingType): string {
       return "an email sender, such as Jobbbox <hello@jobbbox.ai>";
     case "boolean":
       return "true or false";
+    case "domain":
+      return "a domain name, such as alertes.jobbbox.ai";
     case "country":
       return "a two-letter country code, such as FR";
   }
 }
+
+/** A domain name: two labels or more, of letters, digits and inner hyphens. */
+const DOMAIN = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/i;
 
 /** Whether `value` is an absolute https URL naming a host. */
 function isHttpsUrl(value: string): boolean {
@@ -178,6 +187,8 @@ export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetti
       return isSender(value) ? { ok: true, value } : refused;
     case "boolean":
       return value === "true" || value === "false" ? { ok: true, value: value === "true" } : refused;
+    case "domain":
+      return DOMAIN.test(value) ? { ok: true, value: value.toLowerCase() } : refused;
     case "country":
       return /^[a-z]{2}$/i.test(value) ? { ok: true, value: value.toUpperCase() } : refused;
   }

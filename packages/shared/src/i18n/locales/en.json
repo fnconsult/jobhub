@@ -1494,7 +1494,8 @@
         "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
         "url": "an https URL",
         "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>",
-        "country": "a two-letter country code, such as FR"
+        "country": "a two-letter country code, such as FR",
+        "domain": "a domain name, such as alertes.jobbbox.ai"
       },
       "notices": {
         "saved": "{{name}} saved: the new value applies within seconds, without a restart.",
@@ -1649,6 +1650,7 @@
         "JOB_DIGEST_TARGET_COUNT": "Job Offers a Job Digest aims for",
         "JOB_DIGEST_FIRST_LOOK_BACK_DAYS": "Days the first Job Digest looks back",
         "MAIL_FROM": "Email sender",
+        "EMAIL_INTAKE_DOMAIN": "Forwarding addresses' domain (Email intake)",
         "MAIL_TRANSPORT": "Email sending",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",

@@ -84,18 +84,26 @@ export const webSearchAlertThresholdFromEnv = (env: Record<string, string | unde
 /** The current month, Paris time: "2026-10". */
 const monthAt = (now: Date) => aiUsageMonths(now)[0]!;
 
+/** This month's spend against its threshold, read now. */
+async function readMonth(options: Pick<WebSearchAlertOptions, "store" | "thresholdEur" | "now">) {
+  const at = (options.now ?? (() => new Date()))();
+  const month = monthAt(at);
+  const thresholdEur = options.thresholdEur();
+  const spendEur = await options.store.spendEur(month);
+  return { at, month, thresholdEur, spendEur, crossed: thresholdEur > 0 && spendEur >= thresholdEur };
+}
+
+/** What Consommation IA's banner says of this month: what the web app reads, the worker alone emailing. */
+export async function webSearchAlertState(options: Pick<WebSearchAlertOptions, "store" | "thresholdEur" | "now">): Promise<WebSearchAlertState> {
+  const { month, thresholdEur, spendEur, crossed } = await readMonth(options);
+  const sent = await options.store.sent(month);
+  return { month, spendEur, thresholdEur, crossed, emailedAt: sent?.at ?? null };
+}
+
 export function createWebSearchAlert(options: WebSearchAlertOptions): WebSearchAlert {
-  const now = options.now ?? (() => new Date());
-  const read = async () => {
-    const at = now();
-    const month = monthAt(at);
-    const thresholdEur = options.thresholdEur();
-    const spendEur = await options.store.spendEur(month);
-    return { at, month, thresholdEur, spendEur, crossed: thresholdEur > 0 && spendEur >= thresholdEur };
-  };
   return {
     async check() {
-      const { at, month, thresholdEur, spendEur, crossed } = await read();
+      const { at, month, thresholdEur, spendEur, crossed } = await readMonth(options);
       const facts = { month, spendEur, thresholdEur };
       if (thresholdEur <= 0) return { ...facts, outcome: "off" };
       if (!crossed) return { ...facts, outcome: "below" };
@@ -109,11 +117,7 @@ export function createWebSearchAlert(options: WebSearchAlertOptions): WebSearchA
       }
       return { ...facts, outcome: "sent" };
     },
-    async state() {
-      const { month, thresholdEur, spendEur, crossed } = await read();
-      const sent = await options.store.sent(month);
-      return { month, spendEur, thresholdEur, crossed, emailedAt: sent?.at ?? null };
-    },
+    state: () => webSearchAlertState(options),
   };
 }
 

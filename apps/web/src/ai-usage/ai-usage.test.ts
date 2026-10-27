@@ -229,7 +229,7 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
 
     const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
 
-    expect(report.tools).toEqual([{ provider: "brave", name: "web_search", calls: 1, failures: 0, costEur: expect.closeTo(braveSearch, 9) }]);
+    expect(report.tools).toEqual([{ provider: "brave", name: "web_search", calls: 1, failures: 0, costEur: expect.closeTo(braveSearch, 9), unpricedCalls: 0 }]);
     expect(report.externalApis).toEqual([
       { provider: "france_travail", operation: "GET /offres", calls: 1, failures: 0, costEur: 0 },
       { provider: "lusha", operation: "POST /v2/person", calls: 1, failures: 1, costEur: null },
@@ -241,7 +241,15 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     const fetched = (count: number, ok: boolean) => ({ name: "fetch_url", count, ok, durationMs: 10, costEur: null });
     await usage.record({ ...entry(), provider: "mistral", tools: [fetched(2, true), fetched(3, false)], at: new Date("2026-10-17T08:00:00Z") });
 
-    expect((await aiUsageReport(database, aiUsagePeriod("7d", now))).tools).toEqual([{ provider: "mistral", name: "fetch_url", calls: 5, failures: 3, costEur: null }]);
+    expect((await aiUsageReport(database, aiUsagePeriod("7d", now))).tools).toEqual([{ provider: "mistral", name: "fetch_url", calls: 5, failures: 3, costEur: null, unpricedCalls: 5 }]);
+  });
+
+  it("counts the uses of a billed tool whose price is not known (« prix inconnu »), apart from those priced (#403)", async () => {
+    const usage = createPostgresUsageLog(database);
+    const searched = (count: number, costEur: number | null) => ({ name: "web_search", count, ok: true, durationMs: 10, costEur });
+    await usage.record({ ...entry(), provider: "perplexity", tools: [searched(2, 0.004), searched(3, null)], at: new Date("2026-10-17T08:00:00Z") });
+
+    expect((await aiUsageReport(database, aiUsagePeriod("7d", now))).tools).toEqual([{ provider: "perplexity", name: "web_search", calls: 5, failures: 0, costEur: expect.closeTo(0.004, 9), unpricedCalls: 3 }]);
   });
 
   it("reads a past month per day, and the last 12 months per month", async () => {

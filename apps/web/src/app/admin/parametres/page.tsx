@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireBackOffice } from "@/admin/server";
 import { getAi } from "@/ai/server";
+import { aiUsageReportOf } from "@/ai-usage/server";
 import { applyLatestSignIn } from "@/auth/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -254,6 +255,12 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const allowed = addableTypes(ctx);
   const adding = asked !== undefined ? addTypeFor(tab, asked, allowed) : undefined;
   const sheet = adding ? undefined : rows.find((row) => row.tool.id === ctx.sheet);
+  // Its uses of the last 30 days whose price was not known (« prix inconnu », #403), on an AI Tool's sheet.
+  const sheetUsage = sheet?.tool.usage;
+  const unpricedCalls =
+    sheetUsage?.table === "ai_usage" && hasDatabase
+      ? (await aiUsageReportOf("30d")).tools.filter((tool) => tool.provider === sheetUsage.provider).reduce((sum, tool) => sum + tool.unpricedCalls, 0)
+      : 0;
   // France Travail's APIs, each as its latest connection test found it (#400), on its sheet.
   const apiAccess = sheet?.tool.id === "france-travail" && readSecrets && hasDatabase ? await getProviderSecrets().apiAccess("france-travail") : [];
 
@@ -342,7 +349,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
         ) : null}
       </div>
 
-      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} notices={notices} /> : null}
+      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} settings={settings} unpricedCalls={unpricedCalls} notices={notices} /> : null}
       {openRoute ? <RoutePanel ctx={ctx} route={openRoute} choices={choices} keyMissingOf={(provider) => keyMissing(state, provider)} notices={notices} /> : null}
       {openAgent && openAgentLatest ? <PlaybookAgentPanel ctx={ctx} row={openAgent} latest={openAgentLatest} choices={choices} notices={notices} /> : null}
       {adding ? <AddPanel ctx={ctx} type={adding} allowed={allowed} sources={sources ?? ALL_SOURCES} signInTypes={signInProviders.map((provider) => provider.type)} /> : null}

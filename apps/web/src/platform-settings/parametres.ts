@@ -13,7 +13,7 @@
  * Which Tools, Platform Settings and active provider each tab shows is said here once; the page only lays
  * them out.
  */
-import { SEARCH_TASK, taskRouteFromEnv, TEXT_TASKS } from "@jobhub/ai";
+import { PRICE_SETTINGS, SEARCH_TASK, taskRouteFromEnv, TEXT_TASKS } from "@jobhub/ai";
 import { TOOLS, type Tool, type ToolCategory } from "@jobhub/shared";
 import { isProviderSecretName } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
@@ -40,7 +40,7 @@ export interface ParametresTab {
 const namesOf = (groups: readonly string[]) => PLATFORM_SETTINGS.filter((setting) => groups.includes(setting.group)).map((setting) => setting.name);
 /**
  * Recherche web's settings: the active Search provider and its fallback, each provider's typed settings (ADR-0043), the
- * one they replace, then the web search's bounded settings (#386, #402).
+ * one they replace, then the web search's bounded settings (#386, #402) and the EUR/USD rate its prices are converted at (#403).
  */
 const WEB_SEARCH_SETTINGS = [
   "AI_WEB_SEARCH_PROVIDER",
@@ -51,6 +51,7 @@ const WEB_SEARCH_SETTINGS = [
   "TAVILY_SEARCH_DEPTH",
   "AI_WEB_SEARCH_MODEL",
   ...namesOf(["web_search"]),
+  "EUR_PER_USD",
 ];
 
 export const PARAMETRES_TABS: readonly ParametresTab[] = [
@@ -114,8 +115,14 @@ export function providerSheetHref(tool: Tool): string | undefined {
   return tab ? parametresHref(tab.id, { fournisseur: tool.id }) : undefined;
 }
 
-/** A setting's row on the tab that shows it: Environnement for one only env holds. */
+/** The prices of `tool`'s billed units (#403), on its sheet; none for a Tool billed otherwise. */
+export const pricesOfTool = (tool: Tool): readonly string[] => PRICE_SETTINGS.filter((price) => price.provider === tool.id).map((price) => price.name);
+
+/** A setting's row on the tab that shows it: a Tool's price on its sheet, Environnement for one only env holds. */
 export function settingHref(name: string): string {
+  const pricedTool = (TOOLS as readonly Tool[]).find((tool) => pricesOfTool(tool).includes(name));
+  const sheet = pricedTool ? tabOfTool(pricedTool) : undefined;
+  if (pricedTool && sheet) return parametresHref(sheet.id, { fournisseur: pricedTool.id }, `setting-${name}`);
   const tab = PARAMETRES_TABS.find((candidate) => candidate.settings.includes(name) && !(name in ENV_ONLY_SETTINGS))?.id ?? "environment";
   return parametresHref(tab, {}, `setting-${name}`);
 }

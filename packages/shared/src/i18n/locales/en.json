@@ -1469,7 +1469,20 @@
         "noSettings": "No settings of its own.",
         "toolPage": "Its calls, failures and cost in Tools",
         "readOnlyKeys": "Only super-admins replace, clear or test a key.",
-        "notSecretHelp": "This key is not a back office key yet: it is set in the server's environment."
+        "notSecretHelp": "This key is not a back office key yet: it is set in the server's environment.",
+        "pricesTitle": "Prices",
+        "pricesIntro": "The price of each billed unit, in dollars, converted to euros at the EUR_PER_USD rate. By default the provider's list price; a price changed here applies from the next call, in Consommation IA as in a search's budget.",
+        "listPrice": "{{name}}: list price ${{price}} per {{unit}}, read on {{date}}",
+        "listPriceSource": "source",
+        "units": {
+          "call": "call",
+          "request": "request",
+          "credit": "credit",
+          "rate": "dollar"
+        },
+        "pricesCaption": "{{provider}}'s prices and the EUR/USD rate",
+        "unpriced_one": "Unknown price: {{count}} use over the last 30 days (counted 0).",
+        "unpriced_other": "Unknown price: {{count}} uses over the last 30 days (counted 0)."
       },
       "environment": {
         "why": "Why in the environment",
@@ -1767,6 +1780,12 @@
       "externalCost": "External APIs' cost",
       "totalCost": "Total cost",
       "unknownCost": "unknown",
+      "unknownPrice_one": "unknown price ({{count}} use, counted 0)",
+      "unknownPrice_other": "unknown price ({{count}} uses, counted 0)",
+      "alertBanner": "Web search reached its monthly alert threshold ({{threshold}}): {{spend}} in {{month}}. Nothing is cut.",
+      "alertEmailed": "Super-admins were emailed on {{at}}.",
+      "alertNotEmailedYet": "Super-admins will be emailed within minutes.",
+      "alertSettings": "Threshold and prices in Paramètres",
       "none": "No calls in this period.",
       "byModelTitle": "By provider, endpoint and model",
       "byModelCaption": "AI calls by provider, endpoint and model",

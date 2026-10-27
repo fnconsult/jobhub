@@ -1,30 +1,40 @@
+import { PRICE_SETTINGS } from "@jobhub/ai";
 import { isFranceTravailApi } from "@jobhub/shared";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { parametresHref, settingHref, type PossibleProvider } from "@/platform-settings/parametres";
+import { parametresHref, pricesOfTool, settingHref, type PossibleProvider } from "@/platform-settings/parametres";
+import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import type { ApiAccess, ProviderApiAccess, ProviderSecretStatus } from "@/provider-secrets/index";
 import { routes } from "@/routes";
 import { clearSecret, replaceSecret, testSecret } from "./actions";
 import { Here, type Ctx } from "./context";
 import { KeyCell, LastTest, usedByLabel } from "./ProvidersSection";
+import { SettingsTable } from "./SettingsTable";
 
 /**
  * A provider's sheet, in a side panel over its tab (#396): its Provider Secrets (replaced, cleared and tested by
  * super-admins only, ADR-0020: a value goes in, never out), the keys env alone holds, its own settings and what it
- * serves, each of its APIs' access at its latest connection test (France Travail's, #400), and a link to its Outils
- * page, where its calls are.
+ * serves, each of its APIs' access at its latest connection test (France Travail's, #400), the prices of its billed
+ * units with their list price, source and date, changed here (#403), its uses whose price is not known, and a link to
+ * its Outils page, where its calls are.
  */
 export function ProviderSheet({
   ctx,
   row,
   secrets,
   apiAccess,
+  settings,
+  unpricedCalls,
   notices,
 }: {
   ctx: Ctx;
   row: PossibleProvider;
   secrets: readonly ProviderSecretStatus[] | null;
   apiAccess: readonly ProviderApiAccess[];
+  /** Every Platform Setting as in use: its prices among them. */
+  settings: readonly ResolvedPlatformSetting[];
+  /** Its uses of the last 30 days whose price was not known (« prix inconnu », #403). */
+  unpricedCalls: number;
   notices: ReactNode;
 }) {
   const { t, tab } = ctx;
@@ -92,10 +102,52 @@ export function ProviderSheet({
         )}
       </section>
 
+      <PricesSection ctx={ctx} row={row} settings={settings} unpricedCalls={unpricedCalls} />
+
       <p>
         <Link prefetch={false} href={routes.adminTool(tool.id)}>{t("admin.platformSettings.sheet.toolPage")}</Link>
       </p>
     </aside>
+  );
+}
+
+/**
+ * The prices of the Tool's billed units and the EUR/USD rate (#403): each with its value in use, source (Back Office, env
+ * or the code's list price) and who set it when, changed by Technique and super-admins; each list price with where and
+ * when it was read. Its uses whose price was not known are counted, at 0. None for a Tool billed otherwise.
+ */
+function PricesSection({ ctx, row, settings, unpricedCalls }: { ctx: Ctx; row: PossibleProvider; settings: readonly ResolvedPlatformSetting[]; unpricedCalls: number }) {
+  const { t } = ctx;
+  const names = pricesOfTool(row.tool);
+  if (names.length === 0 && unpricedCalls === 0) return null;
+  const prices = PRICE_SETTINGS.filter((price) => names.includes(price.name) || (names.length > 0 && price.unit === "rate"));
+  return (
+    <section className="stack" aria-labelledby="sheet-prices">
+      <h3 id="sheet-prices">{t("admin.platformSettings.sheet.pricesTitle")}</h3>
+      {names.length > 0 ? <p>{t("admin.platformSettings.sheet.pricesIntro")}</p> : null}
+      {unpricedCalls > 0 ? (
+        <p className="notice" data-unpriced={unpricedCalls}>
+          {t("admin.platformSettings.sheet.unpriced", { count: unpricedCalls })}
+        </p>
+      ) : null}
+      {prices.length > 0 ? (
+        <>
+          <ul>
+            {prices.map((price) => (
+              <li key={price.name} data-list-price={price.name}>
+                {t("admin.platformSettings.sheet.listPrice", { name: price.name, price: price.default, unit: t(`admin.platformSettings.sheet.units.${price.unit}`), date: price.listedOn })}{" "}
+                (
+                <a href={price.source} target="_blank" rel="noreferrer">
+                  {t("admin.platformSettings.sheet.listPriceSource")}
+                </a>
+                )
+              </li>
+            ))}
+          </ul>
+          <SettingsTable ctx={ctx} caption={t("admin.platformSettings.sheet.pricesCaption", { provider: row.tool.name })} names={prices.map((price) => price.name)} settings={settings} envOnly={[]} />
+        </>
+      ) : null}
+    </section>
   );
 }
 

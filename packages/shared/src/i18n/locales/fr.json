@@ -1469,7 +1469,20 @@
         "noSettings": "Aucun paramètre propre.",
         "toolPage": "Ses appels, ses échecs et son coût dans Outils",
         "readOnlyKeys": "Seuls les super-admins remplacent, effacent ou testent une clé.",
-        "notSecretHelp": "Cette clé n'est pas encore une clé du back office : elle se règle dans l'environnement du serveur."
+        "notSecretHelp": "Cette clé n'est pas encore une clé du back office : elle se règle dans l'environnement du serveur.",
+        "pricesTitle": "Prix",
+        "pricesIntro": "Le prix de chaque unité facturée, en dollars, converti en euros au taux EUR_PER_USD. Par défaut, le prix public lu chez le fournisseur ; un prix changé ici vaut dès l'appel suivant, dans la Consommation IA comme dans le budget d'une recherche.",
+        "listPrice": "{{name}} : prix public {{price}} $ par {{unit}}, lu le {{date}}",
+        "listPriceSource": "source",
+        "units": {
+          "call": "appel",
+          "request": "requête",
+          "credit": "crédit",
+          "rate": "dollar"
+        },
+        "pricesCaption": "Prix de {{provider}} et taux EUR/USD",
+        "unpriced_one": "Prix inconnu : {{count}} utilisation sur les 30 derniers jours (comptée 0).",
+        "unpriced_other": "Prix inconnu : {{count}} utilisations sur les 30 derniers jours (comptées 0)."
       },
       "environment": {
         "why": "Pourquoi dans l'environnement",
@@ -1767,6 +1780,12 @@
       "externalCost": "Coût des API externes",
       "totalCost": "Coût total",
       "unknownCost": "inconnu",
+      "unknownPrice_one": "prix inconnu ({{count}} utilisation, comptée 0)",
+      "unknownPrice_other": "prix inconnu ({{count}} utilisations, comptées 0)",
+      "alertBanner": "Le seuil d'alerte mensuel de la recherche web ({{threshold}}) est atteint : {{spend}} en {{month}}. Rien n'est coupé.",
+      "alertEmailed": "Les super-admins ont été prévenus par e-mail le {{at}}.",
+      "alertNotEmailedYet": "Les super-admins seront prévenus par e-mail dans les prochaines minutes.",
+      "alertSettings": "Seuil et prix dans Paramètres",
       "none": "Aucun appel sur cette période.",
       "byModelTitle": "Par fournisseur, point d'accès et modèle",
       "byModelCaption": "Appels à l'IA par fournisseur, point d'accès et modèle",

@@ -1493,6 +1493,12 @@ nav + nav > .journal-filter {
   border-radius: var(--radius-md);
 }
 
+.france-travail-logo {
+  display: block;
+  height: 2.5rem;
+  width: auto;
+}
+
 .target-company-offers ul {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-6);

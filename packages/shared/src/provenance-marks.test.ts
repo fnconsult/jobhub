@@ -1,8 +1,8 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import en from "./i18n/locales/en.json";
 import fr from "./i18n/locales/fr.json";
-import { markOf, STEP_LABELS, stepLabel } from "./provenance-marks";
-import { TOOLS, type Tool } from "./tools";
+import { markOf, markOfTool, STEP_LABELS, stepLabel } from "./provenance-marks";
+import { toolById, TOOLS, type Tool } from "./tools";
 
 describe("a Tool's logo", () => {
   it("is none until its owner allowed it in writing (#318): none yet", () => {
@@ -39,6 +39,19 @@ describe("what AI Activity shows for an element of a Provenance", () => {
     const step = { kind: "ai", activity: "write", task: "writing", provider: "anthropic", endpoint: "bedrock eu-north-1", model: "anthropic.claude-opus-5", ms: 4000, at: "2026-10-23T10:00:00.000Z", outcome: "ok", count: 1 } as const;
     expect(markOf(step)).toEqual({ text: "Claude (AWS Bedrock)" });
     expect(markOf({ ...step, provider: undefined, endpoint: undefined, model: undefined })).toEqual({});
+  });
+});
+
+describe("a Tool credited where its data is shown, as France Travail beside La Bonne Boite's companies (#409)", () => {
+  const franceTravail = toolById("france-travail")!;
+
+  it("is its logo, with its name, once its owner allowed one: the same `Tool.logo` AI Activity shows", () => {
+    expect(markOfTool({ ...franceTravail, logo: "/logos/france-travail.svg" })).toEqual({ logo: "/logos/france-travail.svg", text: "France Travail" });
+  });
+
+  it("is its name in text while it has none", () => {
+    expect(markOfTool(franceTravail)).toEqual({ text: "France Travail" });
+    expect(markOfTool(undefined)).toEqual({});
   });
 });
 

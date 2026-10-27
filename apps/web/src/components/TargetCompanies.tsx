@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { markOfTool, toolById } from "@jobhub/shared";
 import { routes, type ApplicationSection } from "@/routes";
 
 /** One of the Profile's Target Companies, as its Section shows it (#409). */
@@ -235,13 +236,17 @@ export function TargetCompanies({ profileId, companies }: { profileId: string; c
 }
 
 /**
- * France Travail, credited where La Bonne Boite's companies are shown: its terms ask for its logo. A wordmark until
- * the official logo file is added to the app (it is France Travail's to give, not to redraw).
+ * France Travail, credited where La Bonne Boite's companies are shown: its terms ask for its logo. Its Tool's mark, the
+ * same `Tool.logo` AI Activity shows: the official logo once France Travail gave it (#424), until then its name as a
+ * wordmark (the logo is France Travail's to give, not to redraw).
  */
 function FranceTravailMark() {
+  const mark = markOfTool(toolById("france-travail"));
+  const name = mark.text ?? FRANCE_TRAVAIL;
+  if (mark.logo) return <img className="france-travail-logo" src={mark.logo} alt={name} />;
   return (
-    <span className="france-travail-mark" role="img" aria-label={FRANCE_TRAVAIL}>
-      <span aria-hidden="true">{FRANCE_TRAVAIL}</span>
+    <span className="france-travail-mark" role="img" aria-label={name}>
+      <span aria-hidden="true">{name}</span>
     </span>
   );
 }

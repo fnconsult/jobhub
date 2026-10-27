@@ -67,6 +67,25 @@ export interface ExportedProfile {
   jobDigest: ExportedJobDigestSettings | null;
   /** The Job Digests sent for the Profile, newest first, each with what made it (ADR-0034, #336) when it was kept. */
   jobDigests: { id: string; sentAt: Date; jobOfferIds: string[]; provenance?: Provenance }[];
+  /** The Profile's Target Companies (#406), set aside ones included, oldest first. */
+  targetCompanies: ExportedTargetCompany[];
+  /** When La Bonne Boite's companies were last fetched for the Profile, or null when they never were. */
+  targetCompaniesRefreshedAt: Date | null;
+}
+
+/** A Target Company of a Profile: La Bonne Boite's or the Candidate's own, and what Job discovery did with it. */
+export interface ExportedTargetCompany {
+  name: string;
+  origin: "la_bonne_boite" | "candidate";
+  hiringScore: number | null;
+  city: string | null;
+  activity: string | null;
+  addedAt: Date;
+  lastVisitedAt: Date | null;
+  /** When the company register said it is not a company, so Job discovery no longer visits it. */
+  notACompanyAt: Date | null;
+  /** Set when the Candidate set it aside, for good. */
+  setAsideAt: Date | null;
 }
 
 /** What the Candidate chose for a Profile's Job Digest (its unsubscribe link is a secret, left out). */
@@ -309,6 +328,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   discovery_run_detail: "profiles[].jobDiscoveryRuns (the last 30 days' runs: criteria and each search's query texts; their figures are of no one)",
   job_digest_subscription: "profiles[].jobDigest (no unsubscribe token)",
   job_digest: "profiles[].jobDigests",
+  target_company: "profiles[].targetCompanies (set aside ones included)",
+  target_company_refresh: "profiles[].targetCompaniesRefreshedAt (not what La Bonne Boite was asked)",
   application: "applications",
   interview: "applications[].interviews (with their duration, format, place and date of cancellation)",
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
@@ -371,7 +392,7 @@ function exportedDossier(row: (Omit<ExportedCompanyDossier, "provenance"> & { pr
 
 export function createCandidateData(database: Pool, deps: CandidateDataDeps): CandidateData {
   async function exportProfiles(candidateId: string): Promise<ExportedProfile[]> {
-    const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf, discoveryRuns] = await Promise.all([
+    const [summaries, atsScoresOf, jobSearchesOf, jobDigestSettingsOf, jobDigestsOf, discoveryRuns, targetCompaniesOf, refreshesOf] = await Promise.all([
       deps.profiles.list(candidateId),
       grouped<Omit<KeptAtsScore, "provenance">>(
       `SELECT s.profile_id AS key, s.version, s.score, s.computed_at AS "computedAt" FROM ats_score s JOIN profile p ON p.id = s.profile_id
@@ -394,6 +415,16 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       discoveryRunsOf(database, candidateId),
+      grouped<ExportedTargetCompany>(
+      `SELECT profile_id AS key, name, origin, hiring_score AS "hiringScore", city, activity, added_at AS "addedAt", last_visited_at AS "lastVisitedAt",
+              not_a_company_at AS "notACompanyAt", set_aside_at AS "setAsideAt"
+         FROM target_company WHERE candidate_id = $1 ORDER BY added_at, id`,
+        candidateId,
+      ),
+      grouped<{ refreshedAt: Date }>(
+      `SELECT r.profile_id AS key, r.refreshed_at AS "refreshedAt" FROM target_company_refresh r JOIN profile p ON p.id = r.profile_id WHERE p.candidate_id = $1`,
+        candidateId,
+      ),
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }) => {
@@ -416,6 +447,8 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             const kept = readProvenance(provenance);
             return { ...jobDigest, ...(kept && { provenance: kept }) };
           }),
+          targetCompanies: targetCompaniesOf(id).map((company) => ({ ...company, hiringScore: company.hiringScore === null ? null : Number(company.hiringScore) })),
+          targetCompaniesRefreshedAt: refreshesOf(id)[0]?.refreshedAt ?? null,
         };
       }),
     );

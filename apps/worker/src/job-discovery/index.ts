@@ -86,6 +86,14 @@
  * A run the Candidate stops (its request's `signal`, #331) starts no step after, its AI call on its way is stopped,
  * and it reports what it found until then, as a run whose budget is spent: it does not fail.
  *
+ * A run for a Profile (`profileId`) also visits its Target Companies (#406, see target-companies/): after the
+ * plan's queries (their first pages) and before the Job discovery sites, once per run, up to 5 of them, La Bonne
+ * Boite's list refreshed first when due. A Target Company whose careers site is known has it read: its board on
+ * Greenhouse, Lever or Ashby through that ATS's JSON API (its postings for the Profile's job, at most 5), any other
+ * careers page like a listing page. Else one web search « title + company » finds its postings, and the careers
+ * site its results show is kept for that company, for every Profile. All within the budget; La Bonne Boite refused
+ * or down is skipped like an unavailable source (`targetCompanies` in the report).
+ *
  * The run itself is recorded too (#330): every step of it (the job title variants, each source, each web
  * search, page read and the model that read it), each told to the request's `onEvent` as it starts and ends,
  * and kept, folded, in the report's `run`, which the caller goes on recording into (its Match Scores) before
@@ -105,6 +113,7 @@ import {
   NO_INDUSTRY_REFERENCE,
   type DiscoveryMetrics,
   type DiscoverySearch,
+  type TargetCompaniesMetrics,
   type DiscoveryStopReason,
   type IndustryReference,
   type JobDiscoverySettings,
@@ -117,13 +126,15 @@ import {
   type SearchCriteria,
   type SkipReason as CountedSkipReason,
 } from "@jobhub/shared";
-import { atsToolOf, readAtsPosting } from "./ats";
+import { atsBoardToolOf, atsToolOf, readAtsBoard, readAtsPosting } from "./ats";
 import { DEFAULT_BUDGET, type JobDiscoveryBudget } from "./budget";
 import { DEFAULT_WEB_SEARCH_SETTINGS, type WebSearchSettings } from "./search-settings";
 import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
 import { listingPageLinks } from "./listing-page";
 import { searchPages } from "./search-pages";
+import type { TargetCompanies, TargetCompanyVisit } from "./target-companies";
+import { careersSiteOf, isForTheJob } from "./target-companies/careers-site";
 import {
   countJobPostings,
   createPoliteFetcher,
@@ -145,6 +156,8 @@ export { DEFAULT_WEB_SEARCH_SETTINGS, webSearchSettingsFromEnv, type WebSearchSe
 export type { RefusalReason } from "@jobhub/shared/page-reading";
 export { franceTravailFromEnv, type FranceTravail } from "./france-travail";
 export { chargedCostEur, eurPerJobFromEnv, fantasticJobsFromEnv, type FantasticJobs } from "./fantastic-jobs";
+export { franceTravailApisFromEnv } from "./france-travail/la-bonne-boite";
+export { createCityCodes, createTargetCompanies, targetCompanySettingsFromEnv, type TargetCompanies } from "./target-companies";
 
 /** Where Job Offers are stored. Satisfied by the web app's Job Offers module. */
 export interface JobOfferStore {
@@ -208,11 +221,17 @@ export interface JobDiscoveryOptions {
    * Sectors wanted by them. Default, and when it throws: none, so no Sector is named.
    */
   industries?: () => Promise<IndustryReference>;
+  /**
+   * The Profiles' Target Companies (#406), visited by a run for a Profile. Default: none. A getter is asked on each run.
+   */
+  targetCompanies?: TargetCompanies | null | (() => TargetCompanies | null);
 }
 
 export interface DiscoverRequest {
   /** The Candidate the search runs for (for AI usage and Plan Quotas). */
   candidateId: string;
+  /** The Profile the search runs for: its Target Companies are visited (#406). Default: none, so none are. */
+  profileId?: string;
   criteria: SearchCriteria;
   /** Where each step of the run goes as it starts and ends (the Job Search's progress). Default: nowhere. */
   onEvent?: (event: ProvenanceEvent) => void;
@@ -255,6 +274,8 @@ export interface DiscoveryReport {
   newJobOffers: number;
   /** Why the run ended. */
   stopReason: DiscoveryStopReason;
+  /** The Target Companies' part of the run (#406): La Bonne Boite's, how many were visited and the Job Offers they gave (in the funnel too). */
+  targetCompanies: TargetCompaniesMetrics;
   /**
    * The run's steps, recorded as it ran: the caller records its own after it (the Match Scores) and stores
    * `run.provenance()`, the run's Provenance, folded, with its wall-clock time until then.
@@ -264,6 +285,11 @@ export interface DiscoveryReport {
 
 /** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
 export type DiscoveryFunnel = Omit<DiscoveryMetrics["funnel"], "afterDedup" | "matched">;
+
+export type { TargetCompaniesMetrics } from "@jobhub/shared";
+
+/** The most postings read from one Target Company's ATS board in a run, as from a listing page. */
+const MAX_POSTINGS_PER_TARGET_COMPANY = 5;
 
 /** Job discovery failed part-way: `partial` is what the run found and measured until then. */
 export class JobDiscoveryError extends Error {
@@ -346,7 +372,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
   const forbiddenSites: readonly string[] = options.forbiddenSites ?? FORBIDDEN_SITES;
 
   return {
-    async discover({ candidateId, criteria, onEvent, signal }) {
+    async discover({ candidateId, profileId, criteria, onEvent, signal }) {
       const startedAt = clock.now();
       const budget: JobDiscoveryBudget = { ...DEFAULT_BUDGET, ...(typeof options.budget === "function" ? options.budget() : options.budget) };
       const web: WebSearchSettings = { ...DEFAULT_WEB_SEARCH_SETTINGS, ...(typeof options.search === "function" ? options.search() : options.search) };
@@ -397,6 +423,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         searches: [],
         newJobOffers: 0,
         stopReason: "exhausted",
+        targetCompanies: { laBonneBoite: "off", calls: 0, visited: 0, offers: 0 },
         run,
       };
       /** The Job Offers this run stored for the first time. */
@@ -590,6 +617,123 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       /** The job titles to search, planned once for every location. */
       let plan: Awaited<ReturnType<AiLayer["planJobSearch"]>> | undefined;
 
+      /** Whether this run has visited its Target Companies: once a run, whatever its locations. */
+      let targetsVisited = false;
+      /**
+       * The Profile's Target Companies (#406): each one's careers site read when known, else one web search « title +
+       * company », whose results are read like any others and may show its careers site, then kept. Never throws but
+       * when the run is stopped.
+       */
+      const visitTargetCompanies = async () => {
+        if (targetsVisited) return;
+        targetsVisited = true;
+        const targets = typeof options.targetCompanies === "function" ? options.targetCompanies() : options.targetCompanies;
+        if (!targets || !profileId || budgetSpent()) return;
+        const metrics = report.targetCompanies;
+        const before = found.size;
+        const now = () => new Date(clock.now());
+        const forRun = await targets.forRun({ candidateId, profileId, criteria, now: now(), step: (work) => recording().step({ tool: "france-travail" }, work) });
+        Object.assign(metrics, { laBonneBoite: forRun.laBonneBoite.status, calls: forRun.laBonneBoite.calls });
+        const visited: TargetCompanyVisit[] = [];
+        /** Those the register said are not companies: not visited, but recorded as such, never to be picked again. */
+        const notCompanies: TargetCompanyVisit[] = [];
+        const titles = plan?.queries.map((query) => query.title) ?? [criteria.targetRole];
+        let searchable = webSearch;
+        for (const visit of forRun.visits) {
+          if (budgetSpent()) break;
+          if (visit.careersSite) {
+            visited.push(visit);
+            await readCareersSite(visit.careersSite, titles);
+            continue;
+          }
+          // Without a careers site, one web search, as long as the run can search the web, and only under a company's
+          // name: the register is asked first, and a sole trader's name (a private person's) never leaves (ADR-0007).
+          const first = plan?.queries[0];
+          if (!searchable || !first) continue;
+          const searching = recording();
+          const vetted = await targets.webSearchName(visit, (work) => searching.step({ tool: "recherche-entreprises" }, work));
+          if ("refused" in vetted) {
+            // The register's definite « not a company » is kept: else it would take one of the run's places, and one
+            // register call, in every run. The register unreachable, it stays due, asked again next run.
+            if (vetted.refused === "not_a_company") notCompanies.push(visit);
+            continue;
+          }
+          const employer = vetted.name;
+          visited.push(visit);
+          try {
+            const search = await searching.ai
+              .searchWeb({ candidateId, criteria, query: first, employer, filters: searchFilters, route: queryWording.searchRoute, warnings: queryWording.warnings, run: webSearches })
+              .finally(() => (report.searchFallback = webSearches.fallback));
+            const searched = searching.provenance();
+            const results = [...new Set([...search.sources, ...urlsIn(search.answer)])];
+            const careersSite = results.map((url) => careersSiteOf(url, visit.name)).find((site) => site !== null);
+            if (careersSite) await targets.keepCareersSite(visit, careersSite, now());
+            const fresh = results.filter((url) => !providerUrls.has(url));
+            for (const url of fresh) providerUrls.add(url);
+            funnel.providerUrls = providerUrls.size;
+            // Recorded for Activité › Recherches (#404) before its pages are read, as the plan's searches are.
+            const fallback = webSearches.fallback;
+            const recorded: DiscoverySearch = {
+              kind: "target_company",
+              site: employer,
+              queries: search.queries ?? [],
+              page: 1,
+              provider: search.provider,
+              fallback: fallback !== null && search.provider === fallback.to,
+              results: results.length,
+              newJobOffers: 0,
+              costEur: Math.round(costInEur(search) * 1e6) / 1e6,
+            };
+            report.searches.push(recorded);
+            const createdBefore = created.size;
+            for (const url of fresh) {
+              if (budgetSpent()) break;
+              await read(url, true, search.sourceDates?.[url], searched);
+              recorded.newJobOffers = created.size - createdBefore;
+            }
+          } catch (error) {
+            if (signal?.aborted) throw error;
+            // The web search failing leaves the other Target Companies' careers sites to read; the run goes on.
+            searchable = false;
+            if (error instanceof WebSearchUnavailable) webSearch = false;
+            console.warn(`[job-discovery] a Target Company's web search failed, the others are not searched: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+        metrics.visited = visited.length;
+        metrics.offers = found.size - before;
+        await targets.visited(profileId, visited, now());
+        await targets.notACompany(profileId, notCompanies, now());
+      };
+
+      /**
+       * A Target Company's careers site: its ATS board read through the ATS's API, its postings for the Profile's job
+       * (`titles`) captured, at most MAX_POSTINGS_PER_TARGET_COMPANY; any other careers page read like a listing page.
+       */
+      const readCareersSite = async (site: string, titles: string[]) => {
+        const tool = settings.sources.ats_apis ? atsBoardToolOf(site) : null;
+        const reading = recording();
+        const answer = tool ? await reading.step({ tool }, () => readAtsBoard(site, { fetchJson: fetchAtsJson, now: new Date(clock.now()), maxAgeDays: web.maxPostingAgeDays })) : null;
+        if (!answer) {
+          // No board, or its API could not be read: the page itself, as a listing page.
+          await read(site, true, undefined, null);
+          return;
+        }
+        if (!answer.ok) {
+          skipped.push({ url: site, reason: answer.reason });
+          return;
+        }
+        const howFound = reading.provenance();
+        for (const posting of answer.postings.filter((each) => isForTheJob(each.details.title, titles)).slice(0, MAX_POSTINGS_PER_TARGET_COMPANY)) {
+          if (budgetSpent()) break;
+          if (seen.has(posting.url)) continue;
+          seen.add(posting.url);
+          funnel.fetched++;
+          const known = await storedAt(posting.url);
+          if (known) alreadyStored(posting.url, known);
+          else await capture(posting.url, posting.details, undefined, howFound);
+        }
+      };
+
       /** The web searches for one location, within its share of the budget. */
       const searchTheWeb = async (location: string) => {
         plan ??= await run.ai.planJobSearch({
@@ -615,6 +759,11 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         for (let next = pager.next(); next && !budgetSpent(); next = pager.next()) {
           const before = found.size;
           const { queries, site } = next.query;
+          // The Target Companies come after the plan's queries, before the Job discovery sites (#406).
+          if (site && !targetsVisited) {
+            await visitTargetCompanies();
+            if (budgetSpent()) break;
+          }
           const filters = site ? { ...searchFilters, includeDomains: [site] } : searchFilters;
           const searching = recording();
           const search = await searching.ai
@@ -662,15 +811,18 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             fantasticJobsSearched = true;
             await searchJobApi(fantasticJobs, "fantastic-jobs", report.fantasticJobs, location);
           }
-          if (budgetSpent() || !webSearch) continue;
-          try {
-            await searchTheWeb(location);
-          } catch (error) {
-            // Its key cleared during the run: the web search is skipped from now on, as when unavailable at its start.
-            if (!(error instanceof WebSearchUnavailable)) throw error;
-            webSearch = false;
-            console.warn(`[job-discovery] the web search became unavailable during the run: ${error.message}`);
+          if (!budgetSpent() && webSearch) {
+            try {
+              await searchTheWeb(location);
+            } catch (error) {
+              // Its key cleared during the run: the web search is skipped from now on, as when unavailable at its start.
+              if (!(error instanceof WebSearchUnavailable)) throw error;
+              webSearch = false;
+              console.warn(`[job-discovery] the web search became unavailable during the run: ${error.message}`);
+            }
           }
+          // Without Job discovery sites (or without the web search), the Target Companies come after the plan's queries.
+          if (!budgetSpent()) await visitTargetCompanies();
         }
       } catch (error) {
         report.jobOffers = [...found.values()];

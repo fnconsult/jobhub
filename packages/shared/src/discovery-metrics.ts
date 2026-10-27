@@ -82,6 +82,25 @@ export interface DiscoveryMetrics {
    * Reason that made it switch. Null when it did not; absent for a run from before the fallback.
    */
   searchFallback?: SearchFallbackMetrics | null;
+  /** The Target Companies' part (#406); absent for a run from before Target Companies were added. */
+  targetCompanies?: TargetCompaniesMetrics;
+}
+
+/**
+ * How La Bonne Boite's list of Target Companies went in a run: `off` (France Travail not configured, or no Profile),
+ * `kept` (fetched within the month), `searched` (fetched now), `refused` or `failed`.
+ */
+export type LaBonneBoiteStatus = "off" | "kept" | "searched" | "refused" | "failed";
+
+/** The Target Companies' part of a run (#406). */
+export interface TargetCompaniesMetrics {
+  laBonneBoite: LaBonneBoiteStatus;
+  /** HTTP calls made to France Travail for it (tokens, ROMEO, La Bonne Boite). */
+  calls: number;
+  /** Target Companies visited. */
+  visited: number;
+  /** Job Offers they gave, new or already stored, after the freshness rule. */
+  offers: number;
 }
 
 /** A run's switch to the fallback Search provider, by provider id and Failure Reason code. */

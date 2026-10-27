@@ -17,14 +17,19 @@
  */
 import { AiConfigError, createAiLayerFromEnv, type AiLayer, type CandidateIdentity, type UsageLog } from "@jobhub/ai";
 import { recordingFetch, type ExternalApiLog } from "@jobhub/shared";
+import { createFrenchRegister } from "@jobhub/web/company-register";
 import { liveMailer } from "@jobhub/web/mailers";
 import { AI_ROUTING_NAMES, createPlatformSettingsResolver, withPlatformSettings, type PlatformSettingsResolver } from "@jobhub/web/platform-settings";
 import { AI_SECRET_NAMES, FANTASTIC_JOBS_SECRET_NAMES, FRANCE_TRAVAIL_SECRET_NAMES, liveObject, rebuilding, type SecretResolver } from "@jobhub/web/provider-secrets";
+import type { TargetCompanyStore } from "@jobhub/web/target-companies";
 import {
   chargedCostEur,
+  createCityCodes,
   createJobDiscovery,
+  createTargetCompanies,
   eurPerJobFromEnv,
   fantasticJobsFromEnv,
+  franceTravailApisFromEnv,
   franceTravailFromEnv,
   type FantasticJobs,
   type FranceTravail,
@@ -51,6 +56,10 @@ export interface WorkerClientsOptions {
   taskPlaybooks?: JobDiscoveryOptions["taskPlaybooks"];
   /** The NAF and ROME-domain labels the web searches name the Sectors wanted by (#236). */
   industries?: JobDiscoveryOptions["industries"];
+  /** The Profiles' Target Companies and the careers site register (#406). Without them, a run visits none. */
+  targetCompanies?: TargetCompanyStore;
+  /** How many Target Companies a run visits and how soon one is visited again, read on each run. Default: the catalog's. */
+  targetCompanySettings?: () => { max: number; revisitDays: number };
   /** Whether a Candidate gave EU AI consent (ADR-0007). */
   euAiConsent?: (candidateId: string) => Promise<boolean>;
   /** What is known of a Candidate's identity, taken out of each of their AI calls (ADR-0007). Default: emails and phone numbers alone. */
@@ -118,6 +127,18 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
   );
   const fantasticJobs = () => (fantasticJobsConfigured() ? liveFantasticJobs : null);
 
+  // La Bonne Boite and ROMEO (#406), under France Travail's credentials too, each call recorded at no cost like its offers'.
+  const franceTravailApis = rebuilding(resolver, FRANCE_TRAVAIL_SECRET_NAMES, (env) => franceTravailApisFromEnv(env, { fetch: franceTravailFetch }));
+  // geo.api.gouv.fr, free: the commune of a Profile's place, for La Bonne Boite's radius.
+  const geoFetch = options.externalApis
+    ? recordingFetch(options.fetch ?? globalThis.fetch, options.externalApis, { provider: "geo-api-gouv", costEur: () => 0 })
+    : options.fetch;
+  // The French company register, free: a Target Company's name is web-searched only once it lists it as a company (ADR-0007).
+  const register = createFrenchRegister({ ...(options.fetch ? { fetch: options.fetch } : {}), ...(options.externalApis ? { externalApis: options.externalApis } : {}) });
+  const targetCompanies = options.targetCompanies
+    ? createTargetCompanies({ store: options.targetCompanies, franceTravail: () => franceTravailApis(), cityCodes: createCityCodes({ fetch: geoFetch }), register, settings: options.targetCompanySettings, log })
+    : null;
+
   // Built again whenever an AI key or routing setting changes: a key entered later turns Job discovery on.
   const discovery = rebuilding(aiResolver, aiNames, (env): JobDiscovery | DiscoveryUnavailable => {
     let built: AiLayer;
@@ -131,7 +152,7 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
     }
     // Without its Search provider's key, Job discovery still runs, its web search skipped like a source that is off (#399).
     if (!built.webSearchAvailable()) log("[worker] Job discovery runs without the web search: its Search provider's key is not set");
-    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, search: options.search, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis });
+    return createJobDiscovery({ ai, jobOffers: options.jobOffers, budget: options.budget, search: options.search, franceTravail, fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, fetch: options.fetch, externalApis: options.externalApis, targetCompanies });
   });
 
   // Rebuilt when Brevo's key or MAIL_FROM changes in the Back Office. Each email sent is recorded with the other

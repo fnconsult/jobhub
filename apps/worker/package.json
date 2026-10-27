@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "rome:check": "tsx scripts/check-rome-table.ts"
   },
   "dependencies": {
     "@jobhub/ai": "*",

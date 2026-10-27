@@ -38,6 +38,7 @@ import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateSignalements } from "./signalements/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
+import { migrateTargetCompanies } from "./target-companies/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
 
 /**
@@ -69,6 +70,7 @@ export async function migrateDatabase(
     ["Job Searches are up to date", () => migrateJobSearches(database)],
     ["Job Digests are up to date", () => migrateJobDigests(database)],
     ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
+    ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],

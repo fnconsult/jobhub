@@ -145,6 +145,24 @@ describe("what reaches the web-search provider (ADR-0007)", () => {
   });
 });
 
+describe("searching a Target Company's postings (#406)", () => {
+  it("searches one of the plan's job titles with the company's name, cleaned, and nothing else of the Search Criteria", async () => {
+    const { ai, perplexity, planned } = searchLayer();
+
+    await ai.searchWeb({ candidateId: "cand-1", criteria, query: await planned("Directeur Financier", "fr"), employer: "  ACME   Industrie contact@acme.fr " });
+
+    expect(perplexity.queries).toEqual(['Directeur Financier "ACME Industrie"']);
+  });
+
+  it("refuses a job title the plan did not issue, as for any query", async () => {
+    const { ai, perplexity } = searchLayer();
+    const forged = { title: "Jean Dupont", language: "fr" } as unknown as JobSearchQuery;
+
+    await expect(ai.searchWeb({ candidateId: "cand-1", criteria, query: forged, employer: "ACME" })).rejects.toThrow(DataResidencyError);
+    expect(perplexity.queries).toEqual([]);
+  });
+});
+
 describe("planning a Job Search", () => {
   function planningLayer(reply: string | (() => string)) {
     const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu" });

@@ -98,6 +98,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coaching_playbook", // issue #225: the Coaching Playbooks, the Core Digest and the Sources list
         "coaching_session", // issue #24: Coaching Sessions paid through Stripe
         "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
+        "company_careers_site", // issue #406: public careers sites / ATS found per company, shared, no Candidate
         "company_dossier", // issue #17
         "discovery_run", // issue #404: the figures of a Job discovery run, with no Candidate
         "discovery_run_detail", // issue #404: what ties a run to its Candidate, kept 30 days
@@ -137,6 +138,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "signalement", // issue #374: the Candidate's Signalements (Bug / Idée / Question)
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
+        "target_company", // issue #406: a Profile's Target Companies
+        "target_company_refresh", // issue #406: what a Profile's La Bonne Boite companies were last fetched for
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
         "workflow_agent_run",
@@ -240,6 +243,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // A Tailored CV (issue #18) goes with its Application.
         { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },
+        // Target Companies (issue #406) go with their Candidate and their Profile.
+        { from_table: "target_company", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "target_company", from_column: "profile_id", to_table: "profile" },
+        { from_table: "target_company_refresh", from_column: "profile_id", to_table: "profile" },
       ]);
       // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0032); re-running keeps them.
       const startingQuotas = [

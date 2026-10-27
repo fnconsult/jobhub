@@ -119,6 +119,19 @@ export function buildSearchQuery(
 }
 
 /**
+ * The only text sent to the web-search provider to find a Target Company's postings (#406): one of the Job
+ * Search's job titles, as `planJobSearch` issued it, and the company's name, both cleaned like Search Criteria.
+ * The name must be a company's, never a person's (ADR-0007, #406 amendment): the caller passes it only once the company
+ * register lists it as a company (`webSearchableName` in @jobhub/web/target-companies), so no sole trader's name is sent.
+ */
+export function buildTargetCompanyQuery(query: JobSearchQuery | undefined, company: string): string {
+  if (query === undefined || !issued.has(query)) {
+    throw new DataResidencyError("A Target Company query must name a job title planJobSearch issued: no other text may reach the web-search provider");
+  }
+  return `${clean(query.title)} "${clean(company).replace(/"/g, "")}"`;
+}
+
+/**
  * How many job titles per language a Job Search's queries take (the Search Criteria's own and its variants), and in
  * which languages they are worded, in this order: the web search's Platform Settings (#402). By default, 3 titles in
  * French and English.

@@ -82,7 +82,25 @@ export interface DiscoveryMetrics {
    * Reason that made it switch. Null when it did not; absent for a run from before the fallback.
    */
   searchFallback?: SearchFallbackMetrics | null;
+  /** Why the run ended (#408); absent for a run that failed, and for one from before it was kept. */
+  stopReason?: RunStopReason;
+  /** Where `costEur` went, per item (#408); absent for a run from before it was kept. */
+  costByItem?: Record<RunCostItem, number>;
 }
+
+/**
+ * Why a Job discovery run ended (#408): the first limit of its Job discovery budget it reached (`job_offers`, `spend`,
+ * `duration`), its searches ran out before any (`searches_done`), or the Candidate stopped it (`stopped`).
+ */
+export const RUN_STOP_REASONS = ["job_offers", "spend", "duration", "searches_done", "stopped"] as const;
+export type RunStopReason = (typeof RUN_STOP_REASONS)[number];
+
+/**
+ * The items a run's AI cost goes to (#408): reading pages (the LLM), the plan (job title variants), the web
+ * searches, and visiting the Target Companies (their web searches and the pages read from them).
+ */
+export const RUN_COST_ITEMS = ["page_reading", "plan", "web_search", "target_companies"] as const;
+export type RunCostItem = (typeof RUN_COST_ITEMS)[number];
 
 /** A run's switch to the fallback Search provider, by provider id and Failure Reason code. */
 export interface SearchFallbackMetrics {

@@ -120,6 +120,8 @@ import {
   type JobOfferDetails,
   type Provenance,
   type ProvenanceEvent,
+  type RunCostItem,
+  type RunStopReason,
   type SearchCriteria,
   type SkipReason as CountedSkipReason,
 } from "@jobhub/shared";
@@ -268,6 +270,13 @@ export interface DiscoveryReport {
   /** The Target Companies' part of the run (#406): La Bonne Boite's, how many were visited and the Job Offers they gave (in the funnel too). */
   targetCompanies: TargetCompaniesMetrics;
   /**
+   * Why the run ended (#408), once it did: the first limit of the whole budget it had reached, in the order Job Offers,
+   * spend, duration; else its searches ran out; or the Candidate stopped it. Null while it runs, and in a failed run's report.
+   */
+  stopReason: RunStopReason | null;
+  /** Where `costEur` went, per item (#408): whatever a Target Company's visit cost (its search, its pages) is `target_companies`. */
+  costByItem: Record<RunCostItem, number>;
+  /**
    * The run's steps, recorded as it ran: the caller records its own after it (the Match Scores) and stores
    * `run.provenance()`, the run's Provenance, folded, with its wall-clock time until then.
    */
@@ -411,7 +420,12 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         clock,
       });
       const found = new Map<string, JobOffer>();
-      const ai = costing(stoppable(options.ai, signal), (eur) => (report.costEur += eur));
+      /** Set while the Target Companies are visited: what their searches and pages cost is their item (#408). */
+      let visitingTargets = false;
+      const ai = costing(stoppable(options.ai, signal), (eur, item) => {
+        report.costEur += eur;
+        report.costByItem[visitingTargets ? "target_companies" : item] += eur;
+      });
       const run = createProvenanceRecorder(ai, { now: () => new Date(clock.now()), onEvent });
       const report: DiscoveryReport = {
         jobOffers: [],
@@ -422,6 +436,8 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
         searchFallback: null,
         targetCompanies: { laBonneBoite: "off", calls: 0, visited: 0, offers: 0 },
+        stopReason: null,
+        costByItem: { page_reading: 0, plan: 0, web_search: 0, target_companies: 0 },
         run,
       };
       /** The run's web searches: once the Search provider fails, the rest go to its fallback (ADR-0043). */
@@ -449,11 +465,16 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       /** The share of the budget the location being searched may use up to (k/n for the k-th of n locations). */
       let share = 1;
       // The Candidate stopping the run spends it too: no step starts after.
-      const budgetSpent = () =>
-        signal?.aborted === true ||
-        found.size >= budget.jobOffers * share ||
-        report.costEur >= budget.spendEur * share ||
-        clock.now() - startedAt >= budget.seconds * 1000 * share;
+      /** The limit of the budget's `part` reached first, in the order Job Offers, spend, duration; null while none is. */
+      const limitReached = (part: number): RunStopReason | null => {
+        if (found.size >= budget.jobOffers * part) return "job_offers";
+        if (report.costEur >= budget.spendEur * part) return "spend";
+        if (clock.now() - startedAt >= budget.seconds * 1000 * part) return "duration";
+        return null;
+      };
+      const budgetSpent = () => signal?.aborted === true || limitReached(share) !== null;
+      /** Why the run ended (#408): stopped by the Candidate, the whole budget's first limit reached, else its searches ran out. */
+      const ended = (): RunStopReason => (signal?.aborted ? "stopped" : (limitReached(1) ?? "searches_done"));
       /** Each ATS API URL's answer in this run: an Ashby board holds all its employer's postings, downloaded once. */
       const atsAnswers = new Map<string, Promise<JsonResult>>();
       const fetchAtsJson = (api: string) => {
@@ -621,6 +642,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         targetsVisited = true;
         const targets = typeof options.targetCompanies === "function" ? options.targetCompanies() : options.targetCompanies;
         if (!targets || !profileId || budgetSpent()) return;
+        visitingTargets = true;
+        try {
+          await visitEach(targets, profileId);
+        } finally {
+          visitingTargets = false;
+        }
+      };
+      const visitEach = async (targets: TargetCompanies, profileId: string) => {
         const metrics = report.targetCompanies;
         const before = found.size;
         const now = () => new Date(clock.now());
@@ -786,10 +815,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       } catch (error) {
         report.jobOffers = [...found.values()];
         // Stopped by the Candidate, the AI call on its way broke: the run reports what it found, as when stopped between steps.
-        if (signal?.aborted) return report;
+        if (signal?.aborted) {
+          report.stopReason = "stopped";
+          return report;
+        }
         throw new JobDiscoveryError(report, error);
       }
       report.jobOffers = [...found.values()];
+      report.stopReason = ended();
       return report;
     },
   };
@@ -822,26 +855,27 @@ function stoppable(ai: AiLayer, signal: AbortSignal | undefined): AiLayer {
  * The AI layer, telling `spend` what AI Usage recorded each call made through it cost, in € (#403): the run's budget
  * spends the same cost, each billed unit at the price in use, never an estimate of its own.
  */
-function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
+function costing(ai: AiLayer, spend: (eur: number, item: RunCostItem) => void): AiLayer {
   return {
+    // Job discovery generates text only to read a page.
     async generate(request) {
       const result = await ai.generate(request);
-      spend(result.costEur);
+      spend(result.costEur, "page_reading");
       return result;
     },
     async planJobSearch(request) {
       const plan = await ai.planJobSearch(request);
-      if (plan.call) spend(plan.call.costEur);
+      if (plan.call) spend(plan.call.costEur, "plan");
       return plan;
     },
     async searchWeb(request) {
       const result = await ai.searchWeb(request);
-      spend(result.costEur);
+      spend(result.costEur, "web_search");
       return result;
     },
     async searchCompany(request) {
       const result = await ai.searchCompany(request);
-      spend(result.costEur);
+      spend(result.costEur, "web_search");
       return result;
     },
     // Only a Company Dossier searches for Company News: Job discovery never does.

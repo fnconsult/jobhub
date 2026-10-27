@@ -1245,6 +1245,21 @@ describe("Job discovery", () => {
       expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.001 + 2 * 0.000175) * 0.86, 9);
     });
 
+    it("splits that cost by item: the plan, the web searches and the pages read, no Target Company visited (#408)", async () => {
+      const listing2 = "https://emplois.example.fr/offres?q=raf";
+      const { discovery } = setup({
+        sources: [listing, listing2, DAF_URL],
+        pages: { [listing]: { body: "<html><body>Offres</body></html>" }, [listing2]: { body: "<html><body>Offres</body></html>" }, [DAF_URL]: { body: posting } },
+      });
+
+      const { costByItem } = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(costByItem.plan).toBeCloseTo(0.0000125 * 0.86, 12);
+      expect(costByItem.web_search).toBeCloseTo(2 * 0.001 * 0.86, 12);
+      expect(costByItem.page_reading).toBeCloseTo(2 * 0.000175 * 0.86, 12);
+      expect(costByItem.target_companies).toBe(0);
+    });
+
     it("spends what AI Usage recorded: a run's budget spend equals the sum of its recorded AI Usage costs (#403)", async () => {
       const listing2 = "https://emplois.example.fr/offres?q=raf";
       const { discovery, usage } = setup({
@@ -1363,6 +1378,51 @@ describe("Job discovery", () => {
 
       expect(report.jobOffers).toHaveLength(3);
       expect(web.fetched().filter((url) => urls.includes(url))).toEqual(urls.slice(0, 3));
+    });
+
+    describe("says why it stopped, for the Back Office Dashboard (#408)", () => {
+      it("the Job Offers cap, once it has as many as the budget allows", async () => {
+        const urls = postings(5);
+        const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting), budget: { jobOffers: 2 } });
+
+        expect((await discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("job_offers");
+      });
+
+      it("the spend, once its AI calls cost the budget's euros", async () => {
+        const urls = postings(5);
+        const { discovery } = setup({
+          sources: urls,
+          pages: pagesFor(urls, () => ({ body: "<html><body><h1>Offres DAF</h1></body></html>" })),
+          llmUsage: { inputTokens: 10_000, outputTokens: 0 },
+        });
+
+        expect((await discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("spend");
+      });
+
+      it("the duration, once it has run the budget's seconds", async () => {
+        const urls = postings(5);
+        const { discovery } = setup({ sources: urls, pages: pagesFor(urls, (url, index) => ({ ...posting(url, index), delayMs: 40_000 })) });
+
+        expect((await discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("duration");
+      });
+
+      it("its searches ran out, before any limit", async () => {
+        const urls = postings(3);
+        const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting) });
+
+        expect((await discovery.discover({ candidateId: "c", criteria })).stopReason).toBe("searches_done");
+      });
+
+      it("the Candidate stopped it", async () => {
+        const urls = postings(3);
+        const { discovery } = setup({ sources: urls, pages: pagesFor(urls, posting) });
+        const stop = new AbortController();
+        const onEvent = (event: ProvenanceEvent) => {
+          if (event.type === "step_ended" && event.step.kind === "tool" && event.step.tool === "job-site") stop.abort();
+        };
+
+        expect((await discovery.discover({ candidateId: "c", criteria, onEvent, signal: stop.signal })).stopReason).toBe("stopped");
+      });
     });
 
     it("takes its limits from the configured budget", async () => {

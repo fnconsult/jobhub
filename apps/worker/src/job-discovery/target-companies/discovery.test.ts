@@ -157,6 +157,17 @@ describe("Job discovery visits the Profile's Target Companies (#406)", () => {
     expect(report.targetCompanies).toEqual({ laBonneBoite: "searched", calls: 2, visited: 2, offers: 0 });
   });
 
+  it("counts the cost of visiting them apart, as the run's Target Companies item (#408)", async () => {
+    const { discovery } = setup({});
+
+    const report = await discovery.discover({ candidateId: "candidate-1", profileId: "profile-1", criteria });
+
+    // One Perplexity search ($0.001) per Target Company without a careers site, at €0.86 per $.
+    expect(report.costByItem.target_companies).toBeCloseTo(2 * 0.001 * 0.86, 9);
+    expect(report.costByItem.web_search).toBeCloseTo(2 * 0.001 * 0.86, 9);
+    expect(Object.values(report.costByItem).reduce((sum, eur) => sum + eur, 0)).toBeCloseTo(report.costEur, 12);
+  });
+
   it("finds a company's ATS board through that search, captures its posting, and keeps the board for every Profile", async () => {
     const store = memoryTargetCompanies();
     const posting = "https://job-boards.greenhouse.io/acme/jobs/1001";

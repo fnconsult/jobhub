@@ -100,6 +100,7 @@ export default defineConfig({
       AI_COACHING_PROVIDER: "mistral",
       AI_CV_PARSING_PROVIDER: "mistral",
       AI_OFFER_ANALYSIS_PROVIDER: "mistral",
+      AI_OFFER_EMAIL_READING_PROVIDER: "mistral",
       MISTRAL_API_KEY: "e2e-mistral-key",
       // An older .env's endpoint (ADR-0033): Paramètres shows it from env, flagged as differing from the default (#298).
       // No task runs on Claude here, and no Claude key is set, so nothing reaches Bedrock.

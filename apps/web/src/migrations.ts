@@ -20,6 +20,7 @@ import { migrateCoachingPlaybooks } from "./coaching-playbooks/index";
 import { migrateCoachMemory } from "./coach-memory/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateDiscoveryRuns } from "./discovery-runs/index";
+import { migrateEmailIntake } from "./email-intake/index";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateEvals } from "./evals/index";
@@ -91,6 +92,7 @@ export async function migrateDatabase(
     ["Reference data is up to date", () => migrateReferenceData(database)],
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
     ["Signalements are up to date", () => migrateSignalements(database)],
+    ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

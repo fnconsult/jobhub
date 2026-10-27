@@ -156,6 +156,29 @@ export function createEmailIntake(database: Pool, options: EmailIntakeOptions): 
   };
 }
 
+/** The Candidate's Email intake, as their Data export holds it. */
+export interface ExportedEmailIntake {
+  /** Every Forwarding address given to them, newest first: the one in use, and those replaced or switched off, with when they stopped. */
+  forwardingAddresses: { address: string; state: "active" | "replaced" | "off"; activatedAt: Date; endedAt: Date | null }[];
+  /** The sending addresses they added, oldest first (their account's is the account's own email). */
+  sendingAddresses: { address: string; addedAt: Date }[];
+}
+
+/** The Candidate's Email intake for their Data export (ADR-0051). */
+export async function emailIntakeOf(database: Pool, candidateId: string): Promise<ExportedEmailIntake> {
+  const [forwardingAddresses, sendingAddresses] = await Promise.all([
+    database.query<ExportedEmailIntake["forwardingAddresses"][number]>(
+      `SELECT address, state, activated_at AS "activatedAt", ended_at AS "endedAt" FROM forwarding_address WHERE candidate_id = $1 ORDER BY activated_at DESC, address`,
+      [candidateId],
+    ),
+    database.query<ExportedEmailIntake["sendingAddresses"][number]>(
+      `SELECT address, added_at AS "addedAt" FROM sending_address WHERE candidate_id = $1 ORDER BY added_at, address`,
+      [candidateId],
+    ),
+  ]);
+  return { forwardingAddresses: forwardingAddresses.rows, sendingAddresses: sendingAddresses.rows };
+}
+
 /** Creates or upgrades the Email intake tables. Run after the Candidate table. Safe to run repeatedly. */
 export async function migrateEmailIntake(database: Pool): Promise<void> {
   await database.query(`

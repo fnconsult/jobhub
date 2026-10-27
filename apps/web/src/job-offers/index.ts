@@ -521,6 +521,18 @@ export function createJobOffers(database: Pool): JobOffers {
   };
 }
 
+/** A Job Offer private to a Candidate, as their Data export holds it: when it was stored, too. */
+export type ExportedPrivateJobOffer = JobOffer & { createdAt: Date };
+
+/** The Job Offers private to the Candidate (ADR-0049), newest first: what their Data export holds of them. */
+export async function privateJobOffersOf(database: Pool, candidateId: string): Promise<ExportedPrivateJobOffer[]> {
+  const { rows } = await database.query<JobOfferRow & { created_at: Date }>(
+    `SELECT ${COLUMNS}, created_at FROM job_offer WHERE private_to_candidate_id = $1 ORDER BY created_at DESC, id`,
+    [candidateId],
+  );
+  return rows.map((row) => ({ ...jobOfferFrom(row), createdAt: row.created_at }));
+}
+
 /** Creates or upgrades the Job Offer table. Safe to run repeatedly. */
 export async function migrateJobOffers(database: Pool): Promise<void> {
   await database.query(`

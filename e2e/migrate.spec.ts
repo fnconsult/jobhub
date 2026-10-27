@@ -64,6 +64,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date");
     expect(first.stdout).toContain("Guardrails are up to date");
     expect(first.stdout).toContain("Eval Cases and Eval Runs are up to date");
+    expect(first.stdout).toContain("Forwarding addresses are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -110,6 +111,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
         "follow_up_delay", // issue #21: each Candidate's Follow-up Delays
         "follow_up_sent", // issue #21: the Follow-ups marked as sent
+        "forwarding_address", // issue #441: the Candidate's Forwarding address, replaced or switched off ones kept with their dates
         "guardrail_message", // issue #228: the Guardrail messages, each version Human-validated apart
         "guardrail_setting", // issue #228: block or flag only, per Guardrail
         "guardrail_trigger", // issue #228: each block, flag or unavailable check, no Candidate, no text
@@ -132,6 +134,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
+        "sending_address", // issue #441: the sending addresses a Candidate adds for manual forwards
         "session",
         "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
         "sign_in_setting", // issue #209: Require SSO for Administrators
@@ -221,6 +224,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.
         { from_table: "follow_up_delay", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "follow_up_sent", from_column: "application_id", to_table: "application" },
+        // Email intake (issue #441): the Forwarding address goes with its Candidate.
+        { from_table: "forwarding_address", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "interview", from_column: "application_id", to_table: "application" },
         { from_table: "interview_reschedule", from_column: "interview_id", to_table: "interview" },
         // Job Digests and their opt-ins (issue #15) go with their Profile (ADR-0010).
@@ -238,6 +243,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
+        // Email intake (issue #441): the sending addresses go with their Candidate.
+        { from_table: "sending_address", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
         // Signalements (issue #374) go with their Candidate.
         { from_table: "signalement", from_column: "candidate_id", to_table: "candidate" },

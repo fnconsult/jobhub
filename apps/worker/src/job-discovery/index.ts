@@ -100,7 +100,7 @@
  * it stores the run's Provenance. A failed run's partial report has it too.
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { costInEur, createProvenanceRecorder, createWebSearchRun, readJobPage, WebSearchUnavailable, type AiLayer, type SearchFallback, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
+import { createProvenanceRecorder, createWebSearchRun, readJobPage, WebSearchUnavailable, type AiLayer, type SearchFallback, type JobSearchQuery, type ProvenanceRecorder, type SearchFilters, type StepTool } from "@jobhub/ai";
 import { servedTaskRun, taskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import {
   believablePostingDate,
@@ -682,7 +682,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
               fallback: fallback !== null && search.provider === fallback.to,
               results: results.length,
               newJobOffers: 0,
-              costEur: Math.round(costInEur(search) * 1e6) / 1e6,
+              costEur: Math.round(search.costEur * 1e6) / 1e6,
             };
             report.searches.push(recorded);
             const createdBefore = created.size;
@@ -786,7 +786,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             fallback: fallback !== null && search.provider === fallback.to,
             results: given.length,
             newJobOffers: 0,
-            costEur: Math.round(costInEur(search) * 1e6) / 1e6,
+            costEur: Math.round(search.costEur * 1e6) / 1e6,
           };
           report.searches.push(recorded);
           const createdBefore = created.size;
@@ -873,27 +873,30 @@ function stoppable(ai: AiLayer, signal: AbortSignal | undefined): AiLayer {
   };
 }
 
-/** The AI layer, telling `spend` the cost in € of each call made through it. */
+/**
+ * The AI layer, telling `spend` what AI Usage recorded each call made through it cost, in € (#403): the run's budget
+ * spends the same cost, each billed unit at the price in use, never an estimate of its own.
+ */
 function costing(ai: AiLayer, spend: (eur: number) => void): AiLayer {
   return {
     async generate(request) {
       const result = await ai.generate(request);
-      spend(costInEur(result));
+      spend(result.costEur);
       return result;
     },
     async planJobSearch(request) {
       const plan = await ai.planJobSearch(request);
-      if (plan.call) spend(costInEur(plan.call));
+      if (plan.call) spend(plan.call.costEur);
       return plan;
     },
     async searchWeb(request) {
       const result = await ai.searchWeb(request);
-      spend(costInEur(result));
+      spend(result.costEur);
       return result;
     },
     async searchCompany(request) {
       const result = await ai.searchCompany(request);
-      spend(costInEur(result));
+      spend(result.costEur);
       return result;
     },
     // Only a Company Dossier searches for Company News: Job discovery never does.

@@ -284,6 +284,19 @@ describe("AI layer configured from the environment", () => {
     expect(() => createAiLayerFromEnv({ AI_FAKE: "true", NODE_ENV: "production" })).toThrow(AiConfigError);
   });
 
+  it("records each billed unit at the price env holds, else its list price (#403)", async () => {
+    const searchOnce = async (env: Record<string, string>) => {
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayerFromEnv({ AI_FAKE: "true", AI_WEB_SEARCH_PROVIDER: "perplexity", ...env }, { usage });
+      await ai.searchCompany({ candidateId: null, employer: "Acme" });
+      return usage.entries[0]!.tools[0]!.costEur;
+    };
+
+    // The fake's search type is not "web": the fast price.
+    expect(await searchOnce({})).toBeCloseTo(0.001 * 0.86, 12);
+    expect(await searchOnce({ PERPLEXITY_FAST_SEARCH_PRICE_USD: "0.003", EUR_PER_USD: "0.9" })).toBeCloseTo(0.003 * 0.9, 12);
+  });
+
   describe("EU AI consent (ADR-0007 amendment)", () => {
     const consenting = { euAiConsent: async (candidateId: string) => candidateId === "consenting" };
 

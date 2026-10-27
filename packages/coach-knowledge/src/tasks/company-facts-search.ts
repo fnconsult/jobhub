@@ -19,7 +19,7 @@ export const companyFactsSearch = {
   validatedAtImport: true,
   sections: [
     { key: "requête", label: "requête envoyée au moteur de recherche", slots: ["entreprise"] },
-    { key: "lecture", label: "consigne du Playbook Agent qui lit les pages trouvées" },
+    { key: "lecture", label: "consigne du Playbook Agent qui lit les pages trouvées", agent: true },
   ],
   maxLength: 4000,
   firstVersion: {

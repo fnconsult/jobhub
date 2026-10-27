@@ -15,7 +15,7 @@
  * is missing is shown, never refused.
  */
 import { taskRouteFromEnv, TEXT_TASKS, type Effort, type ProviderId, type TextTask } from "@jobhub/ai";
-import { taskPlaybookSeed, type TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
+import { runsOnAgent, taskPlaybookSeed, type TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
 import { TOOLS, type Tool } from "@jobhub/shared";
 import type { CoachingPlaybook, PlaybookAgent, PlaybookSearch, PlaybookVersion } from "../coaching-playbooks";
 import { toolStatus } from "../tools/index";
@@ -161,23 +161,26 @@ export function searchTaskRows(playbooks: readonly PlaybookWithVersions[], state
     const found = playbooks.find(({ playbook }) => playbook.id === id);
     const row = found ? rowOf(found, state) : null;
     const served = found?.playbook.served ?? null;
-    const named = seed.agent ? served?.agent : served?.search;
+    // As the task runs it: a served version without the section its agent reads runs its search alone (#405).
+    const onAgent = runsOnAgent(id, served?.content ?? seed.instructions);
+    const named = onAgent ? served?.agent : served?.search;
+    const routeTask = onAgent || !seed.search ? seed.aiTask : "web_search";
     let route: { provider: ProviderId; model?: string };
     try {
-      route = taskRouteFromEnv(env, seed.aiTask as Parameters<typeof taskRouteFromEnv>[1]);
+      route = taskRouteFromEnv(env, routeTask as Parameters<typeof taskRouteFromEnv>[1]);
     } catch {
       return [];
     }
     const provider = named?.provider ?? route.provider;
-    const routeSetting = state.settings.setting(providerSetting(seed.aiTask));
+    const routeSetting = state.settings.setting(providerSetting(routeTask));
     return [
       {
         id,
         title: found?.playbook.title ?? seed.title,
         provider,
         model: named ? named.model : (route.model ?? null),
-        effort: seed.agent && served?.agent ? served.agent.effort : null,
-        source: named && served ? { kind: "playbook", version: served.version } : { kind: "setting", name: providerSetting(seed.aiTask), source: routeSetting?.source ?? "default" },
+        effort: onAgent && served?.agent ? served.agent.effort : null,
+        source: named && served ? { kind: "playbook", version: served.version } : { kind: "setting", name: providerSetting(routeTask), source: routeSetting?.source ?? "default" },
         keyMissing: keyMissing(state, provider),
         playbook: row,
       },

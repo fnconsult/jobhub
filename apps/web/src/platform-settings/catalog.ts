@@ -11,7 +11,7 @@
  * other variables the code reads. Every variable the code reads is one or the other, or a
  * Provider Secret (a test scans the code for them).
  */
-import { AI_ROUTING_SETTINGS } from "@jobhub/ai";
+import { AI_ROUTING_SETTINGS, PRICE_SETTINGS } from "@jobhub/ai";
 import { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/mailers";
 import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
@@ -21,7 +21,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -79,6 +79,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN", group: "web_search", type: whole(0, 10), default: "5" },
   { name: "JOB_DISCOVERY_COMPANY_REVISIT_DAYS", group: "web_search", type: whole(1, 30), default: "7" },
   { name: "WEB_SEARCH_MONTHLY_ALERT_EUR", group: "web_search", type: decimal(0, 1000), default: "2" },
+  // The price of each Tool's billed unit and the EUR/USD rate (#403, ADR-0042): list prices in code, overridden on the
+  // Tool's sheet. AI Usage records each call at the prices in use, and a Job discovery run's budget spends that cost.
+  ...PRICE_SETTINGS.map((price): PlatformSetting => ({ name: price.name, group: "prices", type: price.unit === "rate" ? decimal(0.01, 100) : decimal(0, 100), default: price.default })),
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
@@ -107,7 +110,7 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
  * AI routing (#301), the email sender (#300), Enriched Contacts (#302) and the extension's store page (#303).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "web_search", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "web_search", "prices", "email", "job_digest", "job_discovery", "enriched_contacts", "extension"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);

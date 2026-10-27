@@ -45,6 +45,10 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     for (const name of ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_RESULTS_PER_QUERY", "JOB_DISCOVERY_QUERY_LANGUAGES", "WEB_SEARCH_MONTHLY_ALERT_EUR"]) {
       expect(settingHref(name), name).toBe(`/admin/parametres?tab=recherche-web#setting-${name}`);
     }
+    // A Tool's price on its sheet, the EUR/USD rate on Recherche web (#403).
+    expect(settingHref("PERPLEXITY_FAST_SEARCH_PRICE_USD")).toBe("/admin/parametres?tab=recherche-web&fournisseur=perplexity#setting-PERPLEXITY_FAST_SEARCH_PRICE_USD");
+    expect(settingHref("TAVILY_CREDIT_PRICE_USD")).toBe("/admin/parametres?tab=recherche-web&fournisseur=tavily#setting-TAVILY_CREDIT_PRICE_USD");
+    expect(settingHref("EUR_PER_USD")).toBe("/admin/parametres?tab=recherche-web#setting-EUR_PER_USD");
     expect(settingHref("AI_IDENTITY_MODEL")).toBe("/admin/parametres?tab=ia#setting-AI_IDENTITY_MODEL");
     expect(settingHref("JOB_DISCOVERY_BUDGET_EUR")).toBe("/admin/parametres?tab=sources#setting-JOB_DISCOVERY_BUDGET_EUR");
     expect(settingHref("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("/admin/parametres?tab=enrichissement#setting-CONTACT_ENRICHMENT_DPA_SIGNED");

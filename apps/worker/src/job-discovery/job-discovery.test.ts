@@ -1,6 +1,6 @@
 import { AiProviderError, createAiLayer } from "@jobhub/ai";
-import type { SearchOptions } from "@jobhub/ai";
-import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
+import type { SearchOptions, ToolCall } from "@jobhub/ai";
+import { createFakeProvider, createMemoryUsageLog, type FakeProvider, type MemoryUsageLog } from "@jobhub/ai/testing";
 import { DEFAULT_JOB_DISCOVERY_SETTINGS, type IndustryReference, type Provenance, type ProvenanceEvent, type JobDiscoverySettings, type JobOffer, type SearchCriteria } from "@jobhub/shared";
 import type { TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { readFileSync } from "node:fs";
@@ -127,22 +127,29 @@ function setup(options: {
   search?: Partial<WebSearchSettings> | (() => Partial<WebSearchSettings>);
   /** The active Search provider's key is missing: web search is unavailable (#399). */
   searchKeyMissing?: boolean;
+  /** The billed units each search call says it used (#403). Default: not said, one `web_search`. */
+  searchTools?: ToolCall[];
 }) {
-  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending, fail: options.searchFails });
+  const search = createFakeProvider({ id: "perplexity", residency: "outside_eu", sources: options.sources, sourceDates: options.sourceDates, answer: options.answer, pages: options.searchPages, queriesPerCall: options.queriesPerCall, pending: options.searchPending, fail: options.searchFails, ...(options.searchTools ? { tools: options.searchTools } : {}) });
   const llm: FakeProvider = createFakeProvider({ id: "anthropic", reply: options.reply ?? '{"isJobOffer": false}', usage: options.llmUsage });
   const titles = createFakeProvider({ id: "mistral", reply: options.titles ?? "{}" });
+  const usage = createMemoryUsageLog();
   const ai = createAiLayer({
     providers: [...(options.searchKeyMissing ? [] : [search]), llm, titles, ...(options.otherSearch ? [options.otherSearch] : [])],
     routes: { web_search: "perplexity", offer_analysis: "anthropic", job_titles: "mistral" },
     ...(options.searchFallback ? { searchFallback: options.searchFallback } : {}),
-    usage: createMemoryUsageLog(),
+    usage,
   });
   const clock = fakeClock(options.now?.getTime());
   const web = fakeWeb(options.pages, clock);
   const jobOffers = memoryJobOffers(options.existing);
   const discovery = createJobDiscovery({ ai, jobOffers, fetch: web.fetch, clock, budget: options.budget, franceTravail: options.franceTravail, fantasticJobs: options.fantasticJobs, settings: options.settings, taskPlaybooks: options.taskPlaybooks, industries: options.industries, search: options.search });
-  return { discovery, search, llm, titles, web, jobOffers };
+  return { discovery, search, llm, titles, web, jobOffers, usage };
 }
+
+/** What AI Usage recorded, in €: each call's tokens and its tools' known fees (#403). */
+const recordedEur = (usage: MemoryUsageLog) =>
+  usage.entries.reduce((sum, entry) => sum + entry.costEur + entry.tools.reduce((fees, tool) => fees + (tool.costEur ?? 0), 0), 0);
 
 const jobPostingPage = (posting: object) =>
   `<html><head><title>Offre</title><script type="application/ld+json">${JSON.stringify({
@@ -1236,6 +1243,23 @@ describe("Job discovery", () => {
       // each search (French, then English): Perplexity's Search API, $0.001, no tokens;
       // each LLM read (Anthropic default): 10 × $5/M + 5 × $25/M; at €0.86 per $.
       expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 0.001 + 2 * 0.000175) * 0.86, 9);
+    });
+
+    it("spends what AI Usage recorded: a run's budget spend equals the sum of its recorded AI Usage costs (#403)", async () => {
+      const listing2 = "https://emplois.example.fr/offres?q=raf";
+      const { discovery, usage } = setup({
+        sources: [listing, listing2, DAF_URL],
+        pages: { [listing]: { body: "<html><body>Offres</body></html>" }, [listing2]: { body: "<html><body>Offres</body></html>" }, [DAF_URL]: { body: posting } },
+        // Each search call bills 3 units: not one search per call.
+        searchTools: [{ name: "web_search", count: 3 }],
+      });
+
+      const report = await discovery.discover({ candidateId: "c", criteria });
+
+      expect(usage.entries.length).toBeGreaterThan(2);
+      expect(report.costEur).toBeCloseTo(recordedEur(usage), 12);
+      // Job titles, 2 searches of 3 units at $0.001 each, 2 LLM reads; at €0.86 per $.
+      expect(report.costEur).toBeCloseTo((0.0000125 + 2 * 3 * 0.001 + 2 * 0.000175) * 0.86, 9);
     });
 
     it("keeps what a run measured before it failed", async () => {

@@ -1,5 +1,6 @@
 import { createPlatformSettingsResolver, type StoredPlatformSettings } from "@jobhub/web/platform-settings";
 import { createSecretResolver, type StoredSecrets } from "@jobhub/web/provider-secrets";
+import type { UsageEntry } from "@jobhub/ai";
 import type { ExternalApiCall } from "@jobhub/shared";
 import { describe, expect, it, vi } from "vitest";
 import { workerClients } from "./provider-secrets";
@@ -291,6 +292,25 @@ describe("the worker's AI layer, on the AI routing Platform Settings (#301)", ()
     expect(asked).toEqual(["mistral-large-latest", "mistral-small-latest"]);
     });
   });
+
+describe("the worker's AI layer, on the prices of Paramètres (#403)", () => {
+  it("records the next call at a price overridden in the Back Office, without a restart", async () => {
+    const { resolver } = database({ MISTRAL_API_KEY: { value: MISTRAL_NEW, row: "r1" } });
+    const stored: { current: StoredPlatformSettings } = { current: {} };
+    const settings = createPlatformSettingsResolver({ load: async () => stored.current, env: ENV, log: () => {} });
+    await Promise.all([resolver.refresh(), settings.refresh()]);
+    const fetch = (async () => Response.json({ results: [{ url: "https://acme.example/", title: "Acme" }] })) as unknown as typeof globalThis.fetch;
+    const recorded: UsageEntry[] = [];
+    const worker = workerClients({ resolver, platformSettings: settings, production: false, jobOffers: {} as never, fetch, usage: { record: (entry) => void recorded.push(entry) } });
+
+    await worker.ai.searchCompany({ candidateId: null, employer: "Acme" });
+    stored.current = { PERPLEXITY_FAST_SEARCH_PRICE_USD: { value: "0.004", updatedBy: "ops@jobbbox.ai", updatedAt: new Date() } };
+    await settings.refresh();
+    await worker.ai.searchCompany({ candidateId: null, employer: "Acme" });
+
+    expect(recorded.map((entry) => entry.tools[0]?.costEur)).toEqual([expect.closeTo(0.001 * 0.86, 12), expect.closeTo(0.004 * 0.86, 12)]);
+  });
+});
 
 describe("the worker's mailer, on Provider Secrets and Platform Settings (#300)", () => {
   it("sends its next email (a Job Digest) as the MAIL_FROM saved on Paramètres, without a restart", async () => {

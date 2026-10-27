@@ -1,6 +1,7 @@
 import type { SearchCriteria } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { AiConfigError, createAiLayer, DataResidencyError } from "./ai-layer";
+import { pricesFromEnv } from "./cost";
 import { AiProviderError } from "./errors";
 import { createFakeProvider, createMemoryUsageLog } from "./testing";
 import type { AiWarning } from "./types";
@@ -320,6 +321,19 @@ describe("the usage of every AI call", () => {
 
     // Perplexity's Search API: $0.001 per search.
     expect(usage.entries[0]!.tools).toEqual([{ name: "web_search", count: 3, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(3 * 0.001 * 0.86, 6) }]);
+  });
+
+  it("records each billed unit at the prices it is given, and returns what it recorded (#403)", async () => {
+    const usage = createMemoryUsageLog();
+    const tavily = createFakeProvider({ id: "tavily", residency: "outside_eu", models: ["advanced"], usage: { inputTokens: 0, outputTokens: 0 } });
+    const prices = pricesFromEnv({ TAVILY_CREDIT_PRICE_USD: "0.005", EUR_PER_USD: "0.9" });
+    const ai = createAiLayer({ providers: [tavily], routes: { web_search: { provider: "tavily", model: "advanced" } }, usage, prices });
+
+    const result = await ai.searchCompany({ candidateId: null, employer: "Acme" });
+
+    // An advanced search bills 2 credits, at $0.005 each, €0.9 per $.
+    expect(usage.entries[0]!.tools).toEqual([{ name: "web_search", count: 1, ok: true, durationMs: expect.any(Number), costEur: expect.closeTo(2 * 0.005 * 0.9, 9) }]);
+    expect(result.costEur).toBeCloseTo(2 * 0.005 * 0.9, 9);
   });
 
   it("records a failed call with its prompt, no reply and nothing billed", async () => {

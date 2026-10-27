@@ -119,6 +119,12 @@ export const APPLE_CLIENT_SECRETS = "sign-in-providers.apple-client-secret";
  */
 export const REFERENCE_DATA_REFRESH = "reference-data.refresh";
 
+/**
+ * Queue name: compare the month's web search spend with its alert threshold (WEB_SEARCH_MONTHLY_ALERT_EUR, #403) and
+ * email every super-admin once a month when it is reached. Runs every 10 minutes; nothing is ever cut.
+ */
+export const WEB_SEARCH_ALERT = "web-search.monthly-alert";
+
 /** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
 type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
 
@@ -163,6 +169,8 @@ export interface JobsDeps {
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
   /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
   referenceData?: Pick<ReferenceData, "refresh">;
+  /** The monthly web search alert (#403). Without it, nothing is checked. */
+  webSearchAlert?: { check(): Promise<{ month: string; spendEur: number; thresholdEur: number; outcome: "off" | "below" | "sent" | "already_sent" }> };
   /** Emails the super-admins that an Apple client secret could not be signed again. */
   alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Queues another job of this worker. */
@@ -517,6 +525,18 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             `[sign-in-providers] Apple client secret NOT signed again: ${result.failed.map(({ id, reason }) => `${id} (${reason})`).join(", ")}; ${starting.length > 0 ? "super-admins alerted" : "super-admins already alerted"}`,
           );
           if (starting.length > 0) await deps.alertAppleFailure?.(starting);
+        }),
+    },
+
+    // Every 10 minutes: one email a month to the super-admins once the month's web search spend reaches its threshold.
+    [WEB_SEARCH_ALERT]: {
+      cron: "*/10 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const checked = await deps.webSearchAlert?.check();
+          if (checked?.outcome !== "sent") return;
+          const eur = (value: number) => `€${value.toFixed(2)}`;
+          log(`[web-search-alert] ${checked.month}: web search spend ${eur(checked.spendEur)} reached its alert threshold of ${eur(checked.thresholdEur)}, super-admins emailed; nothing is cut`);
         }),
     },
 

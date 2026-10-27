@@ -210,8 +210,8 @@ export interface CoachingPlaybooks {
 
 export interface CoachingPlaybooksDeps {
   serving: PlaybookServing;
-  /** The providers and models a Playbook Agent may use (the AI layer's `agentModels`). */
-  agentModels: () => AgentModelChoice[];
+  /** The providers and models a Playbook Agent may use, for the AI task it serves when a task Playbook's (the AI layer's `agentModels`). */
+  agentModels: (task?: string) => AgentModelChoice[];
   /** Whether an Eval Run played this version of a Coaching Playbook as it now is (ADR-0023): see evals/. */
   evalRunOn: (version: PlaybookVersion, within: Queryable) => Promise<boolean>;
   /** The web-search providers and models a task Playbook's searches may use (the AI layer's `searchModels`). Default: none. */
@@ -430,7 +430,8 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
     const choice = choices.find((each) => each.provider === named.provider);
     return choice !== undefined && (named.model === null || choice.models.some((each) => each.model === named.model));
   };
-  const allowed = (agent: PlaybookAgent): boolean => offered(deps.agentModels(), agent);
+  /** Whether `agent` may run a Coaching Playbook, or the task Playbook `task` (only EU models for one that runs in the EU alone, ADR-0052). */
+  const allowed = (agent: PlaybookAgent, task?: TaskPlaybookSeed): boolean => offered(deps.agentModels(task?.aiTask), agent);
   const allowedSearch = (search: PlaybookSearch): boolean => offered(deps.searchModels?.() ?? [], search);
 
   /** The latest version of each, or of `id`. */
@@ -546,7 +547,7 @@ export function createCoachingPlaybooks(database: Pool, deps: CoachingPlaybooksD
         const task = kind === "task" ? taskPlaybookSeed(id) : undefined;
         const parsed = versionInput(kind, input, task);
         if (!parsed) return { ok: false, error: "invalid" };
-        if (parsed.agent && !allowed(parsed.agent)) return { ok: false, error: "model_not_allowed" };
+        if (parsed.agent && !allowed(parsed.agent, task)) return { ok: false, error: "model_not_allowed" };
         if (parsed.search && !allowedSearch(parsed.search)) return { ok: false, error: "model_not_allowed" };
         const before = (await latestVersions(client, id)).get(id)!;
         if (before.content === parsed.content && sameAgent(before.agent, parsed.agent) && sameSearch(before.search, parsed.search)) return { ok: false, error: "unchanged" };

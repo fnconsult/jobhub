@@ -22,8 +22,10 @@ type Params = { params: Promise<{ id: string }> };
 /** `profil`: the Profile to score the Job Offer against first (see `routes.jobOffer`). */
 type SearchParams = { searchParams: Promise<{ profil?: string | string[] }> };
 
+/** The Job Offer, as the visitor may see it: a private one only by its Candidate (ADR-0049). */
 async function jobOfferOrNotFound(id: string) {
-  const jobOffer = await getJobOffers().get(id);
+  const candidate = await getCurrentCandidate();
+  const jobOffer = await getJobOffers().get(id, candidate?.id);
   if (!jobOffer) notFound();
   return jobOffer;
 }
@@ -38,7 +40,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * A Job Offer page: the posting cleanly laid out, and for a signed-in Candidate,
  * its Match Score with why, and saving it as an Application with the Profile
  * they pick (or a link to the one they have, and its score). Job Offers are not
- * personal data: anyone with the link can read it.
+ * personal data: anyone with the link can read it, except a private one (ADR-0049),
+ * which only its Candidate can.
  */
 export default async function JobOfferPage({ params, searchParams }: Params & SearchParams) {
   const jobOffer = await jobOfferOrNotFound((await params).id);

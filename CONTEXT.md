@@ -11,11 +11,11 @@ A person with an account who is looking for a job. Owns one or more Profiles.
 _Avoid_: User (in domain discussions), applicant, job seeker
 
 **Account deletion**:
-The Candidate deletes their own account, confirmed by typing their email address. It takes effect at once and ends any paid subscription first. Everything tied to the Candidate goes; Job Offers stay.
+The Candidate deletes their own account, confirmed by typing their email address. It takes effect at once and ends any paid subscription first. Everything tied to the Candidate goes, their Private Job Offers included; shared Job Offers stay.
 _Avoid_: Account closure, deactivation
 
 **Data export**:
-One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log; their Signalements (with their context, status and the team's reply with when it was saved and last changed, never which Administrator changed the status or replied, nor when their Signalement notification was closed). It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
+One JSON file the Candidate downloads holding all their personal data, what they made and what Jobbbox worked out or obtained about them (GDPR art. 15 and 20): their account (sign-in methods and sessions), Plan and Plan Quota use, EU AI Consent, Follow-up Delays and Appointment Reminder setting; their Private Job Offers; their Profiles (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and the Job Digests sent); their Applications (Job Offer, Interviews with their Reschedule history, Match Score, Tailored Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach Conversations with every message, the Provenance of each of these results, Coach Memory, Action Cards, Coach Access and Coaching Sessions (with their date, who last changed it, video link and Reschedule history); their AI Message Log; their Signalements (with their context, status and the team's reply with when it was saved and last changed, never which Administrator changed the status or replied, nor when their Signalement notification was closed). It leaves out secrets (sign-in tokens and passwords, the Job Digest unsubscribe link), Human Coaches' email addresses and booking links, Stripe's and the contact data providers' identifiers, and the Coach Message Cost. Every table tied to a Candidate must land in it.
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
@@ -250,6 +250,10 @@ _Avoid_: Form, survey
 **Job Offer**:
 A job posting, captured by the extension, read from a Job Offer link or found by the AI Coach's search. One Job Offer can be referenced by many Candidates. Carries a Job Offer Summary and, read by the AI with it, its employer's sector and sub-sector (or domain).
 _Avoid_: Job, posting, ad, vacancy, offer (alone)
+
+**Private Job Offer**:
+A Job Offer only one Candidate can see, read, keep as an Application or find in their Job Searches, Job Digests and Coach context (ADR-0049). It never merges with a shared Job Offer nor with another Candidate's, even from the same URL; with no signed-in reader (a Guest, a pasted Job Offer link, Job discovery) only shared Job Offers are seen. Deleted with its Candidate's account; part of their Data export.
+_Avoid_: Personal offer, confidential offer
 
 **Job Offer Summary**:
 Two or three sentences on a Job Offer (the role, its scope, what is expected), written by the AI from the offer's own text and in its language, inventing nothing, as its Task Playbook says. Shown, labelled as written by the AI, at the top of the Application's page. None is written, nor the sector, while that Task Playbook has no version served (in production: none Human-validated).
@@ -851,3 +855,7 @@ _Avoid_: Ticket, support request, Retour
 **Signalement notification**:
 A message shown atop every workspace page when the team replied to one of the Candidate's Signalements or marked it « traité » (one only, when both happened; being marked « vu » gives none): « L'équipe Jobbbox a répondu à votre signalement du 25 octobre » or « Votre signalement du 25 octobre est traité », dated by when it was sent, with « Voir » leading to « Mes signalements ». In-app only, no email, no badge on Mon compte or in the Sidebar; checked on each page change, never polled. It stays until the Candidate closes it or opens « Mes signalements », where none is shown and which closes them all; a reply or « traité » saved afterwards notifies again. Follows the Job Search Notification's pattern.
 _Avoid_: Alert, toast, badge, reply email
+
+**Held back**:
+Said of a source (Email intake) that counts as off whatever its switch, because something it needs is not ready: Email intake while no version of its Task Playbook is served, shown « Indisponible : en attente de validation du playbook ». It runs again by itself once a person validates the playbook (any version, on staging).
+_Avoid_: Disabled, paused

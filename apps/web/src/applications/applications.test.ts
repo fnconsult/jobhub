@@ -136,6 +136,19 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
     expect(again).toMatchObject({ ok: true, created: false, application: { id: first.id, profile: { id: profileId } } });
   });
 
+  it("saves a Job Offer private to the Candidate as their Application, but never one private to another Candidate (ADR-0049)", async () => {
+    const fromRecruiter = { title: "DAF H/F, client confidentiel", content: "Mon client cherche son DAF à Lyon." };
+    const mine = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: candidateId });
+    const theirs = await jobOffers.capture(fromRecruiter, "candidate", { privateTo: otherCandidateId });
+    if (!mine.ok || !theirs.ok) throw new Error("fixture Job Offer refused");
+
+    const saved = await applications.save(candidateId, { jobOfferId: mine.jobOffer.id, profileId });
+
+    expect(saved).toMatchObject({ ok: true, application: { jobOffer: { id: mine.jobOffer.id, content: fromRecruiter.content } } });
+    expect(saved.ok && (await applications.get(candidateId, saved.application.id))).toMatchObject({ jobOffer: { id: mine.jobOffer.id } });
+    expect(await applications.save(candidateId, { jobOfferId: theirs.jobOffer.id, profileId })).toEqual({ ok: false, error: "not_found" });
+  });
+
   it("lets another Candidate save the same Job Offer as their own Application", async () => {
     const mine = await save({ jobOfferId, profileId });
     const theirProfileId = await createProfile(otherCandidateId, "DAF");

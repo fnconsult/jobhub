@@ -65,7 +65,7 @@ import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
 import type { Billing, PlanName } from "../billing";
-import type { JobOffers } from "../job-offers";
+import { visibleTo, type JobOffers } from "../job-offers";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -346,9 +346,9 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return rows[0] ?? null;
   }
 
-  /** The Job Offers still stored, scored for the Profile, best Match Score first (undated after dated at an equal one). */
-  async function scored(profile: Profile, jobOfferIds: string[]): Promise<Scored[]> {
-    const found = await Promise.all(jobOfferIds.map((id) => deps.jobOffers.get(id)));
+  /** The Job Offers still stored that the Candidate may see, scored for the Profile, best Match Score first (undated after dated at an equal one). */
+  async function scored(candidateId: string, profile: Profile, jobOfferIds: string[]): Promise<Scored[]> {
+    const found = await Promise.all(jobOfferIds.map((id) => deps.jobOffers.get(id, candidateId)));
     return rankByMatchScore(
       found
         .filter((jobOffer): jobOffer is JobOffer => jobOffer !== null)
@@ -391,34 +391,37 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return new Set([...rows.map((row) => row.id), ...saved.map((application) => application.jobOffer.id)]);
   }
 
-  /** The ids of the Job Offers stored since the Profile's previous Job Digest (or the look-back), most recent first. */
+  /** The ids of the Job Offers the Candidate may see stored since the Profile's previous Job Digest (or the look-back), most recent first. */
   async function poolOf(candidateId: string, profileId: string, at: Date, firstLookBackDays: number): Promise<string[]> {
     const { rows } = await database.query<{ id: string }>(
       `SELECT id FROM job_offer
         WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
-          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous
+          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous AND ${visibleTo("$2")}
         ORDER BY created_at DESC LIMIT $5`,
       [profileId, candidateId, new Date(at.getTime() - firstLookBackDays * DAY_MS), at, POOL_MAX],
     );
     return rows.map((row) => row.id);
   }
 
-  /** Of these Job Offer ids, those neither Guest-only, expired, nor posted more than MAX_POSTING_AGE_DAYS before `at`. */
-  async function eligible(ids: string[], at: Date): Promise<string[]> {
+  /**
+   * Of these Job Offer ids, those the Candidate may see (never another's private one, ADR-0049) neither Guest-only,
+   * expired, nor posted more than MAX_POSTING_AGE_DAYS before `at`.
+   */
+  async function eligible(candidateId: string, ids: string[], at: Date): Promise<string[]> {
     if (ids.length === 0) return [];
     const { rows } = await database.query<{ id: string }>(
       `SELECT id FROM job_offer WHERE id = ANY($1::uuid[]) AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous
-          AND (posted_at IS NULL OR posted_at >= $2)`,
-      [ids, new Date(at.getTime() - MAX_POSTING_AGE_DAYS * DAY_MS)],
+          AND (posted_at IS NULL OR posted_at >= $2) AND ${visibleTo("$3")}`,
+      [ids, new Date(at.getTime() - MAX_POSTING_AGE_DAYS * DAY_MS), candidateId],
     );
     const kept = new Set(rows.map((row) => row.id));
     return ids.filter((id) => kept.has(id));
   }
 
   /** Never-shown Job Offers among `ids`, scored for the Profile, from the threshold up. */
-  async function qualifying(profile: Profile, ids: string[], excluded: Set<string>, at: Date, minMatchScore: number): Promise<Scored[]> {
+  async function qualifying(candidateId: string, profile: Profile, ids: string[], excluded: Set<string>, at: Date, minMatchScore: number): Promise<Scored[]> {
     const fresh = [...new Set(ids)].filter((id) => UUID.test(id) && !excluded.has(id));
-    return (await scored(profile, await eligible(fresh, at))).filter(({ matchScore }) => matchScore.score >= minMatchScore);
+    return (await scored(candidateId, profile, await eligible(candidateId, fresh, at))).filter(({ matchScore }) => matchScore.score >= minMatchScore);
   }
 
   async function withApplications(candidateId: string, results: Scored[]): Promise<JobDigestResult[]> {
@@ -525,7 +528,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         id: row.id,
         profile: { id: profile.id, name: profile.name },
         sentAt: row.sent_at,
-        results: await withApplications(candidateId, await scored(profile, row.job_offer_ids)),
+        results: await withApplications(candidateId, await scored(candidateId, profile, row.job_offer_ids)),
         provenance: readProvenance(row.provenance),
       };
     },
@@ -575,7 +578,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
         scoringMs += now().getTime() - start;
         return kept;
       };
-      let picked = await timedQualifying(profile, await poolOf(candidateId, profile.id, at, firstLookBackDays), shown, at, minMatchScore);
+      let picked = await timedQualifying(candidateId, profile, await poolOf(candidateId, profile.id, at, firstLookBackDays), shown, at, minMatchScore);
       let discovery: JobDigestDelivery["discovery"] = "not_run";
       let run: Provenance | null = null;
       if (picked.length < targetCount) {
@@ -584,7 +587,7 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
           discovery = "ran";
           run = found.provenance;
           const taken = new Set([...shown, ...picked.map(({ jobOffer }) => jobOffer.id)]);
-          picked = rankByMatchScore([...picked, ...(await timedQualifying(profile, found.jobOfferIds, taken, at, minMatchScore))]);
+          picked = rankByMatchScore([...picked, ...(await timedQualifying(candidateId, profile, found.jobOfferIds, taken, at, minMatchScore))]);
         } catch (error) {
           // Not retried: the next scheduled Job Digest runs Job discovery again.
           discovery = "failed";

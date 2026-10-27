@@ -172,7 +172,7 @@ export function createMatchScoring({
       if (!parsed.success) return { ok: false, error: "invalid", errors: fieldErrors(parsed.error) };
       const request = parsed.data;
 
-      const jobOffer = await jobOffers.get(request.jobOfferId);
+      const jobOffer = await jobOffers.get(request.jobOfferId, candidateId);
       if (!jobOffer) return { ok: false, error: "not_found" };
 
       if ("profileId" in request) {

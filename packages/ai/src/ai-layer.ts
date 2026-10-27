@@ -6,7 +6,7 @@ import { costInEur, LIST_PRICES, toolCostInEur, type Prices } from "./cost";
 import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
-import { SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
+import { euOnly, SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
 import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
 
 export { AiConfigError, DataResidencyError };
@@ -258,9 +258,11 @@ export interface AiLayer {
   searchCompanyNewsWithCall(request: CompanyNewsRequest): Promise<CompanyNews>;
   /**
    * The providers and models a Playbook Agent may use (#225): every text provider configured, outside the
-   * EU too, each with the models a route names for it, then those it offers.
+   * EU too, each with the models a route names for it, then those it offers. For a `task` (the AI task the
+   * Playbook Agent serves, a task Playbook's `aiTask`) that runs only in the EU (offer_email_reading,
+   * ADR-0052), only the EU-resident models.
    */
-  agentModels(): AgentModelChoice[];
+  agentModels(task?: string): AgentModelChoice[];
   /**
    * The same layer for an Eval Run (#231, ADR-0023): each text call is recorded in AI Usage on the `eval` task
    * and for no Candidate (Eval Cases are fictional), yet keeps the route and data rules of its own task, so the
@@ -811,6 +813,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       chosen.provider = providerFor(chosen.route, identity || TEXT_TASKS[request.task].personalData);
       // Checked again per call: the rule must hold even if a provider changes at runtime.
       assertAllowed(request.task, chosen.provider, identity);
+      // Per call only, so a route left outside the EU stops this task alone, never the layer (ADR-0052).
+      if (euOnly(request.task) && chosen.provider.residency !== "eu") {
+        throw new DataResidencyError(`The ${request.task} task runs only on an EU-resident endpoint, not ${chosen.provider.id} (${chosen.provider.endpoint})`);
+      }
     } catch (error) {
       await notSent(error, { candidateId: request.candidateId, task: recordedAs }, chosen, { ...(request.system === undefined ? {} : { system: request.system }), messages }, notes);
       throw error;
@@ -933,8 +939,13 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       }
     },
 
-    agentModels() {
-      return modelChoices((provider) => Boolean(provider.generate), [...Object.entries(options.routes).filter(([task]) => task !== SEARCH_TASK).map(([, route]) => route), identityRoute]);
+    agentModels(task) {
+      const choices = modelChoices((provider) => Boolean(provider.generate), [...Object.entries(options.routes).filter(([task]) => task !== SEARCH_TASK).map(([, route]) => route), identityRoute]);
+      if (task === undefined || !(task in TEXT_TASKS) || !euOnly(task as TextTask)) return choices;
+      return choices.flatMap((choice) => {
+        const models = choice.models.filter((model) => model.residency === "eu");
+        return models.length === 0 ? [] : [{ ...choice, residency: "eu" as const, models }];
+      });
     },
 
     searchModels() {
@@ -964,7 +975,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     searchCompany: noSearch,
     searchCompanyNews: noSearch,
     searchCompanyNewsWithCall: noSearch,
-    agentModels: () => layer.agentModels(),
+    agentModels: (task) => layer.agentModels(task),
     searchModels: () => layer.searchModels(),
     webSearchAvailable: () => false,
     forEval: () => evalLayer,

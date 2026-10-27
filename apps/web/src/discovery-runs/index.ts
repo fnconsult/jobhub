@@ -309,7 +309,7 @@ export async function discoveryRunsOf(database: Pool, candidateId: string): Prom
  * Deletes the query texts, criteria and Job Search link of the runs started QUERY_RETENTION_DAYS ago or more, and the
  * runs started RETENTION_MONTHS ago or more. Safe to run again.
  */
-export async function purgeExpiredDiscoveryRuns(database: Pool, now: Date = new Date()): Promise<{ queries: number; runs: number }> {
+export async function purgeExpiredDiscoveryRuns(database: Pick<Pool, "query">, now: Date = new Date()): Promise<{ queries: number; runs: number }> {
   const queries = await database.query(
     `DELETE FROM discovery_run_detail d USING discovery_run r
       WHERE r.id = d.run_id AND r.started_at <= $1::timestamptz - make_interval(days => $2)`,

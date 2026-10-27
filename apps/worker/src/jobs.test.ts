@@ -16,8 +16,10 @@ import { createUnansweredQuestions, migrateUnansweredQuestions } from "@jobhub/w
 import { createSignalements, migrateSignalements, signalementsOf } from "@jobhub/web/signalements";
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
+import { createDiscoveryRuns, migrateDiscoveryRuns, type DiscoveryRunRecord } from "@jobhub/web/discovery-runs";
+import { migrateJobSearches } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -118,8 +120,12 @@ function setup(
   now?: () => Date,
   /** The Candidate asked to stop their Job Search (#331): `stopRequested` answers it. */
   stop: { requested: boolean } = { requested: false },
+  /** Recording a run for Activité › Recherches fails (#404). */
+  runsDown = false,
 ) {
   const runs: DiscoverRequest[] = [];
+  /** Each run recorded for Activité › Recherches (#404). */
+  const recordedRuns: DiscoveryRunRecord[] = [];
   const logs: string[] = [];
   const recorded: [string, JobSearchOutcome][] = [];
   /** Each write of a Job Search's live steps, and each outcome, in the order they came. */
@@ -179,11 +185,18 @@ function setup(
         }
       },
     },
+    discoveryRuns: {
+      async record(run) {
+        if (runsDown) throw new Error("database down");
+        recordedRuns.push(run);
+        return `run-${recordedRuns.length}`;
+      },
+    },
     enqueue: async (name, data) => void enqueued.push({ name, data }),
     log: (line) => logs.push(line),
     now,
   });
-  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, enqueued, delivered, handed };
+  return { jobs, run: jobs[JOB_DISCOVERY]!.handler, runs, logs, recorded, written, progressed, enqueued, delivered, handed, recordedRuns };
 }
 
 describe("the Job discovery job", () => {
@@ -499,6 +512,74 @@ describe("the Job Digest jobs", () => {
 
     expect(runs).toEqual([]);
     expect(delivered).toEqual([]);
+  });
+});
+
+describe("each run of Job discovery, recorded for Activité › Recherches (#404)", () => {
+  const searches = [{ kind: "plan" as const, queries: ["Offre d'emploi « Directeur financier » à Lyon"], page: 1, provider: "perplexity", fallback: false, results: 6, newJobOffers: 1, costEur: 0.00086 }];
+  const reported = discoveryReport({ ...measuredRun, searches, newJobOffers: 1, stopReason: "job_offers" });
+
+  it("records a Job Search's run: its Profile, criteria, Job Search, metrics, searches, new Job Offers, stop reason and duration", async () => {
+    let clock = Date.parse("2026-10-26T15:02:00Z");
+    const { run, recordedRuns } = setup(async () => reported, [], undefined, () => new Date((clock += 2000) - 2000));
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+
+    expect(recordedRuns).toEqual([
+      {
+        trigger: "job_search",
+        startedAt: new Date("2026-10-26T15:02:00Z"),
+        durationMs: expect.any(Number),
+        candidateId: "candidate-1",
+        profileId: "profile-1",
+        jobSearchId: "search-1",
+        criteria,
+        metrics: measuredMetrics,
+        stopReason: "job_offers",
+        newJobOffers: 1,
+        searches,
+      },
+    ]);
+    expect(recordedRuns[0]!.durationMs).toBeGreaterThan(0);
+  });
+
+  it("records a Job Digest's top-up run, with no Job Search; none when the Job Digest did not need one", async () => {
+    const topUp = setup(async () => reported);
+    await topUp.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(topUp.recordedRuns).toEqual([expect.objectContaining({ trigger: "job_digest", jobSearchId: null, profileId: "profile-1", searches, metrics: measuredMetrics })]);
+
+    const enough = setup(async () => reported, [], { runsDiscovery: false });
+    await enough.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+    expect(enough.recordedRuns).toEqual([]);
+  });
+
+  it("records a run that broke as failed, with what it measured until then, for a Job Search and a Job Digest alike", async () => {
+    const broken = async () => Promise.reject(new JobDiscoveryError({ ...reported, stopReason: "failed" }, new Error("LLM down")));
+    const search = setup(broken);
+    await search.run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+    const digest = setup(broken);
+    await digest.jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    for (const { recordedRuns } of [search, digest]) expect(recordedRuns).toEqual([expect.objectContaining({ stopReason: "failed", searches, metrics: measuredMetrics })]);
+  });
+
+  it("records nothing for a run that never began: Job discovery unavailable, the Job Search stopped first, its Profile gone", async () => {
+    const stoppedFirst = setup(async () => reported, [], undefined, undefined, { requested: true });
+    await stoppedFirst.run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+    await stoppedFirst.run({ candidateId: "candidate-1", profileId: "gone", jobSearchId: "search-2" });
+
+    expect(stoppedFirst.recordedRuns).toEqual([]);
+  });
+
+  it("never fails the Job Search or the Job Digest when the run cannot be recorded: the log says so", async () => {
+    const { run, jobs, recorded, delivered, logs } = setup(async () => reported, [], undefined, undefined, undefined, true);
+
+    await run({ candidateId: "candidate-1", profileId: "profile-1", jobSearchId: "search-1" });
+    await jobs[JOB_DIGEST_RUN]!.handler({ candidateId: "candidate-1", profileId: "profile-1" });
+
+    expect(recorded).toEqual([["search-1", expect.objectContaining({ jobOfferIds: ["offer-strong", "offer-weak"] })]]);
+    expect(delivered).toEqual([["candidate-1", "profile-1", ["offer-strong", "offer-weak"]]]);
+    expect(logs.filter((line) => line.includes("could not be recorded"))).toHaveLength(2);
   });
 });
 
@@ -879,6 +960,59 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       expect(logs).toEqual(["[back-office-audit] 1 Back Office Audit entry(ies) purged, 3 years after they were made"]);
     } finally {
       await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Job discovery runs' query texts 30 days old, keeping their figures, and the runs 24 months old (#404)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      for (const migrate of [migrateProfiles, migrateJobOffers, migrateBilling, migrateJobSearches, migrateBackOfficeAudit, migrateDiscoveryRuns]) await migrate(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const created = await createProfiles(database).create(candidateId, { masterCv, searchCriteria: { targetRole: "Directeur financier", locations: ["Lyon"] } });
+      if (!created.ok) throw new Error("fixture Profile refused");
+      const runs = createDiscoveryRuns(database, { now: () => new Date(Date.now() + 1000 * 86_400_000) });
+      const id = await runs.record({
+        trigger: "job_digest",
+        startedAt: new Date(),
+        durationMs: 1000,
+        candidateId,
+        profileId: created.profile.id,
+        jobSearchId: null,
+        criteria,
+        metrics: measuredMetrics as never,
+        stopReason: "exhausted",
+        newJobOffers: 1,
+        searches: [{ kind: "plan", queries: ["Offre d'emploi « Directeur financier » à Lyon"], page: 1, provider: "perplexity", fallback: false, results: 6, newJobOffers: 1, costEur: 0.00086 }],
+      });
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[DISCOVERY_RUNS_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("5 4 * * *");
+      await jobAt(29).handler({});
+      expect((await runs.get(id))?.searches[0]?.queries).toEqual(["Offre d'emploi « Directeur financier » à Lyon"]);
+
+      await jobAt(31).handler({});
+      expect(await runs.get(id)).toMatchObject({ queriesKept: false, searches: [{ queries: [], results: 6, newJobOffers: 1 }], newJobOffers: 1, metrics: measuredMetrics });
+
+      await jobAt(2 * 366).handler({});
+      expect(await runs.get(id)).toBeNull();
+      expect(logs).toEqual([
+        "[discovery-runs] 1 run(s)' query texts purged after 30 days, 0 run(s) after 24 months",
+        "[discovery-runs] 0 run(s)' query texts purged after 30 days, 1 run(s) after 24 months",
+      ]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no Job discovery run to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_runs_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[DISCOVERY_RUNS_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

@@ -13,6 +13,13 @@ import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } f
 import { DIGEST_HOUR, DIGEST_TIME_ZONE, type JobDigests } from "@jobhub/web/job-digests";
 import { createSourceChecks, forgetExpiredGuestCaptures } from "@jobhub/web/job-offers";
 import { JOB_DISCOVERY_QUEUE, type JobSearchReports } from "@jobhub/web/job-searches";
+import {
+  purgeExpiredDiscoveryRuns,
+  QUERY_RETENTION_DAYS as DISCOVERY_QUERY_RETENTION_DAYS,
+  RETENTION_MONTHS as DISCOVERY_RUN_RETENTION_MONTHS,
+  type DiscoveryRunRecord,
+  type DiscoveryRuns,
+} from "@jobhub/web/discovery-runs";
 import { JobDiscoveryError, type DiscoveryReport, type JobDiscovery } from "./job-discovery";
 import { createSourceRecheck } from "./source-recheck";
 import type { JobDefinition } from "./job-runner";
@@ -73,6 +80,12 @@ export const UNANSWERED_QUESTIONS_PURGE = "unanswered-questions.purge";
 
 /** Queue name: delete the Signalements marked `traite` SIGNALEMENT_RETENTION_MONTHS ago or more (#374, #283). Runs nightly. */
 export const SIGNALEMENTS_PURGE = "signalements.purge";
+
+/**
+ * Queue name: delete the Job discovery runs' query texts, criteria and Job Search links DISCOVERY_QUERY_RETENTION_DAYS
+ * old, keeping their figures, and the runs DISCOVERY_RUN_RETENTION_MONTHS old (#404). Runs nightly.
+ */
+export const DISCOVERY_RUNS_PURGE = "discovery-runs.purge";
 
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
@@ -135,6 +148,11 @@ export interface JobsDeps {
   stopCheckMs?: number;
   /** Satisfied by the web app's Follow-ups module. */
   followUps: Pick<FollowUps, "proposeDue">;
+  /**
+   * Where each run of Job discovery is recorded once it ends, for Activité › Recherches (#404). Satisfied by the web
+   * app's Job discovery runs module. Without it, nothing is recorded; a recording that fails never fails the run.
+   */
+  discoveryRuns?: Pick<DiscoveryRuns, "record">;
   /** The worker's side of Job Digests. Satisfied by the web app's Job Digests module. */
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
   /** The Provider Secrets, to move to the newest master key. Without them, nothing to re-encrypt. */
@@ -218,6 +236,19 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
   const log = deps.log ?? ((line) => console.info(line));
   const now = deps.now ?? (() => new Date());
   const discoveryNow = () => (typeof deps.discovery === "function" ? deps.discovery() : deps.discovery);
+  /**
+   * Records a run for Activité › Recherches (#404), with what it measured and its report's searches, new Job Offers and
+   * stop reason. Never throws: the Job Search or Job Digest it ran for goes on.
+   */
+  const recordRun = async (run: Omit<DiscoveryRunRecord, "stopReason" | "newJobOffers" | "searches"> & { report: DiscoveryReport }) => {
+    if (!deps.discoveryRuns) return;
+    const { report, ...recorded } = run;
+    try {
+      await deps.discoveryRuns.record({ ...recorded, stopReason: report.stopReason, newJobOffers: report.newJobOffers, searches: report.searches });
+    } catch (error) {
+      log(`[discovery-runs] profile ${run.profileId}: the run could not be recorded (${error instanceof Error ? error.message : String(error)})`);
+    }
+  };
   /** Runs a job that reads the web app's tables: before its migrations have run, there is nothing to do. */
   const onceTablesExist = async (work: () => Promise<void>) => {
     try {
@@ -263,10 +294,25 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }
         // The Candidate is waiting for this Job Search: each step of the run is written on it as it starts and ends.
         const progress = jobSearchId ? createRunProgress((steps) => deps.jobSearches.progress(jobSearchId, steps)) : null;
-        /** What the run measured, its Match Scores recorded as a step of it, and its Provenance; the live steps written first. */
+        const startedAt = now();
+        /**
+         * What the run measured, its Match Scores recorded as a step of it, and its Provenance; the live steps written first.
+         * The run is recorded for Activité › Recherches with it.
+         */
         const measured = async (found: DiscoveryReport) => {
           const metrics = await found.run.step({ rule: "match_score" }, () => metricsOf(found, profile));
           await progress?.flush();
+          await recordRun({
+            trigger: "job_search",
+            candidateId: target.candidateId,
+            profileId: target.profileId,
+            jobSearchId: jobSearchId ?? null,
+            criteria: profile.searchCriteria,
+            metrics,
+            startedAt,
+            durationMs: now().getTime() - startedAt.getTime(),
+            report: found,
+          });
           return { metrics, provenance: found.run.provenance() };
         };
         const idsOf = (found: DiscoveryReport) => found.jobOffers.map((jobOffer) => jobOffer.id);
@@ -382,6 +428,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const startedAt = now();
         const discovery = discoveryNow();
         let metrics = noDiscoveryMetrics();
+        /** The top-up run's report, when Job discovery ran (or broke part-way), recorded for Activité › Recherches (#404). */
+        let ran: DiscoveryReport | null = null;
         const discover = async () => {
           if ("unavailable" in discovery) throw new Error(`Job discovery is unavailable (${discovery.unavailable})`);
           try {
@@ -389,14 +437,21 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             // The run's Provenance, kept with the Job Digest (#336); the Job Digest scores what it keeps itself.
             const provenance = report.run.provenance();
             metrics = metricsOf(report, profile);
+            ran = report;
             return { jobOfferIds: report.jobOffers.map((jobOffer) => jobOffer.id), provenance };
           } catch (error) {
-            if (error instanceof JobDiscoveryError) metrics = metricsOf(error.partial, profile);
+            if (error instanceof JobDiscoveryError) {
+              metrics = metricsOf(error.partial, profile);
+              ran = error.partial;
+            }
             throw error;
           }
         };
         const delivery = await deps.jobDigests.deliver(target.candidateId, target.profileId, discover);
         const durationMs = now().getTime() - startedAt.getTime();
+        if (ran) {
+          await recordRun({ trigger: "job_digest", candidateId: target.candidateId, profileId: target.profileId, jobSearchId: null, criteria: profile.searchCriteria, metrics, startedAt, durationMs, report: ran });
+        }
         const outcome = delivery.digest ? `Job Digest sent (${delivery.digest.results.length} Job Offer(s))` : "nothing to send";
         const discovered = { not_run: "Job discovery not needed", ran: "Job discovery ran", failed: "Job discovery failed" }[delivery.discovery];
         log(`[job-digest] profile ${target.profileId}: ${outcome}, ${discovered}`);
@@ -527,6 +582,20 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeSignalements(deps.database, now());
           if (purged) log(`[signalements] ${purged} Signalement(s) purged, ${SIGNALEMENT_RETENTION_MONTHS} months after they were marked traité`);
+        }),
+    },
+
+    // A Job discovery run's query texts are kept 30 days, its figures 24 months (#404). Safe to run again.
+    [DISCOVERY_RUNS_PURGE]: {
+      cron: "5 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredDiscoveryRuns(deps.database, now());
+          if (purged.queries || purged.runs) {
+            log(
+              `[discovery-runs] ${purged.queries} run(s)' query texts purged after ${DISCOVERY_QUERY_RETENTION_DAYS} days, ${purged.runs} run(s) after ${DISCOVERY_RUN_RETENTION_MONTHS} months`,
+            );
+          }
         }),
     },
 

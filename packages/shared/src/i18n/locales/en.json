@@ -454,6 +454,7 @@
       "propositions": "Suggestions",
       "cv-de-reference": "Master CV",
       "ats-score": "ATS Score",
+      "entreprises-cibles": "Target companies",
       "telecharger": "Download",
       "gerer": "Manage"
     }
@@ -475,6 +476,42 @@
     "restore": "Restore this profile",
     "working": "Saving…",
     "error": "The change could not be saved. Please try again."
+  },
+  "targetCompanies": {
+    "title": "Target companies",
+    "intro": "The companies the job search aims at for this profile: those La Bonne Boite gives as likely to hire for your job and area, and those you add. They may hire without publishing a job offer: a spontaneous application fits there.",
+    "source": "Companies likely to hire: La Bonne Boite, a service by",
+    "listLabel": "The profile's target companies",
+    "empty": "No target company yet. The next job search will ask La Bonne Boite for the companies hiring for your job and area; you can also add one.",
+    "yours": "Added by you",
+    "hiringScore": "Hiring potential {{score}}/100",
+    "offersFound_one": "{{count}} job offer found there",
+    "offersFound_other": "{{count}} job offers found there",
+    "noOffers": "No job offer found there yet",
+    "offersLabel": "Job offers found at {{name}}",
+    "openDossier": "Company dossier",
+    "findContacts": "Enriched contacts",
+    "prepareApplication": "Prepare a spontaneous application",
+    "seeApplication": "See the spontaneous application",
+    "spontaneousHint": "The company dossier, the enriched contacts and the letter are prepared in a spontaneous application, added to your applications as “To apply”.",
+    "setAside": "Set aside",
+    "setAsideConfirm": "Set {{name}} aside for good? It will not come back for this profile.",
+    "confirmSetAside": "Yes, set it aside",
+    "cancel": "Cancel",
+    "setAsideDone": "{{name}} is set aside.",
+    "addTitle": "Add a company",
+    "addLabel": "Company name",
+    "addHint": "Its name or SIREN: it is looked up in the company register and comes before La Bonne Boite's.",
+    "add": "Add",
+    "adding": "Looking up the register…",
+    "added": "{{name}} is added.",
+    "working": "One moment…",
+    "failed": "That did not work. Try again in a moment.",
+    "errors": {
+      "invalid": "Enter a company's name.",
+      "exists": "This company is already one of this profile's target companies, or you set it aside.",
+      "not_a_company": "The company register gives this name as a sole trader's, a person's: enter a company's name."
+    }
   },
   "searchCriteriaEditor": {
     "hint": "Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search. Changing them does not rename the profile.",

@@ -27,6 +27,29 @@ export const PLATFORM_SETTING_NOTICES = {
 export type PlatformSettingNotice = keyof typeof PLATFORM_SETTING_NOTICES;
 export const isPlatformSettingNotice = (value: unknown): value is PlatformSettingNotice => typeof value === "string" && Object.hasOwn(PLATFORM_SETTING_NOTICES, value);
 
+/** The fields naming an AI task's or a Playbook Agent's side panel (#402): in the address, and in its forms. */
+export const AI_FORM = { task: "tache", playbook: "playbook" } as const;
+
+/** What an AI task's route change says (`?route=`): a key under admin.platformSettings.aiTasks.notices. */
+export const ROUTE_NOTICES = ["routeSaved", "routeUnchanged", "routeRestored"] as const;
+export type RouteNotice = (typeof ROUTE_NOTICES)[number];
+export const isRouteNotice = (value: unknown): value is RouteNotice => ROUTE_NOTICES.includes(value as RouteNotice);
+
+/** What a Playbook Agent change says (`?agent=`): saved as a new draft or into the draft, or why not (CoachingPlaybooks' refusals); and whether it is an error. */
+export const PLAYBOOK_AGENT_NOTICES = {
+  created: false,
+  updated: false,
+  unchanged: false,
+  invalid: true,
+  not_found: true,
+  model_not_allowed: true,
+  task_instructions: true,
+  unknown_sources: true,
+  sources_cited: true,
+} as const;
+export type PlaybookAgentNotice = keyof typeof PLAYBOOK_AGENT_NOTICES;
+export const isPlaybookAgentNotice = (value: unknown): value is PlaybookAgentNotice => typeof value === "string" && Object.hasOwn(PLAYBOOK_AGENT_NOTICES, value);
+
 /** A Job discovery source's, site's or Job Site's notice (`?sites=`): a key under admin.searchSites.notices, and whether it is an error. */
 export const SITES_NOTICES = {
   saved: false,

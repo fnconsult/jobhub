@@ -112,12 +112,17 @@ const ENRICHMENT_PURPOSE: Translated = {
 };
 /**
  * A Search provider's settings (ADR-0043): the active one and its fallback, then its own typed settings, and for
- * Perplexity and Tavily AI_WEB_SEARCH_MODEL, which their typed settings replace, read for one more release (#398).
+ * Perplexity and Tavily AI_WEB_SEARCH_MODEL, which their typed settings replace, read for one more release (#398),
+ * then the filters Job discovery sends it (#402).
  */
 const WEB_SEARCH_SETTINGS = (...own: string[]): readonly ToolSetting[] => [
   { name: "AI_WEB_SEARCH_PROVIDER" },
   { name: "AI_WEB_SEARCH_FALLBACK_PROVIDER" },
   ...own.map((name) => ({ name })),
+  // What Job discovery asks of every Search provider (#402): the country favoured, the oldest posting, the results per query.
+  { name: "JOB_DISCOVERY_COUNTRY" },
+  { name: "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS" },
+  { name: "JOB_DISCOVERY_RESULTS_PER_QUERY" },
 ];
 const JOB_DISCOVERY_BUDGET: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS" }, { name: "JOB_DISCOVERY_BUDGET_EUR" }, { name: "JOB_DISCOVERY_BUDGET_SECONDS" }];
 /** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015). */

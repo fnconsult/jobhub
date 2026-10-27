@@ -1,4 +1,4 @@
-import { modelSettingProviders, type ProviderId } from "@jobhub/ai";
+import { modelSettingProviders, type AgentModelChoice, type ProviderId } from "@jobhub/ai";
 import { isFailureReason } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -8,6 +8,8 @@ import { getAi } from "@/ai/server";
 import { applyLatestSignIn } from "@/auth/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
+import { aiTaskRoutes, keyMissing, playbookAgentRows, searchTaskRows, type PlaybookWithVersions } from "@/platform-settings/ai-tasks";
 import { platformSetting, type PlatformSettingType } from "@/platform-settings/catalog";
 import { envOnlySettingsShown, retiredSettingsSet } from "@/platform-settings/env-only";
 import { addTypeFor, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, type ProvidersState } from "@/platform-settings/parametres";
@@ -21,9 +23,23 @@ import { getSignInProviders } from "@/sign-in-providers/server";
 import { currentState } from "@/tools/server";
 import { restoreSetting, saveSetting } from "./actions";
 import { AddPanel, addableTypes } from "./AddPanel";
+import { AiTasksSection, PlaybookAgentPanel, RoutePanel, SearchTasksSection, type ModelChoices } from "./AiTasksSection";
 import { Here, type Ctx } from "./context";
 import { EnvironmentSection } from "./EnvironmentSection";
-import { CONFIRMED, FORM, isPlatformSettingNotice, isSitesNotice, PLATFORM_SETTING_NOTICES, SECRET_ERRORS, SITES_NOTICES, type SecretError } from "./notices";
+import {
+  AI_FORM,
+  CONFIRMED,
+  FORM,
+  isPlatformSettingNotice,
+  isPlaybookAgentNotice,
+  isRouteNotice,
+  isSitesNotice,
+  PLATFORM_SETTING_NOTICES,
+  PLAYBOOK_AGENT_NOTICES,
+  SECRET_ERRORS,
+  SITES_NOTICES,
+  type SecretError,
+} from "./notices";
 import { ProviderSheet } from "./ProviderSheet";
 import { ProvidersSection } from "./ProvidersSection";
 import { SIGN_IN_ERRORS, SignInSection } from "./SignInSection";
@@ -42,13 +58,33 @@ const WEB_SEARCH_TAB = parametresTab("recherche-web");
 /** Every source on, as Job discovery reads them when the Back Office cannot be. */
 const ALL_SOURCES = { france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true } as const;
 
-/** The models each configured provider is known to serve, for the model settings' suggestions; none when the AI layer cannot be built. */
-function knownModels(): Map<ProviderId, string[]> {
+/** The models each configured provider offers a Playbook Agent and a task Playbook's searches; none when the AI layer cannot be built. */
+function modelChoices(): ModelChoices {
   try {
     const ai = getAi();
-    return new Map([...ai.agentModels(), ...ai.searchModels()].map((choice) => [choice.provider, choice.models.map((each) => each.model)]));
+    return { agent: ai.agentModels(), search: ai.searchModels() };
   } catch {
-    return new Map();
+    return { agent: [], search: [] };
+  }
+}
+
+/** The models each configured provider is known to serve, for the model settings' suggestions. */
+const knownModels = (choices: ModelChoices): Map<ProviderId, string[]> =>
+  new Map([...choices.agent, ...choices.search].map((choice: AgentModelChoice) => [choice.provider, choice.models.map((each) => each.model)]));
+
+/**
+ * Every Coaching Playbook and task Playbook with its latest Human-validated version, which production serves (#402); null
+ * when they cannot be read.
+ */
+async function playbooksWithVersions(): Promise<PlaybookWithVersions[] | null> {
+  try {
+    const playbooks = getCoachingPlaybooks();
+    const listed = (await playbooks.list()).filter((each) => each.kind === "playbook" || each.kind === "task");
+    return await Promise.all(
+      listed.map(async (playbook) => ({ playbook, validated: (await playbooks.history(playbook.id))?.versions.find((version) => version.validation !== null) ?? null })),
+    );
+  } catch {
+    return null;
   }
 }
 
@@ -80,6 +116,13 @@ function Notices({ ctx, search, signInProviders, requireSso }: { ctx: Ctx; searc
           </p>
         ) : undefined,
     });
+  }
+  // An AI task's route, a Playbook Agent's draft version (#402).
+  const route = one(search.route);
+  if (isRouteNotice(route)) notices.push({ role: "status", text: t(`admin.platformSettings.aiTasks.notices.${route}`) });
+  const agent = one(search.agent);
+  if (isPlaybookAgentNotice(agent)) {
+    notices.push({ role: PLAYBOOK_AGENT_NOTICES[agent] ? "alert" : "status", text: t(`admin.platformSettings.aiTasks.agentNotices.${agent}`, { version: /^\d{1,6}$/.test(one(search.version) ?? "") ? one(search.version)! : "" }) });
   }
   // A Job discovery source, site or Job Site.
   const sites = one(search.sites);
@@ -145,6 +188,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
     if (type.kind === "text") return t("admin.platformSettings.rules.text");
     if (type.kind === "url") return t("admin.platformSettings.rules.url");
     if (type.kind === "sender") return t("admin.platformSettings.rules.sender");
+    if (type.kind === "country") return t("admin.platformSettings.rules.country");
     if (type.kind !== "number") return "";
     const key = `${type.whole ? "whole" : "decimal"}${type.aboveMin ? "AboveMin" : ""}` as const;
     return t(`admin.platformSettings.rules.${key}`, { min: number.format(type.min), max: number.format(type.max) });
@@ -165,6 +209,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   }
 
   const tools = await currentState();
+  const choices = modelChoices();
   const { settings, env: settingsEnv } = tools.settings;
   const secrets: ProviderSecretStatus[] | null = readSecrets && hasDatabase ? await getProviderSecrets().list() : null;
   const state: ProvidersState = { ...tools, secrets };
@@ -180,12 +225,19 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
     tab,
     sheet: one(search.fournisseur),
     access,
-    can: { settings: canWrite, secrets: access.can("providerSecrets", "write"), readSecrets, sites: access.can("searchSites", "write"), signIn: canSignIn },
+    can: {
+      settings: canWrite,
+      secrets: access.can("providerSecrets", "write"),
+      readSecrets,
+      sites: access.can("searchSites", "write"),
+      signIn: canSignIn,
+      playbooks: access.can("coachingPlaybooks", "write"),
+    },
     canSaveSecrets: secretCipherFromEnv(process.env) !== null,
     at: new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" }),
     rule,
     modelProviders,
-    models: canWrite ? knownModels() : new Map(),
+    models: canWrite ? knownModels(choices) : new Map(),
   };
 
   const rows = possibleProviders(tab, state);
@@ -204,6 +256,17 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const sheet = adding ? undefined : rows.find((row) => row.tool.id === ctx.sheet);
   // France Travail's APIs, each as its latest connection test found it (#400), on its sheet.
   const apiAccess = sheet?.tool.id === "france-travail" && readSecrets && hasDatabase ? await getProviderSecrets().apiAccess("france-travail") : [];
+
+  // The AI tasks and Playbook Agents (#402): on Recherche web the search ones, on IA every one, each in a side panel.
+  const aiTab = tab.id === "web_search" || tab.id === "ai";
+  const readsPlaybooks = access.can("coachingPlaybooks", "read");
+  const playbooks = aiTab && readsPlaybooks && hasDatabase ? await playbooksWithVersions() : null;
+  const taskRoutes = tab.id === "ai" ? aiTaskRoutes(state) : [];
+  const agentRows = playbooks ? playbookAgentRows(playbooks, state) : null;
+  const searchRows = tab.id === "web_search" ? searchTaskRows(playbooks ?? [], state) : [];
+  const openRoute = !sheet && !adding && tab.id === "ai" && ctx.can.settings ? taskRoutes.find((each) => each.task === one(search[AI_FORM.task])) : undefined;
+  const openAgent = !sheet && !adding && aiTab && ctx.can.playbooks ? agentRows?.find((each) => each.id === one(search[AI_FORM.playbook])) : undefined;
+  const openAgentLatest = openAgent ? playbooks?.find((each) => each.playbook.id === openAgent.id)?.playbook.latest : undefined;
 
   // The DPA marked signed waits for the super-admin's confirmation (#302).
   const noticed = platformSetting(one(search.setting) ?? "");
@@ -252,7 +315,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
           </form>
           <Link prefetch={false} href={parametresHref(tab.id, {}, `setting-${confirming.name}`)}>{t("admin.platformSettings.confirmDpa.cancel")}</Link>
         </section>
-      ) : sheet ? null : (
+      ) : sheet || openRoute || openAgent ? null : (
         notices
       )}
       {differing > 0 ? (
@@ -270,6 +333,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
         {tab.id === "sources" && sources ? (
           <SourcesSection ctx={ctx} sources={sources} rows={rows} webSearch={possibleProviders(WEB_SEARCH_TAB, state).find((row) => row.active)} />
         ) : null}
+        {tab.id === "web_search" ? <SearchTasksSection ctx={ctx} rows={searchRows} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
+        {tab.id === "ai" ? <AiTasksSection ctx={ctx} routes={taskRoutes} agents={readsPlaybooks ? agentRows : []} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
         {tab.id === "web_search" && discoverySites ? <DiscoverySitesSection ctx={ctx} sites={discoverySites} adding={adding === "job_discovery_site"} /> : null}
         {tab.id === "extension" && jobSites ? <JobSitesSection ctx={ctx} sites={jobSites} adding={adding === "job_site"} /> : null}
         {tab.id === "sign_in" && signInSettings ? (
@@ -278,6 +343,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
       </div>
 
       {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} notices={notices} /> : null}
+      {openRoute ? <RoutePanel ctx={ctx} route={openRoute} choices={choices} keyMissingOf={(provider) => keyMissing(state, provider)} notices={notices} /> : null}
+      {openAgent && openAgentLatest ? <PlaybookAgentPanel ctx={ctx} row={openAgent} latest={openAgentLatest} choices={choices} notices={notices} /> : null}
       {adding ? <AddPanel ctx={ctx} type={adding} allowed={allowed} sources={sources ?? ALL_SOURCES} signInTypes={signInProviders.map((provider) => provider.type)} /> : null}
     </BackOfficeLayout>
   );

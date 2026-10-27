@@ -112,6 +112,9 @@ import {
   joinProvenance,
   NO_INDUSTRY_REFERENCE,
   type DiscoveryMetrics,
+  type DiscoverySearch,
+  type TargetCompaniesMetrics,
+  type DiscoveryStopReason,
   type IndustryReference,
   type JobDiscoverySettings,
   type FantasticJobsMetrics,
@@ -130,7 +133,7 @@ import type { FantasticJobs } from "./fantastic-jobs";
 import type { FranceTravail } from "./france-travail";
 import { listingPageLinks } from "./listing-page";
 import { searchPages } from "./search-pages";
-import type { LaBonneBoiteStatus, TargetCompanies, TargetCompanyVisit } from "./target-companies";
+import type { TargetCompanies, TargetCompanyVisit } from "./target-companies";
 import { careersSiteOf, isForTheJob } from "./target-companies/careers-site";
 import {
   countJobPostings,
@@ -160,12 +163,12 @@ export { createCityCodes, createTargetCompanies, targetCompanySettingsFromEnv, t
 export interface JobOfferStore {
   /** The Job Offer already captured from this source URL (ignoring tracking parameters), or null. */
   findBySourceUrl(url: string): Promise<JobOffer | null>;
-  /** Stores a posting, or returns the stored Job Offer for the same posting. */
+  /** Stores a posting, or returns the stored Job Offer for the same posting; `created` when it was stored just now. */
   capture(
     input: { source: { url: string } } & Omit<JobOfferDetails, "postedAt" | "summary" | "sector" | "subsector">,
     capturedBy?: "candidate" | "guest",
     trusted?: { postedAt?: Date; summary?: string; sector?: string; subsector?: string; provenance?: Provenance },
-  ): Promise<{ ok: true; jobOffer: JobOffer } | { ok: false; errors: unknown[] }>;
+  ): Promise<{ ok: true; jobOffer: JobOffer; created?: boolean } | { ok: false; errors: unknown[] }>;
 }
 
 export interface JobDiscoveryOptions {
@@ -265,6 +268,12 @@ export interface DiscoveryReport {
   fantasticJobs: FantasticJobsMetrics;
   /** The run's switch to the fallback Search provider, once the active one failed (ADR-0043); null when it did not. */
   searchFallback: SearchFallback | null;
+  /** Each web search of the run, in order, with what it gave (#404): one that failed is not there. */
+  searches: DiscoverySearch[];
+  /** Of `jobOffers`, how many were stored for the first time by this run. */
+  newJobOffers: number;
+  /** Why the run ended. */
+  stopReason: DiscoveryStopReason;
   /** The Target Companies' part of the run (#406): La Bonne Boite's, how many were visited and the Job Offers they gave (in the funnel too). */
   targetCompanies: TargetCompaniesMetrics;
   /**
@@ -277,17 +286,7 @@ export interface DiscoveryReport {
 /** The funnel's stages up to deduplication. Provider URLs are looked at in order until the budget runs out. */
 export type DiscoveryFunnel = Omit<DiscoveryMetrics["funnel"], "afterDedup" | "matched">;
 
-/** The Target Companies' part of a run (#406). */
-export interface TargetCompaniesMetrics {
-  /** `off`: France Travail not configured (or no Profile); `kept`: the list fetched within the month; `searched`: fetched now. */
-  laBonneBoite: LaBonneBoiteStatus;
-  /** HTTP calls made to France Travail for it (tokens, ROMEO, La Bonne Boite). */
-  calls: number;
-  /** Target Companies visited. */
-  visited: number;
-  /** Job Offers they gave, new or already stored, after the freshness rule. */
-  offers: number;
-}
+export type { TargetCompaniesMetrics } from "@jobhub/shared";
 
 /** The most postings read from one Target Company's ATS board in a run, as from a listing page. */
 const MAX_POSTINGS_PER_TARGET_COMPANY = 5;
@@ -421,9 +420,14 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         franceTravail: { status: "off", offers: 0, calls: 0 },
         fantasticJobs: { status: "off", offers: 0, calls: 0, costEur: 0 },
         searchFallback: null,
+        searches: [],
+        newJobOffers: 0,
+        stopReason: "exhausted",
         targetCompanies: { laBonneBoite: "off", calls: 0, visited: 0, offers: 0 },
         run,
       };
+      /** The Job Offers this run stored for the first time. */
+      const created = new Set<string>();
       /** The run's web searches: once the Search provider fails, the rest go to its fallback (ADR-0043). */
       const webSearches = createWebSearchRun();
       /** The steps of one search or one page read, for the Provenance of the Job Offers it leads to: steps of the run too. */
@@ -506,7 +510,11 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
         const captured = await options.jobOffers.capture({ source: { url }, ...untrusted }, "candidate", trusted);
         if (!captured.ok) skipped.push({ url, reason: "invalid" });
         else if (tooOld(captured.jobOffer.postedAt, now)) skipped.push({ url, reason: "too_old" });
-        else found.set(captured.jobOffer.id, captured.jobOffer);
+        else {
+          found.set(captured.jobOffer.id, captured.jobOffer);
+          if (captured.created) created.add(captured.jobOffer.id);
+          report.newJobOffers = created.size;
+        }
       };
 
       /**
@@ -663,9 +671,25 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             const fresh = results.filter((url) => !providerUrls.has(url));
             for (const url of fresh) providerUrls.add(url);
             funnel.providerUrls = providerUrls.size;
+            // Recorded for Activité › Recherches (#404) before its pages are read, as the plan's searches are.
+            const fallback = webSearches.fallback;
+            const recorded: DiscoverySearch = {
+              kind: "target_company",
+              site: employer,
+              queries: search.queries ?? [],
+              page: 1,
+              provider: search.provider,
+              fallback: fallback !== null && search.provider === fallback.to,
+              results: results.length,
+              newJobOffers: 0,
+              costEur: Math.round(search.costEur * 1e6) / 1e6,
+            };
+            report.searches.push(recorded);
+            const createdBefore = created.size;
             for (const url of fresh) {
               if (budgetSpent()) break;
               await read(url, true, search.sourceDates?.[url], searched);
+              recorded.newJobOffers = created.size - createdBefore;
             }
           } catch (error) {
             if (signal?.aborted) throw error;
@@ -747,12 +771,29 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
             .finally(() => (report.searchFallback = webSearches.fallback));
           const searched = searching.provenance();
           // The answer text only points at pages to read: a Job Offer always comes from a page read.
-          const fresh = [...new Set([...search.sources, ...urlsIn(search.answer)])].filter((url) => !providerUrls.has(url));
+          const given = [...new Set([...search.sources, ...urlsIn(search.answer)])];
+          const fresh = given.filter((url) => !providerUrls.has(url));
           for (const url of fresh) providerUrls.add(url);
           funnel.providerUrls = providerUrls.size;
+          // Recorded before its pages are read, so a run failing while reading them still lists it.
+          const fallback = webSearches.fallback;
+          const recorded: DiscoverySearch = {
+            kind: site ? "site" : "plan",
+            ...(site ? { site } : {}),
+            queries: search.queries ?? [],
+            page: next.page,
+            provider: search.provider,
+            fallback: fallback !== null && search.provider === fallback.to,
+            results: given.length,
+            newJobOffers: 0,
+            costEur: Math.round(search.costEur * 1e6) / 1e6,
+          };
+          report.searches.push(recorded);
+          const createdBefore = created.size;
           for (const url of fresh) {
             if (budgetSpent()) break;
             await read(url, true, search.sourceDates?.[url], searched);
+            recorded.newJobOffers = created.size - createdBefore;
           }
           pager.gave(next, found.size - before);
         }
@@ -786,10 +827,24 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
       } catch (error) {
         report.jobOffers = [...found.values()];
         // Stopped by the Candidate, the AI call on its way broke: the run reports what it found, as when stopped between steps.
-        if (signal?.aborted) return report;
+        if (signal?.aborted) {
+          report.stopReason = "stopped";
+          return report;
+        }
+        report.stopReason = "failed";
         throw new JobDiscoveryError(report, error);
       }
       report.jobOffers = [...found.values()];
+      // The whole budget, whichever location the run ended on.
+      report.stopReason = signal?.aborted
+        ? "stopped"
+        : found.size >= budget.jobOffers
+          ? "job_offers"
+          : report.costEur >= budget.spendEur
+            ? "spend"
+            : clock.now() - startedAt >= budget.seconds * 1000
+              ? "duration"
+              : "exhausted";
       return report;
     },
   };

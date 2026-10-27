@@ -100,6 +100,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
         "company_careers_site", // issue #406: public careers sites / ATS found per company, shared, no Candidate
         "company_dossier", // issue #17
+        "discovery_run", // issue #404: the figures of a Job discovery run, with no Candidate
+        "discovery_run_detail", // issue #404: what ties a run to its Candidate, kept 30 days
         "enriched_contact", // issue #23: Enriched Contacts, with their source provider and retrieval date
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
         "eval_case", // issue #231: a Coaching Playbook's Eval Cases, fictional, in each environment
@@ -205,6 +207,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "coaching_session_reschedule", from_column: "coaching_session_id", to_table: "coaching_session" },
         // A Company Dossier (issue #17) goes with its Application.
         { from_table: "company_dossier", from_column: "application_id", to_table: "application" },
+        // A Discovery Run's detail (issue #404) goes with its run, its Candidate, Profile and Job Search.
+        { from_table: "discovery_run_detail", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "discovery_run_detail", from_column: "job_search_id", to_table: "job_search" },
+        { from_table: "discovery_run_detail", from_column: "profile_id", to_table: "profile" },
+        { from_table: "discovery_run_detail", from_column: "run_id", to_table: "discovery_run" },
         // Enriched Contacts (issue #23) go with their Application.
         { from_table: "enriched_contact", from_column: "application_id", to_table: "application" },
         // EU AI consent (issue #121) goes with its Candidate.

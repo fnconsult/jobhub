@@ -367,7 +367,7 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         at: new Date("2026-10-21T10:00:05Z"),
         actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
         section: "ai_messages",
-        target: "/admin/journaux-ia",
+        target: "/admin/activite/appels-ia",
         action: "denied",
         outcome: "failed",
         before: null,

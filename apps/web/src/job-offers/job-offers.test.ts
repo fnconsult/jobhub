@@ -109,6 +109,14 @@ describe.skipIf(!connectionString)("Job Offers (needs Postgres: DATABASE_URL)", 
     expect(other.ok && other.jobOffer.id).not.toBe(first.ok && first.jobOffer.id);
   });
 
+  it("says whether a capture stored the posting for the first time, for a Job discovery run's new Job Offers (#404)", async () => {
+    const first = await jobOffers.capture(posting);
+    const again = await jobOffers.capture(posting);
+
+    expect(first.ok && first.created).toBe(true);
+    expect(again.ok && again.created).toBe(false);
+  });
+
   it("keeps the posting date a trusted source states, and refuses one that is not a date or lies in the future", async () => {
     const postedAt = new Date("2026-10-02T15:31:50Z");
     const captured = await jobOffers.capture(posting, "candidate", { postedAt });

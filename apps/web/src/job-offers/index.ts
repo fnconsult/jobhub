@@ -92,6 +92,11 @@ export interface TrustedFacts {
   subsector?: string;
   /** How the caller found and read the posting (its search, page read and model): kept with a Job Offer it stores. */
   provenance?: Provenance;
+  /**
+   * It is no posting but a Spontaneous Application's (#409): what the Candidate applies for at a Target Company that
+   * published nothing. Never offered in a Job Digest.
+   */
+  spontaneous?: true;
 }
 
 // A Date the caller built from what it read, never text to coerce: nothing from a request body reaches it.
@@ -349,11 +354,11 @@ export function createJobOffers(database: Pool): JobOffers {
       const { rows } = await database.query<JobOfferRow>(
         `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location,
                                 contract_type, remote_work, salary_min, salary_max, skills, required_experience_years,
-                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance)
+                                posted_at, guest_expires_at, summary, summary_read_at, sector, subsector, sector_read_at, provenance, spontaneous)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $16 = 'guest' THEN ${GUEST_EXPIRY_SQL} END,
                  $17::text, CASE WHEN $17::text IS NOT NULL THEN now() END,
-                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb)
+                 $18::text, $19::text, CASE WHEN $17::text IS NOT NULL THEN now() END, $20::jsonb, $21)
          ON CONFLICT DO NOTHING
          RETURNING ${COLUMNS}`,
         [
@@ -376,6 +381,7 @@ export function createJobOffers(database: Pool): JobOffers {
           sector ?? null,
           (sector && subsector) ?? null,
           storable(trusted.provenance),
+          trusted.spontaneous === true,
         ],
       );
       if (rows[0]) return { ok: true, jobOffer: jobOfferFrom(rows[0]) };
@@ -503,6 +509,8 @@ export async function migrateJobOffers(database: Pool): Promise<void> {
       required_experience_years integer,
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    -- A Spontaneous Application's Job Offer (#409): no posting, never offered in a Job Digest.
+    ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS spontaneous boolean NOT NULL DEFAULT false;
     -- Set while only Guests have captured the posting: when to forget it (ADR-0003).
     ALTER TABLE job_offer ADD COLUMN IF NOT EXISTS guest_expires_at timestamptz;
     CREATE INDEX IF NOT EXISTS job_offer_guest_expires_at ON job_offer (guest_expires_at) WHERE guest_expires_at IS NOT NULL;

@@ -73,9 +73,11 @@ async function jobSearchFound(page: Page, profileId: string, title: string, empl
   expect(offer.status(), await offer.text()).toBe(200);
   const jobOfferId: string = (await offer.json()).id;
   await withDb((db) =>
-    db.query(`INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) SELECT candidate_id, id, 'done', $2, now(), now() FROM profile WHERE id = $1`, [
+    // A done row carries metrics like the worker's own (job-search-metrics.spec.ts checks every one does).
+    db.query(`INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) SELECT candidate_id, id, 'done', $2, now(), now(), $3 FROM profile WHERE id = $1`, [
       profileId,
       [jobOfferId],
+      JSON.stringify({ funnel: { providerUrls: 1, fetched: 1, extracted: 1, alreadyStored: 0, afterDedup: 1, matched: 1 }, skipped: {}, costEur: 0, durationMs: 1000 }),
     ]),
   );
 }

@@ -4,7 +4,8 @@
  *
  * One deep module in front of Postgres. Callers get `createAssistantConversations(database, { assistant })`:
  *  - `send` the Administrator's next message, untrusted input from the browser
- *    `{ conversationId?, message }`: the assistant answers the saved conversation (a new
+ *    `{ conversationId?, message, explained? }` (`explained`: the item an Explainable label asks about, #407, kept with
+ *    the message and told again with every later one): the assistant answers the saved conversation (a new
  *    one without `conversationId`) and both messages are saved together. Nothing is saved
  *    when the assistant cannot answer, so the Administrator can send again;
  *  - `list` their conversations, most recently active first; `open` one with its
@@ -30,7 +31,8 @@ import { activityOf } from "@jobhub/ai";
 import { readProvenance, type Provenance } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
-import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type AssistantMessage } from "./conversation";
+import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type AssistantMessage, type ExplainedItem } from "./conversation";
+import { explainedSchema } from "./explained";
 import type { BackOfficeResource } from "../admin/access";
 import type { GuardrailLanguage } from "../guardrails";
 import type { AskingAdministrator, BackOfficeAssistant } from "./index";
@@ -89,6 +91,7 @@ const titleSchema = z.string().trim().min(1).max(MAX_TITLE_LENGTH);
 const sendSchema = z.object({
   conversationId: z.string().regex(UUID).optional(),
   message: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
+  explained: explainedSchema.optional(),
 });
 
 const SUMMARY = `SELECT id, title, last_message_at AS "lastMessageAt" FROM back_office_assistant_conversation`;
@@ -108,7 +111,7 @@ export function savedAssistantReplyProvenance(reply: SavedAssistantReply): Prove
   return readProvenance(reply.provenance, { activity: activityOf({ kind: "ai", task: "back_office_assistant" }), task: "back_office_assistant", ...reply });
 }
 
-type SavedMessage = Omit<AssistantMessage, "blocked"> & { sections: BackOfficeResource[] | null; blocked: boolean };
+type SavedMessage = Omit<AssistantMessage, "blocked" | "explained"> & { sections: BackOfficeResource[] | null; blocked: boolean; explained: ExplainedItem | null };
 
 function titleFrom(message: string): string {
   const words = message.replace(/\s+/g, " ").trim();
@@ -126,8 +129,8 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
 
   /** The last `limit` messages of a conversation (all with null), oldest first; replies with the sections they drew on. */
   async function lastMessages(conversationId: string, limit: number | null): Promise<SavedMessage[]> {
-    const { rows } = await database.query<Pick<AssistantMessage, "from" | "text"> & SavedAssistantReply & { sections: BackOfficeResource[] | null; blocked: boolean }>(
-      `SELECT m.author AS "from", m.text, m.sections, m.blocked, ${SAVED_ASSISTANT_REPLY_COLUMNS} FROM (
+    const { rows } = await database.query<Pick<AssistantMessage, "from" | "text"> & SavedAssistantReply & { sections: BackOfficeResource[] | null; blocked: boolean; explained: ExplainedItem | null }>(
+      `SELECT m.author AS "from", m.text, m.sections, m.blocked, m.explained, ${SAVED_ASSISTANT_REPLY_COLUMNS} FROM (
          SELECT * FROM back_office_assistant_message WHERE conversation_id = $1 ORDER BY seq DESC LIMIT $2
        ) m ORDER BY m.seq`,
       [conversationId, limit],
@@ -137,6 +140,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       text: row.text,
       sections: row.sections,
       blocked: row.blocked,
+      explained: row.explained,
       ...(row.from === "assistant" ? { provenance: savedAssistantReplyProvenance(row), at: row.at.toISOString() } : {}),
     }));
   }
@@ -146,9 +150,10 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
     const saved = await lastMessages(conversationId, MAX_MESSAGES);
     // A blocked question and the Guardrail message answering it are never replayed.
     const kept = saved.filter((message, index) => (message.from === "administrator" ? !message.blocked : !(saved[index - 1]?.from === "administrator" && saved[index - 1]!.blocked)));
-    return kept.map(({ from, text, sections }) => {
+    return kept.map(({ from, text, sections, explained }) => {
+      if (from === "administrator") return { from, text, ...(explained ? { explained } : {}) };
       // A reply with no sections recorded counts as drawing on every one.
-      const stillReadable = from === "administrator" || (sections !== null && sections.every((section) => administrator.access.can(section, "read")));
+      const stillReadable = sections !== null && sections.every((section) => administrator.access.can(section, "read"));
       return { from, text: stillReadable ? text : OUT_OF_ROLE_REPLY };
     });
   }
@@ -157,13 +162,13 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
     async send(administrator, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
-      const { conversationId, message } = parsed.data;
+      const { conversationId, message, explained } = parsed.data;
 
       const existing = conversationId ? await find(administrator.id, conversationId) : null;
       if (conversationId && !existing) return { ok: false, error: "not_found" };
       const history = existing ? await replayable(administrator, existing.id) : [];
 
-      const answer = await deps.assistant.reply(administrator, { messages: [...history, { from: "administrator", text: message }] }, options.language ? { language: options.language } : undefined);
+      const answer = await deps.assistant.reply(administrator, { messages: [...history, { from: "administrator", text: message, ...(explained ? { explained } : {}) }] }, options.language ? { language: options.language } : undefined);
       if (!answer.ok) return answer;
       const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
 
@@ -180,12 +185,10 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
           );
           id = rows[0]!.id;
         }
-        await client.query(`INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, blocked) VALUES ($1, 'administrator', $2, $3, $4)`, [
-          id,
-          message,
-          sentAt,
-          blocked.message,
-        ]);
+        await client.query(
+          `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, blocked, explained) VALUES ($1, 'administrator', $2, $3, $4, $5)`,
+          [id, message, sentAt, blocked.message, explained ? JSON.stringify(explained) : null],
+        );
         await client.query(
           `INSERT INTO back_office_assistant_message (conversation_id, author, text, created_at, provider, model, cost_eur, sections, blocked, provenance)
            VALUES ($1, 'assistant', $2, $3, $4, $5, $6, $7, $8, $9)`,
@@ -295,6 +298,8 @@ export async function migrateAssistantConversations(database: Pool): Promise<voi
     ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS blocked boolean NOT NULL DEFAULT false;
     -- What served each reply (ADR-0034, #327); null before (a partial one is read from provider and model).
     ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS provenance jsonb;
+    -- The item an Explainable label asked about (#407), on the Administrator's message; null otherwise.
+    ALTER TABLE back_office_assistant_message ADD COLUMN IF NOT EXISTS explained jsonb;
     CREATE INDEX IF NOT EXISTS back_office_assistant_message_conversation_idx ON back_office_assistant_message (conversation_id, seq);
   `);
 }

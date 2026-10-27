@@ -432,7 +432,8 @@ test.describe("Platform Settings (Paramètres)", () => {
     const before = (await setting.getByRole("cell").nth(0).innerText()).trim();
     await expect(setting).toContainText(tr(texts.accepted, { rule: texts.rules.sender }));
     await expect(row(page, "MAIL_TRANSPORT").getByRole("textbox")).toHaveCount(0);
-    await expect(row(page, "MAIL_TRANSPORT").getByRole("button")).toHaveCount(0);
+    // Nothing to save: its only button is its Explainable label (#407), which asks the Back Office Assistant.
+    await expect(row(page, "MAIL_TRANSPORT").locator("button:not(.explainable-label)")).toHaveCount(0);
 
     const refusedSender = `Jobbbox <refused-${Date.now()}>`;
     await setting.getByRole("textbox", { name: tr(texts.newValue, { name: "MAIL_FROM" }) }).fill(refusedSender);

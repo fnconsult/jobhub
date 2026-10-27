@@ -61,7 +61,7 @@ export default defineConfig({
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|help-content-package)\.spec\.ts/ },
-    { name: "ai", testMatch: /ai\.spec\.ts/ },
+    { name: "ai", testMatch: /(ai|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
     // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.

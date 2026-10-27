@@ -61,4 +61,63 @@ test.describe("Email intake: the Forwarding address", () => {
     expect((await request.post("/api/account/email-intake/replace", { headers: { origin } })).status()).toBe(401);
     expect((await request.post("/api/account/email-intake/sending-addresses", { headers: { origin }, data: { address: "a@b.fr" } })).status()).toBe(401);
   });
+
+  test("switching on gives an address and records the date; replacing makes the old one unknown, and the export keeps every address with its dates", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("email-intake-export"));
+    const headers = { origin };
+    expect((await page.request.post("/api/account/email-intake/replace", { headers })).status()).toBe(409);
+
+    const on = await page.request.put("/api/account/email-intake", { headers });
+    expect(on.status()).toBe(200);
+    const first = await on.json();
+    expect(first.address).toMatch(FORWARDING_ADDRESS);
+    expect(Date.now() - new Date(first.activatedAt).getTime()).toBeLessThan(5 * 60_000);
+    // Switching on again keeps the address and its date.
+    expect(await (await page.request.put("/api/account/email-intake", { headers })).json()).toEqual(first);
+
+    const replaced = await (await page.request.post("/api/account/email-intake/replace", { headers })).json();
+    expect(replaced.address).toMatch(FORWARDING_ADDRESS);
+    expect(replaced.address).not.toBe(first.address);
+
+    await page.request.post("/api/account/email-intake/sending-addresses", { headers, data: { address: "Marie@Orange.fr" } });
+    const exported = await (await page.request.get("/api/account/export")).json();
+    expect(exported.emailIntake.sendingAddresses).toEqual([{ address: "marie@orange.fr", addedAt: expect.any(String) }]);
+    const addresses = exported.emailIntake.forwardingAddresses as { address: string; activatedAt: string }[];
+    expect(addresses.map((a) => a.address).sort()).toEqual([first.address, replaced.address].sort());
+    expect(addresses.find((a) => a.address === replaced.address)).toMatchObject({ activatedAt: replaced.activatedAt });
+    expect(addresses.find((a) => a.address === first.address)).toMatchObject({ activatedAt: first.activatedAt });
+    // The page shows only the new address: the old one is no longer in use.
+    await page.goto("/compte/reception-email");
+    await expect(page.getByLabel(fr.emailIntake.addressLabel)).toHaveValue(replaced.address);
+  });
+
+  test("two Candidates never get the same Forwarding address", async ({ page, browser }) => {
+    const other = await browser.newPage();
+    await signInWithMagicLink(page, newAddress("email-intake-unique-a"));
+    await signInWithMagicLink(other, newAddress("email-intake-unique-b"));
+    const headers = { origin };
+    const given = new Set<string>();
+    for (const candidate of [page, other]) {
+      given.add((await (await candidate.request.put("/api/account/email-intake", { headers })).json()).address);
+      given.add((await (await candidate.request.post("/api/account/email-intake/replace", { headers })).json()).address);
+    }
+    expect(given.size).toBe(4);
+    await other.close();
+  });
+
+  test("deleting the account removes the Forwarding and sending addresses: a new account of the same email starts with Email intake off", async ({ page }) => {
+    const email = newAddress("email-intake-delete");
+    await signInWithMagicLink(page, email);
+    const headers = { origin };
+    const { address } = await (await page.request.put("/api/account/email-intake", { headers })).json();
+    await page.request.post("/api/account/email-intake/sending-addresses", { headers, data: { address: "marie@orange.fr" } });
+    expect((await page.request.delete("/api/account", { headers, data: { email } })).status()).toBe(204);
+
+    await signInWithMagicLink(page, email);
+    const fresh = await (await page.request.get("/api/account/export")).json();
+    expect(fresh.emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [] });
+    expect(JSON.stringify(fresh)).not.toContain(address);
+    const regained = await (await page.request.put("/api/account/email-intake", { headers })).json();
+    expect(regained.address).not.toBe(address);
+  });
 });

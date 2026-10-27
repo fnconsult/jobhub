@@ -4,6 +4,9 @@
  * records the date; replacing it or switching Email intake off stops the old one at once, and the
  * inbound route's lookup (`candidateAt`) no longer knows it. A stopped address is kept, marked
  * replaced or off, so it is never given again, to anyone.
+ *
+ * Also the Candidate's own sending addresses (#437): their account's and those they add, from
+ * which an email they forward by hand is theirs to read.
  */
 import { randomBytes } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
@@ -26,7 +29,19 @@ export interface EmailIntake {
   switchOff(candidateId: string): Promise<void>;
   /** The Candidate whose Forwarding address in use is `address` (any case): what the inbound route asks. Null for any other address. */
   candidateAt(address: string): Promise<string | null>;
+  /** The Candidate's own sending addresses, in lower case: their account's first, then those they added, oldest first. */
+  sendingAddresses(candidateId: string): Promise<string[]>;
+  /** Adds a sending address of theirs, dated now. Already one: nothing changes, "added". At most MAX_SENDING_ADDRESSES added. */
+  addSendingAddress(candidateId: string, address: string): Promise<"added" | "invalid" | "too_many">;
+  /** Removes a sending address they added (any case). Their account's stays. */
+  removeSendingAddress(candidateId: string, address: string): Promise<void>;
 }
+
+/** How many sending addresses a Candidate may add besides their account's. */
+export const MAX_SENDING_ADDRESSES = 10;
+
+/** An email address, as a Candidate types one: something@domain.tld, no spaces. */
+const EMAIL_ADDRESS = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export interface EmailIntakeOptions {
   /** The Email intake domain new Forwarding addresses are on (EMAIL_INTAKE_DOMAIN), read when one is given. */
@@ -107,6 +122,37 @@ export function createEmailIntake(database: Pool, options: EmailIntakeOptions): 
       ]);
       return rows[0]?.candidate_id ?? null;
     },
+    async sendingAddresses(candidateId) {
+      const { rows } = await database.query<{ address: string }>(
+        `SELECT address FROM (
+           SELECT lower(email) AS address, 0 AS rank, NULL::timestamptz AS added_at FROM candidate WHERE id = $1
+           UNION ALL SELECT address, 1, added_at FROM sending_address WHERE candidate_id = $1
+         ) own ORDER BY rank, added_at, address`,
+        [candidateId],
+      );
+      return [...new Set(rows.map((row) => row.address))];
+    },
+    async addSendingAddress(candidateId, raw) {
+      const address = raw.trim().toLowerCase();
+      if (!EMAIL_ADDRESS.test(address)) return "invalid";
+      const { rows } = await database.query<{ added: boolean }>(
+        `WITH kept AS (
+           SELECT 1 FROM sending_address WHERE candidate_id = $1 AND address = $2
+           UNION ALL SELECT 1 FROM candidate WHERE id = $1 AND lower(email) = $2
+         ), added AS (
+           INSERT INTO sending_address (candidate_id, address, added_at)
+           SELECT $1, $2, $3 WHERE NOT EXISTS (SELECT 1 FROM kept)
+             AND (SELECT count(*) FROM sending_address WHERE candidate_id = $1) < $4
+           ON CONFLICT DO NOTHING RETURNING 1
+         )
+         SELECT EXISTS (SELECT 1 FROM kept) OR EXISTS (SELECT 1 FROM added) AS added`,
+        [candidateId, address, now(), MAX_SENDING_ADDRESSES],
+      );
+      return rows[0]!.added ? "added" : "too_many";
+    },
+    async removeSendingAddress(candidateId, address) {
+      await database.query(`DELETE FROM sending_address WHERE candidate_id = $1 AND address = $2`, [candidateId, address.trim().toLowerCase()]);
+    },
   };
 }
 
@@ -121,5 +167,11 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
       ended_at timestamptz
     );
     CREATE UNIQUE INDEX IF NOT EXISTS forwarding_address_one_active ON forwarding_address (candidate_id) WHERE state = 'active';
+    CREATE TABLE IF NOT EXISTS sending_address (
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      address text NOT NULL,
+      added_at timestamptz NOT NULL,
+      PRIMARY KEY (candidate_id, address)
+    );
   `);
 }

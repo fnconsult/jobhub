@@ -108,6 +108,32 @@ describe.skipIf(!connectionString)("Email intake: the Candidate's Forwarding add
     ).rejects.toMatchObject({ code: "23505" });
   });
 
+  it("knows the Candidate's own sending addresses for manual forwards: their account's, then those they add, kept whether Email intake is on or off", async () => {
+    expect(await emailIntake.sendingAddresses(marie)).toEqual(["marie.dupont@example.fr"]);
+
+    expect(await emailIntake.addSendingAddress(marie, " Marie.Pro@Example.com ")).toBe("added");
+    now = new Date("2026-10-28T09:30:00Z");
+    expect(await emailIntake.addSendingAddress(marie, "marie@orange.fr")).toBe("added");
+    expect(await emailIntake.addSendingAddress(marie, "marie.pro@example.com")).toBe("added");
+    expect(await emailIntake.addSendingAddress(marie, "MARIE.DUPONT@example.fr")).toBe("added");
+
+    expect(await emailIntake.sendingAddresses(marie)).toEqual(["marie.dupont@example.fr", "marie.pro@example.com", "marie@orange.fr"]);
+    expect(await emailIntake.sendingAddresses(jean)).toEqual(["jean.martin@example.fr"]);
+
+    await emailIntake.removeSendingAddress(marie, "Marie.Pro@example.com");
+    expect(await emailIntake.sendingAddresses(marie)).toEqual(["marie.dupont@example.fr", "marie@orange.fr"]);
+  });
+
+  it("refuses a sending address that is not an email address, or one more than ten", async () => {
+    expect(await emailIntake.addSendingAddress(marie, "marie.dupont")).toBe("invalid");
+    expect(await emailIntake.addSendingAddress(marie, "marie @orange.fr")).toBe("invalid");
+    for (let n = 1; n <= 10; n++) expect(await emailIntake.addSendingAddress(marie, `marie${n}@example.com`)).toBe("added");
+
+    expect(await emailIntake.addSendingAddress(marie, "marie11@example.com")).toBe("too_many");
+    expect(await emailIntake.addSendingAddress(marie, "marie10@example.com")).toBe("added");
+    expect(await emailIntake.sendingAddresses(marie)).toHaveLength(11);
+  });
+
   it("gives a Candidate one address in use at a time, in the database itself", async () => {
     await emailIntake.switchOn(marie);
 

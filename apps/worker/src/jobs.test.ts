@@ -17,7 +17,7 @@ import { createSignalements, migrateSignalements, signalementsOf } from "@jobhub
 import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from "./job-discovery";
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -647,6 +647,30 @@ describe("the reference data refresh job (#236)", () => {
     const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
     const refresh = vi.fn(async () => Promise.reject(missingTable));
     await expect(createJobs({ ...otherDeps, database: noDatabase, referenceData: { refresh } })[REFERENCE_DATA_REFRESH]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("the monthly web search alert job (#403)", () => {
+  it("checks the month's web search spend against its threshold every 10 minutes, saying when super-admins were emailed", async () => {
+    const logs: string[] = [];
+    const check = vi.fn(async () => ({ month: "2026-10", spendEur: 2.4, thresholdEur: 2, outcome: "sent" as const }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, webSearchAlert: { check }, log: (line) => logs.push(line) })[WEB_SEARCH_ALERT]!;
+
+    expect(job.cron).toBe("*/10 * * * *");
+    await job.handler({});
+
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[web-search-alert] 2026-10: web search spend €2.40 reached its alert threshold of €2.00, super-admins emailed; nothing is cut"]);
+  });
+
+  it("says nothing below the threshold or once emailed; does nothing without it, or before the web app has created its tables", async () => {
+    const logs: string[] = [];
+    const below = vi.fn(async () => ({ month: "2026-10", spendEur: 1, thresholdEur: 2, outcome: "below" as const }));
+    await createJobs({ ...otherDeps, database: noDatabase, webSearchAlert: { check: below }, log: (line) => logs.push(line) })[WEB_SEARCH_ALERT]!.handler({});
+    expect(logs).toEqual([]);
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[WEB_SEARCH_ALERT]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    await expect(createJobs({ ...otherDeps, database: noDatabase, webSearchAlert: { check: async () => Promise.reject(missingTable) } })[WEB_SEARCH_ALERT]!.handler({})).resolves.toBeUndefined();
   });
 });
 

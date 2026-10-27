@@ -200,6 +200,10 @@
     "link": "Link {{provider}} to my account",
     "failed": "Linking didn't go through. Check that this account uses the same email address as your Jobbbox account, then try again."
   },
+  "webSearchAlert": {
+    "subject": "Jobbbox: web search crossed its alert threshold for {{month}}",
+    "body": "Hello,\n\nWeb search cost {{spend}} in {{month}} (Paris time), past its monthly alert threshold of {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Nothing is cut: Job discovery and Company Dossiers keep searching.\n\nThis amount is estimated at the price in use of each billed unit (call, request, credit), with no provider's free credits taken off. Prices and the threshold are set on Paramètres' Recherche web tab.\n\nThe details are in Consommation IA:\n{{url}}\n\nYou will get no other alert this month.\n\nThe Jobbbox team"
+  },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
     "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings:\n{{url}}\n\nThe Jobbbox team",

@@ -18,6 +18,7 @@ import { createReferenceData } from "@jobhub/web/reference-data";
 import { createSearchSites } from "@jobhub/web/search-sites";
 import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-providers";
 import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
+import { createWebSearchAlert, postgresWebSearchAlertStore, webSearchAlertThresholdFromEnv } from "@jobhub/web/web-search-alert";
 import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
@@ -50,6 +51,7 @@ const settingsEnv = () => platformSettings.resolver.current().env;
 jobDiscoveryBudgetFromEnv(settingsEnv());
 webSearchSettingsFromEnv(settingsEnv());
 jobDigestsConfigFromEnv(settingsEnv());
+webSearchAlertThresholdFromEnv(settingsEnv());
 
 const profiles = createProfiles(database);
 const jobOffers = createJobOffers(database);
@@ -129,6 +131,14 @@ const jobs = createJobs({
   providerSecrets: providerSecrets.reader,
   referenceData,
   signInProviders: signInProvidersWorker(database, { cipher: secretCipherFromEnv(process.env), env: process.env }),
+  // Every super-admin hears of it once a month: the month's web search spend reached WEB_SEARCH_MONTHLY_ALERT_EUR (#403).
+  webSearchAlert: createWebSearchAlert({
+    store: postgresWebSearchAlertStore(database),
+    thresholdEur: () => webSearchAlertThresholdFromEnv(settingsEnv()),
+    superAdmins: () => superAdminEmails(database, permanentSuperAdminsFromEnv(process.env)),
+    mailer,
+    appUrl: baseURL,
+  }),
   // Every super-admin hears of it: Apple sign-in stops once the client secret in use expires.
   alertAppleFailure: async (failed) => {
     const email = appleFailureEmail(failed, baseURL);

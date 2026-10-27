@@ -462,7 +462,8 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
       const messages = recentMessages(parsed.data.messages);
       // What an Administrator's message says to the AI: an Explainable label's context goes with its question, every
       // time the conversation is answered. The Guardrail checks this same text: the context is untrusted input too.
-      const said = (message: (typeof messages)[number]) => (message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text);
+      const said = (message: (typeof messages)[number]) =>
+        message.from === "administrator" && message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text;
       const administratorSaid = messages.filter((message) => message.from === "administrator").map(said);
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance (#327).
       const recorder = createProvenanceRecorder(deps.ai);

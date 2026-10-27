@@ -39,7 +39,7 @@ describe.skipIf(!connectionString)("Email intake's Task Playbook as imported (ne
 
   it("with JOBHUB_TARGET=production and no validated version, reads « en attente de validation »; runs once a person validates it", async () => {
     const production = reader({ NODE_ENV: "production", JOBHUB_TARGET: "production" });
-    const reason = await emailIntakeHeldBack(production);
+    const reason = (await emailIntakeHeldBack(production))!;
 
     expect(reason).toBe("playbook_pending");
     expect(createI18n("fr").t(`admin.platformSettings.sources.reasons.${reason}`)).toMatch(/en attente de validation/);

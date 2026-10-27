@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
-import { expect as baseExpect, test, type Page } from "@playwright/test";
+import { expect as baseExpect, test } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
+import { expectNoPrivatePersonNamed, openApplication } from "./support/company-dossier";
 import { newAddress } from "./support/mailbox";
 
 // Issue #17: the Company Dossier of an Application. A French employer is
@@ -9,7 +10,11 @@ import { newAddress } from "./support/mailbox";
 // agency's posting only yields a Presumed Employer, looked up once the
 // Candidate confirms it; no private person is ever named.
 // The register, the web search and the offer analysis are faked in the web
-// server (e2e/support/fake-company-sources.mjs, e2e/support/fake-mistral.mjs).
+// server (e2e/support/fake-company-sources.mjs, e2e/support/fake-mistral.mjs). The web
+// facts are read in the pages the web search returns by the company-facts-search Task
+// Playbook's agent (#405), whose fake writes the facts those pages give. Its scenario with Brave as the Search provider is
+// in e2e/job-discovery-search-keys.spec.ts: it needs a Brave key, and that spec alone may change the suite's one
+// BRAVE_SEARCH_API_KEY row (#399), which other projects' specs read meanwhile.
 // Building a dossier calls the (faked) register and web search, then refreshes the
 // page: allow it more than the default 5 s when the machine is busy.
 const expect = baseExpect.configure({ timeout: 15_000 });
@@ -17,50 +22,6 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const t = fr.companyDossier;
-
-const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-const masterCv = {
-  fullName: "Marie Dupont",
-  headline: "Directrice financière",
-  email: "marie.dupont@example.fr",
-  phone: "",
-  location: "Lyon",
-  summary: "",
-  experience: [],
-  education: [],
-  skills: ["IFRS"],
-  languages: [],
-};
-
-/** Signs a new Candidate in with one Profile, saves a Job Offer from `employer` and opens its Application page. */
-async function openApplication(page: Page, employer: string | undefined, content = "Poste de DAF.") {
-  await signInWithMagicLink(page, newAddress("company-dossier"));
-  const profile = await page.request.post("/api/profiles", {
-    data: { masterCv, searchCriteria: { targetRole: "DAF", locations: ["Lyon"] } },
-    headers: { origin },
-  });
-  expect(profile.status(), await profile.text()).toBe(201);
-  const offer = await page.request.post("/api/job-offers", {
-    data: { title: "DAF H/F", content: `(réf. ${unique()}) ${content}`, employer, location: "Lyon" },
-    headers: { origin },
-  });
-  expect(offer.status(), await offer.text()).toBe(200);
-  const application = await page.request.post("/api/applications", {
-    data: { jobOfferId: (await offer.json()).id, profileId: (await profile.json()).id },
-    headers: { origin },
-  });
-  expect(application.ok(), await application.text()).toBe(true);
-  await page.goto(`/candidatures/${(await application.json()).id}/dossier`);
-  // The dossier's buttons only act once the page is hydrated.
-  await page.waitForLoadState("networkidle");
-  return page.getByRole("region", { name: t.title });
-}
-
-/** No private person's name from the register or the web search ever reaches the page. */
-async function expectNoPrivatePersonNamed(page: Page) {
-  await expect(page.locator("body")).not.toContainText(/PAULINE|MARTIN|DURAND|Müller/);
-}
 
 test.describe("Company Dossier", () => {
   test("a French employer is matched to its SIREN and shows its financials, executives by role only, and roles to contact", async ({ page }) => {
@@ -124,9 +85,7 @@ test.describe("Company Dossier", () => {
     await expectNoPrivatePersonNamed(page);
   });
 
-  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
-  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
-  test.fixme("a foreign employer gets a dossier from web sources, labelled less reliable", async ({ page }) => {
+  test("a foreign employer gets a dossier from web sources, labelled less reliable", async ({ page }) => {
     const dossier = await openApplication(page, "Globex Robotics GmbH");
 
     await dossier.getByRole("button", { name: t.build }).click();
@@ -197,9 +156,7 @@ test.describe("Company Dossier", () => {
     await expect(again.getByText(t.reliability.official)).toHaveCount(0);
   });
 
-  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
-  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
-  test.fixme("the Candidate corrects the Presumed Employer before confirming, and the dossier is built for the employer they named", async ({ page }) => {
+  test("the Candidate corrects the Presumed Employer before confirming, and the dossier is built for the employer they named", async ({ page }) => {
     const dossier = await openApplication(page, "Cabinet Talents & Co", "Notre client recrute son DAF. Client présumé : Acme Industrie");
     await dossier.getByRole("button", { name: t.build }).click();
     await expect(dossier.getByLabel(t.employerLabel)).toHaveValue("Acme Industrie");
@@ -295,9 +252,7 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText("552100556", { exact: true })).toBeVisible();
   });
 
-  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
-  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
-  test.fixme("a large French employer known by another name than its registered one is matched by the SIREN the web search gives", async ({ page }) => {
+  test("a large French employer known by another name than its registered one is matched by the SIREN the web search gives", async ({ page }) => {
     const dossier = await openApplication(page, "Bibendum");
 
     await dossier.getByRole("button", { name: t.build }).click();
@@ -308,9 +263,7 @@ test.describe("Company Dossier", () => {
     await expect(dossier.getByText(t.reliability.less_reliable)).toHaveCount(0);
   });
 
-  // #398 dropped Perplexity's Agent API: Search providers return pages, never written facts. The company-facts
-  // Task Playbook's agent reads them again from the pages in #405 (ADR-0043).
-  test.fixme("a web dossier shows no person's name, home address or profile, even when the web search gives them", async ({ page }) => {
+  test("a web dossier shows no person's name, home address or profile, even when the web search gives them", async ({ page }) => {
     const dossier = await openApplication(page, "PersonLeak Inc");
 
     await dossier.getByRole("button", { name: t.build }).click();

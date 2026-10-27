@@ -37,7 +37,11 @@
  *    build: the dossier then has no news.
  *  - The wording of both web searches is their task Playbook's ("company-facts-search",
  *    "company-news-search", ADR-0026); what they are sent about the employer, the JSON asked for and
- *    "name no person" stay in the AI layer.
+ *    "name no person" stay in the AI layer. The web facts are read in the pages the Search provider
+ *    returned by the company-facts-search task Playbook's agent (#405), its call kept in AI Usage and in
+ *    the Provenance like the search's. A version 1 of it served (production, until a person validates
+ *    the version that reads pages) asks the search itself for the facts as before: a Search provider's
+ *    pages never hold them, so the web dossier then has none, only its sources.
  *  - Each build keeps its Provenance (ADR-0034, #335): the offer read, the register and web searched, the
  *    news searched, with its Provenance sites (the register's page of the company, the web pages and
  *    articles read), each step told to `onEvent` as it starts and ends. A dossier built once the
@@ -48,7 +52,8 @@
  *    found, nothing changes. Counted against no Plan Quota.
  * Every read and change is scoped to the Candidate; problems come back as results.
  */
-import { AiConfigError, AiProviderError, createProvenanceRecorder, WebSearchUnavailable, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
+import { AiConfigError, AiProviderError, createProvenanceRecorder, readCompanyFacts, WebSearchUnavailable, type AiLayer, type CompanyNewsArticle, type ProvenanceRecorder } from "@jobhub/ai";
+import { taskSection } from "@jobhub/coach-knowledge/tasks";
 import { failureOf, isPersonPage, joinProvenance, provenanceLink, readProvenance, siteDomainOf, type FailureReason, type Provenance, type ProvenanceEvent, type ProvenanceSite } from "@jobhub/shared";
 import type { Pool } from "pg";
 import * as z from "zod";
@@ -542,14 +547,28 @@ export function createCompanyDossiers(
     const match = matchIn(companies, employer);
     if (match) return registerDossier(employer, match, builtAt);
     if (soleTraderNamed || sirenIn(employer)) return null;
-    const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
-    const found = await recorder.ai.searchCompany({ candidateId, employer, instructions: run.text(), route: run.searchRoute, warnings: run.warnings });
+    const found = await webFactsFor(candidateId, employer, recorder, signal);
     const webSiren = webSirenIn(found.answer);
     if (webSiren) {
       const listed = (await searchRegister(webSiren)).companies.find((company) => company.siren === webSiren);
       if (listed && bearsName(listed, employer)) return registerDossier(employer, listed, builtAt);
     }
     return webDossier(employer, found.answer, found.sources, builtAt);
+  }
+
+  /**
+   * The employer's web facts as the JSON answer they were read in, and the pages they come from. The
+   * company-facts-search task Playbook with its `## lecture` rules (version 2 on): the pages its search returns,
+   * read by its Playbook Agent (#405). With a version 1 served: its search's own answer.
+   */
+  async function webFactsFor(candidateId: string, employer: string, recorder: ProvenanceRecorder, signal?: AbortSignal): Promise<{ answer: string; sources: string[] }> {
+    const run = await taskRun(taskPlaybooks, "company-facts-search", ai);
+    const search = { candidateId, employer, route: run.searchRoute, warnings: run.warnings };
+    if (taskSection(run.text(), "lecture") === null) return recorder.ai.searchCompany({ ...search, instructions: run.text() });
+    const pages = await recorder.ai.searchCompany({ ...search, instructions: run.text("requête"), forReading: true });
+    if (signal?.aborted) throw new BuildStopped();
+    const answer = await readCompanyFacts(recorder.aiFor("company_facts_reading"), { candidateId, employer, pages, reading: run.instructions("lecture") });
+    return { answer, sources: pages.sources };
   }
 
   /** Is the Job Offer posted by a recruiting agency, and for whom? Public posting text only. */

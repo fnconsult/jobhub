@@ -27,6 +27,8 @@ export interface Ctx {
     sites: boolean;
     /** Sign-in Providers and Require SSO. */
     signIn: boolean;
+    /** A Playbook Agent's model and effort: a draft Playbook Version (Playbook editors, #402). */
+    playbooks: boolean;
   };
   /** Whether Provider Secrets can be saved: SECRETS_MASTER_KEYS is set. */
   canSaveSecrets: boolean;

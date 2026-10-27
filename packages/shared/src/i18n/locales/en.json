@@ -1381,7 +1381,8 @@
         "text": "some text",
         "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
         "url": "an https URL",
-        "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>"
+        "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>",
+        "country": "a two-letter country code, such as FR"
       },
       "notices": {
         "saved": "{{name}} saved: the new value applies within seconds, without a restart.",
@@ -1510,6 +1511,90 @@
         "enableSource": "Enable the source",
         "close": "Close",
         "keyValue": "Key value"
+      },
+      "aiTasks": {
+        "providerDefault": "default model",
+        "sourcePlaybook": "Playbook, version {{version}}",
+        "keySet": "key entered",
+        "keyMissing": "key missing: calls failing",
+        "noKeyOption": "key missing",
+        "effortNone": "the model's own",
+        "edit": "Edit…",
+        "editLabel": "Edit: {{name}}",
+        "searchTitle": "Search AI tasks",
+        "searchIntro": "The same tasks as on the AI tab: « Edit… » opens their Playbook Agent at the side, where a change makes a draft version to validate in Playbooks.",
+        "roles": {
+          "job-search-queries": "prepares the plan's queries: job title variants",
+          "job-offer-reading": "reads a job offer page without JobPosting data",
+          "company-facts-search": "finds a foreign employer's facts in the pages found",
+          "company-news-search": "finds an employer's news"
+        },
+        "columns": {
+          "task": "Task",
+          "role": "Role in the search",
+          "runsOn": "Provider · model",
+          "effort": "Effort",
+          "source": "Source",
+          "key": "Provider's key",
+          "data": "Data",
+          "playbook": "Playbook",
+          "version": "Version",
+          "actions": "Actions"
+        },
+        "routesTitle": "Tasks",
+        "routesIntro": "Each AI task's provider and model: a Platform Setting, applied from the next call. A provider without a key is flagged, never refused.",
+        "personalData": "personal data",
+        "noPersonalData": "no personal data",
+        "agentsTitle": "Playbook Agents",
+        "agentsIntro": "A Playbook Agent's model and effort belong to its Playbook Version: a change makes a draft version, served in production once validated in Playbooks by another person.",
+        "agentsUnreadable": "The Playbook Agents could not be read.",
+        "kinds": {
+          "playbook": "Coaching Playbook",
+          "task": "Task Playbook"
+        },
+        "validatedVersion": "v{{version}} validated, served in production",
+        "noValidated": "no validated version",
+        "draftVersion": "v{{version}} draft to validate",
+        "keyWarning": "{{provider}}'s key is not entered: this task's calls will fail until it is. Saving is still allowed.",
+        "agentKeyWarning": "{{provider}}'s key is not entered: this Playbook Agent is left out until it is.",
+        "routePanel": {
+          "kicker": "AI task",
+          "provider": "Provider",
+          "providerHelp": "A provider outside the EU receives calls redacted of the Candidate's identity; a provider without a key can be chosen, its calls fail until the key is entered.",
+          "model": "Model",
+          "modelHelp": "Empty: the provider's default model. A model typed is tested with a call on save, unless the provider's key is missing.",
+          "personalData": "This task receives personal data: a provider outside the EU is refused on save, and identity-bearing calls follow EU AI consent.",
+          "noPersonalData": "This task receives no personal data: a provider outside the EU is allowed.",
+          "applies": "Saving applies from the next call, without a restart; a run already started keeps its model. The change is recorded in the Journal.",
+          "restore": "Restore the default",
+          "usage": "AI consumption"
+        },
+        "playbookPanel": {
+          "served": "Version served here: v{{version}}",
+          "noServed": "No version served here.",
+          "model": "Playbook Agent's model",
+          "createsDraft": "Saving makes version {{version}} as a draft, with the same rules and this model. The validated version stays served in production until someone other than you validates the new one in Playbooks.",
+          "updatesDraft": "Saving updates draft v{{version}}, with the same rules and this model; it still needs its validation in Playbooks.",
+          "create": "Create version {{version}} (draft)",
+          "update": "Update draft v{{version}}",
+          "open": "Open in Playbooks: rules, sources, validation"
+        },
+        "notices": {
+          "routeSaved": "Route saved: it applies from the next call, without a restart.",
+          "routeUnchanged": "The route already had these values: nothing changed.",
+          "routeRestored": "Route restored: env's value applies, else the code's default."
+        },
+        "agentNotices": {
+          "created": "Version {{version}} created as a draft: to validate in Playbooks. The validated version stays served in production.",
+          "updated": "Draft v{{version}} updated: to validate in Playbooks.",
+          "unchanged": "The Playbook Agent already had this model and effort: nothing changed.",
+          "invalid": "This choice is not valid: nothing was saved.",
+          "not_found": "This Playbook does not exist.",
+          "model_not_allowed": "This model is not offered here (its key is not entered): nothing was saved.",
+          "task_instructions": "This Playbook's latest version no longer fits its task: fix it in Playbooks.",
+          "unknown_sources": "This Playbook's latest version cites missing Sources: fix it in Playbooks.",
+          "sources_cited": "This change is refused: fix this Playbook in Playbooks."
+        }
       }
     },
     "administrators": {

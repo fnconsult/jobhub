@@ -204,6 +204,18 @@ describe("company web search", () => {
       "Qui est « Acme » ? Pays et effectif. Réponds uniquement par un objet JSON avec les clés country, headquarters, industry, headcount, revenue, website, siren (texte court, null si inconnu). Ne nomme aucune personne.",
     ]);
   });
+
+  it("words the query for pages its Playbook Agent reads as the task Playbook's query alone: no JSON asked of a Search provider (#405)", async () => {
+    const perplexity = createFakeProvider({ id: "perplexity", residency: "outside_eu", answer: "" });
+    const ai = createAiLayer({ providers: [perplexity], routes: { web_search: "perplexity" }, usage: createMemoryUsageLog() });
+
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme hr@acme.example", forReading: true });
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme", instructions: "Qui est\n{{entreprise}} ?", forReading: true });
+    await ai.searchCompany({ candidateId: "cand-1", employer: "Acme", instructions: "Qui est-ce ?", forReading: true });
+
+    const builtIn = "« Acme » entreprise : siège, secteur d'activité, effectif, chiffre d'affaires, site officiel, SIREN";
+    expect(perplexity.queries).toEqual([builtIn, "Qui est « Acme » ?", builtIn]);
+  });
 });
 
 describe("the usage of every AI call", () => {

@@ -8,28 +8,43 @@
  */
 import { toolById } from "@jobhub/shared";
 import { redirect } from "next/navigation";
-import { getPlatformSettingsBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
+import type { TextTask } from "@jobhub/ai";
+import type { BackOfficeActor } from "@/admin/back-office";
+import type { PlatformSettingValueChange } from "@/admin/platform-settings-back-office";
+import { getCoachingPlaybooksBackOffice, getPlatformSettingsBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
+import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
+import { aiTaskRoutes, playbookAgentChange, routeChange, TEXT_TASK_IDS } from "@/platform-settings/ai-tasks";
+import { currentState } from "@/tools/server";
 import { applyLatestSignIn } from "@/auth/server";
 import { parametresHref, parametresTab, providerSheetHref, type ParametresTabId } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { getProviderSecrets, getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
-import { CONFIRMED, FORM, SIGN_IN_SWITCHES, type PlatformSettingNotice, type SitesNotice } from "./notices";
+import { AI_FORM, CONFIRMED, FORM, SIGN_IN_SWITCHES, type PlaybookAgentNotice, type PlatformSettingNotice, type RouteNotice, type SitesNotice } from "./notices";
+
+const isTextTask = (value: string): value is TextTask => (TEXT_TASK_IDS as readonly string[]).includes(value);
 
 /** The longest technical detail of a refusal carried back to the page; the Journal keeps it whole. */
 const DETAIL_MAX_LENGTH = 300;
 
-/** The tab, and the provider's sheet, a form was sent from. */
-function hereOf(form: FormData): { tab: ParametresTabId; fournisseur?: string } {
+/** The tab, and the provider's sheet or the AI task's or Playbook Agent's side panel, a form was sent from. */
+function hereOf(form: FormData): { tab: ParametresTabId; fournisseur?: string; [AI_FORM.task]?: string; [AI_FORM.playbook]?: string } {
   const tab = parametresTab(String(form.get(FORM.tab) ?? "")).id;
   const sheet = String(form.get(FORM.sheet) ?? "");
-  return { tab, ...(toolById(sheet) ? { fournisseur: sheet } : {}) };
+  const task = String(form.get(AI_FORM.task) ?? "");
+  const playbook = String(form.get(AI_FORM.playbook) ?? "");
+  return {
+    tab,
+    ...(toolById(sheet) ? { fournisseur: sheet } : {}),
+    ...(isTextTask(task) ? { [AI_FORM.task]: task } : {}),
+    ...(/^[a-z0-9-]{1,80}$/.test(playbook) ? { [AI_FORM.playbook]: playbook } : {}),
+  };
 }
 
 /** Back to where `form` was sent from, with `query`. */
 function back(form: FormData, query: Record<string, string | undefined>, hash?: string): never {
-  const { tab, fournisseur } = hereOf(form);
-  redirect(parametresHref(tab, { fournisseur, ...query }, hash));
+  const { tab, ...here } = hereOf(form);
+  redirect(parametresHref(tab, { ...here, ...query }, hash));
 }
 
 const text = (form: FormData, name: string): string | undefined => {
@@ -62,6 +77,66 @@ export async function restoreSetting(form: FormData) {
   const done = await getPlatformSettingsBackOffice().restore(administrator, name, { confirmed: form.get(FORM.confirmed) === CONFIRMED });
   if (!done.ok && done.error === "refused") settingBack(form, "refused", name, done);
   settingBack(form, done.ok ? (done.changed ? "restored" : "notRestored") : done.error === "unconfirmed" ? "restoreUnconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), name);
+}
+
+// ---- AI tasks' routes and Playbook Agents, in a side panel (#402, ADR-0042) ----
+
+/** The route of the AI task `form` names, as the AI layer routes it now. */
+async function routeIn(form: FormData) {
+  const task = String(form.get(AI_FORM.task) ?? "");
+  if (!isTextTask(task)) back(form, {});
+  const route = aiTaskRoutes({ ...(await currentState()), secrets: null }).find((each) => each.task === task);
+  if (!route) back(form, {});
+  return route;
+}
+
+const routeBack = (form: FormData, notice: RouteNotice): never => back(form, { route: notice });
+
+/**
+ * Saves an AI task's route `changes` as one (#402): all kept, or, the first refused, none, the route staying as it was;
+ * the refusal is said as that Platform Setting's.
+ */
+async function applyRoute(form: FormData, administrator: BackOfficeActor, changes: readonly PlatformSettingValueChange[], saved: RouteNotice): Promise<never> {
+  const done = await getPlatformSettingsBackOffice().apply(administrator, changes);
+  if (!done.ok && done.error === "refused") settingBack(form, "refused", done.name, done);
+  if (!done.ok) settingBack(form, done.error === "unconfirmed" ? "unconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), done.name);
+  return routeBack(form, saved);
+}
+
+/**
+ * An AI task's provider and model, saved as their Platform Settings in one change, each checked as any routing change is
+ * (a route with personal data outside the EU, a model failing its test call); a provider whose key is missing is saved
+ * all the same, the panel warning of it (ADR-0042). A refusal of either keeps neither.
+ */
+export async function saveRoute(form: FormData) {
+  const { administrator } = await requireBackOffice("platformSettings", "write");
+  const route = await routeIn(form);
+  const changes = routeChange(route.task, route, { provider: String(form.get("provider") ?? ""), model: String(form.get("model") ?? "") });
+  await applyRoute(form, administrator, changes, changes.length > 0 ? "routeSaved" : "routeUnchanged");
+}
+
+/** « Rétablir le défaut »: the task's provider and model go back to env's, else the code's default, together or not at all. */
+export async function restoreRoute(form: FormData) {
+  const { administrator } = await requireBackOffice("platformSettings", "write");
+  const route = await routeIn(form);
+  await applyRoute(form, administrator, [{ name: route.modelSetting, value: null }, { name: route.providerSetting, value: null }], "routeRestored");
+}
+
+/**
+ * A Playbook Agent's model and effort (and a search task Playbook's web search provider), saved as a draft Playbook
+ * Version with the latest version's rules: a Human-validated latest version gets a new version, a draft is updated in
+ * place, recorded in the Back Office Audit (ADR-0021, ADR-0026). The served version is untouched. Playbook editors only.
+ */
+export async function savePlaybookAgent(form: FormData) {
+  const { administrator } = await requireBackOffice("coachingPlaybooks", "write");
+  const id = String(form.get(AI_FORM.playbook) ?? "");
+  const history = await getCoachingPlaybooks().history(id);
+  const latest = history?.versions[0];
+  const agentBack = (notice: PlaybookAgentNotice, version?: number): never => back(form, { agent: notice, version: version ? String(version) : undefined });
+  if (!latest) return agentBack("not_found");
+  const saved = await getCoachingPlaybooksBackOffice().save(administrator, id, playbookAgentChange(latest, { agentModel: text(form, "agentModel"), effort: text(form, "effort"), searchModel: text(form, "searchModel") }));
+  if (!saved.ok) return agentBack(saved.error);
+  agentBack(saved.newVersion ? "created" : "updated", saved.version.version);
 }
 
 // ---- Provider Secrets, on a provider's sheet (ADR-0020, super-admins only) ----

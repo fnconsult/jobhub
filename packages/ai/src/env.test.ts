@@ -184,6 +184,29 @@ describe("AI layer configured from the environment", () => {
     expect(() => createAiLayerFromEnv({ ...base, AI_WRITING_PROVIDER: "mistral" })).toThrow(/MISTRAL_API_KEY/);
   });
 
+  describe("a text task routed to a provider whose key is missing, with missing keys tolerated (ADR-0042: warns, never blocks)", () => {
+    it("starts, the other tasks working, and that task's calls fail as key_missing, recorded, never sent", async () => {
+      const { fetch, hosts } = recordingFetch();
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayerFromEnv({ ...base, AI_JOB_TITLES_PROVIDER: "openai" }, { fetch, usage, tolerateMissingKeys: true });
+
+      await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
+      await expect(ai.generate({ task: "job_titles", candidateId: null, prompt: "DAF" })).rejects.toThrow(/OPENAI_API_KEY/);
+
+      expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
+      expect(usage.entries.map((entry) => [entry.task, entry.outcome, entry.reason ?? null])).toEqual([
+        ["scoring", "ok", null],
+        ["job_titles", "failed", "key_missing"],
+      ]);
+      // A Playbook Agent is never offered a provider without its key.
+      expect(ai.agentModels().map((choice) => choice.provider)).not.toContain("openai");
+    });
+
+    it("still stops start-up without that tolerance, naming the key", () => {
+      expect(() => createAiLayerFromEnv({ ...base, AI_JOB_TITLES_PROVIDER: "openai" })).toThrow(/OPENAI_API_KEY/);
+    });
+  });
+
   describe("without the key of the active Search provider (#399)", () => {
     const criteria = { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
 

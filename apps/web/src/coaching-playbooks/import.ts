@@ -10,11 +10,16 @@
  * web-search route), so nothing changes when it is served. The tasks that ran before task
  * Playbooks are imported Human-validated by François Nader, who approved it so production kept running
  * them; the Job Offer Summary and sector, new, are not.
+ *
+ * A task whose text written in the code came after its version 1 (`firstVersion`, #405: company-facts-search,
+ * whose Playbook Agent now reads the pages found) is imported as that version 1, then its text as the next
+ * version, not validated: production keeps running version 1 until a person validates it. That later version's
+ * Playbook Agent is the task's route in this environment on its provider's smallest model: it reads a few pages.
  */
-import { taskRouteFromEnv, type AiTask } from "@jobhub/ai";
+import { smallModelFromEnv, taskRouteFromEnv, type AiTask } from "@jobhub/ai";
 import { readCoachKnowledgeFiles } from "@jobhub/coach-knowledge";
-import { TASK_PLAYBOOKS } from "@jobhub/coach-knowledge/tasks";
-import type { PlaybookSeed } from "./index";
+import { TASK_PLAYBOOKS, type TaskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
+import type { PlaybookAgent, PlaybookSeed } from "./index";
 
 /** Who validated the task Playbooks imported validated (ADR-0026). */
 export const IMPORT_VALIDATOR = "François Nader";
@@ -57,14 +62,20 @@ export function importedPlaybooks(env: Env = process.env): PlaybookSeed {
       content: playbook.text,
       agent: { provider: route.provider, model: route.model ?? null, effort: "medium", consultWhen: CONSULT_WHEN[playbook.id] ?? playbook.title },
     })),
-    tasks: TASK_PLAYBOOKS.map((task) => {
-      const taskRoute = task.agent ? taskRouteFromEnv(env, task.aiTask as AiTask) : null;
-      return {
-        id: task.id,
-        content: task.instructions,
-        agent: taskRoute ? { provider: taskRoute.provider, model: taskRoute.model ?? null, effort: null, consultWhen: "" } : null,
-        validatedBy: task.validatedAtImport ? IMPORT_VALIDATOR : null,
-      };
+    tasks: (TASK_PLAYBOOKS as readonly TaskPlaybookSeed[]).map((task) => {
+      const first = task.firstVersion;
+      const validatedBy = task.validatedAtImport ? IMPORT_VALIDATOR : null;
+      if (!first) return { id: task.id, content: task.instructions, agent: taskAgent(env, task, task.agent), validatedBy };
+      const small = taskAgent(env, task, task.agent, true);
+      return { id: task.id, content: first.instructions, agent: taskAgent(env, task, first.agent), validatedBy, later: [{ content: task.instructions, agent: small }] };
     }),
   };
+}
+
+/** A task Playbook's imported Playbook Agent: its task's route here, with no effort; on its provider's smallest model when `small`. */
+function taskAgent(env: Env, task: TaskPlaybookSeed, runsOne: boolean, small = false): PlaybookAgent | null {
+  if (!runsOne) return null;
+  const route = taskRouteFromEnv(env, task.aiTask as AiTask);
+  const model = (small ? smallModelFromEnv(env, route.provider) : undefined) ?? route.model ?? null;
+  return { provider: route.provider, model, effort: null, consultWhen: "" };
 }

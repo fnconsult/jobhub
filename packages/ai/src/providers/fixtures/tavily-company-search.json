@@ -1,0 +1,25 @@
+{
+  "query": "« Globex Robotics GmbH » entreprise",
+  "answer": null,
+  "images": [],
+  "results": [
+    {
+      "title": "About us | Globex Robotics",
+      "url": "https://globex-robotics.example/about",
+      "content": "Globex Robotics GmbH builds industrial robots for car makers. Headquartered in Munich, Germany, the company employs 1,200 employees and reported revenue of €300 million in 2024. CEO: Hans Müller.",
+      "score": 0.93,
+      "raw_content": null,
+      "published_date": null
+    },
+    {
+      "title": "Globex Robotics GmbH - Company profile",
+      "url": "https://www.company-register.example/globex-robotics-gmbh",
+      "content": "Globex Robotics GmbH, Munich (Germany). Industrial robotics. Website: globex-robotics.example",
+      "score": 0.81,
+      "raw_content": null,
+      "published_date": "2026-03-14"
+    }
+  ],
+  "response_time": 0.94,
+  "request_id": "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d"
+}

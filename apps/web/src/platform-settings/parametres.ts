@@ -37,7 +37,11 @@ export interface ParametresTab {
   settings: readonly string[];
 }
 
-/** Recherche web's settings: the active Search provider and its fallback, each provider's typed settings (ADR-0043), then the one they replace. */
+const namesOf = (groups: readonly string[]) => PLATFORM_SETTINGS.filter((setting) => groups.includes(setting.group)).map((setting) => setting.name);
+/**
+ * Recherche web's settings: the active Search provider and its fallback, each provider's typed settings (ADR-0043), the
+ * one they replace, then the web search's bounded settings (#386, #402).
+ */
 const WEB_SEARCH_SETTINGS = [
   "AI_WEB_SEARCH_PROVIDER",
   "AI_WEB_SEARCH_FALLBACK_PROVIDER",
@@ -46,8 +50,8 @@ const WEB_SEARCH_SETTINGS = [
   "BRAVE_MAX_PAGES",
   "TAVILY_SEARCH_DEPTH",
   "AI_WEB_SEARCH_MODEL",
+  ...namesOf(["web_search"]),
 ];
-const namesOf = (groups: readonly string[]) => PLATFORM_SETTINGS.filter((setting) => groups.includes(setting.group)).map((setting) => setting.name);
 
 export const PARAMETRES_TABS: readonly ParametresTab[] = [
   { id: "web_search", slug: "recherche-web", toolCategories: ["web_search"], activeSetting: "AI_WEB_SEARCH_PROVIDER", settings: WEB_SEARCH_SETTINGS },

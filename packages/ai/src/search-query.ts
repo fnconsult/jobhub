@@ -118,8 +118,17 @@ export function buildSearchQuery(
   return parts.join(", ");
 }
 
-/** Up to this many job titles per language: the Search Criteria's own and its variants. */
-const TITLES_PER_LANGUAGE = 3;
+/**
+ * How many job titles per language a Job Search's queries take (the Search Criteria's own and its variants), and in
+ * which languages they are worded, in this order: the web search's Platform Settings (#402). By default, 3 titles in
+ * French and English.
+ */
+export interface JobSearchShape {
+  titlesPerLanguage: number;
+  languages: readonly QueryLanguage[];
+}
+
+export const DEFAULT_JOB_SEARCH_SHAPE: JobSearchShape = { titlesPerLanguage: 3, languages: ["fr", "en"] };
 
 /**
  * The AI step that gives a Job Search its job title variants: it is given the Search
@@ -134,21 +143,33 @@ export function jobTitlesPrompt(criteria: SearchCriteria, instructions: string =
 }
 
 /**
- * A Job Search's queries, from the AI step's reply (null when there is none): the Search
- * Criteria title and up to 2 French variants, then up to 3 English titles (the Search
- * Criteria title when the reply gives none), alternating French and English. Each title
- * is cleaned; an unreadable reply leaves the Search Criteria title alone, in both languages.
+ * A Job Search's queries, from the AI step's reply (null when there is none): by default the
+ * Search Criteria title and up to 2 French variants, then up to 3 English titles (the Search
+ * Criteria title when the reply gives none), alternating French and English; `shape` says how
+ * many titles per language, and which languages. Each title is cleaned; an unreadable reply
+ * leaves the Search Criteria title alone, in each language.
  */
-export function jobSearchQueries(criteria: SearchCriteria, reply: string | null, openings?: Partial<Record<QueryLanguage, string>>): JobSearchQuery[] {
+export function jobSearchQueries(
+  criteria: SearchCriteria,
+  reply: string | null,
+  openings?: Partial<Record<QueryLanguage, string>>,
+  shape: JobSearchShape = DEFAULT_JOB_SEARCH_SHAPE,
+): JobSearchQuery[] {
   const variants = titlesIn(reply);
   const own = clean(criteria.targetRole);
-  const fr = distinctTitles([own, ...variants.fr]);
-  const en = distinctTitles(variants.en.length ? variants.en : [own]);
+  const most = Math.max(1, Math.floor(shape.titlesPerLanguage));
+  const titles: Record<QueryLanguage, string[]> = {
+    fr: distinctTitles([own, ...variants.fr], most),
+    en: distinctTitles(variants.en.length ? variants.en : [own], most),
+  };
+  const languages = shape.languages.length > 0 ? shape.languages : DEFAULT_JOB_SEARCH_SHAPE.languages;
   const opening = { fr: openingFor("fr", openings?.fr), en: openingFor("en", openings?.en) };
   const queries: JobSearchQuery[] = [];
-  for (let index = 0; index < TITLES_PER_LANGUAGE; index++) {
-    if (fr[index]) queries.push(issue(fr[index]!, "fr", opening.fr));
-    if (en[index]) queries.push(issue(en[index]!, "en", opening.en));
+  for (let index = 0; index < most; index++) {
+    for (const language of languages) {
+      const title = titles[language][index];
+      if (title) queries.push(issue(title, language, opening[language]));
+    }
   }
   return queries;
 }
@@ -166,30 +187,33 @@ function titlesIn(reply: string | null): Record<QueryLanguage, string[]> {
   return { fr: list(object.fr), en: list(object.en) };
 }
 
-/** Cleaned, non-empty, each once (ignoring case), at most TITLES_PER_LANGUAGE. */
-function distinctTitles(titles: string[]): string[] {
+/** Cleaned, non-empty, each once (ignoring case), at most `most`. */
+function distinctTitles(titles: string[], most: number): string[] {
   const kept = new Map<string, string>();
   for (const title of titles.map(clean)) {
     if (title && !kept.has(title.toLocaleLowerCase("fr"))) kept.set(title.toLocaleLowerCase("fr"), title);
   }
-  return [...kept.values()].slice(0, TITLES_PER_LANGUAGE);
+  return [...kept.values()].slice(0, most);
 }
 
 /** The keys a company web search is asked to answer with. */
 export const COMPANY_FACTS = ["country", "headquarters", "industry", "headcount", "revenue", "website", "siren"] as const;
 
+/** The longest company query sent, the employer's name in it: a search engine reads keywords, not a page of text. */
+const COMPANY_QUERY_MAX_LENGTH = 600;
+
 /**
  * The only text ever sent to the web-search provider for a Company Dossier: built
  * from the employer's name alone (a company, not a person), cleaned like Search
  * Criteria, in the "company-facts-search" task Playbook's words (`instructions`, its
- * `{{entreprise}}` the name; default: its built-in text). It always asks for company
- * facts as JSON and for no person to be named.
+ * `{{entreprise}}` the name). For pages its Playbook Agent reads (`forReading`, #405), its
+ * query alone (default: the built-in `## requête`). Else as version 1 worded it (default: its
+ * text), asking for company facts as JSON and for no person to be named.
  */
-export function buildCompanyQuery(employer: string, instructions?: string): string {
-  const words = instructions !== undefined && slotsIn(instructions).includes("entreprise") ? instructions : builtInInstructions("company-facts-search");
-  return (
-    `${taskQueryText(fillSlots(words, { entreprise: `« ${clean(employer)} »` }), "company-facts-search")} ` +
-    `Réponds uniquement par un objet JSON avec les clés ${COMPANY_FACTS.join(", ")} (texte court, null si inconnu). ` +
-    `Ne nomme aucune personne.`
-  );
+export function buildCompanyQuery(employer: string, instructions?: string, { forReading = false }: { forReading?: boolean } = {}): string {
+  const builtIn = forReading ? builtInInstructions("company-facts-search", "requête") : taskPlaybookSeed("company-facts-search")!.firstVersion!.instructions;
+  const words = instructions !== undefined && slotsIn(instructions).includes("entreprise") ? instructions : builtIn;
+  const query = taskQueryText(fillSlots(words, { entreprise: `« ${clean(employer)} »` }), "company-facts-search").slice(0, COMPANY_QUERY_MAX_LENGTH);
+  if (forReading) return query;
+  return `${query} Réponds uniquement par un objet JSON avec les clés ${COMPANY_FACTS.join(", ")} (texte court, null si inconnu). Ne nomme aucune personne.`;
 }

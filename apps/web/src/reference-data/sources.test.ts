@@ -2,7 +2,7 @@ import { sectorOf, SECTORS, subsectorsOf } from "@jobhub/shared";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { zipOf } from "../test-support/zip";
-import { fetchNaf, fetchRomeDomains, NAF_SPARQL_URL, ROME_OPEN_DATA_URL } from "./sources";
+import { fetchNaf, fetchRomeDomains, fetchRomeJobs, NAF_SPARQL_URL, ROME_OPEN_DATA_URL } from "./sources";
 
 /** INSEE's answer, captured on 2026-10-20. */
 const NAF_ANSWER = readFileSync(new URL("./fixtures/insee-naf-sparql.json", import.meta.url), "utf8");
@@ -73,5 +73,35 @@ describe("ROME 4.0 professional domains from France Travail's open data", () => 
     await expect(fetchRomeDomains(answering("not found", 404).fetch)).rejects.toThrow(/404/);
     await expect(fetchRomeDomains(answering(zipOf({ "version.txt": "62" })).fetch)).rejects.toThrow(/main tree/);
     await expect(fetchRomeDomains(answering("not a zip").fetch)).rejects.toThrow();
+  });
+});
+
+describe("ROME 4.0's jobs, which Job discovery's ROME table is checked against (#406)", () => {
+  const codeList = [
+    { code_ogr: 465, code_rome: "M1205", libelle: "Directeur administratif et financier / Directrice administrative et financière (DAF)", code_rome_parent: "M1205" },
+    { code_ogr: 466, code_rome: "M1205", libelle: "Variante", code_rome_parent: "M1205" },
+    { code_ogr: 999, code_rome: "M1205", libelle: "Emploi rattaché", code_rome_parent: "M1206" },
+    { code_ogr: 458, code_rome: "M1201", libelle: "Analyste financier / Analyste financière", code_rome_parent: "M1201" },
+  ];
+
+  it("are each job of the archive's code list, by its own code, with its label and the ROME version", async () => {
+    const { fetch, asked } = answering(
+      zipOf({ "unix_referentiel_code_rome_v462.json": Buffer.from(JSON.stringify(codeList), "latin1"), "version.txt": "Numero de version : 62\r\n" }),
+    );
+
+    const rome = await fetchRomeJobs(fetch);
+
+    expect(asked[0]!.href).toBe(ROME_OPEN_DATA_URL);
+    expect(rome).toEqual({
+      jobs: new Map([
+        ["M1205", "Directeur administratif et financier / Directrice administrative et financière (DAF)"],
+        ["M1201", "Analyste financier / Analyste financière"],
+      ]),
+      version: "ROME 4.0 v62",
+    });
+  });
+
+  it("fails when the archive holds no code list", async () => {
+    await expect(fetchRomeJobs(answering(zipOf({ "version.txt": "62" })).fetch)).rejects.toThrow(/code list/);
   });
 });

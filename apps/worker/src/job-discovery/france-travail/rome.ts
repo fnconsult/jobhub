@@ -8,9 +8,11 @@
  * The table covers the jobs Jobbbox's Candidates (managers aged 40+) most often
  * look for, in French and English. Its codes are ROME job codes as published by
  * France Travail (ROME 4.0 keeps them as the "code ROME" of each job sheet).
- * UNVERIFIED against a live France Travail answer (no access yet, #119): check
- * each code against the ROME open data, or the API's reference list, once
- * access is granted, before widening the table.
+ * Checked against France Travail's ROME open data (ROME 4.0 v62, published
+ * 2026-10-19, #406): every code is a ROME 4.0 job, named as its `label` says.
+ * Check it again after each ROME version, and before widening the table:
+ * `npm run rome:check -w @jobhub/worker` downloads the open data (no key) and
+ * lists the codes it does not know (`romeTableGaps`).
  */
 
 interface RomeJob {
@@ -226,4 +228,9 @@ export function romeCodesFor(title: string): string[] {
     .filter(({ at }) => Number.isFinite(at))
     .sort((a, b) => a.at - b.at)
     .map(({ code }) => code);
+}
+
+/** The table's jobs whose code ROME 4.0 does not list (`jobs`: its code → label, from the open data); none when it is up to date. */
+export function romeTableGaps(jobs: ReadonlyMap<string, string>): { code: string; label: string }[] {
+  return ROME_JOBS.filter((job) => !jobs.has(job.code)).map(({ code, label }) => ({ code, label }));
 }

@@ -143,7 +143,7 @@ describe("the search tasks on the Recherche web tab (#386, #402)", () => {
     const rows = searchTaskRows(
       withVersions([
         playbook("job-search-queries", "task", version("job-search-queries", 3, { agent: { provider: "mistral", model: "mistral-small-latest", effort: null, consultWhen: "" } })),
-        playbook("company-news-search", "task", version("company-news-search", 2, { agent: null, search: { provider: "brave", model: null } })),
+        playbook("company-facts-search", "task", version("company-facts-search", 2, { agent: { provider: "openai", model: "gpt-5-mini", effort: null, consultWhen: "" }, search: { provider: "brave", model: null } })),
       ]),
       stateOf(),
     );
@@ -151,10 +151,9 @@ describe("the search tasks on the Recherche web tab (#386, #402)", () => {
     expect(rows.map((row) => ({ id: row.id, provider: row.provider, model: row.model, effort: row.effort, source: row.source, keyMissing: row.keyMissing }))).toEqual([
       { id: "job-search-queries", provider: "mistral", model: "mistral-small-latest", effort: null, source: { kind: "playbook", version: 3 }, keyMissing: false },
       { id: "job-offer-reading", provider: "mistral", model: null, effort: null, source: { kind: "setting", name: "AI_OFFER_ANALYSIS_PROVIDER", source: "env" }, keyMissing: false },
-      // Company facts are read by its Playbook Agent (#405): with none served, its AI task's route.
-      { id: "company-facts-search", provider: "mistral", model: null, effort: null, source: { kind: "setting", name: "AI_OFFER_ANALYSIS_PROVIDER", source: "env" }, keyMissing: false },
-      // Brave named by its served version, and its key not entered.
-      { id: "company-news-search", provider: "brave", model: null, effort: null, source: { kind: "playbook", version: 2 }, keyMissing: true },
+      // Its Playbook Agent reads the pages found (#405): OpenAI named by its served version, and its key not entered.
+      { id: "company-facts-search", provider: "openai", model: "gpt-5-mini", effort: null, source: { kind: "playbook", version: 2 }, keyMissing: true },
+      { id: "company-news-search", provider: "perplexity", model: null, effort: null, source: { kind: "setting", name: "AI_WEB_SEARCH_PROVIDER", source: "default" }, keyMissing: false },
     ]);
     expect(rows[0]!.playbook).toMatchObject({ id: "job-search-queries", searches: true });
     expect(rows[1]!.playbook).toBeNull();

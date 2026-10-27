@@ -124,8 +124,9 @@ async function jobSearchRun(page: Page, scenario: Scenario, label: string) {
       requests,
       stored,
       output: () => output,
-      tokenRequests: requests.filter((r) => r.url.startsWith("https://entreprise.francetravail.fr/")),
-      searchRequests: requests.filter((r) => r.url.startsWith("https://api.francetravail.io/")),
+      // Offres d'emploi's own: a run also asks La Bonne Boite (and ROMEO) for its Target Companies, each with its own token (#406).
+      tokenRequests: requests.filter((r) => r.url.startsWith("https://entreprise.francetravail.fr/") && new URLSearchParams(r.body).get("scope")?.includes("api_offresdemploiv2")),
+      searchRequests: requests.filter((r) => r.url.startsWith("https://api.francetravail.io/partenaire/offresdemploi/")),
       webSearches: requests.filter((r) => r.url.startsWith("https://api.perplexity.ai")),
       franceTravailPages: requests.filter((r) => r.url.startsWith("https://candidat.francetravail.fr/")),
     };

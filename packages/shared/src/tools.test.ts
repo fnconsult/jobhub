@@ -67,7 +67,10 @@ describe("the Tools", () => {
     for (const id of ["brevo-api", "brevo-smtp"]) expect(names(id), id).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);
-    for (const id of ["france-travail", "job-site"]) expect(names(id), id).toEqual(["JOB_DISCOVERY_BUDGET_JOB_OFFERS", "JOB_DISCOVERY_BUDGET_EUR", "JOB_DISCOVERY_BUDGET_SECONDS"]);
+    const budget = ["JOB_DISCOVERY_BUDGET_JOB_OFFERS", "JOB_DISCOVERY_BUDGET_EUR", "JOB_DISCOVERY_BUDGET_SECONDS"];
+    expect(names("job-site")).toEqual(budget);
+    // La Bonne Boite's Target Companies (#406) are visited per the web search's settings (#402), on the Recherche web tab.
+    expect(names("france-travail")).toEqual(budget);
     expect(names("greenhouse")).toEqual([]);
   });
 

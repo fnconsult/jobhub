@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { romeCodesFor } from "./rome";
+import { romeCodesFor, romeTableGaps } from "./rome";
 
 describe("ROME codes for a Search Criteria title", () => {
   it("maps a French job title to its ROME code", () => {
@@ -30,5 +30,25 @@ describe("ROME codes for a Search Criteria title", () => {
   it("gives nothing for a title it does not know, so the search falls back to keywords", () => {
     expect(romeCodesFor("Chef de projet tisserand")).toEqual([]);
     expect(romeCodesFor("")).toEqual([]);
+  });
+});
+
+describe("the ROME table, checked against ROME 4.0's open data (#406)", () => {
+  // The codes the table uses, as ROME 4.0 v62 (2026-10-19) lists them.
+  const v62 = new Map(
+    ["M1205", "M1204", "M1206", "M1201", "M1202", "M1503", "M1301", "M1402", "D1406", "M1707", "M1705", "M1703", "M1704", "E1103", "M1803", "M1805", "M1806", "M1101", "N1301", "N1302", "H2502", "H1502", "H1206", "H1102", "K1903"].map(
+      (code) => [code, code],
+    ),
+  );
+
+  it("has no code ROME 4.0 does not list", () => {
+    expect(romeTableGaps(v62)).toEqual([]);
+  });
+
+  it("names each code ROME does not list", () => {
+    const withoutDaf = new Map(v62);
+    withoutDaf.delete("M1205");
+
+    expect(romeTableGaps(withoutDaf)).toEqual([{ code: "M1205", label: "Direction administrative et financière" }]);
   });
 });

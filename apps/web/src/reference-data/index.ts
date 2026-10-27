@@ -18,6 +18,7 @@ import type { Pool } from "pg";
 import { fetchNaf, fetchRomeDomains } from "./sources";
 
 export type { IndustryReference } from "@jobhub/shared";
+export { fetchRomeJobs } from "./sources";
 
 /** How long a source that failed on a read is left alone before a read asks it again. */
 export const RETRY_AFTER_MS = 10 * 60 * 1000;

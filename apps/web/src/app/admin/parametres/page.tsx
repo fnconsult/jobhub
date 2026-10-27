@@ -192,6 +192,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
     if (type.kind === "url") return t("admin.platformSettings.rules.url");
     if (type.kind === "sender") return t("admin.platformSettings.rules.sender");
     if (type.kind === "country") return t("admin.platformSettings.rules.country");
+    if (type.kind === "domain") return t("admin.platformSettings.rules.domain");
     if (type.kind !== "number") return "";
     const key = `${type.whole ? "whole" : "decimal"}${type.aboveMin ? "AboveMin" : ""}` as const;
     return t(`admin.platformSettings.rules.${key}`, { min: number.format(type.min), max: number.format(type.max) });

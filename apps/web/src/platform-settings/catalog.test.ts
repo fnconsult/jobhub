@@ -45,10 +45,13 @@ const WEB_SEARCH = [
 /** The prices of the Tools' billed units and the EUR/USD rate (#403), overridden on each Tool's sheet. */
 const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "BRAVE_SEARCH_PRICE_USD", "TAVILY_CREDIT_PRICE_USD", "EUR_PER_USD"];
 
+/** Email intake's (#441): the domain of the Candidates' Forwarding addresses. */
+const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN"];
+
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -146,6 +149,7 @@ describe("the Platform Settings catalog", () => {
     expect(groupOf("ANTHROPIC_ENDPOINT")).toBe("ai_routing");
     expect(groupOf("AI_IDENTITY_MODEL")).toBe("ai_routing");
     expect(groupOf("MAIL_FROM")).toBe("email");
+    expect(groupOf("EMAIL_INTAKE_DOMAIN")).toBe("email");
     expect(groupOf("JOB_DIGEST_TARGET_COUNT")).toBe("job_digest");
     expect(groupOf("JOB_DISCOVERY_BUDGET_EUR")).toBe("job_discovery");
     expect(groupOf("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("enriched_contacts");
@@ -180,6 +184,15 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(store, "chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false });
     expect(parseSetting(store, "javascript:alert(1)")).toMatchObject({ ok: false });
     expect(parseSetting(store, "https://")).toMatchObject({ ok: false });
+  });
+
+  it("takes as the Email intake domain a domain name, kept in lower case, alertes.jobbbox.ai by default (#441)", () => {
+    const domain = platformSetting("EMAIL_INTAKE_DOMAIN")!;
+    expect(domain.default).toBe("alertes.jobbbox.ai");
+    expect(parseSetting(domain, " Alertes.Staging.Jobbbox.ai ")).toEqual({ ok: true, value: "alertes.staging.jobbbox.ai" });
+    for (const refused of ["jobbbox", "alertes@jobbbox.ai", "https://alertes.jobbbox.ai", "alertes .jobbbox.ai", "-alertes.jobbbox.ai", "alertes.jobbbox.ai."]) {
+      expect(parseSetting(domain, refused), refused).toMatchObject({ ok: false, error: expect.stringContaining("a domain name") });
+    }
   });
 
   it("takes as MAIL_FROM an email sender, with or without a name, and refuses anything else", () => {

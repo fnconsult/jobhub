@@ -12,6 +12,7 @@ import { createAtsScoring } from "../ats-score";
 import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
 import { createCoachConversations } from "../coach-conversations";
 import { createHumanCoaches } from "../human-coaches";
+import { createEmailIntake } from "../email-intake";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -854,6 +855,39 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       },
     ]);
     expect(JSON.stringify(exported.signalements)).not.toMatch(new RegExp(`${administrator}|support@jobbbox\\.ai`));
+  });
+
+  it("the export holds the Candidate's Forwarding addresses, each with its activation date, and the sending addresses they added (#441)", async () => {
+    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [] });
+    let now = new Date("2026-10-01T08:00:00Z");
+    const drawn = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"];
+    const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", localPart: () => drawn.shift()!, now: () => now });
+    await emailIntake.switchOn(candidateId);
+    await emailIntake.addSendingAddress(candidateId, "marie@orange.fr");
+    now = new Date("2026-10-15T08:00:00Z");
+    await emailIntake.replace(candidateId);
+
+    expect((await candidateData.export(candidateId)).emailIntake).toEqual({
+      forwardingAddresses: [
+        { address: "bbbbbbbbbbbbbbbb@alertes.jobbbox.test", state: "active", activatedAt: new Date("2026-10-15T08:00:00Z"), endedAt: null },
+        { address: "aaaaaaaaaaaaaaaa@alertes.jobbbox.test", state: "replaced", activatedAt: new Date("2026-10-01T08:00:00Z"), endedAt: new Date("2026-10-15T08:00:00Z") },
+      ],
+      sendingAddresses: [{ address: "marie@orange.fr", addedAt: new Date("2026-10-01T08:00:00Z") }],
+    });
+  });
+
+  it("deleting the account removes the Candidate's Forwarding addresses and sending addresses, and no one else's (#441)", async () => {
+    const other = await signIn("paul.martin@example.fr");
+    const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test" });
+    const { address } = await emailIntake.switchOn(candidateId);
+    await emailIntake.addSendingAddress(candidateId, "marie@orange.fr");
+    await emailIntake.switchOn(other);
+
+    await candidateData.delete(candidateId);
+
+    expect(await emailIntake.candidateAt(address)).toBeNull();
+    expect((await database.query("SELECT 1 FROM forwarding_address WHERE candidate_id = $1 UNION ALL SELECT 1 FROM sending_address WHERE candidate_id = $1", [candidateId])).rows).toEqual([]);
+    expect((await candidateData.export(other)).emailIntake.forwardingAddresses).toHaveLength(1);
   });
 
   it("deleting the account deletes the Candidate's Signalements, and no one else's (#374)", async () => {

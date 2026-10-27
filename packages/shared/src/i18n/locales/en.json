@@ -229,6 +229,7 @@
       "profiles": "Profiles",
       "followUps": "Follow-ups",
       "euAi": "European AI",
+      "emailIntake": "Email intake",
       "signIn": "Sign-in",
       "preferences": "Preferences",
       "tools": "Tools",
@@ -261,6 +262,36 @@
     "delete": "Permanently delete my account",
     "confirmMismatch": "This address does not match your account's. Nothing was deleted.",
     "deleteError": "The deletion could not be completed. Nothing was deleted: try again in a moment."
+  },
+  "emailIntake": {
+    "title": "Email intake",
+    "explanation": "Forward the offer emails you receive (job board alerts, recruiters' messages) to your forwarding address: Jobbbox turns them into offers for your profiles. Only the text of forwarded emails is read, never their attachments, and it is not kept: only the offers are. You can stop at any time.",
+    "off": "Email intake is off.",
+    "switchOn": "Switch email intake on",
+    "onSince": "Email intake on since {{date}}.",
+    "addressLabel": "Your forwarding address",
+    "copy": "Copy the address",
+    "copied": "Address copied.",
+    "copyFailed": "Copying failed: select the address and copy it.",
+    "replace": "Replace the address",
+    "switchOff": "Switch off",
+    "cancel": "Cancel",
+    "confirmReplace": "You will get a new address. The current one stops working at once: what reaches it is discarded unread. Remember to update your forwarding.",
+    "confirmSwitchOff": "Your forwarding address stops working at once: what reaches it is discarded unread. Offers already received stay.",
+    "sending": {
+      "title": "Your sending addresses",
+      "explanation": "An email you forward by hand is read when it comes from one of your addresses.",
+      "account": "{{address}} (your account's address)",
+      "addLabel": "Add an address of yours",
+      "add": "Add",
+      "remove": "Remove",
+      "removeLabel": "Remove {{address}}"
+    },
+    "errors": {
+      "error": "Something went wrong. Try again.",
+      "invalid": "Enter a valid email address.",
+      "too_many": "You have already added 10 addresses: remove one first."
+    }
   },
   "euAiConsent": {
     "title": "European AI for your identity data",
@@ -1495,7 +1526,8 @@
         "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
         "url": "an https URL",
         "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>",
-        "country": "a two-letter country code, such as FR"
+        "country": "a two-letter country code, such as FR",
+        "domain": "a domain name, such as alertes.jobbbox.ai"
       },
       "notices": {
         "saved": "{{name}} saved: the new value applies within seconds, without a restart.",
@@ -1650,6 +1682,7 @@
         "JOB_DIGEST_TARGET_COUNT": "Job Offers a Job Digest aims for",
         "JOB_DIGEST_FIRST_LOOK_BACK_DAYS": "Days the first Job Digest looks back",
         "MAIL_FROM": "Email sender",
+        "EMAIL_INTAKE_DOMAIN": "Forwarding addresses' domain (Email intake)",
         "MAIL_TRANSPORT": "Email sending",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",

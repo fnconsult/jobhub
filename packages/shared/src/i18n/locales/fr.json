@@ -1455,7 +1455,8 @@
           "key_missing": "Indisponible : clé manquante ({{names}})",
           "setting_missing": "Indisponible : paramètre manquant ({{names}})",
           "disabled": "Indisponible : désactivée par un paramètre",
-          "not_configured": "Indisponible : non configurée"
+          "not_configured": "Indisponible : non configurée",
+          "playbook_pending": "Indisponible : en attente de validation du playbook"
         }
       },
       "empty": "(aucune)",

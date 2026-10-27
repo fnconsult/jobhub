@@ -1455,7 +1455,8 @@
           "key_missing": "Unavailable: key missing ({{names}})",
           "setting_missing": "Unavailable: setting missing ({{names}})",
           "disabled": "Unavailable: turned off by a setting",
-          "not_configured": "Unavailable: not configured"
+          "not_configured": "Unavailable: not configured",
+          "playbook_pending": "Unavailable: awaiting validation of the playbook"
         }
       },
       "empty": "(none)",

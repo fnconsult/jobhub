@@ -33,7 +33,10 @@ import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../si
 export interface MailMessage {
   to: string;
   subject: string;
+  /** The plain-text part, always sent. */
   text: string;
+  /** The HTML part (`renderEmail`, apps/web/src/emails): the mailer writes the sender's address in its footer. */
+  html?: string;
   /** Extra headers, e.g. List-Unsubscribe (RFC 8058) on a recurring email. */
   headers?: Record<string, string>;
 }

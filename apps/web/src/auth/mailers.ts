@@ -4,6 +4,7 @@ import type { PlatformSettingsResolver } from "../platform-settings/resolver";
 import { secretsWithSettings } from "../platform-settings/secrets-with-settings";
 import { MAIL_SECRET_NAMES } from "../provider-secrets/catalog";
 import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
+import { withSenderAddress } from "../emails";
 import type { Mailer, MailMessage } from "./index";
 
 /** Brevo's transactional email API (EU provider, ADR-0007). BREVO_API_URL overrides it (e2e). */
@@ -44,7 +45,7 @@ export function isSender(from: string): boolean {
   return ADDRESS.test(named ? named[1]! : value);
 }
 
-/** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…). */
+/** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…): both parts, when there is an HTML one. */
 export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?: string; fetch?: (url: string, init: RequestInit) => Promise<Response> } = {}): Mailer {
   const fetch = options.fetch ?? globalThis.fetch;
   const apiUrl = (options.apiUrl?.trim() || BREVO_API_URL).replace(/\/$/, "");
@@ -59,6 +60,7 @@ export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?:
           to: [{ email: message.to }],
           subject: message.subject,
           textContent: message.text,
+          ...(message.html ? { htmlContent: withSenderAddress(message.html, from) } : {}),
           ...(message.headers ? { headers: message.headers } : {}),
         }),
         signal: AbortSignal.timeout(15_000),
@@ -69,13 +71,20 @@ export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?:
 }
 
 /** What an SMTP mailer sends through: nodemailer's transport, by default. */
-export type SmtpTransport = { sendMail(mail: { from: string; to: string; subject: string; text: string; headers?: Record<string, string> }): Promise<unknown> };
+export type SmtpTransport = { sendMail(mail: { from: string; to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }): Promise<unknown> };
 
-/** Sends emails through an SMTP server (an EU provider in production, ADR-0007). */
+/** Sends emails through an SMTP server (an EU provider in production, ADR-0007): multipart/alternative when it has an HTML part. */
 export function smtpMailer(smtpUrl: string, from: string, transport: SmtpTransport = nodemailer.createTransport(smtpUrl)): Mailer {
   return {
     async send(message: MailMessage) {
-      await transport.sendMail({ from, to: message.to, subject: message.subject, text: message.text, headers: message.headers });
+      await transport.sendMail({
+        from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        ...(message.html ? { html: withSenderAddress(message.html, from) } : {}),
+        ...(message.headers ? { headers: message.headers } : {}),
+      });
     },
   };
 }

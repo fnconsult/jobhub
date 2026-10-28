@@ -3964,5 +3964,10 @@
     "handled": "Your feedback of {{date}} is done",
     "see": "See",
     "dismiss": "Close"
+  },
+  "designSystem": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "ring": "{{label}}: {{value}} out of 100"
   }
 }

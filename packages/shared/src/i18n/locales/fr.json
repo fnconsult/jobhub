@@ -3964,5 +3964,10 @@
     "handled": "Votre signalement du {{date}} est traité",
     "see": "Voir",
     "dismiss": "Fermer"
+  },
+  "designSystem": {
+    "close": "Fermer",
+    "cancel": "Annuler",
+    "ring": "{{label}} : {{value}} sur 100"
   }
 }

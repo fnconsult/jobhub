@@ -42,6 +42,26 @@ describe.skipIf(!connectionString)("job runner (needs Postgres: DATABASE_URL)", 
     }
   }, 20_000);
 
+  it("gives a job's queue the tries it names, even a queue the web app created first (Email intake's reading, #445)", async () => {
+    const boss = new PgBoss({ connectionString: connectionString! });
+    await boss.start();
+    try {
+      // The web app creates a queue with pg-boss's defaults when it sends the first job to it.
+      if (!(await boss.getQueue("test.retried"))) await boss.createQueue("test.retried");
+      runner = await startJobRunner({
+        connectionString: connectionString!,
+        jobs: { "test.retried": { retry: { limit: 2, delaySeconds: 600, backoff: true }, handler: async () => {} } },
+      });
+
+      expect(await boss.getQueue("test.retried")).toMatchObject({ retryLimit: 2, retryDelay: 600, retryBackoff: true });
+    } finally {
+      await runner?.stop();
+      runner = undefined;
+      await boss.deleteQueue("test.retried");
+      await boss.stop({ graceful: false });
+    }
+  }, 20_000);
+
   it("refuses to enqueue a job that has no registered handler", async () => {
     runner = await startJobRunner({ connectionString: connectionString!, jobs: {} });
     await expect(runner.enqueue("test.unknown", {})).rejects.toThrow(/test\.unknown/);

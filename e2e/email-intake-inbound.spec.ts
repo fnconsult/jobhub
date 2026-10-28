@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
+import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
-import { alertEmail, inboundPayload, unknownSenderEmail, type BrevoInboundItem } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
+import { alertEmail, gmailForwardingConfirmation, inboundPayload, unknownSenderEmail, type BrevoInboundItem } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -179,6 +180,109 @@ test.describe("Email intake: Brevo's inbound webhook", () => {
 
     runPurge(13 * 31 * 24);
     expect(await receivedEmails(page)).toEqual([]);
+  });
+
+  // Issue #451: the step-by-step forwarding setup wizard, in this file because it needs Email intake switched on while
+  // the Gmail confirmation and the first email are delivered.
+  test.describe("the forwarding setup wizard (#451)", () => {
+    const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+    const wizard = fr.forwardingWizard;
+
+    async function expectAccessible(page: Page) {
+      const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
+    }
+
+    const runningAnimations = (page: Page) => page.evaluate(() => document.getAnimations().length);
+
+    test("the Gmail path shows the confirmation code from a seeded confirmation email and ends when a first email is recorded; axe passes, no animation with reduced motion", async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await signInWithMagicLink(page, newAddress("wizard-gmail"));
+      await page.goto("/compte/reception-email");
+      await page.getByRole("link", { name: fr.emailIntake.wizardLink }).click();
+      await expect(page).toHaveURL(/\/compte\/reception-email\/assistant$/);
+      const steps = page.getByRole("region", { name: wizard.title });
+      const title = steps.getByRole("heading", { level: 3 });
+      const next = steps.getByRole("button", { name: wizard.next, exact: true });
+
+      await expect(title).toHaveText(wizard.steps.provider);
+      await expectAccessible(page);
+      await steps.getByLabel(wizard.provider.names.gmail).check();
+      await next.click();
+
+      await expect(title).toHaveText(wizard.steps.switchOn);
+      await expect(title).toBeFocused();
+      await expect(steps.getByText(wizard.switchOn.ai)).toBeVisible();
+      await expect(steps.getByRole("status")).toHaveText(wizard.switchOn.off);
+      await expectAccessible(page);
+      await steps.getByRole("button", { name: wizard.switchOn.action }).click();
+
+      await expect(title).toHaveText(wizard.steps.address);
+      const address = await steps.getByLabel(fr.emailIntake.addressLabel).inputValue();
+      expect(address).toMatch(/^[a-z2-7]{16}@alertes\.jobbbox\.ai$/);
+      await next.click();
+
+      await expect(title).toHaveText(wizard.guides.gmailAddress.title);
+      await expect(steps.getByRole("listitem")).toHaveCount(5);
+      await expectAccessible(page);
+      expect(await runningAnimations(page)).toBe(0);
+      await next.click();
+
+      await expect(title).toHaveText(wizard.steps.confirmation);
+      await expect(steps.getByRole("status")).toHaveText(wizard.confirmation.waiting);
+      expect((await deliver(page.request, inboundPayload(gmailForwardingConfirmation(address, { code: "424242" })))).status()).toBe(200);
+      await expect(steps.getByRole("definition")).toHaveText("424242");
+      await expect(steps.getByRole("term")).toHaveText(wizard.confirmation.codeLabel);
+      await expect(steps.getByRole("link", { name: wizard.confirmation.link })).toHaveAttribute("href", /^https:\/\/mail-settings\.google\.com\//);
+      await expectAccessible(page);
+      // Gmail's confirmation is not the first email: the setup still waits for one.
+      await next.click();
+
+      await expect(title).toHaveText(wizard.guides.gmailFilter.title);
+      await next.click();
+
+      await expect(title).toHaveText(wizard.steps.firstEmail);
+      await expect(steps.getByRole("status")).toHaveText(wizard.firstEmail.waiting);
+      expect((await deliver(page.request, inboundPayload(alertEmail(address)))).status()).toBe(200);
+
+      await expect(title).toHaveText(wizard.steps.done);
+      await expect(steps.getByRole("status")).toHaveText(/^Premier email reçu le .+\.$/);
+      await expect(steps.getByRole("link", { name: wizard.done.back })).toHaveAttribute("href", "/compte/reception-email");
+      await expectAccessible(page);
+      expect(await runningAnimations(page)).toBe(0);
+    });
+
+    test("Orange goes by hand: its notice, the manual guide and the Candidate's sending addresses; the settings hint animates without reduced motion", async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await signInWithMagicLink(page, newAddress("wizard-orange"));
+      await page.goto("/compte/reception-email/assistant");
+      const steps = page.getByRole("region", { name: wizard.title });
+      const title = steps.getByRole("heading", { level: 3 });
+      const next = steps.getByRole("button", { name: wizard.next, exact: true });
+
+      await steps.getByLabel(wizard.provider.names.orange).check();
+      await next.click();
+      await steps.getByRole("button", { name: wizard.switchOn.action }).click();
+      await expect(title).toHaveText(wizard.steps.address);
+      await next.click();
+
+      await expect(title).toHaveText(wizard.guides.manual.title);
+      await expect(steps.getByText(wizard.guides.manual.orangeNotice)).toBeVisible();
+      await expect(steps.getByRole("region", { name: fr.emailIntake.sending.title })).toBeVisible();
+      expect(await runningAnimations(page)).toBeGreaterThan(0);
+      // The step fades in and the hint's ring pulses three times, then all stands still.
+      await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+      await expectAccessible(page);
+      await expect(steps.getByText(tr(wizard.progress, { current: "4", total: "6" }))).toBeVisible();
+    });
+
+    test("only a signed-in Candidate reads how far their setup got; while Email intake is off it answers 409", async ({ page, request }) => {
+      expect((await request.get("/api/account/email-intake/setup")).status()).toBe(401);
+      await signInWithMagicLink(page, newAddress("wizard-api"));
+      expect((await page.request.get("/api/account/email-intake/setup")).status()).toBe(409);
+      const address = await (await page.request.put("/api/account/email-intake", { headers: { origin } })).json();
+      expect(await (await page.request.get("/api/account/email-intake/setup")).json()).toEqual({ ...address, confirmation: null, firstEmail: null });
+    });
   });
 
   test.describe("in the Back Office (#448)", () => {

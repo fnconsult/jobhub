@@ -5,6 +5,7 @@ import { secretCipherFromEnv, type SecretCipher } from "@/provider-secrets/ciphe
 import { getSecretResolver } from "@/provider-secrets/server";
 import { getSearchSites } from "@/search-sites/server";
 import { emailIntakeDomain, emailIntakeLimits } from "./domain";
+import { forwardingSetupOf, type ForwardingSetup } from "./forwarding-setup";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 import { createEmailIntake, type EmailIntake } from "./index";
 import { createRecognisedSenderList, type RecognisedSenderList } from "./recognised-sender-list";
@@ -42,4 +43,9 @@ export function getEmailIntakeInbound(): EmailIntakeInbound {
     },
   });
   return inbound;
+}
+
+/** How far the Candidate's forwarding setup got (#451): Gmail's confirmation read with the texts' cipher, when there is one. */
+export function getForwardingSetup(candidateId: string): Promise<ForwardingSetup | null> {
+  return forwardingSetupOf(sharedPool(), (cipher ??= secretCipherFromEnv(process.env)), candidateId);
 }

@@ -76,10 +76,17 @@ describe("the check of an AI routing change on Paramètres (#301)", () => {
   // The keys come from the Provider Secrets (Clés), not from the settings' env.
   const check = aiRoutingCheck(() => ({ AWS_BEARER_TOKEN_BEDROCK: "bk", PERPLEXITY_API_KEY: "pk", OPENAI_API_KEY: "ok" }));
 
-  it("refuses a task with personal data routed outside the EU, with the keys in use", async () => {
-    const refusal = await check({ name: "OPENAI_DATA_RESIDENCY", before: { ...settingsEnv, AI_SCORING_PROVIDER: "openai" }, after: { ...settingsEnv, AI_SCORING_PROVIDER: "openai", OPENAI_DATA_RESIDENCY: "us" } });
+  it("refuses a task that runs only in the EU routed outside it, with the keys in use (ADR-0052)", async () => {
+    const before = { ...settingsEnv, AI_OFFER_EMAIL_READING_PROVIDER: "openai" };
+    const refusal = await check({ name: "OPENAI_DATA_RESIDENCY", before, after: { ...before, OPENAI_DATA_RESIDENCY: "us" } });
 
     expect(refusal).toMatchObject({ reason: "data_residency" });
+  });
+
+  it("lets a task with personal data go outside the EU, redacted (ADR-0007 amendment of 2026-10-28)", async () => {
+    const before = { ...settingsEnv, AI_SCORING_PROVIDER: "openai" };
+
+    expect(await check({ name: "OPENAI_DATA_RESIDENCY", before, after: { ...before, OPENAI_DATA_RESIDENCY: "us" } })).toBeNull();
   });
 
   it("records the test call of a model the change names in AI Usage", async () => {

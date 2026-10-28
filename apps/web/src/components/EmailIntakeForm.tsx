@@ -1,8 +1,11 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ForwardingAddress } from "@/email-intake";
+import { routes } from "@/routes";
+import { SendingAddresses } from "./SendingAddresses";
 
 /** What waits for the Candidate's confirmation: both stop the address in use at once. */
 type Pending = "replace" | "switchOff" | null;
@@ -10,7 +13,7 @@ type Pending = "replace" | "switchOff" | null;
 /**
  * Mon compte's « Réception par email » (#441, ADR-0051): switches Email intake on (dated) or off, shows the
  * Forwarding address to copy, replaces it, and lists the Candidate's own sending addresses for manual forwards.
- * The step-by-step setup wizard per mailbox provider comes later.
+ * The step-by-step setup wizard per mailbox provider (#451) opens from here.
  */
 export function EmailIntakeForm({
   forwardingAddress: initial,
@@ -24,28 +27,21 @@ export function EmailIntakeForm({
   const { t } = useTranslation();
   const id = useId();
   const [forwarding, setForwarding] = useState(initial);
-  const [sending, setSending] = useState(initialSending);
-  const [newSending, setNewSending] = useState("");
   const [pending, setPending] = useState<Pending>(null);
   const [working, setWorking] = useState(false);
   const [status, setStatus] = useState<"copied" | "copyFailed" | null>(null);
-  const [error, setError] = useState<"error" | "invalid" | "too_many" | null>(null);
+  const [error, setError] = useState(false);
 
-  async function call(url: string, method: string, body?: unknown): Promise<Response | null> {
+  async function call(url: string, method: string): Promise<Response | null> {
     setWorking(true);
-    setError(null);
+    setError(false);
     setStatus(null);
     try {
-      const response = await fetch(url, { method, ...(body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }) });
-      if (response.status === 400) {
-        const { error: reason } = (await response.json()) as { error: "invalid" | "too_many" };
-        setError(reason === "too_many" ? "too_many" : "invalid");
-        return null;
-      }
+      const response = await fetch(url, { method });
       if (!response.ok) throw new Error(String(response.status));
       return response;
     } catch {
-      setError("error");
+      setError(true);
       return null;
     } finally {
       setWorking(false);
@@ -83,26 +79,15 @@ export function EmailIntakeForm({
     }
   }
 
-  async function addSending(event: FormEvent) {
-    event.preventDefault();
-    const response = await call("/api/account/email-intake/sending-addresses", "POST", { address: newSending });
-    if (!response) return;
-    setSending(((await response.json()) as { sendingAddresses: string[] }).sendingAddresses);
-    setNewSending("");
-  }
-
-  async function removeSending(address: string) {
-    const response = await call("/api/account/email-intake/sending-addresses", "DELETE", { address });
-    if (response) setSending(((await response.json()) as { sendingAddresses: string[] }).sendingAddresses);
-  }
-
   const date = forwarding ? new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(forwarding.activatedAt) : null;
-  const [accountAddress, ...added] = sending;
   return (
     <div className="stack">
       <section className="stack" aria-labelledby={`${id}-title`}>
         <h2 id={`${id}-title`}>{t("emailIntake.title")}</h2>
         <p>{t("emailIntake.explanation")}</p>
+        <p>
+          <Link href={routes.accountEmailIntakeWizard}>{t("emailIntake.wizardLink")}</Link>
+        </p>
         {forwarding ? (
           <>
             <p role="status">{t("emailIntake.onSince", { date })}</p>
@@ -145,35 +130,10 @@ export function EmailIntakeForm({
           </>
         )}
       </section>
-      <section className="stack" aria-labelledby={`${id}-sending`}>
-        <h3 id={`${id}-sending`}>{t("emailIntake.sending.title")}</h3>
-        <p>{t("emailIntake.sending.explanation")}</p>
-        <ul>
-          {accountAddress ? <li>{t("emailIntake.sending.account", { address: accountAddress })}</li> : null}
-          {added.map((address) => (
-            <li key={address}>
-              {address}{" "}
-              <button className="button" type="button" disabled={working} aria-label={t("emailIntake.sending.removeLabel", { address })} onClick={() => void removeSending(address)}>
-                {t("emailIntake.sending.remove")}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <form className="stack" onSubmit={(event) => void addSending(event)}>
-          <div className="field">
-            <label htmlFor={`${id}-new-sending`}>{t("emailIntake.sending.addLabel")}</label>
-            <input id={`${id}-new-sending`} className="input" type="email" inputMode="email" autoComplete="email" value={newSending} onChange={(event) => setNewSending(event.target.value)} required />
-          </div>
-          <div>
-            <button className="button" type="submit" disabled={working}>
-              {t("emailIntake.sending.add")}
-            </button>
-          </div>
-        </form>
-      </section>
+      <SendingAddresses initial={initialSending} />
       {error ? (
         <p className="field-error" role="alert">
-          {t(`emailIntake.errors.${error}`)}
+          {t("emailIntake.errors.error")}
         </p>
       ) : null}
     </div>

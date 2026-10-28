@@ -24,7 +24,7 @@ function searchFetch() {
   return { fetch, asked };
 }
 
-const keys = { AWS_BEARER_TOKEN_BEDROCK: "b", PERPLEXITY_API_KEY: "pk", BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk" };
+const keys = { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "b", PERPLEXITY_API_KEY: "pk", BRAVE_SEARCH_API_KEY: "bk", TAVILY_API_KEY: "tk" };
 const quiet = () => vi.spyOn(console, "warn").mockImplementation(() => {});
 
 describe("the Search providers' typed settings", () => {

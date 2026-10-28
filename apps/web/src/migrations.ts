@@ -21,6 +21,7 @@ import { migrateCoachMemory } from "./coach-memory/index";
 import { migrateCompanyDossiers } from "./company-dossiers/index";
 import { migrateDiscoveryRuns } from "./discovery-runs/index";
 import { migrateEmailIntake } from "./email-intake/index";
+import { migrateEmailReadings } from "./email-intake/reading";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
 import { migrateEvals } from "./evals/index";
@@ -93,6 +94,7 @@ export async function migrateDatabase(
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
     ["Signalements are up to date", () => migrateSignalements(database)],
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
+    ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

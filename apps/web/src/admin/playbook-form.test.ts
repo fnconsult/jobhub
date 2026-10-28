@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { agentModelValue, effortOf, outsideEu, playbookVersionFromForm } from "./playbook-form";
+import { createI18n } from "@jobhub/shared/i18n";
+import { agentModelValue, defaultModelLabel, effortOf, outsideEu, playbookVersionFromForm } from "./playbook-form";
 
 function form(fields: [string, string][]) {
   const data = new FormData();
@@ -71,5 +72,13 @@ describe("the Playbook Version form of the Back Office (#225)", () => {
     expect(effortOf(MODELS, "anthropic", null)).toBe("native");
     expect(effortOf(MODELS, "mistral", null)).toBe("ignored");
     expect(effortOf(MODELS, "openai", "gpt-5")).toBe("native");
+  });
+
+  it("names the provider's default model, or says it follows the effort (Claude's direct API)", () => {
+    const { t } = createI18n("fr");
+    const direct = { provider: "anthropic" as const, endpoint: "api.anthropic.com", residency: "outside_eu" as const, defaultModel: "claude-sonnet-5-5", defaultModelByEffort: { low: "claude-haiku-5-5", medium: "claude-sonnet-5-5", high: "claude-opus-5-5" }, models: [] };
+
+    expect(defaultModelLabel(t, MODELS[0]!)).toBe("modèle par défaut (mistral-large-latest)");
+    expect(defaultModelLabel(t, direct)).toBe("modèle par défaut (selon l'effort)");
   });
 });

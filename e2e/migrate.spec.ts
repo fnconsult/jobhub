@@ -65,6 +65,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Guardrails are up to date");
     expect(first.stdout).toContain("Eval Cases and Eval Runs are up to date");
     expect(first.stdout).toContain("Forwarding addresses are up to date");
+    expect(first.stdout).toContain("The offers of Received offer emails are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -135,6 +136,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
         "received_offer_email", // issue #442: each email Email intake took, its outcome and sender's domain; its text encrypted, 72 hours at most
+        "received_offer_email_offer", // issue #445: the offers each Received offer email gave (new, déjà vue, À capturer, too old)
         "recognised_sender", // issue #442: the platform's Recognised senders; no Candidate data
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "sending_address", // issue #441: the sending addresses a Candidate adds for manual forwards
@@ -252,6 +254,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #442): the Received offer emails go with their Candidate.
         { from_table: "received_offer_email", from_column: "candidate_id", to_table: "candidate" },
+        // Email intake (issue #445): the offers an email gave go with it, its Candidate, its Job Offer and the Profile it went to.
+        { from_table: "received_offer_email_offer", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "received_offer_email_offer", from_column: "job_offer_id", to_table: "job_offer" },
+        { from_table: "received_offer_email_offer", from_column: "profile_id", to_table: "profile" },
+        { from_table: "received_offer_email_offer", from_column: "received_offer_email_id", to_table: "received_offer_email" },
         // Email intake (issue #441): the sending addresses go with their Candidate.
         { from_table: "sending_address", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

@@ -200,6 +200,12 @@ globalThis.fetch = async (input, init) => {
     }
     if (prompt.includes("E2E_ECHO_RULES")) content = JSON.stringify({ summary: system.trim().split("\n").at(-1).trim() });
   }
+  // Reading a Received offer email (#445): the reply scripted for the email whose marker the text holds, in
+  // E2E_OFFER_EMAIL_REPLIES (JSON: [{ marker, reply }]); « autre » with no offer for any other.
+  if (system.startsWith("Tu lis un email reçu par un candidat")) {
+    const scripted = JSON.parse(process.env.E2E_OFFER_EMAIL_REPLIES ?? "[]").find((each) => prompt.includes(each.marker));
+    content = JSON.stringify(scripted?.reply ?? { kind: "autre", offers: [] });
+  }
   if (prompt.includes("<pages>")) content = JSON.stringify(factsInPages(prompt));
   if (system.includes("cabinet de recrutement")) {
     const agency = /^Employeur affiché : Cabinet/m.test(prompt);

@@ -180,6 +180,13 @@ export interface AiProvider {
   readonly residency: Residency;
   /** The model it uses when the route names none, by name: what a failed call is recorded with. */
   readonly defaultModel?: string;
+  /**
+   * The model it uses when the route names none, for a call's effort, when that depends on the effort (Claude's
+   * direct API); without it, `defaultModel` whatever the effort.
+   */
+  defaultModelFor?(effort?: Effort): string;
+  /** The default model for each effort, when `defaultModelFor` follows it: what the Back Office shows. */
+  readonly modelByEffort?: Readonly<Record<Effort, string>>;
   /** The text models it offers a Playbook Agent (#225), by the name this endpoint knows them by, its default model first. */
   readonly models?: readonly string[];
   generate?(input: TextInput): Promise<TextOutput>;

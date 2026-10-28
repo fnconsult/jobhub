@@ -119,7 +119,7 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
 
       expect(response.status).toBe(200);
       const [email] = await received();
-      expect(email).toEqual({ id: expect.any(String), outcome: "awaiting_reading", senderDomain: "alertes.cadremploi.fr", receivedAt: now, sentAt: new Date("2026-10-26T22:18:15Z") });
+      expect(email).toEqual({ id: expect.any(String), outcome: "awaiting_reading", kind: null, senderDomain: "alertes.cadremploi.fr", receivedAt: now, sentAt: new Date("2026-10-26T22:18:15Z"), offers: [] });
       expect(sent).toEqual([{ name: EMAIL_INTAKE_READ_QUEUE, data: { receivedOfferEmailId: email!.id } }]);
       expect(await receivedTextOf(database, cipher, email!.id)).toContain("Chef de projet digital H/F <https://www.example-jobs.test/offre/1001>");
       const { rows } = await database.query(`SELECT text_ciphertext::text AS stored FROM received_offer_email`);

@@ -14,7 +14,7 @@
  * change makes a draft version, served in production once Human-validated in Playbooks. Choosing a provider whose key
  * is missing is shown, never refused.
  */
-import { taskRouteFromEnv, TEXT_TASKS, type Effort, type ProviderId, type TextTask } from "@jobhub/ai";
+import { euOnly, taskRouteFromEnv, TEXT_TASKS, type Effort, type ProviderId, type TextTask } from "@jobhub/ai";
 import { runsOnAgent, taskPlaybookSeed, type TaskPlaybookId } from "@jobhub/coach-knowledge/tasks";
 import { TOOLS, type Tool } from "@jobhub/shared";
 import type { CoachingPlaybook, PlaybookAgent, PlaybookSearch, PlaybookVersion } from "../coaching-playbooks";
@@ -55,6 +55,8 @@ export interface AiTaskRoute {
   /** Its provider setting's source; a task taking another's provider by default says the default. */
   source: ValueSource;
   personalData: boolean;
+  /** Whether it runs only on an EU endpoint (ADR-0052): a provider outside the EU is refused on save. */
+  euOnly: boolean;
   keyMissing: boolean;
 }
 
@@ -76,6 +78,7 @@ export function aiTaskRoutes(state: ProvidersState): AiTaskRoute[] {
         model: route.model ?? null,
         source: { kind: "setting", name: providerSetting(task), source: setting?.source ?? "default" },
         personalData: TEXT_TASKS[task].personalData,
+        euOnly: euOnly(task),
         keyMissing: keyMissing(state, route.provider),
       };
     });

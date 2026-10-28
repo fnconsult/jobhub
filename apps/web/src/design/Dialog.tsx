@@ -4,7 +4,7 @@ import * as RadixDialog from "@radix-ui/react-dialog";
 import { useId, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
-import { Scrim } from "./overlay";
+import { OverlayPortal, Scrim } from "./overlay";
 import "./Dialog.css";
 
 /**
@@ -45,7 +45,7 @@ export function ConfirmDialog({
   return (
     <RadixDialog.Root open={open} onOpenChange={change}>
       {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
-      <RadixDialog.Portal>
+      <OverlayPortal>
         <Scrim />
         <RadixDialog.Content
           role="alertdialog"
@@ -77,7 +77,7 @@ export function ConfirmDialog({
             </Button>
           </footer>
         </RadixDialog.Content>
-      </RadixDialog.Portal>
+      </OverlayPortal>
     </RadixDialog.Root>
   );
 }

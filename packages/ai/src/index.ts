@@ -67,7 +67,7 @@ export { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, MAX_CO
 export type { CompanyNewsArticle, CompanyNewsRequest } from "./company-news";
 export { DEFAULT_JOB_SEARCH_SHAPE } from "./search-query";
 export type { JobSearchQuery, JobSearchShape, QueryLanguage } from "./search-query";
-export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
+export { euOnly, PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
 export { allUsageLogs, createConsoleUsageLog } from "./usage";
 export { EFFORTS, effortHandling, isEffort } from "./effort";

@@ -145,7 +145,7 @@ describe("the Search provider's fallback", () => {
 });
 
 describe("the fallback as the environment sets it (AI_WEB_SEARCH_FALLBACK_PROVIDER)", () => {
-  const keys = { AWS_BEARER_TOKEN_BEDROCK: "b", PERPLEXITY_API_KEY: "pk" };
+  const keys = { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "b", PERPLEXITY_API_KEY: "pk" };
   const down = (async (input: string | URL | Request) => {
     const url = new URL(input instanceof Request ? input.url : input);
     if (url.hostname === "api.perplexity.ai") return new Response("busy", { status: 429 });
@@ -171,7 +171,7 @@ describe("the fallback as the environment sets it (AI_WEB_SEARCH_FALLBACK_PROVID
 
   it("is refused when set to the active Search provider", async () => {
     const braveDown = (async () => new Response("busy", { status: 429 })) as typeof globalThis.fetch;
-    const env = { AWS_BEARER_TOKEN_BEDROCK: "b", BRAVE_SEARCH_API_KEY: "bk", AI_WEB_SEARCH_PROVIDER: "brave" };
+    const env = { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "b", BRAVE_SEARCH_API_KEY: "bk", AI_WEB_SEARCH_PROVIDER: "brave" };
     const ai = createAiLayerFromEnv(env, { fetch: braveDown, usage: createMemoryUsageLog() });
     await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toMatchObject({ status: 429 });
     expect(() => createAiLayerFromEnv({ ...env, AI_WEB_SEARCH_FALLBACK_PROVIDER: "brave" }, { usage: createMemoryUsageLog() })).toThrow(/must not be the active/);

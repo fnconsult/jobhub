@@ -1580,7 +1580,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is recorded in Activity.",
+      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (an EU-only task sent outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is recorded in Activity.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1809,7 +1809,8 @@
           "providerHelp": "A provider outside the EU receives calls redacted of the Candidate's identity; a provider without a key can be chosen, its calls fail until the key is entered.",
           "model": "Model",
           "modelHelp": "Empty: the provider's default model. A model typed is tested with a call on save, unless the provider's key is missing.",
-          "personalData": "This task receives personal data: a provider outside the EU is refused on save, and identity-bearing calls follow EU AI consent.",
+          "personalData": "This task receives personal data: a provider outside the EU receives calls with the Candidate's identity taken out, and identity-bearing calls follow EU AI consent.",
+          "euOnly": "This task runs only in the EU: a provider outside the EU is refused on save.",
           "noPersonalData": "This task receives no personal data: a provider outside the EU is allowed.",
           "applies": "Saving applies from the next call, without a restart; a run already started keeps its model. The change is recorded in the Journal.",
           "restore": "Restore the default",
@@ -2150,6 +2151,7 @@
       "validatedBy": "validated by {{name}} on {{date}}",
       "notValidated": "not validated",
       "defaultModel": "default model ({{model}})",
+      "defaultModelByEffort": "default model (by effort)",
       "providerDefault": "default model",
       "agentSummary": "{{provider}} · {{model}} · effort {{effort}}",
       "efforts": {

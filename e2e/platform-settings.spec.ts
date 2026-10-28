@@ -12,7 +12,7 @@ import { newAddress } from "./support/mailbox";
 // Issue #299: super-admins change the Job Digest's and Job discovery's settings there, or
 // « Rétablir » them; each save, restore and refused value is in the Journal. Support only reads.
 // Issue #301: they change AI routing too, each change checked as the AI layer would build it: a
-// route with personal data outside the EU is refused with its reason, and a model typed is tested
+// route that must stay in the EU (offer email reading, ADR-0052) sent outside it is refused with its reason, and a model typed is tested
 // with a call (the fake Mistral refuses a model named "…inexistant…", e2e/support/fake-mistral.mjs).
 // Issue #300: and MAIL_FROM, refused unless it names one email sender; MAIL_TRANSPORT stays read-only. Saving one
 // and the emails sent with it are in job-digest.spec.ts: the one spec that changes MAIL_FROM.
@@ -66,13 +66,13 @@ test.describe("Platform Settings (Paramètres)", () => {
     // Under Plateforme.
     await expect(page.getByRole("list", { name: admin.nav.groups.platform }).getByRole("link", { name: admin.sections.platformSettings })).toBeVisible();
 
-    // The e2e server's older .env: Claude on Bedrock, from env, differing from the code's default (auto). On the IA tab (#396).
+    // The e2e server's older .env: Claude on Bedrock, from env, differing from the code's default (direct). On the IA tab (#396).
     await page.goto(`${PATH}?tab=ia`);
     const endpoint = row(page, "ANTHROPIC_ENDPOINT");
     await expect(endpoint.getByRole("cell").nth(0)).toContainText("bedrock");
     await expect(endpoint.getByRole("cell").nth(0)).toContainText(texts.differsFlag);
     await expect(endpoint.getByRole("cell").nth(1)).toHaveText(texts.sources.env);
-    await expect(endpoint.getByRole("cell").nth(2)).toHaveText("auto");
+    await expect(endpoint.getByRole("cell").nth(2)).toHaveText("direct");
     // AI routing set by env (the e2e server's Mistral routes, Bedrock): counted at the top.
     await expect(page.getByRole("status").filter({ hasText: texts.differs_other.replace("{{count}} ", "") })).toBeVisible();
     // Nothing sets the Job Digest's target: the code's default, not flagged. On the Sources tab.
@@ -303,26 +303,26 @@ test.describe("Platform Settings (Paramètres)", () => {
       await expect(entries.filter({ hasText: admin.journal.actions.restored_to_default })).toContainText(tr(admin.journal.changed, { field: value, before: "auto", after: "bedrock" }));
     });
 
-    test("a task with personal data routed outside the EU is refused on save with the reason shown, and in the Journal", async ({ page }) => {
+    test("a task that runs only in the EU routed outside it is refused on save with the reason shown, and in the Journal", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
       await page.goto(`${PATH}?tab=ia`);
       // Claude on Bedrock in a US region: no task runs on Claude here, so this alone is accepted.
       await save(page, "BEDROCK_REGION", "us-east-1");
       await expect(page.getByRole("status").filter({ hasText: "BEDROCK_REGION" })).toHaveText(tr(texts.notices.saved, { name: "BEDROCK_REGION" }));
 
-      // Scoring reads the Candidate's CV: it may not go there.
-      await save(page, "AI_SCORING_PROVIDER", "anthropic");
-      const notice = page.getByRole("alert").filter({ hasText: "AI_SCORING_PROVIDER" });
-      await expect(notice).toContainText(refusedNotice("AI_SCORING_PROVIDER", "data_residency"));
+      // Offer email reading runs only in the EU (ADR-0052): it may not go there.
+      await save(page, "AI_OFFER_EMAIL_READING_PROVIDER", "anthropic");
+      const notice = page.getByRole("alert").filter({ hasText: "AI_OFFER_EMAIL_READING_PROVIDER" });
+      await expect(notice).toContainText(refusedNotice("AI_OFFER_EMAIL_READING_PROVIDER", "data_residency"));
       await expect(notice).toContainText("bedrock us-east-1");
-      await expect(row(page, "AI_SCORING_PROVIDER").getByRole("cell").nth(0)).toContainText("mistral");
-      await expect(row(page, "AI_SCORING_PROVIDER").getByRole("cell").nth(1)).toHaveText(texts.sources.env);
+      await expect(row(page, "AI_OFFER_EMAIL_READING_PROVIDER").getByRole("cell").nth(0)).toContainText("mistral");
+      await expect(row(page, "AI_OFFER_EMAIL_READING_PROVIDER").getByRole("cell").nth(1)).toHaveText(texts.sources.env);
 
       await row(page, "BEDROCK_REGION").getByRole("button", { name: texts.restore }).click();
       await expect(page.getByRole("status").filter({ hasText: "BEDROCK_REGION" })).toHaveText(tr(texts.notices.restored, { name: "BEDROCK_REGION" }));
 
       await page.goto("/admin/journal?section=platform_settings&outcome=failed");
-      const refused = page.getByRole("row").filter({ hasText: "AI_SCORING_PROVIDER" }).filter({ hasText: SUPER_ADMIN });
+      const refused = page.getByRole("row").filter({ hasText: "AI_OFFER_EMAIL_READING_PROVIDER" }).filter({ hasText: SUPER_ADMIN });
       await expect(refused).toHaveCount(1);
       await expect(refused).toContainText(tr(admin.journal.failed, { tried: admin.journal.actions.updated, reason: fr.failureReasons.data_residency }));
     });

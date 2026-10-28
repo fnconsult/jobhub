@@ -28,6 +28,9 @@ import type { EmailIntake } from "./index";
 import { readInboundEmails, type InboundEmail } from "./inbound-email";
 import { senderStanding, type RecognisedSender } from "./recognised-senders";
 
+// What the worker purges with them: Activité's Emails reçus rows and the Journal's Linked mailbox events (#449).
+export { ACTIVITY_RETENTION_MONTHS, purgeEmailIntakeActivity } from "./activity";
+
 /** The worker's queue of Received offer emails to read: `{ receivedOfferEmailId }`. */
 export const EMAIL_INTAKE_READ_QUEUE = "email-intake.read";
 

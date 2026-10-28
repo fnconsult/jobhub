@@ -21,6 +21,7 @@ import { migrateJobSearches } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
 import { createSecretKey, randomBytes } from "node:crypto";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../web/src/email-intake";
+import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundPayload } from "../../web/src/email-intake/fixtures/brevo-inbound";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
@@ -1094,6 +1095,31 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
         "[email-intake] 1 Received offer email text(s) purged after 72 hours, 0 Received offer email(s) after 12 months",
         "[email-intake] 0 Received offer email text(s) purged after 72 hours, 1 Received offer email(s) after 12 months",
       ]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("purges, with them, Activité's Emails reçus rows and the Linked mailbox events 24 months after, not with the emails (#449)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateEmailIntake(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const arrived = new Date("2026-10-27T09:30:00Z");
+      const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => arrived });
+      await emailIntake.switchOn(candidateId);
+      const activity = createEmailIntakeActivity(database);
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(arrived.getTime() + days * 86_400_000), log: (line) => logs.push(line) })[EMAIL_INTAKE_PURGE]!;
+
+      await jobAt(366).handler({});
+      expect(await activity.linkedMailboxEvents(10)).toHaveLength(1);
+
+      await jobAt(731).handler({});
+      expect(await activity.linkedMailboxEvents(10)).toEqual([]);
+      expect(logs).toEqual(["[email-intake] 0 Emails reçus row(s) and 1 Linked mailbox event(s) purged after 24 months"]);
     } finally {
       await testAuth.stop();
     }

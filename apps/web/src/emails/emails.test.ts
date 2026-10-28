@@ -1,6 +1,7 @@
 import { designTokens } from "@jobhub/shared/design";
 import { describe, expect, it } from "vitest";
 import { renderEmail, withSenderAddress, type Email } from "./index";
+import { mailClientLint } from "./mail-client-lint";
 
 const digest: Email = {
   language: "fr",
@@ -87,6 +88,10 @@ describe("renderEmail: the HTML part", () => {
     for (const token of ["background", "surface", "text", "accent", "onAccent"] as const) {
       expect(html, token).toContain(designTokens.color[token].dark);
     }
+  });
+
+  it("passes the mail-client lint", () => {
+    expect(mailClientLint(html)).toEqual([]);
   });
 
   it("escapes what it is given", () => {

@@ -19,6 +19,8 @@ const statements = {
   audit: ["read"],
   /** Every run of Job discovery, its searches and Discovery metrics (Activité › Recherches, #404): no Candidate named. */
   discoveryRuns: ["read"],
+  /** Every Received offer email of Email intake, its outcome and Guardrail verdict (Activité › Emails reçus, #449, ADR-0051): no Candidate named, never content. */
+  receivedEmails: ["read"],
   /** The Job Search behind a run, opened from Activité › Recherches: the Candidate's own data, every opening audited (#404). */
   jobSearches: ["read"],
   planQuotas: ["read", "write"],
@@ -75,7 +77,7 @@ const ROLES = {
   "help-editor": control.newRole({ unansweredQuestions: ["read", "write"], signalements: READ }),
   // « Technique » (#397, ADR-0042): changes every non-secret setting of Paramètres (the Tools' prices among them), the
   // Job discovery sources and sites and the Job Sites; sees Provider Secrets by their source and last 4 characters only,
-  // never replaces one; reads what the Dashboard sums up, the Back Office Audit and the Job discovery runs. Never the AI Message Log.
+  // never replaces one; reads what the Dashboard sums up, the Back Office Audit, the Job discovery runs and the Emails reçus. Never the AI Message Log.
   "platform-manager": control.newRole({
     platformSettings: ["read", "write"],
     searchSites: ["read", "write"],
@@ -85,6 +87,7 @@ const ROLES = {
     aiUsage: READ,
     audit: READ,
     discoveryRuns: READ,
+    receivedEmails: READ,
   }),
   // Reads everything but Provider Secrets, the AI Message Log and the Job Search behind a run, and triages Signalements; the team's own
   // sections (Administrateurs, Actions des administrateurs) stay with super-admins.
@@ -105,6 +108,7 @@ const ROLES = {
     unansweredQuestions: READ,
     signalements: ["read", "write"],
     discoveryRuns: READ,
+    receivedEmails: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

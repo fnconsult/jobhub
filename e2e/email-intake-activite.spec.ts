@@ -1,7 +1,9 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
-import { alertEmail, inboundPayload, unknownSenderEmail } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
+import { alertEmail, authenticationResults, inboundPayload, unknownSenderEmail } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
@@ -120,5 +122,64 @@ test.describe("Back Office Activité › Emails reçus and the Journal's Boîtes
     const journal = (await office.getByRole("table").textContent()) ?? "";
     expect(journal).not.toContain(candidateEmail);
     expect(journal).not.toContain(address);
+  });
+
+  /** The worker's Email intake purge, run as its schedule would `days` from now. */
+  const purgeIn = (days: number) => {
+    const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "email-intake.purge", String(days * 24)], {
+      env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL, MAIL_TRANSPORT: "console" },
+      encoding: "utf8",
+    });
+    expect(run.status, run.stderr).toBe(0);
+  };
+
+  test("a row outlives the Candidate's deleted account, still naming no one", async ({ browser }) => {
+    const domain = `supprime-${tag}.example-jobs.test`;
+    const email = newAddress("emails-recus-deleted");
+    const candidate = await personPage(browser, email);
+    const on = await candidate.request.put("/api/account/email-intake", { headers: { origin } });
+    expect(on.status()).toBe(200);
+    const forwarding = (await on.json()).address as string;
+    const delivered = await candidate.request.post("/api/email-intake/inbound", {
+      headers: { "x-forwarded-for": BREVO_IP, "x-inbound-secret": SECRET },
+      data: inboundPayload(alertEmail(forwarding, { from: `offres@${domain}`, authentication: authenticationResults(domain) })),
+    });
+    expect(delivered.status()).toBe(200);
+
+    const office = await personPage(browser, SUPER_ADMIN);
+    await office.goto("/admin/activite/emails-recus?periode=all");
+    await expect(shownRows(office).filter({ hasText: domain })).toHaveCount(1);
+
+    const deleted = await candidate.request.delete("/api/account", { data: { email }, headers: { origin } });
+    expect(deleted.status(), await deleted.text()).toBe(204);
+    await candidate.context().close();
+
+    await office.goto("/admin/activite/emails-recus?periode=all");
+    const row = shownRows(office).filter({ hasText: domain });
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText(received.outcomes.unrecognised_sender);
+    const table = (await office.getByTestId("received-emails").textContent()) ?? "";
+    expect(table).not.toContain(email);
+    expect(table).not.toContain(forwarding);
+  });
+
+  test("the worker's purge keeps a row 23 months and a half, and deletes it after 24 months", async ({ browser }) => {
+    const domain = `ancien-${tag}.example-jobs.test`;
+    await database.query(
+      `INSERT INTO received_email_activity (received_at, sender_domain, outcome) VALUES (now() - interval '23 months 15 days', $1, 'other')`,
+      [domain],
+    );
+    const office = await personPage(browser, SUPER_ADMIN);
+    const old = () => shownRows(office).filter({ hasText: domain });
+
+    purgeIn(0);
+    await office.goto("/admin/activite/emails-recus?periode=all");
+    await expect(old()).toHaveCount(1);
+
+    // A month and a half on, it is 25 months old: purged; today's rows are not.
+    purgeIn(45);
+    await office.goto("/admin/activite/emails-recus?periode=all");
+    await expect(old()).toHaveCount(0);
+    await expect(shownRows(office).filter({ hasText: READ_DOMAIN })).toHaveCount(1);
   });
 });

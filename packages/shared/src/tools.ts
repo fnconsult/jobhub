@@ -427,8 +427,7 @@ export const TOOLS = [
     module: MAILER_MODULE,
     runsIn: "both",
     keys: ["BREVO_API_KEY"],
-    // Brevo Inbound Parsing receives the emails sent to the Candidates' Forwarding addresses (ADR-0050).
-    settings: [...MAIL_SETTINGS, { name: "EMAIL_INTAKE_DOMAIN" }],
+    settings: MAIL_SETTINGS,
     usage: { table: "external_api_usage", provider: "brevo" },
     residency: "unknown",
   },
@@ -446,6 +445,23 @@ export const TOOLS = [
     settings: MAIL_SETTINGS,
     usage: { table: "external_api_usage", provider: "brevo_smtp" },
     residency: "unknown",
+  },
+  {
+    // Email intake (#442, ADR-0050): Brevo Inbound Parsing posts each email sent to a Candidate's Forwarding address to
+    // the webhook, with the shared secret; it calls Jobbbox, never the other way, so no call is recorded.
+    id: "brevo-inbound",
+    name: "Brevo (Inbound Parsing)",
+    purpose: {
+      fr: "Réception par email : reçoit les mails d'offres que les candidats transfèrent à leur adresse de transfert ; seul leur texte est lu.",
+      en: "Email intake: receives the offer emails Candidates forward to their Forwarding address; only their text is read.",
+    },
+    category: "mail",
+    module: "apps/web/src/email-intake/inbound.ts",
+    runsIn: "web",
+    keys: ["BREVO_INBOUND_SECRET"],
+    settings: [{ name: "EMAIL_INTAKE_DOMAIN" }, { name: "EMAIL_INTAKE_BREVO_IP_RANGES" }, { name: "EMAIL_INTAKE_DAILY_CAP" }, { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD" }],
+    usage: null,
+    residency: "eu",
   },
   {
     id: "google",

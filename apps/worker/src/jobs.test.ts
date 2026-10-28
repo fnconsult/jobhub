@@ -19,7 +19,12 @@ import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import { createDiscoveryRuns, migrateDiscoveryRuns, type DiscoveryRunRecord } from "@jobhub/web/discovery-runs";
 import { migrateJobSearches } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { createSecretKey, randomBytes } from "node:crypto";
+import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../web/src/email-intake";
+import { alertEmail, inboundPayload } from "../../web/src/email-intake/fixtures/brevo-inbound";
+import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
+import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -1049,6 +1054,57 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       ]);
     } finally {
       await testAuth.stop();
+    }
+  });
+
+  it("purges, every hour, the Received offer emails' texts 72 hours after they arrived, and the emails 12 months after (#442)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateEmailIntake(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const arrived = new Date("2026-10-27T09:30:00Z");
+      const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => arrived });
+      const { address } = await emailIntake.switchOn(candidateId);
+      const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
+      const inbound = createEmailIntakeInbound(database, {
+        emailIntake,
+        cipher: () => cipher,
+        queue: { send: async () => {} },
+        settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 10 }),
+        now: () => arrived,
+      });
+      await inbound.handle(new Request("http://localhost/api/email-intake/inbound", { method: "POST", headers: { "x-inbound-secret": "inbound-secret" }, body: JSON.stringify(inboundPayload(alertEmail(address))) }));
+      const [email] = (await emailIntakeOf(database, candidateId)).receivedOfferEmails;
+      const logs: string[] = [];
+      const jobAt = (hours: number) => createJobs({ ...otherDeps, database, now: () => new Date(arrived.getTime() + hours * 3_600_000), log: (line) => logs.push(line) })[EMAIL_INTAKE_PURGE]!;
+
+      expect(jobAt(0).cron).toBe("20 * * * *");
+      await jobAt(71).handler({});
+      expect(await receivedTextOf(database, cipher, email!.id)).not.toBeNull();
+
+      await jobAt(73).handler({});
+      expect(await receivedTextOf(database, cipher, email!.id)).toBeNull();
+      expect((await emailIntakeOf(database, candidateId)).receivedOfferEmails).toHaveLength(1);
+
+      await jobAt(366 * 24).handler({});
+      expect((await emailIntakeOf(database, candidateId)).receivedOfferEmails).toEqual([]);
+      expect(logs).toEqual([
+        "[email-intake] 1 Received offer email text(s) purged after 72 hours, 0 Received offer email(s) after 12 months",
+        "[email-intake] 0 Received offer email text(s) purged after 72 hours, 1 Received offer email(s) after 12 months",
+      ]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("has no Received offer email to purge before the web app has created its tables", async () => {
+    const empty = await createThrowawayDatabase("test_worker_jobs_email_intake_empty");
+    try {
+      await expect(createJobs({ ...otherDeps, database: empty.pool })[EMAIL_INTAKE_PURGE]!.handler({})).resolves.toBeUndefined();
+    } finally {
+      await empty.drop();
     }
   });
 

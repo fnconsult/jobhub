@@ -1,0 +1,246 @@
+import { createSecretKey, randomBytes } from "node:crypto";
+import type { Pool } from "pg";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
+import { alertEmail, authenticationResults, inboundItem, inboundPayload, unknownSenderEmail } from "./fixtures/brevo-inbound";
+import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
+import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, inIpRanges, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
+
+const SECRET = "brevo-inbound-test-secret-0123456789";
+const BREVO_IP = "1.179.112.10";
+
+describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsing posts (needs Postgres: DATABASE_URL)", () => {
+  let testAuth: TestAuth;
+  let database: Pool;
+  let marie: string;
+  let address: string;
+  let now: Date;
+  let emailIntake: EmailIntake;
+  let cipher: SecretCipher;
+  let sent: { name: string; data: object }[];
+  let settings: InboundSettings;
+  let inbound: EmailIntakeInbound;
+
+  function post(body: unknown, headers: Record<string, string> = {}): Promise<Response> {
+    return inbound.handle(
+      new Request("http://localhost:3000/api/email-intake/inbound", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-inbound-secret": SECRET, "x-forwarded-for": BREVO_IP, ...headers },
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      }),
+    );
+  }
+  const received = async () => (await emailIntakeOf(database, marie)).receivedOfferEmails;
+
+  beforeEach(async () => {
+    testAuth = await startTestAuth();
+    database = testAuth.auth.options.database as Pool;
+    await migrateEmailIntake(database);
+    await migrateEmailIntake(database); // safe to run twice
+    const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+    marie = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id;
+    now = new Date("2026-10-27T09:30:00Z");
+    emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => now });
+    address = (await emailIntake.switchOn(marie)).address;
+    cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
+    sent = [];
+    settings = { secret: SECRET, brevoIpRanges: ["1.179.112.0/20", "172.246.240.0/20"], dailyCap: 3 };
+    inbound = createEmailIntakeInbound(database, {
+      emailIntake,
+      cipher: () => cipher,
+      queue: { send: async (name, data) => void sent.push({ name, data }) },
+      settings: () => settings,
+      now: () => now,
+    });
+  });
+  afterEach(async () => {
+    await testAuth.stop();
+  });
+
+  describe("from whom it takes them", () => {
+    it("refuses a delivery without Brevo's shared secret, or with another one: 401, nothing received", async () => {
+      expect((await post(inboundPayload(alertEmail(address)), { "x-inbound-secret": "" })).status).toBe(401);
+      expect((await post(inboundPayload(alertEmail(address)), { "x-inbound-secret": "not-the-secret" })).status).toBe(401);
+
+      expect(await received()).toEqual([]);
+      expect(sent).toEqual([]);
+    });
+
+    it("takes the secret as a bearer token too, Brevo's other way of sending it", async () => {
+      const response = await post(inboundPayload(alertEmail(address)), { "x-inbound-secret": "", authorization: `Bearer ${SECRET}` });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("refuses every delivery while no secret is set", async () => {
+      settings = { ...settings, secret: undefined };
+
+      expect((await post(inboundPayload(alertEmail(address)))).status).toBe(401);
+    });
+
+    it("refuses a delivery from outside Brevo's IP ranges: 403; no ranges set, it checks none", async () => {
+      expect((await post(inboundPayload(alertEmail(address)), { "x-forwarded-for": "203.0.113.7" })).status).toBe(403);
+      // The address the host's proxy added, the last one, is the one that counts.
+      expect((await post(inboundPayload(alertEmail(address)), { "x-forwarded-for": `${BREVO_IP}, 203.0.113.7` })).status).toBe(403);
+      expect(await received()).toEqual([]);
+
+      settings = { ...settings, brevoIpRanges: [] };
+      expect((await post(inboundPayload(alertEmail(address)), { "x-forwarded-for": "203.0.113.7" })).status).toBe(200);
+    });
+
+    it("refuses a body that is not Brevo's: 400", async () => {
+      expect((await post("not json")).status).toBe(400);
+      expect((await post({ hello: "world" })).status).toBe(400);
+    });
+  });
+
+  describe("what it keeps of them", () => {
+    it("stores a Recognised sender's email, its text encrypted, and queues it for reading", async () => {
+      const response = await post(inboundPayload(alertEmail(address)));
+
+      expect(response.status).toBe(200);
+      const [email] = await received();
+      expect(email).toEqual({ id: expect.any(String), outcome: "awaiting_reading", senderDomain: "alertes.cadremploi.fr", receivedAt: now, sentAt: new Date("2026-10-26T22:18:15Z") });
+      expect(sent).toEqual([{ name: EMAIL_INTAKE_READ_QUEUE, data: { receivedOfferEmailId: email!.id } }]);
+      expect(await receivedTextOf(database, cipher, email!.id)).toContain("Chef de projet digital H/F <https://www.example-jobs.test/offre/1001>");
+      const { rows } = await database.query(`SELECT text_ciphertext::text AS stored FROM received_offer_email`);
+      expect(rows[0].stored).not.toContain("Chef de projet");
+    });
+
+    it("sets an unknown sender's email aside « expéditeur non reconnu »: a row, no text, nothing queued", async () => {
+      expect((await post(inboundPayload(unknownSenderEmail(address)))).status).toBe(200);
+
+      const [email] = await received();
+      expect(email).toMatchObject({ outcome: "unrecognised_sender", senderDomain: "cabinet-fictif.test" });
+      expect(await receivedTextOf(database, cipher, email!.id)).toBeNull();
+      expect(sent).toEqual([]);
+    });
+
+    it("reads a manual forward from the Candidate's own address, and keeps Gmail's forwarding confirmation without queueing it", async () => {
+      const forward = inboundItem({ from: "marie.dupont@example.fr", to: address, text: "TR: Offre de Responsable marketing" });
+      const confirmation = inboundItem({ from: "forwarding-noreply@google.com", to: address, text: "Code de confirmation : 123456789" });
+
+      await post(inboundPayload(forward, confirmation));
+
+      const emails = await received();
+      expect(emails.map(({ outcome, senderDomain }) => [outcome, senderDomain]).sort()).toEqual([
+        ["awaiting_reading", "example.fr"],
+        ["forwarding_confirmation", "google.com"],
+      ]);
+      const kept = emails.find(({ outcome }) => outcome === "forwarding_confirmation")!;
+      expect(await receivedTextOf(database, cipher, kept.id)).toBe("Code de confirmation : 123456789");
+      expect(sent).toHaveLength(1);
+    });
+
+    it("discards unread an email to an unknown, replaced or switched-off address: 200, no row", async () => {
+      const old = address;
+      await emailIntake.replace(marie);
+
+      expect((await post(inboundPayload(alertEmail(old), alertEmail("inconnue@alertes.jobbbox.test")))).status).toBe(200);
+
+      expect(await received()).toEqual([]);
+      expect(sent).toEqual([]);
+    });
+
+    it("receives one email delivered twice once", async () => {
+      const email = alertEmail(address, { messageId: "<alerte-1@alertes.cadremploi.fr>" });
+
+      await post(inboundPayload(email));
+      await post(inboundPayload(email));
+
+      expect(await received()).toHaveLength(1);
+      expect(sent).toHaveLength(1);
+    });
+
+    it("fails with 503 while no master key can encrypt the text, so Brevo delivers again", async () => {
+      inbound = createEmailIntakeInbound(database, { emailIntake, cipher: () => null, queue: { send: async () => {} }, settings: () => settings, now: () => now });
+
+      expect((await post(inboundPayload(alertEmail(address)))).status).toBe(503);
+      expect(await received()).toEqual([]);
+    });
+
+    it("keeps nothing when the email cannot be queued: it fails, so Brevo delivers it again", async () => {
+      inbound = createEmailIntakeInbound(database, {
+        emailIntake,
+        cipher: () => cipher,
+        queue: { send: async () => Promise.reject(new Error("queue down")) },
+        settings: () => settings,
+        now: () => now,
+      });
+
+      await expect(post(inboundPayload(alertEmail(address)))).rejects.toThrow("queue down");
+      expect(await received()).toEqual([]);
+    });
+  });
+
+  describe("how many it reads a day", () => {
+    it("past the daily cap, queues nothing more: each further email is a row « plafond atteint », without its text", async () => {
+      for (let n = 0; n < 4; n++) await post(inboundPayload(alertEmail(address)));
+      // An unknown sender's does not count against the cap.
+      await post(inboundPayload(unknownSenderEmail(address)));
+
+      const outcomes = (await received()).map(({ outcome }) => outcome);
+      expect(outcomes.filter((outcome) => outcome === "awaiting_reading")).toHaveLength(3);
+      expect(outcomes.filter((outcome) => outcome === "over_daily_cap")).toHaveLength(1);
+      expect(sent).toHaveLength(3);
+      const over = (await received()).find(({ outcome }) => outcome === "over_daily_cap")!;
+      expect(await receivedTextOf(database, cipher, over.id)).toBeNull();
+    });
+
+    it("starts again the next day, in French time", async () => {
+      now = new Date("2026-10-27T21:00:00Z"); // 22:00 in Paris
+      for (let n = 0; n < 3; n++) await post(inboundPayload(alertEmail(address)));
+      now = new Date("2026-10-27T23:30:00Z"); // 00:30 the next day in Paris
+
+      await post(inboundPayload(alertEmail(address)));
+
+      expect(sent).toHaveLength(4);
+    });
+  });
+
+  describe("how long it keeps them", () => {
+    it("purges an email's text 72 hours after it arrived, and the email itself 12 months after", async () => {
+      await post(inboundPayload(alertEmail(address)));
+      const [email] = await received();
+
+      expect(await purgeReceivedOfferEmails(database, new Date("2026-10-30T09:29:00Z"))).toEqual({ texts: 0, emails: 0 });
+      expect(await receivedTextOf(database, cipher, email!.id)).not.toBeNull();
+
+      expect(await purgeReceivedOfferEmails(database, new Date("2026-10-30T09:31:00Z"))).toEqual({ texts: 1, emails: 0 });
+      expect(await receivedTextOf(database, cipher, email!.id)).toBeNull();
+      expect(await received()).toHaveLength(1);
+
+      expect(await purgeReceivedOfferEmails(database, new Date("2027-10-27T09:31:00Z"))).toEqual({ texts: 0, emails: 1 });
+      expect(await received()).toEqual([]);
+    });
+  });
+
+  it("are the Candidate's own: deleted with their account", async () => {
+    await post(inboundPayload(alertEmail(address), unknownSenderEmail(address)));
+
+    await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
+
+    expect((await database.query(`SELECT count(*)::int AS n FROM received_offer_email`)).rows[0].n).toBe(0);
+  });
+
+  it("reads authentication only from Brevo's own stamp, not one the email carried below it", async () => {
+    const forged = alertEmail(address, { from: "jobalerts-noreply@linkedin.com", authentication: ["mx.brevo.test; dmarc=fail header.from=linkedin.com", authenticationResults("linkedin.com")] });
+
+    await post(inboundPayload(forged));
+
+    expect((await received())[0]).toMatchObject({ outcome: "unrecognised_sender" });
+  });
+});
+
+describe("Brevo's IP ranges", () => {
+  it("hold an IPv4 address inside a CIDR range, not one outside; an IPv6 address only as written", () => {
+    expect(inIpRanges("1.179.127.255", ["1.179.112.0/20"])).toBe(true);
+    expect(inIpRanges("1.179.128.0", ["1.179.112.0/20"])).toBe(false);
+    expect(inIpRanges("172.246.240.1", ["1.179.112.0/20", "172.246.240.0/20"])).toBe(true);
+    expect(inIpRanges("203.0.113.7", ["0.0.0.0/0"])).toBe(true);
+    expect(inIpRanges("::1", ["127.0.0.1/32", "::1"])).toBe(true);
+    expect(inIpRanges("::2", ["::1"])).toBe(false);
+    expect(inIpRanges(null, ["0.0.0.0/0"])).toBe(false);
+  });
+});

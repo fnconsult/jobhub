@@ -87,6 +87,12 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // Email intake (#441, ADR-0050): the domain the Candidates' Forwarding addresses are on, whose emails Brevo Inbound Parsing receives.
   { name: "EMAIL_INTAKE_DOMAIN", group: "email", type: { kind: "domain" }, default: "alertes.jobbbox.ai" },
+  // Email intake (#442): how many emails one Linked mailbox may have read a day (past it: set aside, counted), from how
+  // many a day its filter counts as « filtre trop large », and the IP ranges Brevo's inbound webhook is taken from
+  // (CIDR, comma separated; 0.0.0.0/0: from anywhere). Brevo's two documented webhook ranges by default.
+  { name: "EMAIL_INTAKE_DAILY_CAP", group: "email", type: whole(1, 1000), default: "50" },
+  { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", group: "email", type: whole(1, 1000), default: "20" },
+  { name: "EMAIL_INTAKE_BREVO_IP_RANGES", group: "email", type: { kind: "text" }, default: "1.179.112.0/20,172.246.240.0/20" },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
   { name: "JOB_DIGEST_TARGET_COUNT", group: "job_digest", type: whole(1, 100), default: "10" },

@@ -133,6 +133,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "provider_api_access", // issue #400: what each France Travail API answered its latest connection test
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
+        "received_offer_email", // issue #442: each email Email intake took, its outcome and sender's domain; its text encrypted, 72 hours at most
+        "recognised_sender", // issue #442: the platform's Recognised senders; no Candidate data
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "sending_address", // issue #441: the sending addresses a Candidate adds for manual forwards
         "session",
@@ -245,6 +247,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
+        // Email intake (issue #442): the Received offer emails go with their Candidate.
+        { from_table: "received_offer_email", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #441): the sending addresses go with their Candidate.
         { from_table: "sending_address", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

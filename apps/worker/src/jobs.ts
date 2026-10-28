@@ -7,6 +7,7 @@ import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
+import { purgeReceivedOfferEmails, RETENTION_MONTHS as RECEIVED_EMAIL_RETENTION_MONTHS, TEXT_RETENTION_HOURS } from "@jobhub/web/email-intake";
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
@@ -86,6 +87,13 @@ export const SIGNALEMENTS_PURGE = "signalements.purge";
  * old, keeping their figures, and the runs DISCOVERY_RUN_RETENTION_MONTHS old (#404). Runs nightly.
  */
 export const DISCOVERY_RUNS_PURGE = "discovery-runs.purge";
+
+/**
+ * Queue name: delete the Received offer emails' texts TEXT_RETENTION_HOURS after they arrived, read or not, and the
+ * Received offer emails RECEIVED_EMAIL_RETENTION_MONTHS after (#442, ADR-0051). Runs hourly: a text never stays much
+ * past its 72 hours.
+ */
+export const EMAIL_INTAKE_PURGE = "email-intake.purge";
 
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
@@ -620,6 +628,19 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if (purged.queries || purged.runs) {
             log(
               `[discovery-runs] ${purged.queries} run(s)' query texts purged after ${DISCOVERY_QUERY_RETENTION_DAYS} days, ${purged.runs} run(s) after ${DISCOVERY_RUN_RETENTION_MONTHS} months`,
+            );
+          }
+        }),
+    },
+
+    [EMAIL_INTAKE_PURGE]: {
+      cron: "20 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeReceivedOfferEmails(deps.database, now());
+          if (purged.texts || purged.emails) {
+            log(
+              `[email-intake] ${purged.texts} Received offer email text(s) purged after ${TEXT_RETENTION_HOURS} hours, ${purged.emails} Received offer email(s) after ${RECEIVED_EMAIL_RETENTION_MONTHS} months`,
             );
           }
         }),

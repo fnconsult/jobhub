@@ -10,7 +10,7 @@ describe("the Tools", () => {
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
       ["billing", ["stripe"]],
-      ["mail", ["brevo-api", "brevo-smtp"]],
+      ["mail", ["brevo-api", "brevo-smtp", "brevo-inbound"]],
       ["sign_in", ["google", "apple", "microsoft", "oidc"]],
       ["geolocation", ["geo-api-gouv"]],
       ["reference_data", ["insee-naf", "rome-open-data"]],
@@ -38,6 +38,8 @@ describe("the Tools", () => {
     expect(toolById("perplexity")?.residency).toBe("outside_eu");
     expect(toolById("stripe")?.residency).toBe("outside_eu");
     expect(toolById("brevo-api")?.residency).toBe("unknown");
+    // Email intake's reading of an email runs in the EU (ADR-0052): Brevo receives it on its EU servers.
+    expect(toolById("brevo-inbound")?.residency).toBe("eu");
     expect(toolById("oidc")?.residency).toBe("unknown");
   });
 
@@ -49,6 +51,8 @@ describe("the Tools", () => {
     expect(toolById("geo-api-gouv")?.keys).toEqual([]);
     expect(toolById("insee-naf")?.keys).toEqual([]);
     expect(toolById("rome-open-data")?.keys).toEqual([]);
+    // Brevo's inbound webhook is taken only with the secret it sends (#442).
+    expect(toolById("brevo-inbound")?.keys).toEqual(["BREVO_INBOUND_SECRET"]);
   });
 
   it("name the Platform Settings they depend on, none for most", () => {
@@ -65,7 +69,9 @@ describe("the Tools", () => {
     expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", ...filters]);
     expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", ...filters]);
     expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", ...filters]);
-    expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT", "EMAIL_INTAKE_DOMAIN"]);
+    expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
+    // Brevo Inbound Parsing receives the emails sent to the Forwarding addresses (ADR-0050), within Email intake's limits (#442).
+    expect(names("brevo-inbound")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_BREVO_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD"]);
     expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);
@@ -90,7 +96,7 @@ describe("the Tools", () => {
       { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
     ]);
     // MAIL_TRANSPORT=console writes emails to the server's log: Brevo is not called.
-    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }, { name: "EMAIL_INTAKE_DOMAIN" }]);
+    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }]);
   });
 
   it("are unknown by any other id", () => {

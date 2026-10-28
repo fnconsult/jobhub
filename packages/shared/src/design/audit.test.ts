@@ -53,6 +53,21 @@ describe("auditDesignTokens (ADR-0009 accessibility floor, ADR-0053)", () => {
     );
   });
 
+  it("holds the text on a solid danger button to 4.5:1 (#462)", () => {
+    expect(auditDesignTokens(withColor("danger", "light", "#f08080"))).toContainEqual(
+      expect.objectContaining({ rule: "contrast", token: "onAccent", detail: expect.stringContaining("onAccent on danger") }),
+    );
+  });
+
+  it("holds the text of a Toast, on the inverse surface, to 4.5:1 in both themes (#462)", () => {
+    expect(auditDesignTokens(withColor("inverse", "light", "#9a9aa6"))).toContainEqual(
+      expect.objectContaining({ rule: "contrast", token: "onInverse", theme: "light" }),
+    );
+    expect(auditDesignTokens(withColor("onInverse", "dark", "#a0a0aa"))).toContainEqual(
+      expect.objectContaining({ rule: "contrast", token: "onInverse", theme: "dark" }),
+    );
+  });
+
   it("flags Confort body text below 16px", () => {
     const shrunk = withDensity("confort", { fontSize: { ...designTokens.density.confort.fontSize, body: 14 } });
     expect(auditDesignTokens(shrunk)).toContainEqual(expect.objectContaining({ rule: "min-body-size", token: "body", density: "confort" }));

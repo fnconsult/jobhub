@@ -208,7 +208,7 @@ test.describe("Back Office « Activité » (#404)", () => {
 
     await support.goto("/admin/activite");
     await expect(support).toHaveURL(/\/admin\/activite\/recherches$/);
-    await expect(support.getByRole("navigation", { name: admin.activity.tabsLabel }).getByRole("link")).toHaveText([admin.activity.tabs.discoveryRuns]);
+    await expect(support.getByRole("navigation", { name: admin.activity.tabsLabel }).getByRole("link")).toHaveText([admin.activity.tabs.discoveryRuns, admin.activity.tabs.receivedEmails]);
     await support.goto(`/admin/activite/recherches?periode=all&run=${runId}`);
     const panel = support.locator(`[data-run-panel="${runId}"]`);
     await expect(panel.getByTestId("run-searches")).toContainText(`« ${targetRole} » à Lyon`);

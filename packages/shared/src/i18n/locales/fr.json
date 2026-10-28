@@ -1692,7 +1692,7 @@
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
-        },
+      },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
         "sourcePlaybook": "Playbook, version {{version}}",
@@ -3967,5 +3967,10 @@
     "handled": "Votre signalement du {{date}} est traité",
     "see": "Voir",
     "dismiss": "Fermer"
+  },
+  "emails": {
+    "greeting": "Bonjour,",
+    "signature": "L'équipe Jobbbox",
+    "linkLead": "{{label}} :"
   }
 }

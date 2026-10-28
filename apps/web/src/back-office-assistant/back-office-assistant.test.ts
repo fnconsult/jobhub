@@ -582,9 +582,24 @@ describe("Back Office Assistant", () => {
       expect(system).toMatch(/différent du domaine d'envoi/);
       for (const fact of ["inboundEmailProcessed", "BREVO_INBOUND_SECRET", "x-inbound-secret", "/api/email-intake/inbound", "EMAIL_INTAKE_BREVO_IP_RANGES"]) expect(system).toContain(fact);
       for (const fact of ["vérification de l'éditeur", "Microsoft AI Cloud Partner Program", "*.onmicrosoft.com", "Application Administrator"]) expect(system).toContain(fact);
-      for (const fact of ["évaluation de sécurité annuelle", "CASA", "non confirmé"]) expect(system).toContain(fact);
+      for (const fact of ["évaluation de sécurité", "CASA", "non confirmé"]) expect(system).toContain(fact);
       for (const fact of ["mail-r", "imap.mail.yahoo.com", "OAUTHBEARER"]) expect(system).toContain(fact);
       expect(data.reads).toContain("emailIntakeDomain");
+    });
+
+    it("tells Google's restricted-scope gates as read, and Yahoo's OAuth as still to be checked", async () => {
+      const { assistant, administrator } = assistantFor(["support"]);
+
+      await assistant.reply(administrator, asked("Comment configurer la réception par email ?"));
+
+      const system = provider.calls.at(-1)!.system!;
+      const google = system.split("\n").find((line) => line.startsWith("- Google"))!;
+      for (const fact of ["gmail.readonly", "portée restreinte", "CASA", "App Defense Alliance", "tous les 12 mois", "vérification de la marque", "vidéo de démonstration"]) expect(google).toContain(fact);
+      // CASA is now read in Google's own documentation; only the cost and the lead time remain estimates.
+      expect(google).not.toMatch(/« CASA »[^.]*non confirmé/);
+      expect(google).toMatch(/coût[^.]*délai[^.]*non confirmés/);
+      const yahoo = system.split("\n").find((line) => line.startsWith("- Yahoo"))!;
+      expect(yahoo).toMatch(/à vérifier dans la documentation Yahoo Developer/);
     });
 
     it("is not told to a role that reads no Job discovery source", async () => {

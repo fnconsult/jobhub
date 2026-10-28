@@ -117,7 +117,7 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
   async function ignoredOf(candidateId: string, at: Date): Promise<IgnoredEmail[]> {
     const { rows } = await database.query<IgnoredEmail>(
       `SELECT outcome AS reason, sender_domain AS "senderDomain", received_at AS "receivedAt" FROM received_offer_email
-        WHERE candidate_id = $1 AND outcome = ANY($2::text[]) AND received_at >= ${weekStart("$3")} AND received_at <= $3
+        WHERE candidate_id = $1 AND outcome = ANY($2::text[]) AND received_at >= ${weekStart("$3")}
         ORDER BY received_at DESC, id`,
       [candidateId, IGNORED_REASONS, at],
     );
@@ -128,7 +128,7 @@ export function createReceivedOffers(database: Pool, deps: ReceivedOffersDeps): 
   async function tooBroadOf(candidateId: string, at: Date, threshold: number): Promise<ReceivedOffersOverview["tooBroad"]> {
     const { rows } = await database.query<{ day: string; count: number }>(
       `SELECT to_char((received_at AT TIME ZONE '${TIME_ZONE}')::date, 'YYYY-MM-DD') AS day, count(*)::int AS count FROM received_offer_email
-        WHERE candidate_id = $1 AND outcome <> 'forwarding_confirmation' AND received_at >= ${weekStart("$2")} AND received_at <= $2
+        WHERE candidate_id = $1 AND outcome <> 'forwarding_confirmation' AND received_at >= ${weekStart("$2")}
         GROUP BY 1 HAVING count(*) >= $3 ORDER BY 1 DESC LIMIT 1`,
       [candidateId, at, threshold],
     );

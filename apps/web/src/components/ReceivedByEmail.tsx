@@ -33,9 +33,11 @@ export function ReceivedByEmail({
     <section className="section received-by-email" aria-labelledby={titleId}>
       <div className="section-head">
         <Heading id={titleId}>{t("receivedByEmail.title")}</Heading>
-        <span className="pill" data-tone={group?.fresh ? "accent" : undefined}>
-          {t("receivedByEmail.fresh", { count: group?.fresh ?? 0 })}
-        </span>
+        {group?.fresh ? (
+          <span className="pill" data-tone="accent">
+            {t("receivedByEmail.fresh", { count: group.fresh })}
+          </span>
+        ) : null}
       </div>
       {offers.length > 0 ? (
         <>
@@ -107,9 +109,11 @@ export function EmailIntakeStanding({
       <section className="section received-by-email" aria-labelledby="received-by-email-unclassified">
         <div className="section-head">
           <Heading id="received-by-email-unclassified">{t("receivedByEmail.unclassified.title")}</Heading>
-          <span className="pill" data-tone={unclassified.fresh ? "accent" : undefined}>
-            {t("receivedByEmail.fresh", { count: unclassified.fresh })}
-          </span>
+          {unclassified.fresh ? (
+            <span className="pill" data-tone="accent">
+              {t("receivedByEmail.fresh", { count: unclassified.fresh })}
+            </span>
+          ) : null}
         </div>
         {unclassified.offers.length > 0 ? (
           <>

@@ -3,12 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 
 // Issue #447: Recherches d'offres shows, per Profile, the Job Offers Email intake gave it (« Reçues par email »,
 // newest first, with how many arrived this week), « Non classées », the emails ignored this week with their reason,
 // sender's domain and date, and « Filtre trop large » past the daily threshold. The worker's reading is #445's spec:
 // here the Received offer emails are seeded in the database as the worker leaves them once read (outcome, sender's
-// domain, dates and the offers they gave, never a text), then the built web app is driven in a browser (en-US).
+// domain, dates and the offers they gave, never a text), then the built web app is driven in a browser, in French.
 const origin = process.env.E2E_WEB_ORIGIN!;
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -80,6 +81,7 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   const email = newAddress("received-by-email");
   await signInWithMagicLink(page, email);
   const candidateId = (await (await page.request.get("/api/auth/get-session")).json()).user.id as string;
+  await subscribe(page, email, "premium"); // two Profiles
   const daf = await profile(page, "Directrice administrative et financière");
   const consultant = await profile(page, "Consultante en transformation financière");
   expect((await page.request.put("/api/account/email-intake", { headers: { origin } })).status()).toBe(200);
@@ -111,10 +113,10 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   await receivedEmail(paulId, "other", "paul-only.example");
 
   await page.goto(`/recherches?profil=${daf}`);
-  const received = page.getByRole("region", { name: "Received by email" });
+  const received = page.getByRole("region", { name: "Reçues par email" });
   await expect(received).toBeVisible();
-  await expect(received.getByText("2 new this week")).toBeVisible();
-  const listed = received.getByRole("list", { name: /Offers received by email for/ }).getByRole("listitem");
+  await expect(received.getByText("2 nouvelles cette semaine")).toBeVisible();
+  const listed = received.getByRole("list", { name: /Offres reçues par email pour/ }).getByRole("listitem");
   await expect(listed).toHaveCount(2);
   // Newest first: the recruiter's private offer came in the later email.
   await expect(listed.nth(0).getByRole("link", { name: `DAF filiale, client confidentiel ${tag}` })).toBeVisible();
@@ -122,29 +124,29 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   await expect(page.getByText(`Offre privée de Paul ${tag}`)).toHaveCount(0);
   await expect(received.getByText(`Consultante transformation ${tag}`)).toHaveCount(0);
 
-  const unclassifiedSection = page.getByRole("region", { name: "Unclassified" });
+  const unclassifiedSection = page.getByRole("region", { name: "Non classées" });
   await expect(unclassifiedSection.getByRole("link", { name: `Assistante de direction ${tag}` })).toBeVisible();
-  await expect(unclassifiedSection.getByText("Best match: 31 out of 100")).toBeVisible();
+  await expect(unclassifiedSection.getByText("Meilleure correspondance : 31 sur 100")).toBeVisible();
 
-  const ignored = page.getByRole("region", { name: "4 emails ignored this week" });
-  const reasons = ignored.getByRole("list", { name: "Emails ignored this week" }).getByRole("listitem");
+  const ignored = page.getByRole("region", { name: "4 mails ignorés cette semaine" });
+  const reasons = ignored.getByRole("list", { name: "Mails ignorés cette semaine" }).getByRole("listitem");
   await expect(reasons).toHaveCount(4);
-  await expect(reasons.filter({ hasText: "Other: jobijoba.com" })).toHaveCount(1);
-  await expect(reasons.filter({ hasText: "Unrecognised sender: inconnu.example" })).toHaveCount(1);
-  await expect(reasons.filter({ hasText: "Failed: welcometothejungle.com" })).toHaveCount(1);
-  await expect(reasons.filter({ hasText: "Set aside by a guardrail: piege.example" })).toHaveCount(1);
+  await expect(reasons.filter({ hasText: "Autre : jobijoba.com" })).toHaveCount(1);
+  await expect(reasons.filter({ hasText: "Expéditeur non reconnu : inconnu.example" })).toHaveCount(1);
+  await expect(reasons.filter({ hasText: "Échec : welcometothejungle.com" })).toHaveCount(1);
+  await expect(reasons.filter({ hasText: "Écarté par un garde-fou : piege.example" })).toHaveCount(1);
   await expect(ignored.getByText("paul-only.example")).toHaveCount(0);
-  await expect(page.getByText("Filter too broad")).toHaveCount(0);
+  await expect(page.getByText("Filtre trop large")).toHaveCount(0);
   await expectNoAxeViolations(page);
 
   await page.goto(`/recherches?profil=${consultant}`);
-  const theirs = page.getByRole("region", { name: "Received by email" });
+  const theirs = page.getByRole("region", { name: "Reçues par email" });
   await expect(theirs.getByRole("link", { name: `Consultante transformation ${tag}` })).toBeVisible();
   await expect(theirs.getByText(`DAF groupe industriel ${tag}`)).toHaveCount(0);
 
   // Every Profile at once: each one's offers in its own group.
   await page.goto("/recherches?profil=tous&vue=couloirs");
-  await expect(page.getByRole("region", { name: "Received by email" })).toHaveCount(2);
+  await expect(page.getByRole("region", { name: "Reçues par email" })).toHaveCount(2);
   await expectNoAxeViolations(page);
 });
 
@@ -158,8 +160,8 @@ test("past the daily threshold of emails, the Candidate is told their filter is 
 
   await page.goto(`/recherches?profil=${daf}`);
 
-  const notice = page.getByRole("note", { name: "Filter too broad" });
-  await expect(notice).toContainText("20 emails reached your forwarding address");
-  await expect(notice.getByRole("link", { name: "Review forwarding step by step" })).toHaveAttribute("href", "/compte/reception-email/assistant");
+  const notice = page.getByRole("note", { name: "Filtre trop large" });
+  await expect(notice).toContainText("20 emails sont arrivés à votre adresse de transfert");
+  await expect(notice.getByRole("link", { name: "Revoir le transfert pas à pas" })).toHaveAttribute("href", "/compte/reception-email/assistant");
   await expectNoAxeViolations(page);
 });

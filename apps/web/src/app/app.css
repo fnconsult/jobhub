@@ -4544,6 +4544,12 @@ textarea.title-edit {
   fill: currentColor;
 }
 
+/* In the Top Bar, a small square in its round button (#464). */
+.topbar .ai-activity-stop .icon {
+  width: 0.875em;
+  height: 0.875em;
+}
+
 .ai-activity-live .ai-activity-stop {
   min-width: 2.25rem;
   min-height: 2.25rem;

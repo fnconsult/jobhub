@@ -15,6 +15,7 @@ const p = fr.designSystem.page;
 const PAGE = "/admin/design-system";
 // Its own permanent super-admin (playwright.config.ts): two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "design-system-page-office@e2e.jobbbox.test";
+const SCREENS_SUPER_ADMIN = "design-system-screens-office@e2e.jobbbox.test";
 const origin = process.env.E2E_WEB_ORIGIN!;
 
 const THEMES = { light: { query: null, label: p.light }, dark: { query: "theme=sombre", label: p.dark } } as const;
@@ -77,7 +78,8 @@ test.describe("Design System page (#463)", () => {
     await helpEditor.goto("/admin");
     await expect(backOfficeNav(helpEditor).getByRole("heading", { name: admin.nav.groups.platform })).toBeVisible();
     await backOfficeNav(helpEditor).getByRole("link", { name: admin.sections.designSystem }).click();
-    await expect(helpEditor).toHaveURL(new RegExp(`${PAGE}$`));
+    // Its whole catalogue renders on the server: on a loaded machine, it may take a few seconds.
+    await expect(helpEditor).toHaveURL(new RegExp(`${PAGE}$`), { timeout: 20_000 });
     await expect(helpEditor.getByRole("heading", { level: 1 })).toHaveText(admin.sections.designSystem);
     await expect(helpEditor).toHaveTitle(`${admin.sections.designSystem} · ${admin.title}`);
     await expect(helpEditor.getByRole("heading", { level: 2, name: p.foundations })).toBeVisible();
@@ -118,11 +120,11 @@ test.describe("Design System page (#463)", () => {
 });
 
 test.describe("Design System page's screenshots (#463)", () => {
-  // One super-admin's session for every theme and Density: one sign-in, not four in a row.
+  // One super-admin's session, their own, for every theme and Density: one sign-in, not four in a row.
   let session: BrowserContext;
   test.beforeAll(async ({ browser }) => {
     session = await browser.newContext({ baseURL: origin, locale: "en-US" });
-    await signInWithMagicLink(await session.newPage(), SUPER_ADMIN);
+    await signInWithMagicLink(await session.newPage(), SCREENS_SUPER_ADMIN);
   });
   test.afterAll(async () => {
     await session.close();
@@ -135,13 +137,19 @@ test.describe("Design System page's screenshots (#463)", () => {
         for (const { name, width, height } of SCREENSHOT_WIDTHS) {
           await page.setViewportSize({ width, height });
           await page.goto(pageFor(theme, density));
-          await expect(preview(page)).toHaveAttribute("data-theme", theme);
+          // Its whole catalogue renders on the server: on a loaded machine, it may take a few seconds.
+          await expect(preview(page)).toHaveAttribute("data-theme", theme, { timeout: 20_000 });
           await expect(preview(page)).toHaveAttribute("data-density", density);
           await settled(page);
           // Nothing runs off the side: a wide table scrolls in its own frame.
           expect(await page.evaluate(() => document.documentElement.scrollWidth), `${name}: the page's width`).toBeLessThanOrEqual(width);
           await expectNoAxeViolations(page);
-          if (comparesScreenshots()) await expect(preview(page)).toHaveScreenshot(`design-system-${theme}-${density}-${name}.png`);
+          if (comparesScreenshots()) {
+            // The window as tall as the page, so the whole content is drawn at once, with nothing to scroll into view.
+            await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
+            await settled(page);
+            await expect(preview(page)).toHaveScreenshot(`design-system-${theme}-${density}-${name}.png`);
+          }
         }
         await page.close();
       });

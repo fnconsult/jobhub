@@ -8,7 +8,7 @@ The baselines are drawn in that same image, so its fonts match. Elsewhere fonts 
 
 When a change is meant to alter how a screen looks (a token, a component, a screen migrated to the Design System):
 
-1. Run `scripts/update-screenshot-baselines.sh`. It needs Docker. It draws every baseline again in the Playwright image CI uses, from your working tree (uncommitted changes included). Name a spec to redraw only its baselines: `scripts/update-screenshot-baselines.sh e2e/design-system-page.spec.ts`.
+1. Run `scripts/update-screenshot-baselines.sh`. It needs Docker with about 4 GB of memory, for `next build` (Colima's default 2 GB is too little: `colima start --memory 4`). It draws every baseline again in the Playwright image CI uses, from your working tree (uncommitted changes included). Name a spec to redraw only its baselines: `scripts/update-screenshot-baselines.sh e2e/design-system-page.spec.ts`.
 2. Open the changed PNGs (`git status e2e/__screenshots__`) and check that every difference is one you meant, in light and dark, Confort and Compact, and at each width.
 3. Commit them with the change that caused them, and say in the commit or PR why the screen changed.
 

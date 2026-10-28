@@ -22,7 +22,7 @@ image="mcr.microsoft.com/playwright:v${version}-noble"
 name="jobhub-baselines-$$"
 
 cleanup() {
-  docker rm -f "$name-pg" >/dev/null 2>&1 || true
+  docker rm -f "$name-run" "$name-pg" >/dev/null 2>&1 || true
   docker network rm "$name" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -32,20 +32,22 @@ docker run -d --name "$name-pg" --network "$name" \
   -e POSTGRES_USER=jobhub -e POSTGRES_PASSWORD=jobhub -e POSTGRES_DB=jobhub postgres:17-alpine >/dev/null
 until docker exec "$name-pg" pg_isready -U jobhub -d jobhub >/dev/null 2>&1; do sleep 1; done
 
-mkdir -p e2e/__screenshots__
-docker run --rm --network "$name" --ipc=host \
-  -v "$PWD":/src:ro -v "$PWD/e2e/__screenshots__":/out \
+# The working tree's files as git sees them (tracked, and untracked but not ignored), sent in on stdin: Docker on a Mac
+# (Colima, Docker Desktop) may not share the folder the repo sits in.
+files() { git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' file; do [ -e "$file" ] && printf '%s\0' "$file"; done; }
+files | COPYFILE_DISABLE=1 tar --no-xattrs --null -T - -cf - | docker run -i --name "$name-run" --network "$name" --ipc=host \
   -e DATABASE_URL="postgres://jobhub:jobhub@$name-pg:5432/jobhub" -e NEXT_TELEMETRY_DISABLED=1 -e E2E_SCREENSHOTS=1 \
   "$image" bash -euo pipefail -c '
-    mkdir /work
-    tar -C /src --exclude=./.git --exclude=node_modules --exclude=.next --exclude=.output --exclude=dist --exclude=./e2e/__screenshots__ -cf - . | tar -C /work -xf -
-    cp -R /out/. /work/e2e/__screenshots__/ 2>/dev/null || mkdir -p /work/e2e/__screenshots__
+    mkdir -p /work/e2e/__screenshots__
+    tar -C /work -xf -
     cd /work
     npm ci --no-audit --no-fund
     npm run build
     npm run db:migrate
     npx playwright test --project=web --update-snapshots=changed "$@"
-    cp -R e2e/__screenshots__/. /out/
   ' baselines "${specs[@]}"
+
+mkdir -p e2e/__screenshots__
+docker cp "$name-run:/work/e2e/__screenshots__/." e2e/__screenshots__/
 
 echo "Baselines drawn in e2e/__screenshots__. Review them (git diff, or open the PNGs) before committing."

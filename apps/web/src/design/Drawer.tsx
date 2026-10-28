@@ -1,0 +1,86 @@
+"use client";
+
+import * as RadixDialog from "@radix-ui/react-dialog";
+import type { ReactElement, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { Icons } from "@/components/icons";
+import { Button } from "./Button";
+import { Scrim } from "./overlay";
+import "./Drawer.css";
+
+type AutoFocusEvent = Event;
+
+/**
+ * A drawer (Radix Dialog, ADR-0018), modal, on the right by default: the detail of a row without leaving the list, or
+ * a form. With a `title` it has a header (the title, which names it, and « Fermer »), a body that scrolls and an
+ * optional `footer` for its actions; without one, its content draws its own head and holds a DrawerTitle (the
+ * Sidebar's menu on a phone). The focus goes inside on opening and stays there; Escape, the scrim or « Fermer » close
+ * it, the focus back on its trigger. Full screen on a phone. Opened by its `trigger`, or by its owner (`open`).
+ */
+export function Drawer({
+  trigger,
+  open,
+  defaultOpen,
+  onOpenChange,
+  title,
+  footer,
+  side = "right",
+  className,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
+  onEscapeKeyDown,
+  children,
+}: {
+  trigger?: ReactElement;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  title?: ReactNode;
+  footer?: ReactNode;
+  side?: "right" | "left";
+  className?: string;
+  onOpenAutoFocus?: (event: AutoFocusEvent) => void;
+  onCloseAutoFocus?: (event: AutoFocusEvent) => void;
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
+    <RadixDialog.Root open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
+      {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
+      <RadixDialog.Portal>
+        <Scrim />
+        <RadixDialog.Content
+          className={["ds-drawer", className].filter(Boolean).join(" ")}
+          data-side={side}
+          aria-describedby={undefined}
+          onOpenAutoFocus={onOpenAutoFocus}
+          onCloseAutoFocus={onCloseAutoFocus}
+          onEscapeKeyDown={onEscapeKeyDown}
+        >
+          {title !== undefined ? (
+            <>
+              <header className="ds-drawer__header">
+                <DrawerTitle>{title}</DrawerTitle>
+                <RadixDialog.Close asChild>
+                  <Button variant="quiet" icon={<Icons.close />}>
+                    {t("designSystem.close")}
+                  </Button>
+                </RadixDialog.Close>
+              </header>
+              <div className="ds-drawer__body">{children}</div>
+              {footer ? <footer className="ds-drawer__footer">{footer}</footer> : null}
+            </>
+          ) : (
+            children
+          )}
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
+  );
+}
+
+/** The title of a Drawer that draws its own head: it names the drawer for screen readers. */
+export function DrawerTitle({ className, children }: { className?: string; children: ReactNode }) {
+  return <RadixDialog.Title className={["ds-drawer__title", className].filter(Boolean).join(" ")}>{children}</RadixDialog.Title>;
+}

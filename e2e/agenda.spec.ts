@@ -241,7 +241,7 @@ test.describe("adding an Interview from the Agenda", () => {
     await page.keyboard.press("Tab");
     await page.keyboard.press("Shift+Tab");
     await expect(dialog(page).getByLabel(fr.agenda.addDialog.application)).toBeFocused();
-    await dialog(page).getByRole("button", { name: fr.agenda.addDialog.close }).press("Enter");
+    await dialog(page).getByRole("button", { name: fr.designSystem.close }).press("Enter");
     await expect(dialog(page)).toHaveCount(0);
     await expect(addButton(page)).toBeFocused();
   });

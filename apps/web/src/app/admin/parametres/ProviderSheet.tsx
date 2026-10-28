@@ -2,12 +2,13 @@ import { PRICE_SETTINGS } from "@jobhub/ai";
 import { isFranceTravailApi } from "@jobhub/shared";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { parametresHref, pricesOfTool, settingHref, type PossibleProvider } from "@/platform-settings/parametres";
+import { parametresHref, pricesOfTool, settingHref, sheetSettingsOf, type PossibleProvider } from "@/platform-settings/parametres";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import type { ApiAccess, ProviderApiAccess, ProviderSecretStatus } from "@/provider-secrets/index";
 import { routes } from "@/routes";
 import { clearSecret, replaceSecret, testSecret } from "./actions";
 import { Here, type Ctx } from "./context";
+import { EmailIntakeSections, type EmailIntakeLists } from "./EmailIntakeSections";
 import { KeyCell, LastTest, usedByLabel } from "./ProvidersSection";
 import { SettingsTable } from "./SettingsTable";
 
@@ -16,7 +17,8 @@ import { SettingsTable } from "./SettingsTable";
  * super-admins only, ADR-0020: a value goes in, never out), the keys env alone holds, its own settings and what it
  * serves, each of its APIs' access at its latest connection test (France Travail's, #400), the prices of its billed
  * units with their list price, source and date, changed here (#403), its uses whose price is not known, and a link to
- * its Outils page, where its calls are.
+ * its Outils page, where its calls are. Email intake's Tool's sheet is the Email intake sheet (#448): its settings changed
+ * here, then its Recognised senders and « Expéditeurs proposés ».
  */
 export function ProviderSheet({
   ctx,
@@ -26,6 +28,7 @@ export function ProviderSheet({
   settings,
   unpricedCalls,
   notices,
+  emailIntake,
 }: {
   ctx: Ctx;
   row: PossibleProvider;
@@ -36,9 +39,14 @@ export function ProviderSheet({
   /** Its uses of the last 30 days whose price was not known (« prix inconnu », #403). */
   unpricedCalls: number;
   notices: ReactNode;
+  /** On the Email intake sheet: its Recognised senders and « Expéditeurs proposés » (#448). */
+  emailIntake?: EmailIntakeLists;
 }) {
   const { t, tab } = ctx;
   const { tool } = row;
+  // Its own settings are changed here; the others are linked to the tab that shows them.
+  const ownSettings = sheetSettingsOf(tool);
+  const linkedSettings = row.settings.filter((setting) => !ownSettings.includes(setting.name));
   const statusOf = (name: string) => secrets?.find((secret) => secret.name === name);
   const purpose = ctx.locale === "en" ? tool.purpose.en : tool.purpose.fr;
 
@@ -86,11 +94,14 @@ export function ProviderSheet({
 
       <section className="stack" aria-labelledby="sheet-settings">
         <h3 id="sheet-settings">{t("admin.platformSettings.sheet.settingsTitle")}</h3>
+        {ownSettings.length > 0 ? (
+          <SettingsTable ctx={ctx} caption={t("admin.emailIntake.settingsCaption")} names={ownSettings} settings={settings} envOnly={[]} />
+        ) : null}
         {row.settings.length === 0 ? (
           <p>{t("admin.platformSettings.sheet.noSettings")}</p>
-        ) : (
+        ) : linkedSettings.length === 0 ? null : (
           <ul>
-            {row.settings.map((setting) => (
+            {linkedSettings.map((setting) => (
               <li key={setting.name}>
                 <Link prefetch={false} href={settingHref(setting.name)}>
                   <code>{setting.name}</code>
@@ -101,6 +112,8 @@ export function ProviderSheet({
           </ul>
         )}
       </section>
+
+      {emailIntake ? <EmailIntakeSections ctx={ctx} lists={emailIntake} /> : null}
 
       <PricesSection ctx={ctx} row={row} settings={settings} unpricedCalls={unpricedCalls} />
 

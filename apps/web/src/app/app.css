@@ -155,16 +155,19 @@ a.button {
   margin: 0;
 }
 
-dt {
-  font-weight: 600;
-}
+/* Element styles sit in the base layer (#462), under the Design System's components, which set their own. */
+@layer base {
+  dt {
+    font-weight: 600;
+  }
 
-dd {
-  margin: 0 0 var(--space-4);
-}
+  dd {
+    margin: 0 0 var(--space-4);
+  }
 
-h2 {
-  margin-top: var(--space-8);
+  h2 {
+    margin-top: var(--space-8);
+  }
 }
 
 .hint {
@@ -1624,14 +1627,14 @@ nav + nav > .journal-filter {
   --shadow-menu: 0 0.5rem 1.5rem rgb(15 15 15 / 14%), 0 0 0 1px rgb(15 15 15 / 8%);
 }
 
-/* Line icons: decoration beside a label in words. */
+/* Line icons (Lucide, components/icons.tsx): decoration beside a label in words. */
 .icon {
   flex: none;
   width: 1.25rem;
   height: 1.25rem;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1.75;
+  stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2093,13 +2096,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 0 var(--space-6);
 }
 
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 35;
-  background: var(--scrim);
-}
-
 .sidebar-drawer {
   position: fixed;
   top: 0;
@@ -2123,63 +2119,11 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   }
 }
 
-/* A modal dialog over the page (Radix, ADR-0018), above the scrim: "Modifier les critères"
-   opens one with the Profile's Search Criteria (#237). Full screen on a phone. */
-.dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  width: min(44rem, calc(100vw - 2 * var(--space-4)));
-  max-height: calc(100dvh - 2 * var(--space-6));
-  padding: var(--space-6);
-  overflow-y: auto;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-overlay);
-  transform: translate(-50%, -50%);
-}
-
-/* Focused on opening so its title is announced; a box, not a control: no focus ring. */
-.dialog:focus {
-  outline: none;
-}
-
-.dialog-head {
-  display: flex;
-  gap: var(--space-4);
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
+/* The title of a Drawer that draws its own head (the Signalement's, #462). */
 .dialog-title {
   margin: 0;
   font-size: var(--font-size-h3);
   overflow-wrap: anywhere;
-}
-
-.dialog-head .button {
-  display: inline-flex;
-  flex: none;
-  gap: var(--space-2);
-  align-items: center;
-  min-height: var(--control-height);
-}
-
-@media (width < 40rem) {
-  .dialog {
-    inset: 0;
-    width: 100%;
-    max-height: none;
-    padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    border: none;
-    border-radius: 0;
-    transform: none;
-  }
 }
 
 /* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------
@@ -2241,6 +2185,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 .signalement-glyph {
   overflow: visible;
   stroke-linecap: butt;
+}
+
+/* The Signalement's Drawer (#462) draws its own head: its own padding, and it scrolls. */
+.signalement-dialog {
+  gap: var(--space-4);
+  padding: calc(var(--space-6) + env(safe-area-inset-top, 0px)) var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
 }
 
 @media (width >= 40rem) {
@@ -4468,7 +4419,7 @@ textarea.title-edit {
 }
 
 /* A filled square: Stop, as media players draw it. */
-.ai-activity-stop .icon path {
+.ai-activity-stop .icon rect {
   fill: currentColor;
 }
 
@@ -5283,4 +5234,134 @@ textarea.title-edit {
 .run-queries {
   margin: 0;
   padding-left: var(--space-4);
+}
+
+/* The forwarding setup wizard (#451): one step at a time, its guides numbered, Gmail's code large enough to type. */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.wizard-step > h3 {
+  margin: 0;
+}
+
+.wizard-progress {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.wizard-form {
+  margin-top: 0;
+}
+
+.wizard-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.wizard-address {
+  margin: 0;
+}
+
+.wizard-address dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.wizard-code {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+
+/* Where a mailbox's settings usually are: a window whose gear, top right, is ringed. */
+.forwarding-hint {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.forwarding-hint p {
+  margin: 0;
+}
+
+.forwarding-hint-window {
+  position: relative;
+  flex: none;
+  width: 6rem;
+  height: 3.5rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.forwarding-hint-window::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  content: "";
+}
+
+.forwarding-hint-gear {
+  position: absolute;
+  top: 0.1875rem;
+  right: 0.375rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 2px dotted var(--color-text-secondary);
+  border-radius: 50%;
+}
+
+.forwarding-hint-gear::after {
+  position: absolute;
+  inset: -0.4375rem;
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  content: "";
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wizard-step {
+    animation: wizard-step-in 0.2s ease;
+  }
+
+  .forwarding-hint-gear::after {
+    animation: forwarding-hint-pulse 1.4s ease-out 3;
+  }
+}
+
+@keyframes wizard-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes forwarding-hint-pulse {
+  from {
+    opacity: 1;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
 }

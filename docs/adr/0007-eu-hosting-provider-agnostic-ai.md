@@ -83,7 +83,18 @@ Its limits, stated plainly:
 - A last name shorter than three letters is not matched, to avoid false hits on ordinary words; a postal address is matched only as the Master CV writes it.
 - A company sharing the Candidate's last name is redacted too (« Dupont Conseil » becomes « [NOM DE FAMILLE] Conseil » in a web search).
 
-Exception (ADR-0033, #301): a save on the Back Office's Paramètres that would route a task with personal data, or the identity route, outside the EU is refused with `data_residency`. Only saves there are checked; a configuration from env still starts as above.
+Exception (ADR-0033, #301): a save on the Back Office's Paramètres that would route the identity route, or a task marked `euOnly` (offer email reading, ADR-0052), outside the EU is refused with `data_residency`. A task with personal data may go outside the EU, redacted (amendment of 2026-10-28). Only saves there are checked; a configuration from env still starts as above.
+
+## Amendment: Claude through its direct API (2026-10-28)
+
+AWS refused Jobbbox access to Bedrock for good. Bedrock is no longer used. The product owner decided:
+
+- Every AI task reaches Claude through its direct API (api.anthropic.com), outside the EU. That includes the tasks with personal data: the guardrail of the amendment of 2026-10-20 takes the Candidate's identity out of each call before it leaves. `ANTHROPIC_ENDPOINT` now defaults to `direct`.
+- Tasks with personal data no longer fall back to Mistral when Claude is reached only outside the EU. They stay on Claude.
+- Two things stay EU-only, unchanged: the identity route (Mistral, under EU AI Consent), and the tasks marked `euOnly`, such as offer email reading (ADR-0052). Without an EU Claude endpoint, offer email reading defaults to Mistral.
+- Paramètres refuses only those two outside the EU (the exception above).
+- On the direct API, a route or a Playbook Agent naming no model runs on the model for its effort: Haiku for low, Sonnet for medium, Opus for high, Sonnet with no effort. A model it names always wins. The Back Office shows that default as « modèle par défaut (selon l'effort) ».
+- The Bedrock and Vertex code stays, for an environment that still sets them.
 
 ## Amendment: Target Company names in web search (issue #406)
 

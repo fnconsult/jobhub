@@ -123,7 +123,11 @@
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",
-    "body": "Hello,\n\nClick this link to sign in to Jobbbox:\n{{url}}\n\nThis link is valid for {{minutes}} minutes and works only once.\nIf you did not ask to sign in, simply ignore this message.\n\nThe Jobbbox team"
+    "title": "Sign in to Jobbbox",
+    "action": "Sign in to Jobbbox",
+    "validity": "This link is valid for {{minutes}} minutes and works only once.",
+    "ignore": "If you did not ask to sign in, simply ignore this message.",
+    "reason": "You receive this email because a sign-in link to Jobbbox was asked for this address."
   },
   "nav": {
     "signIn": "Sign in",
@@ -202,11 +206,18 @@
   },
   "webSearchAlert": {
     "subject": "Jobbbox: web search crossed its alert threshold for {{month}}",
-    "body": "Hello,\n\nWeb search cost {{spend}} in {{month}} (Paris time), past its monthly alert threshold of {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Nothing is cut: Job discovery and Company Dossiers keep searching.\n\nThis amount is estimated at the price in use of each billed unit (call, request, credit), with no provider's free credits taken off. Prices and the threshold are set on Paramètres' Recherche web tab.\n\nThe details are in Consommation IA:\n{{url}}\n\nYou will get no other alert this month.\n\nThe Jobbbox team"
+    "title": "Web search crossed its alert threshold for {{month}}",
+    "spend": "Web search cost {{spend}} in {{month}} (Paris time), past its monthly alert threshold of {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Nothing is cut: Job discovery and Company Dossiers keep searching.",
+    "estimate": "This amount is estimated at the price in use of each billed unit (call, request, credit), with no provider's free credits taken off. Prices and the threshold are set on Paramètres' Recherche web tab.",
+    "action": "See the details in Consommation IA",
+    "last": "You will get no other alert this month."
   },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
-    "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings:\n{{url}}\n\nThe Jobbbox team",
+    "title": "Sign-in with Apple needs fixing",
+    "intro": "The worker could not sign a new client secret for sign-in with Apple:",
+    "outro": "Until this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings.",
+    "action": "Open the Sign-in tab",
     "reasons": {
       "missing_secret": "the Team ID, Key ID or .p8 key is missing or no longer decrypts (master key removed?)",
       "invalid_apple_key": "The .p8 key or a saved ID cannot sign the secret",
@@ -291,7 +302,122 @@
       "error": "Something went wrong. Try again.",
       "invalid": "Enter a valid email address.",
       "too_many": "You have already added 10 addresses: remove one first."
-    }
+    },
+    "wizardLink": "Set up forwarding step by step"
+  },
+  "forwardingWizard": {
+    "title": "Set up forwarding step by step",
+    "intro": "A few steps so the job alerts in your mailbox reach Jobbbox. Nothing is done in your mailbox for you: you stay in control.",
+    "progress": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Continue",
+    "steps": {
+      "provider": "Your mailbox",
+      "switchOn": "Switch on Email intake",
+      "address": "Your forwarding address",
+      "confirmation": "Gmail's confirmation code",
+      "firstEmail": "The first email",
+      "done": "All set"
+    },
+    "provider": {
+      "legend": "Which mailbox gets your job alerts?",
+      "names": {
+        "gmail": "Gmail",
+        "outlook": "Outlook.com (Hotmail, Live)",
+        "icloud": "iCloud Mail",
+        "orange": "Orange",
+        "other": "Other (Yahoo, AOL, Free, SFR…)"
+      }
+    },
+    "switchOn": {
+      "read": "What is read: only the text of the emails that reach your forwarding address from recognised alert senders or from your own addresses. Never their attachments or images.",
+      "kept": "What is kept: the offers found. An email's text is not kept once read (72 hours at most, encrypted, should it need reading again).",
+      "ai": "AI processing: an AI model hosted in the European Union reads each email to find its offers.",
+      "date": "The activation date is recorded. You can change your address or switch off at any time.",
+      "off": "Email intake is not switched on yet.",
+      "action": "Switch on and continue"
+    },
+    "address": {
+      "explanation": "Copy this address: your mailbox will forward your alerts to it. It is yours alone."
+    },
+    "hint": {
+      "settings": "A mailbox's settings are usually behind the gear icon, top right. Do these steps on a computer."
+    },
+    "guides": {
+      "gmailAddress": {
+        "title": "Add your forwarding address in Gmail",
+        "steps": {
+          "1": "Open Gmail on a computer, then the settings (the gear icon) and \"See all settings\".",
+          "2": "Open the forwarding tab (\"Forwarding and POP/IMAP\").",
+          "3": "Choose \"Add a forwarding address\" and paste your forwarding address.",
+          "4": "Confirm: Gmail sends a confirmation code to that address. Jobbbox receives it and shows it to you in the next step.",
+          "5": "Do not choose to forward all your mail: only your alerts will be forwarded, by a filter, right after."
+        }
+      },
+      "gmailFilter": {
+        "title": "Forward your alerts with a Gmail filter",
+        "steps": {
+          "1": "Leave automatic forwarding off in the forwarding tab: the filter does the forwarding.",
+          "2": "In Gmail's search bar, open the search options.",
+          "3": "In \"From\", type your alerts' senders separated by OR, for example: linkedin.com OR indeed.com OR cadremploi.fr.",
+          "4": "Choose \"Create filter\".",
+          "5": "Tick \"Forward it to\" and choose your forwarding address.",
+          "6": "Confirm by creating the filter."
+        }
+      },
+      "outlook": {
+        "title": "Forward your alerts with an Outlook.com rule",
+        "notice": "Outlook.com may ask you to turn on two-step verification, or to confirm your identity, before it allows forwarding. Labels may differ from those quoted here.",
+        "steps": {
+          "1": "Open Outlook.com on a computer, then the settings (the gear icon).",
+          "2": "Open the Mail part, then the rules.",
+          "3": "Add a rule whose condition is the sender: type your alerts' senders (linkedin.com, indeed.com, cadremploi.fr…).",
+          "4": "As the action, choose to forward the message, to your forwarding address.",
+          "5": "Save the rule.",
+          "6": "If Outlook.com asks you to verify your identity, follow its instructions: that is its usual protection of forwarding."
+        }
+      },
+      "icloud": {
+        "title": "Forward your alerts with an iCloud Mail rule",
+        "notice": "An iCloud rule forwards to one address only. Labels may differ from those quoted here.",
+        "steps": {
+          "1": "Open icloud.com/mail on a computer, then the settings.",
+          "2": "Open the rules and add one.",
+          "3": "As the condition, choose the sender, and type one of your alerts' senders (one rule per sender if needed).",
+          "4": "As the action, choose to forward, to your forwarding address.",
+          "5": "Save the rule."
+        }
+      },
+      "manual": {
+        "title": "Forward your alerts by hand",
+        "orangeNotice": "Orange's automatic forwarding has not been tested by Jobbbox yet and may be restricted by Orange: forward your alerts by hand for now.",
+        "otherNotice": "Yahoo and AOL offer automatic forwarding only with Mail Plus. For Free, SFR and other mailboxes, forward your alerts by hand until their automatic forwarding is tested.",
+        "steps": {
+          "1": "Open a job alert, or a recruiter's message.",
+          "2": "Choose \"Forward\".",
+          "3": "Paste your forwarding address as the recipient, then send.",
+          "4": "Send it from one of your addresses listed below: an email forwarded by hand is read only when it comes from one of them."
+        }
+      }
+    },
+    "confirmation": {
+      "explanation": "Gmail sends a confirmation code to your forwarding address. Type it in Gmail, or open the confirmation link.",
+      "waiting": "Waiting for Gmail's code…",
+      "codeLabel": "Confirmation code",
+      "link": "Confirm with Gmail's link",
+      "unreadable": "Gmail's confirmation arrived, but its code can no longer be read: send it again from Gmail."
+    },
+    "firstEmail": {
+      "explanation": "As soon as an email reaches your forwarding address, forwarding is confirmed. Wait for your next alert, or forward one by hand. This can take a few minutes, sometimes more.",
+      "waiting": "Waiting for the first email…",
+      "received": "First email received on {{date}}.",
+      "unrecognised": "It comes from an unrecognised sender: it was not read. Your alerts will be."
+    },
+    "done": {
+      "explanation": "The offers of the emails you forward will show in \"Received by email\", on the Job searches page.",
+      "back": "Back to Email intake"
+    },
+    "error": "Something went wrong. Try again."
   },
   "euAiConsent": {
     "title": "European AI for your identity data",
@@ -1327,7 +1453,8 @@
           "france_travail": "France Travail API",
           "fantastic_jobs": "Fantastic.jobs API (ATS postings)",
           "web_search": "Web search (search provider)",
-          "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)"
+          "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)",
+          "email_intake": "Email intake (Brevo Inbound)"
         },
         "awaitingAccess": "Awaiting access",
         "accessRefused": "Unavailable: access refused by France Travail (Offres d'emploi API). Job searches go on without it."
@@ -1372,6 +1499,58 @@
         "siteExists": "This site is already in the list.",
         "siteForbidden": "This site forbids crawling in its terms of use: it cannot be added or enabled.",
         "notFound": "This item no longer exists. The page has been refreshed."
+      }
+    },
+    "emailIntake": {
+      "settingsTitle": "Email intake settings",
+      "settingsCaption": "Email intake settings",
+      "senders": {
+        "title": "Recognised senders",
+        "intro": "Only emails from a recognised sender are read, authenticated by its domain, or by its full address when the domain sends for many companies (jobs2web.com). A disabled sender stays listed and is no longer read.",
+        "caption": "The platform's Recognised senders",
+        "sender": "Sender",
+        "match": "Recognised by",
+        "matches": {
+          "domain": "Domain",
+          "address": "Full address"
+        },
+        "label": "Label",
+        "status": "Status",
+        "actions": "Actions",
+        "platformList": "The platform's list",
+        "enable": "Enable {{sender}}",
+        "disable": "Disable {{sender}}",
+        "remove": "Remove {{sender}}",
+        "relabel": "Change the label of {{sender}}",
+        "newLabel": "New label of {{sender}}",
+        "saveLabel": "Save the label of {{sender}}",
+        "addTitle": "Add a sender",
+        "senderField": "Sender's domain or address",
+        "senderHelp": "A domain (alerts.example.com) or, for a shared sending platform, the full address.",
+        "labelField": "Label",
+        "labelHelp": "“platform or company – site”, at most 120 characters, for reading only.",
+        "add": "Add the sender",
+        "none": "No recognised sender: no email is read, except the Candidates' manual forwards."
+      },
+      "proposed": {
+        "title": "Proposed senders",
+        "intro": "Senders Candidates added for themselves alone that the platform's list lacks: how many Candidates, never which ones. Accepting one adds it to the list, for everyone.",
+        "caption": "Senders proposed by Candidates",
+        "candidates": "Candidates",
+        "lastAdded": "Last added",
+        "proposedBy_one": "Proposed by {{count}} Candidate",
+        "proposedBy_other": "Proposed by {{count}} Candidates",
+        "labelFor": "Label of {{sender}}",
+        "accept": "Accept {{sender}}",
+        "none": "No proposed sender."
+      },
+      "notices": {
+        "added": "Sender added to the platform's list.",
+        "updated": "Sender saved.",
+        "removed": "Sender removed from the list.",
+        "invalid": "Give a sender's domain or address, and a label of at most 120 characters.",
+        "exists": "This sender is already listed.",
+        "notFound": "This sender is no longer listed."
       }
     },
     "providerSecrets": {
@@ -1457,6 +1636,7 @@
       "groups": {
         "ai_routing": "AI routing",
         "email": "Email",
+        "email_intake": "Email intake",
         "job_digest": "Job Digest",
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
@@ -1516,7 +1696,7 @@
       "save": "Save",
       "restore": "Restore",
       "restoreHelp": "Clears the Back Office's value: env's applies, else the code's default.",
-      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (personal data outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is recorded in Activity.",
+      "editIntro": "A saved value applies within seconds in the app and the worker, without a restart (at the next email, for the sender). An AI routing change is checked before it is saved: a route the AI layer would refuse (an EU-only task sent outside the EU, a missing key) is refused, and a named model is tested with a call. Every change and every refused attempt is recorded in Activity.",
       "rules": {
         "whole": "a whole number from {{min}} to {{max}}",
         "wholeAboveMin": "a whole number above {{min}}, up to {{max}}",
@@ -1693,7 +1873,7 @@
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
-        },
+      },
       "aiTasks": {
         "providerDefault": "default model",
         "sourcePlaybook": "Playbook, version {{version}}",
@@ -1745,7 +1925,8 @@
           "providerHelp": "A provider outside the EU receives calls redacted of the Candidate's identity; a provider without a key can be chosen, its calls fail until the key is entered.",
           "model": "Model",
           "modelHelp": "Empty: the provider's default model. A model typed is tested with a call on save, unless the provider's key is missing.",
-          "personalData": "This task receives personal data: a provider outside the EU is refused on save, and identity-bearing calls follow EU AI consent.",
+          "personalData": "This task receives personal data: a provider outside the EU receives calls with the Candidate's identity taken out, and identity-bearing calls follow EU AI consent.",
+          "euOnly": "This task runs only in the EU: a provider outside the EU is refused on save.",
           "noPersonalData": "This task receives no personal data: a provider outside the EU is allowed.",
           "applies": "Saving applies from the next call, without a restart; a run already started keeps its model. The change is recorded in the Journal.",
           "restore": "Restore the default",
@@ -1830,6 +2011,7 @@
         "job_discovery_sources": "Job discovery sources",
         "job_discovery_sites": "Job discovery sites",
         "job_sites": "Extension sites",
+        "recognised_senders": "Recognised senders (Email intake)",
         "sign_in_providers": "Sign-in",
         "ai_messages": "Activity › AI calls",
         "coaching_playbooks": "Coaching Playbooks",
@@ -2104,6 +2286,7 @@
       "validatedBy": "validated by {{name}} on {{date}}",
       "notValidated": "not validated",
       "defaultModel": "default model ({{model}})",
+      "defaultModelByEffort": "default model (by effort)",
       "providerDefault": "default model",
       "agentSummary": "{{provider}} · {{model}} · effort {{effort}}",
       "efforts": {
@@ -2904,7 +3087,6 @@
     "add": "Add an interview",
     "addDialog": {
       "title": "Add an interview",
-      "close": "Close",
       "application": "Application",
       "chooseApplication": "Choose an application",
       "none": "No ongoing applications. Save a job offer first to record an interview for it.",
@@ -3099,8 +3281,7 @@
     "criteria": "Criteria",
     "editCriteria": "Change the criteria",
     "criteriaDialog": {
-      "title": "Search criteria · {{profile}}",
-      "close": "Close"
+      "title": "Search criteria · {{profile}}"
     },
     "remoteWork": "Remote work: {{option}}",
     "sectorsWanted": "Sector: {{sectors}}",
@@ -3499,11 +3680,15 @@
     "abandonAccept": "Mark as abandoned",
     "email": {
       "subject": "A follow-up is waiting for you: {{title}}",
-      "body": "Hello,\n\nYour application \"{{title}}\" has had no answer. Your Jobbbox coach has drafted a follow-up for you: read it, send it from your own mailbox, then mark it as sent.\n\n{{url}}\n\nThe Jobbbox team"
+      "title": "A follow-up is waiting for you",
+      "body": "Your application \"{{title}}\" has had no answer. Your Jobbbox coach has drafted a follow-up for you: read it, send it from your own mailbox, then mark it as sent.",
+      "action": "Read the follow-up"
     },
     "abandonEmail": {
       "subject": "Still no answer: {{title}}",
-      "body": "Hello,\n\nYour follow-ups for \"{{title}}\" have had no answer. Your Jobbbox coach suggests marking this application as abandoned.\n\n{{url}}\n\nThe Jobbbox team"
+      "title": "Still no answer",
+      "body": "Your follow-ups for \"{{title}}\" have had no answer. Your Jobbbox coach suggests marking this application as abandoned.",
+      "action": "Open the application"
     },
     "noticesTitle": "Follow-ups to do",
     "noticeFollowUp": "Follow-up ready: {{title}}",
@@ -3517,7 +3702,9 @@
     "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
     "delaysError": "Saving failed. Check your connection and try again.",
     "noneWaiting": "No follow-up to do yet.",
-    "delaysIntro": "Your coach proposes a follow-up when an application gets no news after these delays."
+    "delaysIntro": "Your coach proposes a follow-up when an application gets no news after these delays.",
+    "emailReason": "You receive this email because one of your applications has had no answer past your follow-up delay.",
+    "emailSettings": "Change my follow-up delays"
   },
   "humanCoaches": {
     "title": "My human coaches",
@@ -3553,7 +3740,6 @@
     "edit": "Change the date",
     "editFor": "Change the date of the session with {{name}}",
     "title": "Session with {{name}}",
-    "close": "Close",
     "date": "Session date and time (Paris time)",
     "duration": "Duration in minutes (optional)",
     "videoLink": "Video call link (optional)",
@@ -3652,16 +3838,18 @@
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
       "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
-      "intro_one": "Hello,\n\nYour coach found {{count}} new job offer for your profile “{{profile}}”:",
-      "intro_other": "Hello,\n\nYour coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
+      "title_one": "{{count}} new job offer for “{{profile}}”",
+      "title_other": "{{count}} new job offers for “{{profile}}”",
+      "intro_one": "Your coach found {{count}} new job offer for your profile “{{profile}}”:",
+      "intro_other": "Your coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
       "matchScore": "match score: {{score}} / 100",
       "matchScorePartial": "match score: {{score}} / 100, partial",
       "postedAt": "posted on {{date}}",
       "dateUnknown": "posting date: date unknown",
-      "seeDigest_one": "Find this Job Digest in Jobbbox:\n{{url}}",
-      "seeDigest_other": "Find this Job Digest and its {{count}} job offers in Jobbbox:\n{{url}}",
-      "unsubscribe": "Stop receiving this profile's Job Digest:\n{{url}}",
-      "signature": "The Jobbbox team"
+      "seeDigest_one": "See the job offer",
+      "seeDigest_other": "See the {{count}} job offers",
+      "reason": "You receive this email because the Job Digest of your profile “{{profile}}” is on.",
+      "unsubscribe": "Stop receiving this profile's Job Digest"
     },
     "unsubscribePage": {
       "title": "Unsubscribe from the Job Digest",
@@ -3774,8 +3962,10 @@
     "email": {
       "subject_one": "Reminder: your appointment tomorrow, {{date}}",
       "subject_other": "Reminder: your {{count}} appointments tomorrow, {{date}}",
-      "intro_one": "Hello,\n\nTo help you prepare, here is your appointment tomorrow, {{date}}:",
-      "intro_other": "Hello,\n\nTo help you prepare, here are your {{count}} appointments tomorrow, {{date}}:",
+      "title_one": "Your appointment tomorrow",
+      "title_other": "Your {{count}} appointments tomorrow",
+      "intro_one": "To help you prepare, here is your appointment tomorrow, {{date}}:",
+      "intro_other": "To help you prepare, here are your {{count}} appointments tomorrow, {{date}}:",
       "interview": "{{time}} · Interview: {{title}}",
       "interviewAt": "{{time}} · Interview: {{title}} at {{employer}}",
       "coachingSession": "{{time}} · Coaching session with {{coach}}",
@@ -3784,9 +3974,9 @@
       "place": "Place or link: {{place}}",
       "videoLink": "Link: {{url}}",
       "note": "Note: {{note}}",
-      "seeAgenda": "Find them in your agenda:\n{{url}}",
-      "signature": "The Jobbbox team",
-      "settings": "Stop receiving these reminders:\n{{url}}"
+      "seeAgenda": "Open my agenda",
+      "reason": "You receive this email because appointment reminders are on in your account.",
+      "settings": "Stop receiving these reminders"
     },
     "settings": {
       "title": "Appointment reminders",
@@ -4036,5 +4226,119 @@
     "handled": "Your feedback of {{date}} is done",
     "see": "See",
     "dismiss": "Close"
+  },
+  "designSystem": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "ring": "{{label}}: {{value}} out of 100",
+    "gallery": {
+      "eyebrow": "Design System",
+      "title": "Components",
+      "subtitle": "Every Design System component on one page, for the accessibility checks.",
+      "add": "Add",
+      "buttons": "Buttons",
+      "primary": "Save as an application",
+      "secondary": "Read the offer",
+      "quiet": "Why 82?",
+      "danger": "Delete",
+      "dangerSolid": "Delete for good",
+      "disabled": "Disabled",
+      "busy": "Searching…",
+      "small": "Small",
+      "fields": "Fields",
+      "jobTitle": "Job title",
+      "jobTitleHint": "As it appears on your CV.",
+      "location": "Location",
+      "salary": "Minimum salary",
+      "salaryError": "Enter an amount in euros, for example 80,000.",
+      "message": "Message to the coach",
+      "permanent": "Permanent",
+      "freelance": "Freelance",
+      "remote": "Partly remote",
+      "onSite": "On site",
+      "digest": "Get the Job Digest every Monday",
+      "period": "Period",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year",
+      "budget": "Monthly budget",
+      "model": "Reading model",
+      "threshold": "Digest threshold",
+      "fromBackOffice": "Back Office",
+      "fromEnv": "env",
+      "fromCode": "code default",
+      "statuses": "Badges and statuses",
+      "connected": "Connected",
+      "keyMissing": "Key missing",
+      "testFailed": "Test failed",
+      "neverTested": "Never tested",
+      "interview": "Interview",
+      "offer": "Offer received",
+      "followUp": "Follow-up due",
+      "refused": "Refused",
+      "draft": "Draft",
+      "tablesAndTabs": "Tabs and tables",
+      "tabsLabel": "Kinds of tools",
+      "webSearch": "Web search",
+      "ai": "AI",
+      "email": "Email",
+      "webSearchPanel": "Perplexity searches the web for offers.",
+      "aiPanel": "Mistral serves the tasks that read personal data.",
+      "emailPanel": "Brevo sends the emails.",
+      "tableLabel": "Web search providers",
+      "provider": "Provider",
+      "key": "Key",
+      "monthCost": "This month's cost",
+      "active": "Active",
+      "available": "Available",
+      "openedRow": "Sheet opened: {{name}}",
+      "figures": "Figures",
+      "spend": "Web search spend",
+      "spendMeta": "2% of the alert threshold",
+      "failures": "Failed AI calls",
+      "failuresMeta": "91 of 139 calls",
+      "failuresTrend": "+12 points over 7 days",
+      "found": "Offers found",
+      "foundMeta": "this month",
+      "foundTrend": "+34 on September",
+      "chartCard": "Daily spend",
+      "chartText": "The daily spend chart goes here.",
+      "scores": "Scores",
+      "messages": "Messages",
+      "infoTitle": "A value entered here wins over the environment.",
+      "infoText": "It applies within seconds, without a restart.",
+      "warnTitle": "Brave Search has no key.",
+      "warnText": "Its calls will fail until a key is added.",
+      "dangerTitle": "Route refused.",
+      "dangerText": "This task handles personal data and this model is outside the EU.",
+      "successTitle": "Key tested.",
+      "successText": "Perplexity answered in 412 ms.",
+      "showToast": "Show a toast",
+      "toast": "Offer saved as an application.",
+      "toastLink": "See the application",
+      "empty": "Empty states",
+      "emptyTitle": "No applications yet",
+      "emptyText": "Save an offer your coach found or you captured with the extension: it will show here.",
+      "emptyAction": "Search for offers",
+      "emptyHelp": "How do I follow an application?",
+      "overlays": "Drawer and dialog",
+      "openDrawer": "Open the provider's sheet",
+      "drawerTitle": "Perplexity",
+      "drawerText": "Web search for offers and Company Dossiers.",
+      "makeActive": "Make active",
+      "openDialog": "Delete the profile…",
+      "dialogTitle": "Delete the profile “Head of BU”?",
+      "dialogText": "Its searches and offers are deleted with it.",
+      "dialogConfirm": "Delete",
+      "confirmed": "Profile deleted."
+    }
+  },
+  "emails": {
+    "greeting": "Hello,",
+    "signature": "The Jobbbox team",
+    "linkLead": "{{label}}:",
+    "reasons": {
+      "superAdmin": "You receive this email because you are a super-admin of Jobbbox."
+    }
   }
 }

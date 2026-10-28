@@ -64,7 +64,7 @@ describe("the Platform Settings catalog", () => {
 
   it("takes each default from the code that reads it", () => {
     const defaultOf = (name: string) => platformSetting(name)?.default;
-    expect(defaultOf("ANTHROPIC_ENDPOINT")).toBe("auto");
+    expect(defaultOf("ANTHROPIC_ENDPOINT")).toBe("direct");
     expect(defaultOf("BEDROCK_REGION")).toBe("eu-north-1");
     expect(defaultOf("VERTEX_REGION")).toBe("europe-west1");
     expect(defaultOf("OPENAI_DATA_RESIDENCY")).toBe("eu");
@@ -149,7 +149,7 @@ describe("the Platform Settings catalog", () => {
     expect(groupOf("ANTHROPIC_ENDPOINT")).toBe("ai_routing");
     expect(groupOf("AI_IDENTITY_MODEL")).toBe("ai_routing");
     expect(groupOf("MAIL_FROM")).toBe("email");
-    expect(groupOf("EMAIL_INTAKE_DOMAIN")).toBe("email");
+    expect(groupOf("EMAIL_INTAKE_DOMAIN")).toBe("email_intake");
     expect(groupOf("JOB_DIGEST_TARGET_COUNT")).toBe("job_digest");
     expect(groupOf("JOB_DISCOVERY_BUDGET_EUR")).toBe("job_discovery");
     expect(groupOf("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("enriched_contacts");

@@ -3,7 +3,7 @@ import { kebab } from "./css";
 import { designTokens, legacyColorAliases, type Density } from "./tokens";
 
 export type StylesheetViolation = {
-  rule: "min-body-size" | "text-colour" | "literal-colour";
+  rule: "min-body-size" | "text-colour" | "literal-colour" | "font-size-token";
   selector: string;
   declaration: string;
 };
@@ -36,6 +36,7 @@ function sizeInPx(value: string): number | null {
 const TEXT_COLOR_TOKENS: string[] = [
   ...TEXT_COLORS,
   "onAccent",
+  "onInverse",
   ...Object.entries(legacyColorAliases)
     .filter(([, name]) => (TEXT_COLORS as string[]).includes(name))
     .map(([old]) => old),
@@ -52,20 +53,36 @@ const LITERAL_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch
  * reviewable token. Returns an empty list when it complies.
  */
 export function auditStylesheet(css: string, { density = "confort" }: { density?: Density } = {}): StylesheetViolation[] {
+  return audit(css, { floor: DENSITY_FLOORS[density].body, component: false });
+}
+
+/** A font size read from one token, `var(--font-size-…)`, or the parent's. */
+const TOKEN_FONT_SIZE = /^(?:var\(--font-size-[a-z0-9-]+\)|inherit)$/i;
+
+/**
+ * Checks a stylesheet of the Design System's component layer (ADR-0053, #462), stricter than a page's: every font
+ * size is a token (`var(--font-size-…)`, so it follows the Density and the Text Size), text takes an audited text
+ * colour, and no colour is written as a literal, not even in a custom property the component defines. Returns an
+ * empty list when it complies.
+ */
+export function auditComponentStylesheet(css: string): StylesheetViolation[] {
+  return audit(css, { floor: 0, component: true });
+}
+
+function audit(css: string, { floor, component }: { floor: number; component: boolean }): StylesheetViolation[] {
   const violations: StylesheetViolation[] = [];
-  const floor = DENSITY_FLOORS[density].body;
   for (const { selector, property, value } of declarations(css)) {
     const declaration = `${property}: ${value}`;
+    const flag = (rule: StylesheetViolation["rule"]) => violations.push({ rule, selector, declaration });
     if (property === "font-size") {
       const px = sizeInPx(value);
-      if (px !== null && px < floor) violations.push({ rule: "min-body-size", selector, declaration });
+      if (px !== null && px < floor) flag("min-body-size");
     }
-    if (property === "color" && !TEXT_COLOR_VALUES.has(value.toLowerCase())) {
-      violations.push({ rule: "text-colour", selector, declaration });
+    if (component && ((property === "font-size" && !TOKEN_FONT_SIZE.test(value)) || (property === "font" && value.toLowerCase() !== "inherit"))) {
+      flag("font-size-token");
     }
-    if (!property.startsWith("--") && LITERAL_COLOR.test(value)) {
-      violations.push({ rule: "literal-colour", selector, declaration });
-    }
+    if (property === "color" && !TEXT_COLOR_VALUES.has(value.toLowerCase())) flag("text-colour");
+    if ((component || !property.startsWith("--")) && LITERAL_COLOR.test(value)) flag("literal-colour");
   }
   return violations;
 }

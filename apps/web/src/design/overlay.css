@@ -1,0 +1,22 @@
+@layer base, components;
+
+@layer components {
+  .ds-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: var(--color-scrim);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ds-scrim[data-state="open"] {
+      animation: ds-fade-in var(--motion-base) var(--motion-easing);
+    }
+  }
+
+  @keyframes ds-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

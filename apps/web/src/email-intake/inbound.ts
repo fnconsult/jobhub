@@ -2,11 +2,12 @@
  * Email intake's door (#442, ADR-0050, ADR-0051): the emails Brevo Inbound Parsing posts to
  * `POST /api/email-intake/inbound`, each one a Received offer email of the Candidate whose Forwarding address it reached.
  *
- *   const inbound = createEmailIntakeInbound(database, { emailIntake, cipher, queue, settings });
+ *   const inbound = createEmailIntakeInbound(database, { emailIntake, switchedOn, cipher, queue, settings });
  *   return inbound.handle(request); // the route's whole work
  *
  * A delivery is taken only with Brevo's shared secret (BREVO_INBOUND_SECRET: header `x-inbound-secret`, or a bearer
- * token; else 401) and from Brevo's IP ranges when some are set (else 403). Each email then:
+ * token; else 401) and from Brevo's IP ranges when some are set (else 403). While Email intake is switched off on the
+ * Sources tab of Paramètres (#448), every email is discarded unread: no row, nothing queued. Else each email:
  *  - to no Forwarding address in use (unknown, replaced or switched off): discarded unread, no row;
  *  - from a sender Email intake does not read (recognised-senders.ts): a row « expéditeur non reconnu », no text;
  *  - past the Candidate's daily cap (Paris day): a row « plafond atteint », no text, nothing queued;
@@ -46,8 +47,12 @@ export const RETENTION_MONTHS = 12;
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const DAY_TIME_ZONE = "Europe/Paris";
 
-/** What became of a Received offer email (CONTEXT.md); the reading (#443) gives the others: offers found, « autre », set aside by a Guardrail. */
-export type ReceivedOfferEmailOutcome = "awaiting_reading" | "unrecognised_sender" | "over_daily_cap" | "forwarding_confirmation";
+/**
+ * What became of a Received offer email (CONTEXT.md): set aside on arrival, or awaiting reading until the worker's
+ * reading (#445, reading.ts) finds offers (new or already there), « autre » (no precise offer), or fails after its
+ * last try (« échec »). Set aside by a Guardrail comes with #446.
+ */
+export type ReceivedOfferEmailOutcome = "awaiting_reading" | "unrecognised_sender" | "over_daily_cap" | "forwarding_confirmation" | "offers_found" | "other" | "failed";
 
 /** What the inbound route reads at each delivery: Provider Secrets and Platform Settings in use. */
 export interface InboundSettings {
@@ -61,6 +66,8 @@ export interface InboundSettings {
 
 export interface EmailIntakeInboundOptions {
   emailIntake: Pick<EmailIntake, "candidateAt" | "sendingAddresses">;
+  /** Whether Email intake, the Job discovery source, is switched on (Sources tab of Paramètres), read at each delivery. */
+  switchedOn: () => Promise<boolean>;
   /** The cipher over SECRETS_MASTER_KEYS; null while there is none: nothing is received (503). */
   cipher: () => SecretCipher | null;
   queue: { send(name: string, data: object): Promise<void> };
@@ -128,7 +135,8 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
   const now = options.now ?? (() => new Date());
 
   async function recognisedSenders(client: PoolClient): Promise<RecognisedSender[]> {
-    const { rows } = await client.query<RecognisedSender>(`SELECT match, value, label, aligned FROM recognised_sender`);
+    // The enabled ones: a sender an Administrator disabled is no longer read (#448).
+    const { rows } = await client.query<RecognisedSender>(`SELECT match, value, label, aligned FROM recognised_sender WHERE enabled`);
     return rows;
   }
 
@@ -219,6 +227,8 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
       }
       const emails = readInboundEmails(body);
       if (!emails) return Response.json({ error: "invalid_body" }, { status: 400 });
+      // Switched off: taken (Brevo does not deliver it again) and discarded unread.
+      if (!(await options.switchedOn())) return Response.json({ received: emails.length });
       for (const email of emails) await receive(email, cipher, settings.dailyCap);
       return Response.json({ received: emails.length });
     },

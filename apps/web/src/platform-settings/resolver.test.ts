@@ -8,12 +8,12 @@ const stored = (values: Record<string, string>): StoredPlatformSettings =>
 describe("a Platform Setting's value in use: the Back Office's, else env's, else the code's default", () => {
   it("takes the code's default when neither the Back Office nor env sets it", () => {
     const setting = snapshotOfSettings({}, {}).setting("ANTHROPIC_ENDPOINT");
-    expect(setting).toMatchObject({ value: "auto", source: "default", default: "auto", differsFromDefault: false, valid: true, updatedBy: null });
+    expect(setting).toMatchObject({ value: "direct", source: "default", default: "direct", differsFromDefault: false, valid: true, updatedBy: null });
   });
 
   it("takes env's value over the default, and flags it when it differs from the default", () => {
     const snapshot = snapshotOfSettings({ ANTHROPIC_ENDPOINT: "bedrock", JOB_DIGEST_TARGET_COUNT: "10" }, {});
-    expect(snapshot.setting("ANTHROPIC_ENDPOINT")).toMatchObject({ value: "bedrock", source: "env", default: "auto", differsFromDefault: true });
+    expect(snapshot.setting("ANTHROPIC_ENDPOINT")).toMatchObject({ value: "bedrock", source: "env", default: "direct", differsFromDefault: true });
     // The same as the default: from env, not flagged.
     expect(snapshot.setting("JOB_DIGEST_TARGET_COUNT")).toMatchObject({ value: "10", source: "env", differsFromDefault: false });
   });

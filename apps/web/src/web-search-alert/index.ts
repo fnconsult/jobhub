@@ -13,10 +13,11 @@
  * again: never two alerts the same month.
  */
 import { SEARCH_TASK } from "@jobhub/ai";
-import { createI18n } from "@jobhub/shared/i18n";
+import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import { aiUsageMonths, aiUsagePeriod } from "../ai-usage/index";
 import type { Mailer } from "../auth/index";
+import { renderEmail, type RenderedEmail } from "../emails";
 import { readNumberSetting } from "../platform-settings/catalog";
 import { routes } from "../routes";
 
@@ -121,15 +122,23 @@ export function createWebSearchAlert(options: WebSearchAlertOptions): WebSearchA
   };
 }
 
-/** The email super-admins get, in French (the Jobbbox team's language): the month's spend, its threshold, nothing cut. */
-export function webSearchAlertEmail(alert: { month: string; spendEur: number; thresholdEur: number }, appUrl: string): { subject: string; text: string } {
-  const { t } = createI18n("fr");
-  const eur = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
-  const url = new URL(routes.adminAiUsage(alert.month), appUrl).toString();
-  return {
-    subject: t("webSearchAlert.subject", { month: alert.month }),
-    text: t("webSearchAlert.body", { month: alert.month, spend: eur.format(alert.spendEur), threshold: eur.format(alert.thresholdEur), url }),
-  };
+/** The email super-admins get, in French by default (the Jobbbox team's language): the month's spend, its threshold, nothing cut. */
+export function webSearchAlertEmail(alert: { month: string; spendEur: number; thresholdEur: number }, appUrl: string, language: Locale = "fr"): RenderedEmail {
+  const { t } = createI18n(language);
+  const eur = new Intl.NumberFormat(language, { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
+  const { month } = alert;
+  return renderEmail({
+    language,
+    subject: t("webSearchAlert.subject", { month }),
+    title: t("webSearchAlert.title", { month }),
+    body: [
+      t("webSearchAlert.spend", { month, spend: eur.format(alert.spendEur), threshold: eur.format(alert.thresholdEur) }),
+      t("webSearchAlert.estimate"),
+      { action: { label: t("webSearchAlert.action"), url: new URL(routes.adminAiUsage(month), appUrl).toString() } },
+      t("webSearchAlert.last"),
+    ],
+    footer: { reason: t("emails.reasons.superAdmin") },
+  });
 }
 
 /** The months' spend from AI Usage, and their alerts in `web_search_alert`. */

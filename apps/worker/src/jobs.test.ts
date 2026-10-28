@@ -25,7 +25,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundPayload } from "../../web/src/email-intake/fixtures/brevo-inbound";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -679,6 +679,28 @@ const otherDeps = {
   log: () => {},
 };
 
+describe("the Email intake reading job (#445)", () => {
+  it("reads each Received offer email queued by the inbound route, tried 3 times within 72 hours", async () => {
+    const read: string[] = [];
+    const logs: string[] = [];
+    const job = createJobs({ ...otherDeps, database: noDatabase, log: (line) => logs.push(line), emailReading: { read: async (id) => (read.push(id), { outcome: "offers_found" }) } })[EMAIL_INTAKE_READ];
+
+    expect(EMAIL_INTAKE_READ).toBe("email-intake.read");
+    expect(job?.retry).toEqual({ limit: 2, delaySeconds: 600, backoff: true });
+    await job!.handler({ receivedOfferEmailId: "email-1" });
+    await job!.handler({ nothing: true });
+
+    expect(read).toEqual(["email-1"]);
+    expect(logs).toEqual(["[email-intake] Received offer email email-1 read: offers_found", "[email-intake] ignored a malformed job"]);
+  });
+
+  it("throws what a failed try throws, for the job runner to try again", async () => {
+    const job = createJobs({ ...otherDeps, database: noDatabase, emailReading: { read: async () => Promise.reject(new Error("provider down")) } })[EMAIL_INTAKE_READ];
+
+    await expect(job!.handler({ receivedOfferEmailId: "email-1" })).rejects.toThrow("provider down");
+  });
+});
+
 describe("the Follow-ups job", () => {
   it("proposes, every working morning, the Follow-ups now due", async () => {
     const runs: Date[] = [];
@@ -1070,6 +1092,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const { address } = await emailIntake.switchOn(candidateId);
       const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
       const inbound = createEmailIntakeInbound(database, {
+        switchedOn: async () => true,
         emailIntake,
         cipher: () => cipher,
         queue: { send: async () => {} },

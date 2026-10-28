@@ -1,7 +1,6 @@
 "use client";
 
 import { resolveTextSize } from "@jobhub/shared/design";
-import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -15,10 +14,12 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type ReactElement,
   type ReactNode,
   type RefObject,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { Drawer, DrawerTitle } from "@/design/Drawer";
 import { routes } from "@/routes";
 import { browserOf } from "@/signalements/context";
 import {
@@ -55,7 +56,7 @@ const DRAFT: SignalementStart = { kind: "draft" };
 /**
  * The Signalement's entry point in the Sidebar's foot (#375, ADR-0009 amendment « the Signalement icon »): an icon alone, the bug, to the right of
  * « Mon compte », a 44 px target named « Signalement » with its tooltip on hover and focus. It never moves. It opens the
- * Signalement dialog (Radix, ADR-0018; centred, full screen on phones), and on close the focus comes back to it.
+ * Signalement dialog (a Drawer, #462; full screen on phones), and on close the focus comes back to it.
  * `version`: the Jobbbox version the dialog's detail shows (the server's, as the Signalement keeps it).
  */
 export function SignalementButton({ version }: { version: string }) {
@@ -67,25 +68,26 @@ export function SignalementButton({ version }: { version: string }) {
       open={open}
       onOpenChange={setOpen}
       start={DRAFT}
-    >
-      <Dialog.Trigger
-        className="signalement-open"
-        type="button"
-        aria-label={t("signalement.open")}
-      >
-        <svg
-          className="icon signalement-glyph"
-          viewBox="0 0 24 24"
-          aria-hidden
-          focusable={false}
+      trigger={
+        <button
+          className="signalement-open"
+          type="button"
+          aria-label={t("signalement.open")}
         >
-          <path d={SIGNALEMENT_GLYPHS.bug} />
-        </svg>
-        <span className="signalement-tip" aria-hidden>
-          {t("signalement.open")}
-        </span>
-      </Dialog.Trigger>
-    </SignalementDialog>
+          <svg
+            className="icon signalement-glyph"
+            viewBox="0 0 24 24"
+            aria-hidden
+            focusable={false}
+          >
+            <path d={SIGNALEMENT_GLYPHS.bug} />
+          </svg>
+          <span className="signalement-tip" aria-hidden>
+            {t("signalement.open")}
+          </span>
+        </button>
+      }
+    />
   );
 }
 
@@ -159,8 +161,8 @@ export function useOpenSignalement():
 }
 
 /**
- * The Signalement dialog, open on `start` (see SignalementStart). `children`: its Dialog.Trigger, if it has one (focus
- * then comes back to it on close); without one, `onCloseAutoFocus` says where the focus goes.
+ * The Signalement dialog, a Drawer (#462) open on `start` (see SignalementStart). `trigger`: the button opening it, if it
+ * has one (focus then comes back to it on close); without one, `onCloseAutoFocus` says where the focus goes.
  */
 function SignalementDialog({
   version,
@@ -168,14 +170,14 @@ function SignalementDialog({
   onOpenChange,
   start,
   onCloseAutoFocus,
-  children,
+  trigger,
 }: {
   version: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   start: SignalementStart;
   onCloseAutoFocus?: () => void;
-  children?: ReactNode;
+  trigger?: ReactElement;
 }) {
   const message = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
@@ -188,49 +190,45 @@ function SignalementDialog({
     onOpenChange(next);
   }
   return (
-    <Dialog.Root open={open} onOpenChange={changeOpen}>
-      {children}
-      <Dialog.Portal>
-        <Dialog.Overlay className="scrim" />
-        <Dialog.Content
-          className="dialog signalement-dialog"
-          aria-describedby={undefined}
-          onOpenAutoFocus={(event) => {
-            // Into the message, the type already chosen.
-            event.preventDefault();
-            message.current?.focus();
-          }}
-          onCloseAutoFocus={(event: Event) => {
-            if (sent.current && onMine) {
-              // The empty state's button that opened it gives way to the list: the Section's title takes the focus.
-              event.preventDefault();
-              document.getElementById(MY_SIGNALEMENTS_TITLE_ID)?.focus();
-            } else if (onCloseAutoFocus) {
-              event.preventDefault();
-              onCloseAutoFocus();
-            }
-          }}
-        >
-          {start.kind === "question" ? (
-            <SignalementForm
-              version={version}
-              message={message}
-              question={start}
-              onSent={() => (sent.current = true)}
-              onClose={() => changeOpen(false)}
-            />
-          ) : (
-            <SignalementForm
-              version={version}
-              message={message}
-              type={start.kind === "type" ? start.type : undefined}
-              onSent={() => (sent.current = true)}
-              onClose={() => changeOpen(false)}
-            />
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Drawer
+      open={open}
+      onOpenChange={changeOpen}
+      trigger={trigger}
+      className="signalement-dialog"
+      onOpenAutoFocus={(event) => {
+        // Into the message, the type already chosen.
+        event.preventDefault();
+        message.current?.focus();
+      }}
+      onCloseAutoFocus={(event: Event) => {
+        if (sent.current && onMine) {
+          // The empty state's button that opened it gives way to the list: the Section's title takes the focus.
+          event.preventDefault();
+          document.getElementById(MY_SIGNALEMENTS_TITLE_ID)?.focus();
+        } else if (onCloseAutoFocus) {
+          event.preventDefault();
+          onCloseAutoFocus();
+        }
+      }}
+    >
+      {start.kind === "question" ? (
+        <SignalementForm
+          version={version}
+          message={message}
+          question={start}
+          onSent={() => (sent.current = true)}
+          onClose={() => changeOpen(false)}
+        />
+      ) : (
+        <SignalementForm
+          version={version}
+          message={message}
+          type={start.kind === "type" ? start.type : undefined}
+          onSent={() => (sent.current = true)}
+          onClose={() => changeOpen(false)}
+        />
+      )}
+    </Drawer>
   );
 }
 
@@ -354,12 +352,12 @@ function SignalementForm({
   }
 
   const title = (
-    <Dialog.Title className="dialog-title signalement-title">
+    <DrawerTitle className="dialog-title signalement-title">
       <MorphingGlyph
         d={question ? SIGNALEMENT_GLYPHS.info : signalementGlyph(type)}
       />
       {question ? t("signalement.question.title") : t("signalement.title")}
-    </Dialog.Title>
+    </DrawerTitle>
   );
 
   if (sent)

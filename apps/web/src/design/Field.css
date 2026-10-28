@@ -1,0 +1,178 @@
+@layer base, components;
+
+@layer components {
+  .ds-field {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .ds-field__label {
+    font-weight: 500;
+  }
+
+  /* A hint is metadata (ADR-0009 amendment): the metadata size, in the metadata colour. */
+  .ds-field__hint {
+    margin: 0;
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  /* An error must be read: body size. */
+  .ds-field__error {
+    margin: 0;
+    color: var(--color-danger);
+  }
+
+  /* Text input, select and textarea: one look, the Density's control height. */
+  .ds-input {
+    width: 100%;
+    min-height: var(--size-control);
+    padding: 0 var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body);
+    color: var(--color-text);
+    background: var(--color-background);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+  }
+
+  .ds-input:focus-visible {
+    border-color: var(--color-accent);
+    outline: 3px solid var(--color-accent-soft);
+    outline-offset: 0;
+  }
+
+  .ds-input[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
+
+  .ds-textarea {
+    padding: var(--space-2) var(--space-3);
+    resize: vertical;
+    field-sizing: content;
+    min-height: calc(var(--size-control) * 2);
+  }
+
+  .ds-select {
+    padding-right: var(--space-8);
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--color-secondary) 50%),
+      linear-gradient(135deg, var(--color-secondary) 50%, transparent 50%);
+    background-repeat: no-repeat;
+    background-position:
+      calc(100% - 1rem) 55%,
+      calc(100% - 0.7rem) 55%;
+    background-size: 0.3rem 0.3rem;
+  }
+
+  .ds-choice {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    min-height: var(--size-control);
+    cursor: pointer;
+  }
+
+  .ds-choice > input {
+    width: 1.1em;
+    height: 1.1em;
+    margin: 0;
+    accent-color: var(--color-accent);
+  }
+
+  .ds-switch-row {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .ds-switch {
+    position: relative;
+    flex: none;
+    width: 2.25rem;
+    height: 1.25rem;
+    padding: 0;
+    cursor: pointer;
+    background: var(--color-border-strong);
+    border: 0;
+    border-radius: var(--radius-control);
+    transition: background-color var(--motion-fast) var(--motion-easing);
+  }
+
+  .ds-switch::after {
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 1rem;
+    height: 1rem;
+    content: "";
+    background: var(--color-background);
+    border-radius: 50%;
+    box-shadow: var(--shadow-card);
+    transition: transform var(--motion-fast) var(--motion-easing);
+  }
+
+  .ds-switch[aria-checked="true"] {
+    background: var(--color-accent);
+  }
+
+  .ds-switch[aria-checked="true"]::after {
+    transform: translateX(1rem);
+  }
+
+  .ds-switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .ds-segmented {
+    display: inline-flex;
+    justify-self: start;
+    width: fit-content;
+    padding: 0.1875rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-segmented__option {
+    padding: var(--space-1) var(--space-3);
+    font-weight: 500;
+    color: var(--color-secondary);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-control);
+  }
+
+  .ds-segmented__option[aria-checked="true"] {
+    color: var(--color-text);
+    background: var(--color-background);
+    box-shadow:
+      0 0 0 1px var(--color-border),
+      var(--shadow-card);
+  }
+
+  /* Key, control, source: a setting on one line, the keys in one column. */
+  .ds-kv {
+    display: grid;
+    grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-4);
+    align-items: center;
+  }
+
+  .ds-kv__key {
+    color: var(--color-secondary);
+  }
+
+  @media (width < 40rem) {
+    .ds-kv {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .ds-kv__key {
+      grid-column: 1 / -1;
+    }
+  }
+}

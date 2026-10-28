@@ -1,0 +1,47 @@
+@layer base, components;
+
+@layer components {
+  .ds-empty {
+    padding: var(--space-12) var(--space-6);
+    text-align: center;
+    background:
+      radial-gradient(ellipse at 70% 120%, var(--color-accent-soft), transparent 60%),
+      var(--color-background);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-empty__art {
+    display: block;
+    width: 5.5rem;
+    height: 5.5rem;
+    margin: 0 auto var(--space-4);
+    color: var(--color-accent);
+  }
+
+  .ds-empty__art-badge {
+    fill: var(--color-background);
+  }
+
+  .ds-empty__title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-h3);
+  }
+
+  .ds-empty__text {
+    max-width: 30rem;
+    margin: 0 auto var(--space-6);
+    color: var(--color-secondary);
+  }
+
+  .ds-empty__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+  }
+
+  .ds-empty__help {
+    margin-top: var(--space-4);
+  }
+}

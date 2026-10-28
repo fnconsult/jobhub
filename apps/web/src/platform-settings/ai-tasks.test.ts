@@ -57,8 +57,10 @@ describe("the AI tasks' routes on the IA tab (#402)", () => {
       model: "mistral-small-latest",
       source: { kind: "setting", name: "AI_SCORING_PROVIDER", source: "env" },
       personalData: true,
+      euOnly: false,
       keyMissing: false,
     });
+    expect(routes.find((route) => route.task === "offer_email_reading")).toMatchObject({ personalData: true, euOnly: true });
     // Job titles take the Job Offer analysis' provider: nothing of their own, so the code's default.
     expect(routes.find((route) => route.task === "job_titles")).toMatchObject({ provider: "mistral", source: { source: "default" }, personalData: false });
   });

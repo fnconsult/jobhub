@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { auditStylesheet } from "./index";
+import { auditComponentStylesheet, auditStylesheet } from "./index";
 
 describe("auditStylesheet", () => {
   it("accepts a stylesheet that stays on the ADR-0009 floor", () => {
@@ -69,5 +69,42 @@ describe("auditStylesheet", () => {
       ["literal-colour", ".shadow"],
       ["literal-colour", ".ring"],
     ]);
+  });
+});
+
+describe("auditComponentStylesheet (#462)", () => {
+  it("accepts a component stylesheet that takes every font size and colour from the tokens", () => {
+    const css = `
+      @layer base, components;
+      @layer components {
+        .ds-button { font-size: var(--font-size-meta); color: var(--color-on-accent); background: var(--color-accent); }
+        .ds-toast { color: var(--color-on-inverse); background: var(--color-inverse); }
+        .ds-title { font-size: var(--font-size-h1); }
+        .ds-label { font-size: inherit; color: inherit; }
+      }
+    `;
+    expect(auditComponentStylesheet(css)).toEqual([]);
+  });
+
+  it("flags a font size that is not a token, even at or above the body floor", () => {
+    const css = `@layer components { .a { font-size: 1rem; } .b { font-size: 0.62em; } .c { font-size: calc(var(--font-size-h1) * 2); } .d { font: 500 14px var(--font-sans); } }`;
+    expect(auditComponentStylesheet(css).map((v) => [v.rule, v.selector])).toEqual([
+      ["font-size-token", ".a"],
+      ["font-size-token", ".b"],
+      ["font-size-token", ".c"],
+      ["font-size-token", ".d"],
+    ]);
+  });
+
+  it("flags a literal colour, even in a custom property the component defines", () => {
+    const css = `@layer components { .a { --knob: #fff; } .b { box-shadow: 0 1px 2px rgb(0 0 0 / 20%); } }`;
+    expect(auditComponentStylesheet(css).map((v) => [v.rule, v.selector])).toEqual([
+      ["literal-colour", ".a"],
+      ["literal-colour", ".b"],
+    ]);
+  });
+
+  it("still flags text in a colour the tokens do not audit", () => {
+    expect(auditComponentStylesheet(".a { color: var(--color-border); }").map((v) => v.rule)).toEqual(["text-colour"]);
   });
 });

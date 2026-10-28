@@ -48,7 +48,8 @@ export function contrastRatio(foreground: string, background: string): number {
 
 /**
  * Checks design tokens against ADR-0009 and ADR-0053, in the light and the dark theme: AA contrast for every text
- * colour on every surface, onAccent on the accent at rest and on hover, 3:1 for the graphics; and in each Density,
+ * colour on every surface, onAccent on the accent at rest and on hover and on danger, onInverse on the inverse surface (a
+ * Toast), 3:1 for the graphics; and in each Density,
  * no type size below its body floor nor metadata below its metadata floor (Confort 16 / 13px, Compact 14 / 12.5px),
  * and no text-size setting that takes Confort body text under 16px. Returns an empty list when the tokens comply.
  */
@@ -68,6 +69,9 @@ export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[
     }
     requireContrast("onAccent", "accent", AA_TEXT_CONTRAST);
     requireContrast("onAccent", "accentHover", AA_TEXT_CONTRAST);
+    // A solid danger button's label, and a Toast's text on the inverse surface (#462).
+    requireContrast("onAccent", "danger", AA_TEXT_CONTRAST);
+    requireContrast("onInverse", "inverse", AA_TEXT_CONTRAST);
     for (const graphic of GRAPHICS) requireContrast(graphic, "background", AA_NON_TEXT_CONTRAST);
   }
 

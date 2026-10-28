@@ -1,0 +1,17 @@
+@layer base, components;
+
+@layer components {
+  .ds-ring {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    background:
+      radial-gradient(closest-side, var(--color-background) 78%, transparent 80% 100%),
+      conic-gradient(var(--color-accent) calc(var(--ds-ring-value) * 1%), var(--color-surface) 0);
+    border-radius: 50%;
+  }
+}

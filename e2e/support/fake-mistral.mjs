@@ -184,7 +184,7 @@ globalThis.fetch = async (input, init) => {
     const turns = body.messages.filter((message) => message.role !== "system").length;
     content = shown ? `E2E: system prompt ${shown[1] ?? "#"} in the server log` : said ? saidText(said, system, prompt) : `Réponse de l'assistant (${turns} message${turns > 1 ? "s" : ""})`;
     const asked = body.messages.filter((message) => message.role === "user").at(-1)?.content ?? "";
-    if (!shown && !said && asked.includes("Contexte de l'élément")) content = explanation(asked);
+    if (!shown && !said && asked.includes("Contexte de l'élément")) content = explanation(asked, system);
   }
   if (system.includes("Tu relis une conversation")) {
     const said = [...prompt.matchAll(/^Candidat : (.+)$/gm)].map((match) => match[1].trim());
@@ -199,6 +199,12 @@ globalThis.fetch = async (input, init) => {
       content = stated;
     }
     if (prompt.includes("E2E_ECHO_RULES")) content = JSON.stringify({ summary: system.trim().split("\n").at(-1).trim() });
+  }
+  // Reading a Received offer email (#445): the reply scripted for the email whose marker the text holds, in
+  // E2E_OFFER_EMAIL_REPLIES (JSON: [{ marker, reply }]); « autre » with no offer for any other.
+  if (system.startsWith("Tu lis un email reçu par un candidat")) {
+    const scripted = JSON.parse(process.env.E2E_OFFER_EMAIL_REPLIES ?? "[]").find((each) => prompt.includes(each.marker));
+    content = JSON.stringify(scripted?.reply ?? { kind: "autre", offers: [] });
   }
   if (prompt.includes("<pages>")) content = JSON.stringify(factsInPages(prompt));
   if (system.includes("cabinet de recrutement")) {
@@ -322,10 +328,13 @@ function saidText(said, system, prompt) {
 }
 
 /** What the Back Office Assistant answers an Explainable label's question: the item's label, value and source it was told. */
-function explanation(asked) {
+function explanation(asked, system = "") {
   const field = (name) => new RegExp(`^${name} : (.+)$`, "m").exec(asked)?.[1]?.trim();
   const told = [["valeur", "Valeur"], ["source", "Source"], ["état", "État"]].flatMap(([word, name]) => (field(name) ? [`${word} ${field(name)}`] : []));
-  return `« ${field("Libellé")} »${told.length ? ` : ${told.join(", ")}` : ""}.`;
+  const explained = `« ${field("Libellé")} »${told.length ? ` : ${told.join(", ")}` : ""}.`;
+  // Asked from the Email intake's inbound domain (#448), it also repeats the MX lines of the setup it was told.
+  const mx = field("Libellé") && asked.includes("EMAIL_INTAKE_DOMAIN") ? system.split("\n").filter((line) => /\bMX\b/.test(line)) : [];
+  return mx.length ? `${explained}\n${mx.join("\n")}` : explained;
 }
 
 /** Waits `ms`, or rejects with `signal`'s reason once it aborts, as fetch does. */

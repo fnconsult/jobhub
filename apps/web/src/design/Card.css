@@ -1,0 +1,86 @@
+@layer base, components;
+
+@layer components {
+  .ds-card {
+    padding: var(--space-6);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .ds-card[data-flat] {
+    background: var(--color-surface);
+    box-shadow: none;
+  }
+
+  .ds-card__head {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    margin-bottom: var(--space-3);
+  }
+
+  .ds-card__title {
+    margin: 0;
+    font-size: var(--font-size-h3);
+  }
+
+  .ds-card__actions {
+    margin-left: auto;
+  }
+
+  .ds-stat__label {
+    color: var(--color-secondary);
+  }
+
+  .ds-stat__value {
+    margin: var(--space-1) 0;
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .ds-stat__meta {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  .ds-stat__bar {
+    height: 0.375rem;
+    margin-top: var(--space-3);
+    overflow: hidden;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-stat__bar > span {
+    display: block;
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-stat__trend {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+    margin-top: var(--space-2);
+    color: var(--color-secondary);
+  }
+
+  .ds-stat__trend[data-tone="success"] {
+    color: var(--color-success);
+  }
+
+  .ds-stat__trend[data-tone="danger"] {
+    color: var(--color-danger);
+  }
+
+  .ds-stat__trend > .icon {
+    width: 1em;
+    height: 1em;
+  }
+}

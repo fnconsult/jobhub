@@ -65,6 +65,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Guardrails are up to date");
     expect(first.stdout).toContain("Eval Cases and Eval Runs are up to date");
     expect(first.stdout).toContain("Forwarding addresses are up to date");
+    expect(first.stdout).toContain("The offers of Received offer emails are up to date");
     const again = migrate();
     expect(again.status, again.stderr).toBe(0);
 
@@ -91,6 +92,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "back_office_audit", // issue #203: every change made in the Back Office
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
+        "candidate_recognised_sender", // issue #448: the Recognised senders a Candidate added for themselves (#450), proposed with no name
         "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
         "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
@@ -136,6 +138,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "quota_usage",
         "received_email_activity", // issue #449: Activité › Emails reçus, one row per Received offer email, no Candidate, kept 24 months
         "received_offer_email", // issue #442: each email Email intake took, its outcome and sender's domain; its text encrypted, 72 hours at most
+        "received_offer_email_offer", // issue #445: the offers each Received offer email gave (new, déjà vue, À capturer, too old)
         "recognised_sender", // issue #442: the platform's Recognised senders; no Candidate data
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "sending_address", // issue #441: the sending addresses a Candidate adds for manual forwards
@@ -194,6 +197,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "back_office_audit", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
+        // Email intake (issue #448): the Recognised senders a Candidate added go with them.
+        { from_table: "candidate_recognised_sender", from_column: "candidate_id", to_table: "candidate" },
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
@@ -253,6 +258,11 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Activité › Emails reçus (issue #449), which names no one and outlives them.
         { from_table: "received_offer_email", from_column: "activity_id", to_table: "received_email_activity" },
         { from_table: "received_offer_email", from_column: "candidate_id", to_table: "candidate" },
+        // Email intake (issue #445): the offers an email gave go with it, its Candidate, its Job Offer and the Profile it went to.
+        { from_table: "received_offer_email_offer", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "received_offer_email_offer", from_column: "job_offer_id", to_table: "job_offer" },
+        { from_table: "received_offer_email_offer", from_column: "profile_id", to_table: "profile" },
+        { from_table: "received_offer_email_offer", from_column: "received_offer_email_id", to_table: "received_offer_email" },
         // Email intake (issue #441): the sending addresses go with their Candidate.
         { from_table: "sending_address", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },

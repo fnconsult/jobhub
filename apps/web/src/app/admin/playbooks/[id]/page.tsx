@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EFFORTS } from "@jobhub/ai";
 import { taskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
-import { agentModelValue, effortOf, evalCaseFromForm, evalRunFromForm, playbookVersionFromForm } from "@/admin/playbook-form";
+import { agentModelValue, defaultModelLabel, effortOf, evalCaseFromForm, evalRunFromForm, playbookVersionFromForm } from "@/admin/playbook-form";
 import { getCoachingPlaybooksBackOffice, getEvalCasesBackOffice, requireBackOffice } from "@/admin/server";
 import { getAi } from "@/ai/server";
 import { getCurrentCandidate } from "@/auth/server";
@@ -401,7 +401,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                   <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
                   {models.map((choice) => (
                     <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
-                      <option value={agentModelValue(choice.provider, null)}>{`${choice.provider} · ${t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" })}`}</option>
+                      <option value={agentModelValue(choice.provider, null)}>{`${choice.provider} · ${defaultModelLabel(t, choice)}`}</option>
                       {choice.models.map((each) => (
                         <option key={each.model} value={agentModelValue(choice.provider, each.model)}>
                           {`${choice.provider} · ${each.model}`}

@@ -1,0 +1,63 @@
+@layer base, components;
+
+@layer components {
+  /* A card holding the table; it scrolls sideways on a narrow screen rather than the page. */
+  .ds-table-wrap {
+    overflow-x: auto;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Column headers are metadata: the metadata size, in the metadata colour. */
+  .ds-table th[scope="col"] {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-meta);
+    font-weight: 500;
+    color: var(--color-meta);
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-table td {
+    padding: var(--space-row) var(--space-3);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-table tbody:last-child tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .ds-table [data-numeric] {
+    text-align: right;
+  }
+
+  .ds-table__group th {
+    padding: var(--space-1) var(--space-3);
+    font-weight: 600;
+    color: var(--color-secondary);
+    text-align: left;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-table tr[data-clickable] {
+    cursor: pointer;
+  }
+
+  .ds-table tr[data-clickable]:hover td {
+    background: var(--color-surface);
+  }
+
+  .ds-table tr[data-clickable]:focus-visible {
+    outline-offset: -3px;
+  }
+}

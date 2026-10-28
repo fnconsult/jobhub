@@ -38,8 +38,8 @@ function densityVars(tokens: DesignTokens, density: Density): string[] {
  * whole interface, in both Densities.
  */
 export function renderDesignCss(tokens: DesignTokens): string {
-  const base = tokens.rootFontSize;
-  const rem = (px: number) => `${px / base}rem`;
+  const rootPx = tokens.rootFontSize;
+  const rem = (px: number) => `${px / rootPx}rem`;
   const { duration, easing } = tokens.motion;
 
   const root = rule(":root", [
@@ -56,39 +56,47 @@ export function renderDesignCss(tokens: DesignTokens): string {
   ]);
 
   const textSizes = Object.entries(tokens.textSize).map(([setting, factor]) =>
-    rule(`html[data-text-size="${setting}"]`, [`font-size: ${base * factor}px;`]),
+    rule(`html[data-text-size="${setting}"]`, [`font-size: ${rootPx * factor}px;`]),
   );
+
+  // Element styles, in the lowest layer: a component's class (layer `components`) wins over them, and a page's
+  // unlayered rules (app.css) over both, until each screen migrates (ADR-0053, #462).
+  const base = [
+    rule("body", [
+      "margin: 0;",
+      "background: var(--color-canvas);",
+      "color: var(--color-text);",
+      "font-family: var(--font-sans);",
+      "font-size: var(--font-size-body);",
+      "line-height: var(--line-height-body);",
+    ]),
+    rule("h1, h2, h3", ["line-height: var(--line-height-heading);", "color: var(--color-text);"]),
+    `h1 { font-size: var(--font-size-h1); }\nh2 { font-size: var(--font-size-h2); }\nh3 { font-size: var(--font-size-h3); }`,
+    rule("a", ["color: var(--color-accent);"]),
+    rule(":focus-visible", ["outline: 3px solid var(--color-accent);", "outline-offset: 2px;"]),
+    rule("button, input, select, textarea", ["font: inherit;", "color: inherit;"]),
+    // Inter's tabular figures, so numbers line up in columns and do not jump as they change.
+    rule("table, time, data, .num", ["font-variant-numeric: tabular-nums;"]),
+    // Scrollbars show only while their area scrolls (set by trackScrolling), thin (ADR-0053).
+    rule("*", ["scrollbar-width: thin;", "scrollbar-color: transparent transparent;"]),
+    rule(`.${SCROLLING_CLASS}`, ["scrollbar-color: var(--color-border-strong) transparent;"]),
+    rule("::-webkit-scrollbar", ["width: 8px;", "height: 8px;", "background: transparent;"]),
+    rule("::-webkit-scrollbar-thumb", ["background: transparent;", "border-radius: 999px;"]),
+    rule(`.${SCROLLING_CLASS}::-webkit-scrollbar-thumb`, ["background: var(--color-border-strong);"]),
+  ];
 
   return (
     [
+      // The order of the layers, stated first: every component stylesheet states it again, whichever loads first.
+      "@layer base, components;",
       root,
       rule('[data-theme="dark"]', themeVars(tokens, "dark")),
       ...(Object.keys(tokens.density) as Density[]).map((density) => rule(`[data-density="${density}"]`, densityVars(tokens, density))),
       // An element that sets a Density sets its own text to it; the root's size stays the Text Size's.
       rule("[data-density]:not(:root)", ["font-size: var(--font-size-body);", "line-height: var(--line-height-body);"]),
-      rule("html", [`font-size: ${base}px;`]),
+      rule("html", [`font-size: ${rootPx}px;`]),
       ...textSizes,
-      rule("body", [
-        "margin: 0;",
-        "background: var(--color-canvas);",
-        "color: var(--color-text);",
-        "font-family: var(--font-sans);",
-        "font-size: var(--font-size-body);",
-        "line-height: var(--line-height-body);",
-      ]),
-      rule("h1, h2, h3", ["line-height: var(--line-height-heading);", "color: var(--color-text);"]),
-      `h1 { font-size: var(--font-size-h1); }\nh2 { font-size: var(--font-size-h2); }\nh3 { font-size: var(--font-size-h3); }`,
-      rule("a", ["color: var(--color-accent);"]),
-      rule(":focus-visible", ["outline: 3px solid var(--color-accent);", "outline-offset: 2px;"]),
-      rule("button, input, select, textarea", ["font: inherit;", "color: inherit;"]),
-      // Inter's tabular figures, so numbers line up in columns and do not jump as they change.
-      rule("table, time, data, .num", ["font-variant-numeric: tabular-nums;"]),
-      // Scrollbars show only while their area scrolls (set by trackScrolling), thin (ADR-0053).
-      rule("*", ["scrollbar-width: thin;", "scrollbar-color: transparent transparent;"]),
-      rule(`.${SCROLLING_CLASS}`, ["scrollbar-color: var(--color-border-strong) transparent;"]),
-      rule("::-webkit-scrollbar", ["width: 8px;", "height: 8px;", "background: transparent;"]),
-      rule("::-webkit-scrollbar-thumb", ["background: transparent;", "border-radius: 999px;"]),
-      rule(`.${SCROLLING_CLASS}::-webkit-scrollbar-thumb`, ["background: var(--color-border-strong);"]),
+      `@layer base {\n${base.join("\n\n")}\n}`,
       `@media (prefers-reduced-motion: reduce) {\n${rule(":root", Object.keys(duration).map((name) => `--motion-${name}: 0ms;`))}\n}`,
     ].join("\n\n") + "\n"
   );

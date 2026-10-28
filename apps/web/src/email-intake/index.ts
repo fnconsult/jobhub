@@ -12,6 +12,7 @@
 import { randomBytes } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction } from "../database/pool";
+import { SEEDED_RECOGNISED_SENDERS } from "./recognised-senders";
 
 /** The Candidate's Forwarding address in use, and when it was given to them. */
 export interface ForwardingAddress {
@@ -163,11 +164,13 @@ export interface ExportedEmailIntake {
   forwardingAddresses: { address: string; state: "active" | "replaced" | "off"; activatedAt: Date; endedAt: Date | null }[];
   /** The sending addresses they added, oldest first (their account's is the account's own email). */
   sendingAddresses: { address: string; addedAt: Date }[];
+  /** Their Received offer emails of the last 12 months, newest first: what became of each, its sender's domain and dates; never its text. */
+  receivedOfferEmails: { id: string; outcome: string; senderDomain: string; receivedAt: Date; sentAt: Date | null }[];
 }
 
 /** The Candidate's Email intake for their Data export (ADR-0051). */
 export async function emailIntakeOf(database: Pool, candidateId: string): Promise<ExportedEmailIntake> {
-  const [forwardingAddresses, sendingAddresses] = await Promise.all([
+  const [forwardingAddresses, sendingAddresses, receivedOfferEmails] = await Promise.all([
     database.query<ExportedEmailIntake["forwardingAddresses"][number]>(
       `SELECT address, state, activated_at AS "activatedAt", ended_at AS "endedAt" FROM forwarding_address WHERE candidate_id = $1 ORDER BY activated_at DESC, address`,
       [candidateId],
@@ -176,8 +179,13 @@ export async function emailIntakeOf(database: Pool, candidateId: string): Promis
       `SELECT address, added_at AS "addedAt" FROM sending_address WHERE candidate_id = $1 ORDER BY added_at, address`,
       [candidateId],
     ),
+    database.query<ExportedEmailIntake["receivedOfferEmails"][number]>(
+      `SELECT id, outcome, sender_domain AS "senderDomain", received_at AS "receivedAt", sent_at AS "sentAt"
+       FROM received_offer_email WHERE candidate_id = $1 ORDER BY received_at DESC, id`,
+      [candidateId],
+    ),
   ]);
-  return { forwardingAddresses: forwardingAddresses.rows, sendingAddresses: sendingAddresses.rows };
+  return { forwardingAddresses: forwardingAddresses.rows, sendingAddresses: sendingAddresses.rows, receivedOfferEmails: receivedOfferEmails.rows };
 }
 
 /** Creates or upgrades the Email intake tables. Run after the Candidate table. Safe to run repeatedly. */
@@ -197,5 +205,47 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
       added_at timestamptz NOT NULL,
       PRIMARY KEY (candidate_id, address)
     );
+    -- Received offer emails (#442): the outcome, the sender's domain and the dates; the text encrypted, 72 hours at most.
+    CREATE TABLE IF NOT EXISTS received_offer_email (
+      id text PRIMARY KEY,
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      message_id text NOT NULL,
+      outcome text NOT NULL,
+      sender_domain text NOT NULL,
+      manual_forward boolean NOT NULL DEFAULT false,
+      counts_against_cap boolean NOT NULL DEFAULT false,
+      received_at timestamptz NOT NULL,
+      sent_at timestamptz,
+      text_ciphertext bytea,
+      text_iv bytea,
+      text_tag bytea,
+      text_key_version integer,
+      UNIQUE (candidate_id, message_id)
+    );
+    CREATE INDEX IF NOT EXISTS received_offer_email_received_at ON received_offer_email (received_at);
+    -- The platform's Recognised senders (#437): seeded once, then kept by Administrators.
+    CREATE TABLE IF NOT EXISTS recognised_sender (
+      match text NOT NULL CHECK (match IN ('domain', 'address')),
+      value text PRIMARY KEY,
+      label text NOT NULL,
+      aligned boolean NOT NULL DEFAULT false
+    );
   `);
+  await seedRecognisedSenders(database);
+}
+
+/** Fills the platform's Recognised senders with SEEDED_RECOGNISED_SENDERS while the list is empty: once Administrators keep it, one they removed stays removed. */
+async function seedRecognisedSenders(database: Pool): Promise<void> {
+  await database.query(
+    `INSERT INTO recognised_sender (match, value, label, aligned)
+     SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::boolean[])
+     WHERE NOT EXISTS (SELECT 1 FROM recognised_sender)
+     ON CONFLICT (value) DO NOTHING`,
+    [
+      SEEDED_RECOGNISED_SENDERS.map((sender) => sender.match),
+      SEEDED_RECOGNISED_SENDERS.map((sender) => sender.value),
+      SEEDED_RECOGNISED_SENDERS.map((sender) => sender.label),
+      SEEDED_RECOGNISED_SENDERS.map((sender) => sender.aligned === true),
+    ],
+  );
 }

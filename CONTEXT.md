@@ -602,6 +602,10 @@ _Avoid_: Theme, style guide, UI kit
 How tightly a surface of the Design System is set. Confort on the Candidate's pages, the extension and the emails, with the 16 px body-text floor and the Text Size. Compact in the Back Office, for Administrators, with smaller text and tighter rows. Never chosen by the person. A Density applies to the part of a page that declares it (the Back Office's whole page is Compact), while the Text Size still scales from the page's root.
 _Avoid_: Compact mode, zoom
 
+**Email layout**:
+The one frame every email Jobbbox sends is written in (« Mise en page des emails »): a header (the « J » square and « Jobbbox »), a title, text, Job Offer cards and at most one primary button, the signature, and a footer giving the reason the person got the email, an unsubscribe or settings link where there is one, and the sender address. It follows the Confort Density and carries no image and no web font. The plain-text part and the HTML part say the same thing.
+_Avoid_: Email template, newsletter design
+
 **Design System page**:
 The Back Office page, under Plateforme, that shows every component and colour of the Design System, in both Densities and both themes, as the reference that screens are checked against. Every Back Office Role can read it.
 _Avoid_: Storybook, style guide

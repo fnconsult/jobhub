@@ -59,7 +59,7 @@ import {
   type Plan,
   type Provenance,
 } from "@jobhub/shared";
-import { createI18n, type Locale } from "@jobhub/shared/i18n";
+import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
@@ -69,7 +69,8 @@ import { visibleTo, type JobOffers } from "../job-offers";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
-import { DIGEST_TIME_ZONE, latestSlot } from "./schedule";
+import { jobDigestEmail } from "./email";
+import { latestSlot } from "./schedule";
 
 export { DIGEST_HOUR, DIGEST_TIME_ZONE, latestSlot } from "./schedule";
 
@@ -436,31 +437,28 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     );
     const candidate = rows[0];
     if (!candidate) return;
-    const i18n = createI18n(candidate.interfaceLanguage);
-    const { t } = i18n;
-    const count = digest.results.length;
-    const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: DIGEST_TIME_ZONE });
-    const items = digest.results.slice(0, EMAIL_MAX_RESULTS).map(({ jobOffer, matchScore }) => {
-      const where = [jobOffer.employer, jobOffer.location].filter(Boolean).join(", ");
-      return [
-        `- ${jobOffer.title}${where ? ` (${where})` : ""}`,
-        `  ${t(matchScoreReliability(matchScore) === "partial" ? "jobDigest.email.matchScorePartial" : "jobDigest.email.matchScore", { score: matchScore.score })}`,
-        `  ${jobOffer.postedAt ? t("jobDigest.email.postedAt", { date: day.format(jobOffer.postedAt) }) : t("jobDigest.email.dateUnknown")}`,
-        `  ${new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString()}`,
-      ].join("\n");
-    });
-    const text = [
-      t("jobDigest.email.intro", { count, profile: digest.profile.name }),
-      items.join("\n\n"),
-      t("jobDigest.email.seeDigest", { count, url: new URL(routes.jobDigest(digest.id), deps.baseURL).toString() }),
-      t("jobDigest.email.signature"),
-      "--",
-      t("jobDigest.email.unsubscribe", { url: unsubscribePageURL(deps.baseURL, token, i18n.language as Locale) }),
-    ].join("\n\n");
+    const language: Locale = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
+    const email = jobDigestEmail(
+      {
+        profileName: digest.profile.name,
+        count: digest.results.length,
+        offers: digest.results.slice(0, EMAIL_MAX_RESULTS).map(({ jobOffer, matchScore }) => ({
+          title: jobOffer.title,
+          employer: jobOffer.employer,
+          location: jobOffer.location,
+          postedAt: jobOffer.postedAt,
+          score: matchScore.score,
+          partial: matchScoreReliability(matchScore) === "partial",
+          url: new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString(),
+        })),
+        digestUrl: new URL(routes.jobDigest(digest.id), deps.baseURL).toString(),
+        unsubscribeUrl: unsubscribePageURL(deps.baseURL, token, language),
+      },
+      language,
+    );
     await deps.mailer.send({
       to: candidate.email,
-      subject: t("jobDigest.email.subject", { count, profile: digest.profile.name }),
-      text,
+      ...email,
       headers: {
         "List-Unsubscribe": `<${oneClickUnsubscribeURL(deps.baseURL, token)}>`,
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

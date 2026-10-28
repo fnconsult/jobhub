@@ -20,6 +20,8 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer, DrawerTitle } from "@/design/Drawer";
+import { buttonClass } from "@/design/Button";
+import { SegmentedControl, Textarea } from "@/design/Field";
 import { routes } from "@/routes";
 import { browserOf } from "@/signalements/context";
 import {
@@ -372,7 +374,7 @@ function SignalementForm({
         </div>
         <div className="actions signalement-actions">
           <Link
-            className="button"
+            className={buttonClass()}
             href={routes.accountSignalements}
             onClick={seeMine}
           >
@@ -380,7 +382,7 @@ function SignalementForm({
           </Link>
           <button
             ref={closeButton}
-            className="button button-primary"
+            className={buttonClass({ variant: "primary" })}
             type="button"
             onClick={onClose}
           >
@@ -407,23 +409,13 @@ function SignalementForm({
     <form className="signalement-form" noValidate onSubmit={submit}>
       {title}
       {question ? null : (
-        <fieldset className="signalement-types">
-          <legend className="visually-hidden">
-            {t("signalement.typeLegend")}
-          </legend>
-          {DRAFT_TYPES.map((option) => (
-            <label key={option} className="signalement-type">
-              <input
-                type="radio"
-                name={`${id}-type`}
-                value={option}
-                checked={type === option}
-                onChange={() => changeType(option)}
-              />
-              {t(`signalement.types.${option}`)}
-            </label>
-          ))}
-        </fieldset>
+        // Bug / Idée: the Design System's segmented control (#464), one Tab stop, the arrow keys switching.
+        <SegmentedControl
+          label={t("signalement.typeLegend")}
+          options={DRAFT_TYPES.map((option) => ({ value: option, label: t(`signalement.types.${option}`) }))}
+          value={type}
+          onValueChange={changeType}
+        />
       )}
       <div className="field">
         <label htmlFor={`${id}-message`}>
@@ -431,10 +423,9 @@ function SignalementForm({
             ? t("signalement.question.label")
             : t(`signalement.label.${type}`)}
         </label>
-        <textarea
+        <Textarea
           ref={message}
           id={`${id}-message`}
-          className="input"
           rows={6}
           value={text}
           maxLength={MESSAGE_MAX_LENGTH}
@@ -517,11 +508,11 @@ function SignalementForm({
         </p>
       ) : null}
       <div className="actions signalement-actions">
-        <button className="button" type="button" onClick={onClose}>
+        <button className={buttonClass()} type="button" onClick={onClose}>
           {t("signalement.cancel")}
         </button>
         <button
-          className="button button-primary"
+          className={buttonClass({ variant: "primary" })}
           type="submit"
           disabled={working}
         >

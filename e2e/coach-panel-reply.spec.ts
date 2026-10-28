@@ -39,6 +39,37 @@ test.describe("Coach Panel replies", () => {
     expect(shown).not.toMatch(/\b(tu|ton|ta|tes)\b/i);
   });
 
+  test("a reply is unframed text after its Activity glyph; the Candidate's own words are an accent bubble (#464)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("coach-glyph"));
+    await openCoachAndAsk(page, "E2E_COACH_MARKDOWN Quel est le poste que je vise ?");
+
+    const answer = coachPanel(page).getByRole("listitem").filter({ hasText: "Directrice des opérations" });
+    const glyph = answer.locator(":scope > svg.activity-glyph");
+    await expect(glyph).toBeVisible();
+    await expect(glyph).toHaveAttribute("aria-hidden", "true");
+    // The glyph first, the reply's words beside it, on its right.
+    const glyphBox = (await glyph.boundingBox())!;
+    const textBox = (await answer.locator("strong", { hasText: "Directrice des opérations" }).boundingBox())!;
+    expect(glyphBox.x + glyphBox.width).toBeLessThanOrEqual(textBox.x);
+    // Unframed: no border, no fill of its own.
+    const frame = await answer.evaluate((li) => {
+      const style = getComputedStyle(li);
+      return { border: style.borderTopWidth, background: style.backgroundColor };
+    });
+    expect(frame).toEqual({ border: "0px", background: "rgba(0, 0, 0, 0)" });
+
+    const mine = coachPanel(page).getByRole("listitem").filter({ hasText: "Quel est le poste que je vise ?" });
+    const accent = await page.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--color-accent)";
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    });
+    await expect(mine).toHaveCSS("background-color", accent);
+  });
+
   test("the panel scrolls to the latest answer", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await signInWithMagicLink(page, newAddress("coach-scroll"));

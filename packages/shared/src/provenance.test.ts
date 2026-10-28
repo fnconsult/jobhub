@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { byRules, joinProvenance, readProvenance, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
+import { byRules, joinProvenance, readProvenance, replyActivity, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
 
 const aiStep: ProvenanceStep = {
   kind: "ai",
@@ -212,5 +212,17 @@ describe("content made by Jobbbox's rules alone, no AI (#336)", () => {
 
     expect(value).toEqual(["fix"]);
     expect(provenance).toMatchObject({ steps: [{ kind: "rules", rule: "ats_fixes", ms: 12, at: "2026-10-24T09:00:00.000Z" }], wallMs: 12 });
+  });
+});
+
+describe("the Activity glyph beside a reply (#464)", () => {
+  it("is its last step's: what the reply did last", () => {
+    expect(replyActivity(provenance)).toBe("compute");
+    expect(replyActivity({ ...provenance, steps: [toolStep, aiStep] })).toBe("write");
+  });
+
+  it("is « think, then write » when its Provenance was not kept, or holds no step", () => {
+    expect(replyActivity(null)).toBe("think_write");
+    expect(replyActivity({ ...provenance, steps: [] })).toBe("think_write");
   });
 });

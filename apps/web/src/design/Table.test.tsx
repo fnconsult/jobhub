@@ -25,7 +25,7 @@ const groups = [
 ];
 
 /** Spaces as a reader hears them: Intl writes narrow and non-breaking ones. */
-const plain = (text: string | null) => (text ?? "").replace(/[  ]/g, " ");
+const plain = (text: string | null) => (text ?? "").replace(/[\u202f\u00a0]/g, " ");
 
 describe("Amount (#462)", () => {
   it("writes euros the French way, the cents apart so they can be raised", () => {

@@ -2832,7 +2832,6 @@
     "add": "Ajouter un entretien",
     "addDialog": {
       "title": "Ajouter un entretien",
-      "close": "Fermer",
       "application": "Candidature",
       "chooseApplication": "Choisissez une candidature",
       "none": "Aucune candidature en cours. Enregistrez d’abord une offre pour y noter un entretien.",
@@ -3027,8 +3026,7 @@
     "criteria": "Critères",
     "editCriteria": "Modifier les critères",
     "criteriaDialog": {
-      "title": "Critères de recherche · {{profile}}",
-      "close": "Fermer"
+      "title": "Critères de recherche · {{profile}}"
     },
     "remoteWork": "Télétravail : {{option}}",
     "sectorsWanted": "Secteur : {{sectors}}",
@@ -3481,7 +3479,6 @@
     "edit": "Modifier la date",
     "editFor": "Modifier la date de la séance avec {{name}}",
     "title": "Séance avec {{name}}",
-    "close": "Fermer",
     "date": "Date et heure de la séance (heure de Paris)",
     "duration": "Durée en minutes (facultatif)",
     "videoLink": "Lien de la visio (facultatif)",

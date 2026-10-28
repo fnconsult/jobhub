@@ -2832,7 +2832,6 @@
     "add": "Add an interview",
     "addDialog": {
       "title": "Add an interview",
-      "close": "Close",
       "application": "Application",
       "chooseApplication": "Choose an application",
       "none": "No ongoing applications. Save a job offer first to record an interview for it.",
@@ -3027,8 +3026,7 @@
     "criteria": "Criteria",
     "editCriteria": "Change the criteria",
     "criteriaDialog": {
-      "title": "Search criteria · {{profile}}",
-      "close": "Close"
+      "title": "Search criteria · {{profile}}"
     },
     "remoteWork": "Remote work: {{option}}",
     "sectorsWanted": "Sector: {{sectors}}",
@@ -3481,7 +3479,6 @@
     "edit": "Change the date",
     "editFor": "Change the date of the session with {{name}}",
     "title": "Session with {{name}}",
-    "close": "Close",
     "date": "Session date and time (Paris time)",
     "duration": "Duration in minutes (optional)",
     "videoLink": "Video call link (optional)",

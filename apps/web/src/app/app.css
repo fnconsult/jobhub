@@ -2243,6 +2243,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   stroke-linecap: butt;
 }
 
+/* The Signalement's Drawer (#462) draws its own head: its own padding, and it scrolls. */
+.signalement-dialog {
+  gap: var(--space-4);
+  padding: calc(var(--space-6) + env(safe-area-inset-top, 0px)) var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+
 @media (width >= 40rem) {
   .signalement-dialog {
     width: min(34rem, calc(100vw - 2 * var(--space-4)));

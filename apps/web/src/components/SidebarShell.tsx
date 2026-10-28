@@ -1,6 +1,5 @@
 "use client";
 
-import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -9,6 +8,7 @@ import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
 import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
+import { Drawer, DrawerTitle } from "@/design/Drawer";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
 
 /** At and above this width the sidebar sits beside the page; below it, it is a drawer. */
@@ -166,10 +166,10 @@ export function SidebarShell({
           {brand.label}
         </Link>
         {inDrawer ? (
-          <Dialog.Close className="button button-quiet">
+          <button className="button button-quiet" type="button" onClick={() => setDrawerPath(null)}>
             <Icons.close />
             {t("sidebar.close")}
-          </Dialog.Close>
+          </button>
         ) : null}
       </div>
       {showSections && !inDrawer ? (
@@ -227,34 +227,31 @@ export function SidebarShell({
           <div id={`${id}-sidebar`} className="sidebar sidebar-docked">
             {content(false)}
           </div>
-          <Dialog.Root open={drawerOpen} onOpenChange={(open) => setDrawerPath(open ? pathname : null)}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="scrim" />
-              <Dialog.Content
-                className="sidebar sidebar-drawer"
-                aria-describedby={undefined}
-                onOpenAutoFocus={(event) => {
-                  // Focus starts on the current page's link, where the person is.
-                  const here = (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(`.sidebar-link[aria-current="${CURRENT}"]`);
-                  if (here) {
-                    event.preventDefault();
-                    here.focus();
-                  }
-                }}
-                onEscapeKeyDown={(event) => {
-                  // Escape closes what is open in the drawer first (the Usage Meter's card), the drawer after.
-                  if (event.target instanceof Element && event.target.closest(CLOSES_ON_ESCAPE)) event.preventDefault();
-                }}
-                onCloseAutoFocus={(event) => {
-                  event.preventDefault();
-                  menuButton.current?.focus();
-                }}
-              >
-                <Dialog.Title className="visually-hidden">{t("sidebar.menu")}</Dialog.Title>
-                {content(true)}
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+          <Drawer
+            open={drawerOpen}
+            onOpenChange={(open) => setDrawerPath(open ? pathname : null)}
+            side="left"
+            className="sidebar sidebar-drawer"
+            onOpenAutoFocus={(event) => {
+              // Focus starts on the current page's link, where the person is.
+              const here = (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(`.sidebar-link[aria-current="${CURRENT}"]`);
+              if (here) {
+                event.preventDefault();
+                here.focus();
+              }
+            }}
+            onEscapeKeyDown={(event) => {
+              // Escape closes what is open in the drawer first (the Usage Meter's card), the drawer after.
+              if (event.target instanceof Element && event.target.closest(CLOSES_ON_ESCAPE)) event.preventDefault();
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              menuButton.current?.focus();
+            }}
+          >
+            <DrawerTitle className="visually-hidden">{t("sidebar.menu")}</DrawerTitle>
+            {content(true)}
+          </Drawer>
           {/*
             While the drawer is open the page behind is inert and hidden. Radix's
             modal hides everything else with aria-hidden, but it spares live regions

@@ -3824,6 +3824,43 @@
     "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
     "searchThisProfile": "Chercher pour ce profil seul"
   },
+  "receivedByEmail": {
+    "title": "Reçues par email",
+    "fresh_one": "{{count}} nouvelle cette semaine",
+    "fresh_other": "{{count}} nouvelles cette semaine",
+    "intro_one": "{{count}} offre tirée de vos emails d'offres pour ce profil, la plus récente en premier.",
+    "intro_other": "{{count}} offres tirées de vos emails d'offres pour ce profil, les plus récentes en premier.",
+    "none": "Aucune offre reçue par email pour ce profil pour l'instant.",
+    "off": "Recevez aussi ici les offres de vos alertes d'emploi et des messages de recruteurs, en les transférant à Jobbbox.",
+    "setUp": "Configurer le transfert pas à pas",
+    "listLabel": "Offres reçues par email pour « {{profile}} »",
+    "receivedFrom": "Reçue le {{date}} de {{domain}}",
+    "unclassified": {
+      "title": "Non classées",
+      "intro": "Offres reçues par email qu'aucun de vos profils ne rejoint assez (correspondance sous 60), la plus récente en premier.",
+      "none": "Aucune offre non classée.",
+      "listLabel": "Offres reçues par email non classées",
+      "bestScore": "Meilleure correspondance : {{score}} sur 100"
+    },
+    "ignored": {
+      "title_one": "{{count}} mail ignoré cette semaine",
+      "title_other": "{{count}} mails ignorés cette semaine",
+      "intro": "Ces emails n'ont donné aucune offre. Seuls leur raison, le domaine de l'expéditeur et la date sont gardés, jamais leur contenu.",
+      "listLabel": "Mails ignorés cette semaine",
+      "item": "{{reason}} : {{domain}}, le {{date}}",
+      "reasons": {
+        "other": "Autre",
+        "unrecognised_sender": "Expéditeur non reconnu",
+        "guardrail": "Écarté par un garde-fou",
+        "failed": "Échec"
+      }
+    },
+    "tooBroad": {
+      "title": "Filtre trop large",
+      "text": "{{count}} emails sont arrivés à votre adresse de transfert le {{date}}. Votre filtre transfère sans doute plus que vos alertes d'offres : resserrez-le.",
+      "link": "Revoir le transfert pas à pas"
+    }
+  },
   "failureReasons": {
     "provider_unavailable": "Fournisseur indisponible",
     "provider_rejected": "Appel refusé par le fournisseur",

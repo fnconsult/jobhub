@@ -3824,6 +3824,43 @@
     "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
     "searchThisProfile": "Search for this profile alone"
   },
+  "receivedByEmail": {
+    "title": "Received by email",
+    "fresh_one": "{{count}} new this week",
+    "fresh_other": "{{count}} new this week",
+    "intro_one": "{{count}} offer taken from your offer emails for this profile, newest first.",
+    "intro_other": "{{count}} offers taken from your offer emails for this profile, newest first.",
+    "none": "No offer received by email for this profile yet.",
+    "off": "Get the offers of your job alerts and recruiters' messages here too, by forwarding them to Jobbbox.",
+    "setUp": "Set up forwarding step by step",
+    "listLabel": "Offers received by email for “{{profile}}”",
+    "receivedFrom": "Received on {{date}} from {{domain}}",
+    "unclassified": {
+      "title": "Unclassified",
+      "intro": "Offers received by email that none of your profiles matches closely enough (match under 60), newest first.",
+      "none": "No unclassified offer.",
+      "listLabel": "Unclassified offers received by email",
+      "bestScore": "Best match: {{score}} out of 100"
+    },
+    "ignored": {
+      "title_one": "{{count}} email ignored this week",
+      "title_other": "{{count}} emails ignored this week",
+      "intro": "These emails gave no offer. Only their reason, the sender's domain and the date are kept, never their content.",
+      "listLabel": "Emails ignored this week",
+      "item": "{{reason}}: {{domain}}, on {{date}}",
+      "reasons": {
+        "other": "Other",
+        "unrecognised_sender": "Unrecognised sender",
+        "guardrail": "Set aside by a guardrail",
+        "failed": "Failed"
+      }
+    },
+    "tooBroad": {
+      "title": "Filter too broad",
+      "text": "{{count}} emails reached your forwarding address on {{date}}. Your filter probably forwards more than your job alerts: narrow it down.",
+      "link": "Review forwarding step by step"
+    }
+  },
   "failureReasons": {
     "provider_unavailable": "Provider unavailable",
     "provider_rejected": "Call rejected by the provider",

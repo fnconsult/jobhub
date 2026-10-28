@@ -94,7 +94,8 @@ function contractTypeOf(words: string | undefined): ContractType | undefined {
 
 /** A Job Offer's fields from what the email says of an offer: its text is those words, one per line. */
 function detailsOf(offer: EmailOffer): JobOfferDetails {
-  const by = [offer.employer, offer.intermediary && !offer.employer ? offer.intermediary : undefined].filter(Boolean).join("");
+  // Who publishes it: the employer, else the firm recruiting for a client it does not name.
+  const by = offer.employer ?? offer.intermediary;
   const lines = [
     offer.title,
     [by, offer.location].filter(Boolean).join(" – "),

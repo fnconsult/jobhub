@@ -123,7 +123,11 @@
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",
-    "body": "Bonjour,\n\nCliquez sur ce lien pour vous connecter à Jobbbox :\n{{url}}\n\nCe lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.\nSi vous n'avez pas demandé à vous connecter, ignorez simplement ce message.\n\nL'équipe Jobbbox"
+    "title": "Connectez-vous à Jobbbox",
+    "action": "Me connecter à Jobbbox",
+    "validity": "Ce lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.",
+    "ignore": "Si vous n'avez pas demandé à vous connecter, ignorez simplement ce message.",
+    "reason": "Vous recevez cet e-mail parce qu'un lien de connexion à Jobbbox a été demandé pour cette adresse."
   },
   "nav": {
     "signIn": "Se connecter",

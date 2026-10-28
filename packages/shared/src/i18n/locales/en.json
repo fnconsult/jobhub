@@ -123,7 +123,11 @@
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",
-    "body": "Hello,\n\nClick this link to sign in to Jobbbox:\n{{url}}\n\nThis link is valid for {{minutes}} minutes and works only once.\nIf you did not ask to sign in, simply ignore this message.\n\nThe Jobbbox team"
+    "title": "Sign in to Jobbbox",
+    "action": "Sign in to Jobbbox",
+    "validity": "This link is valid for {{minutes}} minutes and works only once.",
+    "ignore": "If you did not ask to sign in, simply ignore this message.",
+    "reason": "You receive this email because a sign-in link to Jobbbox was asked for this address."
   },
   "nav": {
     "signIn": "Sign in",

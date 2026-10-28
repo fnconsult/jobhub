@@ -2,7 +2,7 @@ import { JOB_DISCOVERY_SOURCES, type JobDiscoverySource } from "@jobhub/shared";
 import Link from "next/link";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { ExplainableLabel } from "@/components/ExplainableLabel";
-import { providerSheetHref, type PossibleProvider } from "@/platform-settings/parametres";
+import { EMAIL_INTAKE_TOOL, providerSheetHref, type PossibleProvider } from "@/platform-settings/parametres";
 import { setJobDiscoverySource, testSecret } from "./actions";
 import { Here, ScrollFrame, type Ctx } from "./context";
 import { KeyCell } from "./ProvidersSection";
@@ -16,6 +16,7 @@ const SOURCE_TOOLS: Record<Exclude<JobDiscoverySource, "web_search">, readonly s
   france_travail: ["france-travail"],
   fantastic_jobs: ["fantastic-jobs"],
   ats_apis: ["greenhouse", "lever", "ashby"],
+  email_intake: [EMAIL_INTAKE_TOOL],
 };
 
 /** Why a source is unavailable, or null: switched off here first, then its providers' state, as Outils says it. */

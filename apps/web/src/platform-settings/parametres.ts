@@ -118,11 +118,20 @@ export function providerSheetHref(tool: Tool): string | undefined {
 /** The prices of `tool`'s billed units (#403), on its sheet; none for a Tool billed otherwise. */
 export const pricesOfTool = (tool: Tool): readonly string[] => PRICE_SETTINGS.filter((price) => price.provider === tool.id).map((price) => price.name);
 
-/** A setting's row on the tab that shows it: a Tool's price on its sheet, Environnement for one only env holds. */
+/**
+ * The settings changed on `tool`'s sheet rather than on its tab: Email intake's (#448), on the sheet of Brevo Inbound,
+ * its Tool, beside its key and its Recognised senders. None for another Tool.
+ */
+export const sheetSettingsOf = (tool: Tool): readonly string[] => (tool.id === EMAIL_INTAKE_TOOL ? namesOf(["email_intake"]) : []);
+
+/** Email intake's Tool (#442, #448): Brevo Inbound Parsing, whose sheet is the Email intake sheet. */
+export const EMAIL_INTAKE_TOOL = "brevo-inbound";
+
+/** A setting's row on the tab that shows it: a Tool's price or own setting on its sheet, Environnement for one only env holds. */
 export function settingHref(name: string): string {
-  const pricedTool = (TOOLS as readonly Tool[]).find((tool) => pricesOfTool(tool).includes(name));
-  const sheet = pricedTool ? tabOfTool(pricedTool) : undefined;
-  if (pricedTool && sheet) return parametresHref(sheet.id, { fournisseur: pricedTool.id }, `setting-${name}`);
+  const sheetTool = (TOOLS as readonly Tool[]).find((tool) => pricesOfTool(tool).includes(name) || sheetSettingsOf(tool).includes(name));
+  const sheet = sheetTool ? tabOfTool(sheetTool) : undefined;
+  if (sheetTool && sheet) return parametresHref(sheet.id, { fournisseur: sheetTool.id }, `setting-${name}`);
   const tab = PARAMETRES_TABS.find((candidate) => candidate.settings.includes(name) && !(name in ENV_ONLY_SETTINGS))?.id ?? "environment";
   return parametresHref(tab, {}, `setting-${name}`);
 }

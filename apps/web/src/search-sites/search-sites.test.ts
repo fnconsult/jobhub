@@ -81,11 +81,19 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
 
     it("can be disabled and enabled again; an unknown source is refused", async () => {
       expect(await sites.setJobDiscoverySourceEnabled("france_travail", false)).toEqual({ source: "france_travail", wasEnabled: true });
-      expect(await sites.jobDiscoverySources()).toEqual({ france_travail: false, fantastic_jobs: true, web_search: true, ats_apis: true });
+      expect(await sites.jobDiscoverySources()).toEqual({ france_travail: false, fantastic_jobs: true, web_search: true, ats_apis: true, email_intake: true });
 
       expect(await sites.setJobDiscoverySourceEnabled("france_travail", true)).toEqual({ source: "france_travail", wasEnabled: false });
       expect((await sites.jobDiscoverySources()).france_travail).toBe(true);
       expect(await sites.setJobDiscoverySourceEnabled("monster", false)).toBeNull();
+    });
+
+    it("include Email intake (#448), on to start with, switched off and on like the others", async () => {
+      expect((await sites.jobDiscoverySources()).email_intake).toBe(true);
+
+      expect(await sites.setJobDiscoverySourceEnabled("email_intake", false)).toEqual({ source: "email_intake", wasEnabled: true });
+      expect((await sites.jobDiscoverySettings()).sources.email_intake).toBe(false);
+      expect(await sites.setJobDiscoverySourceEnabled("email_intake", true)).toEqual({ source: "email_intake", wasEnabled: false });
     });
   });
 
@@ -160,7 +168,7 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     expect(jobSites).toHaveLength(BUILT_IN_JOB_SITES.length + 1);
     expect(jobSites.find((site) => site.pattern === "https://*.linkedin.com/*")?.enabled).toBe(false);
     expect(await sites.jobDiscoverySettings()).toEqual({
-      sources: { france_travail: true, fantastic_jobs: true, web_search: false, ats_apis: true },
+      sources: { france_travail: true, fantastic_jobs: true, web_search: false, ats_apis: true, email_intake: true },
       sites: [{ domain: "apec.fr", enabled: true }],
     });
   });
@@ -179,7 +187,7 @@ describe.skipIf(!connectionString)("Search sites (needs Postgres: DATABASE_URL)"
     await migrateSearchSites(database);
 
     expect(await sites.setJobDiscoverySourceEnabled("fantastic_jobs", false)).toEqual({ source: "fantastic_jobs", wasEnabled: true });
-    expect(await sites.jobDiscoverySources()).toEqual({ france_travail: false, fantastic_jobs: false, web_search: true, ats_apis: true });
+    expect(await sites.jobDiscoverySources()).toEqual({ france_travail: false, fantastic_jobs: false, web_search: true, ats_apis: true, email_intake: true });
   });
 
   it("a site the extension no longer builds in becomes an added one, keeping its state, so it can be removed", async () => {

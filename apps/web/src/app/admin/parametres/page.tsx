@@ -1,5 +1,5 @@
 import { modelSettingProviders, type AgentModelChoice, type ProviderId } from "@jobhub/ai";
-import { isFailureReason } from "@jobhub/shared";
+import { DEFAULT_JOB_DISCOVERY_SETTINGS, isFailureReason } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -59,7 +59,7 @@ const CURRENT = "page";
 const WEB_SEARCH_TAB = parametresTab("recherche-web");
 
 /** Every source on, as Job discovery reads them when the Back Office cannot be. */
-const ALL_SOURCES = { france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true } as const;
+const ALL_SOURCES = DEFAULT_JOB_DISCOVERY_SETTINGS.sources;
 
 /** The models each configured provider offers a Playbook Agent and a task Playbook's searches; none when the AI layer cannot be built. */
 function modelChoices(): ModelChoices {

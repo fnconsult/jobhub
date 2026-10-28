@@ -1337,7 +1337,8 @@
           "france_travail": "API France Travail",
           "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
-          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)"
+          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)",
+          "email_intake": "Réception par email (Brevo Inbound)"
         },
         "awaitingAccess": "En attente d'accès",
         "accessRefused": "Indisponible : accès refusé par France Travail (API Offres d'emploi). Les recherches d'offres continuent sans elle."
@@ -1467,6 +1468,7 @@
       "groups": {
         "ai_routing": "Routage de l'IA",
         "email": "E-mail",
+        "email_intake": "Réception par email",
         "job_digest": "Job Digest",
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",

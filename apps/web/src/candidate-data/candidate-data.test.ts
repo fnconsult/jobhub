@@ -886,6 +886,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => now });
     const { address } = await emailIntake.switchOn(candidateId);
     const inbound = createEmailIntakeInbound(database, {
+      switchedOn: async () => true,
       emailIntake,
       cipher: () => createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]])),
       queue: { send: async () => {} },

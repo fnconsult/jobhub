@@ -21,6 +21,7 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
   let sent: { name: string; data: object }[];
   let settings: InboundSettings;
   let inbound: EmailIntakeInbound;
+  let switchedOn: boolean;
 
   function post(body: unknown, headers: Record<string, string> = {}): Promise<Response> {
     return inbound.handle(
@@ -46,8 +47,10 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
     cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
     sent = [];
     settings = { secret: SECRET, brevoIpRanges: ["1.179.112.0/20", "172.246.240.0/20"], dailyCap: 3 };
+    switchedOn = true;
     inbound = createEmailIntakeInbound(database, {
       emailIntake,
+      switchedOn: async () => switchedOn,
       cipher: () => cipher,
       queue: { send: async (name, data) => void sent.push({ name, data }) },
       settings: () => settings,
@@ -96,6 +99,21 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
   });
 
   describe("what it keeps of them", () => {
+    it("discards every email unread while Email intake is switched off on the Sources tab (#448): no row, nothing queued", async () => {
+      switchedOn = false;
+
+      const response = await post(inboundPayload(alertEmail(address), alertEmail(address, { messageId: "<other@cadremploi.fr>" })));
+
+      expect(response.status).toBe(200);
+      expect(await received()).toEqual([]);
+      expect(sent).toEqual([]);
+
+      // Switched on again: the next email is received as before.
+      switchedOn = true;
+      expect((await post(inboundPayload(alertEmail(address)))).status).toBe(200);
+      expect(await received()).toHaveLength(1);
+    });
+
     it("stores a Recognised sender's email, its text encrypted, and queues it for reading", async () => {
       const response = await post(inboundPayload(alertEmail(address)));
 
@@ -154,7 +172,7 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
     });
 
     it("fails with 503 while no master key can encrypt the text, so Brevo delivers again", async () => {
-      inbound = createEmailIntakeInbound(database, { emailIntake, cipher: () => null, queue: { send: async () => {} }, settings: () => settings, now: () => now });
+      inbound = createEmailIntakeInbound(database, { emailIntake, switchedOn: async () => true, cipher: () => null, queue: { send: async () => {} }, settings: () => settings, now: () => now });
 
       expect((await post(inboundPayload(alertEmail(address)))).status).toBe(503);
       expect(await received()).toEqual([]);
@@ -162,6 +180,7 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
 
     it("keeps nothing when the email cannot be queued: it fails, so Brevo delivers it again", async () => {
       inbound = createEmailIntakeInbound(database, {
+        switchedOn: async () => true,
         emailIntake,
         cipher: () => cipher,
         queue: { send: async () => Promise.reject(new Error("queue down")) },

@@ -2,11 +2,12 @@
  * Email intake's door (#442, ADR-0050, ADR-0051): the emails Brevo Inbound Parsing posts to
  * `POST /api/email-intake/inbound`, each one a Received offer email of the Candidate whose Forwarding address it reached.
  *
- *   const inbound = createEmailIntakeInbound(database, { emailIntake, cipher, queue, settings });
+ *   const inbound = createEmailIntakeInbound(database, { emailIntake, switchedOn, cipher, queue, settings });
  *   return inbound.handle(request); // the route's whole work
  *
  * A delivery is taken only with Brevo's shared secret (BREVO_INBOUND_SECRET: header `x-inbound-secret`, or a bearer
- * token; else 401) and from Brevo's IP ranges when some are set (else 403). Each email then:
+ * token; else 401) and from Brevo's IP ranges when some are set (else 403). While Email intake is switched off on the
+ * Sources tab of Paramètres (#448), every email is discarded unread: no row, nothing queued. Else each email:
  *  - to no Forwarding address in use (unknown, replaced or switched off): discarded unread, no row;
  *  - from a sender Email intake does not read (recognised-senders.ts): a row « expéditeur non reconnu », no text;
  *  - past the Candidate's daily cap (Paris day): a row « plafond atteint », no text, nothing queued;
@@ -55,6 +56,8 @@ export interface InboundSettings {
 
 export interface EmailIntakeInboundOptions {
   emailIntake: Pick<EmailIntake, "candidateAt" | "sendingAddresses">;
+  /** Whether Email intake, the Job discovery source, is switched on (Sources tab of Paramètres), read at each delivery. */
+  switchedOn: () => Promise<boolean>;
   /** The cipher over SECRETS_MASTER_KEYS; null while there is none: nothing is received (503). */
   cipher: () => SecretCipher | null;
   queue: { send(name: string, data: object): Promise<void> };
@@ -207,6 +210,8 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
       }
       const emails = readInboundEmails(body);
       if (!emails) return Response.json({ error: "invalid_body" }, { status: 400 });
+      // Switched off: taken (Brevo does not deliver it again) and discarded unread.
+      if (!(await options.switchedOn())) return Response.json({ received: emails.length });
       for (const email of emails) await receive(email, cipher, settings.dailyCap);
       return Response.json({ received: emails.length });
     },

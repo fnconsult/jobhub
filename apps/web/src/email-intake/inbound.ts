@@ -98,10 +98,14 @@ function ipv4ToNumber(address: string): number | null {
   return parts.reduce((total, part) => total * 256 + Number(part), 0);
 }
 
-/** Whether `address` is in one of `ranges` (`a.b.c.d/n`; a bare address is /32). A range that does not read matches nothing. */
+/**
+ * Whether `address` is in one of `ranges` (`a.b.c.d/n`; a bare IPv4 address is /32; an IPv6 address matches only as
+ * written, for a local test's `::1`). A range that does not read matches nothing.
+ */
 export function inIpRanges(address: string | null, ranges: readonly string[]): boolean {
-  const ip = address === null ? null : ipv4ToNumber(address);
-  if (ip === null) return false;
+  if (address === null) return false;
+  const ip = ipv4ToNumber(address);
+  if (ip === null) return ranges.some((range) => range.includes(":") && range.trim().toLowerCase() === address.toLowerCase());
   return ranges.some((range) => {
     const [base, bits = "32"] = range.trim().split("/");
     const start = ipv4ToNumber(base ?? "");

@@ -5,7 +5,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
 import { alertEmail, authenticationResults, inboundItem, inboundPayload, unknownSenderEmail } from "./fixtures/brevo-inbound";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
-import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
+import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, inIpRanges, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
 
 const SECRET = "brevo-inbound-test-secret-0123456789";
 const BREVO_IP = "1.179.112.10";
@@ -230,5 +230,17 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
     await post(inboundPayload(forged));
 
     expect((await received())[0]).toMatchObject({ outcome: "unrecognised_sender" });
+  });
+});
+
+describe("Brevo's IP ranges", () => {
+  it("hold an IPv4 address inside a CIDR range, not one outside; an IPv6 address only as written", () => {
+    expect(inIpRanges("1.179.127.255", ["1.179.112.0/20"])).toBe(true);
+    expect(inIpRanges("1.179.128.0", ["1.179.112.0/20"])).toBe(false);
+    expect(inIpRanges("172.246.240.1", ["1.179.112.0/20", "172.246.240.0/20"])).toBe(true);
+    expect(inIpRanges("203.0.113.7", ["0.0.0.0/0"])).toBe(true);
+    expect(inIpRanges("::1", ["127.0.0.1/32", "::1"])).toBe(true);
+    expect(inIpRanges("::2", ["::1"])).toBe(false);
+    expect(inIpRanges(null, ["0.0.0.0/0"])).toBe(false);
   });
 });

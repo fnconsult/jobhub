@@ -45,8 +45,8 @@ const WEB_SEARCH = [
 /** The prices of the Tools' billed units and the EUR/USD rate (#403), overridden on each Tool's sheet. */
 const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "BRAVE_SEARCH_PRICE_USD", "TAVILY_CREDIT_PRICE_USD", "EUR_PER_USD"];
 
-/** Email intake's (#441): the domain of the Candidates' Forwarding addresses. */
-const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN"];
+/** Email intake's: the domain of the Candidates' Forwarding addresses (#441), its daily cap, « filtre trop large » threshold and Brevo's IP ranges (#442). */
+const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_BREVO_IP_RANGES"];
 
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {

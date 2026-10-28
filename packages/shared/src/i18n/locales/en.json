@@ -2848,7 +2848,8 @@
         "set_aside_by_guardrail": "Set aside by a Guardrail",
         "unrecognised_sender": "Unrecognised sender",
         "over_daily_cap": "Daily cap reached",
-        "forwarding_confirmation": "Forwarding confirmation"
+        "forwarding_confirmation": "Forwarding confirmation",
+        "failed": "Failed"
       },
       "kind": "Kind",
       "anyKind": "All kinds",

@@ -2848,7 +2848,8 @@
         "set_aside_by_guardrail": "Écarté par un garde-fou",
         "unrecognised_sender": "Expéditeur non reconnu",
         "over_daily_cap": "Plafond atteint",
-        "forwarding_confirmation": "Confirmation de transfert"
+        "forwarding_confirmation": "Confirmation de transfert",
+        "failed": "Échec"
       },
       "kind": "Type",
       "anyKind": "Tous les types",

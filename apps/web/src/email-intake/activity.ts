@@ -26,8 +26,8 @@ export const ACTIVITY_RETENTION_MONTHS = 24;
 /** How many rows Emails reçus shows at most. */
 export const LIST_LIMIT = 200;
 
-/** What the reading (#445) makes of an email: offers found, « autre » (not an offer), or set aside by a Guardrail. */
-export const READING_OUTCOMES = ["offers_found", "other", "set_aside_by_guardrail"] as const;
+/** What the reading (#445) makes of an email: offers found, « autre » (not an offer), set aside by a Guardrail, or « échec » (its last try failed). */
+export const READING_OUTCOMES = ["offers_found", "other", "set_aside_by_guardrail", "failed"] as const;
 export type ReadingOutcome = (typeof READING_OUTCOMES)[number];
 
 /** Every outcome of a Received offer email (CONTEXT.md), as Emails reçus filters by it. */
@@ -39,6 +39,7 @@ export const RECEIVED_EMAIL_OUTCOMES = [
   "unrecognised_sender",
   "over_daily_cap",
   "forwarding_confirmation",
+  "failed",
 ] as const satisfies readonly (ReceivedOfferEmailOutcome | ReadingOutcome)[];
 export type ReceivedEmailOutcome = (typeof RECEIVED_EMAIL_OUTCOMES)[number];
 
@@ -79,14 +80,20 @@ export interface ReceivedEmailRecord {
   outcome: ReceivedOfferEmailOutcome;
 }
 
-/** What `recordReading` keeps of an email once read. */
-export interface ReadingRecord {
-  kind: ReceivedEmailKind;
-  newOffers: number;
-  alreadyStored: number;
-  outcome: ReadingOutcome;
-  guardrail: EmailGuardrailVerdict;
-}
+/**
+ * What `recordReading` keeps of an email once read: its kind, the offers new for the Candidate and those already
+ * stored for them (« déjà vue »), its outcome, and the Guardrail's verdict when one ran; or « échec », nothing read.
+ */
+export type ReadingRecord =
+  | {
+      kind: ReceivedEmailKind;
+      newOffers: number;
+      alreadyStored: number;
+      outcome: Exclude<ReadingOutcome, "failed">;
+      /** Left out while no Guardrail runs on the reading. */
+      guardrail?: EmailGuardrailVerdict;
+    }
+  | { outcome: "failed" };
 
 /** What happened to a Linked mailbox, as the Journal lists it. */
 export const LINKED_MAILBOX_EVENTS = ["switched_on", "replaced", "switched_off", "daily_cap_reached"] as const;
@@ -196,7 +203,9 @@ export async function recordReading(client: Queryable, receivedOfferEmailId: str
   await client.query(
     `UPDATE received_email_activity a SET kind = $2, new_offers = $3, already_stored = $4, outcome = $5, guardrail = $6
        FROM received_offer_email e WHERE e.id = $1 AND e.activity_id = a.id`,
-    [receivedOfferEmailId, reading.kind, Math.max(0, reading.newOffers), Math.max(0, reading.alreadyStored), reading.outcome, reading.guardrail],
+    reading.outcome === "failed"
+      ? [receivedOfferEmailId, null, null, null, reading.outcome, null]
+      : [receivedOfferEmailId, reading.kind, Math.max(0, reading.newOffers), Math.max(0, reading.alreadyStored), reading.outcome, reading.guardrail ?? null],
   );
 }
 

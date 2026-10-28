@@ -17,6 +17,7 @@
 import type { ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { inTransaction } from "../database/pool";
+import { recordReading } from "./activity";
 import type { SecretCipher } from "../provider-secrets/cipher";
 import { receivedTextOf } from "./inbound";
 
@@ -113,6 +114,13 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
         );
         const candidateId = rows[0]?.candidateId;
         if (!candidateId) return;
+        // Its row of Activité › Emails reçus (#449): the counts only, naming no Candidate.
+        await recordReading(client, id, {
+          kind,
+          newOffers: offers.filter((offer) => offer.disposition === "new").length,
+          alreadyStored: offers.filter((offer) => offer.disposition === "seen").length,
+          outcome: offers.length > 0 ? "offers_found" : "other",
+        });
         for (const [position, offer] of offers.entries()) {
           await client.query(
             `INSERT INTO received_offer_email_offer
@@ -139,13 +147,16 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
     },
 
     async failed(id) {
-      await database.query(
-        `UPDATE received_offer_email
-            SET outcome = 'failed', read_at = $2, progress = NULL,
-                text_ciphertext = NULL, text_iv = NULL, text_tag = NULL, text_key_version = NULL
-          WHERE id = $1 AND outcome = 'awaiting_reading'`,
-        [id, now()],
-      );
+      await inTransaction(database, async (client) => {
+        const { rowCount } = await client.query(
+          `UPDATE received_offer_email
+              SET outcome = 'failed', read_at = $2, progress = NULL,
+                  text_ciphertext = NULL, text_iv = NULL, text_tag = NULL, text_key_version = NULL
+            WHERE id = $1 AND outcome = 'awaiting_reading'`,
+          [id, now()],
+        );
+        if (rowCount) await recordReading(client, id, { outcome: "failed" });
+      });
     },
   };
 }

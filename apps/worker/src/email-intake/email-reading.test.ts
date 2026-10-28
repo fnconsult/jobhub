@@ -9,6 +9,7 @@ import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { migrateJobSearches } from "@jobhub/web/job-searches";
 import { migrateJobDigests } from "@jobhub/web/job-digests";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
+import { createEmailIntakeActivity } from "../../../web/src/email-intake/activity";
 import { createEmailReadings, migrateEmailReadings, type EmailReadings } from "@jobhub/web/email-intake/reading";
 import { createApplications, migrateApplications } from "../../../web/src/applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../../../web/src/auth/test-support";
@@ -306,6 +307,36 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
 
       expect((await emailOf(id!)).offers.map((offer) => offer.disposition)).toEqual(["too_old", "too_old", "too_old"]);
       expect(await jobOfferCount()).toBe(0);
+    });
+  });
+
+  describe("its row of the Back Office's Activité › Emails reçus (#449)", () => {
+    const shown = async () => (await createEmailIntakeActivity(database, { now: () => now }).receivedEmails({ period: "all" })).map(({ kind, offers, outcome, guardrail }) => ({ kind, offers, outcome, guardrail }));
+
+    it("shows what the reading made of each email: its kind, offers new and already stored, outcome; no Guardrail verdict while none runs", async () => {
+      const [first] = await deliver(cadremploiAlert.email(address, { messageId: "<first@cadremploi.test>" }));
+      await reading.read(first!);
+      now = new Date(now.getTime() + 60_000);
+      const [second] = await deliver(cadremploiAlert.email(address, { messageId: "<second@cadremploi.test>" }));
+      await reading.read(second!);
+      now = new Date(now.getTime() + 60_000);
+      const [promo] = await deliver(jobijobaPromo.email(address));
+      await reading.read(promo!);
+
+      expect(await shown()).toEqual([
+        { kind: "alert", offers: { new: 0, alreadyStored: 0 }, outcome: "other", guardrail: null },
+        { kind: "alert", offers: { new: 0, alreadyStored: 3 }, outcome: "offers_found", guardrail: null },
+        { kind: "alert", offers: { new: 3, alreadyStored: 0 }, outcome: "offers_found", guardrail: null },
+      ]);
+    });
+
+    it("shows « échec » for an email whose last try failed", async () => {
+      const [id] = await deliver(cadremploiAlert.email(address));
+      now = new Date(now.getTime() + 73 * 3_600_000);
+
+      await reading.read(id!);
+
+      expect(await shown()).toEqual([{ kind: null, offers: null, outcome: "failed", guardrail: null }]);
     });
   });
 

@@ -1,0 +1,84 @@
+@layer base, components;
+
+@layer components {
+  .ds-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    width: min(30rem, 100vw);
+    background: var(--color-background);
+    border-left: 1px solid var(--color-border);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .ds-drawer[data-side="left"] {
+    right: auto;
+    left: 0;
+    border-right: 1px solid var(--color-border);
+    border-left: 0;
+  }
+
+  /* Focused on opening when its owner says so, so its title is announced: a box, not a control. */
+  .ds-drawer:focus {
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ds-drawer[data-state="open"] {
+      animation: ds-drawer-in var(--motion-slow) var(--motion-easing);
+    }
+
+    .ds-drawer[data-side="left"][data-state="open"] {
+      animation-name: ds-drawer-in-left;
+    }
+  }
+
+  @keyframes ds-drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes ds-drawer-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+
+  .ds-drawer__header {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-drawer__title {
+    margin: 0;
+    font-size: var(--font-size-h3);
+    overflow-wrap: anywhere;
+  }
+
+  .ds-drawer__body {
+    display: grid;
+    flex: 1;
+    gap: var(--space-6);
+    align-content: start;
+    padding: var(--space-6);
+    overflow-y: auto;
+  }
+
+  .ds-drawer__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    padding: var(--space-3) var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+}

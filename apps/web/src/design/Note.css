@@ -1,0 +1,58 @@
+@layer base, components;
+
+@layer components {
+  .ds-note {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-note > .icon {
+    width: 1.125em;
+    height: 1.125em;
+    margin-top: 0.2em;
+  }
+
+  .ds-note__title {
+    display: block;
+  }
+
+  .ds-note[data-tone="info"] {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-line);
+  }
+
+  .ds-note[data-tone="info"] > .icon {
+    color: var(--color-accent);
+  }
+
+  .ds-note[data-tone="warn"] {
+    background: var(--color-warn-soft);
+    border-color: transparent;
+  }
+
+  .ds-note[data-tone="warn"] > .icon {
+    color: var(--color-warn);
+  }
+
+  .ds-note[data-tone="danger"] {
+    background: var(--color-danger-soft);
+    border-color: transparent;
+  }
+
+  .ds-note[data-tone="danger"] > .icon {
+    color: var(--color-danger);
+  }
+
+  .ds-note[data-tone="success"] {
+    background: var(--color-success-soft);
+    border-color: transparent;
+  }
+
+  .ds-note[data-tone="success"] > .icon {
+    color: var(--color-success);
+  }
+}

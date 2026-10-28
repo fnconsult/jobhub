@@ -1,0 +1,50 @@
+@layer base, components;
+
+@layer components {
+  /* Always in the page, so its live region is heard; it takes no room and lets clicks through. */
+  .ds-toast-region {
+    position: fixed;
+    bottom: var(--space-12);
+    left: 50%;
+    z-index: 45;
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--space-4));
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
+  .ds-toast {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    color: var(--color-on-inverse);
+    pointer-events: auto;
+    background: var(--color-inverse);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ds-toast {
+      animation: ds-toast-in var(--motion-base) var(--motion-easing);
+    }
+  }
+
+  @keyframes ds-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+  }
+
+  .ds-toast__link {
+    font-weight: 600;
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .ds-toast__link:focus-visible {
+    outline-color: var(--color-on-inverse);
+  }
+}

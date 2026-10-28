@@ -1,3 +1,10 @@
+/* Chrome gives extension pages its own unlayered `body { font-size: 75%; font-family: system-ui }`, which beats
+ * the design system's body rule in `@layer base` (#462): restate the body text here, unlayered. */
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+}
+
 .popup {
   width: 22rem;
   padding: var(--space-4);

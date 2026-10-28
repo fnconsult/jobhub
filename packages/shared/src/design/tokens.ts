@@ -41,6 +41,9 @@ export const designTokens = {
     chart1: themed("#6a78ee", "#8d9bff"),
     chart2: themed("#e46f8a", "#e46f8a"),
     chartFill: themed("rgb(106 120 238 / 18%)", "rgb(141 155 255 / 22%)"),
+    // A Toast: the text colour as a surface, and the text on it (#462).
+    inverse: themed("#1b1b26", "#ececf3"),
+    onInverse: themed("#ffffff", "#121219"),
     // What dims the page behind a drawer or a dialog.
     scrim: themed("rgb(20 20 40 / 28%)", "rgb(0 0 0 / 50%)"),
   },

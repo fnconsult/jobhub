@@ -3,9 +3,9 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
-import { createEmailIntakeActivity, type EmailIntakeActivity } from "./activity";
+import { createEmailIntakeActivity, purgeEmailIntakeActivity, recordReading, type EmailIntakeActivity } from "./activity";
 import { alertEmail, inboundItem, inboundPayload, unknownSenderEmail } from "./fixtures/brevo-inbound";
-import { createEmailIntake, migrateEmailIntake, type EmailIntake } from "./index";
+import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 
 const SECRET = "brevo-inbound-test-secret-0123456789";
@@ -70,5 +70,55 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
     ]);
     const shown = JSON.stringify(rows);
     for (const named of [marie, MARIE.email, MARIE.name, address, "Responsable marketing", "Chef de projet"]) expect(shown).not.toContain(named);
+  });
+
+  it("survive the Candidate's deletion, and are not in their Data export", async () => {
+    await post(alertEmail(address));
+    const [kept] = (await emailIntakeOf(database, marie)).receivedOfferEmails;
+    expect(JSON.stringify(kept)).not.toContain((await activity.receivedEmails({}))[0]!.id);
+
+    await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
+
+    expect(await activity.receivedEmails({})).toEqual([expect.objectContaining({ senderDomain: "alertes.cadremploi.fr", outcome: "awaiting_reading" })]);
+  });
+
+  it("are purged 24 months after the email arrived, not before", async () => {
+    await post(alertEmail(address));
+    await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
+
+    expect(await purgeEmailIntakeActivity(database, new Date("2028-10-27T09:29:00Z"))).toMatchObject({ receivedEmails: 0 });
+    expect(await activity.receivedEmails({ period: "all" })).toHaveLength(1);
+
+    expect(await purgeEmailIntakeActivity(database, new Date("2028-10-27T09:30:00Z"))).toMatchObject({ receivedEmails: 1 });
+    expect(await activity.receivedEmails({ period: "all" })).toEqual([]);
+  });
+
+  it("show what the reading made of an email: its kind, offers new and already stored, outcome and Guardrail", async () => {
+    await post(alertEmail(address));
+    const [email] = (await emailIntakeOf(database, marie)).receivedOfferEmails;
+    expect((await activity.receivedEmails({}))[0]).toMatchObject({ kind: null, offers: null, guardrail: null });
+
+    await recordReading(database, email!.id, { kind: "alert", newOffers: 3, alreadyStored: 2, outcome: "offers_found", guardrail: "passed" });
+
+    expect((await activity.receivedEmails({}))[0]).toMatchObject({ kind: "alert", offers: { new: 3, alreadyStored: 2 }, outcome: "offers_found", guardrail: "passed" });
+  });
+
+  it("filter by outcome, kind and period (Paris day); an unreadable filter is left out", async () => {
+    now = new Date("2026-10-20T09:00:00Z");
+    await post(unknownSenderEmail(address, { messageId: "<old@cabinet-fictif.test>" }));
+    now = new Date("2026-10-27T09:30:00Z");
+    await post(alertEmail(address));
+    await post(unknownSenderEmail(address));
+    const [read] = (await emailIntakeOf(database, marie)).receivedOfferEmails.filter(({ outcome }) => outcome === "awaiting_reading");
+    await recordReading(database, read!.id, { kind: "recruiter", newOffers: 1, alreadyStored: 0, outcome: "offers_found", guardrail: "flagged" });
+    const domains = async (filter: unknown) => (await activity.receivedEmails(filter)).map(({ senderDomain }) => senderDomain);
+
+    expect(await domains({ outcome: "unrecognised_sender" })).toEqual(["cabinet-fictif.test"]);
+    expect(await domains({ outcome: "unrecognised_sender", period: "all" })).toEqual(["cabinet-fictif.test", "cabinet-fictif.test"]);
+    expect(await domains({ kind: "recruiter" })).toEqual(["alertes.cadremploi.fr"]);
+    expect(await domains({ kind: "alert" })).toEqual([]);
+    expect(await domains({ period: "today" })).toHaveLength(2);
+    expect(await domains({ period: "30d" })).toHaveLength(3);
+    expect(await domains({ outcome: "'; DROP TABLE received_email_activity; --", kind: 42 })).toHaveLength(2);
   });
 });

@@ -206,11 +206,18 @@
   },
   "webSearchAlert": {
     "subject": "Jobbbox: web search crossed its alert threshold for {{month}}",
-    "body": "Hello,\n\nWeb search cost {{spend}} in {{month}} (Paris time), past its monthly alert threshold of {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Nothing is cut: Job discovery and Company Dossiers keep searching.\n\nThis amount is estimated at the price in use of each billed unit (call, request, credit), with no provider's free credits taken off. Prices and the threshold are set on Paramètres' Recherche web tab.\n\nThe details are in Consommation IA:\n{{url}}\n\nYou will get no other alert this month.\n\nThe Jobbbox team"
+    "title": "Web search crossed its alert threshold for {{month}}",
+    "spend": "Web search cost {{spend}} in {{month}} (Paris time), past its monthly alert threshold of {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Nothing is cut: Job discovery and Company Dossiers keep searching.",
+    "estimate": "This amount is estimated at the price in use of each billed unit (call, request, credit), with no provider's free credits taken off. Prices and the threshold are set on Paramètres' Recherche web tab.",
+    "action": "See the details in Consommation IA",
+    "last": "You will get no other alert this month."
   },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
-    "body": "Hello,\n\nThe worker could not sign a new client secret for sign-in with Apple:\n\n{{failures}}\n\nUntil this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings:\n{{url}}\n\nThe Jobbbox team",
+    "title": "Sign-in with Apple needs fixing",
+    "intro": "The worker could not sign a new client secret for sign-in with Apple:",
+    "outro": "Until this is fixed, sign-in with Apple stops when the current secret expires (its date is shown in the back office). Check the Team ID, Key ID and .p8 key in the Sign-in tab of Settings.",
+    "action": "Open the Sign-in tab",
     "reasons": {
       "missing_secret": "the Team ID, Key ID or .p8 key is missing or no longer decrypts (master key removed?)",
       "invalid_apple_key": "The .p8 key or a saved ID cannot sign the secret",
@@ -3434,11 +3441,15 @@
     "abandonAccept": "Mark as abandoned",
     "email": {
       "subject": "A follow-up is waiting for you: {{title}}",
-      "body": "Hello,\n\nYour application \"{{title}}\" has had no answer. Your Jobbbox coach has drafted a follow-up for you: read it, send it from your own mailbox, then mark it as sent.\n\n{{url}}\n\nThe Jobbbox team"
+      "title": "A follow-up is waiting for you",
+      "body": "Your application \"{{title}}\" has had no answer. Your Jobbbox coach has drafted a follow-up for you: read it, send it from your own mailbox, then mark it as sent.",
+      "action": "Read the follow-up"
     },
     "abandonEmail": {
       "subject": "Still no answer: {{title}}",
-      "body": "Hello,\n\nYour follow-ups for \"{{title}}\" have had no answer. Your Jobbbox coach suggests marking this application as abandoned.\n\n{{url}}\n\nThe Jobbbox team"
+      "title": "Still no answer",
+      "body": "Your follow-ups for \"{{title}}\" have had no answer. Your Jobbbox coach suggests marking this application as abandoned.",
+      "action": "Open the application"
     },
     "noticesTitle": "Follow-ups to do",
     "noticeFollowUp": "Follow-up ready: {{title}}",
@@ -3452,7 +3463,9 @@
     "delaysInvalid": "Enter a whole number of working days, from 1 to {{max}}.",
     "delaysError": "Saving failed. Check your connection and try again.",
     "noneWaiting": "No follow-up to do yet.",
-    "delaysIntro": "Your coach proposes a follow-up when an application gets no news after these delays."
+    "delaysIntro": "Your coach proposes a follow-up when an application gets no news after these delays.",
+    "emailReason": "You receive this email because one of your applications has had no answer past your follow-up delay.",
+    "emailSettings": "Change my follow-up delays"
   },
   "humanCoaches": {
     "title": "My human coaches",
@@ -3587,16 +3600,18 @@
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
       "subject_other": "Job Digest “{{profile}}”: {{count}} new job offers",
-      "intro_one": "Hello,\n\nYour coach found {{count}} new job offer for your profile “{{profile}}”:",
-      "intro_other": "Hello,\n\nYour coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
+      "title_one": "{{count}} new job offer for “{{profile}}”",
+      "title_other": "{{count}} new job offers for “{{profile}}”",
+      "intro_one": "Your coach found {{count}} new job offer for your profile “{{profile}}”:",
+      "intro_other": "Your coach found {{count}} new job offers for your profile “{{profile}}”, closest to your master CV first:",
       "matchScore": "match score: {{score}} / 100",
       "matchScorePartial": "match score: {{score}} / 100, partial",
       "postedAt": "posted on {{date}}",
       "dateUnknown": "posting date: date unknown",
-      "seeDigest_one": "Find this Job Digest in Jobbbox:\n{{url}}",
-      "seeDigest_other": "Find this Job Digest and its {{count}} job offers in Jobbbox:\n{{url}}",
-      "unsubscribe": "Stop receiving this profile's Job Digest:\n{{url}}",
-      "signature": "The Jobbbox team"
+      "seeDigest_one": "See the job offer",
+      "seeDigest_other": "See the {{count}} job offers",
+      "reason": "You receive this email because the Job Digest of your profile “{{profile}}” is on.",
+      "unsubscribe": "Stop receiving this profile's Job Digest"
     },
     "unsubscribePage": {
       "title": "Unsubscribe from the Job Digest",
@@ -3709,8 +3724,10 @@
     "email": {
       "subject_one": "Reminder: your appointment tomorrow, {{date}}",
       "subject_other": "Reminder: your {{count}} appointments tomorrow, {{date}}",
-      "intro_one": "Hello,\n\nTo help you prepare, here is your appointment tomorrow, {{date}}:",
-      "intro_other": "Hello,\n\nTo help you prepare, here are your {{count}} appointments tomorrow, {{date}}:",
+      "title_one": "Your appointment tomorrow",
+      "title_other": "Your {{count}} appointments tomorrow",
+      "intro_one": "To help you prepare, here is your appointment tomorrow, {{date}}:",
+      "intro_other": "To help you prepare, here are your {{count}} appointments tomorrow, {{date}}:",
       "interview": "{{time}} · Interview: {{title}}",
       "interviewAt": "{{time}} · Interview: {{title}} at {{employer}}",
       "coachingSession": "{{time}} · Coaching session with {{coach}}",
@@ -3719,9 +3736,9 @@
       "place": "Place or link: {{place}}",
       "videoLink": "Link: {{url}}",
       "note": "Note: {{note}}",
-      "seeAgenda": "Find them in your agenda:\n{{url}}",
-      "signature": "The Jobbbox team",
-      "settings": "Stop receiving these reminders:\n{{url}}"
+      "seeAgenda": "Open my agenda",
+      "reason": "You receive this email because appointment reminders are on in your account.",
+      "settings": "Stop receiving these reminders"
     },
     "settings": {
       "title": "Appointment reminders",
@@ -3975,6 +3992,9 @@
   "emails": {
     "greeting": "Hello,",
     "signature": "The Jobbbox team",
-    "linkLead": "{{label}}:"
+    "linkLead": "{{label}}:",
+    "reasons": {
+      "superAdmin": "You receive this email because you are a super-admin of Jobbbox."
+    }
   }
 }

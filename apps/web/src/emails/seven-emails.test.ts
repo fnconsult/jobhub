@@ -15,6 +15,34 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
     fr: ["https://app.jobbbox.fr/api/auth/magic-link/verify?token=abc", "15 minutes", "Me connecter à Jobbbox"],
     en: ["https://app.jobbbox.fr/api/auth/magic-link/verify?token=abc", "15 minutes", "Sign in to Jobbbox"],
   },
+  jobDigest: {
+    fr: [
+      "Directrice administrative et financière",
+      "DAF H/F",
+      "Acme Industrie, Lyon",
+      "score de correspondance : 92 / 100",
+      "publiée le 20 octobre 2026",
+      "score de correspondance : 64 / 100, partiel",
+      "date de publication : date inconnue",
+      "https://app.jobbbox.fr/offres/offer-1?profil=profile-1",
+      "Voir les 12 offres",
+      "https://app.jobbbox.fr/job-digests/digest-1",
+      "Ne plus recevoir le Job Digest de ce profil",
+      "https://app.jobbbox.fr/desabonnement?token=t0k3n&lang=fr",
+    ],
+    en: [
+      "Directrice administrative et financière",
+      "DAF H/F",
+      "match score: 92 / 100",
+      "posted on October 20, 2026",
+      "match score: 64 / 100, partial",
+      "posting date: date unknown",
+      "See the 12 job offers",
+      "https://app.jobbbox.fr/job-digests/digest-1",
+      "Stop receiving this profile's Job Digest",
+      "https://app.jobbbox.fr/desabonnement?token=t0k3n&lang=en",
+    ],
+  },
 };
 
 const unescape = (html: string) => html.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");

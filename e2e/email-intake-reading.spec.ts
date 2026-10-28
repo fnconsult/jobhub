@@ -236,7 +236,7 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
   });
 
   test("the Provenance of a created Job Offer lists the Tool, AI and rules steps, with the sender's domain as its site", async ({ browser }) => {
-    const me = await asMarie(browser);
+    await asMarie(browser);
     const [stored] = await query<{ provenance: { steps: Step[]; sites: { kind: string; domain?: string }[] } | null }>(`SELECT provenance FROM job_offer WHERE id = $1`, [alert.offers[0]!.jobOfferId]);
     const provenance = stored!.provenance;
     expect(provenance, "the Job Offer has a Provenance").not.toBeNull();
@@ -256,7 +256,7 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
   });
 
   test("a recruiter's Job Offer forwarded by hand has its Provenance without a site: the sender's domain there is the Candidate's own", async ({ browser }) => {
-    const me = await asMarie(browser);
+    await asMarie(browser);
     const [{ id }] = await query<{ id: string }>(`SELECT id FROM job_offer WHERE private_to_candidate_id = $1`, [marie.candidateId]) as [{ id: string }];
     const [stored] = await query<{ provenance: { steps: Step[]; sites: unknown[] } }>(`SELECT provenance FROM job_offer WHERE id = $1`, [id]);
     expect(stored!.provenance.steps.map((step) => step.kind)).toEqual(expect.arrayContaining(["tool", "ai", "rules"]));

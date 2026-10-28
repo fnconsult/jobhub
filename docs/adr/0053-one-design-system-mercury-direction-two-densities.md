@@ -23,7 +23,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
   3. The Back Office: Paramètres, Dashboard and Activité first (their prototype is the yardstick), then the rest.
   4. The Candidate side: Recherches d'offres, Candidatures, Agenda, Profile, Mon compte.
   5. The extension's Side Panel (ADR-0054).
-  6. HTML emails.
+  6. HTML emails (done, #472, ADR-0058).
   7. Dark mode switched on.
 - **Verified three ways**:
   1. A Design System page lists every component and token, in both Densities and both themes. It is a Back Office page under Plateforme, readable by every Back Office Role, and built from the real components.

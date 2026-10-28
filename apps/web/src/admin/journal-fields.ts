@@ -6,8 +6,8 @@ import type { BackOfficeSection } from "./back-office";
 const HUMAN_COACH_FIELDS = ["name", "email", "bookingUrl", "bio"] as const;
 type HumanCoachField = (typeof HUMAN_COACH_FIELDS)[number];
 
-/** The sections recording the sites Jobbbox searches: their entries hold `enabled` and, for Job Sites, `postingPages`. */
-export const SEARCH_SITES_SECTIONS: readonly BackOfficeSection[] = ["job_discovery_sources", "job_discovery_sites", "job_sites"];
+/** The sections recording the sites Jobbbox searches and the senders it reads: their entries hold `enabled`; Job Sites' `postingPages`, Recognised senders' `label`. */
+export const SEARCH_SITES_SECTIONS: readonly BackOfficeSection[] = ["job_discovery_sources", "job_discovery_sites", "job_sites", "recognised_senders"];
 
 /** A Sign-in Provider's recorded fields, by the Connexion page's label for each. */
 const SIGN_IN_PROVIDER_FIELDS = {
@@ -61,6 +61,7 @@ export function journalFieldName(t: TFunction, section: BackOfficeSection, field
   if (section === "roles" && field === "email") return t("admin.administrators.email");
   if (SEARCH_SITES_SECTIONS.includes(section) && field === "enabled") return t("admin.searchSites.status");
   if (section === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
+  if (section === "recognised_senders" && field === "label") return t("admin.emailIntake.senders.label");
   if (section === "plans" && PLAN_FIELDS.includes(field as PlanField)) return t(`admin.plans.fields.${field as PlanField}`);
   if (section === "coupons" && COUPON_FIELDS.includes(field as CouponField)) return t(`admin.coupons.fields.${field as CouponField}`);
   if (section === "sign_in_providers" && field in SIGN_IN_PROVIDER_FIELDS) {

@@ -531,7 +531,7 @@ test.describe("Job Digest", () => {
     expect(email!.subject).toMatch(/^Job Digest “Directrice administrative et financière”: \d+ new job offers?$/);
     expect(email!.text).toContain("Hello,\n\nYour coach found");
     expect(email!.text).toMatch(/match score: \d+ \/ 100/);
-    expect(email!.text).toContain("Find this Job Digest");
+    expect(email!.text).toMatch(/See the (job offer|\d+ job offers):/);
     expect(digestLinkIn(email!).origin).toBe(origin);
     expect(email!.text).toContain("The Jobbbox team");
     expect(email!.text).toContain("Stop receiving this profile's Job Digest:");

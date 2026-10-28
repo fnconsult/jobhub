@@ -448,14 +448,15 @@ export const TOOLS = [
   },
   {
     // Email intake (#442, ADR-0050): Brevo Inbound Parsing posts each email sent to a Candidate's Forwarding address to
-    // the webhook, with the shared secret; it calls Jobbbox, never the other way, so no call is recorded.
+    // the webhook, with the shared secret; it calls Jobbbox, never the other way, so no call is recorded. The Tool of the
+    // Email intake Job discovery source: its sheet is on the Sources tab of Paramètres (#448).
     id: "brevo-inbound",
     name: "Brevo (Inbound Parsing)",
     purpose: {
       fr: "Réception par email : reçoit les mails d'offres que les candidats transfèrent à leur adresse de transfert ; seul leur texte est lu.",
       en: "Email intake: receives the offer emails Candidates forward to their Forwarding address; only their text is read.",
     },
-    category: "mail",
+    category: "job_discovery",
     module: "apps/web/src/email-intake/inbound.ts",
     runsIn: "web",
     keys: ["BREVO_INBOUND_SECRET"],

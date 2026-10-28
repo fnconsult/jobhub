@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { ExternalApiCall } from "@jobhub/shared";
 import { createPlatformSettingsResolver, type StoredPlatformSettings } from "../platform-settings/resolver";
 import { createSecretResolver, type StoredSecrets } from "../provider-secrets/resolver";
-import { BrevoApiError, brevoApiMailer, liveMailer, mailerFromEnv, parseSender } from "./mailers";
+import { renderEmail } from "../emails";
+import { BrevoApiError, brevoApiMailer, liveMailer, mailerFromEnv, parseSender, smtpMailer } from "./mailers";
+
+/** An email in the layout, both parts: its footer ends where the sender's address goes. */
+const email = renderEmail({ language: "fr", subject: "Votre lien", title: "Connexion", body: ["Bonjour"], footer: { reason: "Parce que." } });
 
 const reply = (status: number, body = "{}") => new Response(body, { status });
 
@@ -25,6 +29,17 @@ describe("brevoApiMailer", () => {
     });
   });
 
+  it("sends both parts, the HTML with the sender's address in its footer (htmlContent and textContent)", async () => {
+    const fetch = vi.fn(async () => reply(201));
+    await brevoApiMailer("xkeysib-test", "Jobbbox <hello@jobbbox.ai>", { fetch }).send({ to: "ada@example.com", ...email });
+
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.textContent).toBe(email.text);
+    expect(body.htmlContent).toContain("Connexion</h1>");
+    expect(body.htmlContent).toMatch(/hello@jobbbox\.ai<\/span>\s*<\/td>/);
+  });
+
   it("throws Brevo's status, so a refused key (401) is read again from the Provider Secrets", async () => {
     const mailer = brevoApiMailer("xkeysib-bad", "bonjour@jobbbox.fr", { fetch: async () => reply(401, '{"code":"unauthorized"}') });
     await expect(mailer.send({ to: "ada@example.com", subject: "s", text: "t" })).rejects.toMatchObject({ status: 401 });
@@ -35,6 +50,23 @@ describe("brevoApiMailer", () => {
     const fetch = vi.fn(async () => reply(201));
     await brevoApiMailer("k", "a@b.c", { apiUrl: "http://127.0.0.1:9999/v3/", fetch }).send({ to: "x@y.z", subject: "s", text: "t" });
     expect(fetch).toHaveBeenCalledWith("http://127.0.0.1:9999/v3/smtp/email", expect.anything());
+  });
+});
+
+describe("smtpMailer", () => {
+  it("sends both parts as one multipart email, the HTML with the sender's address in its footer", async () => {
+    const sendMail = vi.fn(async () => ({}));
+    await smtpMailer("smtp://relay", "Jobbbox <hello@jobbbox.ai>", { sendMail }).send({ to: "ada@example.com", ...email });
+
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ from: "Jobbbox <hello@jobbbox.ai>", to: "ada@example.com", subject: "Votre lien", text: email.text }));
+    const [mail] = sendMail.mock.calls[0] as unknown as [{ html: string }];
+    expect(mail.html).toMatch(/hello@jobbbox\.ai<\/span>\s*<\/td>/);
+  });
+
+  it("sends a text-only email as text alone", async () => {
+    const sendMail = vi.fn(async () => ({}));
+    await smtpMailer("smtp://relay", "hello@jobbbox.ai", { sendMail }).send({ to: "ada@example.com", subject: "s", text: "t" });
+    expect(sendMail.mock.calls[0]).toEqual([{ from: "hello@jobbbox.ai", to: "ada@example.com", subject: "s", text: "t" }]);
   });
 });
 

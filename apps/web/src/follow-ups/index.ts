@@ -34,13 +34,14 @@
  */
 import type { AiLayer } from "@jobhub/ai";
 import { jobOfferLanguage, type ApplicationStatus, type DocumentLanguage } from "@jobhub/shared";
-import { createI18n } from "@jobhub/shared/i18n";
+import { createI18n, DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { AcceptHandler, ActionCard, ActionCards } from "../action-cards";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
 import { routes } from "../routes";
+import { followUpEmail } from "./email";
 import { fieldErrors, type FieldError } from "../validation";
 import type { TaskPlaybookReader } from "../task-playbooks";
 import { followUpDraft } from "./draft";
@@ -192,10 +193,17 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
         body: t("followUps.abandonBody", { count: sent }),
       });
     }
-    const url = new URL(routes.application(row.id), deps.appUrl).toString();
-    const email = kind === FOLLOW_UP_CARD ? "followUps.email" : "followUps.abandonEmail";
+    const email = followUpEmail(
+      kind === FOLLOW_UP_CARD ? "followUp" : "abandoned",
+      {
+        jobTitle: row.title,
+        applicationUrl: new URL(routes.application(row.id), deps.appUrl).toString(),
+        settingsUrl: new URL(routes.accountFollowUps, deps.appUrl).toString(),
+      },
+      isSupportedLocale(row.interface_language) ? row.interface_language : DEFAULT_LOCALE,
+    );
     try {
-      await deps.mailer.send({ to: row.email, subject: t(`${email}.subject`, { title: row.title }), text: t(`${email}.body`, { title: row.title, url }) });
+      await deps.mailer.send({ to: row.email, ...email });
     } catch (error) {
       // The card is on the Application all the same: the email is only a notice.
       console.warn("[follow-ups] the notice email could not be sent:", error instanceof Error ? error.message : error);

@@ -124,7 +124,7 @@ function cards(list: EmailCard[]): string {
       ? `<a href="${escape(url)}" class="jb-text" style="${css({ color: light("text"), fontWeight: "600", textDecoration: "none" })}">${escape(title)}</a>`
       : `<strong class="jb-text" style="${css({ color: light("text"), fontWeight: "600" })}">${escape(title)}</strong>`;
     const meta = [subtitle, ...details].filter((line): line is string => Boolean(line));
-    const metaLine = meta.length ? `<br><span class="jb-meta" style="${css(metaText)}">${escape(meta.join(" · "))}</span>` : "";
+    const metaLine = meta.length ? `<span class="jb-meta" style="${css({ display: "block", marginTop: 2, ...metaText })}">${escape(meta.join(" · "))}</span>` : "";
     const border = index > 0 ? { borderTop: `1px solid ${light("border")}` } : {};
     return `<tr><td class="jb-line" style="${css({ padding: `${confort.rowPadding}px 16px`, ...border, ...font, fontSize: confort.fontSize.body, lineHeight: String(confort.lineHeight), color: light("text") })}">${name}${metaLine}</td></tr>`;
   });

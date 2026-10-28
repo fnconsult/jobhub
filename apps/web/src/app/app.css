@@ -1638,15 +1638,20 @@ nav + nav > .journal-filter {
 }
 
 /* ---------- The sidebar layout, shared by both sides (#134, prototype #132; in the Design System, #464) ----------
-   A Sidebar (15rem, on the nav surface) beside the page, which can be hidden on a wide screen (never a rail of
-   unlabelled icons, ADR-0009), and a drawer over the page below 64rem. */
+   A Sidebar on the nav surface beside the page, which can be hidden on a wide screen (never a rail of unlabelled
+   icons, ADR-0009), and a drawer over the page below 64rem. 15rem in the Compact Density (the Back Office); 16rem in
+   Confort, so the Usage Meter's renewal sentence still fits on its one line at 13px (#321). */
 :root {
-  --sidebar-width: 15rem;
+  --sidebar-width: 16rem;
   --coach-width: clamp(27rem, 34vw, 36rem);
   --control-height: 2.75rem;
   --scrim: var(--color-scrim);
   --shadow-overlay: var(--shadow-pop);
   --shadow-menu: var(--shadow-pop);
+}
+
+[data-density="compact"] {
+  --sidebar-width: 15rem;
 }
 
 /* Line icons (Lucide, components/icons.tsx): decoration beside a label in words. */
@@ -2396,6 +2401,8 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 .signalement-actions {
+  gap: var(--space-2);
+  align-items: center;
   justify-content: flex-end;
 }
 

@@ -1038,11 +1038,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       </span>
                       {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
                       {status === "sending" && panel.features.live ? (
-                        <button key="send" className="button" type="button" onClick={() => stopper.current?.abort()}>
+                        <button key="send" className={buttonClass()} type="button" onClick={() => stopper.current?.abort()}>
                           {t("coachPanel.stop")}
                         </button>
                       ) : (
-                        <button key="send" className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
+                        <button key="send" className={buttonClass({ variant: "primary" })} type="submit" disabled={status === "sending" || restoring}>
                           {t(panel.sendLabel)}
                         </button>
                       )}

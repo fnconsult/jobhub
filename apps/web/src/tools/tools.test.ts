@@ -87,7 +87,7 @@ describe("a Tool's status", () => {
   it("carries the « env » badge when one of its settings comes from env and differs from its default", () => {
     expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "bedrock" })).settingsFromEnv).toEqual(["ANTHROPIC_ENDPOINT"]);
     // Env holding the default, the default itself, or the Back Office's value: no badge.
-    expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "auto", BEDROCK_REGION: "eu-north-1" })).settingsFromEnv).toEqual([]);
+    expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "direct", BEDROCK_REGION: "eu-north-1" })).settingsFromEnv).toEqual([]);
     expect(toolStatus(tool("anthropic-bedrock"), nothingEnabled).settingsFromEnv).toEqual([]);
     const stored = { ANTHROPIC_ENDPOINT: { value: "bedrock", updatedBy: "admin@jobbbox.ai", updatedAt: new Date("2026-10-20T10:00:00Z") } };
     expect(toolStatus(tool("anthropic-bedrock"), stateOf({ ANTHROPIC_ENDPOINT: "direct" }, { stored })).settingsFromEnv).toEqual([]);

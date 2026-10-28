@@ -85,6 +85,8 @@ export interface AgentModelChoice {
   residency: Residency;
   /** The model a Playbook Agent naming none gets; for a web search, the provider's own (a search type for Perplexity, a depth for Tavily). */
   defaultModel?: string;
+  /** The model a Playbook Agent naming none gets for each effort, when it follows the effort (Claude's direct API). */
+  defaultModelByEffort?: Readonly<Record<Effort, string>>;
   /** Each with how it takes effort (a web search ignores it) and where the endpoint serving it processes data. */
   models: { model: string; effort: EffortHandling; residency: Residency }[];
 }
@@ -821,7 +823,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       await notSent(error, { candidateId: request.candidateId, task: recordedAs }, chosen, { ...(request.system === undefined ? {} : { system: request.system }), messages }, notes);
       throw error;
     }
-    const { route, provider } = chosen as { route: Route; provider: AiProvider };
+    const { provider } = chosen as { route: Route; provider: AiProvider };
+    // A route naming no model takes the provider's default for this call's effort (Claude's direct API), recorded as such.
+    const byEffort = chosen.route!.model ? undefined : provider.defaultModelFor?.(request.effort);
+    const route: Route = byEffort ? { ...chosen.route!, model: byEffort } : chosen.route!;
     const { redaction, warnings: redactionWarnings } = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
     warnings.push(...redactionWarnings);
     const unusable = request.unusable;
@@ -1001,6 +1006,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         endpoint: [...new Set(endpoints.map((provider) => provider.endpoint))].join(", "),
         residency: main.residency,
         ...(main.defaultModel ? { defaultModel: main.defaultModel } : {}),
+        ...(main.modelByEffort ? { defaultModelByEffort: main.modelByEffort } : {}),
         models: models.map((model) => ({ model, effort: effortHandling(id, model), residency: (endpoints.find((provider) => provider.models?.includes(model)) ?? main).residency })),
       });
     }

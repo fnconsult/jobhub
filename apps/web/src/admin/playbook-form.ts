@@ -1,4 +1,5 @@
 import { effortHandling, type AgentModelChoice, type EffortHandling, type ProviderId } from "@jobhub/ai";
+import type { TFunction } from "i18next";
 
 /** The model select's value for a Playbook Agent: provider and model; no model is the provider's default one. */
 export const agentModelValue = (provider: ProviderId, model: string | null): string => `${provider}|${model ?? ""}`;
@@ -31,6 +32,14 @@ export function outsideEu(choices: AgentModelChoice[], provider: ProviderId, mod
   const choice = choices.find((each) => each.provider === provider);
   if (!choice) return false;
   return (model === null ? choice.residency : (choice.models.find((each) => each.model === model)?.residency ?? choice.residency)) === "outside_eu";
+}
+
+/**
+ * The option of a provider's default model: its name, or « selon l'effort » when it follows the effort (Claude's
+ * direct API: Haiku for low, Sonnet for medium or none, Opus for high).
+ */
+export function defaultModelLabel(t: TFunction, choice: AgentModelChoice): string {
+  return choice.defaultModelByEffort ? t("admin.coachingPlaybooks.defaultModelByEffort") : t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" });
 }
 
 /** How a Playbook Agent's model takes its effort; with no model, the provider's default one. */

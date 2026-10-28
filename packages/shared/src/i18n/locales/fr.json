@@ -302,7 +302,122 @@
       "error": "Une erreur est survenue. Réessayez.",
       "invalid": "Saisissez une adresse e-mail valide.",
       "too_many": "Vous avez déjà ajouté 10 adresses : retirez-en une d'abord."
-    }
+    },
+    "wizardLink": "Configurer le transfert pas à pas"
+  },
+  "forwardingWizard": {
+    "title": "Configurer le transfert pas à pas",
+    "intro": "Quelques étapes pour que les alertes d'offres de votre messagerie arrivent à Jobbbox. Rien n'est fait dans votre messagerie à votre place : vous gardez la main.",
+    "progress": "Étape {{current}} sur {{total}}",
+    "back": "Retour",
+    "next": "Continuer",
+    "steps": {
+      "provider": "Votre messagerie",
+      "switchOn": "Activer la réception par email",
+      "address": "Votre adresse de transfert",
+      "confirmation": "Le code de confirmation de Gmail",
+      "firstEmail": "Le premier email",
+      "done": "C'est prêt"
+    },
+    "provider": {
+      "legend": "Quelle messagerie reçoit vos alertes d'offres ?",
+      "names": {
+        "gmail": "Gmail",
+        "outlook": "Outlook.com (Hotmail, Live)",
+        "icloud": "iCloud Mail",
+        "orange": "Orange",
+        "other": "Autre (Yahoo, AOL, Free, SFR…)"
+      }
+    },
+    "switchOn": {
+      "read": "Ce qui est lu : seul le texte des emails qui arrivent à votre adresse de transfert, venant d'expéditeurs d'alertes reconnus ou de vos propres adresses. Jamais leurs pièces jointes ni leurs images.",
+      "kept": "Ce qui est gardé : les offres trouvées. Le texte d'un email n'est pas gardé une fois lu (au plus 72 heures, chiffré, s'il faut le relire).",
+      "ai": "Traitement par IA : un modèle d'IA hébergé dans l'Union européenne lit chaque email pour en tirer les offres.",
+      "date": "La date d'activation est enregistrée. Vous pouvez changer d'adresse ou désactiver à tout moment.",
+      "off": "La réception par email n'est pas encore activée.",
+      "action": "Activer et continuer"
+    },
+    "address": {
+      "explanation": "Copiez cette adresse : c'est vers elle que votre messagerie transférera vos alertes. Elle est à vous seul."
+    },
+    "hint": {
+      "settings": "Les réglages de la messagerie sont en général derrière la roue dentée, en haut à droite. Faites ces étapes sur un ordinateur."
+    },
+    "guides": {
+      "gmailAddress": {
+        "title": "Ajouter votre adresse de transfert dans Gmail",
+        "steps": {
+          "1": "Ouvrez Gmail sur un ordinateur, puis les paramètres (la roue dentée) et « Voir tous les paramètres ».",
+          "2": "Ouvrez l'onglet consacré au transfert (« Transfert et POP/IMAP »).",
+          "3": "Choisissez « Ajouter une adresse de transfert » et collez votre adresse de transfert.",
+          "4": "Validez : Gmail envoie un code de confirmation à cette adresse. Jobbbox le reçoit et vous le montre à l'étape suivante.",
+          "5": "Ne choisissez pas de transférer tout votre courrier : seules vos alertes seront transférées, par un filtre, juste après."
+        }
+      },
+      "gmailFilter": {
+        "title": "Transférer vos alertes par un filtre Gmail",
+        "steps": {
+          "1": "Laissez le transfert automatique désactivé dans l'onglet de transfert : c'est le filtre qui transfère.",
+          "2": "Dans la barre de recherche de Gmail, ouvrez les options de recherche.",
+          "3": "Dans « De », saisissez les expéditeurs de vos alertes séparés par OR, par exemple : linkedin.com OR indeed.com OR cadremploi.fr.",
+          "4": "Choisissez « Créer un filtre ».",
+          "5": "Cochez « Le transférer à » et choisissez votre adresse de transfert.",
+          "6": "Validez en créant le filtre."
+        }
+      },
+      "outlook": {
+        "title": "Transférer vos alertes par une règle Outlook.com",
+        "notice": "Outlook.com peut vous demander d'activer la vérification en deux étapes, ou de confirmer votre identité, avant d'autoriser un transfert. Les libellés peuvent différer de ceux cités ici.",
+        "steps": {
+          "1": "Ouvrez Outlook.com sur un ordinateur, puis les paramètres (la roue dentée).",
+          "2": "Ouvrez la partie Courrier, puis les règles.",
+          "3": "Ajoutez une règle dont la condition est l'expéditeur : saisissez les expéditeurs de vos alertes (linkedin.com, indeed.com, cadremploi.fr…).",
+          "4": "Comme action, choisissez de transférer le message, vers votre adresse de transfert.",
+          "5": "Enregistrez la règle.",
+          "6": "Si Outlook.com demande de vérifier votre identité, suivez ses instructions : c'est sa protection habituelle du transfert."
+        }
+      },
+      "icloud": {
+        "title": "Transférer vos alertes par une règle iCloud Mail",
+        "notice": "Une règle iCloud ne transfère qu'à une seule adresse. Les libellés peuvent différer de ceux cités ici.",
+        "steps": {
+          "1": "Ouvrez icloud.com/mail sur un ordinateur, puis les réglages.",
+          "2": "Ouvrez les règles et ajoutez-en une.",
+          "3": "Comme condition, choisissez l'expéditeur, et saisissez celui d'une de vos alertes (une règle par expéditeur si besoin).",
+          "4": "Comme action, choisissez de transférer, vers votre adresse de transfert.",
+          "5": "Enregistrez la règle."
+        }
+      },
+      "manual": {
+        "title": "Transférer vos alertes à la main",
+        "orangeNotice": "Le transfert automatique d'Orange n'a pas encore été testé par Jobbbox et peut être restreint par Orange : transférez vos alertes à la main pour l'instant.",
+        "otherNotice": "Yahoo et AOL ne proposent le transfert automatique qu'avec Mail Plus. Pour Free, SFR et les autres messageries, transférez vos alertes à la main tant que leur transfert automatique n'est pas testé.",
+        "steps": {
+          "1": "Ouvrez une alerte d'offres, ou le message d'un recruteur.",
+          "2": "Choisissez « Transférer ».",
+          "3": "Collez votre adresse de transfert comme destinataire, puis envoyez.",
+          "4": "Envoyez-le depuis l'une de vos adresses listées ci-dessous : un email transféré à la main n'est lu que s'il vient de l'une d'elles."
+        }
+      }
+    },
+    "confirmation": {
+      "explanation": "Gmail envoie un code de confirmation à votre adresse de transfert. Saisissez-le dans Gmail, ou ouvrez le lien de confirmation.",
+      "waiting": "En attente du code de Gmail…",
+      "codeLabel": "Code de confirmation",
+      "link": "Confirmer avec le lien de Gmail",
+      "unreadable": "La confirmation de Gmail est arrivée, mais son code ne peut plus être lu : renvoyez-la depuis Gmail."
+    },
+    "firstEmail": {
+      "explanation": "Dès qu'un email arrive à votre adresse de transfert, le transfert est confirmé. Attendez votre prochaine alerte, ou transférez-en une à la main. Cela peut prendre quelques minutes, parfois plus.",
+      "waiting": "En attente du premier email…",
+      "received": "Premier email reçu le {{date}}.",
+      "unrecognised": "Il vient d'un expéditeur non reconnu : il n'a pas été lu. Vos alertes, elles, le seront."
+    },
+    "done": {
+      "explanation": "Les offres des emails transférés apparaîtront dans « Reçues par email », sur la page Recherches d'offres.",
+      "back": "Retour à Réception par email"
+    },
+    "error": "Une erreur est survenue. Réessayez."
   },
   "euAiConsent": {
     "title": "IA européenne pour vos données d'identité",
@@ -1580,7 +1695,7 @@
       "save": "Enregistrer",
       "restore": "Rétablir",
       "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
-      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite dans Activité.",
+      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (une tâche réservée à l'UE envoyée hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite dans Activité.",
       "rules": {
         "whole": "un nombre entier de {{min}} à {{max}}",
         "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
@@ -1809,7 +1924,8 @@
           "providerHelp": "Un fournisseur hors UE reçoit des appels expurgés de l'identité du Candidat ; un fournisseur sans clé peut être choisi, ses appels échouent jusqu'à ce qu'elle soit saisie.",
           "model": "Modèle",
           "modelHelp": "Vide : le modèle par défaut du fournisseur. Un modèle saisi est testé par un appel à l'enregistrement, sauf si la clé du fournisseur manque.",
-          "personalData": "Cette tâche reçoit des données personnelles : un fournisseur hors UE est refusé à l'enregistrement, et les appels avec identité suivent le consentement IA UE.",
+          "personalData": "Cette tâche reçoit des données personnelles : un fournisseur hors UE reçoit des appels expurgés de l'identité du Candidat, et les appels avec identité suivent le consentement IA UE.",
+          "euOnly": "Cette tâche ne s'exécute que dans l'UE : un fournisseur hors UE est refusé à l'enregistrement.",
           "noPersonalData": "Cette tâche ne reçoit aucune donnée personnelle : un fournisseur hors UE est permis.",
           "applies": "Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit dans le Journal.",
           "restore": "Rétablir le défaut",
@@ -2150,6 +2266,7 @@
       "validatedBy": "validée par {{name}} le {{date}}",
       "notValidated": "non validée",
       "defaultModel": "modèle par défaut ({{model}})",
+      "defaultModelByEffort": "modèle par défaut (selon l'effort)",
       "providerDefault": "modèle par défaut",
       "agentSummary": "{{provider}} · {{model}} · effort {{effort}}",
       "efforts": {

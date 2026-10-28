@@ -316,7 +316,7 @@ export function RoutePanel({ ctx, route, choices, keyMissingOf, notices }: { ctx
           </datalist>
           <p id="route-model-help">{t("admin.platformSettings.aiTasks.routePanel.modelHelp")}</p>
         </div>
-        <p>{t(route.personalData ? "admin.platformSettings.aiTasks.routePanel.personalData" : "admin.platformSettings.aiTasks.routePanel.noPersonalData")}</p>
+        <p>{t(route.euOnly ? "admin.platformSettings.aiTasks.routePanel.euOnly" : route.personalData ? "admin.platformSettings.aiTasks.routePanel.personalData" : "admin.platformSettings.aiTasks.routePanel.noPersonalData")}</p>
         <p>{t("admin.platformSettings.aiTasks.routePanel.applies")}</p>
         <button className="button button-primary" type="submit">
           {t("admin.platformSettings.save")}

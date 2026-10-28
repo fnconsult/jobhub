@@ -3,12 +3,13 @@
  * (seven-emails.test.ts) and the screenshot baselines (e2e/email-html.spec.ts) render.
  */
 import type { Locale } from "@jobhub/shared/i18n";
+import { appointmentReminderEmail } from "../appointment-reminders/email";
 import { signInEmail } from "../auth/sign-in-email";
 import { followUpEmail } from "../follow-ups/email";
 import { jobDigestEmail } from "../job-digests/email";
 import type { RenderedEmail } from "./index";
 
-export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp"] as const;
+export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder"] as const;
 export type EmailName = (typeof EMAIL_NAMES)[number];
 
 const APP_URL = "https://app.jobbbox.fr";
@@ -33,5 +34,16 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
     ),
     followUp: followUpEmail("followUp", application, language),
     abandonedFollowUp: followUpEmail("abandoned", application, language),
+    appointmentReminder: appointmentReminderEmail(
+      {
+        items: [
+          { table: "interview", scheduledAt: new Date("2026-10-21T07:00:00Z"), durationMinutes: 60, note: null, title: "DAF H/F", employer: "Acme Industrie", format: "on_site", place: "12 rue de la République, Lyon" },
+          { table: "coaching_session", scheduledAt: new Date("2026-10-21T12:30:00Z"), durationMinutes: 45, note: "Préparer les questions", coach: "Sophie Martin", videoLink: "https://meet.example/abc" },
+        ],
+        agendaUrl: `${APP_URL}/agenda?vue=liste`,
+        settingsUrl: `${APP_URL}/compte/rappels`,
+      },
+      language,
+    ),
   };
 }

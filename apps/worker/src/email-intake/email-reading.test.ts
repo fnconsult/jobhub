@@ -69,7 +69,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       ...(fail ? { fail } : {}),
     });
     usage = createMemoryUsageLog();
-    ai = createAiLayer({ providers: [mistral], routes: { offer_email_reading: "mistral", guardrail: "mistral" }, usage, warn: () => {} });
+    ai = createAiLayer({ providers: [mistral], routes: { offer_email_reading: "mistral", email_guardrail: "mistral" }, usage, warn: () => {} });
     triggers = [];
     guardrails = createGuardrails({
       ai,
@@ -236,7 +236,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       expect(await receivedTextOf(database, cipher, id!)).toBeNull();
       expect((await database.query(`SELECT progress FROM received_offer_email WHERE id = $1`, [id])).rows[0].progress).toBeNull();
       expect(usage.entries).toEqual([
-        expect.objectContaining({ task: "guardrail", provider: "mistral", candidateId: marie, outcome: "ok" }),
+        expect.objectContaining({ task: "email_guardrail", provider: "mistral", candidateId: marie, outcome: "ok" }),
         expect.objectContaining({ task: "offer_email_reading", provider: "mistral", candidateId: marie, outcome: "ok" }),
       ]);
     });
@@ -301,7 +301,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       expect(await emailOf(id!)).toMatchObject({ outcome: "set_aside_by_guardrail", kind: null, offers: [] });
       expect(await receivedTextOf(database, cipher, id!)).toBeNull();
       expect(await jobOfferCount()).toBe(0);
-      expect(usage.entries.map((entry) => entry.task)).toEqual(["guardrail"]);
+      expect(usage.entries.map((entry) => entry.task)).toEqual(["email_guardrail"]);
       expect(triggers).toEqual([{ guardrail: "email_injection", setting: "block", action: "blocked", agent: "email_intake", at: expect.any(Date) }]);
       expect(JSON.stringify(triggers)).not.toContain(marie);
     });
@@ -348,7 +348,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
 
     expect(provenance?.steps.map((step) => ({ kind: step.kind, activity: step.activity, outcome: step.outcome, ...("tool" in step ? { tool: step.tool } : {}), ...("rule" in step ? { rule: step.rule } : {}), ...(step.kind === "ai" ? { task: step.task, provider: step.provider, model: step.model } : {}) }))).toEqual([
       { kind: "tool", tool: "brevo-inbound", activity: "read", outcome: "ok" },
-      { kind: "ai", task: "guardrail", provider: "mistral", model: "fake-mistral", activity: "think", outcome: "ok" },
+      { kind: "ai", task: "email_guardrail", provider: "mistral", model: "fake-mistral", activity: "think", outcome: "ok" },
       { kind: "ai", task: "offer_email_reading", provider: "mistral", model: "fake-mistral", activity: "read", outcome: "ok" },
       { kind: "rules", rule: "match_score", activity: "compute", outcome: "ok" },
       { kind: "rules", rule: "offer_dedup", activity: "compute", outcome: "ok" },
@@ -404,7 +404,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       expect(await receivedTextOf(database, cipher, id!)).toBeNull();
       // The email Guardrail's model check could not answer either: the email went on to be read, as a check that cannot be made lets through.
       expect(usage.entries.map((entry) => ({ task: entry.task, outcome: entry.outcome }))).toEqual(
-        Array.from({ length: 3 }, () => [{ task: "guardrail", outcome: "failed" }, { task: "offer_email_reading", outcome: "failed" }]).flat(),
+        Array.from({ length: 3 }, () => [{ task: "email_guardrail", outcome: "failed" }, { task: "offer_email_reading", outcome: "failed" }]).flat(),
       );
     });
 

@@ -476,6 +476,9 @@ describe("AI layer configured from the environment", () => {
       // Claude reached only outside the EU: the AI Coach stays on Claude, redacted; only a task run in the EU alone is on Mistral.
       expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "coaching")).toEqual({ provider: "anthropic" });
       expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "offer_email_reading")).toEqual({ provider: "mistral" });
+      // The email Guardrail checks the email the reading reads: it takes the reading's route, in the EU (#446, ADR-0052).
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "email_guardrail")).toEqual({ provider: "mistral" });
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak", AI_OFFER_EMAIL_READING_PROVIDER: "mistral", AI_OFFER_EMAIL_READING_MODEL: "mistral-large-latest" }, "email_guardrail")).toEqual({ provider: "mistral", model: "mistral-large-latest" });
     });
   });
 
@@ -483,7 +486,7 @@ describe("AI layer configured from the environment", () => {
     const providers = modelSettingProviders({ AI_COACHING_PROVIDER: "mistral", AI_WEB_SEARCH_PROVIDER: "tavily" });
 
     expect(providers).toMatchObject({ AI_SCORING_MODEL: "anthropic", AI_COACHING_MODEL: "mistral", AI_GUARDRAIL_MODEL: "mistral", AI_WEB_SEARCH_MODEL: "tavily", AI_IDENTITY_MODEL: "mistral" });
-    expect(Object.keys(providers)).toHaveLength(12);
+    expect(Object.keys(providers)).toHaveLength(13);
   });
 
   describe("web-search providers a task Playbook may choose (ADR-0026)", () => {

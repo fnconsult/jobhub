@@ -244,7 +244,7 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
     const kinds = provenance!.steps.map((step) => step.kind);
     expect(kinds, JSON.stringify(provenance!.steps)).toEqual(expect.arrayContaining(["tool", "ai", "rules"]));
     // The email Guardrail's model check first (#446), then the reading.
-    expect(provenance!.steps.filter((step) => step.kind === "ai").map((step) => (step as Step & { task?: string }).task)).toEqual(["guardrail", "offer_email_reading"]);
+    expect(provenance!.steps.filter((step) => step.kind === "ai").map((step) => (step as Step & { task?: string }).task)).toEqual(["email_guardrail", "offer_email_reading"]);
     expect(provenance!.steps.find((step) => step.kind === "ai" && (step as Step & { task?: string }).task === "offer_email_reading")).toMatchObject({ provider: "mistral", outcome: "ok" });
     expect(provenance!.steps.filter((step) => step.kind === "rules").map((step) => (step as Step & { rule?: string }).rule)).toEqual(["match_score", "offer_dedup"]);
     // The Tool step is the Email intake Tool reading the email's text, before the AI reads it.

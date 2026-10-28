@@ -19,7 +19,8 @@
  * The third layer, untrusted content marked as data in the prompt, is the callers' (see coach/untrusted.ts).
  *
  * Email intake's reading of an email (#446, ADR-0052) is guarded by `guardEmail`: on input, the « Contenu piégé dans
- * un email » Guardrail (`email_injection`): the fixed rules of ./email, then one model check, framed as data; block,
+ * un email » Guardrail (`email_injection`): the fixed rules of ./email, then one model check, framed as data, on the
+ * `email_guardrail` AI task, which runs only in the EU like the reading, as the email names third parties; block,
  * flag only, or switched off, the only Guardrail that can be. `read()` then reads the email, never for a blocked one;
  * the fixed output rules of ./email, always on, set aside a reading that breaks one. It has no Guardrail message: no
  * one reads its answer, the email is set aside by a Guardrail.
@@ -295,10 +296,14 @@ const framed = (tag: string, text: string) => `<${tag}>${text.replace(/</g, "‹
 /** What is checked: a message on input, a reply on output, or an email before an AI reads it. */
 type CheckKind = "input" | "output" | "email";
 
-const CHECKED: Record<CheckKind, { what: string; tag: string }> = {
-  input: { what: "Tu contrôles le message qu'une personne envoie à un assistant IA de Jobbbox (coach emploi ou assistant du Back Office).", tag: "message" },
-  output: { what: "Tu contrôles la réponse qu'un assistant IA de Jobbbox (coach emploi ou assistant du Back Office) s'apprête à envoyer.", tag: "reponse" },
-  email: { what: "Tu contrôles un email reçu par un candidat, avant qu'une IA de Jobbbox ne le lise pour en tirer des offres d'emploi. N'importe qui peut écrire à cette adresse.", tag: "email" },
+/**
+ * Each check's AI task: an email names third parties (recruiters, contacts) Redaction does not take out, so its check
+ * runs on the `email_guardrail` task, refused any endpoint outside the EU like the email's reading (ADR-0052).
+ */
+const CHECKED: Record<CheckKind, { what: string; tag: string; task: "guardrail" | "email_guardrail" }> = {
+  input: { what: "Tu contrôles le message qu'une personne envoie à un assistant IA de Jobbbox (coach emploi ou assistant du Back Office).", tag: "message", task: "guardrail" },
+  output: { what: "Tu contrôles la réponse qu'un assistant IA de Jobbbox (coach emploi ou assistant du Back Office) s'apprête à envoyer.", tag: "reponse", task: "guardrail" },
+  email: { what: "Tu contrôles un email reçu par un candidat, avant qu'une IA de Jobbbox ne le lise pour en tirer des offres d'emploi. N'importe qui peut écrire à cette adresse.", tag: "email", task: "email_guardrail" },
 };
 
 function checkSystem(kind: CheckKind, guardrails: readonly GuardrailId[]): string {
@@ -355,7 +360,7 @@ export function createGuardrails(deps: GuardrailsDeps): Guardrails {
       try {
         const result = await Promise.race([
           (call.ai ?? deps.ai).generate({
-            task: "guardrail",
+            task: CHECKED[kind].task,
             candidateId: call.candidateId,
             system: checkSystem(kind, guardrails),
             prompt: [{ role: "user", content: framed(CHECKED[kind].tag, text) }],

@@ -1,4 +1,4 @@
-import { createAiLayer, type OfferEmailReading, type TextInput } from "@jobhub/ai";
+import { createAiLayer, createAiLayerFromEnv, type OfferEmailReading, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
 import { HIDDEN_TEXT_CLOSE, HIDDEN_TEXT_OPEN, MAX_GUARDED_EMAIL_CHARACTERS } from "./email";
@@ -35,7 +35,7 @@ function setUp(options: { verdict?: string; setting?: GuardrailSetting } = {}) {
       return options.verdict ?? `{"email_injection": false}`;
     },
   });
-  const ai = createAiLayer({ providers: [provider], routes: { guardrail: "mistral" }, usage: createMemoryUsageLog() });
+  const ai = createAiLayer({ providers: [provider], routes: { email_guardrail: "mistral" }, usage: createMemoryUsageLog() });
   const triggers: GuardrailTrigger[] = [];
   const guardrails = createGuardrails({
     ai,
@@ -223,5 +223,47 @@ describe("the « Contenu piégé dans un email » Guardrail, on Email intake's i
 
     await expect(guardrails.guardEmail(request(ALERT, reader().read))).resolves.toMatchObject({ outcome: "read" });
     expect(triggers).toMatchObject([{ guardrail: "email_injection", action: "unavailable", reason: "invalid_verdict", agent: "email_intake" }]);
+  });
+});
+
+describe("the email Guardrail's model check runs only in the EU, like the email's reading (ADR-0052)", () => {
+  /** The AI layer as production configures it from `env`, its providers answering « nothing found »; the hosts it sends to. */
+  function fromEnv(env: Record<string, string>) {
+    const hosts: string[] = [];
+    const verdict = `{"email_injection": false}`;
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(new Request(input, init).url);
+      hosts.push(url.hostname);
+      const body = url.hostname.includes("anthropic")
+        ? { id: "m", type: "message", role: "assistant", model: "claude", content: [{ type: "text", text: verdict }], stop_reason: "end_turn", usage: { input_tokens: 3, output_tokens: 2 } }
+        : { model: "m", choices: [{ message: { content: verdict } }], usage: { prompt_tokens: 3, completion_tokens: 2 } };
+      return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+    }) as typeof globalThis.fetch;
+    const usage = createMemoryUsageLog();
+    const triggers: GuardrailTrigger[] = [];
+    const guardrails = createGuardrails({
+      ai: createAiLayerFromEnv(env, { fetch, usage }),
+      config: { current: async () => ({ settings: Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, "block"])) as Record<GuardrailId, GuardrailSetting>, messages: DEFAULT_GUARDRAIL_MESSAGES }) },
+      triggers: { record: (trigger) => void triggers.push(trigger) },
+      now: () => AT,
+    });
+    return { guardrails, hosts, usage, triggers };
+  }
+
+  it("sends the email to Mistral, never to Claude's direct API outside the EU, whatever the AI Coach is routed to", async () => {
+    const { guardrails, hosts, usage } = fromEnv({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk" });
+
+    await expect(guardrails.guardEmail(request(ALERT, reader().read))).resolves.toMatchObject({ outcome: "read" });
+    expect(hosts).toEqual(["api.mistral.ai"]);
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "email_guardrail", provider: "mistral", outcome: "ok" })]);
+  });
+
+  it("refuses the check on a route outside the EU, sending nothing: the Guardrail is recorded unavailable", async () => {
+    const { guardrails, hosts, usage, triggers } = fromEnv({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk", AI_EMAIL_GUARDRAIL_PROVIDER: "anthropic" });
+
+    await expect(guardrails.guardEmail(request(ALERT, reader().read))).resolves.toMatchObject({ outcome: "read" });
+    expect(hosts).toEqual([]);
+    expect(usage.entries).toEqual([expect.objectContaining({ task: "email_guardrail", outcome: "failed", reason: "data_residency", sent: false })]);
+    expect(triggers).toMatchObject([{ guardrail: "email_injection", action: "unavailable", agent: "email_intake" }]);
   });
 });

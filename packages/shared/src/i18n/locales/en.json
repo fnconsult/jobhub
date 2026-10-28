@@ -2169,6 +2169,7 @@
         "web_search": "Web search",
         "back_office_assistant": "Back Office Assistant",
         "guardrail": "Guardrails",
+        "email_guardrail": "Email Guardrail",
         "eval": "Evaluations"
       },
       "reasonsTitle": "Failures and warnings per reason",

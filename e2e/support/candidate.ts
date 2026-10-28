@@ -16,13 +16,25 @@ export async function fromNewAddress(page: Page) {
   await page.context().setExtraHTTPHeaders({ "x-forwarded-for": `10.${byte()}.${byte()}.${byte()}` });
 }
 
+/**
+ * Asks for a sign-in link on the sign-in page `page` is on, for `email`, and waits until the page says it was sent.
+ * The link is sent by a request that writes to the database and sends an email: on a loaded machine it takes longer
+ * than an assertion's 5 s, so its answer is awaited first (within the test's own timeout), and must be a success.
+ */
+export async function requestSignInLink(page: Page, email: string, submitLabel: RegExp | string = /Recevoir mon lien|Send me a sign-in link/) {
+  await page.getByLabel(/Votre adresse e-mail|Your email address/).fill(email);
+  const sent = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/auth/sign-in/magic-link");
+  await page.getByRole("button", { name: submitLabel }).click();
+  const response = await sent;
+  expect(response.ok(), `the magic-link request answered ${response.status()}`).toBe(true);
+  await expect(page.getByRole("status")).toBeVisible();
+}
+
 export async function signInWithMagicLink(page: Page, email: string, submitLabel = /Recevoir mon lien|Send me a sign-in link/): Promise<Email> {
   const already = emailsTo(email).length;
   await fromNewAddress(page);
   await page.goto("/connexion");
-  await page.getByLabel(/Votre adresse e-mail|Your email address/).fill(email);
-  await page.getByRole("button", { name: submitLabel }).click();
-  await expect(page.getByRole("status")).toBeVisible();
+  await requestSignInLink(page, email, submitLabel);
   const message = await waitForEmail(email, already);
   await page.goto(linkIn(message));
   await expect(page).toHaveURL(/\/compte$/);

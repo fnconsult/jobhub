@@ -3,6 +3,7 @@ import { getApplications } from "@/applications/server";
 import { getAuth, getCurrentCandidate, getMailer } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { sharedPool } from "@/database/pool";
+import { createReceivedOffers } from "@/email-intake/received-offers";
 import { getJobOffers } from "@/job-offers/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
@@ -22,6 +23,7 @@ export function getJobDigests(): JobDigests {
     jobOffers: getJobOffers(),
     applications: getApplications(),
     billing: getBilling(),
+    receivedOffers: createReceivedOffers(sharedPool()),
     mailer: getMailer(),
     baseURL: String(getAuth().options.baseURL),
     // The Platform Settings in use (Back Office, env, default), read at each delivery.

@@ -24,7 +24,8 @@
  *
  * Selecting a Job Digest's Job Offers: the Job Offers stored since the
  * Profile's previous Job Digest (a week back for the first, by default), whoever stored
- * them, except Guest-only and Expired ones and those whose Posting date is
+ * them, and those Email intake gave the Profile from the emails read since then
+ * (#447: however long ago they were stored; no Job Search, no Job Search Notification), except Guest-only and Expired ones and those whose Posting date is
  * more than 30 days ago; scored against the Profile's current Master CV, kept
  * from the threshold up, best first (an undated Job Offer after a dated one
  * with an equal Match Score). The email gives each its Posting date, or says
@@ -65,6 +66,7 @@ import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
 import type { Billing, PlanName } from "../billing";
+import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
@@ -193,6 +195,8 @@ export interface JobDigestsDeps {
   applications: Pick<Applications, "list">;
   /** Plans only: a Job Digest uses no Plan Quota. */
   billing: Pick<Billing, "entitlements" | "plans" | "upgradeFor">;
+  /** The Job Offers Email intake gave the Profile (#447): in its Job Digest like the stored ones. */
+  receivedOffers: Pick<ReceivedOffers, "givenTo">;
   mailer: Mailer;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
@@ -392,16 +396,27 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return new Set([...rows.map((row) => row.id), ...saved.map((application) => application.jobOffer.id)]);
   }
 
-  /** The ids of the Job Offers the Candidate may see stored since the Profile's previous Job Digest (or the look-back), most recent first. */
+  /**
+   * The ids of the Job Offers the Candidate may see stored since the Profile's previous Job Digest (or the look-back),
+   * most recent first, then those Email intake gave the Profile since then (#447).
+   */
   async function poolOf(candidateId: string, profileId: string, at: Date, firstLookBackDays: number): Promise<string[]> {
-    const { rows } = await database.query<{ id: string }>(
-      `SELECT id FROM job_offer
-        WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
-          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous AND ${visibleTo("$2")}
-        ORDER BY created_at DESC LIMIT $5`,
-      [profileId, candidateId, new Date(at.getTime() - firstLookBackDays * DAY_MS), at, POOL_MAX],
-    );
-    return rows.map((row) => row.id);
+    const { rows: previous } = await database.query<{ since: Date | null }>(`SELECT max(sent_at) AS since FROM job_digest WHERE profile_id = $1 AND candidate_id = $2`, [
+      profileId,
+      candidateId,
+    ]);
+    const since = previous[0]?.since ?? new Date(at.getTime() - firstLookBackDays * DAY_MS);
+    const [{ rows }, received] = await Promise.all([
+      database.query<{ id: string }>(
+        `SELECT id FROM job_offer
+          WHERE created_at > $1 AND created_at <= $2 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous AND ${visibleTo("$3")}
+          ORDER BY created_at DESC LIMIT $4`,
+        [since, at, candidateId, POOL_MAX],
+      ),
+      deps.receivedOffers.givenTo(candidateId, profileId, since, at),
+    ]);
+    // Email intake's are checked like any id: `eligible` keeps only those the Candidate may see.
+    return [...rows.map((row) => row.id), ...received];
   }
 
   /**

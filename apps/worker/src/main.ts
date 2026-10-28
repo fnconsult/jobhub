@@ -6,6 +6,7 @@ import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
+import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
@@ -134,6 +135,8 @@ const jobs = createJobs({
     jobOffers,
     applications: createApplications(database, { jobOffers, profiles }),
     billing,
+    // The Job Offers Email intake gave each Profile join its Job Digest (#447).
+    receivedOffers: createReceivedOffers(database),
     mailer,
     baseURL,
     config: () => jobDigestsConfigFromEnv(settingsEnv()),

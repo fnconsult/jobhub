@@ -9,5 +9,5 @@ export {
 } from "./audit";
 export { resolveTextSize, TEXT_SIZE_SETTINGS, TEXT_SIZE_STORAGE_KEY } from "./text-size";
 export { renderDesignCss } from "./css";
-export { auditStylesheet, type StylesheetViolation } from "./stylesheet-audit";
+export { auditComponentStylesheet, auditStylesheet, type StylesheetViolation } from "./stylesheet-audit";
 export { SCROLLING_CLASS, trackScrolling, type ScrollingDocument } from "./scrollbars";

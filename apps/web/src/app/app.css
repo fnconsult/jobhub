@@ -488,8 +488,8 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   display: flex;
   gap: var(--space-1);
   align-items: center;
-  min-height: 3.5rem;
-  padding: var(--space-2);
+  min-height: 3.25rem;
+  padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -498,7 +498,8 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   flex: none;
   margin: 0;
   padding-inline: var(--space-2);
-  font-size: var(--font-size-h3);
+  font-size: var(--font-size-body);
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -580,11 +581,29 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   overflow-y: auto;
 }
 
-/* The coach speaks in the page's voice; the Candidate's own words sit in bubbles. */
+/* The coach speaks in the page's voice, unframed; the Candidate's own words sit in bubbles. */
 .coach-panel .chat-coach {
+  max-width: 100%;
   padding: 0;
   background: transparent;
   border: 0;
+}
+
+/* A reply (#464): its Activity's glyph, then its words, the Provenance line and the feedback under them. */
+.coach-panel .chat-coach:has(> .activity-glyph) {
+  display: grid;
+  grid-template-columns: 1.25em minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: start;
+}
+
+.coach-panel .chat-coach > .activity-glyph {
+  grid-row: 1 / span 9;
+  margin-top: 0.2em;
+}
+
+.coach-panel .chat-coach:has(> .activity-glyph) > :not(.activity-glyph, .visually-hidden) {
+  grid-column: 2;
 }
 
 /*
@@ -592,9 +611,12 @@ body:has(.app-shell) .coach-panel-toggle-floating {
  * amendment), on the right; the AI's replies on the left, each with its Provenance line.
  */
 .coach-panel .chat-candidate {
+  max-width: 85%;
+  padding: var(--space-2) var(--space-3);
   color: var(--color-on-accent);
   background: var(--color-accent);
   border-color: var(--color-accent);
+  border-radius: 14px 14px var(--radius-sm) 14px;
 }
 
 .coach-panel .chat-candidate .chat-blocked-label {
@@ -785,14 +807,15 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   padding: var(--space-2);
   cursor: text;
   background: var(--color-background);
-  border: 1px solid var(--color-text-secondary);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-card);
 }
 
-/* The ring goes round the whole box, Send included. */
+/* The ring goes round the whole box, Send included: the accent border and its soft halo, as a Field's. */
 .coach-panel-composer:focus-within {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 2px;
+  border-color: var(--color-accent);
+  outline: 3px solid var(--color-accent-soft);
+  outline-offset: 0;
 }
 
 .coach-panel-composer textarea {
@@ -1614,17 +1637,16 @@ nav + nav > .journal-filter {
   margin: var(--space-4) auto 0;
 }
 
-/* ---------- The sidebar layout of the Candidate's pages (#134, prototype #132) ----------
-   A sidebar (17rem) beside the page, which the Candidate can hide on a wide
-   screen (never a rail of unlabelled icons, ADR-0009), and a drawer over the
-   page below 64rem. Every target is at least 2.75rem high. */
+/* ---------- The sidebar layout, shared by both sides (#134, prototype #132; in the Design System, #464) ----------
+   A Sidebar (15rem, on the nav surface) beside the page, which can be hidden on a wide screen (never a rail of
+   unlabelled icons, ADR-0009), and a drawer over the page below 64rem. */
 :root {
-  --sidebar-width: 17rem;
+  --sidebar-width: 15rem;
   --coach-width: clamp(27rem, 34vw, 36rem);
   --control-height: 2.75rem;
-  --scrim: rgb(15 15 15 / 45%);
-  --shadow-overlay: 0 0.75rem 2rem rgb(15 15 15 / 18%), 0 0 0 1px rgb(15 15 15 / 6%);
-  --shadow-menu: 0 0.5rem 1.5rem rgb(15 15 15 / 14%), 0 0 0 1px rgb(15 15 15 / 8%);
+  --scrim: var(--color-scrim);
+  --shadow-overlay: var(--shadow-pop);
+  --shadow-menu: var(--shadow-pop);
 }
 
 /* Line icons (Lucide, components/icons.tsx): decoration beside a label in words. */
@@ -1699,10 +1721,11 @@ html[data-sidebar="closed"] .sidebar-docked {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-2) var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2) var(--space-3);
+  overflow-x: hidden;
   overflow-y: auto;
-  background: var(--color-surface);
+  background: var(--color-nav);
   border-right: 1px solid var(--color-border);
 }
 
@@ -1712,14 +1735,46 @@ html[data-sidebar="closed"] .sidebar-docked {
   height: 100dvh;
 }
 
+/* The workspace at the top: Jobbbox's « J » square in the accent (the logo's stand-in, #460) and its name. */
 .sidebar-head {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
+  min-height: var(--size-control);
+}
+
+.sidebar .brand {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+}
+
+.sidebar .brand:hover {
+  background: var(--color-hover);
+}
+
+/* Drawn, not written: no word for screen readers, the link's name stays « Jobbbox ». */
+.sidebar .brand::before {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: var(--font-size-meta);
+  font-weight: 700;
+  color: var(--color-on-accent);
+  content: "J" / "";
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
 }
 
 .sidebar-head .button {
@@ -1727,26 +1782,36 @@ html[data-sidebar="closed"] .sidebar-docked {
   white-space: nowrap;
 }
 
-.sidebar-drawer .sidebar-head {
-  padding-right: 0;
-}
-
+/* The Profile switcher: the Candidate's workspace, a raised row under the brand. */
 .sidebar .profile-switcher-button {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
   width: 100%;
-  min-height: 3.25rem;
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
   text-align: left;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
 }
 
 .sidebar .profile-switcher-button:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .profile-switcher-name {
+  min-width: 0;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.sidebar .profile-switcher-button .icon {
+  width: 1.125em;
+  height: 1.125em;
+  color: var(--color-secondary);
 }
 
 .profile-switcher-button .icon:last-child {
@@ -1764,58 +1829,72 @@ html[data-sidebar="closed"] .sidebar-docked {
 
 .sidebar-link {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
   color: var(--color-text);
   text-decoration: none;
   border-radius: var(--radius-md);
 }
 
-.sidebar-link:hover {
-  background: var(--color-surface-hover);
+.sidebar-link .icon {
+  width: 1.125em;
+  height: 1.125em;
+  color: var(--color-secondary);
 }
 
-/* The page shown: bold and shaded, not by colour alone. */
+.sidebar-link:hover {
+  background: var(--color-hover);
+}
+
+/* The page shown: a raised white chip, its words bold, not marked by colour alone. */
 .sidebar-link[aria-current="page"] {
   font-weight: 600;
-  background: var(--color-surface-hover);
+  background: var(--color-background);
+  box-shadow:
+    0 0 0 1px var(--color-border),
+    var(--shadow-card);
+}
+
+.sidebar-link[aria-current="page"] .icon {
+  color: inherit;
 }
 
 /* What waits in a section (#376): the Signalements « à traiter », after its name, at the line's end. */
 .sidebar-count {
-  min-width: 1.75em;
+  min-width: 1.5rem;
   margin-left: auto;
   padding: 0 var(--space-2);
   font-size: var(--font-size-meta);
   font-weight: 600;
-  line-height: 1.6;
+  line-height: 1.5;
   text-align: center;
   color: var(--color-on-accent);
   background: var(--color-accent);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-control);
 }
 
-/* The Back Office's sidebar (#204): sections by group, each group named in small words above its links. */
+/* The sidebar's groups (#204): each named in small words, metadata, above its links. */
 .sidebar-group + .sidebar-group {
-  margin-top: var(--space-4);
+  margin-top: var(--space-1);
 }
 
-.sidebar-group-label {
-  margin: 0 0 var(--space-1);
-  padding: 0 var(--space-3);
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+.sidebar .sidebar-group-label {
+  margin: 0;
+  padding: var(--space-3) var(--space-2) var(--space-1);
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+  line-height: var(--line-height-body);
+  color: var(--color-meta);
 }
 
 .sidebar-foot {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 2px;
   margin-top: auto;
-  padding: var(--space-3) var(--space-2) 0;
+  padding: var(--space-2) 0 0;
   border-top: 1px solid var(--color-border);
 }
 
@@ -1823,7 +1902,7 @@ html[data-sidebar="closed"] .sidebar-docked {
    a small card opened above it (#321), so the sidebar's foot never moves. */
 .usage-meter {
   position: relative;
-  padding-inline: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .usage-meter-toggle {
@@ -1831,8 +1910,8 @@ html[data-sidebar="closed"] .sidebar-docked {
   flex-direction: column;
   gap: var(--space-2);
   width: 100%;
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--size-control);
+  padding: var(--space-2);
   color: var(--color-text);
   font: inherit;
   text-align: start;
@@ -1843,7 +1922,7 @@ html[data-sidebar="closed"] .sidebar-docked {
 }
 
 .usage-meter-toggle:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .usage-meter-head {
@@ -1852,32 +1931,36 @@ html[data-sidebar="closed"] .sidebar-docked {
   align-items: baseline;
   gap: var(--space-2);
   font-weight: 600;
+  line-height: var(--line-height-heading);
 }
 
 .usage-meter-head > :last-child {
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
+/* The bar: a thin pill on the page's white, outlined, the week's share in the accent. */
 .usage-meter-bar {
   display: block;
-  height: 0.5rem;
+  height: 0.375rem;
   overflow: hidden;
   background: var(--color-background);
-  border: 1px solid var(--color-text-secondary);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
 }
 
 .usage-meter-bar > span {
   display: block;
   height: 100%;
   background: var(--color-accent);
+  border-radius: var(--radius-control);
 }
 
 /* « Votre quota se renouvelle lundi minuit »: metadata (ADR-0009 amendment), on one line, cut rather than wrapped.
    It starts under the title and runs to the sidebar's edge, past the bar, so the French fits at 13 px. */
 .usage-meter-renews {
   margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)) 0 0;
-  padding-inline: var(--space-3) 0;
+  padding-inline: var(--space-2) 0;
   overflow: hidden;
   color: var(--color-text-meta);
   font-size: var(--font-size-meta);
@@ -1885,25 +1968,28 @@ html[data-sidebar="closed"] .sidebar-docked {
   text-overflow: ellipsis;
 }
 
+/* The week's detail: a card opened above the meter, over the sidebar's links. */
 .usage-meter-detail {
   position: absolute;
-  right: var(--space-2);
+  right: 0;
   bottom: calc(100% + var(--space-1));
-  left: var(--space-2);
+  left: 0;
   z-index: 5;
-  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
   font-size: var(--font-size-meta);
   line-height: 1.4;
   background: var(--color-background);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-menu);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
 }
 
 .usage-meter-detail dl {
   display: grid;
-  gap: 2px;
-  margin: 0 0 var(--space-1);
+  gap: var(--space-1);
+  margin: 0;
 }
 
 .usage-meter-detail dl > div {
@@ -1922,19 +2008,28 @@ html[data-sidebar="closed"] .sidebar-docked {
   font-weight: 600;
 }
 
-.sidebar-collapse,
-.sidebar-sign-out {
-  align-self: flex-start;
-}
-
-/* The foot's links and buttons line their icons up with the menu's above. */
-.sidebar-foot {
-  padding-inline: 0;
-}
-
+/* Se déconnecter and Masquer le menu read as the links above them: icon and words, full width, no frame. */
 .sidebar-foot .button-quiet {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  align-self: stretch;
+  justify-content: flex-start;
+  min-height: var(--size-control);
   /* Less the button's 1px border, which a link has not. */
-  padding-inline: calc(var(--space-3) - 1px);
+  padding: var(--space-1) calc(var(--space-2) - 1px);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+}
+
+.sidebar-foot .button-quiet:hover {
+  background: var(--color-hover);
+}
+
+.sidebar-foot .button-quiet .icon {
+  width: 1.125em;
+  height: 1.125em;
+  color: var(--color-secondary);
 }
 
 .workspace {
@@ -1943,22 +2038,29 @@ html[data-sidebar="closed"] .sidebar-docked {
   min-width: 0;
 }
 
+/* The Top Bar (#464): the page's title, then AI Activity and « Aide et coach », on the page's white. No search field
+   until a search exists. */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: center;
-  min-height: 3.5rem;
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-8);
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-6);
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
 }
 
 .topbar .coach-panel-toggle {
   flex: none;
-  min-height: var(--control-height);
+}
+
+.topbar .coach-panel-toggle .icon,
+.topbar .menu-toggle .icon {
+  width: 1.125em;
+  height: 1.125em;
 }
 
 /* The page's title, in the Top Bar (ADR-0024): one line, cut short with an ellipsis. */
@@ -1971,6 +2073,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   margin: 0;
   overflow: hidden;
   font-size: var(--font-size-h3);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2102,7 +2205,8 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   bottom: 0;
   left: 0;
   z-index: 40;
-  width: min(var(--sidebar-width), 88%);
+  /* As wide as before the Design System (#464): below 64rem the drawer is unchanged. */
+  width: min(17rem, 88%);
   padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0px));
   box-shadow: var(--shadow-overlay);
 }
@@ -2149,31 +2253,33 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   width: max(44px, var(--control-height));
   height: max(44px, var(--control-height));
   padding: 0;
-  color: var(--color-text);
+  color: var(--color-secondary);
   cursor: pointer;
   background: none;
   border: 0;
   border-radius: var(--radius-md);
 }
 
-.signalement-open:hover {
-  background: var(--color-surface-hover);
+.signalement-open:hover,
+.signalement-open:focus-visible {
+  color: var(--color-text);
+  background: var(--color-hover);
 }
 
+/* « Signalement »: a dark tip above the icon, its words on the inverse surface. */
 .signalement-tip {
   position: absolute;
   right: 0;
   bottom: calc(100% + var(--space-1));
   z-index: 5;
-  padding: var(--space-1) var(--space-2);
+  padding: 2px var(--space-2);
   font-size: var(--font-size-meta);
-  color: var(--color-text);
+  color: var(--color-on-inverse);
   white-space: nowrap;
   pointer-events: none;
   visibility: hidden;
-  background: var(--color-background);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-menu);
+  background: var(--color-inverse);
+  border-radius: var(--radius-md);
 }
 
 .signalement-open:hover .signalement-tip,
@@ -2202,56 +2308,23 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 .signalement-title {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: center;
+  font-weight: 600;
+}
+
+/* The title's glyph follows the type, in the accent, and morphs from one to the next (#279). */
+.signalement-title .signalement-glyph {
+  width: 1.25em;
+  height: 1.25em;
+  color: var(--color-accent);
+  stroke-width: 1.5;
 }
 
 .signalement-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-}
-
-/* Bug / Idée: a two-way switch; the type chosen is bold and raised, not marked by colour alone. */
-.signalement-types {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin: 0;
-  padding: 3px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-text-secondary);
-  border-radius: var(--radius-sm);
-}
-
-.signalement-type {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--control-height);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-}
-
-.signalement-type input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.signalement-type:has(input:checked) {
-  font-weight: 600;
-  background: var(--color-background);
-  box-shadow: inset 0 -3px 0 var(--color-text);
-}
-
-.signalement-type:has(input:focus-visible) {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 1px;
 }
 
 .signalement-form textarea {
@@ -2276,11 +2349,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   white-space: normal;
 }
 
+/* What goes with it, « Joints automatiquement »: a quiet block on the surface, its detail a two-column list. */
 .signalement-context {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
+  color: var(--color-secondary);
   background: var(--color-surface);
   border-radius: var(--radius-md);
 }
@@ -2316,11 +2391,20 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 .signalement-detail dd {
   margin: 0;
+  color: var(--color-text);
   overflow-wrap: anywhere;
 }
 
 .signalement-actions {
   justify-content: flex-end;
+}
+
+/* Sent: thanks on the success surface, in its colour and in words. */
+.signalement-thanks {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-success);
+  background: var(--color-success-soft);
+  border-radius: var(--radius-md);
 }
 
 .signalement-thanks p {
@@ -4123,22 +4207,33 @@ textarea.title-edit {
   color: inherit;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
-/* The frame: .button's, around the icon alone, at « Aide et coach »'s height. */
+/* The frame (#464): a round pill around the icon alone, at « Aide et coach »'s height, outlined as a Button. */
 .ai-activity-frame {
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  min-width: var(--control-height);
-  min-height: var(--control-height);
-  padding-inline: var(--space-3);
+  min-width: var(--size-control);
+  min-height: var(--size-control);
+  padding: 0;
+  color: var(--color-text);
   background: var(--color-background);
-  border: 1px solid var(--color-text-secondary);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  transition: background-color var(--motion-fast) var(--motion-easing);
+}
+
+.ai-activity-toggle:hover .ai-activity-frame {
+  background: var(--color-hover);
+}
+
+.ai-activity-frame > svg {
+  width: 1.125em;
+  height: 1.125em;
 }
 
 /* Its name is for screen readers and the tooltip; the icon and the summary say what the eye needs. */
@@ -4398,14 +4493,18 @@ textarea.title-edit {
 
 /* AI Activity live (#333): the closed button shows the step under way, its glyph and its words, a stop icon beside it;
    the pane, a section per action, stopped or failed ones in very light red, said in words too. */
+/* Stop, beside the step: a round button, its red square filled (#464). */
 .topbar .ai-activity-stop {
   display: inline-flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  min-width: var(--control-height);
-  min-height: var(--control-height);
+  min-width: var(--size-control);
+  min-height: var(--size-control);
   padding: 0;
+  color: var(--color-danger);
+  border-color: var(--color-border-strong);
+  border-radius: var(--radius-control);
 }
 
 .ai-activity-stop {
@@ -4527,7 +4626,8 @@ textarea.title-edit {
     bottom: var(--space-2);
     overflow: hidden;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
   }
 
   .with-coach-panel {
@@ -4574,16 +4674,24 @@ textarea.title-edit {
 }
 
 /* The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, found without AI. */
+/* « Dans l'aide, sans IA »: a card over the message box, its title metadata, one row per Help Article. */
 .coach-help-suggestions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  overflow: hidden;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
 }
 
 .coach-help-suggestions-title {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-weight: 600;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+  color: var(--color-meta);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .coach-help-suggestions ul,
@@ -4596,30 +4704,47 @@ textarea.title-edit {
   list-style: none;
 }
 
+.coach-help-suggestions ul {
+  gap: 0;
+  padding: var(--space-1) 0;
+}
+
 .coach-help-suggestion {
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-3);
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   width: 100%;
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-3);
   font: inherit;
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.coach-help-suggestion:hover,
+.coach-help-suggestion:focus-visible {
+  background: var(--color-accent-soft);
+}
+
+.coach-help-suggestion:focus-visible {
+  outline-offset: -3px;
+}
+
+/* Its kind (« Mot à connaître », « Question fréquente », « Page »): a pill at the row's end. */
+.coach-help-kind {
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+  color: var(--color-meta);
+  white-space: nowrap;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.coach-help-suggestion:hover {
-  border-color: var(--color-text-secondary);
-}
-
-.coach-help-kind {
-  color: var(--color-text-secondary);
+  border-radius: var(--radius-control);
 }
 
 .help-chips {
@@ -4627,8 +4752,18 @@ textarea.title-edit {
   gap: var(--space-2);
 }
 
-.help-chip {
+/* « Souvent demandé » and the help's proposals: pills on the surface. */
+.help-chip.button {
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-3);
   text-align: left;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.help-chip.button:hover {
+  background: var(--color-hover);
 }
 
 .help-intro,
@@ -4651,9 +4786,12 @@ textarea.title-edit {
   align-items: flex-start;
 }
 
+/* « Sur cette page », « Souvent demandé »: labels in metadata. */
 .help-intro-section h3 {
   margin: 0;
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-meta);
+  font-weight: 500;
+  color: var(--color-meta);
 }
 
 /* A Help Article opened in the conversation: a card, said to be written by the team, never by the AI. */
@@ -4663,15 +4801,15 @@ textarea.title-edit {
   border: 0;
 }
 
+/* The Help Article card: on the surface, « Aide · écrit par l'équipe Jobbbox » above its title. */
 .help-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-text-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .help-card p,
@@ -4681,13 +4819,14 @@ textarea.title-edit {
 }
 
 .help-card-label {
-  color: var(--color-text-secondary);
-  font-weight: 600;
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
 }
 
 .help-card-title {
   margin: 0;
-  font-size: var(--font-size-h3);
+  font-size: var(--font-size-body);
+  font-weight: 600;
 }
 
 .help-card-feedback {

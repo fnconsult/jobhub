@@ -20,6 +20,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Drawer, DrawerTitle } from "@/design/Drawer";
+import { SegmentedControl } from "@/design/Field";
 import { routes } from "@/routes";
 import { browserOf } from "@/signalements/context";
 import {
@@ -407,23 +408,13 @@ function SignalementForm({
     <form className="signalement-form" noValidate onSubmit={submit}>
       {title}
       {question ? null : (
-        <fieldset className="signalement-types">
-          <legend className="visually-hidden">
-            {t("signalement.typeLegend")}
-          </legend>
-          {DRAFT_TYPES.map((option) => (
-            <label key={option} className="signalement-type">
-              <input
-                type="radio"
-                name={`${id}-type`}
-                value={option}
-                checked={type === option}
-                onChange={() => changeType(option)}
-              />
-              {t(`signalement.types.${option}`)}
-            </label>
-          ))}
-        </fieldset>
+        // Bug / Idée: the Design System's segmented control (#464), one Tab stop, the arrow keys switching.
+        <SegmentedControl
+          label={t("signalement.typeLegend")}
+          options={DRAFT_TYPES.map((option) => ({ value: option, label: t(`signalement.types.${option}`) }))}
+          value={type}
+          onValueChange={changeType}
+        />
       )}
       <div className="field">
         <label htmlFor={`${id}-message`}>

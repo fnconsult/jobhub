@@ -121,4 +121,38 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
     expect(await domains({ period: "30d" })).toHaveLength(3);
     expect(await domains({ outcome: "'; DROP TABLE received_email_activity; --", kind: 42 })).toHaveLength(2);
   });
+
+  describe("the Journal's Linked mailbox events", () => {
+    it("are switching on, replacing and switching off a Forwarding address, and the first email past the daily cap each Paris day; naming no Candidate", async () => {
+      now = new Date("2026-10-27T10:00:00Z");
+      await post(alertEmail(address));
+      await post(alertEmail(address)); // past the cap of 1
+      await post(alertEmail(address)); // past it again: no second event that day
+      now = new Date("2026-10-27T11:00:00Z");
+      address = (await emailIntake.replace(marie))!.address;
+      now = new Date("2026-10-27T12:00:00Z");
+      await emailIntake.switchOff(marie);
+      await emailIntake.switchOff(marie); // already off: nothing happens
+
+      const events = await activity.linkedMailboxEvents(10);
+
+      expect(events.map(({ at, event }) => [at.toISOString(), event])).toEqual([
+        ["2026-10-27T12:00:00.000Z", "switched_off"],
+        ["2026-10-27T11:00:00.000Z", "replaced"],
+        ["2026-10-27T10:00:00.000Z", "daily_cap_reached"],
+        ["2026-10-27T09:30:00.000Z", "switched_on"],
+      ]);
+      const shown = JSON.stringify(events);
+      for (const named of [marie, MARIE.email, MARIE.name, address]) expect(shown).not.toContain(named);
+    });
+
+    it("survive the Candidate's deletion and are purged after 24 months", async () => {
+      await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
+      expect(await activity.linkedMailboxEvents(10)).toHaveLength(1);
+
+      expect(await purgeEmailIntakeActivity(database, new Date("2028-10-27T09:29:00Z"))).toMatchObject({ linkedMailboxEvents: 0 });
+      expect(await purgeEmailIntakeActivity(database, new Date("2028-10-27T09:30:00Z"))).toMatchObject({ linkedMailboxEvents: 1 });
+      expect(await activity.linkedMailboxEvents(10)).toEqual([]);
+    });
+  });
 });

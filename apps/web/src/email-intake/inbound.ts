@@ -15,13 +15,15 @@
  *    wizard, but neither queued nor counted.
  * One email delivered twice (its MessageId) is received once. A failure answers 5xx and keeps nothing of the email,
  * so Brevo can deliver it again. Rows keep the outcome, the sender's domain and the dates; the text goes at most
- * 72 hours after it arrived, the row 12 months after (`purgeReceivedOfferEmails`, nightly in the worker).
+ * 72 hours after it arrived, the row 12 months after (`purgeReceivedOfferEmails`, nightly in the worker). Each row also
+ * gets its row of Activité › Emails reçus, naming no Candidate (activity.ts, #449), and the first email past the cap of
+ * the day a Linked mailbox event for the Journal.
  */
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction } from "../database/pool";
 import type { SealedSecret, SecretCipher } from "../provider-secrets/cipher";
-import { recordReceivedEmail } from "./activity";
+import { recordLinkedMailboxEvent, recordReceivedEmail } from "./activity";
 import type { EmailIntake } from "./index";
 import { readInboundEmails, type InboundEmail } from "./inbound-email";
 import { senderStanding, type RecognisedSender } from "./recognised-senders";
@@ -127,15 +129,16 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
     return rows;
   }
 
-  /** How many of the Candidate's emails were read on the Paris day of `at`. */
-  async function readToday(client: PoolClient, candidateId: string, at: Date): Promise<number> {
-    const { rows } = await client.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM received_offer_email
-       WHERE candidate_id = $1 AND counts_against_cap
+  /** How many of the Candidate's emails were read, and set aside past the cap, on the Paris day of `at`. */
+  async function today(client: PoolClient, candidateId: string, at: Date): Promise<{ read: number; overCap: number }> {
+    const { rows } = await client.query<{ read: number; overCap: number }>(
+      `SELECT count(*) FILTER (WHERE counts_against_cap)::int AS read, count(*) FILTER (WHERE outcome = 'over_daily_cap')::int AS "overCap"
+       FROM received_offer_email
+       WHERE candidate_id = $1
          AND (received_at AT TIME ZONE '${DAY_TIME_ZONE}')::date = ($2::timestamptz AT TIME ZONE '${DAY_TIME_ZONE}')::date`,
       [candidateId, at],
     );
-    return rows[0]!.n;
+    return rows[0]!;
   }
 
   async function receive(email: InboundEmail, cipher: SecretCipher, dailyCap: number): Promise<void> {
@@ -153,14 +156,15 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
 
       const receivedAt = now();
       const standing = senderStanding(email, { recognisedSenders: await recognisedSenders(client), sendingAddresses });
-      const outcome: ReceivedOfferEmailOutcome =
-        standing === "unrecognised"
-          ? "unrecognised_sender"
-          : standing === "forwarding_confirmation"
-            ? "forwarding_confirmation"
-            : (await readToday(client, owner, receivedAt)) >= dailyCap
-              ? "over_daily_cap"
-              : "awaiting_reading";
+      let outcome: ReceivedOfferEmailOutcome;
+      if (standing === "unrecognised") outcome = "unrecognised_sender";
+      else if (standing === "forwarding_confirmation") outcome = "forwarding_confirmation";
+      else {
+        const day = await today(client, owner, receivedAt);
+        outcome = day.read >= dailyCap ? "over_daily_cap" : "awaiting_reading";
+        // The Journal's « Boîtes reliées »: the first email set aside past the cap each day, not each one.
+        if (outcome === "over_daily_cap" && day.overCap === 0) await recordLinkedMailboxEvent(client, "daily_cap_reached", receivedAt);
+      }
       const id = randomUUID();
       const sender = domainOf(email.from);
       const manualForward = standing === "own_address";

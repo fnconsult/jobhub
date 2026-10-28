@@ -1,0 +1,40 @@
+@layer base, components;
+
+@layer components {
+  /* One line of tabs over a hairline; the active one underlined in the text colour (variant A). */
+  .ds-tabs__list {
+    display: flex;
+    gap: var(--space-6);
+    margin-bottom: var(--space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-tabs__tab {
+    flex: none;
+    min-height: var(--size-control);
+    padding: var(--space-2) 0;
+    margin-bottom: -1px;
+    font-weight: 500;
+    color: var(--color-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .ds-tabs__tab:hover {
+    color: var(--color-text);
+  }
+
+  .ds-tabs__tab[data-state="active"] {
+    color: var(--color-text);
+    border-bottom-color: var(--color-text);
+  }
+
+  .ds-tabs__panel:focus-visible {
+    outline-offset: var(--space-1);
+  }
+}

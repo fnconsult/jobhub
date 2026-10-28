@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { alertEmail, inboundPayload, unknownSenderEmail, type BrevoInboundItem } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
 import { signInWithMagicLink } from "./support/candidate";
@@ -14,6 +15,18 @@ const SECRET = "e2e-brevo-inbound-secret";
 const BREVO_IP = "203.0.113.7"; // inside EMAIL_INTAKE_BREVO_IP_RANGES (playwright.config.ts)
 const OTHER_IP = "198.51.100.9"; // outside
 const READ_QUEUE = "email-intake.read";
+
+// Issue #448: Email intake on the Sources tab and its sheet, in this file because switching the source off discards the
+// emails the tests above deliver: the tests of one file run one after the other.
+const admin = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8")).admin;
+const sites = admin.searchSites;
+const senders = admin.emailIntake.senders;
+const journal = admin.journal;
+const SUPER_ADMIN = "email-intake-office@e2e.jobbbox.test";
+const SOURCE_NAME: string = sites.sources.names.email_intake;
+const SOURCES = "/admin/parametres?tab=sources";
+const SHEET = "/admin/parametres?tab=sources&fournisseur=brevo-inbound";
+const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 
 const database = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
 test.afterAll(() => database.end());
@@ -166,5 +179,98 @@ test.describe("Email intake: Brevo's inbound webhook", () => {
 
     runPurge(13 * 31 * 24);
     expect(await receivedEmails(page)).toEqual([]);
+  });
+
+  test.describe("in the Back Office (#448)", () => {
+    const sender = `alertes-${Date.now().toString(36)}.monster-e2e.test`;
+    const sourceRow = (page: Page) => page.locator('tr[data-source="email_intake"]');
+    const senderRow = (page: Page) => page.locator(`tr[data-sender="${sender}"]`);
+
+    test.afterAll(async () => {
+      await database.query("DELETE FROM recognised_sender WHERE value = $1", [sender]);
+      await database.query("UPDATE job_discovery_source SET enabled = true WHERE source = 'email_intake'");
+    });
+
+    async function personPage(browser: Browser, email: string): Promise<Page> {
+      const context = await browser.newContext({ baseURL: origin });
+      const page = await context.newPage();
+      await signInWithMagicLink(page, email);
+      return page;
+    }
+
+    test("a super-admin switches Email intake off and on (audited), adds and labels a Recognised sender; Support reads, changes nothing", async ({ page, browser }) => {
+      // Switched off on the Sources tab: an email reaching a Forwarding address is discarded unread.
+      const candidate = await personPage(browser, newAddress("inbound-switched-off"));
+      const on = await candidate.request.put("/api/account/email-intake", { headers: { origin } });
+      const address = (await on.json()).address as string;
+      await signInWithMagicLink(page, SUPER_ADMIN);
+      await page.goto(SOURCES);
+      await expect(sourceRow(page).getByRole("cell").first()).toHaveText(sites.enabled);
+      await sourceRow(page).getByRole("button", { name: tr(sites.disable, { name: SOURCE_NAME }), exact: true }).click();
+      await expect(sourceRow(page).getByRole("cell").first()).toHaveText(sites.disabled);
+      expect((await deliver(candidate.request, inboundPayload(alertEmail(address)))).status()).toBe(200);
+      expect(await receivedEmails(candidate)).toEqual([]);
+
+      // Switched on again: the next one is received.
+      await sourceRow(page).getByRole("button", { name: tr(sites.enable, { name: SOURCE_NAME }), exact: true }).click();
+      await expect(sourceRow(page).getByRole("cell").first()).toHaveText(sites.enabled);
+      expect((await deliver(candidate.request, inboundPayload(alertEmail(address)))).status()).toBe(200);
+      expect(await receivedEmails(candidate)).toHaveLength(1);
+
+      await page.goto("/admin/journal?section=job_discovery_sources");
+      const switched = page.getByRole("row").filter({ hasText: SUPER_ADMIN }).filter({ hasText: SOURCE_NAME });
+      await expect(switched.nth(0)).toContainText(tr(journal.changed, { field: sites.status, before: sites.disabled, after: sites.enabled }));
+      await expect(switched.nth(1)).toContainText(tr(journal.changed, { field: sites.status, before: sites.enabled, after: sites.disabled }));
+
+      // The Email intake sheet, opened from the source's provider: its settings, its key, its Recognised senders.
+      await page.goto(SOURCES);
+      await sourceRow(page).getByRole("link", { name: "Brevo (Inbound Parsing)" }).click();
+      await expect(page).toHaveURL(SHEET);
+      const sheet = page.locator('aside[data-sheet="brevo-inbound"]');
+      await expect(sheet.locator('tr[data-setting="EMAIL_INTAKE_DOMAIN"]')).toBeVisible();
+      await expect(sheet.locator('[data-key="BREVO_INBOUND_SECRET"]')).toBeVisible();
+      await expect(sheet.locator('tr[data-sender="cadremploi.fr"]')).toContainText("Cadremploi – cadremploi.fr");
+
+      await sheet.getByLabel(senders.senderField).fill(sender.toUpperCase());
+      await sheet.getByLabel(senders.labelField, { exact: true }).fill("Monster – monster.fr");
+      await sheet.getByRole("button", { name: senders.add }).click();
+      await expect(page.getByRole("status").filter({ hasText: admin.emailIntake.notices.added })).toBeVisible();
+      await expect(senderRow(page)).toContainText("Monster – monster.fr");
+      await expect(senderRow(page)).toContainText(sites.enabled);
+
+      await senderRow(page).getByText(tr(senders.relabel, { sender })).click();
+      await senderRow(page).getByLabel(tr(senders.newLabel, { sender })).fill("Monster – www.monster.fr");
+      await senderRow(page).getByRole("button", { name: tr(senders.saveLabel, { sender }) }).click();
+      await expect(senderRow(page).getByRole("cell").first()).toHaveText("Monster – www.monster.fr");
+      const stored = await database.query("SELECT label, enabled FROM recognised_sender WHERE value = $1", [sender]);
+      expect(stored.rows).toEqual([{ label: "Monster – www.monster.fr", enabled: true }]);
+
+      await page.goto("/admin/journal?section=recognised_senders");
+      const recorded = page.getByRole("row").filter({ hasText: sender });
+      await expect(recorded).toHaveCount(2);
+      await expect(recorded.nth(0)).toContainText(tr(journal.changed, { field: senders.label, before: "Monster – monster.fr", after: "Monster – www.monster.fr" }));
+      await expect(recorded.nth(1)).toContainText(journal.actions.added);
+      for (const row of await recorded.all()) await expect(row).toContainText(SUPER_ADMIN);
+
+      // Support reads the source and the sheet, and has no way to change them.
+      const support = newAddress("inbound-support");
+      const supportPage = await personPage(browser, support);
+      await page.goto("/admin/administrateurs");
+      await page.getByLabel(admin.administrators.grantEmail).fill(support);
+      await page.getByRole("checkbox", { name: admin.roles.support }).check();
+      await page.getByRole("button", { name: admin.administrators.grant }).click();
+      await expect(page.getByRole("status")).toHaveText(tr(admin.administrators.granted, { roles: admin.roles.support }));
+
+      await supportPage.goto(SOURCES);
+      await expect(sourceRow(supportPage).getByRole("button", { name: tr(sites.disable, { name: SOURCE_NAME }), exact: true })).toBeDisabled();
+      await supportPage.goto(SHEET);
+      await expect(senderRow(supportPage)).toContainText("Monster – www.monster.fr");
+      await expect(senderRow(supportPage).getByRole("button", { name: tr(senders.disable, { sender }) })).toBeDisabled();
+      await expect(senderRow(supportPage).getByRole("button", { name: tr(senders.remove, { sender }) })).toBeDisabled();
+      await expect(senderRow(supportPage).getByText(tr(senders.relabel, { sender }))).toHaveCount(0);
+      await expect(supportPage.getByRole("button", { name: senders.add })).toBeDisabled();
+      await expect(supportPage.locator('aside[data-sheet="brevo-inbound"] form')).toHaveCount(0);
+      expect((await database.query("SELECT label, enabled FROM recognised_sender WHERE value = $1", [sender])).rows).toEqual([{ label: "Monster – www.monster.fr", enabled: true }]);
+    });
   });
 });

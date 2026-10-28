@@ -5,7 +5,9 @@ import { getBilling } from "@/billing/server";
 import { coachCostOfLastDays } from "@/coach-conversations/server";
 import { sharedPool } from "@/database/pool";
 import { getGuardrails } from "@/guardrails/server";
+import { emailIntakeDomain } from "@/email-intake/domain";
 import { getHumanCoaches } from "@/human-coaches/server";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createAssistantConversations, type AssistantConversations } from "./conversations";
 import { createBackOfficeAssistant } from "./index";
@@ -34,6 +36,7 @@ export function getAssistantConversations(): AssistantConversations {
         aiUsage: () => aiUsageReportOf("30d"),
         administrators: () => getAdministrators().list(),
         journal: (limit) => getBackOffice().journal({ limit }),
+        emailIntakeDomain: async () => emailIntakeDomain(getPlatformSettingsResolver().current()),
       },
     }),
   });

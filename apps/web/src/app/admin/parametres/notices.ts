@@ -68,6 +68,13 @@ export const SITES_NOTICES = {
 export type SitesNotice = keyof typeof SITES_NOTICES;
 export const isSitesNotice = (value: unknown): value is SitesNotice => typeof value === "string" && Object.hasOwn(SITES_NOTICES, value);
 
+/** A Recognised sender's notice (`?expediteurs=`, #448): a key under admin.emailIntake.notices, and whether it is an error. */
+export const SENDER_NOTICES = { added: false, updated: false, removed: false, invalid: true, exists: true, notFound: true } as const;
+export type SenderNotice = keyof typeof SENDER_NOTICES;
+export const isSenderNotice = (value: unknown): value is SenderNotice => typeof value === "string" && Object.hasOwn(SENDER_NOTICES, value);
+/** The address parameter saying how a Recognised sender's change went. */
+export const SENDER_NOTICE_PARAM = "expediteurs";
+
 /** A Provider Secret's errors, as admin.providerSecrets.errors names them. */
 export const SECRET_ERRORS = ["test_failed", "empty", "too_long", "unknown_secret", "no_master_key"] as const;
 export type SecretError = (typeof SECRET_ERRORS)[number];

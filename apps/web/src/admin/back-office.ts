@@ -53,6 +53,8 @@ export const BACK_OFFICE_SECTIONS = [
   "job_discovery_sources",
   "job_discovery_sites",
   "job_sites",
+  // The platform's Recognised senders, on the Email intake sheet (#448).
+  "recognised_senders",
   "ai_messages",
   // A Job Search opened from Activité › Recherches (#404), named by its run; and an Administrator denied the Recherches.
   "discovery_runs",

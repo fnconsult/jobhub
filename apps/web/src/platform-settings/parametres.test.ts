@@ -1,7 +1,7 @@
 import { toolById, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
-import { ADD_TYPES, addTypeFor, keyHref, legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, type ProvidersState } from "./parametres";
+import { ADD_TYPES, addTypeFor, keyHref, legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, sheetSettingsOf, type ProvidersState } from "./parametres";
 import { snapshotOfSettings, type StoredPlatformSettings } from "./resolver";
 
 const tool = (id: string): Tool => toolById(id)!;
@@ -64,6 +64,19 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     expect(providerSheetHref(tool("stripe"))).toBe("/admin/parametres?tab=paiement&fournisseur=stripe");
     expect(providerSheetHref(tool("brevo-smtp"))).toBe("/admin/parametres?tab=e-mail&fournisseur=brevo-smtp");
     expect(providerSheetHref(tool("geo-api-gouv"))).toBeUndefined();
+  });
+
+  it("puts Email intake's Tool, its key and its settings on its sheet, on the Sources tab (#448)", () => {
+    const sheet = "/admin/parametres?tab=sources&fournisseur=brevo-inbound";
+    expect(providerSheetHref(tool("brevo-inbound"))).toBe(sheet);
+    expect(keyHref("BREVO_INBOUND_SECRET")).toBe(sheet);
+    for (const name of ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_BREVO_IP_RANGES"]) {
+      expect(settingHref(name), name).toBe(`${sheet}#setting-${name}`);
+      expect(sheetSettingsOf(tool("brevo-inbound")), name).toContain(name);
+      // Shown on the sheet only: neither the E-mail tab nor the Sources tab lists them again.
+      expect(PARAMETRES_TABS.some((each) => each.settings.includes(name)), name).toBe(false);
+    }
+    expect(sheetSettingsOf(tool("brevo-smtp"))).toEqual([]);
   });
 
   it("links a key to the sheet of the Tool it is for", () => {

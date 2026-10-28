@@ -7,11 +7,13 @@
  */
 import { cleanTechnicalMessage, failureOf, type FailureReason, type TechnicalReason } from "@jobhub/shared";
 import { createAiLayer } from "./ai-layer";
-import { AI_ENV_KEYS, createAiLayerFromEnv, routedTargets, type RoutedTarget } from "./env";
+import { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, routedTargets, type RoutedTarget } from "./env";
 import { AiConfigError, AiProviderError, DataResidencyError } from "./errors";
 import { SEARCH_TASK, type TextTask, type UsageLog } from "./types";
 
 type Env = Record<string, string | undefined>;
+
+const ANTHROPIC_ENDPOINT_DEFAULT = AI_ROUTING_SETTINGS.find((setting) => setting.name === "ANTHROPIC_ENDPOINT")?.default;
 
 /** Why a change is refused, and the technical detail: which setting, which task, where it would go. */
 export interface AiRoutingRefusal {
@@ -37,24 +39,25 @@ function buildProblem(env: Env): AiRoutingRefusal | null {
  * `env` with every key a provider cannot be built without entered, where none is: those keys only keep a route
  * from starting, never change where it goes. So a route waiting for its key is judged where it will go once the key
  * is entered in Clés, which runs no routing check. Claude's keys choose its endpoint under ANTHROPIC_ENDPOINT=auto:
- * its direct API's is entered only where ANTHROPIC_ENDPOINT=direct requires it.
+ * its direct API's is entered only where ANTHROPIC_ENDPOINT=direct (the default) requires it.
  */
 function withRequiredKeysEntered(env: Env): Env {
   const entered: Env = { ...env };
   const required = [
     ...AI_ENV_KEYS.filter((name) => name.endsWith("_API_KEY") && name !== "ANTHROPIC_API_KEY"),
     "VERTEX_PROJECT_ID",
-    ...(env.ANTHROPIC_ENDPOINT?.trim() === "direct" ? ["ANTHROPIC_API_KEY"] : []),
+    ...((env.ANTHROPIC_ENDPOINT?.trim() || ANTHROPIC_ENDPOINT_DEFAULT) === "direct" ? ["ANTHROPIC_API_KEY"] : []),
   ];
   for (const name of required) if (!env[name]?.trim()) entered[name] = "not-entered-yet";
   return entered;
 }
 
 /**
- * The routes of `env` that would take personal data outside the EU, each a problem of its own. Checked whatever
- * else is wrong with `env` (a key missing, a provider that cannot serve its task): the AI layer only prefers EU
- * endpoints at runtime, so this check is the one rule. None when a value a setting refuses keeps the routes from
- * being read: `buildProblem` names it.
+ * The routes of `env` that must stay in the EU and would leave it, each a problem of its own: the identity route
+ * (Mistral, under EU AI consent) and a task marked `euOnly` (ADR-0052). A task with personal data may go outside
+ * the EU: Redaction takes the Candidate's identity out of each call (ADR-0007 amendment of 2026-10-28). Checked
+ * whatever else is wrong with `env` (a key missing, a provider that cannot serve its task). None when a value a
+ * setting refuses keeps the routes from being read: `buildProblem` names it.
  */
 function residencyProblems(env: Env): AiRoutingRefusal[] {
   let targets: RoutedTarget[];
@@ -63,8 +66,8 @@ function residencyProblems(env: Env): AiRoutingRefusal[] {
   } catch {
     return [];
   }
-  return targets.flatMap(({ target, providerSetting, personalData, endpoint }): AiRoutingRefusal[] =>
-    !personalData || !endpoint || endpoint.residency === "eu"
+  return targets.flatMap(({ target, providerSetting, euOnly, endpoint }): AiRoutingRefusal[] =>
+    !euOnly || !endpoint || endpoint.residency === "eu"
       ? []
       : [
           {
@@ -72,14 +75,14 @@ function residencyProblems(env: Env): AiRoutingRefusal[] {
             technical: {
               class: "DataResidencyError",
               provider: endpoint.id,
-              message: `${providerSetting}: the ${target} task carries personal data and would reach ${endpoint.id} through ${endpoint.endpoint}, outside the EU`,
+              message: `${providerSetting}: the ${target === "identity" ? "identity route" : `${target} task`} runs only in the EU and would reach ${endpoint.id} through ${endpoint.endpoint}, outside the EU`,
             },
           },
         ],
   );
 }
 
-/** What is wrong with the routes `env` sets: why the AI layer would not start, and each route leaving the EU with personal data. */
+/** What is wrong with the routes `env` sets: why the AI layer would not start, and each route leaving the EU that must stay in it. */
 function problemsOf(env: Env): AiRoutingRefusal[] {
   const built = buildProblem(env);
   return [...(built ? [built] : []), ...residencyProblems(env)];
@@ -163,7 +166,7 @@ async function failedModel(before: Env, after: Env, deps: AiRoutingCheckDeps): P
  * values and the Provider Secrets over it) may be saved: null when it may, else why not.
  *  - The AI layer must start on `after`: no provider that cannot serve its task, no Search provider's key missing; a text
  *    task's provider whose key is missing is not refused (ADR-0042: Paramètres warns of it), and its model is not tested.
- *  - No task with personal data may reach an endpoint outside the EU.
+ *  - Neither the identity route nor a task marked `euOnly` may reach an endpoint outside the EU.
  *  - Each model a route names that `before` did not use there passes its test call (one token, or one search).
  * A problem the configuration already had before the change does not block it; each is weighed on its own, so a
  * configuration already broken (a key missing) still has its residency checked.

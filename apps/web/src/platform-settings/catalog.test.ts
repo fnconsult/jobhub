@@ -64,7 +64,7 @@ describe("the Platform Settings catalog", () => {
 
   it("takes each default from the code that reads it", () => {
     const defaultOf = (name: string) => platformSetting(name)?.default;
-    expect(defaultOf("ANTHROPIC_ENDPOINT")).toBe("auto");
+    expect(defaultOf("ANTHROPIC_ENDPOINT")).toBe("direct");
     expect(defaultOf("BEDROCK_REGION")).toBe("eu-north-1");
     expect(defaultOf("VERTEX_REGION")).toBe("europe-west1");
     expect(defaultOf("OPENAI_DATA_RESIDENCY")).toBe("eu");

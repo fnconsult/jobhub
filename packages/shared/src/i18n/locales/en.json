@@ -2699,6 +2699,8 @@
         "cases": "Cases played",
         "context": "Situation",
         "message": "Message",
+        "email": "Email received (its text, as Email intake keeps it)",
+        "emailReading": "Reading the AI is made to give",
         "inView": "In view",
         "criteria": "Criteria",
         "consults": "Playbook to consult",

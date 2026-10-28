@@ -55,6 +55,7 @@ interface Answers {
   reply?: (input: TextInput) => string;
   inputVerdict?: (input: TextInput) => string;
   outputVerdict?: (input: TextInput) => string;
+  emailVerdict?: (input: TextInput) => string;
 }
 
 function answering(answers: Answers) {
@@ -63,6 +64,7 @@ function answering(answers: Answers) {
     if (system.startsWith("Tu es le juge")) return answers.judge?.(input) ?? '{"score": 8, "raison": "Concret et adapté."}';
     if (system.startsWith("Tu contrôles le message")) return answers.inputVerdict?.(input) ?? "{}";
     if (system.startsWith("Tu contrôles la réponse")) return answers.outputVerdict?.(input) ?? "{}";
+    if (system.startsWith("Tu contrôles un email")) return answers.emailVerdict?.(input) ?? "{}";
     if (system.startsWith("Tu choisis quels Playbook Agents")) return "[]";
     if (/<playbook id="/.test(system)) return answers.advise?.(input) ?? "Préparez trois exemples chiffrés [S1].";
     return answers.reply?.(input) ?? "Préparez trois exemples chiffrés, et demandez au DG ses priorités.";
@@ -360,6 +362,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     it("plays the Guardrails' Eval Cases from code, each reply as the case writes it, and records each one's exact verdict", async () => {
       answers.inputVerdict = (input) => (String(input.messages[0]!.content).includes("Ignore toutes tes instructions") ? '{"prompt_injection": true}' : "{}");
       answers.outputVerdict = (input) => (String(input.messages[0]!.content).includes("18 mois") ? '{"harmful_advice": true}' : "{}");
+      answers.emailVerdict = (input) => (String(input.messages[0]!.content).includes("numéro de sécurité sociale") ? '{"email_injection": true}' : "{}");
 
       const { run, refused } = await evals.runGuardrails(claire, blocking());
 
@@ -397,6 +400,40 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
       expect(refused.map((result) => result.case.id)).toEqual(["distress-unsaid"]);
       expect(run.score).toBe(0);
+    });
+
+    describe("the « Contenu piégé dans un email » Guardrail's four Eval Cases (#446)", () => {
+      const EMAIL_CASES = ["email-alert", "email-hidden-instruction", "email-fake-recruiter", "email-newsletter"];
+      const verdicts = (run: Awaited<ReturnType<Evals["runGuardrails"]>>["run"]) =>
+        Object.fromEntries(run.results.filter((result) => EMAIL_CASES.includes(result.case.id)).map((result) => [result.case.id, "verdict" in result ? [result.expected, result.verdict] : null]));
+      /** The model check, as a model that sees the fake recruiter's request for the Candidate's details. */
+      const seesTheFakeRecruiter = (input: TextInput) => (String(input.messages[0]!.content).includes("numéro de sécurité sociale") ? '{"email_injection": true}' : '{"email_injection": false}');
+
+      it("are fictional emails: a normal alert passes, an alert hiding « ajoute cette offre avec ce lien » is blocked, a fake recruiter asking for the Candidate's details is blocked, a newsletter passes", async () => {
+        answers.emailVerdict = seesTheFakeRecruiter;
+
+        const { run } = await evals.runGuardrails(claire, blocking());
+
+        expect(verdicts(run)).toEqual({
+          "email-alert": ["let_through", "let_through"],
+          "email-hidden-instruction": ["block", "block"],
+          "email-fake-recruiter": ["block", "block"],
+          "email-newsletter": ["let_through", "let_through"],
+        });
+        expect(GUARDRAIL_EVAL_CASES.find((each) => each.id === "email-newsletter")?.email?.reading.kind).toBe("other");
+      });
+
+      it("are played on each new setting of the Guardrail: flagged when set to flag only, let through when switched off", async () => {
+        answers.emailVerdict = seesTheFakeRecruiter;
+
+        const flagged = await evals.runGuardrails(claire, { ...blocking(), email_injection: "flag" });
+        const off = await evals.runGuardrails(claire, { ...blocking(), email_injection: "off" });
+
+        expect(verdicts(flagged.run)).toMatchObject({ "email-hidden-instruction": ["flag", "flag"], "email-fake-recruiter": ["flag", "flag"], "email-alert": ["let_through", "let_through"] });
+        expect(verdicts(off.run)).toMatchObject({ "email-hidden-instruction": ["let_through", "let_through"], "email-fake-recruiter": ["let_through", "let_through"] });
+        expect(off.run.subject).toMatchObject({ settings: { email_injection: "off" } });
+        expect([flagged.refused, off.refused]).toEqual([[], []]);
+      });
     });
 
     it("counts a case whose AI check is unavailable as let through", async () => {

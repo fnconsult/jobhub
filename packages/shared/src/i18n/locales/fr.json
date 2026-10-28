@@ -2699,6 +2699,8 @@
         "cases": "Cas joués",
         "context": "Situation",
         "message": "Message",
+        "email": "Email reçu (son texte, tel que la réception par email le garde)",
+        "emailReading": "Lecture que l'IA est censée donner",
         "inView": "Consulte",
         "criteria": "Critères",
         "consults": "Playbook à consulter",

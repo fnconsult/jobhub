@@ -1,0 +1,16 @@
+@layer base, components;
+
+@layer components {
+  .ds-amount {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* The cents raised, smaller and in the metadata colour (ADR-0009 amendment: metadata, never the only place it is said). */
+  .ds-amount__cents {
+    margin-left: 0.05em;
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+    vertical-align: 0.35em;
+  }
+}

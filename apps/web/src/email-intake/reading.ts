@@ -162,7 +162,7 @@ export async function migrateEmailReadings(database: Pool): Promise<void> {
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
       disposition text NOT NULL CHECK (disposition IN ('new', 'seen', 'to_capture', 'too_old')),
       job_offer_id uuid REFERENCES job_offer (id) ON DELETE CASCADE,
-      profile_id uuid REFERENCES profile (id) ON DELETE SET NULL,
+      profile_id uuid REFERENCES profile (id) ON DELETE CASCADE,
       match_score integer,
       title text,
       link text,

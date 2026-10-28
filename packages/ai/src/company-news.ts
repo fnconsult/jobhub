@@ -17,6 +17,7 @@
 import { builtInInstructions, fillSlots, slotsIn } from "@jobhub/coach-knowledge/tasks";
 import type { Route } from "./ai-layer";
 import { clean, taskQueryText } from "./search-query";
+import { FIRST_NAMES } from "./identity-scan";
 import type { AiWarning } from "./types";
 
 export interface CompanyNewsRequest {
@@ -124,22 +125,6 @@ const PERSON_WORDS = new RegExp(
     ].join("|") +
     ")(?![\\p{L}])",
   "iu",
-);
-
-/** Common first names: one followed by a capitalised word is taken for a person's name. */
-const FIRST_NAMES = new Set(
-  (
-    "jean pierre paul jacques michel philippe alain bernard patrick nicolas christophe olivier laurent thierry eric éric stéphane " +
-    "sébastien julien thomas antoine alexandre maxime vincent françois francois frédéric frederic guillaume pascal didier gilles " +
-    "daniel marc luc louis henri emmanuel xavier yves hugo lucas léo leo gabriel arthur raphaël raphael mathieu matthieu benoît benoit " +
-    "marie anne sophie isabelle nathalie catherine sylvie christine valérie valerie sandrine céline celine julie caroline aurélie " +
-    "camille léa lea chloé chloe emma manon sarah laura pauline juliette charlotte hélène helene florence martine monique " +
-    "agnès agnes béatrice beatrice delphine virginie émilie emilie élodie elodie margaux inès ines alice louise jeanne " +
-    "florent hans peter john james robert michael william david richard joseph charles mark steven steve elon jeff tim " +
-    "bill sundar satya andy brian kevin jason ryan matthew mary patricia jennifer linda elizabeth barbara susan jessica karen " +
-    "nancy lisa betty sandra ashley emily donna michelle kimberly amy melissa rebecca laura anna maria klaus wolfgang jürgen " +
-    "stefan andreas markus carlos jose josé juan luis antonio giuseppe marco giovanni luca"
-  ).split(" "),
 );
 
 /** A text's words; a hyphenated name (Clermont-Ferrand) is one word. */

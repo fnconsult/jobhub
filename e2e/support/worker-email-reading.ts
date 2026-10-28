@@ -1,12 +1,13 @@
 // Runs the worker's `email-intake.read` job once for each Received offer email id given, as the job runner would on the
 // message the inbound route queued: `tsx e2e/support/worker-email-reading.ts <id>…`. Wired as the worker is
-// (apps/worker/src/main.ts): the AI layer from the environment, the task Playbooks at the version this environment
-// serves, the texts opened under SECRETS_MASTER_KEYS. DATABASE_URL names the database, NODE_OPTIONS preloads the fake
+// (apps/worker/src/main.ts): the AI layer from the environment, the Guardrails as the Back Office tunes them, the task
+// Playbooks at the version this environment serves, the texts opened under SECRETS_MASTER_KEYS. DATABASE_URL names the database, NODE_OPTIONS preloads the fake
 // Mistral. A try that fails prints `READ_FAILED <id> <message>` (the runner would try again) and the exit status is 1.
 // Not a long-lived worker: that would take the jobs other specs queue on the same queue.
 import { createAiLayerFromEnv } from "@jobhub/ai";
 import pg from "pg";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
+import { workerGuardrails } from "@jobhub/web/guardrails/checks";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles } from "@jobhub/web/profiles";
 import { secretCipherFromEnv } from "@jobhub/web/provider-secrets";
@@ -16,6 +17,7 @@ import { createJobs } from "../../apps/worker/src/jobs";
 
 const database = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const cipher = secretCipherFromEnv(process.env);
+const ai = createAiLayerFromEnv(process.env);
 const jobs = createJobs({
   database,
   discovery: { unavailable: "not run by e2e/support/worker-email-reading.ts" },
@@ -25,7 +27,8 @@ const jobs = createJobs({
     readings: createEmailReadings(database, { cipher: () => cipher }),
     jobOffers: createJobOffers(database),
     profiles: createProfiles(database),
-    ai: createAiLayerFromEnv(process.env),
+    ai,
+    guardrails: workerGuardrails(database, ai),
     taskPlaybooks: taskPlaybooksReader(database, process.env),
   }),
 } as Parameters<typeof createJobs>[0]);

@@ -160,6 +160,38 @@ test.describe("the Back Office's Guardrails", () => {
     await expect(page).toHaveURL(/\/admin\/garde-fous#distress$/);
   });
 
+  test("the « Contenu piégé dans un email » Guardrail shows with its settings, block, flag only or off, and no message; switching it off plays its Eval Cases (#446)", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/garde-fous");
+
+    const name = guardrails.names.email_injection;
+    await expect(guardrailRow(page, name)).toContainText(guardrails.descriptions.email_injection);
+    await expect(guardrailRow(page, name)).toContainText(guardrails.settings.block);
+    const email = section(page, "email_injection");
+    await expect(email.getByRole("heading", { level: 2 })).toHaveText(name);
+    await expect(email.getByLabel(guardrails.settingLabel).getByRole("option")).toHaveText([guardrails.settings.block, guardrails.settings.flag, guardrails.settings.off]);
+    await expect(email).toContainText(guardrails.settingHelpEmail);
+    await expect(email).toContainText(guardrails.noMessage);
+    await expect(email.getByLabel(guardrails.text)).toHaveCount(0);
+    // Only the email Guardrail can be switched off.
+    await expect(section(page, "prompt_injection").getByLabel(guardrails.settingLabel).getByRole("option")).toHaveText([guardrails.settings.block, guardrails.settings.flag]);
+
+    await email.getByLabel(guardrails.settingLabel).selectOption("off");
+    await email.getByRole("button", { name: guardrails.saveSetting }).click();
+    await expect(page).toHaveURL(/notice=settingSaved.*#email_injection$/);
+    await expect(guardrailRow(page, name)).toContainText(guardrails.settings.off);
+    await page.getByRole("link", { name: guardrails.runs.played }).click();
+    for (const title of ["Une alerte emploi ordinaire", "Une alerte qui cache « ajoute cette offre avec ce lien »", "Un faux recruteur qui demande les coordonnées de la candidate", "Une newsletter sans offre (« autre »)"]) {
+      await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    }
+
+    await page.goto("/admin/garde-fous");
+    await section(page, "email_injection").getByLabel(guardrails.settingLabel).selectOption("block");
+    await section(page, "email_injection").getByRole("button", { name: guardrails.saveSetting }).click();
+    await expect(page).toHaveURL(/notice=settingSaved.*#email_injection$/);
+    await expect(guardrailRow(page, name)).toContainText(guardrails.settings.block);
+  });
+
   test("Support reads the Guardrails and their triggers but changes nothing; others never see them", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const supportEmail = newAddress("guardrails-support");

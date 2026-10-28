@@ -7,10 +7,18 @@ import { getSearchSites } from "@/search-sites/server";
 import { emailIntakeDomain, emailIntakeLimits } from "./domain";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 import { createEmailIntake, type EmailIntake } from "./index";
+import { createRecognisedSenderList, type RecognisedSenderList } from "./recognised-sender-list";
 
 let instance: EmailIntake | undefined;
 let inbound: EmailIntakeInbound | undefined;
 let cipher: SecretCipher | null | undefined;
+let senders: RecognisedSenderList | undefined;
+
+/** The platform's Recognised senders and « Expéditeurs proposés » (#448), on the database named by DATABASE_URL. */
+export function getRecognisedSenderList(): RecognisedSenderList {
+  senders ??= createRecognisedSenderList(sharedPool());
+  return senders;
+}
 
 /** The app's Email intake, on the database named by DATABASE_URL, giving addresses on the EMAIL_INTAKE_DOMAIN in use. */
 export function getEmailIntake(): EmailIntake {

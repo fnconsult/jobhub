@@ -14,7 +14,10 @@ import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { aiTaskRoutes, keyMissing, playbookAgentRows, searchTaskRows, type PlaybookWithVersions } from "@/platform-settings/ai-tasks";
 import { platformSetting, type PlatformSettingType } from "@/platform-settings/catalog";
 import { envOnlySettingsShown, retiredSettingsSet } from "@/platform-settings/env-only";
-import { addTypeFor, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, type ProvidersState } from "@/platform-settings/parametres";
+import { addTypeFor, EMAIL_INTAKE_TOOL, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, type ProvidersState } from "@/platform-settings/parametres";
+import { emailIntakeHeldBack } from "@/email-intake/playbook-state";
+import { getRecognisedSenderList } from "@/email-intake/server";
+import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { isProviderSecretName, type ProviderSecretName } from "@/provider-secrets/catalog";
 import { secretCipherFromEnv } from "@/provider-secrets/cipher";
 import type { ProviderSecretStatus } from "@/provider-secrets/index";
@@ -36,10 +39,13 @@ import {
   isPlatformSettingNotice,
   isPlaybookAgentNotice,
   isRouteNotice,
+  isSenderNotice,
   isSitesNotice,
   PLATFORM_SETTING_NOTICES,
   PLAYBOOK_AGENT_NOTICES,
   SECRET_ERRORS,
+  SENDER_NOTICE_PARAM,
+  SENDER_NOTICES,
   SITES_NOTICES,
   type SecretError,
 } from "./notices";
@@ -130,6 +136,9 @@ function Notices({ ctx, search, signInProviders, requireSso }: { ctx: Ctx; searc
   // A Job discovery source, site or Job Site.
   const sites = one(search.sites);
   if (isSitesNotice(sites)) notices.push({ role: SITES_NOTICES[sites] ? "alert" : "status", text: t(`admin.searchSites.notices.${sites}`) });
+  // A Recognised sender, on the Email intake sheet (#448).
+  const senders = one(search[SENDER_NOTICE_PARAM]);
+  if (isSenderNotice(senders)) notices.push({ role: SENDER_NOTICES[senders] ? "alert" : "status", text: t(`admin.emailIntake.notices.${senders}`) });
   if (ctx.tab.id === "sign_in") {
     // A Sign-in Provider: by its id only, checked against the known ones.
     const named = (id: string | undefined) => signInProviders.find((provider) => provider.id === id)?.displayName;
@@ -264,6 +273,12 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
     sheetUsage?.table === "ai_usage" && hasDatabase
       ? (await aiUsageReportOf("30d")).tools.filter((tool) => tool.provider === sheetUsage.provider).reduce((sum, tool) => sum + tool.unpricedCalls, 0)
       : 0;
+  // The Email intake sheet's Recognised senders and « Expéditeurs proposés » (#448), for who reads the sources.
+  const recognisedSenders = getRecognisedSenderList();
+  const emailIntakeLists =
+    sheet?.tool.id === EMAIL_INTAKE_TOOL && readsSites && hasDatabase ? { senders: await recognisedSenders.list(), proposed: await recognisedSenders.proposed() } : undefined;
+  // Email intake held back while no version of its Task Playbook is served (ADR-0052), on the Sources tab.
+  const emailIntakeHeld = tab.id === "sources" && sources && hasDatabase ? await emailIntakeHeldBack(getTaskPlaybooks()) : null;
   // France Travail's APIs, each as its latest connection test found it (#400), on its sheet.
   const apiAccess = sheet?.tool.id === "france-travail" && readSecrets && hasDatabase ? await getProviderSecrets().apiAccess("france-travail") : [];
 
@@ -349,7 +364,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
           <ProvidersSection ctx={ctx} rows={rows} settings={settings} envOnly={envOnly} />
         )}
         {tab.id === "sources" && sources ? (
-          <SourcesSection ctx={ctx} sources={sources} rows={rows} webSearch={possibleProviders(WEB_SEARCH_TAB, state).find((row) => row.active)} />
+          <SourcesSection ctx={ctx} sources={sources} rows={rows} webSearch={possibleProviders(WEB_SEARCH_TAB, state).find((row) => row.active)} heldBack={{ email_intake: emailIntakeHeld }} />
         ) : null}
         {tab.id === "web_search" ? <SearchTasksSection ctx={ctx} rows={searchRows} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
         {tab.id === "ai" ? <AiTasksSection ctx={ctx} routes={taskRoutes} agents={readsPlaybooks ? agentRows : []} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
@@ -360,7 +375,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
         ) : null}
       </div>
 
-      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} settings={settings} unpricedCalls={unpricedCalls} notices={notices} /> : null}
+      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} settings={settings} unpricedCalls={unpricedCalls} notices={notices} emailIntake={emailIntakeLists} /> : null}
       {openRoute ? <RoutePanel ctx={ctx} route={openRoute} choices={choices} keyMissingOf={(provider) => keyMissing(state, provider)} notices={notices} /> : null}
       {openAgent && openAgentLatest ? <PlaybookAgentPanel ctx={ctx} row={openAgent} latest={openAgentLatest} choices={choices} notices={notices} /> : null}
       {adding ? <AddPanel ctx={ctx} type={adding} allowed={allowed} sources={sources ?? ALL_SOURCES} signInTypes={signInProviders.map((provider) => provider.type)} /> : null}

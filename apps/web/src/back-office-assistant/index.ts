@@ -45,6 +45,7 @@ import type { HumanCoach } from "../human-coaches";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages } from "./conversation";
+import { emailIntakeSetupGuide } from "../email-intake/setup-guide";
 import { EXPLAINING, explainedSchema, explainedText } from "./explained";
 
 export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage, type ExplainedItem } from "./conversation";
@@ -67,6 +68,8 @@ export interface BackOfficeAssistantSources {
   administrators(): Promise<Administrator[]>;
   /** The Back Office Audit, newest first (`audit`). */
   journal(limit: number): Promise<BackOfficeAuditEntry[]>;
+  /** The Email intake domain in use, EMAIL_INTAKE_DOMAIN (`searchSites`): its MX records are explained for it (#448). */
+  emailIntakeDomain(): Promise<string>;
 }
 
 /** Who is asking: their Candidate id (for EU AI consent) and what their roles allow. */
@@ -277,6 +280,14 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     ].join("\n");
   },
 
+  async searchSites(sources) {
+    return [
+      heading("searchSites"),
+      "Les sources de la recherche d'offres (onglet Sources de Paramètres), chacune activée ou non : API France Travail, API Fantastic.jobs, recherche web, API publiques des ATS et Réception par email ; les sites de la recherche web (onglet Recherche web) et ceux où l'extension s'affiche (onglet Extension). Chaque changement est inscrit dans Activité › Actions des administrateurs.",
+      emailIntakeSetupGuide(await sources.emailIntakeDomain()),
+    ].join("\n");
+  },
+
   async guardrails() {
     return [
       heading("guardrails"),
@@ -393,6 +404,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   job_discovery_sources: "sources de la recherche d'offres",
   job_discovery_sites: "sites de la recherche d'offres",
   job_sites: "sites de l'extension",
+  recognised_senders: "expéditeurs reconnus (Réception par email)",
   ai_messages: "appels IA",
   discovery_runs: "recherches d'offres (Activité)",
   coaching_playbooks: "playbooks de coaching",

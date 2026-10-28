@@ -2,6 +2,7 @@ import { JOB_DISCOVERY_SOURCES, type JobDiscoverySource } from "@jobhub/shared";
 import Link from "next/link";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { ExplainableLabel } from "@/components/ExplainableLabel";
+import type { EmailIntakeHeldBack } from "@/email-intake/playbook-state";
 import { EMAIL_INTAKE_TOOL, providerSheetHref, type PossibleProvider } from "@/platform-settings/parametres";
 import { setJobDiscoverySource, testSecret } from "./actions";
 import { Here, ScrollFrame, type Ctx } from "./context";
@@ -19,10 +20,14 @@ const SOURCE_TOOLS: Record<Exclude<JobDiscoverySource, "web_search">, readonly s
   email_intake: [EMAIL_INTAKE_TOOL],
 };
 
-/** Why a source is unavailable, or null: switched off here first, then its providers' state, as Outils says it. */
-function unavailable(ctx: Ctx, enabled: boolean, providers: readonly PossibleProvider[]): string | null {
+/** Why a source counts as off whatever its switch (CONTEXT.md: Held back): Email intake while its Task Playbook is not served. */
+export type HeldBack = Partial<Record<JobDiscoverySource, EmailIntakeHeldBack | null>>;
+
+/** Why a source is unavailable, or null: switched off here first, then held back, then its providers' state, as Outils says it. */
+function unavailable(ctx: Ctx, enabled: boolean, providers: readonly PossibleProvider[], heldBack: EmailIntakeHeldBack | null | undefined): string | null {
   const { t } = ctx;
   if (!enabled) return t("admin.platformSettings.sources.reasons.switched_off");
+  if (heldBack) return t(`admin.platformSettings.sources.reasons.${heldBack}`);
   if (providers.length === 0) return t("admin.platformSettings.sources.reasons.not_configured");
   const blocked = providers.find((row) => row.status !== "configured" && row.status !== "no_key_needed");
   if (!blocked) return null;
@@ -36,9 +41,22 @@ function unavailable(ctx: Ctx, enabled: boolean, providers: readonly PossiblePro
 /**
  * The Sources tab's table (#396, moved from Sites de recherche): every Job discovery source with its switch, the
  * provider it calls (the web search's: the active Search provider), its keys, a test of each, and why it is
- * unavailable when it is.
+ * unavailable when it is: Email intake (#448) also while held back by its Task Playbook, its provider's sheet being the
+ * Email intake sheet.
  */
-export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; sources: Record<JobDiscoverySource, boolean>; rows: readonly PossibleProvider[]; webSearch: PossibleProvider | undefined }) {
+export function SourcesSection({
+  ctx,
+  sources,
+  rows,
+  webSearch,
+  heldBack = {},
+}: {
+  ctx: Ctx;
+  sources: Record<JobDiscoverySource, boolean>;
+  rows: readonly PossibleProvider[];
+  webSearch: PossibleProvider | undefined;
+  heldBack?: HeldBack;
+}) {
   const { t } = ctx;
   const providersOf = (source: JobDiscoverySource): PossibleProvider[] =>
     source === "web_search" ? (webSearch ? [webSearch] : []) : SOURCE_TOOLS[source].flatMap((id) => rows.filter((row) => row.tool.id === id));
@@ -67,7 +85,7 @@ export function SourcesSection({ ctx, sources, rows, webSearch }: { ctx: Ctx; so
               const enabled = sources[source];
               const providers = providersOf(source);
               const keys = providers.flatMap((row) => row.keys);
-              const why = unavailable(ctx, enabled, providers);
+              const why = unavailable(ctx, enabled, providers, heldBack[source]);
               return (
                 <tr key={source} data-source={source}>
                   <th scope="row">

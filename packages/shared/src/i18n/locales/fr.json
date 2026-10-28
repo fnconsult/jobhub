@@ -1385,6 +1385,58 @@
         "notFound": "Cet élément n'existe plus. La page a été actualisée."
       }
     },
+    "emailIntake": {
+      "settingsTitle": "Réglages de la réception par email",
+      "settingsCaption": "Réglages de la réception par email",
+      "senders": {
+        "title": "Expéditeurs reconnus",
+        "intro": "Seuls les emails d'un expéditeur reconnu sont lus, authentifié par son domaine, ou par son adresse complète quand le domaine envoie pour plusieurs entreprises (jobs2web.com). Un expéditeur désactivé reste listé et n'est plus lu.",
+        "caption": "Expéditeurs reconnus de la plateforme",
+        "sender": "Expéditeur",
+        "match": "Reconnu par",
+        "matches": {
+          "domain": "Domaine",
+          "address": "Adresse complète"
+        },
+        "label": "Libellé",
+        "status": "État",
+        "actions": "Actions",
+        "platformList": "Liste de la plateforme",
+        "enable": "Activer {{sender}}",
+        "disable": "Désactiver {{sender}}",
+        "remove": "Supprimer {{sender}}",
+        "relabel": "Changer le libellé de {{sender}}",
+        "newLabel": "Nouveau libellé de {{sender}}",
+        "saveLabel": "Enregistrer le libellé de {{sender}}",
+        "addTitle": "Ajouter un expéditeur",
+        "senderField": "Domaine ou adresse de l'expéditeur",
+        "senderHelp": "Un domaine (alertes.exemple.fr) ou, pour une plateforme d'envoi partagée, l'adresse complète.",
+        "labelField": "Libellé",
+        "labelHelp": "« plateforme ou entreprise – site », 120 caractères au plus, pour la lecture seulement.",
+        "add": "Ajouter l'expéditeur",
+        "none": "Aucun expéditeur reconnu : aucun email n'est lu, sauf les transferts manuels des candidats."
+      },
+      "proposed": {
+        "title": "Expéditeurs proposés",
+        "intro": "Les expéditeurs que des candidats ont ajoutés pour eux seuls et que la liste de la plateforme n'a pas : combien de candidats, jamais lesquels. Accepter en ajoute un à la liste, pour tous.",
+        "caption": "Expéditeurs proposés par les candidats",
+        "candidates": "Candidats",
+        "lastAdded": "Dernier ajout",
+        "proposedBy_one": "Proposé par {{count}} candidat",
+        "proposedBy_other": "Proposé par {{count}} candidats",
+        "labelFor": "Libellé de {{sender}}",
+        "accept": "Accepter {{sender}}",
+        "none": "Aucun expéditeur proposé."
+      },
+      "notices": {
+        "added": "Expéditeur ajouté à la liste de la plateforme.",
+        "updated": "Expéditeur enregistré.",
+        "removed": "Expéditeur supprimé de la liste.",
+        "invalid": "Indiquez un domaine ou une adresse d'expéditeur, et un libellé de 120 caractères au plus.",
+        "exists": "Cet expéditeur est déjà dans la liste.",
+        "notFound": "Cet expéditeur n'est plus dans la liste."
+      }
+    },
     "providerSecrets": {
       "title": "Clés des fournisseurs",
       "intro": "Les clés des services tiers (IA, recherche web, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, e-mail). Une clé saisie ici est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Une clé saisie n'est jamais réaffichée : seuls ses 4 derniers caractères le sont.",
@@ -1842,6 +1894,7 @@
         "job_discovery_sources": "Sources de la recherche d'offres",
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension",
+        "recognised_senders": "Expéditeurs reconnus (Réception par email)",
         "sign_in_providers": "Connexion",
         "ai_messages": "Activité › Appels IA",
         "coaching_playbooks": "Playbooks de coaching",

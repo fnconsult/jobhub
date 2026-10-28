@@ -1385,6 +1385,58 @@
         "notFound": "This item no longer exists. The page has been refreshed."
       }
     },
+    "emailIntake": {
+      "settingsTitle": "Email intake settings",
+      "settingsCaption": "Email intake settings",
+      "senders": {
+        "title": "Recognised senders",
+        "intro": "Only emails from a recognised sender are read, authenticated by its domain, or by its full address when the domain sends for many companies (jobs2web.com). A disabled sender stays listed and is no longer read.",
+        "caption": "The platform's Recognised senders",
+        "sender": "Sender",
+        "match": "Recognised by",
+        "matches": {
+          "domain": "Domain",
+          "address": "Full address"
+        },
+        "label": "Label",
+        "status": "Status",
+        "actions": "Actions",
+        "platformList": "The platform's list",
+        "enable": "Enable {{sender}}",
+        "disable": "Disable {{sender}}",
+        "remove": "Remove {{sender}}",
+        "relabel": "Change the label of {{sender}}",
+        "newLabel": "New label of {{sender}}",
+        "saveLabel": "Save the label of {{sender}}",
+        "addTitle": "Add a sender",
+        "senderField": "Sender's domain or address",
+        "senderHelp": "A domain (alerts.example.com) or, for a shared sending platform, the full address.",
+        "labelField": "Label",
+        "labelHelp": "“platform or company – site”, at most 120 characters, for reading only.",
+        "add": "Add the sender",
+        "none": "No recognised sender: no email is read, except the Candidates' manual forwards."
+      },
+      "proposed": {
+        "title": "Proposed senders",
+        "intro": "Senders Candidates added for themselves alone that the platform's list lacks: how many Candidates, never which ones. Accepting one adds it to the list, for everyone.",
+        "caption": "Senders proposed by Candidates",
+        "candidates": "Candidates",
+        "lastAdded": "Last added",
+        "proposedBy_one": "Proposed by {{count}} Candidate",
+        "proposedBy_other": "Proposed by {{count}} Candidates",
+        "labelFor": "Label of {{sender}}",
+        "accept": "Accept {{sender}}",
+        "none": "No proposed sender."
+      },
+      "notices": {
+        "added": "Sender added to the platform's list.",
+        "updated": "Sender saved.",
+        "removed": "Sender removed from the list.",
+        "invalid": "Give a sender's domain or address, and a label of at most 120 characters.",
+        "exists": "This sender is already listed.",
+        "notFound": "This sender is no longer listed."
+      }
+    },
     "providerSecrets": {
       "title": "Provider keys",
       "intro": "The keys of third-party services (AI, web search, France Travail, Fantastic.jobs, contact enrichment, Stripe, email). A key entered here is encrypted and replaces the environment's within a minute, with no deployment. A key entered is never shown again: only its last 4 characters are.",
@@ -1842,6 +1894,7 @@
         "job_discovery_sources": "Job discovery sources",
         "job_discovery_sites": "Job discovery sites",
         "job_sites": "Extension sites",
+        "recognised_senders": "Recognised senders (Email intake)",
         "sign_in_providers": "Sign-in",
         "ai_messages": "Activity › AI calls",
         "coaching_playbooks": "Coaching Playbooks",

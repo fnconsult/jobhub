@@ -16,13 +16,14 @@
  * The reminders sent are kept, and deleted with their item and with the account.
  */
 import type { InterviewFormat } from "@jobhub/shared";
-import { createI18n } from "@jobhub/shared/i18n";
+import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import { frenchDateTime, frenchDayStart, INTERVIEW_TIME_ZONE, interviewWallClock } from "../applications";
 import { dayAfter } from "../agenda/calendar";
 import type { Mailer } from "../auth";
 import type { AgendaItemTable } from "../reschedules";
 import { routes } from "../routes";
+import { appointmentReminderEmail, type ReminderEmailItem } from "./email";
 
 /** Appointment Reminders go out at 18:00 French time, the day before. */
 export const REMINDER_HOUR = 18;
@@ -49,16 +50,7 @@ export interface AppointmentReminders {
 }
 
 /** One Agenda Item, as a reminder lists it. */
-type ReminderItem = {
-  id: string;
-  candidateId: string;
-  scheduledAt: Date;
-  durationMinutes: number | null;
-  note: string | null;
-} & (
-  | { table: "interview"; title: string; employer: string | null; format: InterviewFormat | null; place: string }
-  | { table: "coaching_session"; coach: string; videoLink: string | null }
-);
+type ReminderItem = { id: string; candidateId: string } & ReminderEmailItem;
 
 /** The day (French time, "2026-10-20") of the latest reminder time at or before `now`, and that time. */
 function latestReminder(now: Date): { day: string; at: Date } {
@@ -135,40 +127,12 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
     const { rows } = await database.query<{ email: string; interfaceLanguage: string | null }>(`SELECT email, "interfaceLanguage" FROM candidate WHERE id = $1`, [candidateId]);
     const candidate = rows[0];
     if (!candidate) return;
-    const i18n = createI18n(candidate.interfaceLanguage);
-    const { t } = i18n;
-    const time = new Intl.DateTimeFormat(i18n.language, { timeStyle: "short", timeZone: REMINDER_TIME_ZONE });
-    const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "full", timeZone: REMINDER_TIME_ZONE }).format(items[0]!.scheduledAt);
-    const count = items.length;
-    const lines = items.map((item) => {
-      const at = time.format(item.scheduledAt);
-      const details =
-        item.table === "interview"
-          ? [
-              item.employer ? t("appointmentReminder.email.interviewAt", { time: at, title: item.title, employer: item.employer }) : t("appointmentReminder.email.interview", { time: at, title: item.title }),
-              item.format ? t("appointmentReminder.email.format", { format: t(`interviewFormats.${item.format}`) }) : null,
-              item.place ? t("appointmentReminder.email.place", { place: item.place }) : null,
-            ]
-          : [t("appointmentReminder.email.coachingSession", { time: at, coach: item.coach }), item.videoLink ? t("appointmentReminder.email.videoLink", { url: item.videoLink }) : null];
-      const [heading, ...rest] = [
-        ...details,
-        item.durationMinutes ? t("appointmentReminder.email.duration", { count: item.durationMinutes }) : null,
-        item.note ? t("appointmentReminder.email.note", { note: item.note }) : null,
-      ].filter((line): line is string => Boolean(line));
-      return [`- ${heading}`, ...rest.map((line) => `  ${line}`)].join("\n");
-    });
-    await deps.mailer.send({
-      to: candidate.email,
-      subject: t("appointmentReminder.email.subject", { count, date }),
-      text: [
-        t("appointmentReminder.email.intro", { count, date }),
-        lines.join("\n\n"),
-        t("appointmentReminder.email.seeAgenda", { url: new URL(routes.agendaList(), deps.baseURL).toString() }),
-        t("appointmentReminder.email.signature"),
-        "--",
-        t("appointmentReminder.email.settings", { url: new URL(routes.accountReminders, deps.baseURL).toString() }),
-      ].join("\n\n"),
-    });
+    const language = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
+    const email = appointmentReminderEmail(
+      { items, agendaUrl: new URL(routes.agendaList(), deps.baseURL).toString(), settingsUrl: new URL(routes.accountReminders, deps.baseURL).toString() },
+      language,
+    );
+    await deps.mailer.send({ to: candidate.email, ...email });
   }
 
   /**

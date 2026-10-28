@@ -27,9 +27,11 @@ export function isOnDomain(hostname: string, domain: string): boolean {
 /**
  * Where Job discovery finds Job Offers, each of which an Administrator can turn off:
  * France Travail's API, Fantastic.jobs' API of ATS postings (#243), the web-search
- * provider, and the public APIs of the ATS (Greenhouse, Lever, Ashby) postings are read through.
+ * provider, the public APIs of the ATS (Greenhouse, Lever, Ashby) postings are read through,
+ * and Email intake (#448), fed by the Candidates' offer emails rather than by a run: switched
+ * off, the emails reaching a Forwarding address are discarded unread.
  */
-export const JOB_DISCOVERY_SOURCES = ["france_travail", "fantastic_jobs", "web_search", "ats_apis"] as const;
+export const JOB_DISCOVERY_SOURCES = ["france_travail", "fantastic_jobs", "web_search", "ats_apis", "email_intake"] as const;
 export type JobDiscoverySource = (typeof JOB_DISCOVERY_SOURCES)[number];
 
 /** A domain an Administrator listed for Job discovery: searched on purpose while enabled, skipped while disabled. */
@@ -47,7 +49,7 @@ export interface JobDiscoverySettings {
 
 /** Every source on and no site listed: Job discovery as it runs when the Back Office cannot be read. */
 export const DEFAULT_JOB_DISCOVERY_SETTINGS: JobDiscoverySettings = Object.freeze({
-  sources: Object.freeze({ france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true }),
+  sources: Object.freeze({ france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true, email_intake: true }),
   sites: Object.freeze([]) as unknown as JobDiscoverySite[],
 }) as JobDiscoverySettings;
 

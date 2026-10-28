@@ -123,7 +123,11 @@
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",
-    "body": "Bonjour,\n\nCliquez sur ce lien pour vous connecter à Jobbbox :\n{{url}}\n\nCe lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.\nSi vous n'avez pas demandé à vous connecter, ignorez simplement ce message.\n\nL'équipe Jobbbox"
+    "title": "Connectez-vous à Jobbbox",
+    "action": "Me connecter à Jobbbox",
+    "validity": "Ce lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.",
+    "ignore": "Si vous n'avez pas demandé à vous connecter, ignorez simplement ce message.",
+    "reason": "Vous recevez cet e-mail parce qu'un lien de connexion à Jobbbox a été demandé pour cette adresse."
   },
   "nav": {
     "signIn": "Se connecter",
@@ -202,11 +206,18 @@
   },
   "webSearchAlert": {
     "subject": "Jobbbox : la recherche web a dépassé son seuil d'alerte de {{month}}",
-    "body": "Bonjour,\n\nLa recherche web a coûté {{spend}} en {{month}} (heure de Paris), au-delà du seuil d'alerte mensuel de {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Rien n'est coupé : la découverte d'offres et les dossiers entreprise continuent de chercher.\n\nCe montant est estimé aux prix en vigueur de chaque unité facturée (appel, requête, crédit), sans déduire les crédits gratuits des fournisseurs. Les prix et le seuil se règlent dans l'onglet Recherche web de Paramètres.\n\nLe détail est dans Consommation IA :\n{{url}}\n\nVous ne recevrez pas d'autre alerte ce mois-ci.\n\nL'équipe Jobbbox"
+    "title": "La recherche web a dépassé son seuil d'alerte de {{month}}",
+    "spend": "La recherche web a coûté {{spend}} en {{month}} (heure de Paris), au-delà du seuil d'alerte mensuel de {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Rien n'est coupé : la découverte d'offres et les dossiers entreprise continuent de chercher.",
+    "estimate": "Ce montant est estimé aux prix en vigueur de chaque unité facturée (appel, requête, crédit), sans déduire les crédits gratuits des fournisseurs. Les prix et le seuil se règlent dans l'onglet Recherche web de Paramètres.",
+    "action": "Voir le détail dans Consommation IA",
+    "last": "Vous ne recevrez pas d'autre alerte ce mois-ci."
   },
   "appleAlert": {
     "subject": "Jobbbox : la connexion avec Apple doit être réparée",
-    "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres :\n{{url}}\n\nL'équipe Jobbbox",
+    "title": "La connexion avec Apple doit être réparée",
+    "intro": "Le worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :",
+    "outro": "Tant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres.",
+    "action": "Ouvrir l'onglet Connexion",
     "reasons": {
       "missing_secret": "l'identifiant d'équipe, l'identifiant de clé ou la clé .p8 manque ou ne se déchiffre plus (clé maîtresse retirée ?)",
       "invalid_apple_key": "La clé .p8 ou un identifiant enregistré ne permet pas de signer le secret",
@@ -1326,7 +1337,8 @@
           "france_travail": "API France Travail",
           "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
-          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)"
+          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)",
+          "email_intake": "Réception par email (Brevo Inbound)"
         },
         "awaitingAccess": "En attente d'accès",
         "accessRefused": "Indisponible : accès refusé par France Travail (API Offres d'emploi). Les recherches d'offres continuent sans elle."
@@ -1371,6 +1383,58 @@
         "siteExists": "Ce site est déjà dans la liste.",
         "siteForbidden": "Ce site interdit l'exploration dans ses conditions d'utilisation : il ne peut pas être ajouté ni activé.",
         "notFound": "Cet élément n'existe plus. La page a été actualisée."
+      }
+    },
+    "emailIntake": {
+      "settingsTitle": "Réglages de la réception par email",
+      "settingsCaption": "Réglages de la réception par email",
+      "senders": {
+        "title": "Expéditeurs reconnus",
+        "intro": "Seuls les emails d'un expéditeur reconnu sont lus, authentifié par son domaine, ou par son adresse complète quand le domaine envoie pour plusieurs entreprises (jobs2web.com). Un expéditeur désactivé reste listé et n'est plus lu.",
+        "caption": "Expéditeurs reconnus de la plateforme",
+        "sender": "Expéditeur",
+        "match": "Reconnu par",
+        "matches": {
+          "domain": "Domaine",
+          "address": "Adresse complète"
+        },
+        "label": "Libellé",
+        "status": "État",
+        "actions": "Actions",
+        "platformList": "Liste de la plateforme",
+        "enable": "Activer {{sender}}",
+        "disable": "Désactiver {{sender}}",
+        "remove": "Supprimer {{sender}}",
+        "relabel": "Changer le libellé de {{sender}}",
+        "newLabel": "Nouveau libellé de {{sender}}",
+        "saveLabel": "Enregistrer le libellé de {{sender}}",
+        "addTitle": "Ajouter un expéditeur",
+        "senderField": "Domaine ou adresse de l'expéditeur",
+        "senderHelp": "Un domaine (alertes.exemple.fr) ou, pour une plateforme d'envoi partagée, l'adresse complète.",
+        "labelField": "Libellé",
+        "labelHelp": "« plateforme ou entreprise – site », 120 caractères au plus, pour la lecture seulement.",
+        "add": "Ajouter l'expéditeur",
+        "none": "Aucun expéditeur reconnu : aucun email n'est lu, sauf les transferts manuels des candidats."
+      },
+      "proposed": {
+        "title": "Expéditeurs proposés",
+        "intro": "Les expéditeurs que des candidats ont ajoutés pour eux seuls et que la liste de la plateforme n'a pas : combien de candidats, jamais lesquels. Accepter en ajoute un à la liste, pour tous.",
+        "caption": "Expéditeurs proposés par les candidats",
+        "candidates": "Candidats",
+        "lastAdded": "Dernier ajout",
+        "proposedBy_one": "Proposé par {{count}} candidat",
+        "proposedBy_other": "Proposé par {{count}} candidats",
+        "labelFor": "Libellé de {{sender}}",
+        "accept": "Accepter {{sender}}",
+        "none": "Aucun expéditeur proposé."
+      },
+      "notices": {
+        "added": "Expéditeur ajouté à la liste de la plateforme.",
+        "updated": "Expéditeur enregistré.",
+        "removed": "Expéditeur supprimé de la liste.",
+        "invalid": "Indiquez un domaine ou une adresse d'expéditeur, et un libellé de 120 caractères au plus.",
+        "exists": "Cet expéditeur est déjà dans la liste.",
+        "notFound": "Cet expéditeur n'est plus dans la liste."
       }
     },
     "providerSecrets": {
@@ -1456,6 +1520,7 @@
       "groups": {
         "ai_routing": "Routage de l'IA",
         "email": "E-mail",
+        "email_intake": "Réception par email",
         "job_digest": "Job Digest",
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
@@ -1692,7 +1757,7 @@
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
-        },
+      },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
         "sourcePlaybook": "Playbook, version {{version}}",
@@ -1829,6 +1894,7 @@
         "job_discovery_sources": "Sources de la recherche d'offres",
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension",
+        "recognised_senders": "Expéditeurs reconnus (Réception par email)",
         "sign_in_providers": "Connexion",
         "ai_messages": "Activité › Appels IA",
         "coaching_playbooks": "Playbooks de coaching",
@@ -3428,11 +3494,15 @@
     "abandonAccept": "Classer comme abandonnée",
     "email": {
       "subject": "Une relance vous attend : {{title}}",
-      "body": "Bonjour,\n\nVotre candidature « {{title}} » est restée sans réponse. Votre coach Jobbbox vous a préparé un brouillon de relance : relisez-le, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé.\n\n{{url}}\n\nL'équipe Jobbbox"
+      "title": "Une relance vous attend",
+      "body": "Votre candidature « {{title}} » est restée sans réponse. Votre coach Jobbbox vous a préparé un brouillon de relance : relisez-le, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé.",
+      "action": "Lire la relance"
     },
     "abandonEmail": {
       "subject": "Toujours sans réponse : {{title}}",
-      "body": "Bonjour,\n\nVos relances pour « {{title}} » sont restées sans réponse. Votre coach Jobbbox vous suggère de classer cette candidature comme abandonnée.\n\n{{url}}\n\nL'équipe Jobbbox"
+      "title": "Toujours sans réponse",
+      "body": "Vos relances pour « {{title}} » sont restées sans réponse. Votre coach Jobbbox vous suggère de classer cette candidature comme abandonnée.",
+      "action": "Ouvrir la candidature"
     },
     "noticesTitle": "Relances à faire",
     "noticeFollowUp": "Relance prête : {{title}}",
@@ -3446,7 +3516,9 @@
     "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
     "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
     "noneWaiting": "Aucune relance à faire pour l'instant.",
-    "delaysIntro": "Votre coach propose une relance quand une candidature reste sans nouvelles après ces délais."
+    "delaysIntro": "Votre coach propose une relance quand une candidature reste sans nouvelles après ces délais.",
+    "emailReason": "Vous recevez cet e-mail parce qu'une de vos candidatures est restée sans réponse au-delà de votre délai de relance.",
+    "emailSettings": "Modifier mes délais de relance"
   },
   "humanCoaches": {
     "title": "Mes coachs humains",
@@ -3580,16 +3652,18 @@
     "email": {
       "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
       "subject_other": "Job Digest « {{profile}} » : {{count}} nouvelles offres",
-      "intro_one": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
-      "intro_other": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
+      "title_one": "{{count}} nouvelle offre pour « {{profile}} »",
+      "title_other": "{{count}} nouvelles offres pour « {{profile}} »",
+      "intro_one": "Votre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
+      "intro_other": "Votre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
       "matchScore": "score de correspondance : {{score}} / 100",
       "matchScorePartial": "score de correspondance : {{score}} / 100, partiel",
       "postedAt": "publiée le {{date}}",
       "dateUnknown": "date de publication : date inconnue",
-      "seeDigest_one": "Retrouvez ce Job Digest dans Jobbbox :\n{{url}}",
-      "seeDigest_other": "Retrouvez ce Job Digest et ses {{count}} offres dans Jobbbox :\n{{url}}",
-      "unsubscribe": "Ne plus recevoir le Job Digest de ce profil :\n{{url}}",
-      "signature": "L'équipe Jobbbox"
+      "seeDigest_one": "Voir l'offre",
+      "seeDigest_other": "Voir les {{count}} offres",
+      "reason": "Vous recevez cet e-mail parce que le Job Digest de votre profil « {{profile}} » est activé.",
+      "unsubscribe": "Ne plus recevoir le Job Digest de ce profil"
     },
     "unsubscribePage": {
       "title": "Se désabonner du Job Digest",
@@ -3702,8 +3776,10 @@
     "email": {
       "subject_one": "Rappel : votre rendez-vous de demain, {{date}}",
       "subject_other": "Rappel : vos {{count}} rendez-vous de demain, {{date}}",
-      "intro_one": "Bonjour,\n\nPour vous y préparer, voici votre rendez-vous de demain, {{date}} :",
-      "intro_other": "Bonjour,\n\nPour vous y préparer, voici vos {{count}} rendez-vous de demain, {{date}} :",
+      "title_one": "Votre rendez-vous de demain",
+      "title_other": "Vos {{count}} rendez-vous de demain",
+      "intro_one": "Pour vous y préparer, voici votre rendez-vous de demain, {{date}} :",
+      "intro_other": "Pour vous y préparer, voici vos {{count}} rendez-vous de demain, {{date}} :",
       "interview": "{{time}} · Entretien : {{title}}",
       "interviewAt": "{{time}} · Entretien : {{title}} chez {{employer}}",
       "coachingSession": "{{time}} · Séance de coaching avec {{coach}}",
@@ -3712,9 +3788,9 @@
       "place": "Lieu ou lien : {{place}}",
       "videoLink": "Lien : {{url}}",
       "note": "Note : {{note}}",
-      "seeAgenda": "Retrouvez-les dans votre agenda :\n{{url}}",
-      "signature": "L'équipe Jobbbox",
-      "settings": "Ne plus recevoir ces rappels :\n{{url}}"
+      "seeAgenda": "Ouvrir mon agenda",
+      "reason": "Vous recevez cet e-mail parce que les rappels de rendez-vous sont activés dans votre compte.",
+      "settings": "Ne plus recevoir ces rappels"
     },
     "settings": {
       "title": "Rappels de rendez-vous",
@@ -4069,6 +4145,14 @@
       "dialogText": "Ses recherches et ses offres sont supprimées avec lui.",
       "dialogConfirm": "Supprimer",
       "confirmed": "Profil supprimé."
+    }
+  },
+  "emails": {
+    "greeting": "Bonjour,",
+    "signature": "L'équipe Jobbbox",
+    "linkLead": "{{label}} :",
+    "reasons": {
+      "superAdmin": "Vous recevez cet e-mail parce que vous êtes super-admin de Jobbbox."
     }
   }
 }

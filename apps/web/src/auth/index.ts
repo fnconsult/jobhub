@@ -15,7 +15,7 @@
  * session was signed in are decided here, on every OAuth callback (see signInHooks).
  */
 import type { ExternalApiLog } from "@jobhub/shared";
-import { createI18n, DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
+import { DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
 import { getMigrations } from "better-auth/db/migration";
@@ -25,6 +25,7 @@ import type { Pool } from "pg";
 import * as z from "zod";
 import { routes } from "../routes";
 import { withDiscoveryDocuments } from "./discovery-documents";
+import { signInEmail } from "./sign-in-email";
 import { recordingSignInCalls } from "./sign-in-calls";
 import { MAGIC_LINK, SIGN_IN_ERRORS, TEST_SIGN_IN, type SignInConfiguration } from "../sign-in-providers/catalog";
 import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../sign-in-providers/policy";
@@ -33,7 +34,10 @@ import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../si
 export interface MailMessage {
   to: string;
   subject: string;
+  /** The plain-text part, always sent. */
   text: string;
+  /** The HTML part (`renderEmail`, apps/web/src/emails): the mailer writes the sender's address in its footer. */
+  html?: string;
   /** Extra headers, e.g. List-Unsubscribe (RFC 8058) on a recurring email. */
   headers?: Record<string, string>;
 }
@@ -323,12 +327,7 @@ function authOptions(config: AuthConfig) {
           // A returning Candidate reads the email in their Interface Language.
           const found = await ctx?.context.internalAdapter.findUserByEmail(email);
           const language = (found?.user as Record<string, unknown> | undefined)?.interfaceLanguage;
-          const { t } = createI18n(isSupportedLocale(language) ? language : DEFAULT_LOCALE);
-          await config.mailer.send({
-            to: email,
-            subject: t("signInEmail.subject"),
-            text: t("signInEmail.body", { url, minutes: MAGIC_LINK_MINUTES }),
-          });
+          await config.mailer.send({ to: email, ...signInEmail({ url, minutes: MAGIC_LINK_MINUTES }, isSupportedLocale(language) ? language : DEFAULT_LOCALE) });
         },
       }),
       // Generic OIDC providers, through the same sign-in and callback endpoints as the social ones.

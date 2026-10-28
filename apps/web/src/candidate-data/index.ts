@@ -330,6 +330,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   forwarding_address: "emailIntake.forwardingAddresses (replaced and switched off ones included, with their dates)",
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
   received_offer_email: "emailIntake.receivedOfferEmails (outcome, sender's domain and dates; never the text)",
+  candidate_recognised_sender: "emailIntake.recognisedSenders (those the Candidate added for themselves, with their label and date)",
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",

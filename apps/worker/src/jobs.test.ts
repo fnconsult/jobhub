@@ -1069,6 +1069,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const { address } = await emailIntake.switchOn(candidateId);
       const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
       const inbound = createEmailIntakeInbound(database, {
+        switchedOn: async () => true,
         emailIntake,
         cipher: () => cipher,
         queue: { send: async () => {} },

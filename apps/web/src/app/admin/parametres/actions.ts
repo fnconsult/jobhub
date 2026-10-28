@@ -11,7 +11,7 @@ import { redirect } from "next/navigation";
 import type { TextTask } from "@jobhub/ai";
 import type { BackOfficeActor } from "@/admin/back-office";
 import type { PlatformSettingValueChange } from "@/admin/platform-settings-back-office";
-import { getCoachingPlaybooksBackOffice, getPlatformSettingsBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
+import { getCoachingPlaybooksBackOffice, getPlatformSettingsBackOffice, getRecognisedSendersBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { aiTaskRoutes, playbookAgentChange, routeChange, TEXT_TASK_IDS } from "@/platform-settings/ai-tasks";
 import { currentState } from "@/tools/server";
@@ -20,7 +20,7 @@ import { parametresHref, parametresTab, providerSheetHref, type ParametresTabId 
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { getProviderSecrets, getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
-import { AI_FORM, CONFIRMED, FORM, SIGN_IN_SWITCHES, type PlaybookAgentNotice, type PlatformSettingNotice, type RouteNotice, type SitesNotice } from "./notices";
+import { AI_FORM, CONFIRMED, FORM, SENDER_NOTICE_PARAM, SIGN_IN_SWITCHES, type PlaybookAgentNotice, type PlatformSettingNotice, type RouteNotice, type SenderNotice, type SitesNotice } from "./notices";
 
 const isTextTask = (value: string): value is TextTask => (TEXT_TASK_IDS as readonly string[]).includes(value);
 
@@ -225,6 +225,35 @@ export async function removeJobSite(form: FormData) {
   const { administrator } = await requireBackOffice("searchSites", "write");
   const removed = await getSearchSitesBackOffice().removeJobSite(administrator, String(form.get("pattern")));
   sitesBack(form, removed.ok ? "jobSiteRemoved" : removed.error === "built_in" ? "jobSiteBuiltIn" : "notFound");
+}
+
+// ---- Email intake's Recognised senders, on its sheet (#448): changed by who changes the Job discovery sources ----
+
+const sendersBack = (form: FormData, notice: SenderNotice): never => back(form, { [SENDER_NOTICE_PARAM]: notice });
+const senderIn = (form: FormData) => String(form.get("sender") ?? "");
+
+/** Adds a sender to the platform's list, or accepts a proposed one, with its label. */
+export async function addRecognisedSender(form: FormData) {
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const added = await getRecognisedSendersBackOffice().add(administrator, { sender: form.get("sender"), label: form.get("label") });
+  sendersBack(form, added.ok ? "added" : added.error);
+}
+
+export async function setRecognisedSender(form: FormData) {
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const updated = await getRecognisedSendersBackOffice().update(administrator, senderIn(form), { enabled: enabledIn(form) });
+  sendersBack(form, updated.ok ? "updated" : updated.error === "not_found" ? "notFound" : "invalid");
+}
+
+export async function relabelRecognisedSender(form: FormData) {
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  const updated = await getRecognisedSendersBackOffice().update(administrator, senderIn(form), { label: form.get("label") });
+  sendersBack(form, updated.ok ? "updated" : updated.error === "not_found" ? "notFound" : "invalid");
+}
+
+export async function removeRecognisedSender(form: FormData) {
+  const { administrator } = await requireBackOffice("searchSites", "write");
+  sendersBack(form, (await getRecognisedSendersBackOffice().remove(administrator, senderIn(form))) ? "removed" : "notFound");
 }
 
 // ---- Sign-in Providers (the former Connexion) ----

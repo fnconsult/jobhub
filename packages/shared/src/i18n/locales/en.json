@@ -39,6 +39,8 @@
     "unreachable": "Jobbbox cannot be reached right now. Check your connection and try again.",
     "badge": "Analyse this offer",
     "badgeLabel": "Analyse this job offer with Jobbbox",
+    "detected": "Job offer found on this page.",
+    "guest": "Guest",
     "analysis": {
       "title": "Job offer analysis",
       "noJobOffer": "No job offer captured yet. Open a job offer, then click “Analyse this offer” or “Capture this page” in the Jobbbox extension.",
@@ -91,7 +93,7 @@
       "covered": "In your CV: {{skills}}",
       "missing": "Missing from your CV: {{skills}}",
       "years": "Your CV: {{cv}} years · the offer: {{required}} years",
-      "signUp": "Create an account to keep this job offer and your CV",
+      "signUp": "Create my account and keep this job offer",
       "offer": "The offer: {{value}}",
       "offerYears": "The offer: {{required}} years",
       "salary": {
@@ -107,7 +109,7 @@
       "saveTitle": "Save to my applications",
       "profileLabel": "Profile used for this application",
       "newProfileFromCv": "A new profile, from this CV",
-      "save": "Save the application",
+      "save": "Save as an application",
       "saving": "Saving…",
       "firstProfileHint": "Upload your CV below: it will become your first profile, and this job offer your first application.",
       "saved": "This job offer is saved in your applications, as “To apply”.",
@@ -116,7 +118,14 @@
       "searchCriteriaMissing": "Neither your CV nor the job offer gives the role you are looking for and where. Create your profile on Jobbbox, then save this job offer again.",
       "createProfile": "Create my profile on Jobbbox",
       "profileQuotaReached": "Your plan does not allow another profile. Choose one of your profiles.",
-      "wanted": "You are looking for: {{value}}"
+      "wanted": "You are looking for: {{value}}",
+      "notSpecified": "not stated",
+      "points": "{{earned}} / {{possible}}",
+      "strengths": "Strengths: {{items}}.",
+      "gaps": "To work on: {{items}}.",
+      "signIn": "I already have an account · Sign in",
+      "dropCv": "Drop your CV here",
+      "chooseFile": "Choose a file"
     },
     "allSites": "Detect job offers on every site",
     "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."

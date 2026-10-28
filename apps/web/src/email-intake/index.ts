@@ -12,6 +12,7 @@
 import { randomBytes } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction } from "../database/pool";
+import { migrateEmailIntakeActivity } from "./activity";
 import { SEEDED_RECOGNISED_SENDERS } from "./recognised-senders";
 
 /** The Candidate's Forwarding address in use, and when it was given to them. */
@@ -190,6 +191,7 @@ export async function emailIntakeOf(database: Pool, candidateId: string): Promis
 
 /** Creates or upgrades the Email intake tables. Run after the Candidate table. Safe to run repeatedly. */
 export async function migrateEmailIntake(database: Pool): Promise<void> {
+  await migrateEmailIntakeActivity(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS forwarding_address (
       address text PRIMARY KEY,
@@ -223,6 +225,8 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
       UNIQUE (candidate_id, message_id)
     );
     CREATE INDEX IF NOT EXISTS received_offer_email_received_at ON received_offer_email (received_at);
+    -- Its row of Activité › Emails reçus (#449): the Candidate's row points to it, so it outlives the account.
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS activity_id uuid REFERENCES received_email_activity (id) ON DELETE SET NULL;
     -- The platform's Recognised senders (#437): seeded once, then kept by Administrators.
     CREATE TABLE IF NOT EXISTS recognised_sender (
       match text NOT NULL CHECK (match IN ('domain', 'address')),

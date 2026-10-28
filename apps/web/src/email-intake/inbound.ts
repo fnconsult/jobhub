@@ -21,6 +21,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction } from "../database/pool";
 import type { SealedSecret, SecretCipher } from "../provider-secrets/cipher";
+import { recordReceivedEmail } from "./activity";
 import type { EmailIntake } from "./index";
 import { readInboundEmails, type InboundEmail } from "./inbound-email";
 import { senderStanding, type RecognisedSender } from "./recognised-senders";
@@ -161,19 +162,22 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
               ? "over_daily_cap"
               : "awaiting_reading";
       const id = randomUUID();
+      const sender = domainOf(email.from);
+      const manualForward = standing === "own_address";
+      const activityId = await recordReceivedEmail(client, { receivedAt, senderDomain: sender, manualForward, outcome });
       const sealed: SealedSecret | null = outcome === "awaiting_reading" || outcome === "forwarding_confirmation" ? cipher.seal(email.text, placeOf(id)) : null;
       await client.query(
         `INSERT INTO received_offer_email
            (id, candidate_id, message_id, outcome, sender_domain, manual_forward, counts_against_cap, received_at, sent_at,
-            text_ciphertext, text_iv, text_tag, text_key_version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            text_ciphertext, text_iv, text_tag, text_key_version, activity_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           id,
           owner,
           email.messageId,
           outcome,
-          domainOf(email.from),
-          standing === "own_address",
+          sender,
+          manualForward,
           outcome === "awaiting_reading",
           receivedAt,
           email.sentAt,
@@ -181,6 +185,7 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
           sealed?.iv ?? null,
           sealed?.tag ?? null,
           sealed?.keyVersion ?? null,
+          activityId,
         ],
       );
       // Last, inside the transaction: an email that cannot be queued is not kept, and Brevo delivers it again.

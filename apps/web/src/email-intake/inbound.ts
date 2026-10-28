@@ -40,8 +40,12 @@ export const RETENTION_MONTHS = 12;
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const DAY_TIME_ZONE = "Europe/Paris";
 
-/** What became of a Received offer email (CONTEXT.md); the reading (#443) gives the others: offers found, « autre », set aside by a Guardrail. */
-export type ReceivedOfferEmailOutcome = "awaiting_reading" | "unrecognised_sender" | "over_daily_cap" | "forwarding_confirmation";
+/**
+ * What became of a Received offer email (CONTEXT.md): set aside on arrival, or awaiting reading until the worker's
+ * reading (#445, reading.ts) finds offers (new or already there), « autre » (no precise offer), or fails after its
+ * last try (« échec »). Set aside by a Guardrail comes with #446.
+ */
+export type ReceivedOfferEmailOutcome = "awaiting_reading" | "unrecognised_sender" | "over_daily_cap" | "forwarding_confirmation" | "offers_found" | "other" | "failed";
 
 /** What the inbound route reads at each delivery: Provider Secrets and Platform Settings in use. */
 export interface InboundSettings {

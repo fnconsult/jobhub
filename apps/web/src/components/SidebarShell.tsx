@@ -8,6 +8,7 @@ import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
 import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
+import { buttonClass } from "@/design/Button";
 import { Drawer, DrawerTitle } from "@/design/Drawer";
 import { SIDEBAR_CLOSED, SIDEBAR_OPEN, SIDEBAR_STORAGE_KEY } from "@/design/sidebar-state";
 
@@ -260,7 +261,7 @@ export function SidebarShell({
           */}
           <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
             <header ref={topbar} className="topbar">
-              <button ref={menuButton} className="button button-quiet menu-toggle" type="button" aria-expanded={drawerOpen} onClick={showMenu}>
+              <button ref={menuButton} className={`${buttonClass()} menu-toggle`} type="button" aria-expanded={drawerOpen} onClick={showMenu}>
                 <Icons.menu />
                 {t("sidebar.menu")}
               </button>

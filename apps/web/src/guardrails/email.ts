@@ -94,6 +94,20 @@ export function emailInputRule(email: GuardedEmail): EmailInputRule | null {
 const wordsOf = (reading: OfferEmailReading) =>
   reading.offers.flatMap((offer) => [offer.title, offer.employer, offer.intermediary, offer.location, offer.contract, offer.salary, offer.excerpt]).filter((value): value is string => Boolean(value));
 
+/**
+ * The people the email names, as `personNamesIn` finds them, but for the employers, intermediaries and places the
+ * reading gives that are named after a person (« Pierre Fabre », « Mr Bricolage », « rue Jean Jaurès »): the name
+ * shape alone cannot tell them apart. A name the email also gives an address to (« claire.martin@… », « c.martin@… »)
+ * is a contact's, wherever the reading writes it.
+ */
+function peopleNamedIn(emailText: string, reading: OfferEmailReading): string[] {
+  const organisationsAndPlaces = reading.offers.flatMap((offer) => [offer.employer, offer.intermediary, offer.location]).filter((value): value is string => Boolean(value)).map(plain);
+  const addressWords = identityIn(emailText).emails.map((address) => plain(address.split("@")[0] ?? "").split(/[^a-z0-9]+/));
+  const surname = (name: string) => plain(name).split(/[\s-]+/).at(-1) ?? "";
+  const isContact = (name: string) => addressWords.some((words) => words.includes(surname(name)));
+  return personNamesIn(emailText).filter((name) => isContact(name) || !organisationsAndPlaces.some((given) => given.includes(plain(name))));
+}
+
 /** The first fixed rule a reading breaks, against the email it read; null when none. Always on. */
 export function readingRule(reading: OfferEmailReading, emailText: string): ReadingRule | null {
   if (reading.offers.length > MAX_EMAIL_OFFERS) return "too_many_offers";
@@ -101,7 +115,7 @@ export function readingRule(reading: OfferEmailReading, emailText: string): Read
   const found = identityIn(written);
   if (found.emails.length > 0 || found.phones.length > 0) return "contact";
   const named = plain(written);
-  if (personNamesIn(emailText).some((name) => named.includes(plain(name)))) return "person_name";
+  if (peopleNamedIn(emailText, reading).some((name) => named.includes(plain(name)))) return "person_name";
   if (reading.offers.some((offer) => offer.link !== undefined && !emailText.includes(offer.link))) return "link_not_in_email";
   return null;
 }

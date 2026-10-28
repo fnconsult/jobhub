@@ -95,6 +95,38 @@ describe("the fixed rules on Email intake's reading, always on", () => {
     await expect(guardrails.guardEmail(request(ALERT, reader(withName).read))).resolves.toMatchObject({ outcome: "set_aside" });
   });
 
+  it("lets through an employer, an intermediary or a place named after a person, the offer's other words naming it too (#446)", async () => {
+    const { guardrails } = setUp();
+    const alert = [
+      "Votre alerte emploi pour « chef de produit »",
+      "Chef de produit Pierre Dorval <https://www.exemple-emploi.fr/offre/2001>",
+      "Pierre Dorval · 12 rue Jean Jaurès, Castres",
+      "Responsable de rayon <https://www.exemple-emploi.fr/offre/2002>",
+      "Mr Outillage · Albi",
+      "Infirmier de bloc <https://www.exemple-emploi.fr/offre/2003>",
+      "CHU Henri Mondor, recrutement par Michael Recrutement · Créteil",
+    ].join("\n");
+    const reading: OfferEmailReading = {
+      kind: "alert",
+      offers: [
+        { title: "Chef de produit Pierre Dorval", employer: "Pierre Dorval", location: "12 rue Jean Jaurès, Castres", link: "https://www.exemple-emploi.fr/offre/2001", excerpt: "Pierre Dorval recrute." },
+        { title: "Responsable de rayon", employer: "Mr Outillage", location: "Albi", link: "https://www.exemple-emploi.fr/offre/2002" },
+        { title: "Infirmier de bloc", employer: "CHU Henri Mondor", intermediary: "Michael Recrutement", location: "Créteil", link: "https://www.exemple-emploi.fr/offre/2003" },
+      ],
+    };
+
+    await expect(guardrails.guardEmail(request(alert, reader(reading).read))).resolves.toMatchObject({ outcome: "read", reading });
+  });
+
+  it("sets aside a reading that gives a contact of the email as an employer, an intermediary or a place", async () => {
+    const { guardrails } = setUp();
+    for (const field of ["employer", "intermediary", "location"] as const) {
+      const asOrganisation = { ...READING, offers: [{ ...READING.offers[0]!, [field]: "Claire Martin" }] };
+
+      await expect(guardrails.guardEmail(request(ALERT, reader(asOrganisation).read))).resolves.toMatchObject({ outcome: "set_aside" });
+    }
+  });
+
   it("sets aside a reading of more than 30 offers; 30 pass", async () => {
     const { guardrails } = setUp();
     const offers = (count: number): OfferEmailReading => ({ kind: "alert", offers: Array.from({ length: count }, (_, index) => ({ title: `Contrôleur financier ${index + 1}` })) });

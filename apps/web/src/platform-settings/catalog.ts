@@ -13,7 +13,7 @@
  */
 import { AI_ROUTING_SETTINGS, PRICE_SETTINGS } from "@jobhub/ai";
 import { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
-import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/mailers";
+import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/sender";
 import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
 

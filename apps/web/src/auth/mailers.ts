@@ -6,6 +6,9 @@ import { MAIL_SECRET_NAMES } from "../provider-secrets/catalog";
 import { liveObject, type SecretResolver } from "../provider-secrets/resolver";
 import { withSenderAddress } from "../emails";
 import type { Mailer, MailMessage } from "./index";
+import { DEVELOPMENT_MAIL_FROM } from "./sender";
+
+export { DEVELOPMENT_MAIL_FROM, isSender } from "./sender";
 
 /** Brevo's transactional email API (EU provider, ADR-0007). BREVO_API_URL overrides it (e2e). */
 const BREVO_API_URL = "https://api.brevo.com/v3";
@@ -28,21 +31,6 @@ export function parseSender(from: string): { name?: string; email: string } {
   const [, rawName = "", rawEmail = ""] = match;
   const name = rawName.trim();
   return name ? { name, email: rawEmail.trim() } : { email: rawEmail.trim() };
-}
-
-/** An email address as a sender takes it: one address, no spaces, no list separators. */
-const ADDRESS = /^[^\s@<>()",;:\\[\]]+@[^\s@<>()",;:\\[\].][^\s@<>()",;:\\[\]]*$/;
-
-/**
- * Whether `from` names one sender our mailers can send as (MAIL_FROM): "hello@jobbbox.ai",
- * "Jobbbox <hello@jobbbox.ai>" or '"Jobbbox" <hello@jobbbox.ai>'. Never a list, never a line break
- * (no header slipped in after it).
- */
-export function isSender(from: string): boolean {
-  const value = from.trim();
-  if (/[\r\n]/.test(value)) return false;
-  const named = /^(?:"[^"\\]*"|[^"<>,;]*?)\s*<([^<>]*)>$/.exec(value);
-  return ADDRESS.test(named ? named[1]! : value);
 }
 
 /** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…): both parts, when there is an HTML one. */
@@ -104,9 +92,6 @@ export interface MailerOptions {
   /** What SMTP_URL is sent through. Default: nodemailer's transport to it. */
   smtpTransport?: SmtpTransport;
 }
-
-/** The sender outside production when MAIL_FROM is not set (production requires it): the code's default of MAIL_FROM. */
-export const DEVELOPMENT_MAIL_FROM = "Jobbbox <bonjour@localhost>";
 
 /**
  * The mailer the environment names (see .env.example): Brevo's API with BREVO_API_KEY,

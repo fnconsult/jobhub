@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
  * The Candidate's own sending addresses (#437): their account's, always, and those they add, from which an email they
  * forward by hand is read. On Mon compte's « Réception par email » and in the forwarding setup wizard's manual guide.
  */
-export function SendingAddresses({ initial }: { initial: string[] }) {
+export function SendingAddresses({ initial, nested = false }: { initial: string[]; nested?: boolean }) {
   const { t } = useTranslation();
   const id = useId();
   const [sending, setSending] = useState(initial);
@@ -45,10 +45,12 @@ export function SendingAddresses({ initial }: { initial: string[] }) {
     if (await call("POST", newSending)) setNewSending("");
   }
 
+  // Under a step of the setup wizard, whose title is itself an h3.
+  const Heading = nested ? "h4" : "h3";
   const [accountAddress, ...added] = sending;
   return (
     <section className="stack" aria-labelledby={`${id}-sending`}>
-      <h3 id={`${id}-sending`}>{t("emailIntake.sending.title")}</h3>
+      <Heading id={`${id}-sending`}>{t("emailIntake.sending.title")}</Heading>
       <p>{t("emailIntake.sending.explanation")}</p>
       <ul>
         {accountAddress ? <li>{t("emailIntake.sending.account", { address: accountAddress })}</li> : null}

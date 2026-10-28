@@ -194,7 +194,7 @@ export function ForwardingWizard({ initial, sendingAddresses, locale }: { initia
                 <li key={at}>{t(`forwardingWizard.guides.${guide.name}.steps.${at + 1}` as "forwardingWizard.guides.manual.steps.1")}</li>
               ))}
             </ol>
-            {guide.name === "manual" ? <SendingAddresses initial={sendingAddresses} /> : null}
+            {guide.name === "manual" ? <SendingAddresses initial={sendingAddresses} nested /> : null}
           </>
         ) : null}
 

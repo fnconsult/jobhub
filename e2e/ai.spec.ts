@@ -94,7 +94,8 @@ test.describe("AI layer: one module hides the provider, routing is configuration
       hosts[provider] = r.requests[0]!.host;
     }
     expect(hosts).toEqual({
-      anthropic: "bedrock-mantle.eu-north-1.api.aws",
+      // Claude's direct API: ANTHROPIC_ENDPOINT's default (ADR-0007 amendment of 2026-10-28).
+      anthropic: "api.anthropic.com",
       mistral: "api.mistral.ai",
       openai: "eu.api.openai.com",
     });
@@ -117,7 +118,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
     expect(r.requests.map((req) => req.host)).toEqual([
       "api.mistral.ai",
       "eu.api.openai.com",
-      // Both Claude keys: offer analysis, without personal data, takes the direct API.
+      // Claude's direct API, the default endpoint.
       "api.anthropic.com",
       "api.perplexity.ai",
     ]);
@@ -126,16 +127,31 @@ test.describe("AI layer: one module hides the provider, routing is configuration
     expect(r.outcomes.map((o) => (o.ok ? o.value.provider : o.error.name))).toEqual(["mistral", "openai", "anthropic", "perplexity"]);
   });
 
-  test("with no routing configured, text tasks default to Claude on Bedrock EU and search to Perplexity", () => {
-    const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "test-bedrock-key", PERPLEXITY_API_KEY: "test-perplexity-key" }, [score(), search()]);
+  test("with no routing configured, text tasks default to Claude's direct API, personal data too, and search to Perplexity", () => {
+    // Mistral's key for offer email reading alone, which runs only in the EU (ADR-0052).
+    const r = runAi({ ANTHROPIC_API_KEY: "test-anthropic-key", MISTRAL_API_KEY: "test-mistral-key", PERPLEXITY_API_KEY: "test-perplexity-key" }, [score(), search()]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.perplexity.ai"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.anthropic.com", "api.perplexity.ai"]);
+    expect(r.requests[0]!.body).not.toMatch(/jean\.dupont@example\.fr|06 12 34 56 78/);
+  });
+
+  test("on Claude's direct API, a route naming no model runs on the model for its effort, and AI Usage records it", () => {
+    const efforts = [undefined, "low", "medium", "high"] as const;
+    const r = runAi({ ANTHROPIC_API_KEY: "test-anthropic-key", MISTRAL_API_KEY: "test-mistral-key", PERPLEXITY_API_KEY: "p" }, [
+      ...efforts.map((effort): HarnessCall => ({ ...score(), route: { provider: "anthropic" }, ...(effort ? { effort } : {}) })),
+      // A named model always wins.
+      { ...score(), route: { provider: "anthropic", model: "claude-opus-5-5" }, effort: "low" },
+    ]);
+    ok(r);
+    const expected = ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-opus-5-5"];
+    expect(r.requests.map((req) => JSON.parse(req.body).model)).toEqual(expected);
+    expect(r.usage.map((line) => line.model)).toEqual(expected);
   });
 });
 
 test.describe("AI layer: provider adapters", () => {
-  test("Anthropic on AWS Bedrock eu-north-1 (the default endpoint)", () => {
-    const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "test-bedrock-key", PERPLEXITY_API_KEY: "p" }, [score()]);
+  test("Anthropic on AWS Bedrock eu-north-1, under ANTHROPIC_ENDPOINT=bedrock", () => {
+    const r = runAi({ ANTHROPIC_ENDPOINT: "bedrock", AWS_BEARER_TOKEN_BEDROCK: "test-bedrock-key", PERPLEXITY_API_KEY: "p" }, [score()]);
     ok(r);
     const [request] = r.requests;
     expect(request!.url).toBe("https://bedrock-mantle.eu-north-1.api.aws/anthropic/v1/messages");
@@ -151,7 +167,7 @@ test.describe("AI layer: provider adapters", () => {
     expect(r.startup).toEqual({ ok: true });
   });
 
-  test("Anthropic direct API, for a task without personal data", () => {
+  test("Anthropic direct API, for a task without personal data, as for the others", () => {
     const r = runAi({ ...KEYS, ANTHROPIC_ENDPOINT: "direct", AI_SCORING_PROVIDER: "mistral", AI_WRITING_PROVIDER: "mistral", AI_COACHING_PROVIDER: "mistral", AI_CV_PARSING_PROVIDER: "mistral" }, [
       analyseOffer,
     ]);
@@ -232,10 +248,11 @@ test.describe("AI layer: keys come from the environment", () => {
       search(),
     ]);
     ok(r);
-    expect(r.requests.map((req) => req.authorization)).toEqual([
+    expect(r.requests.map((req) => req.authorization ?? `x-api-key ${req.apiKeyHeader}`)).toEqual([
       "Bearer test-mistral-key",
       "Bearer test-openai-key",
-      "Bearer test-bedrock-key",
+      // Claude's direct API takes its key in x-api-key.
+      "x-api-key test-anthropic-key",
       "Bearer test-perplexity-key",
     ]);
   });
@@ -254,7 +271,7 @@ test.describe("AI layer: keys come from the environment", () => {
   }
 
   test("a missing PERPLEXITY_API_KEY no longer stops start-up: web search alone is unavailable, key_missing, naming the variable (#399)", () => {
-    const r = runAi({ AWS_BEARER_TOKEN_BEDROCK: "b" }, [search()]);
+    const r = runAi({ ANTHROPIC_API_KEY: "a", MISTRAL_API_KEY: "m" }, [search()]);
     expect(r.startup).toEqual({ ok: true });
     expect(r.outcomes[0]).toMatchObject({ ok: false, error: { name: "WebSearchUnavailable" } });
     if (!r.outcomes[0]!.ok) expect(r.outcomes[0]!.error.message).toContain("PERPLEXITY_API_KEY");
@@ -336,7 +353,7 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     ok(r);
     expect(r.usage).toHaveLength(4);
     expect(r.usage).toEqual([
-      expect.objectContaining({ candidateId: "cand-1", task: "scoring", provider: "anthropic", endpoint: "bedrock eu-north-1", inputTokens: 200, outputTokens: 50 }),
+      expect.objectContaining({ candidateId: "cand-1", task: "scoring", provider: "anthropic", endpoint: "api.anthropic.com", model: "claude-sonnet-5-5", inputTokens: 200, outputTokens: 50 }),
       expect.objectContaining({ candidateId: "cand-1", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", inputTokens: 120, outputTokens: 30 }),
       expect.objectContaining({ candidateId: "cand-2", task: "web_search", provider: "perplexity", inputTokens: 0, outputTokens: 0 }),
       expect.objectContaining({ candidateId: null, task: "scoring", inputTokens: 200, outputTokens: 50 }),
@@ -567,14 +584,14 @@ test.describe("AI layer: identity routing under EU AI consent (issue #121)", () 
   test("consent but no identity: the task's configured provider", () => {
     const r = runAi(routing, [letter("cand-consenting", false, "Résume cette offre : DAF H/F à Lyon")]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.anthropic.com"]);
     expect(r.usage[0]).toMatchObject({ provider: "anthropic" });
   });
 
   test("no consent: the task's configured provider, even with identity", () => {
     const r = runAi(routing, [letter("cand-other", true)]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.anthropic.com"]);
     expect(r.usage[0]).toMatchObject({ provider: "anthropic" });
   });
 
@@ -593,7 +610,7 @@ test.describe("AI layer: identity routing under EU AI consent (issue #121)", () 
   test("an undeclared phone number without consent is not rerouted", () => {
     const r = runAi(routing, [{ kind: "generate", task: "coaching", candidateId: "cand-other", prompt: "Appelez le 06 12 34 56 78" }]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["bedrock-mantle.eu-north-1.api.aws"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.anthropic.com"]);
     expect(r.stderr).not.toMatch(/undeclared identity/i);
   });
 });

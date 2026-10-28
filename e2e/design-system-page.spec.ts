@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
@@ -115,10 +115,23 @@ test.describe("Design System page (#463)", () => {
     await expect(page.getByRole("radiogroup", { name: p.density }).getByRole("radio", { name: p.compact })).toHaveAttribute("aria-checked", "true");
   });
 
+});
+
+test.describe("Design System page's screenshots (#463)", () => {
+  // One super-admin's session for every theme and Density: one sign-in, not four in a row.
+  let session: BrowserContext;
+  test.beforeAll(async ({ browser }) => {
+    session = await browser.newContext({ baseURL: origin, locale: "en-US" });
+    await signInWithMagicLink(await session.newPage(), SUPER_ADMIN);
+  });
+  test.afterAll(async () => {
+    await session.close();
+  });
+
   for (const theme of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
     for (const density of Object.keys(DENSITIES) as (keyof typeof DENSITIES)[]) {
-      test(`matches its baseline in ${theme} and ${density} at every width, and axe passes`, async ({ page }) => {
-        await signInWithMagicLink(page, SUPER_ADMIN);
+      test(`matches its baseline in ${theme} and ${density} at every width, and axe passes`, async () => {
+        const page = await session.newPage();
         for (const { name, width, height } of SCREENSHOT_WIDTHS) {
           await page.setViewportSize({ width, height });
           await page.goto(pageFor(theme, density));
@@ -130,6 +143,7 @@ test.describe("Design System page (#463)", () => {
           await expectNoAxeViolations(page);
           if (comparesScreenshots()) await expect(preview(page)).toHaveScreenshot(`design-system-${theme}-${density}-${name}.png`);
         }
+        await page.close();
       });
     }
   }

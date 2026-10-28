@@ -1,37 +1,31 @@
-# Recherche #448 : explications fournisseur de la fiche Email intake (Back Office)
+# Issue #448: Back Office Email intake sheet and Assistant explanations
 
-Carte : #426. Vérifié le 2026-10-28 auprès des docs officielles. Périmètre : seulement les faits que l'Assistant du Back Office doit énoncer correctement (domaine entrant et MX, webhook Brevo, puis inscription Microsoft, vérification Google, Yahoo OAuth). Le format du payload, le retry, l'IP et la sécurité du webhook sont dans `docs/research/issue-442.md` et ne sont pas répétés. Aucune API tierce n'est appelée par #448 : ce sont des textes d'explication.
+Scope: only provider facts needed to build the Email intake sheet (Brevo inbound key/secret and test) and to write the Assistant's provider-by-provider setup explanations. Checked 2026-10-28. "Not documented" means the primary source is silent; verify live.
 
-## Domaine entrant et MX (Brevo)
-Source : https://developers.brevo.com/docs/inbound-parse-webhooks
-- Deux MX sur le sous-domaine de réception : priorité 10 `inbound1.sendinblue.com.` et priorité 20 `inbound2.sendinblue.com.`
-- Le domaine de réception doit différer du domaine d'envoi (la page recommande un sous-domaine du type `reply.exemple.com`) ; le domaine doit d'abord être vérifié chez Brevo.
-- La propagation DNS peut prendre plusieurs heures : à dire avant de tester.
-- Webhook : `POST https://api.brevo.com/v3/webhooks` avec `type: "inbound"`, `events: ["inboundEmailProcessed"]`, `url`, `domain`. Tout mail à `*@<domaine>` est analysé puis envoyé à l'URL.
-- Secret : Brevo ne signe pas le payload ; voir #442 (en-tête personnalisé ou `bearer`, comparaison en temps constant).
-- Écart avec les ADR : ADR-0050 cite `alertes.jobbbox.ai` comme domaine entrant ; l'explication doit lire le domaine dans le Platform Setting, pas le coder en dur.
-- Non documenté par cette page : région UE de Brevo pour l'inbound, taille maximale. Ne pas l'affirmer dans l'Assistant ; renvoyer au DPA (ADR-0051).
+## Brevo inbound parsing
+Sources: https://developers.brevo.com/docs/inbound-parse-webhooks , https://developers.brevo.com/docs/secured-webhooks.md , https://developers.brevo.com/docs/retry-mechanism.md
+- DNS: delegate a receiving subdomain (e.g. `reply.example.com`) with two MX records: priority 10 `inbound1.sendinblue.com.`, priority 20 `inbound2.sendinblue.com.`. The sending domain must be verified in Brevo and the receiving domain must differ from it. Propagation can take hours.
+- Webhook creation: `POST https://api.brevo.com/v3/webhooks` (header `api-key`) with `type: "inbound"`, `events: ["inboundEmailProcessed"]`, `url`, `domain`, optional `description`.
+- Payload: JSON with top-level `items[]`. Fields: `Uuid`, `MessageId`, `InReplyTo`, `From`, `To`, `Cc`, `ReplyTo`, `Recipients`, `Subject`, `SentAtDate`, `RawHtmlBody`, `RawTextBody`, `ExtractedMarkdownMessage`, `ExtractedMarkdownSignature`, `Spam.Score`, `Attachments[]` (`Name`, `ContentType`, `ContentLength` (estimate), `ContentID`, `DownloadToken`), `Headers`. Attachments are fetched separately with the `DownloadToken`.
+- Securing the endpoint (the "secret" in the sheet): Brevo offers (a) `auth: {type: "bearer", token}` on webhook creation, header name not documented; (b) custom `headers` key/value array sent on each call (documented, name and value are ours, so a shared-secret header is deterministic); (c) basic credentials in the URL, transmission not documented; (d) IP allowlisting of Brevo CIDR ranges. There is no HMAC signature. Recommendation: custom header carrying the secret, compared in constant time.
+- Retries: after the original call, 4 retries at 10 min, 1 h, 2 h, 8 h; any 5xx and any 4xx except 429 stop retries and discard the webhook. The page describes outbound event webhooks and does not say it applies to inbound parsing. Not documented for inbound: retries, rate limits, payload and attachment size caps, whether the HTTP method is fixed (a Brevo help-center search hit says POST/GET/PUT/PATCH is selectable; unverified). Implication: respond 2xx fast and dedupe on `Uuid`/`MessageId`; "discard unread" when the switch is off should still return 2xx.
+- Gap: how the Brevo API key is validated for the "test" button (e.g. list webhooks `GET /v3/webhooks?type=inbound`) was not verified here.
 
-## Microsoft : inscription d'application et vérification de l'éditeur
-Source : https://learn.microsoft.com/en-us/entra/identity-platform/publisher-verification-overview (mise à jour 2026-06-15)
-- Prérequis : compte Microsoft AI Cloud Partner Program (ex-MPN) vérifié, et c'est le compte global (PGA), pas un identifiant de lieu ; application inscrite avec un compte professionnel ou scolaire Entra (pas un compte Microsoft personnel) ; tenant associé au PGA ; domaine éditeur défini et différent de `*.onmicrosoft.com` ; domaine de l'e-mail du compte CPP égal au domaine éditeur ou domaine personnalisé vérifié du tenant.
-- La personne qui lance la vérification : rôle Application Administrator ou Cloud Application Administrator dans Entra, et CPP Partner Admin ou Account Admin dans Partner Center, connectée avec MFA ; acceptation des conditions d'utilisation.
-- Gratuit, sans licence. Pour qui remplit les prérequis : « minutes ». Le délai de création et vérification du compte CPP lui-même n'est pas donné par cette page (l'ADR parle d'un délai non publié : rien ne le contredit).
-- Effet : badge « vérifié » à la demande de consentement. Avec le consentement par étape basé sur le risque activé, les utilisateurs ne peuvent pas consentir aux applications multi-tenant récentes (enregistrées après le 2020-11-08) non vérifiées qui demandent plus que la connexion et le profil de base ; l'écran affiche un avertissement.
-- Non pris en charge dans les clouds nationaux ni les tenants B2C.
+## Microsoft (later, Outlook linked mailbox)
+Source: https://learn.microsoft.com/en-us/entra/identity-platform/publisher-verification-overview
+- Publisher verification needs a verified Microsoft AI Cloud Partner Program account (the partner global account, not a location ID), the app registered in an Entra work/school tenant (not a Microsoft account, not B2C) with a publisher domain set (not `*.onmicrosoft.com`) matching the CPP verification email domain or a DNS-verified custom domain, an initiating user with Application/Cloud Application Administrator in Entra and CPP Partner Admin/Account Admin, MFA, and acceptance of the identity platform terms. No fee or license.
+- Why it matters: with risk-based step-up consent enabled, users in other tenants cannot consent to unverified multi-tenant apps registered after 2020-11-08 requesting permissions beyond basic sign-in/profile (e.g. mail read); a warning is shown.
+- Not supported in national clouds.
 
-## Google : vérification et évaluation de sécurité
-Source : https://support.google.com/cloud/answer/13464321
-- Les applications qui demandent des portées restreintes doivent passer une évaluation de sécurité annuelle par un groupe d'évaluateurs agréé par Google. Les portées seulement sensibles n'y sont pas soumises.
-- Non confirmé par cette page : le nom « CASA », la liste des portées Gmail restreintes, le coût (ADR : environ 1 000 à 5 000 EUR) et le délai (ADR : 1 à 3 mois). Ces chiffres viennent des notes précédentes (#427) et sont à citer comme estimations, avec la page « Security Assessment » (https://support.google.com/cloud/answer/13465431, non lue ici) pour les confirmer.
+## Google (later, Gmail linked mailbox)
+Sources: https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification , https://developers.google.com/workspace/gmail/api/auth/scopes
+- `https://www.googleapis.com/auth/gmail.readonly` is listed as a restricted scope.
+- Restricted scopes require scope verification before use (exceptions: personal use, dev/test, internal, domain-wide install). Apps storing or transmitting restricted data on servers need a security assessment by a Google-empanelled assessor using CASA (App Defense Alliance). Reassessment is required at least every 12 months from the Letter of Assessment approval. Brand verification first; declare scopes in the Cloud Console; demo video per sensitive/restricted scope.
 
-## Yahoo : OAuth et IMAP
-Source : https://senders.yahooinc.com/developer/documentation
-- OAuth 2.0 ; portées mail `mail-r` (lecture) et `mail-w` (écriture). Il faut des identifiants client et l'approbation de la portée mail après demande d'accès développeur ; l'approbation relève de la revue Yahoo, sans critères publiés.
-- Yahoo et AOL partagent l'identité mais chaque espace de noms demande ses propres identifiants client.
-- IMAP OAuth : `imap.mail.yahoo.com`, SASL `OAUTHBEARER` seulement si `AUTH=OAUTHBEARER` est annoncé ; SASL-IR pris en charge.
-- Non couvert par cette page : l'interdiction d'accès automatisé dans les conditions d'utilisation de Yahoo (ADR-0050). Ne pas la présenter comme sourcée ici.
+## Yahoo (later)
+Not researched: no primary-source check was done for Yahoo OAuth. Verify against Yahoo Developer docs before the Assistant explains it.
 
-## Implications pour l'implémentation
-- Écrire les textes d'explication avec ces seuls faits ; les points « non confirmé » doivent être formulés comme tels (ou omis) dans les libellés et la sortie de l'Assistant.
-- Le test de l'Assistant (modèle simulé) doit vérifier la mention des deux MX et du sous-domaine distinct du domaine d'envoi, pas une valeur de domaine codée en dur.
+## Implications for the issue
+- Assistant explanation for the inbound-domain label must name: dedicated subdomain, the two Brevo MX records, verified sending domain, webhook creation with `inbound` type and secret header.
+- Store the secret as a provider secret; do not rely on a signature (none exists).
+- Microsoft and Google explanations should state the lead-time gates (CPP verification; Google CASA, annual).

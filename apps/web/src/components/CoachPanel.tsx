@@ -17,13 +17,14 @@ import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type H
 import { createMentions, type Mentions } from "@/help-terms";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
+import { buttonClass } from "@/design/Button";
 import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { AiActivityLiveProvider, useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
-import { formatDuration, formatTokens, isFailureReason, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
+import { formatDuration, formatTokens, isFailureReason, replyActivity, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
 
 /**
  * What a page shows, as the Coach Panel tells the Candidate and the AI Coach.
@@ -119,7 +120,8 @@ export function CoachPanelToggle({ floating = false }: { floating?: boolean }) {
   return (
     <button
       ref={register}
-      className={floating ? "button button-primary coach-panel-toggle coach-panel-toggle-floating" : "button coach-panel-toggle"}
+      // The Design System's button (#464): « Aide et coach » in the Top Bar, the primary one floating.
+      className={floating ? `${buttonClass({ variant: "primary" })} coach-panel-toggle coach-panel-toggle-floating` : `${buttonClass()} coach-panel-toggle`}
       type="button"
       aria-expanded={false}
       aria-controls={panelId}
@@ -941,6 +943,8 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       ) : (
                       <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
                         <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
+                        {/* A reply is unframed text after the glyph of what it did last (#464); the Candidate's words, a bubble. */}
+                        {message.from === "coach" ? <ActivityGlyph activity={replyActivity(message.provenance ?? null)} /> : null}
                         {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                         {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                         {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
@@ -1034,11 +1038,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       </span>
                       {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
                       {status === "sending" && panel.features.live ? (
-                        <button key="send" className="button" type="button" onClick={() => stopper.current?.abort()}>
+                        <button key="send" className={buttonClass()} type="button" onClick={() => stopper.current?.abort()}>
                           {t("coachPanel.stop")}
                         </button>
                       ) : (
-                        <button key="send" className="button button-primary" type="submit" disabled={status === "sending" || restoring}>
+                        <button key="send" className={buttonClass({ variant: "primary" })} type="submit" disabled={status === "sending" || restoring}>
                           {t(panel.sendLabel)}
                         </button>
                       )}

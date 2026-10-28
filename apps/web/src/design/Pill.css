@@ -1,0 +1,69 @@
+@layer base, components;
+
+@layer components {
+  .ds-pill {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+    padding: 0 var(--space-2);
+    /* Body size: a status is read, not metadata (ADR-0009). */
+    font-size: var(--font-size-body);
+    font-weight: 500;
+    line-height: var(--line-height-body);
+    color: var(--color-secondary);
+    white-space: nowrap;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-pill[data-tone="accent"] {
+    color: var(--color-accent);
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-line);
+  }
+
+  .ds-pill[data-tone="success"] {
+    color: var(--color-success);
+    background: var(--color-success-soft);
+    border-color: transparent;
+  }
+
+  .ds-pill[data-tone="warn"] {
+    color: var(--color-warn);
+    background: var(--color-warn-soft);
+    border-color: transparent;
+  }
+
+  .ds-pill[data-tone="danger"] {
+    color: var(--color-danger);
+    background: var(--color-danger-soft);
+    border-color: transparent;
+  }
+
+  .ds-status {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .ds-status__dot {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    background: var(--color-meta);
+    border-radius: 50%;
+  }
+
+  .ds-status[data-tone="success"] .ds-status__dot {
+    background: var(--color-success);
+  }
+
+  .ds-status[data-tone="warn"] .ds-status__dot {
+    background: var(--color-warn);
+  }
+
+  .ds-status[data-tone="danger"] .ds-status__dot {
+    background: var(--color-danger);
+  }
+}

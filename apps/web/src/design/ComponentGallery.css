@@ -1,0 +1,38 @@
+@layer base, components;
+
+@layer components {
+  .ds-gallery {
+    display: grid;
+    gap: var(--space-12);
+    max-width: 72rem;
+    padding: var(--space-8) var(--space-6) var(--space-12);
+    margin: 0 auto;
+  }
+
+  .ds-gallery__section {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .ds-gallery__section > h2 {
+    margin: 0;
+  }
+
+  .ds-gallery__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .ds-gallery__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: var(--space-4);
+  }
+
+  .ds-gallery__stack {
+    display: grid;
+    gap: var(--space-4);
+  }
+}

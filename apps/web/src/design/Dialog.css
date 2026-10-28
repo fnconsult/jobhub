@@ -1,0 +1,55 @@
+@layer base, components;
+
+@layer components {
+  .ds-dialog {
+    position: fixed;
+    top: 18vh;
+    left: 50%;
+    z-index: 40;
+    width: min(28rem, calc(100vw - 2 * var(--space-4)));
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+    transform: translateX(-50%);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ds-dialog[data-state="open"] {
+      animation: ds-dialog-in var(--motion-base) var(--motion-easing);
+    }
+  }
+
+  @keyframes ds-dialog-in {
+    from {
+      opacity: 0;
+      transform: translate(-50%, 0.5rem) scale(0.98);
+    }
+  }
+
+  .ds-dialog__body {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-6);
+  }
+
+  .ds-dialog__title {
+    margin: 0;
+    font-size: var(--font-size-h3);
+  }
+
+  .ds-dialog__text {
+    color: var(--color-secondary);
+  }
+
+  .ds-dialog__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    padding: var(--space-3) var(--space-6);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+  }
+}

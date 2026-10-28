@@ -1,13 +1,12 @@
 "use client";
 
 import type { ApplicationStatus } from "@jobhub/shared";
-import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationFieldError } from "@/applications";
+import { Drawer } from "@/design/Drawer";
 import { send } from "./ApplicationControls";
-import { Icons } from "./icons";
 import { EMPTY_INTERVIEW_DRAFT, InterviewFields, interviewBody, type InterviewDraft } from "./InterviewFields";
 
 /** An ongoing Application, as the Application picker offers it. */
@@ -21,11 +20,10 @@ export interface InterviewableApplication {
 }
 
 /**
- * « Ajouter un entretien » on the Agenda (#247): a button opening a modal dialog (Radix,
- * ADR-0018) to add an Interview to one of the Candidate's ongoing `applications`. For one
- * not at "Entretien", « Passer la candidature à Entretien » (checked by default) moves it
- * there in the same request; unchecked, nothing is saved and the dialog says why. Escape or
- * its Close button closes it, the focus back on the button; once added it closes too.
+ * « Ajouter un entretien » on the Agenda (#247): a button opening a Drawer (#462) to add an
+ * Interview to one of the Candidate's ongoing `applications`. For one not at "Entretien", « Passer la candidature à Entretien » (checked by default) moves it
+ * there in the same request; unchecked, nothing is saved and the drawer says why. Escape or
+ * its « Fermer » button closes it, the focus back on the button; once added it closes too.
  */
 export function AddInterviewDialog({ applications }: { applications: InterviewableApplication[] }) {
   const { t } = useTranslation();
@@ -35,50 +33,38 @@ export function AddInterviewDialog({ applications }: { applications: Interviewab
   const firstField = useRef<HTMLSelectElement>(null);
   return (
     <>
-      <Dialog.Root
+      <Drawer
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
           if (next) setAdded(false);
         }}
+        trigger={
+          <button className="button button-primary" type="button">
+            {t("agenda.add")}
+          </button>
+        }
+        title={t("agenda.addDialog.title")}
+        onOpenAutoFocus={(event) => {
+          // On the Application picker, the first thing to choose; on the drawer itself when there is none.
+          event.preventDefault();
+          (firstField.current ?? (event.currentTarget as HTMLElement | null))?.focus();
+        }}
       >
-        <Dialog.Trigger className="button button-primary" type="button">
-          {t("agenda.add")}
-        </Dialog.Trigger>
-        <Dialog.Portal>
-          <Dialog.Overlay className="scrim" />
-          <Dialog.Content
-            className="dialog"
-            aria-describedby={undefined}
-            onOpenAutoFocus={(event) => {
-              // On the Application picker, the first thing to choose; on the dialog itself when there is none.
-              event.preventDefault();
-              (firstField.current ?? (event.currentTarget as HTMLElement | null))?.focus();
+        {applications.length === 0 ? (
+          <p className="notice">{t("agenda.addDialog.none")}</p>
+        ) : (
+          <AgendaInterviewForm
+            applications={applications}
+            firstField={firstField}
+            onAdded={() => {
+              setOpen(false);
+              setAdded(true);
+              router.refresh();
             }}
-          >
-            <div className="dialog-head">
-              <Dialog.Title className="dialog-title">{t("agenda.addDialog.title")}</Dialog.Title>
-              <Dialog.Close className="button button-quiet">
-                <Icons.close />
-                {t("agenda.addDialog.close")}
-              </Dialog.Close>
-            </div>
-            {applications.length === 0 ? (
-              <p className="notice">{t("agenda.addDialog.none")}</p>
-            ) : (
-              <AgendaInterviewForm
-                applications={applications}
-                firstField={firstField}
-                onAdded={() => {
-                  setOpen(false);
-                  setAdded(true);
-                  router.refresh();
-                }}
-              />
-            )}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+          />
+        )}
+      </Drawer>
       <p role="status" className="hint">
         {added ? t("agenda.addDialog.added") : null}
       </p>

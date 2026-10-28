@@ -543,11 +543,12 @@ test.describe("On-demand AI Coach job search", () => {
           expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
         }
-        // Every control is at least 2.75rem (44px) tall, as on the Profile page (a checkbox's target is its label).
+        // Every control is at least the Confort Density's control height, 2.5rem (ADR-0053; the Drawer's « Fermer », #462),
+        // the Profile page's own 2.75rem (a checkbox's target is its label).
         for (const target of await dialog.getByRole("button").or(dialog.getByRole("textbox")).or(dialog.getByRole("combobox")).or(dialog.getByRole("option")).all()) {
           if (!(await target.isVisible())) continue;
           const box = (await target.boundingBox())!;
-          expect.soft(box.height, `height of ${await target.evaluate((element) => element.outerHTML.slice(0, 80))} at ${size.width}px`).toBeGreaterThanOrEqual(44);
+          expect.soft(box.height, `height of ${await target.evaluate((element) => element.outerHTML.slice(0, 80))} at ${size.width}px`).toBeGreaterThanOrEqual(40);
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `sideways scroll at ${size.width}px`).toBe(0);
         const box = (await dialog.boundingBox())!;

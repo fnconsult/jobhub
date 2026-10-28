@@ -28,6 +28,8 @@ export default tseslint.config(
   {
     // No hard-coded user-facing strings: interface text comes from i18next catalogues.
     files: ["apps/*/src/**/*.tsx", "apps/extension/entrypoints/**/*.{ts,tsx}"],
+    // Component tests (#462) render their own sample text, as a Candidate would see it.
+    ignores: ["apps/*/src/**/*.test.tsx", "apps/web/src/design/testing.tsx"],
     plugins: { i18next },
     rules: {
       "i18next/no-literal-string": [
@@ -36,7 +38,11 @@ export default tseslint.config(
           mode: "jsx-only",
           // The plugin's own exclusions, plus the names help in pages is given (#343): `<HelpTerm term="matchScore">`,
           // `<EmptyStateHelp of="proposals">` name a glossary term or an empty state, never text the Candidate reads.
-          "jsx-attributes": { include: [], exclude: ["className", "styleName", "style", "type", "key", "id", "width", "height", "term", "of"] },
+          // The Design System's props that pick a look or a role, never text (#462): `variant="quiet"`, `tone="danger"`.
+          "jsx-attributes": {
+            include: [],
+            exclude: ["className", "styleName", "style", "type", "key", "id", "width", "height", "term", "of", "variant", "size", "tone", "side", "role"],
+          },
         },
       ],
     },

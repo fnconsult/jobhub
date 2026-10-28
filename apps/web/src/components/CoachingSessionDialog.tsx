@@ -1,12 +1,11 @@
 "use client";
 
-import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Drawer } from "@/design/Drawer";
 import type { SessionEditor } from "@/human-coaches";
 import type { FieldError } from "@/validation";
-import { Icons } from "./icons";
 
 /** A Coaching Session's date and where it takes place, as its form starts from. */
 export interface CoachingSessionFields {
@@ -32,7 +31,7 @@ const ENTER_DATE = {
 
 /**
  * Enters or edits a Coaching Session's date, booked on the Human Coach's Cal.com page (ADR-0027): a
- * button opening a modal dialog (Radix, ADR-0018) with its date and time in French time, duration and
+ * button opening a Drawer (#462) with its date and time in French time, duration and
  * video link, and, for the Candidate, their note. `editor` says who: the Candidate (the default) or
  * the Human Coach, from the Coach space, who never sees or changes the note. Unscheduled, the button
  * reads « J'ai réservé : saisir la date » (the coach's: « Saisir la date »); dated, « Modifier la
@@ -55,25 +54,19 @@ export function CoachingSessionDialog({
   const [open, setOpen] = useState(false);
   const unscheduled = session.scheduledAt === "";
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger className={className} type="button" aria-label={t(unscheduled ? ENTER_DATE[editor].label : "coachingSession.editFor", { name: withName })}>
-        {t(unscheduled ? ENTER_DATE[editor].text : "coachingSession.edit")}
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="scrim" />
-        <Dialog.Content className="dialog" aria-describedby={undefined}>
-          <div className="dialog-head">
-            <Dialog.Title className="dialog-title">{t("coachingSession.title", { name: withName })}</Dialog.Title>
-            <Dialog.Close className="button button-quiet">
-              <Icons.close />
-              {t("coachingSession.close")}
-            </Dialog.Close>
-          </div>
-          {/* Mounted on each opening, from the session as the page last read it. */}
-          <CoachingSessionForm session={session} editor={editor} onSaved={() => setOpen(false)} />
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Drawer
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <button className={className} type="button" aria-label={t(unscheduled ? ENTER_DATE[editor].label : "coachingSession.editFor", { name: withName })}>
+          {t(unscheduled ? ENTER_DATE[editor].text : "coachingSession.edit")}
+        </button>
+      }
+      title={t("coachingSession.title", { name: withName })}
+    >
+      {/* Mounted on each opening, from the session as the page last read it. */}
+      <CoachingSessionForm session={session} editor={editor} onSaved={() => setOpen(false)} onCancel={() => setOpen(false)} />
+    </Drawer>
   );
 }
 
@@ -86,7 +79,17 @@ const ERROR_MESSAGES = {
 } as const;
 type Field = keyof typeof ERROR_MESSAGES;
 
-function CoachingSessionForm({ session, editor, onSaved }: { session: CoachingSessionFields; editor: SessionEditor; onSaved: () => void }) {
+function CoachingSessionForm({
+  session,
+  editor,
+  onSaved,
+  onCancel,
+}: {
+  session: CoachingSessionFields;
+  editor: SessionEditor;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
@@ -223,9 +226,9 @@ function CoachingSessionForm({ session, editor, onSaved }: { session: CoachingSe
         <button className="button button-primary" type="submit" disabled={working}>
           {working ? t("coachingSession.working") : t("coachingSession.save")}
         </button>
-        <Dialog.Close className="button" type="button" disabled={working}>
+        <button className="button" type="button" disabled={working} onClick={onCancel}>
           {t("coachingSession.cancel")}
-        </Dialog.Close>
+        </button>
       </div>
       {failed ? (
         <p className="field-error" role="alert">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backOfficeAccess } from "./access";
+import { BACK_OFFICE_ROLES, backOfficeAccess } from "./access";
 import { BACK_OFFICE_PAGES, backOfficeNav } from "./back-office-nav";
 
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
@@ -33,6 +33,7 @@ describe("the Back Office navigation", () => {
           ["aiUsage", "/admin/consommation-ia"],
           ["activity", "/admin/activite"],
           ["tools", "/admin/outils"],
+          ["designSystem", "/admin/design-system"],
         ],
       ],
       ["team", [["administrators", "/admin/administrateurs"]]],
@@ -43,6 +44,7 @@ describe("the Back Office navigation", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["help-editor"])))).toEqual([
       ["candidates", [["signalements", "/admin/signalements"]]],
       ["content", [["unansweredQuestions", "/admin/questions-sans-reponse"]]],
+      ["platform", [["designSystem", "/admin/design-system"]]],
     ]);
   });
 
@@ -66,6 +68,7 @@ describe("the Back Office navigation", () => {
           ["coupons", "/admin/codes-promo"],
         ],
       ],
+      ["platform", [["designSystem", "/admin/design-system"]]],
     ]);
     expect(sections(backOfficeNav(backOfficeAccess(["coach-manager"])))).toEqual([
       [
@@ -75,6 +78,7 @@ describe("the Back Office navigation", () => {
           ["coachCost", "/admin/cout-coach"],
         ],
       ],
+      ["platform", [["designSystem", "/admin/design-system"]]],
     ]);
     // Support reads everything but Provider Secrets and the AI Message Log: the Unanswered Questions under Contenu, Paramètres (Connexion and the search sites among its tabs) and Consommation IA under Plateforme, read-only.
     expect(sections(backOfficeNav(backOfficeAccess(["support"]))).map(([key]) => key)).toEqual(["candidates", "offer", "coaching", "content", "platform"]);
@@ -85,10 +89,22 @@ describe("the Back Office navigation", () => {
         ["aiUsage", "/admin/consommation-ia"],
         ["activity", "/admin/activite"],
         ["tools", "/admin/outils"],
+        ["designSystem", "/admin/design-system"],
       ],
     ]);
-    // A Playbook editor sees the Coaching Playbooks alone, under Coaching (#225).
-    expect(sections(backOfficeNav(backOfficeAccess(["playbook-editor"])))).toEqual([["coaching", [["coachingPlaybooks", "/admin/playbooks"]]]]);
+    // A Playbook editor sees the Coaching Playbooks, under Coaching (#225), and the Design System page.
+    expect(sections(backOfficeNav(backOfficeAccess(["playbook-editor"])))).toEqual([
+      ["coaching", [["coachingPlaybooks", "/admin/playbooks"]]],
+      ["platform", [["designSystem", "/admin/design-system"]]],
+    ]);
+    expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
+  });
+
+  it("shows every Back Office Role the Design System page, last under Plateforme, and no one without a role (#463)", () => {
+    for (const role of BACK_OFFICE_ROLES) {
+      const platform = backOfficeNav(backOfficeAccess([role])).find((group) => group.key === "platform");
+      expect(platform?.sections.at(-1), role).toEqual({ key: "designSystem", href: "/admin/design-system" });
+    }
     expect(backOfficeNav(backOfficeAccess([]))).toEqual([]);
   });
 

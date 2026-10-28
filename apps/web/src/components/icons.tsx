@@ -28,6 +28,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Palette,
   MessageCircleQuestion,
   MessageSquare,
   NotebookText,
@@ -115,6 +116,8 @@ const LUCIDE = {
   // A magnifier: Activité › Recherches, the Job discovery runs (#404).
   discoveryRuns: SearchCheck,
   tools: Wrench,
+  // A palette: the Design System page (#463).
+  designSystem: Palette,
   administrators: ShieldCheck,
   journal: NotebookText,
   // The Design System's Notes and Stats (#462).

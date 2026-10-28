@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BACK_OFFICE_PAGES, type BackOfficePage } from "@/admin/back-office-nav";
+import { BACK_OFFICE_PAGES, readsPage, type BackOfficePage } from "@/admin/back-office-nav";
 import type { EnvOnlyRow, retiredSettingsSet } from "@/platform-settings/env-only";
 import { ScrollFrame, type Ctx } from "./context";
 import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
@@ -19,7 +19,7 @@ const INTRO: ExplainedContext = { kind: "intro", id: "environment" };
  */
 export function EnvironmentSection({ ctx, rows, retired }: { ctx: Ctx; rows: readonly EnvOnlyRow[]; retired: ReturnType<typeof retiredSettingsSet> }) {
   const { t } = ctx;
-  const elsewhere = ELSEWHERE.filter((page) => ctx.access.can(BACK_OFFICE_PAGES[page].resource, "read"));
+  const elsewhere = ELSEWHERE.filter((page) => readsPage(ctx.access, page));
   return (
     <>
       <section className="stack" aria-labelledby="settings-env-only">

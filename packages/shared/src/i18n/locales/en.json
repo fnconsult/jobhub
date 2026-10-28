@@ -991,7 +991,8 @@
       "tools": "Tools",
       "unansweredQuestions": "Unanswered questions",
       "activity": "Activity",
-      "discoveryRuns": "Searches"
+      "discoveryRuns": "Searches",
+      "designSystem": "Design System"
     },
     "signInProviders": {
       "title": "Sign-in",

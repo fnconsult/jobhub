@@ -71,8 +71,8 @@ export default defineConfig({
     // Needs no web app: run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=prototype.
     { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },
     // The seven emails' HTML (#472): screenshot baselines, light and dark, rendered from their samples with no web app.
-    // Run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=emails.
-    { name: "emails", testMatch: /email-html\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 680, height: 800 }, locale: "fr-FR" } },
+    // Run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=emails. Its baselines stay per platform, next to the spec.
+    { name: "emails", testMatch: /email-html\.spec\.ts/, snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}", use: { ...devices["Desktop Chrome"], viewport: { width: 680, height: 800 }, locale: "fr-FR" } },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
     // One spec at a time: each starts its own worker on the same queue, which would take the other's jobs.
     { name: "worker", testMatch: /(job-(discovery|search|digest)|job-discovery-budget|job-discovery-web-search-settings|job-discovery-listing-pages|job-discovery-ats|job-discovery-france-travail(-access)?|job-discovery-fantastic-jobs|job-discovery-search-keys|job-discovery-target-companies|job-freshness|job-offer-provenance|job-search-provenance-progress|job-search-stop|job-search-metrics|job-search-activite|follow-ups|expired-job-offers(-confirmation)?)\.spec\.ts/, workers: 1 },

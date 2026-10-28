@@ -4,7 +4,7 @@
  *
  * By default the badge's content script runs on JOB_SITES only, and Capture is
  * manual elsewhere: the extension does not ask to read every site the person
- * visits. The person can opt in from the popup, which asks the browser for
+ * visits. The person can opt in from the Side Panel, which asks the browser for
  * ALL_SITES (an optional host permission); the background then registers the
  * same content script for every other site, and removes it when the permission
  * is taken back. Pages are still read in the person's own browser (ADR-0002).

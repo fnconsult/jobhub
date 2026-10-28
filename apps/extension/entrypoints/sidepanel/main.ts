@@ -12,7 +12,7 @@ import { chooseScoreAgainst, createMatchScoring, type ScoringChoice } from "../.
 import { WEB_ORIGIN } from "../../src/web-app";
 // Inter, bundled with the extension: no request to a font CDN (ADR-0053).
 import "@fontsource-variable/inter";
-import "./analyse.css";
+import "./sidepanel.css";
 
 // The analysis page: the captured Job Offer and its Match Score, against the Guest's CV or, for a
 // signed-in Candidate, one of their Profiles (#75); for a signed-in Candidate, saving the Job Offer as an Application.

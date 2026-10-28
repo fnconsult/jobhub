@@ -14,7 +14,7 @@
  *    (all-sites-detection.ts) runs there, and an enabled added site's posting
  *    pages get the badge even without JobPosting data;
  *  - elsewhere, as before, a page publishing one JobPosting gets the badge.
- * Manual Capture from the popup works everywhere, disabled sites included.
+ * Manual Capture from the Side Panel works everywhere, disabled sites included.
  */
 import { jobSitePattern, type ExtensionJobSite, type ExtensionJobSiteList } from "@jobhub/shared";
 import { MatchPattern } from "wxt/utils/match-patterns";

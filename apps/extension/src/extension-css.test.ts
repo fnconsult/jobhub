@@ -9,7 +9,7 @@ const stylesheets = readdirSync(entrypoints, { recursive: true, encoding: "utf8"
 
 describe("the extension's stylesheets", () => {
   it("are found", () => {
-    expect(stylesheets).toEqual(expect.arrayContaining(["popup/popup.css", "analyse/analyse.css"]));
+    expect(stylesheets).toEqual(["sidepanel/sidepanel.css"]);
   });
 
   it.each(stylesheets)("%s stays on the ADR-0009 floor: no type below 16px, text only in audited text colours, colours only as tokens", (path) => {

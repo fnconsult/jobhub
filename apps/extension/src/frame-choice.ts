@@ -1,7 +1,7 @@
 /**
  * Which frame of a tab a manual Capture takes. Some career sites show an empty
  * shell and put the posting in an iframe from their ATS (gestmax.fr, #187): the
- * popup reads every frame it may read, and keeps the one holding the posting.
+ * Side Panel reads every frame it may read, and keeps the one holding the posting.
  */
 import type { CapturedJobOffer, JobPage } from "./job-page";
 

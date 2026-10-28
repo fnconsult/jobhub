@@ -125,7 +125,8 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
   const now = options.now ?? (() => new Date());
 
   async function recognisedSenders(client: PoolClient): Promise<RecognisedSender[]> {
-    const { rows } = await client.query<RecognisedSender>(`SELECT match, value, label, aligned FROM recognised_sender`);
+    // The enabled ones: a sender an Administrator disabled is no longer read (#448).
+    const { rows } = await client.query<RecognisedSender>(`SELECT match, value, label, aligned FROM recognised_sender WHERE enabled`);
     return rows;
   }
 

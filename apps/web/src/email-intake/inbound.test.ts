@@ -135,6 +135,15 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
       expect(sent).toEqual([]);
     });
 
+    it("sets aside a disabled Recognised sender's email as from an unrecognised sender (#448)", async () => {
+      await database.query(`UPDATE recognised_sender SET enabled = false WHERE value = 'cadremploi.fr'`);
+
+      expect((await post(inboundPayload(alertEmail(address)))).status).toBe(200);
+
+      expect((await received())[0]).toMatchObject({ outcome: "unrecognised_sender", senderDomain: "alertes.cadremploi.fr" });
+      expect(sent).toEqual([]);
+    });
+
     it("reads a manual forward from the Candidate's own address, and keeps Gmail's forwarding confirmation without queueing it", async () => {
       const forward = inboundItem({ from: "marie.dupont@example.fr", to: address, text: "TR: Offre de Responsable marketing" });
       const confirmation = inboundItem({ from: "forwarding-noreply@google.com", to: address, text: "Code de confirmation : 123456789" });

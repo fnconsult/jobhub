@@ -2096,13 +2096,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 0 var(--space-6);
 }
 
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 35;
-  background: var(--scrim);
-}
-
 .sidebar-drawer {
   position: fixed;
   top: 0;
@@ -2126,63 +2119,11 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   }
 }
 
-/* A modal dialog over the page (Radix, ADR-0018), above the scrim: "Modifier les critères"
-   opens one with the Profile's Search Criteria (#237). Full screen on a phone. */
-.dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  width: min(44rem, calc(100vw - 2 * var(--space-4)));
-  max-height: calc(100dvh - 2 * var(--space-6));
-  padding: var(--space-6);
-  overflow-y: auto;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-overlay);
-  transform: translate(-50%, -50%);
-}
-
-/* Focused on opening so its title is announced; a box, not a control: no focus ring. */
-.dialog:focus {
-  outline: none;
-}
-
-.dialog-head {
-  display: flex;
-  gap: var(--space-4);
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
+/* The title of a Drawer that draws its own head (the Signalement's, #462). */
 .dialog-title {
   margin: 0;
   font-size: var(--font-size-h3);
   overflow-wrap: anywhere;
-}
-
-.dialog-head .button {
-  display: inline-flex;
-  flex: none;
-  gap: var(--space-2);
-  align-items: center;
-  min-height: var(--control-height);
-}
-
-@media (width < 40rem) {
-  .dialog {
-    inset: 0;
-    width: 100%;
-    max-height: none;
-    padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-    border: none;
-    border-radius: 0;
-    transform: none;
-  }
 }
 
 /* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------

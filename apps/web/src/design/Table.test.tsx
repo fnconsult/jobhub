@@ -87,3 +87,28 @@ describe("Table (#462)", () => {
     expect(opened).not.toHaveBeenCalled();
   });
 });
+
+describe("Table's frame on a narrow screen (#463)", () => {
+  /** Lays the frame out `scrollWidth` wide inside `clientWidth`, as a browser would: jsdom lays nothing out. */
+  function layOut(scrollWidth: number, clientWidth: number) {
+    vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(scrollWidth);
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(clientWidth);
+  }
+
+  it("is a region named by the table that Tab reaches when it scrolls sideways, so a keyboard can scroll it", () => {
+    layOut(800, 320);
+    renderInFrench(<Table label="Couleurs" columns={columns} groups={groups} rowKey={(row) => row.id} />);
+    const frame = screen.getByRole("region", { name: "Couleurs" });
+    expect(frame.getAttribute("tabindex")).toBe("0");
+    expect(within(frame).getByRole("table", { name: "Couleurs" })).toBeTruthy();
+    vi.restoreAllMocks();
+  });
+
+  it("adds no Tab stop when the table fits", () => {
+    layOut(320, 320);
+    renderInFrench(<Table label="Couleurs" columns={columns} groups={groups} rowKey={(row) => row.id} />);
+    expect(screen.queryByRole("region")).toBeNull();
+    expect(document.querySelector(".ds-table-wrap")?.hasAttribute("tabindex")).toBe(false);
+    vi.restoreAllMocks();
+  });
+});

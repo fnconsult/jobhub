@@ -125,6 +125,8 @@ test.describe("Design System page (#463)", () => {
           await expect(preview(page)).toHaveAttribute("data-theme", theme);
           await expect(preview(page)).toHaveAttribute("data-density", density);
           await settled(page);
+          // Nothing runs off the side: a wide table scrolls in its own frame.
+          expect(await page.evaluate(() => document.documentElement.scrollWidth), `${name}: the page's width`).toBeLessThanOrEqual(width);
           await expectNoAxeViolations(page);
           if (comparesScreenshots()) await expect(preview(page)).toHaveScreenshot(`design-system-${theme}-${density}-${name}.png`);
         }

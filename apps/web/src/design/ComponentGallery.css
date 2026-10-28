@@ -1,8 +1,10 @@
 @layer base, components;
 
 @layer components {
+  /* One column that never grows past its container: a wide table scrolls inside its own frame, not the page. */
   .ds-gallery {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-12);
     max-width: 72rem;
     padding: var(--space-8) var(--space-6) var(--space-12);
@@ -11,6 +13,7 @@
 
   .ds-gallery__section {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
   }
 

@@ -5235,3 +5235,133 @@ textarea.title-edit {
   margin: 0;
   padding-left: var(--space-4);
 }
+
+/* The forwarding setup wizard (#451): one step at a time, its guides numbered, Gmail's code large enough to type. */
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.wizard-step > h3 {
+  margin: 0;
+}
+
+.wizard-progress {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.wizard-form {
+  margin-top: 0;
+}
+
+.wizard-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.wizard-address {
+  margin: 0;
+}
+
+.wizard-address dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.wizard-code {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+}
+
+/* Where a mailbox's settings usually are: a window whose gear, top right, is ringed. */
+.forwarding-hint {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.forwarding-hint p {
+  margin: 0;
+}
+
+.forwarding-hint-window {
+  position: relative;
+  flex: none;
+  width: 6rem;
+  height: 3.5rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.forwarding-hint-window::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  content: "";
+}
+
+.forwarding-hint-gear {
+  position: absolute;
+  top: 0.1875rem;
+  right: 0.375rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 2px dotted var(--color-text-secondary);
+  border-radius: 50%;
+}
+
+.forwarding-hint-gear::after {
+  position: absolute;
+  inset: -0.4375rem;
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  content: "";
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wizard-step {
+    animation: wizard-step-in 0.2s ease;
+  }
+
+  .forwarding-hint-gear::after {
+    animation: forwarding-hint-pulse 1.4s ease-out 3;
+  }
+}
+
+@keyframes wizard-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes forwarding-hint-pulse {
+  from {
+    opacity: 1;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}

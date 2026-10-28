@@ -110,6 +110,27 @@ export function unknownSenderEmail(to: string, options: { messageId?: string } =
   });
 }
 
+/**
+ * Gmail's forwarding confirmation (#451), sent to the address a Candidate adds in Gmail: written from what Google's help
+ * and secondary sources describe (docs/research/issue-451.md), not from a captured email; replace it with one captured
+ * on staging once there is one.
+ */
+export function gmailForwardingConfirmation(to: string, options: { code?: string; requester?: string; messageId?: string } = {}): BrevoInboundItem {
+  const { code = "123456789", requester = "marie.dupont@gmail.com" } = options;
+  return inboundItem({
+    from: "forwarding-noreply@google.com",
+    to,
+    messageId: options.messageId,
+    subject: `(#${code}) Gmail Forwarding Confirmation - Receive Mail from ${requester}`,
+    text: [
+      `${requester} has requested to automatically forward mail to your email address ${to}.`,
+      `Confirmation code: ${code}`,
+      `To allow ${requester} to automatically forward mail to your address, please click the link below to confirm the request:`,
+      `https://mail-settings.google.com/mail/vf-%5BANGjdJ-fixture-${code}%5D-fixture`,
+    ].join("\n\n"),
+  });
+}
+
 /** Brevo's webhook body: `{ items: [...] }`. */
 export function inboundPayload(...items: BrevoInboundItem[]): { items: BrevoInboundItem[] } {
   return { items };

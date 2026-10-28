@@ -33,6 +33,8 @@ export const PROVIDER_SECRETS = [
   // Brevo: its transactional email API key, used over its SMTP relay (whose URL carries its credentials).
   { name: "BREVO_API_KEY", provider: "brevo" },
   { name: "SMTP_URL", provider: "brevo" },
+  // Brevo Inbound Parsing (#442): the secret its webhook sends with each email, set in its `headers` when the webhook is created.
+  { name: "BREVO_INBOUND_SECRET", provider: "brevo" },
 ] as const satisfies ReadonlyArray<{ name: string; provider: SecretProvider }>;
 
 export type ProviderSecretName = (typeof PROVIDER_SECRETS)[number]["name"];
@@ -50,6 +52,7 @@ export const FRANCE_TRAVAIL_SECRET_NAMES = ["FRANCE_TRAVAIL_CLIENT_ID", "FRANCE_
 export const FANTASTIC_JOBS_SECRET_NAMES = ["FANTASTIC_JOBS_API_KEY"] as const satisfies readonly ProviderSecretName[];
 export const CONTACT_ENRICHMENT_SECRET_NAMES = ["LUSHA_API_KEY", "KASPR_API_KEY", "APOLLO_API_KEY"] as const satisfies readonly ProviderSecretName[];
 export const MAIL_SECRET_NAMES = ["BREVO_API_KEY", "SMTP_URL"] as const satisfies readonly ProviderSecretName[];
+export const EMAIL_INTAKE_SECRET_NAMES = ["BREVO_INBOUND_SECRET"] as const satisfies readonly ProviderSecretName[];
 
 /** Fewer characters than this, and no fingerprint is shown: 4 of them would give away too much. */
 const FINGERPRINT_MIN_LENGTH = 16;

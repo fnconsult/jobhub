@@ -1,3 +1,4 @@
+import { createSecretKey, randomBytes } from "node:crypto";
 import { AiProviderError, createAiLayer } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
@@ -13,6 +14,9 @@ import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
 import { createCoachConversations } from "../coach-conversations";
 import { createHumanCoaches } from "../human-coaches";
 import { createEmailIntake } from "../email-intake";
+import { alertEmail, inboundPayload, unknownSenderEmail } from "../email-intake/fixtures/brevo-inbound";
+import { createEmailIntakeInbound } from "../email-intake/inbound";
+import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -858,7 +862,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   });
 
   it("the export holds the Candidate's Forwarding addresses, each with its activation date, and the sending addresses they added (#441)", async () => {
-    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [] });
+    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [] });
     let now = new Date("2026-10-01T08:00:00Z");
     const drawn = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"];
     const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", localPart: () => drawn.shift()!, now: () => now });
@@ -873,7 +877,36 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         { address: "aaaaaaaaaaaaaaaa@alertes.jobbbox.test", state: "replaced", activatedAt: new Date("2026-10-01T08:00:00Z"), endedAt: new Date("2026-10-15T08:00:00Z") },
       ],
       sendingAddresses: [{ address: "marie@orange.fr", addedAt: new Date("2026-10-01T08:00:00Z") }],
+      receivedOfferEmails: [],
     });
+  });
+
+  it("the export holds the Candidate's Received offer emails: outcome, sender's domain and dates, never their text (#442)", async () => {
+    const now = new Date("2026-10-27T09:30:00Z");
+    const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => now });
+    const { address } = await emailIntake.switchOn(candidateId);
+    const inbound = createEmailIntakeInbound(database, {
+      emailIntake,
+      cipher: () => createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]])),
+      queue: { send: async () => {} },
+      settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 10 }),
+      now: () => now,
+    });
+    await inbound.handle(
+      new Request("http://localhost:3000/api/email-intake/inbound", {
+        method: "POST",
+        headers: { "x-inbound-secret": "inbound-secret" },
+        body: JSON.stringify(inboundPayload(alertEmail(address), unknownSenderEmail(address))),
+      }),
+    );
+
+    const exported = (await candidateData.export(candidateId)).emailIntake.receivedOfferEmails;
+
+    expect(exported.map(({ outcome, senderDomain, receivedAt, sentAt }) => ({ outcome, senderDomain, receivedAt, sentAt })).sort((a, b) => a.outcome.localeCompare(b.outcome))).toEqual([
+      { outcome: "awaiting_reading", senderDomain: "alertes.cadremploi.fr", receivedAt: now, sentAt: new Date("2026-10-26T22:18:15Z") },
+      { outcome: "unrecognised_sender", senderDomain: "cabinet-fictif.test", receivedAt: now, sentAt: new Date("2026-10-26T22:18:15Z") },
+    ]);
+    expect(JSON.stringify(exported)).not.toMatch(/Chef de projet|Claire Exemple/);
   });
 
   it("deleting the account removes the Candidate's Forwarding addresses and sending addresses, and no one else's (#441)", async () => {

@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), Plan and Plan Quota use, EU AI consent, Email intake (Forwarding addresses and sending addresses), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), Plan and Plan Quota use, EU AI consent, Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -329,6 +329,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   eu_ai_consent: "euAiConsent",
   forwarding_address: "emailIntake.forwardingAddresses (replaced and switched off ones included, with their dates)",
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
+  received_offer_email: "emailIntake.receivedOfferEmails (outcome, sender's domain and dates; never the text)",
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",

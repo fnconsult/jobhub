@@ -331,6 +331,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
   received_offer_email: "emailIntake.receivedOfferEmails (outcome, kind, sender's domain and dates; never the text)",
   received_offer_email_offer: "emailIntake.receivedOfferEmails[].offers (each offer: new with its Profile and Match Score, déjà vue, À capturer or too old)",
+  candidate_recognised_sender: "emailIntake.recognisedSenders (those the Candidate added for themselves, with their label and date)",
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",

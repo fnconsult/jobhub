@@ -6,11 +6,11 @@ describe("the Tools", () => {
     expect(toolsByCategory().map(({ category, tools }) => [category, tools.map((tool) => tool.id)])).toEqual([
       ["ai_model", ["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]],
       ["web_search", ["perplexity", "brave", "tavily"]],
-      ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec", "job-site"]],
+      ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec", "job-site", "brevo-inbound"]],
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
       ["billing", ["stripe"]],
-      ["mail", ["brevo-api", "brevo-smtp", "brevo-inbound"]],
+      ["mail", ["brevo-api", "brevo-smtp"]],
       ["sign_in", ["google", "apple", "microsoft", "oidc"]],
       ["geolocation", ["geo-api-gouv"]],
       ["reference_data", ["insee-naf", "rome-open-data"]],

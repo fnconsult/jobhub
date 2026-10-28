@@ -35,6 +35,7 @@ const KIND_NAMES: Record<ExplainedKind, string> = {
   intro: "présentation de la page",
   figure: "chiffre du tableau de bord",
   stop_reason: "raison d'arrêt d'une recherche",
+  recognised_sender: "expéditeur reconnu de la Réception par email",
 };
 
 /** Whether an item named `id` may hold a secret: a Provider Secret, or a variable whose value Paramètres never shows. */

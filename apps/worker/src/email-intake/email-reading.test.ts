@@ -91,6 +91,7 @@ describe.skipIf(!connectionString)("Email intake: the worker reads a Received of
       cipher: () => cipher,
       queue: { send: async (_, data) => void queued.push((data as { receivedOfferEmailId: string }).receivedOfferEmailId) },
       settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 50 }),
+      switchedOn: async () => true,
       now: () => now,
     });
     deliver = async (...items) => {

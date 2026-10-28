@@ -177,6 +177,8 @@ export interface ExportedEmailIntake {
     sentAt: Date | null;
     offers: ExportedEmailOffer[];
   }[];
+  /** The Recognised senders they added for themselves (#450), oldest first. */
+  recognisedSenders: { match: "domain" | "address"; value: string; label: string; addedAt: Date }[];
 }
 
 /**
@@ -195,7 +197,7 @@ export interface ExportedEmailOffer {
 
 /** The Candidate's Email intake for their Data export (ADR-0051). */
 export async function emailIntakeOf(database: Pool, candidateId: string): Promise<ExportedEmailIntake> {
-  const [forwardingAddresses, sendingAddresses, receivedOfferEmails] = await Promise.all([
+  const [forwardingAddresses, sendingAddresses, receivedOfferEmails, recognisedSenders] = await Promise.all([
     database.query<ExportedEmailIntake["forwardingAddresses"][number]>(
       `SELECT address, state, activated_at AS "activatedAt", ended_at AS "endedAt" FROM forwarding_address WHERE candidate_id = $1 ORDER BY activated_at DESC, address`,
       [candidateId],
@@ -209,12 +211,17 @@ export async function emailIntakeOf(database: Pool, candidateId: string): Promis
        FROM received_offer_email WHERE candidate_id = $1 ORDER BY received_at DESC, id`,
       [candidateId],
     ),
+    database.query<ExportedEmailIntake["recognisedSenders"][number]>(
+      `SELECT match, value, label, added_at AS "addedAt" FROM candidate_recognised_sender WHERE candidate_id = $1 ORDER BY added_at, value`,
+      [candidateId],
+    ),
   ]);
   const offers = await offersOf(database, candidateId);
   return {
     forwardingAddresses: forwardingAddresses.rows,
     sendingAddresses: sendingAddresses.rows,
     receivedOfferEmails: receivedOfferEmails.rows.map((email) => ({ ...email, offers: offers.get(email.id) ?? [] })),
+    recognisedSenders: recognisedSenders.rows,
   };
 }
 
@@ -281,6 +288,17 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
       value text PRIMARY KEY,
       label text NOT NULL,
       aligned boolean NOT NULL DEFAULT false
+    );
+    -- A disabled Recognised sender stays listed, unread (#448).
+    ALTER TABLE recognised_sender ADD COLUMN IF NOT EXISTS enabled boolean NOT NULL DEFAULT true;
+    -- The senders a Candidate added for themselves (#450): counted, naming no one, in « Expéditeurs proposés » (#448).
+    CREATE TABLE IF NOT EXISTS candidate_recognised_sender (
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      match text NOT NULL CHECK (match IN ('domain', 'address')),
+      value text NOT NULL,
+      label text NOT NULL,
+      added_at timestamptz NOT NULL,
+      PRIMARY KEY (candidate_id, value)
     );
   `);
   await seedRecognisedSenders(database);

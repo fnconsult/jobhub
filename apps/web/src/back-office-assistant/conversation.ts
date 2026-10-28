@@ -20,8 +20,11 @@ export interface AssistantMessage {
   explained?: ExplainedItem;
 }
 
-/** What an Explainable label explains (#407): a setting, a source, a warning, a page's intro, a Dashboard figure or a run's stop reason. */
-export const EXPLAINED_KINDS = ["setting", "source", "warning", "intro", "figure", "stop_reason"] as const;
+/**
+ * What an Explainable label explains (#407): a setting, a source, a warning, a page's intro, a Dashboard figure, a run's
+ * stop reason, or one of Email intake's Recognised senders, listed or proposed (#448).
+ */
+export const EXPLAINED_KINDS = ["setting", "source", "warning", "intro", "figure", "stop_reason", "recognised_sender"] as const;
 export type ExplainedKind = (typeof EXPLAINED_KINDS)[number];
 
 /**

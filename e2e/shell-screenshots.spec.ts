@@ -7,8 +7,8 @@ import { newAddress } from "./support/mailbox";
 // Issue #464: the shell in the Design System (ADR-0053), shared by both sides (SidebarShell): the Sidebar on the nav
 // surface with the Usage Meter at its foot and the Signalement icon on « Mon compte »'s row, the Top Bar with AI
 // Activity and « Aide et coach ». Screenshot baselines of the shell on a Candidate page (Confort) and a Back Office
-// page (Compact), light, at three widths. Only the shell is compared: the page in `<main>` is masked, each page's
-// ticket brings its own baseline (#465 to #469).
+// page (Compact), light, at three widths, and on a phone its drawer too. Only the shell is compared: the page in
+// `<main>` is masked, each page's ticket brings its own baseline (#465 to #469).
 //
 // Baselines are Linux renders, as CI makes them (`{arg}.png`, no platform suffix, see playwright.config.ts). To make
 // or update them on a Mac, run the browser in the Playwright container, the suite on the Mac:
@@ -28,7 +28,7 @@ const WIDTHS = [
   { name: "desktop", width: 1440, height: 900 },
   // The narrowest width with the Sidebar beside the page (64rem).
   { name: "laptop", width: 1024, height: 768 },
-  // Below 64rem the Sidebar is a drawer, opened here.
+  // Below 64rem the Sidebar is a drawer, shot open too.
   { name: "phone", width: 390, height: 844 },
 ] as const;
 
@@ -45,20 +45,28 @@ const masterCv = {
   languages: [],
 };
 
-/** The shell as the person sees it, the page itself masked; on a phone, with the Sidebar's drawer open. */
+/**
+ * The shell as the person sees it, the page itself masked. On a phone, then its Sidebar: the drawer, opened, shot on its
+ * own (a mask is drawn over everything, so the page under the drawer cannot be masked behind it).
+ */
 async function shellScreenshot(page: Page, name: string, phone: boolean) {
-  if (phone) {
-    await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
-    await expect(page.getByRole("dialog", { name: fr.sidebar.menu })).toBeVisible();
-  }
   // Inter, self-hosted, drawn before the shot.
   await page.evaluate(() => document.fonts.ready);
-  await expect(page).toHaveScreenshot(`${name}.png`, {
-    animations: "disabled",
-    caret: "hide",
-    mask: [page.locator("#main"), page.locator(".sidebar-count")],
+  const options = {
+    animations: "disabled" as const,
+    caret: "hide" as const,
+    mask: [page.locator(".sidebar-count")],
     maxDiffPixelRatio: 0.01,
-  });
+    // A loaded machine takes a while to draw two stable shots in a row.
+    timeout: 20_000,
+  };
+  await expect(page).toHaveScreenshot(`${name}.png`, { ...options, mask: [...options.mask, page.locator("#main")] });
+  if (!phone) return;
+  await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
+  await expect(drawer).toBeVisible();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+  await expect(drawer).toHaveScreenshot(`${name}-menu.png`, options);
 }
 
 /** axe on the shell, the page left out (its own ticket checks it). */
@@ -89,7 +97,8 @@ for (const viewport of WIDTHS) {
 
     test("on a Back Office page: the Sidebar's groups, in the Compact Density", async ({ page }) => {
       await signInWithMagicLink(page, BACK_OFFICE);
-      await page.goto("/admin");
+      // Quotas: a light page, so the shot is quick to settle (the Dashboard draws charts).
+      await page.goto("/admin/quotas");
       await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
 
       await shellScreenshot(page, `back-office-${viewport.name}`, viewport.name === "phone");

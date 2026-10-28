@@ -1740,13 +1740,28 @@ html[data-sidebar="closed"] .sidebar-docked {
   height: 100dvh;
 }
 
+/* A long menu scrolls the whole sidebar: nothing in it is squeezed (the drawer's head, wrapped on a phone). */
+.sidebar > * {
+  flex-shrink: 0;
+}
+
 /* The workspace at the top: Jobbbox's « J » square in the accent (the logo's stand-in, #460) and its name. */
 .sidebar-head {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
   min-height: var(--size-control);
+}
+
+/* In the phone's drawer, « Fermer le menu » beside the brand, or under it, at the right, when they do not fit. */
+.sidebar-drawer .sidebar-head .brand {
+  flex: none;
+}
+
+.sidebar-drawer .sidebar-head .button {
+  margin-left: auto;
 }
 
 .sidebar .brand {

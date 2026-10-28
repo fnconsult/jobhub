@@ -11,6 +11,15 @@ const PAGE = "/design-system/composants";
 const DENSITIES = ["confort", "compact"] as const;
 
 async function expectNoAxeViolations(page: Page, selector = "body") {
+  // An overlay fading in is measured once it has: a busy Button's spinner turns for ever, so it is not waited for.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+        .map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
   const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
@@ -25,6 +34,9 @@ test.describe("Design System components (#462)", () => {
   for (const density of DENSITIES) {
     test(`axe passes on every component in ${density}, the Drawer, the Dialog and the Toast open too`, async ({ page }) => {
       await openTestPage(page, density);
+      // With DESIGN_SYSTEM_SCREENSHOTS_DIR set, the page is also captured in each Density.
+      const screenshots = process.env.DESIGN_SYSTEM_SCREENSHOTS_DIR;
+      if (screenshots) await page.screenshot({ path: `${screenshots}/components-${density}.png`, fullPage: true });
       await expectNoAxeViolations(page);
       for (const t of await renderedTexts(page)) {
         expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
@@ -34,6 +46,7 @@ test.describe("Design System components (#462)", () => {
       await page.getByRole("button", { name: g.openDrawer }).click();
       await expect(page.getByRole("dialog", { name: g.drawerTitle })).toBeVisible();
       await expectNoAxeViolations(page, "[role=dialog]");
+      if (screenshots) await page.screenshot({ path: `${screenshots}/drawer-${density}.png` });
       await page.keyboard.press("Escape");
 
       await page.getByRole("button", { name: g.openDialog }).click();

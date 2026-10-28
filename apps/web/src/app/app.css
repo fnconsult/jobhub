@@ -155,16 +155,19 @@ a.button {
   margin: 0;
 }
 
-dt {
-  font-weight: 600;
-}
+/* Element styles sit in the base layer (#462), under the Design System's components, which set their own. */
+@layer base {
+  dt {
+    font-weight: 600;
+  }
 
-dd {
-  margin: 0 0 var(--space-4);
-}
+  dd {
+    margin: 0 0 var(--space-4);
+  }
 
-h2 {
-  margin-top: var(--space-8);
+  h2 {
+    margin-top: var(--space-8);
+  }
 }
 
 .hint {

@@ -43,6 +43,7 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
     const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
     inbound = createEmailIntakeInbound(database, {
       emailIntake,
+      switchedOn: async () => true,
       cipher: () => cipher,
       queue: { send: async () => {} },
       settings: () => ({ secret: SECRET, brevoIpRanges: [], dailyCap: 1 }),

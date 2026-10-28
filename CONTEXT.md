@@ -606,6 +606,22 @@ _Avoid_: Compact mode, zoom
 The Back Office page, under Plateforme, that shows every component and colour of the Design System, in both Densities and both themes, as the reference that screens are checked against. Every Back Office Role can read it.
 _Avoid_: Storybook, style guide
 
+**Drawer**:
+The Design System's panel that slides in from the side over the page, for anything the person fills in or reads in detail: a form, a Section on phones, the Sidebar's menu on phones. It holds focus while open and « Fermer » or Escape returns focus to what opened it.
+_Avoid_: Modal, popup, dialog (a Dialog only confirms)
+
+**ConfirmDialog**:
+The Design System's small centred box that asks the person to confirm or cancel one action before it happens, with focus starting on « Annuler ». Forms never use it; they open in a Drawer.
+_Avoid_: Modal, popup, confirmation page
+
+**Toast**:
+The Design System's short message that appears briefly at the screen's edge to say an action worked or failed, without moving focus. Not a place for text the person must act on.
+_Avoid_: Alert, snackbar, banner
+
+**Components page**:
+The page at `/design-system/composants` that shows every component of the Design System in Confort, or in Compact with `?densite=compact`, for the tests. Only e2e and development builds serve it; the Design System page of the Back Office replaces it for readers.
+_Avoid_: Storybook, Design System page
+
 **Side Panel**:
 The extension's pane docked to the right of the browser's page, beside the job posting the person is reading, where Capture, the Match Score and the extension's other functions live. It replaces the popup and is opened by the toolbar icon or a Job Site's badge.
 _Avoid_: Popup, sidebar (that is the web app's Sidebar)

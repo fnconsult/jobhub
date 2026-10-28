@@ -5,11 +5,13 @@
 import type { Locale } from "@jobhub/shared/i18n";
 import { appointmentReminderEmail } from "../appointment-reminders/email";
 import { signInEmail } from "../auth/sign-in-email";
+import { appleFailureEmail } from "../sign-in-providers/alerts";
+import { webSearchAlertEmail } from "../web-search-alert";
 import { followUpEmail } from "../follow-ups/email";
 import { jobDigestEmail } from "../job-digests/email";
 import type { RenderedEmail } from "./index";
 
-export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder"] as const;
+export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert"] as const;
 export type EmailName = (typeof EMAIL_NAMES)[number];
 
 const APP_URL = "https://app.jobbbox.fr";
@@ -45,5 +47,7 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
       },
       language,
     ),
+    appleFailureAlert: appleFailureEmail([{ id: "apple", reason: "invalid_apple_key" }], APP_URL, language),
+    webSearchSpendAlert: webSearchAlertEmail({ month: "2026-10", spendEur: 2.4, thresholdEur: 2 }, APP_URL, language),
   };
 }

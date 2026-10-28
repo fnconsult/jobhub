@@ -73,6 +73,14 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
       "https://app.jobbbox.fr/compte/rappels",
     ],
   },
+  appleFailureAlert: {
+    fr: ["apple", "La clé .p8 ou un identifiant enregistré ne permet pas de signer le secret", "Ouvrir l'onglet Connexion", "https://app.jobbbox.fr/admin/parametres?tab=connexion", "super-admin"],
+    en: ["apple", "The .p8 key or a saved ID cannot sign the secret", "Open the Sign-in tab", "https://app.jobbbox.fr/admin/parametres?tab=connexion", "super-admin"],
+  },
+  webSearchSpendAlert: {
+    fr: ["2,40", "2,00", "2026-10", "Rien n'est coupé", "Voir le détail dans Consommation IA", "https://app.jobbbox.fr/admin/consommation-ia?periode=2026-10", "super-admin"],
+    en: ["€2.40", "€2.00", "2026-10", "Nothing is cut", "See the details in Consommation IA", "https://app.jobbbox.fr/admin/consommation-ia?periode=2026-10", "super-admin"],
+  },
   abandonedFollowUp: {
     fr: ["Vos relances pour « DAF H/F » sont restées sans réponse", "Ouvrir la candidature", "https://app.jobbbox.fr/candidatures/application-1", "https://app.jobbbox.fr/compte/relances"],
     en: ['Your follow-ups for "DAF H/F" have had no answer', "Open the application", "https://app.jobbbox.fr/candidatures/application-1", "https://app.jobbbox.fr/compte/relances"],
@@ -85,7 +93,9 @@ describe.each(SUPPORTED_LOCALES)("the seven emails in %s", (language) => {
   const emails = sampleEmails(language);
 
   it("are the seven", () => {
+    expect(EMAIL_NAMES).toHaveLength(7);
     expect(Object.keys(emails).sort()).toEqual([...EMAIL_NAMES].sort());
+    expect(Object.keys(facts).sort()).toEqual([...EMAIL_NAMES].sort());
   });
 
   describe.each(Object.keys(facts) as EmailName[])("%s", (name) => {

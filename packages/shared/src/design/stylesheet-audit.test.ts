@@ -22,6 +22,26 @@ describe("auditStylesheet", () => {
     ]);
   });
 
+  it("flags type below 14px on a Compact page, and lets 14px through (ADR-0009 Compact amendment)", () => {
+    const css = `.a { font-size: 13px; } .b { font-size: 0.78rem; } .c { font-size: 0.875rem; } .d { font-size: 14px; }`;
+    expect(auditStylesheet(css, { density: "compact" }).map((v) => [v.rule, v.selector])).toEqual([
+      ["min-body-size", ".a"],
+      ["min-body-size", ".b"],
+    ]);
+    expect(auditStylesheet(css).map((v) => v.selector)).toEqual([".a", ".b", ".c", ".d"]);
+  });
+
+  it("accepts every audited text token, and the old names they alias until the components ticket", () => {
+    const css = `
+      .a { color: var(--color-secondary); }
+      .b { color: var(--color-meta); }
+      .c { color: var(--color-warn); }
+      .d { color: var(--color-text-secondary); }
+      .e { color: var(--color-text-meta); }
+    `;
+    expect(auditStylesheet(css)).toEqual([]);
+  });
+
   it("flags text coloured with anything but an audited text colour", () => {
     const css = `
       .grey { color: var(--color-border); }

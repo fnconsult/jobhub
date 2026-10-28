@@ -9,7 +9,7 @@ type Language = "fr" | "en";
 /**
  * The quiet line under an AI Coach or Back Office Assistant reply (#327, ADR-0009 amendment): the models that served it,
  * tokens · time, its Tools, its Provenance sites behind a disclosure button (a card on mouse hover) and its hour.
- * A reply with no Provenance says « modèle non enregistré ». Metadata: 0.8125rem in #6b6a67, never the only place
+ * A reply with no Provenance says « modèle non enregistré ». Metadata: 0.8125rem in the metadata colour, never the only place
  * anything lives; screen readers hear the words the eye reads, the tokens named as such.
  */
 export function ProvenanceLine({ provenance, at }: { provenance: Provenance | null; at: string }) {

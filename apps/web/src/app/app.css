@@ -6,6 +6,11 @@
   box-sizing: border-box;
 }
 
+/* An element that only sets a Density for what it holds (the Back Office's frame): no box of its own. */
+.density-scope {
+  display: contents;
+}
+
 .page {
   max-width: 44rem;
   margin: 0 auto;
@@ -681,7 +686,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   color: var(--color-text-secondary);
 }
 
-/* The quiet line under a reply (#327): metadata, 0.8125rem in #6b6a67, on one line that wraps. */
+/* The quiet line under a reply (#327): metadata, 0.8125rem in the metadata colour, on one line that wraps. */
 .provenance-line {
   display: flex;
   flex-wrap: wrap;

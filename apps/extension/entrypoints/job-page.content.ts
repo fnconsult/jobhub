@@ -9,7 +9,13 @@ import { badgeShows, BUILT_IN_JOB_SITE_LIST, jobSiteListFrom } from "../src/job-
 import type { AnalyseReply, ExtensionMessage } from "../src/messages";
 import { snapshotPage } from "../src/page-snapshot";
 
-const { color, fontFamily, fontSize, radius, space } = designTokens;
+const { fontFamily, radius, space } = designTokens;
+// On a job site's page, the badge is drawn in the light theme and the Confort Density (ADR-0054).
+const color = Object.fromEntries(Object.entries(designTokens.color).map(([name, value]) => [name, value.light])) as Record<
+  keyof typeof designTokens.color,
+  string
+>;
+const { fontSize } = designTokens.density.confort;
 
 /**
  * On major job boards and career sites, shows an "Analyser cette offre" badge
@@ -53,9 +59,9 @@ export default defineContentScript({
     style.textContent = `
       :host { all: initial; position: fixed; ${placementCss(badgePlacement(inTopFrame, space[6]))} z-index: 2147483647; font-family: ${fontFamily.sans}; }
       button { font: 600 ${fontSize.lead}px/1.25 ${fontFamily.sans}; color: ${color.onAccent}; background: ${color.accent};
-               border: 0; border-radius: ${radius.lg}px; padding: ${space[3]}px ${space[4]}px; cursor: pointer;
+               border: 0; border-radius: ${radius.control}px; padding: ${space[3]}px ${space[4]}px; cursor: pointer;
                box-shadow: 0 4px 16px rgb(0 0 0 / 20%); }
-      button:focus-visible { outline: 3px solid ${color.focusRing}; outline-offset: 3px; }
+      button:focus-visible { outline: 3px solid ${color.accent}; outline-offset: 3px; }
       button[disabled] { cursor: progress; }
       p { margin: ${space[2]}px 0 0; max-width: 20rem; font-size: ${fontSize.body}px; line-height: 1.5; color: ${color.danger};
           background: ${color.background}; padding: ${space[2]}px; border-radius: ${radius.md}px; }

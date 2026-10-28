@@ -219,7 +219,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
       const css = getComputedStyle(element);
       return { color: css.color, rem: parseFloat(css.fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize), whiteSpace: css.whiteSpace, textOverflow: css.textOverflow };
     });
-    expect(words).toEqual({ color: "rgb(107, 106, 103)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis" });
+    expect(words).toEqual({ color: "rgb(104, 105, 120)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis" });
 
     // The pane: « En cours ailleurs », the search with its steps, a link to its page and its stop icon.
     // Clicking the step's words opens the pane too; open, the close icon alone in the frame and no words.

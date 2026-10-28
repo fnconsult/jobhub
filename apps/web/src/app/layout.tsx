@@ -3,9 +3,12 @@ import type { ReactNode } from "react";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateCoachPanel } from "@/components/CoachPanel";
 import { DocumentHead } from "@/design/document-head";
+import { ScrollbarActivity } from "@/design/ScrollbarActivity";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { jobbboxVersion } from "@/signalements/server";
+// Inter, self-hosted: its files are bundled and served from our own origin, never a font CDN (ADR-0053).
+import "@fontsource-variable/inter";
 import "./app.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,6 +28,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <DocumentHead />
       </head>
       <body>
+        <ScrollbarActivity />
         <I18nProvider locale={locale}>
           {candidate ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
         </I18nProvider>

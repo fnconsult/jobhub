@@ -599,7 +599,7 @@ The one set of colours, type, spacing and components every Jobbbox surface is dr
 _Avoid_: Theme, style guide, UI kit
 
 **Density**:
-How tightly a surface of the Design System is set. Confort on the Candidate's pages, the extension and the emails, with the 16 px body-text floor and the Text Size. Compact in the Back Office, for Administrators, with smaller text and tighter rows. Never chosen by the person.
+How tightly a surface of the Design System is set. Confort on the Candidate's pages, the extension and the emails, with the 16 px body-text floor and the Text Size. Compact in the Back Office, for Administrators, with smaller text and tighter rows. Never chosen by the person. A Density applies to the part of a page that declares it (the Back Office's whole page is Compact), while the Text Size still scales from the page's root.
 _Avoid_: Compact mode, zoom
 
 **Design System page**:

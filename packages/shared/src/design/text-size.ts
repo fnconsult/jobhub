@@ -13,5 +13,5 @@ function isTextSizeSetting(value: unknown): value is TextSizeSetting {
  */
 export function resolveTextSize(stored: string | null | undefined): { setting: TextSizeSetting; rootPx: number } {
   const setting = isTextSizeSetting(stored) ? stored : "standard";
-  return { setting, rootPx: designTokens.fontSize.body * designTokens.textSize[setting] };
+  return { setting, rootPx: designTokens.rootFontSize * designTokens.textSize[setting] };
 }

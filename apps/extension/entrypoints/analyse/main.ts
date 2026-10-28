@@ -1,4 +1,4 @@
-import { designTokens, renderDesignCss } from "@jobhub/shared/design";
+import { designTokens, renderDesignCss, trackScrolling } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import type { JobOffer, MatchScore } from "@jobhub/shared";
 import { browser } from "wxt/browser";
@@ -10,6 +10,8 @@ import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePr
 import { describeMatchScore, describeRescore } from "../../src/match-score-view";
 import { chooseScoreAgainst, createMatchScoring, type ScoringChoice } from "../../src/match-scoring";
 import { WEB_ORIGIN } from "../../src/web-app";
+// Inter, bundled with the extension: no request to a font CDN (ADR-0053).
+import "@fontsource-variable/inter";
 import "./analyse.css";
 
 // The analysis page: the captured Job Offer and its Match Score, against the Guest's CV or, for a
@@ -17,6 +19,7 @@ import "./analyse.css";
 const style = document.createElement("style");
 style.textContent = renderDesignCss(designTokens);
 document.head.append(style);
+trackScrolling(document);
 
 // Shared with the web app (ADR-0011): read again when the page comes back into view, so
 // signing up or in on the web app, in another tab, is seen here (and the Guest's work kept).

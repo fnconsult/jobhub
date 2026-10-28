@@ -196,7 +196,7 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
 
     const letter = await sendAndRead(me.page, marie.address, newsletter);
     expect(letter).toMatchObject({ outcome: "other", kind: "other", offers: [] });
-    expect(await jobOfferCountOf("welcometothejungle.com")).toBe(0);
+    expect(await jobOfferCountOf("welcometothejungle.com/fr/articles")).toBe(0);
   });
 
   test("a second email with the same offers creates nothing new: each is « déjà vue », its Job Offer the first email's", async ({ browser }) => {

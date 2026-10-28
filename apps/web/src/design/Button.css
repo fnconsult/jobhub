@@ -1,0 +1,116 @@
+@layer base, components;
+
+@layer components {
+  /* Pill-shaped controls (ADR-0053, variant A): secondary by default, outlined in the strong border. */
+  .ds-button {
+    display: inline-flex;
+    flex: none;
+    gap: var(--space-2);
+    align-items: center;
+    justify-content: center;
+    min-height: var(--size-control);
+    padding: 0 var(--space-4);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body);
+    font-weight: 500;
+    line-height: var(--line-height-heading);
+    color: var(--color-text);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--color-background);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+    transition: background-color var(--motion-fast) var(--motion-easing);
+  }
+
+  .ds-button:hover {
+    background: var(--color-hover);
+  }
+
+  .ds-button > .icon {
+    width: 1em;
+    height: 1em;
+  }
+
+  .ds-button--primary {
+    color: var(--color-on-accent);
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+
+  .ds-button--primary:hover {
+    background: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+  }
+
+  .ds-button--quiet {
+    padding: 0 var(--space-2);
+    color: var(--color-accent);
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .ds-button--quiet:hover {
+    background: var(--color-accent-soft);
+  }
+
+  .ds-button--danger {
+    color: var(--color-danger);
+  }
+
+  .ds-button--danger:hover {
+    background: var(--color-danger-soft);
+  }
+
+  .ds-button--dangerSolid {
+    color: var(--color-on-accent);
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+
+  .ds-button--dangerSolid:hover {
+    background: var(--color-danger);
+    filter: brightness(0.92);
+  }
+
+  .ds-button--sm {
+    min-height: calc(var(--size-control) - var(--space-2));
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-meta);
+  }
+
+  .ds-button:disabled,
+  .ds-button[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .ds-button[aria-busy="true"] {
+    cursor: progress;
+    opacity: 1;
+  }
+
+  /* An action under way: a ring turning in the label's colour. Still under prefers-reduced-motion (ADR-0053). */
+  .ds-spinner {
+    flex: none;
+    width: 0.875em;
+    height: 0.875em;
+    border: 2px solid currentcolor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: ds-spin 0.7s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ds-spinner {
+      animation: none;
+    }
+  }
+
+  @keyframes ds-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+}

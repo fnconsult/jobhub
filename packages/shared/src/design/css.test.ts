@@ -92,6 +92,17 @@ describe("renderDesignCss", () => {
     expect(block(css, ".is-scrolling")).toContain("scrollbar-color: var(--color-border-strong) transparent;");
   });
 
+  it("orders the cascade layers base then components, and puts the element styles in base, so a component's class wins over them (#462)", () => {
+    expect(css.trimStart().startsWith("@layer base, components;")).toBe(true);
+    const base = css.slice(css.indexOf("@layer base {"));
+    expect(base).toMatch(/^@layer base \{/);
+    for (const selector of ["body", "h1, h2, h3", "a", ":focus-visible", "button, input, select, textarea", "table, time, data, .num"]) {
+      expect(base, selector).toContain(`${selector} {`);
+    }
+    // The tokens themselves stay unlayered, ahead of the layers.
+    expect(css.indexOf(":root {")).toBeLessThan(css.indexOf("@layer base {"));
+  });
+
   it("stays on the ADR-0009 floor itself", () => {
     expect(auditStylesheet(css)).toEqual([]);
   });

@@ -6,6 +6,11 @@ export type JobDefinition = {
   cron?: string;
   /** IANA time zone the `cron` expression is read in (e.g. "Europe/Paris"); default UTC. */
   tz?: string;
+  /**
+   * How a job whose handler throws is tried again: `limit` more times, `delaySeconds` apart (doubling with `backoff`).
+   * Default: pg-boss's (2 more times, at once).
+   */
+  retry?: { limit: number; delaySeconds: number; backoff?: boolean };
 };
 
 export type JobRunner = {
@@ -32,6 +37,8 @@ export async function startJobRunner(options: {
 
   for (const [name, job] of Object.entries(options.jobs)) {
     await boss.createQueue(name);
+    // Set on the queue even when it exists already: the web app creates one with the defaults when it sends to it first.
+    if (job.retry) await boss.updateQueue(name, { retryLimit: job.retry.limit, retryDelay: job.retry.delaySeconds, retryBackoff: job.retry.backoff ?? false });
     await boss.work(name, { pollingIntervalSeconds: options.pollingIntervalSeconds ?? 2 }, async (batch) => {
       for (const { data } of batch) await job.handler(data);
     });

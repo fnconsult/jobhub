@@ -1,7 +1,8 @@
 /**
  * Messages between the extension's parts. The background turns an "analyse"
- * message (from the badge or the popup) into a Capture: it stores the Job
- * Offer, keeps it in the Guest session and opens the analysis page.
+ * message (from the badge or the Side Panel) into a Capture: from the badge, it
+ * opens the Side Panel beside it, then stores the Job Offer and keeps it in the
+ * Guest session, where the panel reads it (src/side-panel.ts).
  */
 import type { CapturedJobOffer } from "./job-page";
 

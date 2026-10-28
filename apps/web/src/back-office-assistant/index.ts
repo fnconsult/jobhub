@@ -396,6 +396,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   job_sites: "sites de l'extension",
   ai_messages: "appels IA",
   discovery_runs: "recherches d'offres (Activité)",
+  received_emails: "emails reçus (Activité)",
   coaching_playbooks: "playbooks de coaching",
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",

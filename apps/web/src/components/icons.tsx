@@ -65,6 +65,8 @@ const PATHS = {
   activity: ["M3 12h4l3-8 4 16 3-8h4"],
   // A magnifier: Activité › Recherches, the Job discovery runs (#404).
   discoveryRuns: ["M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12z", "M14.5 14.5L20 20"],
+  // An envelope: Activité › Emails reçus, Email intake's Received offer emails (#449).
+  receivedEmails: ["M4 6h16v12H4z", "M4 7l8 6 8-6"],
   // A wrench: the Tools (#233).
   tools: ["M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"],
   administrators: ["M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z", "M9 12l2 2 4-4"],

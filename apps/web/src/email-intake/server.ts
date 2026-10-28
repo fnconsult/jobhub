@@ -4,6 +4,7 @@ import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { secretCipherFromEnv, type SecretCipher } from "@/provider-secrets/cipher";
 import { getSecretResolver } from "@/provider-secrets/server";
 import { emailIntakeDomain, emailIntakeLimits } from "./domain";
+import { createEmailIntakeActivity, type EmailIntakeActivity } from "./activity";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 import { createEmailIntake, type EmailIntake } from "./index";
 
@@ -32,4 +33,12 @@ export function getEmailIntakeInbound(): EmailIntakeInbound {
     },
   });
   return inbound;
+}
+
+let activity: EmailIntakeActivity | undefined;
+
+/** Email intake as the Back Office shows it (#449): Activité › Emails reçus and the Journal's Linked mailbox events, naming no Candidate. */
+export function getEmailIntakeActivity(): EmailIntakeActivity {
+  activity ??= createEmailIntakeActivity(sharedPool());
+  return activity;
 }

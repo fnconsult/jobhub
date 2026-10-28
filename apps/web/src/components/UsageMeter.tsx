@@ -5,6 +5,7 @@ import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { HelpText } from "@/components/HelpTerm";
+import { buttonClass } from "@/design/Button";
 import { routes } from "@/routes";
 
 /**
@@ -88,7 +89,7 @@ export function UsageMeter({
               <dd>{t(`billing.jobDigest.${meter.jobDigest}`)}</dd>
             </div>
           </dl>
-          <Link href={routes.subscription} onClick={onNavigate}>
+          <Link className={buttonClass({ size: "sm" })} href={routes.subscription} onClick={onNavigate}>
             {t("usageMeter.subscription")}
           </Link>
         </div>

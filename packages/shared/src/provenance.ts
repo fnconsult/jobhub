@@ -250,3 +250,11 @@ export function readProvenanceEvent(stored: unknown): ProvenanceEvent | null {
   const parsed = provenanceEvent.safeParse(stored);
   return parsed.success ? (parsed.data as ProvenanceEvent) : null;
 }
+
+/**
+ * The Activity whose glyph sits beside a reply (#464): what its last step did. « Réfléchir, puis écrire » when its
+ * Provenance was not kept, or holds no step.
+ */
+export function replyActivity(provenance: Provenance | null): Activity {
+  return provenance?.steps.at(-1)?.activity ?? "think_write";
+}

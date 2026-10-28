@@ -5,6 +5,7 @@ import { useId, useRef, useState, type ReactElement, type ReactNode } from "reac
 import { useTranslation } from "react-i18next";
 import { Button } from "./Button";
 import { Scrim } from "./overlay";
+import { useHydrated } from "./hydrated";
 import "./Dialog.css";
 
 /**
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   const { t } = useTranslation();
   const id = useId();
   const cancel = useRef<HTMLButtonElement>(null);
+  const hydrated = useHydrated();
   const [ownOpen, setOwnOpen] = useState(false);
   const open = controlledOpen ?? ownOpen;
   function change(next: boolean) {
@@ -44,7 +46,12 @@ export function ConfirmDialog({
   }
   return (
     <RadixDialog.Root open={open} onOpenChange={change}>
-      {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
+      {/* Disabled until the page is hydrated: clicked before, it would not open (#446). Its own `disabled` wins. */}
+      {trigger ? (
+        <RadixDialog.Trigger asChild disabled={!hydrated}>
+          {trigger}
+        </RadixDialog.Trigger>
+      ) : null}
       <RadixDialog.Portal>
         <Scrim />
         <RadixDialog.Content

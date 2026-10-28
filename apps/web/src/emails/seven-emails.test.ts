@@ -43,6 +43,14 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
       "https://app.jobbbox.fr/desabonnement?token=t0k3n&lang=en",
     ],
   },
+  followUp: {
+    fr: ["Votre candidature « DAF H/F » est restée sans réponse", "Lire la relance", "https://app.jobbbox.fr/candidatures/application-1", "Modifier mes délais de relance", "https://app.jobbbox.fr/compte/relances"],
+    en: ['Your application "DAF H/F" has had no answer', "Read the follow-up", "https://app.jobbbox.fr/candidatures/application-1", "Change my follow-up delays", "https://app.jobbbox.fr/compte/relances"],
+  },
+  abandonedFollowUp: {
+    fr: ["Vos relances pour « DAF H/F » sont restées sans réponse", "Ouvrir la candidature", "https://app.jobbbox.fr/candidatures/application-1", "https://app.jobbbox.fr/compte/relances"],
+    en: ['Your follow-ups for "DAF H/F" have had no answer', "Open the application", "https://app.jobbbox.fr/candidatures/application-1", "https://app.jobbbox.fr/compte/relances"],
+  },
 };
 
 const unescape = (html: string) => html.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");

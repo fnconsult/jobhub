@@ -89,8 +89,9 @@ const SENDER_MARKER = "<!--jobbbox:sender-->";
 const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 /** Inline style from property → value pairs. */
-const css = (style: Record<string, string | number>) =>
+const css = (style: Record<string, string | number | undefined>) =>
   Object.entries(style)
+    .filter(([, value]) => value !== undefined)
     .map(([property, value]) => `${property.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}:${typeof value === "number" ? `${value}px` : value}`)
     .join(";");
 

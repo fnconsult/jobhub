@@ -4,13 +4,15 @@
  */
 import type { Locale } from "@jobhub/shared/i18n";
 import { signInEmail } from "../auth/sign-in-email";
+import { followUpEmail } from "../follow-ups/email";
 import { jobDigestEmail } from "../job-digests/email";
 import type { RenderedEmail } from "./index";
 
-export const EMAIL_NAMES = ["signIn", "jobDigest"] as const;
+export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp"] as const;
 export type EmailName = (typeof EMAIL_NAMES)[number];
 
 const APP_URL = "https://app.jobbbox.fr";
+const application = { jobTitle: "DAF H/F", applicationUrl: `${APP_URL}/candidatures/application-1`, settingsUrl: `${APP_URL}/compte/relances` };
 
 /** Each of the seven emails in `language`, from sample data. */
 export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail> {
@@ -29,5 +31,7 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
       },
       language,
     ),
+    followUp: followUpEmail("followUp", application, language),
+    abandonedFollowUp: followUpEmail("abandoned", application, language),
   };
 }

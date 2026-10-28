@@ -18,6 +18,12 @@
  *    only the agent's Guardrails, the text given as data to judge.
  * The third layer, untrusted content marked as data in the prompt, is the callers' (see coach/untrusted.ts).
  *
+ * Email intake's reading of an email (#446, ADR-0052) is guarded by `guardEmail`: on input, the « Contenu piégé dans
+ * un email » Guardrail (`email_injection`): the fixed rules of ./email, then one model check, framed as data; block,
+ * flag only, or switched off, the only Guardrail that can be. `read()` then reads the email, never for a blocked one;
+ * the fixed output rules of ./email, always on, set aside a reading that breaks one. It has no Guardrail message: no
+ * one reads its answer, the email is set aside by a Guardrail.
+ *
  * A Guardrail set to flag only lets everything through. The distress, personal data leak and secret disclosure
  * Guardrails always block, whatever their setting says: distress answers with the distress Guardrail message
  * (the 3114 helpline), never shown as a block; a leak or a secret is replaced at once. An AI check that fails or

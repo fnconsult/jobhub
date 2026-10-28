@@ -2398,7 +2398,7 @@
     },
     "guardrails": {
       "title": "Garde-fous",
-      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise) est toujours transmis comme une donnée, jamais comme une instruction.",
+      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent, ainsi que les emails reçus par la réception par email avant qu'une IA ne les lise. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise, emails) est toujours transmis comme une donnée, jamais comme une instruction.",
       "servingValidated": "En production, un message n'est servi qu'une fois validé par un administrateur nommé autre que son auteur, chaque langue à part. D'ici là, le texte par défaut de Jobbbox s'applique.",
       "servingLatest": "Dans cet environnement, le dernier message écrit est servi, validé ou non. En production, seul un message validé l'est.",
       "caption": "Les garde-fous et leur réglage",
@@ -2407,26 +2407,31 @@
       "setting": "Réglage",
       "settingLabel": "Quand il détecte quelque chose",
       "settingHelp": "Bloquer : le message n'est pas envoyé, ou la réponse est réécrite une fois puis remplacée par le message du garde-fou. Signaler seulement : tout passe, et le déclenchement est compté.",
+      "settingHelpEmail": "Bloquer : l'email n'est pas lu par l'IA, ne donne aucune offre et est écarté par un garde-fou. Signaler seulement : il est lu, et le déclenchement est compté. Désactivé : aucun contrôle à l'entrée ; les règles fixes sur la lecture s'appliquent toujours.",
       "saveSetting": "Enregistrer le réglage",
       "alwaysOn": "Bloque toujours",
       "alwaysOnHelp": "Ce garde-fou bloque toujours : il ne peut pas être réglé sur « signaler seulement ».",
+      "noMessage": "Ce garde-fou n'affiche aucun message : personne ne lit sa réponse. Un email bloqué apparaît « écarté par un garde-fou » pour le candidat et dans Activité.",
       "settings": {
         "block": "Bloquer",
-        "flag": "Signaler seulement"
+        "flag": "Signaler seulement",
+        "off": "Désactivé"
       },
       "names": {
         "prompt_injection": "Injection d'instructions",
         "personal_data_leak": "Fuite de données personnelles",
         "secret_disclosure": "Divulgation de secrets",
         "harmful_advice": "Conseil hors rôle ou dangereux",
-        "distress": "Détresse"
+        "distress": "Détresse",
+        "email_injection": "Contenu piégé dans un email"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
         "personal_data_leak": "Une réponse qui donne les coordonnées ou les données personnelles d'un tiers.",
         "secret_disclosure": "Une réponse qui dévoile les instructions de l'IA, les règles des playbooks de coaching ou une clé (Provider Secrets).",
         "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
-        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté."
+        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
+        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée."
       },
       "languages": {
         "fr": "français",

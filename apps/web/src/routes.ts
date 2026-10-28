@@ -22,6 +22,7 @@ export const routes = {
   accountEuAi: "/compte/ia-europeenne",
   /** « Réception par email » (#441): Email intake and the Candidate's Forwarding address. */
   accountEmailIntake: "/compte/reception-email",
+  accountEmailIntakeWizard: "/compte/reception-email/assistant",
   accountSignIn: "/compte/connexion",
   accountPreferences: "/compte/preferences",
   accountTools: "/compte/outils",

@@ -2,7 +2,7 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { Button } from "./Button";
-import { Card, Stat } from "./Card";
+import { Card, Stat, Stats } from "./Card";
 import { EmptyState } from "./EmptyState";
 import { Note } from "./Note";
 import { PageHeader } from "./PageHeader";
@@ -48,7 +48,12 @@ describe("Card and Stat (#462)", () => {
   });
 
   it("a Stat gives its label, value, metadata, progress towards a threshold and trend", () => {
-    renderInFrench(<Stat label="Dépense recherche web" value="0,04 €" meta="2 % du seuil d'alerte (2,00 €)" progress={2} trend={{ direction: "up", tone: "danger", text: "+12 pts sur 7 jours" }} />);
+    renderInFrench(
+      <Stats>
+        <Stat label="Dépense recherche web" value="0,04 €" meta="2 % du seuil d'alerte (2,00 €)" progress={2} trend={{ direction: "up", tone: "danger", text: "+12 pts sur 7 jours" }} />
+      </Stats>,
+    );
+    expect(screen.getByRole("term").textContent).toBe("Dépense recherche web");
     const bar = screen.getByRole("progressbar", { name: "Dépense recherche web" });
     expect(bar.getAttribute("aria-valuenow")).toBe("2");
     expect(bar.getAttribute("aria-valuemax")).toBe("100");
@@ -59,8 +64,23 @@ describe("Card and Stat (#462)", () => {
   });
 
   it("keeps a progress over 100 or under 0 inside the bar", () => {
-    renderInFrench(<Stat label="Quota" value="130 %" progress={130} />);
-    expect(screen.getByRole("progressbar", { name: "Quota" }).getAttribute("aria-valuenow")).toBe("100");
+    renderInFrench(
+      <Stats>
+        <Stat label="Quota" value="130 %" progress={130} />
+      </Stats>,
+    );
+    const bar = screen.getByRole("progressbar", { name: "Quota" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("100");
+    expect(bar.hasAttribute("data-reached")).toBe(true);
+  });
+
+  it("names its progress bar by `name` when its label is not plain words (an Explainable label)", () => {
+    renderInFrench(
+      <Stats>
+        <Stat label={<button type="button">Coût moyen d'un run</button>} name="Coût moyen d'un run" value="0,12 €" progress={40} />
+      </Stats>,
+    );
+    expect(screen.getByRole("progressbar", { name: "Coût moyen d'un run" }).hasAttribute("data-reached")).toBe(false);
   });
 });
 

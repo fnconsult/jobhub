@@ -330,7 +330,7 @@ test.describe("Email intake: Brevo's inbound webhook", () => {
       await page.goto(SOURCES);
       await sourceRow(page).getByRole("link", { name: "Brevo (Inbound Parsing)" }).click();
       await expect(page).toHaveURL(SHEET);
-      const sheet = page.locator('aside[data-sheet="brevo-inbound"]');
+      const sheet = page.locator('[data-sheet="brevo-inbound"]');
       await expect(sheet.locator('tr[data-setting="EMAIL_INTAKE_DOMAIN"]')).toBeVisible();
       await expect(sheet.locator('[data-key="BREVO_INBOUND_SECRET"]')).toBeVisible();
       await expect(sheet.locator('tr[data-sender="cadremploi.fr"]')).toContainText("Cadremploi – cadremploi.fr");
@@ -373,7 +373,7 @@ test.describe("Email intake: Brevo's inbound webhook", () => {
       await expect(senderRow(supportPage).getByRole("button", { name: tr(senders.remove, { sender }) })).toBeDisabled();
       await expect(senderRow(supportPage).getByText(tr(senders.relabel, { sender }))).toHaveCount(0);
       await expect(supportPage.getByRole("button", { name: senders.add })).toBeDisabled();
-      await expect(supportPage.locator('aside[data-sheet="brevo-inbound"] form')).toHaveCount(0);
+      await expect(supportPage.locator('[data-sheet="brevo-inbound"] form')).toHaveCount(0);
       expect((await database.query("SELECT label, enabled FROM recognised_sender WHERE value = $1", [sender])).rows).toEqual([{ label: "Monster – www.monster.fr", enabled: true }]);
     });
   });

@@ -39,9 +39,35 @@ export default tseslint.config(
           // The plugin's own exclusions, plus the names help in pages is given (#343): `<HelpTerm term="matchScore">`,
           // `<EmptyStateHelp of="proposals">` name a glossary term or an empty state, never text the Candidate reads.
           // The Design System's props that pick a look or a role, never text (#462): `variant="quiet"`, `tone="danger"`.
+          // Its form controls take a form field's own attributes, which name and wire it, never text (#465):
+          // `<TextInput name="value" autoComplete="new-password" aria-describedby="…-help">`; an AddressDrawer's
+          // `opener` is the selector of the link that opened it.
           "jsx-attributes": {
             include: [],
-            exclude: ["className", "styleName", "style", "type", "key", "id", "width", "height", "term", "of", "variant", "size", "tone", "side", "role"],
+            exclude: [
+              "className",
+              "styleName",
+              "style",
+              "type",
+              "key",
+              "id",
+              "width",
+              "height",
+              "term",
+              "of",
+              "variant",
+              "size",
+              "tone",
+              "side",
+              "role",
+              "name",
+              "autoComplete",
+              "inputMode",
+              "pattern",
+              "list",
+              "aria-describedby",
+              "opener",
+            ],
           },
         },
       ],

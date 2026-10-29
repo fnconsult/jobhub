@@ -1,0 +1,12 @@
+/* A Back Office page's intro (#465): one line under the title, in the secondary colour; the rest behind « En savoir
+   plus ». Beside its component, as the Design System's own CSS is (ADR-0053). */
+.page-intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-secondary);
+}
+
+.page-intro > p {
+  margin: 0;
+}

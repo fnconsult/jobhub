@@ -5,6 +5,13 @@ import type { BackOfficeResource, Permission } from "@/admin/access";
 import type { ActivityTabId } from "@/admin/activity";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { AddressDrawer } from "@/design/AddressDrawer";
+import { buttonClass } from "@/design/button-class";
+import { Field, Select } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Pill } from "@/design/Pill";
+import { Table } from "@/design/Table";
+import { PageIntro } from "@/components/PageIntro";
 import {
   DISCOVERY_RUN_PERIODS,
   DISCOVERY_RUN_TRIGGERS,
@@ -21,11 +28,16 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { parametresHref } from "@/platform-settings/parametres";
 import { routes } from "@/routes";
 import { ActivityTabs } from "../ActivityTabs";
+import "../activite.css";
 
 type Search = Record<string, string | string[] | undefined>;
 
 /** This tab of Activité (#404). */
 const TAB: ActivityTabId = "discoveryRuns";
+/** The tables' hooks for the tests. */
+const TEST_IDS = { runs: "discovery-runs", searches: "run-searches" } as const;
+/** The run whose panel is open, as its row says it (`aria-current`). */
+const OPEN_ROW = "true";
 const READ: Permission = "read";
 const SETTINGS: BackOfficeResource = "platformSettings";
 const AI_CALLS: BackOfficeResource = "aiMessages";
@@ -72,128 +84,123 @@ export default async function DiscoveryRunsPage({ searchParams }: { searchParams
 
   return (
     <BackOfficeLayout access={access} title={t("admin.activity.title")}>
-      <ActivityTabs access={access} shown={TAB} />
-      <p className="lead">{t("admin.discoveryRuns.intro", { days: String(QUERY_RETENTION_DAYS), months: String(RETENTION_MONTHS) })}</p>
-      {readsSettings ? (
-        <p>
-          <Link prefetch={false} href={WEB_SEARCH_SETTINGS}>
-            {t("admin.discoveryRuns.settingsLink")}
-          </Link>
-        </p>
-      ) : null}
+      <div className="activite">
+        <ActivityTabs access={access} shown={TAB} />
+        <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.discoveryRuns")} values={{ days: String(QUERY_RETENTION_DAYS), months: String(RETENTION_MONTHS) }} />
+        {readsSettings ? (
+          <p>
+            <Link prefetch={false} href={WEB_SEARCH_SETTINGS}>
+              {t("admin.discoveryRuns.settingsLink")}
+            </Link>
+          </p>
+        ) : null}
 
-      <form method="get" action={routes.adminDiscoveryRuns()} className="activity-filter" aria-label={t("admin.discoveryRuns.filter")}>
-        <div className="field">
-          <label htmlFor="runs-trigger">{t("admin.discoveryRuns.trigger")}</label>
-          <select id="runs-trigger" name="declencheur" className="input" defaultValue={filter.trigger ?? ""}>
-            <option value="">{t("admin.discoveryRuns.anyTrigger")}</option>
-            {DISCOVERY_RUN_TRIGGERS.map((trigger) => (
-              <option key={trigger} value={trigger}>
-                {t(`admin.discoveryRuns.triggers.${trigger}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="runs-period">{t("admin.discoveryRuns.period")}</label>
-          <select id="runs-period" name="periode" className="input" defaultValue={filter.period}>
-            {DISCOVERY_RUN_PERIODS.map((period) => (
-              <option key={period} value={period}>
-                {t(`admin.discoveryRuns.periods.${period}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="choice">
-          <input name="secours" type="checkbox" value="1" defaultChecked={filter.fallback} />
-          {t("admin.discoveryRuns.fallbackOnly")}
-        </label>
-        <div>
-          <button type="submit" className="button">
-            {t("admin.discoveryRuns.apply")}
-          </button>
-        </div>
-      </form>
-
-      {runs.length === 0 ? (
-        <p>{t("admin.discoveryRuns.none")}</p>
-      ) : (
-        <>
-          <p>{t("admin.discoveryRuns.count", { count: runs.length })}</p>
-          {runs.length >= LIST_LIMIT ? <p>{t("admin.discoveryRuns.limit", { count: String(LIST_LIMIT) })}</p> : null}
-          <div className="table-scroll">
-            <table className="application-table" data-testid="discovery-runs">
-              <caption>{t("admin.discoveryRuns.caption")}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t("admin.discoveryRuns.at")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.trigger")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.profile")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.searches")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.provider")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.pagesRead")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.newOffers")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.stop")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.duration")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.cost")}</th>
-                  <th scope="col">
-                    <span className="visually-hidden">{t("admin.discoveryRuns.open")}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((run) => (
-                  <tr key={run.id} data-run={run.id} aria-current={run.id === opened?.id ? "true" : undefined}>
-                    <th scope="row">
-                      <time dateTime={run.startedAt.toISOString()}>{at.format(run.startedAt)}</time>
-                    </th>
-                    <td>{t(`admin.discoveryRuns.triggers.${run.trigger}`)}</td>
-                    <td>
-                      {run.profile ? (
-                        <>
-                          <code>{t("admin.discoveryRuns.pseudonym", { pseudonym: run.profile.pseudonym })}</code>
-                          <div className="activity-meta">{[run.profile.targetRole, ...run.profile.locations].join(" · ")}</div>
-                        </>
-                      ) : (
-                        <span className="activity-meta">{t("admin.discoveryRuns.purged")}</span>
-                      )}
-                    </td>
-                    <td>{run.searches}</td>
-                    <td>
-                      {run.providers.length === 0 ? t("admin.discoveryRuns.noWebSearch") : run.providers.map(providerName).join(" → ")}
-                      {run.fallback ? <> <span className="pill" data-tone="danger">{t("admin.discoveryRuns.fellBack")}</span></> : null}
-                    </td>
-                    <td>{run.pagesRead}</td>
-                    <td>{t("admin.discoveryRuns.newOfExtracted", { new: run.newJobOffers, extracted: run.extracted })}</td>
-                    <td>{t(`admin.discoveryRuns.stopReasons.${run.stopReason}`)}</td>
-                    <td>{seconds.format(run.durationMs / 1000)}</td>
-                    <td>{eur.format(run.costEur)}</td>
-                    <td>
-                      <Link prefetch={false} href={hrefOf(filter, run.id)} aria-label={t("admin.discoveryRuns.openLabel", { at: at.format(run.startedAt) })}>
-                        {t("admin.discoveryRuns.open")}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <form method="get" action={routes.adminDiscoveryRuns()} className="activity-filter" aria-label={t("admin.discoveryRuns.filter")}>
+          <Field label={t("admin.discoveryRuns.trigger")}>
+            <Select name="declencheur" defaultValue={filter.trigger ?? ""}>
+              <option value="">{t("admin.discoveryRuns.anyTrigger")}</option>
+              {DISCOVERY_RUN_TRIGGERS.map((trigger) => (
+                <option key={trigger} value={trigger}>
+                  {t(`admin.discoveryRuns.triggers.${trigger}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("admin.discoveryRuns.period")}>
+            <Select name="periode" defaultValue={filter.period}>
+              {DISCOVERY_RUN_PERIODS.map((period) => (
+                <option key={period} value={period}>
+                  {t(`admin.discoveryRuns.periods.${period}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <label className="choice">
+            <input name="secours" type="checkbox" value="1" defaultChecked={filter.fallback} />
+            {t("admin.discoveryRuns.fallbackOnly")}
+          </label>
+          <div className="activity-filter-actions">
+            <button type="submit" className={buttonClass()}>
+              {t("admin.discoveryRuns.apply")}
+            </button>
           </div>
-        </>
-      )}
-      <p className="activity-meta">{t("admin.discoveryRuns.noCandidate")}</p>
+        </form>
 
-      {opened ? (
-        <RunPanel
-          run={opened}
-          t={t}
-          close={hrefOf(filter)}
-          at={at}
-          seconds={seconds}
-          eur={eur}
-          aiCalls={readsAiCalls ? runAiCalls(opened) : null}
-          jobSearch={opensJobSearches && opened.hasJobSearch ? routes.adminDiscoveryRunJobSearch(opened.id) : null}
-        />
-      ) : null}
+        {runs.length === 0 ? (
+          <p>{t("admin.discoveryRuns.none")}</p>
+        ) : (
+          <>
+            <p>{t("admin.discoveryRuns.count", { count: runs.length })}</p>
+            {runs.length >= LIST_LIMIT ? <p>{t("admin.discoveryRuns.limit", { count: String(LIST_LIMIT) })}</p> : null}
+            <Table
+              label={t("admin.discoveryRuns.caption")}
+              data-testid={TEST_IDS.runs}
+              columns={[
+                { header: t("admin.discoveryRuns.at"), rowHeader: true, cell: (run) => <time dateTime={run.startedAt.toISOString()}>{at.format(run.startedAt)}</time> },
+                { header: t("admin.discoveryRuns.trigger"), cell: (run) => t(`admin.discoveryRuns.triggers.${run.trigger}`) },
+                {
+                  header: t("admin.discoveryRuns.profile"),
+                  cell: (run) =>
+                    run.profile ? (
+                      <>
+                        <code>{t("admin.discoveryRuns.pseudonym", { pseudonym: run.profile.pseudonym })}</code>
+                        <div className="activity-meta">{[run.profile.targetRole, ...run.profile.locations].join(" · ")}</div>
+                      </>
+                    ) : (
+                      <span className="activity-meta">{t("admin.discoveryRuns.purged")}</span>
+                    ),
+                },
+                { header: t("admin.discoveryRuns.searches"), numeric: true, cell: (run) => run.searches },
+                {
+                  header: t("admin.discoveryRuns.provider"),
+                  cell: (run) => (
+                    <>
+                      {run.providers.length === 0 ? t("admin.discoveryRuns.noWebSearch") : run.providers.map(providerName).join(" → ")}
+                      {run.fallback ? (
+                        <>
+                          {" "}
+                          <Pill tone="danger">{t("admin.discoveryRuns.fellBack")}</Pill>
+                        </>
+                      ) : null}
+                    </>
+                  ),
+                },
+                { header: t("admin.discoveryRuns.pagesRead"), numeric: true, cell: (run) => run.pagesRead },
+                { header: t("admin.discoveryRuns.newOffers"), cell: (run) => t("admin.discoveryRuns.newOfExtracted", { new: run.newJobOffers, extracted: run.extracted }) },
+                { header: t("admin.discoveryRuns.stop"), cell: (run) => t(`admin.discoveryRuns.stopReasons.${run.stopReason}`) },
+                { header: t("admin.discoveryRuns.duration"), numeric: true, cell: (run) => seconds.format(run.durationMs / 1000) },
+                { header: t("admin.discoveryRuns.cost"), numeric: true, cell: (run) => eur.format(run.costEur) },
+                {
+                  header: <span className="visually-hidden">{t("admin.discoveryRuns.open")}</span>,
+                  cell: (run) => (
+                    <Link prefetch={false} href={hrefOf(filter, run.id)} aria-label={t("admin.discoveryRuns.openLabel", { at: at.format(run.startedAt) })} data-opens-run={run.id}>
+                      {t("admin.discoveryRuns.open")}
+                    </Link>
+                  ),
+                },
+              ]}
+              rows={runs}
+              rowKey={(run) => run.id}
+              rowAttributes={(run) => ({ "data-run": run.id, "aria-current": run.id === opened?.id ? OPEN_ROW : undefined })}
+            />
+          </>
+        )}
+        <p className="activity-meta">{t("admin.discoveryRuns.noCandidate")}</p>
+
+        {opened ? (
+          <RunPanel
+            key={opened.id}
+            run={opened}
+            t={t}
+            close={hrefOf(filter)}
+            at={at}
+            seconds={seconds}
+            eur={eur}
+            aiCalls={readsAiCalls ? runAiCalls(opened) : null}
+            jobSearch={opensJobSearches && opened.hasJobSearch ? routes.adminDiscoveryRunJobSearch(opened.id) : null}
+          />
+        ) : null}
+      </div>
     </BackOfficeLayout>
   );
 }
@@ -233,27 +240,36 @@ function RunPanel({
   const eur6 = new Intl.NumberFormat(eur.resolvedOptions().locale, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 6 });
 
   return (
-    <aside className="side-sheet side-sheet-wide stack" aria-labelledby="run-title" data-run-panel={run.id}>
-      <div className="side-sheet-head">
-        <div>
-          <p className="activity-meta">
-            {t(`admin.discoveryRuns.triggers.${run.trigger}`)} · <time dateTime={run.startedAt.toISOString()}>{at.format(run.startedAt)}</time>
-            {run.profile ? <> · <code>{t("admin.discoveryRuns.pseudonym", { pseudonym: run.profile.pseudonym })}</code></> : null}
-          </p>
-          <h2 id="run-title">{run.profile ? [run.profile.targetRole, ...run.profile.locations].join(" · ") : t("admin.discoveryRuns.purgedTitle")}</h2>
-        </div>
-        <Link prefetch={false} className="button" href={close}>
-          {t("admin.discoveryRuns.close")}
-        </Link>
-      </div>
+    <AddressDrawer
+      title={run.profile ? [run.profile.targetRole, ...run.profile.locations].join(" · ") : t("admin.discoveryRuns.purgedTitle")}
+      closeHref={close}
+      opener={`[data-opens-run="${run.id}"]`}
+      size="wide"
+      data-run-panel={run.id}
+    >
+      <p className="activity-meta">
+        {t(`admin.discoveryRuns.triggers.${run.trigger}`)} · <time dateTime={run.startedAt.toISOString()}>{at.format(run.startedAt)}</time>
+        {run.profile ? (
+          <>
+            {" "}
+            · <code>{t("admin.discoveryRuns.pseudonym", { pseudonym: run.profile.pseudonym })}</code>
+          </>
+        ) : null}
+      </p>
       <p>
         {run.providers.length === 0 ? t("admin.discoveryRuns.noWebSearch") : run.providers.map(providerName).join(" → ")} · {seconds.format(run.durationMs / 1000)} · {eur.format(run.costEur)} ·{" "}
         {t("admin.discoveryRuns.stoppedBy", { reason: t(`admin.discoveryRuns.stopReasons.${run.stopReason}`) })}
       </p>
       {run.fallback ? (
-        <p className="notice" role="status">
-          {t("admin.discoveryRuns.fallbackDetail", { from: providerName(run.fallback.from), to: providerName(run.fallback.to), reason: t(`failureReasons.${run.fallback.reason}` as "failureReasons.other", { defaultValue: run.fallback.reason }) })}
-        </p>
+        <Note tone="warn" role="status">
+          <p>
+            {t("admin.discoveryRuns.fallbackDetail", {
+              from: providerName(run.fallback.from),
+              to: providerName(run.fallback.to),
+              reason: t(`failureReasons.${run.fallback.reason}` as "failureReasons.other", { defaultValue: run.fallback.reason }),
+            })}
+          </p>
+        </Note>
       ) : null}
 
       <section className="stack" aria-labelledby="run-funnel">
@@ -278,54 +294,57 @@ function RunPanel({
         {run.searches.length === 0 ? (
           <p>{t("admin.discoveryRuns.noSearch")}</p>
         ) : (
-          <div className="table-scroll">
-            <table className="application-table" data-testid="run-searches">
-              <thead>
-                <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">{t("admin.discoveryRuns.kind")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.query")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.provider")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.page")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.results")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.newOffersShort")}</th>
-                  <th scope="col">{t("admin.discoveryRuns.cost")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {run.searches.map((each, index) => (
-                  <tr key={index}>
-                    <td>{index + 1}</td>
-                    <td>
-                      {t(`admin.discoveryRuns.kinds.${each.kind}`)}
-                      {each.site ? <div className="activity-meta">{each.site}</div> : null}
-                    </td>
-                    <td>
-                      {each.queries.length === 0 ? (
-                        <span className="activity-meta">{t("admin.discoveryRuns.queryPurged")}</span>
-                      ) : (
-                        <ul className="run-queries">
-                          {each.queries.map((query, position) => (
-                            <li key={position}>
-                              <code>{query}</code>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </td>
-                    <td>
-                      {providerName(each.provider)}
-                      {each.fallback ? <> <span className="pill" data-tone="danger">{t("admin.discoveryRuns.fallbackShort")}</span></> : null}
-                    </td>
-                    <td>{each.page}</td>
-                    <td>{each.results}</td>
-                    <td>{each.newJobOffers}</td>
-                    <td>{eur6.format(each.costEur)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            label={t("admin.discoveryRuns.searchesTitle")}
+            data-testid={TEST_IDS.searches}
+            columns={[
+              { header: "#", numeric: true, cell: ({ index }) => index + 1 },
+              {
+                header: t("admin.discoveryRuns.kind"),
+                cell: ({ each }) => (
+                  <>
+                    {t(`admin.discoveryRuns.kinds.${each.kind}`)}
+                    {each.site ? <div className="activity-meta">{each.site}</div> : null}
+                  </>
+                ),
+              },
+              {
+                header: t("admin.discoveryRuns.query"),
+                cell: ({ each }) =>
+                  each.queries.length === 0 ? (
+                    <span className="activity-meta">{t("admin.discoveryRuns.queryPurged")}</span>
+                  ) : (
+                    <ul className="run-queries">
+                      {each.queries.map((query, position) => (
+                        <li key={position}>
+                          <code>{query}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  ),
+              },
+              {
+                header: t("admin.discoveryRuns.provider"),
+                cell: ({ each }) => (
+                  <>
+                    {providerName(each.provider)}
+                    {each.fallback ? (
+                      <>
+                        {" "}
+                        <Pill tone="danger">{t("admin.discoveryRuns.fallbackShort")}</Pill>
+                      </>
+                    ) : null}
+                  </>
+                ),
+              },
+              { header: t("admin.discoveryRuns.page"), numeric: true, cell: ({ each }) => each.page },
+              { header: t("admin.discoveryRuns.results"), numeric: true, cell: ({ each }) => each.results },
+              { header: t("admin.discoveryRuns.newOffersShort"), numeric: true, cell: ({ each }) => each.newJobOffers },
+              { header: t("admin.discoveryRuns.cost"), numeric: true, cell: ({ each }) => eur6.format(each.costEur) },
+            ]}
+            rows={run.searches.map((each, index) => ({ each, index }))}
+            rowKey={({ index }) => String(index)}
+          />
         )}
       </section>
 
@@ -348,27 +367,20 @@ function RunPanel({
         {skipped.length === 0 ? (
           <p>{t("admin.discoveryRuns.noneSkipped")}</p>
         ) : (
-          <table className="application-table">
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.discoveryRuns.skipReason")}</th>
-                <th scope="col">{t("admin.discoveryRuns.pages")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {skipped.map((reason) => (
-                <tr key={reason}>
-                  <td>{t(`admin.discoveryRuns.skipReasons.${reason}`)}</td>
-                  <td>{metrics.skipped[reason]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table
+            label={t("admin.discoveryRuns.skippedTitle")}
+            columns={[
+              { header: t("admin.discoveryRuns.skipReason"), cell: (reason) => t(`admin.discoveryRuns.skipReasons.${reason}`) },
+              { header: t("admin.discoveryRuns.pages"), numeric: true, cell: (reason) => metrics.skipped[reason] },
+            ]}
+            rows={skipped}
+            rowKey={(reason) => reason}
+          />
         )}
       </section>
 
       {aiCalls || jobSearch ? (
-        <p className="activity-filter">
+        <p className="run-links">
           {aiCalls ? (
             <Link prefetch={false} href={routes.adminAiMessages(aiCalls)}>
               {t("admin.discoveryRuns.aiCallsLink")}
@@ -381,6 +393,6 @@ function RunPanel({
           ) : null}
         </p>
       ) : null}
-    </aside>
+    </AddressDrawer>
   );
 }

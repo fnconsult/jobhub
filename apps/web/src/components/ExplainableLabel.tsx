@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import { useAskAssistant } from "@/components/CoachPanel";
+import { useLeaveAddressDrawer } from "@/design/AddressDrawer";
 
 /** What a page says of the item an Explainable label explains; the label's words and the page are added here. */
 export type ExplainedContext = Omit<ExplainedItem, "label" | "page">;
@@ -22,17 +23,27 @@ const told = (item: ExplainedItem): ExplainedItem =>
  *
  * Its accessible name is its words; `subject` is what it explains when the words are not its name (« Pourquoi ? » after
  * a warning). `code`: the words are a name in code, shown as such. Outside the Back Office Assistant it is plain text.
- * Never give it a Provider Secret's value or an email address (the assistant drops them anyway).
+ * Never give it a Provider Secret's value or an email address (the assistant drops them anyway). In a Drawer the
+ * address opens (a provider's sheet), asking closes the Drawer first, which would keep the Assistant out of reach (#465).
  */
 export function ExplainableLabel({ item, subject, code = false, describedBy, children }: { item: ExplainedContext; subject?: string; code?: boolean; describedBy?: string; children: string }) {
   const { t } = useTranslation();
   const ask = useAskAssistant();
+  const leaveDrawer = useLeaveAddressDrawer();
   const page = usePathname();
   const words = code ? <code>{children}</code> : children;
   if (!ask) return words;
   const label = subject ?? children;
   return (
-    <button type="button" className="help-term explainable-label" aria-describedby={describedBy} onClick={() => ask(t("backOfficeAssistant.explain.question", { label }), told({ ...item, label, page }))}>
+    <button
+      type="button"
+      className="help-term explainable-label"
+      aria-describedby={describedBy}
+      onClick={() => {
+        leaveDrawer?.();
+        ask(t("backOfficeAssistant.explain.question", { label }), told({ ...item, label, page }));
+      }}
+    >
       {words}
     </button>
   );

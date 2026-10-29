@@ -2943,7 +2943,8 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: none;
 }
 
-.tabpanel > .stack {
+.tabpanel > .stack,
+.ds-drawer__body > .stack {
   margin-top: 0;
 }
 
@@ -4935,83 +4936,24 @@ textarea.title-edit {
   white-space: normal;
 }
 
-/* Paramètres in tabs (#396, ADR-0042): the tabs are links (the tab is in the address), the active provider's card,
-   and a provider's sheet or « + Ajouter » in a side panel over the tab, closed by its link back to the tab. */
-.parametres-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.parametres-head > .lead {
-  flex: 1 1 24rem;
-  margin: 0;
-}
-
-.parametres-tabs {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.parametres-tabs .tab {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.card {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.side-sheet {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  width: min(32rem, 100vw);
-  padding: var(--space-4);
-  overflow-y: auto;
-  background: var(--color-background);
-  box-shadow: var(--shadow-overlay);
-}
-
-.side-sheet-head {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  justify-content: space-between;
-}
-
-.side-sheet-head > h2 {
-  margin: 0;
-}
-
 /* ---------- The Back Office Dashboard (#408, ADR-0042) ----------
    KPI tiles, then charts drawn in HTML (text keeps its real size) with one axis each. Series colours follow the
    entity (a Search provider keeps its slot), validated for colour-blind separation; a dark theme gets its own steps.
    Values are always also written in words or in the table view under each chart. */
+/* The Design System's series (#465): its two chart tokens first, then a green and an amber that keep 3:1 against the
+   background (WCAG 1.4.11) and stay apart from the indigo and the pink for colour-blind readers. */
 :root {
-  --color-chart-series-1: #2a78d6;
-  --color-chart-series-2: #eb6834;
-  --color-chart-series-3: #1baf7a;
-  --color-chart-series-4: #6250d6;
-  --color-chart-grid: #e3e2e0;
-  --color-chart-threshold: #b42318;
+  --color-chart-series-1: var(--color-chart-1);
+  --color-chart-series-2: var(--color-chart-2);
+  --color-chart-series-3: #1f9a73;
+  --color-chart-series-4: #b7791f;
+  --color-chart-grid: var(--color-border);
+  --color-chart-threshold: var(--color-danger);
 }
 
 :root[data-theme="dark"] {
-  --color-chart-series-1: #3987e5;
-  --color-chart-series-2: #d95926;
-  --color-chart-series-3: #199e70;
-  --color-chart-series-4: #9085e9;
-  --color-chart-grid: #3a3a37;
-  --color-chart-threshold: #e66767;
+  --color-chart-series-3: #3cc28f;
+  --color-chart-series-4: #e0a63c;
 }
 
 .chart-series-1 {
@@ -5047,58 +4989,6 @@ textarea.title-edit {
   color: var(--color-text-meta);
   font-size: var(--font-size-body);
   font-weight: 400;
-}
-
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: var(--space-3);
-  margin: 0;
-}
-
-.kpi {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.kpi dt {
-  color: var(--color-text-secondary);
-}
-
-.kpi dd {
-  margin: 0;
-}
-
-.kpi-value {
-  font-size: var(--font-size-h2);
-  font-weight: 600;
-  line-height: var(--line-height-heading);
-}
-
-.kpi-sub {
-  color: var(--color-text-meta);
-}
-
-.kpi-bar {
-  height: 0.5rem;
-  overflow: hidden;
-  background: var(--color-surface);
-  border-radius: var(--radius-sm);
-}
-
-.kpi-bar > span {
-  display: block;
-  height: 100%;
-  background: var(--color-accent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-
-.kpi-bar > .kpi-bar-crossed {
-  background: var(--color-danger);
 }
 
 .dashboard-pair {
@@ -5365,10 +5255,6 @@ textarea.title-edit {
 
 .activity-meta {
   color: var(--color-text-secondary);
-}
-
-.side-sheet-wide {
-  width: min(48rem, 100vw);
 }
 
 .run-funnel {

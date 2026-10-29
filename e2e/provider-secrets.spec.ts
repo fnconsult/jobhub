@@ -23,9 +23,9 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 
 /** Lusha's sheet, on Paramètres' Enrichissement de contacts tab (#396): its key is the one these specs change. */
 const SHEET = "/admin/parametres?tab=enrichissement&fournisseur=lusha";
-const sheetOf = (page: Page) => page.locator('aside[data-sheet="lusha"]');
+const sheetOf = (page: Page) => page.locator('[data-sheet="lusha"]');
 /** A key on the sheet open in `page`. */
-const row = (page: Page, name: string) => page.locator(`aside[data-sheet] [data-key="${name}"]`);
+const row = (page: Page, name: string) => page.locator(`[data-sheet] [data-key="${name}"]`);
 
 /** Pastes `value` as the new value of `name` on Lusha's sheet, ticking "save anyway" if asked, and submits. */
 async function replace(page: Page, name: string, value: string, { saveAnyway = false } = {}) {
@@ -200,7 +200,8 @@ test.describe("Provider Secrets (on a provider's sheet in Paramètres)", () => {
     expect((await supportPage.goto(SHEET))?.status()).toBe(200);
     await expect(row(supportPage, NAME)).toContainText(fr.admin.platformSettings.providers.keyMissing);
     await expect(sheetOf(supportPage)).toContainText(fr.admin.platformSettings.sheet.readOnlyKeys);
-    await expect(sheetOf(supportPage).getByRole("button")).toHaveCount(0);
+    // No action on its key: its one button is the Drawer's « Fermer » (#465).
+    await expect(sheetOf(supportPage).getByRole("button")).toHaveText([fr.designSystem.close]);
     await expect(sheetOf(supportPage).locator("summary")).toHaveCount(0);
     const candidate = await personPage(browser, newAddress("keys-candidate"));
     expect((await candidate.goto("/admin/cles"))?.status()).toBe(404);

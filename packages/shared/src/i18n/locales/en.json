@@ -1015,6 +1015,7 @@
     "readOnly": "Read only: your roles do not allow changes to this section.",
     "dashboard": {
       "title": "Dashboard",
+      "subtitle": "What the platform consumes, and how Job discovery is doing.",
       "intro": "What the platform consumes and how Job discovery is doing. Each block shows only to the roles that read its section.",
       "noBlocks": "No figures for your roles: the sidebar leads to your sections.",
       "tableView": "Table view",
@@ -1640,6 +1641,7 @@
     },
     "platformSettings": {
       "title": "Settings",
+      "subtitle": "The platform's settings, by kind of tool.",
       "intro": "The platform's settings, by kind of tool: the active provider and its settings, then every possible provider with its keys, its last test and what it serves. A value entered in the back office wins over the server's environment, which wins over the code's default.",
       "differs_one": "{{count}} setting comes from the environment and differs from the code's default: check that it is intended.",
       "differs_other": "{{count}} settings come from the environment and differ from the code's default: check that they are intended.",
@@ -1797,7 +1799,6 @@
         }
       },
       "sheet": {
-        "close": "Close the sheet",
         "keysTitle": "Keys",
         "settingsTitle": "Its settings",
         "noSettings": "No settings of its own.",
@@ -1858,7 +1859,6 @@
         "sourceLabel": "Source to enable",
         "noSource": "Every source is already enabled.",
         "enableSource": "Enable the source",
-        "close": "Close",
         "keyValue": "Key value"
       },
       "explain": {
@@ -2126,7 +2126,8 @@
         "provider": "Provider",
         "status": "HTTP status",
         "message": "Message"
-      }
+      },
+      "subtitle": "Every change made in the back office, and every attempt refused."
     },
     "aiUsage": {
       "title": "AI consumption",
@@ -2216,6 +2217,7 @@
     },
     "aiMessages": {
       "title": "AI call",
+      "subtitle": "What each AI call said, keys and secrets masked.",
       "intro": "What each AI call said (prompt and reply), keys and secrets masked, kept {{days}} days for quality and debugging. Personal data: every call opened is recorded in Administrator actions.",
       "filter": "Filter",
       "task": "Task",
@@ -2901,7 +2903,8 @@
         "blocked": "Blocked"
       },
       "notRead": "Not read",
-      "noCandidate": "No Candidate name, email or id here, and nothing of the emails' content."
+      "noCandidate": "No Candidate name, email or id here, and nothing of the emails' content.",
+      "subtitle": "Each offer email a Candidate's Forwarding address received."
     },
     "discoveryRuns": {
       "intro": "Every run of Job discovery, started by a Candidate's Job Search or to top up a Job Digest: its searches and what they gave. Queries, criteria and the link to the Candidate's Job Search are kept {{days}} days; the runs' figures, {{months}} months.",
@@ -2954,7 +2957,6 @@
         "failed": "Failed"
       },
       "noCandidate": "Queries built from the Search Criteria alone; no Candidate name or email here.",
-      "close": "Close",
       "stoppedBy": "stop: {{reason}}",
       "fallbackDetail": "{{from}} failed ({{reason}}): the rest of the run went to {{to}}, the fallback provider.",
       "funnelTitle": "Funnel (Discovery metrics)",
@@ -3032,7 +3034,11 @@
         "employer": "Employer",
         "location": "Location",
         "matchScore": "Match Score"
-      }
+      },
+      "subtitle": "Every run of Job discovery and what it gave."
+    },
+    "pageIntro": {
+      "more": "Learn more"
     }
   },
   "backOfficeAssistant": {

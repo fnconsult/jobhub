@@ -2,7 +2,11 @@ import { isEditable, type PlatformSetting, type PlatformSettingType } from "@/pl
 import type { EnvOnlyRow, ShownValue } from "@/platform-settings/env-only";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import { restoreSetting, saveSetting } from "./actions";
-import { Here, ScrollFrame, type Ctx } from "./context";
+import { buttonClass } from "@/design/button-class";
+import { Select, TextInput } from "@/design/Field";
+import { Pill } from "@/design/Pill";
+import { Table, type Column } from "@/design/Table";
+import { Here, type Ctx } from "./context";
 import { SettingName } from "./SettingName";
 import { SOURCE_TONE } from "./tone";
 
@@ -59,67 +63,78 @@ export function SettingsTable({ ctx, caption, names, settings, envOnly }: { ctx:
   const accepted = (setting: PlatformSetting): string =>
     isModelSetting(setting) ? t("admin.platformSettings.rules.model", { provider: ctx.modelProviders[setting.name] ?? "" }) : ctx.rule(setting.type);
 
+  type Row = { kind: "platform"; setting: ResolvedPlatformSetting } | { kind: "env"; row: EnvOnlyRow };
+  const rows: Row[] = [...platform.map((setting) => ({ kind: "platform" as const, setting })), ...fromEnv.map((row) => ({ kind: "env" as const, row }))];
+  const nameOf = (row: Row) => (row.kind === "platform" ? row.setting.name : row.row.name);
+  const columns: Column<Row>[] = [
+    {
+      key: "setting",
+      header: t("admin.platformSettings.setting"),
+      rowHeader: true,
+      cell: (row) =>
+        row.kind === "platform" ? (
+          <SettingName
+            ctx={ctx}
+            name={row.setting.name}
+            item={{ value: row.setting.value, source: t(`admin.platformSettings.sources.${row.setting.source}`), state: settingState(ctx, row.setting) }}
+          />
+        ) : (
+          <SettingName
+            ctx={ctx}
+            name={row.row.name}
+            item={{ value: shownEnvText(ctx, row.row.shown), source: t("admin.platformSettings.sources.env"), state: t("admin.platformSettings.active.readOnlyFromEnv") }}
+          />
+        ),
+    },
+    {
+      key: "value",
+      header: t("admin.platformSettings.value"),
+      cell: (row) =>
+        row.kind === "platform" ? (
+          <>
+            {value(row.setting.value)}
+            {row.setting.differsFromDefault ? (
+              <>
+                {" "}
+                <strong>
+                  <Pill tone="danger">{t("admin.platformSettings.differsFlag")}</Pill>
+                </strong>
+              </>
+            ) : null}
+            {row.setting.valid ? null : <p>{t("admin.platformSettings.invalidFlag")}</p>}
+          </>
+        ) : (
+          <ShownEnvValue ctx={ctx} value={row.row.shown} />
+        ),
+    },
+    {
+      key: "source",
+      header: t("admin.platformSettings.source"),
+      cell: (row) =>
+        row.kind === "platform" ? (
+          <>
+            <Pill tone={SOURCE_TONE[row.setting.source]}>{t(`admin.platformSettings.sources.${row.setting.source}`)}</Pill>
+            {row.setting.updatedBy && row.setting.updatedAt ? <p>{t("admin.platformSettings.setBy", { email: row.setting.updatedBy, at: ctx.at.format(row.setting.updatedAt) })}</p> : null}
+          </>
+        ) : (
+          <Pill tone={SOURCE_TONE.env}>{t("admin.platformSettings.sources.env")}</Pill>
+        ),
+    },
+    { key: "default", header: t("admin.platformSettings.default"), cell: (row) => (row.kind === "platform" ? value(row.setting.default) : t("admin.platformSettings.empty")) },
+  ];
+  if (editing) {
+    columns.push({
+      key: "change",
+      header: t("admin.platformSettings.change"),
+      cell: (row) =>
+        row.kind === "env" ? t("admin.platformSettings.active.readOnlyFromEnv") : isEditable(row.setting) ? <SettingForm ctx={ctx} setting={row.setting} accepted={accepted(row.setting)} /> : null,
+    });
+  }
+
   return (
-    <ScrollFrame label={caption}>
-      <table className="application-table">
-        <caption className="visually-hidden">{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t("admin.platformSettings.setting")}</th>
-            <th scope="col">{t("admin.platformSettings.value")}</th>
-            <th scope="col">{t("admin.platformSettings.source")}</th>
-            <th scope="col">{t("admin.platformSettings.default")}</th>
-            {editing ? <th scope="col">{t("admin.platformSettings.change")}</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {platform.map((setting) => (
-            <tr key={setting.name} id={`setting-${setting.name}`} data-setting={setting.name}>
-              <th scope="row">
-                <SettingName ctx={ctx} name={setting.name} item={{ value: setting.value, source: t(`admin.platformSettings.sources.${setting.source}`), state: settingState(ctx, setting) }} />
-              </th>
-              <td>
-                {value(setting.value)}
-                {setting.differsFromDefault ? (
-                  <>
-                    {" "}
-                    <strong className="pill" data-tone="danger">
-                      {t("admin.platformSettings.differsFlag")}
-                    </strong>
-                  </>
-                ) : null}
-                {setting.valid ? null : <p>{t("admin.platformSettings.invalidFlag")}</p>}
-              </td>
-              <td>
-                <span className="pill" data-tone={SOURCE_TONE[setting.source]}>
-                  {t(`admin.platformSettings.sources.${setting.source}`)}
-                </span>
-                {setting.updatedBy && setting.updatedAt ? <p>{t("admin.platformSettings.setBy", { email: setting.updatedBy, at: ctx.at.format(setting.updatedAt) })}</p> : null}
-              </td>
-              <td>{value(setting.default)}</td>
-              {editing ? <td>{isEditable(setting) ? <SettingForm ctx={ctx} setting={setting} accepted={accepted(setting)} /> : null}</td> : null}
-            </tr>
-          ))}
-          {fromEnv.map((row) => (
-            <tr key={row.name} id={`setting-${row.name}`} data-setting={row.name}>
-              <th scope="row">
-                <SettingName ctx={ctx} name={row.name} item={{ value: shownEnvText(ctx, row.shown), source: t("admin.platformSettings.sources.env"), state: t("admin.platformSettings.active.readOnlyFromEnv") }} />
-              </th>
-              <td>
-                <ShownEnvValue ctx={ctx} value={row.shown} />
-              </td>
-              <td>
-                <span className="pill" data-tone={SOURCE_TONE.env}>
-                  {t("admin.platformSettings.sources.env")}
-                </span>
-              </td>
-              <td>{t("admin.platformSettings.empty")}</td>
-              {editing ? <td>{t("admin.platformSettings.active.readOnlyFromEnv")}</td> : null}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </ScrollFrame>
+    <div className="settings-table">
+      <Table label={caption} columns={columns} rows={rows} rowKey={nameOf} rowAttributes={(row) => ({ id: `setting-${nameOf(row)}`, "data-setting": nameOf(row) })} />
+    </div>
   );
 }
 
@@ -128,8 +143,8 @@ function SettingForm({ ctx, setting, accepted }: { ctx: Ctx; setting: ResolvedPl
   const { t } = ctx;
   const model = isModelSetting(setting);
   return (
-    <div className="stack">
-      <form className="stack" action={saveSetting}>
+    <div className="setting-change">
+      <form className="setting-form" action={saveSetting}>
         <Here ctx={ctx} />
         <input type="hidden" name="name" value={setting.name} />
         <label className="visually-hidden" htmlFor={`value-${setting.name}`}>
@@ -137,22 +152,20 @@ function SettingForm({ ctx, setting, accepted }: { ctx: Ctx; setting: ResolvedPl
         </label>
         {setting.type.kind === "choice" || setting.type.kind === "boolean" ? (
           // The values the setting takes; "none" first for a provider (#302).
-          <select id={`value-${setting.name}`} className="input" name="value" defaultValue={setting.value} aria-describedby={`rule-${setting.name}`}>
+          <Select id={`value-${setting.name}`} name="value" defaultValue={setting.value} aria-describedby={`rule-${setting.name}`}>
             {setting.value && !choicesOf(setting.type).includes(setting.value) ? null : <option value="" disabled hidden />}
             {choicesOf(setting.type).map((choice) => (
               <option key={choice} value={choice}>
                 {choice}
               </option>
             ))}
-          </select>
+          </Select>
         ) : (
           /* No min or max: the server checks the bounds, so a refused value is in the Journal. A model is
              picked from its provider's known models or typed (« autre »): it is tested on save. */
-          <input
+          <TextInput
             id={`value-${setting.name}`}
-            className="input"
             name="value"
-            type="text"
             inputMode={setting.type.kind === "sender" ? "email" : setting.type.kind === "number" ? (setting.type.whole ? "numeric" : "decimal") : setting.type.kind === "url" ? "url" : undefined}
             list={model ? `models-${setting.name}` : undefined}
             defaultValue={setting.value}
@@ -166,17 +179,22 @@ function SettingForm({ ctx, setting, accepted }: { ctx: Ctx; setting: ResolvedPl
             ))}
           </datalist>
         ) : null}
-        <p id={`rule-${setting.name}`}>{t("admin.platformSettings.accepted", { rule: accepted })}</p>
-        <button className="button button-primary" type="submit">
+        <p id={`rule-${setting.name}`} className="setting-hint">
+          {t("admin.platformSettings.accepted", { rule: accepted })}
+        </p>
+        {/* One per row: a secondary button, so the page's one primary action stays « + Ajouter ». */}
+        <button className={buttonClass({ size: "sm" })} type="submit">
           {t("admin.platformSettings.save")}
         </button>
       </form>
       {setting.source === "back_office" ? (
-        <form className="stack" action={restoreSetting}>
+        <form className="setting-form" action={restoreSetting}>
           <Here ctx={ctx} />
           <input type="hidden" name="name" value={setting.name} />
-          <p id={`restore-${setting.name}`}>{t("admin.platformSettings.restoreHelp")}</p>
-          <button className="button" type="submit" aria-describedby={`restore-${setting.name}`}>
+          <p id={`restore-${setting.name}`} className="setting-hint">
+            {t("admin.platformSettings.restoreHelp")}
+          </p>
+          <button className={buttonClass({ size: "sm" })} type="submit" aria-describedby={`restore-${setting.name}`}>
             {t("admin.platformSettings.restore")}
           </button>
         </form>

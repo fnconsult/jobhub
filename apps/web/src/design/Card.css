@@ -26,11 +26,37 @@
     font-size: var(--font-size-h3);
   }
 
+  .ds-figure {
+    min-width: 0;
+    margin: 0;
+  }
+
+  .ds-figure > figcaption {
+    margin-bottom: var(--space-2);
+  }
+
   .ds-card__actions {
     margin-left: auto;
   }
 
+  /* Stat cards side by side, as many as fit, each at least a short label wide. */
+  .ds-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+  }
+
+  .ds-stat {
+    padding: var(--space-4);
+  }
+
+  .ds-stat :where(dd) {
+    margin: 0;
+  }
+
   .ds-stat__label {
+    font-weight: 400;
     color: var(--color-secondary);
   }
 
@@ -61,6 +87,11 @@
     height: 100%;
     background: var(--color-accent);
     border-radius: var(--radius-control);
+  }
+
+  /* The limit reached: the bar in the danger colour; the metadata line says it in words. */
+  .ds-stat__bar[data-reached] > span {
+    background: var(--color-danger);
   }
 
   .ds-stat__trend {

@@ -1,0 +1,44 @@
+/* The Dashboard's own layout (#465): what is not a Design System component's. Its figures are Stat cards and its charts
+   FigureCards with a Table under each (ADR-0053); this file holds how the page places them and the charts' fill. */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dashboard > p {
+  margin: 0;
+}
+
+.dashboard .dashboard-block {
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.dashboard .dashboard-block > h2 {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+}
+
+.dashboard .chart-segment {
+  border-radius: 3px 3px 0 0;
+}
+
+.dashboard .dashboard-links {
+  margin: 0;
+}
+
+/* The area under the month's line: its series' colour fading to nothing. */
+.chart-area {
+  stroke: none;
+}
+
+.chart-fill-top {
+  stop-color: var(--color-chart-series-1);
+  stop-opacity: 0.35;
+}
+
+.chart-fill-bottom {
+  stop-color: var(--color-chart-series-1);
+  stop-opacity: 0;
+}

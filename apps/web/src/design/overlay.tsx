@@ -4,8 +4,8 @@ import * as RadixDialog from "@radix-ui/react-dialog";
 import { createContext, useContext, useState, type HTMLAttributes, type ReactNode } from "react";
 import "./overlay.css";
 
-/** Where Drawers and Dialogs open: the nearest OverlayScope, or the page's body. */
-const OverlayContainer = createContext<HTMLElement | null>(null);
+/** Where Drawers and Dialogs open: the nearest OverlayScope (null until it is in the page), or the page's body (undefined). */
+const OverlayContainer = createContext<HTMLElement | null | undefined>(undefined);
 
 /**
  * A part of a page whose Drawers and Dialogs open inside it rather than on the page's body, so they take the theme and
@@ -21,10 +21,14 @@ export function OverlayScope({ children, ...props }: HTMLAttributes<HTMLDivEleme
   );
 }
 
-/** A Drawer's or a Dialog's portal: into the nearest OverlayScope, or the page's body. */
+/**
+ * A Drawer's or a Dialog's portal: into the nearest OverlayScope, or the page's body. Inside a scope not yet in the
+ * page, nothing yet: a Drawer open from the start (one the address opens) then opens once, in its scope.
+ */
 export function OverlayPortal({ children }: { children: ReactNode }) {
   const container = useContext(OverlayContainer);
-  return <RadixDialog.Portal container={container ?? undefined}>{children}</RadixDialog.Portal>;
+  if (container === null) return null;
+  return <RadixDialog.Portal container={container}>{children}</RadixDialog.Portal>;
 }
 
 /** What dims the page behind a Drawer or a Dialog (`--color-scrim`); clicking it closes them. */

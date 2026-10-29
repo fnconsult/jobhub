@@ -2,7 +2,11 @@
 
 @layer components {
   /* A card holding the table; it scrolls sideways on a narrow screen rather than the page. */
+  /* Positioned, so visually hidden words in its cells scroll and clip with it rather than widen the page. */
   .ds-table-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
     background: var(--color-background);
     border: 1px solid var(--color-border);
@@ -26,14 +30,30 @@
     border-bottom: 1px solid var(--color-border);
   }
 
-  .ds-table td {
+  .ds-table td,
+  .ds-table th[scope="row"] {
     padding: var(--space-row) var(--space-3);
     vertical-align: middle;
     border-bottom: 1px solid var(--color-border);
   }
 
-  .ds-table tbody:last-child tr:last-child td {
+  /* The cell that names its row: in the text colour, its weight a step up. */
+  .ds-table th[scope="row"] {
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .ds-table tbody:last-child tr:last-child > * {
     border-bottom: 0;
+  }
+
+  /* Several lines in a cell (a value, then who set it): no paragraph margin, a small gap between them. */
+  .ds-table :is(td, th) > p {
+    margin: 0;
+  }
+
+  .ds-table :is(td, th) > * + p {
+    margin-top: var(--space-1);
   }
 
   .ds-table [data-numeric] {

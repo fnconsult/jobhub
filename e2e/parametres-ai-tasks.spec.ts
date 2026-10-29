@@ -81,7 +81,7 @@ test.describe("AI tasks and Playbook Agents on Paramètres (#402)", () => {
       await expect(row).toContainText(tr(ai.validatedVersion, { version: "1" }));
 
       await row.getByRole("link", { name: tr(ai.editLabel, { name: title }) }).click();
-      const panel = page.getByRole("complementary", { name: title });
+      const panel = page.getByRole("dialog", { name: title });
       await expect(panel).toContainText(tr(ai.playbookPanel.createsDraft, { version: "2" }));
       await panel.getByLabel(ai.playbookPanel.model).selectOption("mistral|mistral-small-latest");
       await panel.getByRole("button", { name: tr(ai.playbookPanel.create, { version: "2" }) }).click();
@@ -122,7 +122,7 @@ test.describe("AI tasks and Playbook Agents on Paramètres (#402)", () => {
       await expect(row).toContainText(ai.keySet);
       await row.getByRole("link", { name: tr(ai.editLabel, { name: admin.aiUsage.tasks.eval }) }).click();
 
-      const panel = page.getByRole("complementary", { name: admin.aiUsage.tasks.eval });
+      const panel = page.getByRole("dialog", { name: admin.aiUsage.tasks.eval });
       const provider = panel.getByLabel(ai.routePanel.provider);
       // OpenAI has no key here: offered all the same, said so.
       await expect(provider.locator('option[value="openai"]')).toContainText(ai.noKeyOption);

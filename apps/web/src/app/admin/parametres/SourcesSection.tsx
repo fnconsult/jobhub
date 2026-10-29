@@ -1,3 +1,5 @@
+import { buttonClass } from "@/design/button-class";
+import { Pill } from "@/design/Pill";
 import { JOB_DISCOVERY_SOURCES, type JobDiscoverySource } from "@jobhub/shared";
 import Link from "next/link";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
@@ -5,7 +7,8 @@ import { ExplainableLabel } from "@/components/ExplainableLabel";
 import type { EmailIntakeHeldBack } from "@/email-intake/playbook-state";
 import { EMAIL_INTAKE_TOOL, providerSheetHref, type PossibleProvider } from "@/platform-settings/parametres";
 import { setJobDiscoverySource, testSecret } from "./actions";
-import { Here, ScrollFrame, type Ctx } from "./context";
+import { Table } from "@/design/Table";
+import { Here, type Ctx } from "./context";
 import { KeyCell } from "./ProvidersSection";
 import { tabNameOf } from "./SettingName";
 
@@ -65,96 +68,105 @@ export function SourcesSection({
     <section className="stack" aria-labelledby="sources-title">
       <h2 id="sources-title">{t("admin.platformSettings.sources.title")}</h2>
       <p>{t("admin.platformSettings.sources.intro")}</p>
-      <ScrollFrame label={t("admin.platformSettings.sources.caption")}>
-        <table className="application-table">
-          <caption className="visually-hidden">{t("admin.platformSettings.sources.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.platformSettings.sources.source")}</th>
-              <th scope="col">{t("admin.searchSites.status")}</th>
-              <th scope="col">{t("admin.platformSettings.sources.switch")}</th>
-              <th scope="col">{t("admin.platformSettings.sources.provider")}</th>
-              <th scope="col">{t("admin.platformSettings.sources.keys")}</th>
-              <th scope="col">{t("admin.platformSettings.sources.test")}</th>
-              <th scope="col">{t("admin.platformSettings.sources.why")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {JOB_DISCOVERY_SOURCES.map((source) => {
-              const name = t(`admin.searchSites.sources.names.${source}`);
-              const enabled = sources[source];
-              const providers = providersOf(source);
-              const keys = providers.flatMap((row) => row.keys);
-              const why = unavailable(ctx, enabled, providers, heldBack[source]);
-              return (
-                <tr key={source} data-source={source}>
-                  <th scope="row">
-                    <ExplainableLabel
-                      item={{
-                        kind: SOURCE,
-                        id: source,
-                        tab: tabNameOf(ctx),
-                        value: t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled"),
-                        source: providers.map((row) => row.tool.name).join(", ") || t("admin.platformSettings.active.none"),
-                        state: why ?? t("admin.platformSettings.sources.available"),
-                      }}
-                    >
-                      {name}
-                    </ExplainableLabel>
-                  </th>
-                  <td>
-                    {t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}
-                    {providers.some((row) => row.status === "awaiting_access") ? (
-                      <>
-                        {" "}
-                        <span className="pill" data-tone="danger">
-                          {t("admin.searchSites.sources.awaitingAccess")}
-                        </span>
-                      </>
-                    ) : null}
-                  </td>
-                  <td>
-                    <BackOfficeForm canWrite={ctx.can.sites} action={setJobDiscoverySource}>
-                      <Here ctx={ctx} />
-                      <input type="hidden" name="source" value={source} />
-                      <input type="hidden" name="enabled" value={String(!enabled)} />
-                      <button className="button" type="submit" disabled={!ctx.can.sites}>
-                        {t(enabled ? "admin.searchSites.disable" : "admin.searchSites.enable", { name })}
-                      </button>
-                    </BackOfficeForm>
-                  </td>
-                  <td>
-                    {providers.length > 0
-                      ? providers.map((row) => (
-                          <p key={row.tool.id}>
-                            <Link prefetch={false} href={providerSheetHref(row.tool)!}>{row.tool.name}</Link>
-                          </p>
-                        ))
-                      : t("admin.platformSettings.active.none")}
-                  </td>
-                  <td>{keys.length > 0 ? keys.map((key) => <KeyCell key={key.name} ctx={ctx} keyState={key} />) : t("admin.platformSettings.sources.noKeyNeeded")}</td>
-                  <td>
-                    {ctx.can.secrets
-                      ? keys
-                          .filter((key) => key.secret && key.set)
-                          .map((key) => (
-                            <form key={key.name} action={testSecret}>
-                              <Here ctx={ctx} />
-                              <input type="hidden" name="name" value={key.name} />
-                              <button className="button" type="submit">
-                                {t("admin.platformSettings.sources.testKey", { name: key.name })}
-                              </button>
-                            </form>
-                          ))
-                      : null}
-                  </td>
-                  <td>{why ?? t("admin.platformSettings.sources.available")}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </ScrollFrame>
+      <Table
+        label={t("admin.platformSettings.sources.caption")}
+        columns={[
+          {
+            header: t("admin.platformSettings.sources.source"),
+            rowHeader: true,
+            cell: ({ source, name, enabled, providers, why }) => (
+              <ExplainableLabel
+                item={{
+                  kind: SOURCE,
+                  id: source,
+                  tab: tabNameOf(ctx),
+                  value: t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled"),
+                  source: providers.map((row) => row.tool.name).join(", ") || t("admin.platformSettings.active.none"),
+                  state: why ?? t("admin.platformSettings.sources.available"),
+                }}
+              >
+                {name}
+              </ExplainableLabel>
+            ),
+          },
+          {
+            header: t("admin.searchSites.status"),
+            cell: ({ enabled, providers }) => (
+              <>
+                {t(enabled ? "admin.searchSites.enabled" : "admin.searchSites.disabled")}
+                {providers.some((row) => row.status === "awaiting_access") ? (
+                  <>
+                    {" "}
+                    <Pill tone="danger">{t("admin.searchSites.sources.awaitingAccess")}</Pill>
+                  </>
+                ) : null}
+              </>
+            ),
+          },
+          {
+            header: t("admin.platformSettings.sources.switch"),
+            cell: ({ source, name, enabled }) => (
+              <BackOfficeForm canWrite={ctx.can.sites} action={setJobDiscoverySource}>
+                <Here ctx={ctx} />
+                <input type="hidden" name="source" value={source} />
+                <input type="hidden" name="enabled" value={String(!enabled)} />
+                <button className={buttonClass({ size: "sm" })} type="submit" disabled={!ctx.can.sites}>
+                  {t(enabled ? "admin.searchSites.disable" : "admin.searchSites.enable", { name })}
+                </button>
+              </BackOfficeForm>
+            ),
+          },
+          {
+            header: t("admin.platformSettings.sources.provider"),
+            cell: ({ providers }) =>
+              providers.length > 0
+                ? providers.map((row) => (
+                    <p key={row.tool.id}>
+                      <Link prefetch={false} href={providerSheetHref(row.tool)!} data-opens-sheet={row.tool.id}>
+                        {row.tool.name}
+                      </Link>
+                    </p>
+                  ))
+                : t("admin.platformSettings.active.none"),
+          },
+          {
+            header: t("admin.platformSettings.sources.keys"),
+            cell: ({ keys }) => (keys.length > 0 ? keys.map((key) => <KeyCell key={key.name} ctx={ctx} keyState={key} />) : t("admin.platformSettings.sources.noKeyNeeded")),
+          },
+          {
+            header: t("admin.platformSettings.sources.test"),
+            cell: ({ keys }) =>
+              ctx.can.secrets
+                ? keys
+                    .filter((key) => key.secret && key.set)
+                    .map((key) => (
+                      <form key={key.name} action={testSecret}>
+                        <Here ctx={ctx} />
+                        <input type="hidden" name="name" value={key.name} />
+                        <button className={buttonClass({ size: "sm" })} type="submit">
+                          {t("admin.platformSettings.sources.testKey", { name: key.name })}
+                        </button>
+                      </form>
+                    ))
+                : null,
+          },
+          { header: t("admin.platformSettings.sources.why"), cell: ({ why }) => why ?? t("admin.platformSettings.sources.available") },
+        ]}
+        rows={JOB_DISCOVERY_SOURCES.map((source) => {
+          const enabled = sources[source];
+          const providers = providersOf(source);
+          return {
+            source,
+            name: t(`admin.searchSites.sources.names.${source}`),
+            enabled,
+            providers,
+            keys: providers.flatMap((row) => row.keys),
+            why: unavailable(ctx, enabled, providers, heldBack[source]),
+          };
+        })}
+        rowKey={({ source }) => source}
+        rowAttributes={({ source }) => ({ "data-source": source })}
+      />
     </section>
   );
 }

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { Amount } from "./Amount";
 import { Button } from "./Button";
-import { Card, Stat, type Trend } from "./Card";
+import { Card, Stat, Stats, type Trend } from "./Card";
 import { ConfirmDialog } from "./Dialog";
 import { Drawer } from "./Drawer";
 import { EmptyState } from "./EmptyState";
@@ -217,16 +217,11 @@ function Gallery({ head }: { head?: ReactNode }) {
 
       <section className="ds-gallery__section" aria-labelledby="ds-figures">
         <h2 id="ds-figures">{t("designSystem.gallery.figures")}</h2>
-        <div className="ds-gallery__grid">
-          <Stat
-            label={t("designSystem.gallery.spend")}
-            value={<Amount value={0.0396} fractionDigits={4} />}
-            meta={t("designSystem.gallery.spendMeta")}
-            progress={2}
-          />
+        <Stats>
+          <Stat label={t("designSystem.gallery.spend")} value={<Amount value={0.0396} fractionDigits={4} />} meta={t("designSystem.gallery.spendMeta")} progress={2} />
           <Stat label={t("designSystem.gallery.failures")} value={SAMPLE.failures} meta={t("designSystem.gallery.failuresMeta")} trend={failuresTrend} />
           <Stat label={t("designSystem.gallery.found")} value={SAMPLE.found} meta={t("designSystem.gallery.foundMeta")} trend={foundTrend} />
-        </div>
+        </Stats>
         <Card title={t("designSystem.gallery.chartCard")} actions={<Button size="sm">{t("designSystem.gallery.month")}</Button>}>
           <p>{t("designSystem.gallery.chartText")}</p>
         </Card>

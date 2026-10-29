@@ -77,7 +77,7 @@ async function adminPage(browser: Browser): Promise<Page> {
 
 /** Fantastic.jobs' sheet, on Paramètres' Sources tab (#396, formerly Clés), and its key there. */
 const SHEET = "/admin/parametres?tab=sources&fournisseur=fantastic-jobs";
-const sheetOf = (page: Page) => page.locator('aside[data-sheet="fantastic-jobs"]');
+const sheetOf = (page: Page) => page.locator('[data-sheet="fantastic-jobs"]');
 const keyRow = (page: Page) => sheetOf(page).locator(`[data-key="${NAME}"]`);
 
 async function replaceKey(page: Page, value: string, { saveAnyway = false } = {}) {

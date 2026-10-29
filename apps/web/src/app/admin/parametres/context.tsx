@@ -1,5 +1,4 @@
 import type { ProviderId } from "@jobhub/ai";
-import type { ReactNode } from "react";
 import type { AdministratorAccess } from "@/admin/administrators";
 import type { getServerT } from "@/i18n/server";
 import type { PlatformSettingType } from "@/platform-settings/catalog";
@@ -47,14 +46,5 @@ export function Here({ ctx, sheet = ctx.sheet }: { ctx: Ctx; sheet?: string }) {
       <input type="hidden" name={FORM.tab} value={ctx.tab.slug} />
       {sheet ? <input type="hidden" name={FORM.sheet} value={sheet} /> : null}
     </>
-  );
-}
-
-/** A table's scrolling frame, reachable by keyboard and named by the table it holds, so it can be scrolled without a mouse (WCAG 2.1.1). */
-export function ScrollFrame({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="table-scroll" role="region" aria-label={label} tabIndex={0}>
-      {children}
-    </div>
   );
 }

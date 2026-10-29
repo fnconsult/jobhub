@@ -16,6 +16,15 @@
     margin-top: 0.2em;
   }
 
+  /* Its text in paragraphs: no margin around them, a small gap between them. */
+  .ds-note > div > p {
+    margin: 0;
+  }
+
+  .ds-note > div > * + * {
+    margin-top: var(--space-1);
+  }
+
   .ds-note__title {
     display: block;
   }

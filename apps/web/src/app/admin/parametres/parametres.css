@@ -1,0 +1,117 @@
+/* Paramètres' own layout (#465): what is not a Design System component's. Its tabs, tables, cards, pills, notes, fields,
+   buttons and side panels are the components themselves (ADR-0053); this file holds only how the page places them. */
+.parametres {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.parametres h2 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+}
+
+/* The intro on its line, « + Ajouter » at its end. */
+.parametres-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.parametres-head > .page-intro {
+  flex: 1 1 24rem;
+}
+
+.parametres-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.parametres-panel p,
+.parametres .ds-card p {
+  margin-block: 0;
+}
+
+/* A side panel's sections (a provider's sheet, « + Ajouter », an AI task's): each a .stack, its gap spacing what it
+   holds, not their own margins on top of it. */
+.parametres .ds-drawer :is(p, ul, h3),
+.parametres .ds-drawer .stack {
+  margin-block: 0;
+}
+
+.active-provider {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+}
+
+/* What kind of thing a side panel shows, over its content (« Tâche IA », « Playbook »). */
+.parametres-kicker {
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+/* The settings' Table takes the width it is given (a .stack lines its children up at their own width), so a wide one
+   scrolls in its frame rather than widen the page. */
+.settings-table {
+  width: 100%;
+}
+
+/* A setting's row: its name in code under its label, in the metadata colour. */
+.settings-table th[scope="row"] .setting-name,
+.settings-table th[scope="row"] > code {
+  display: block;
+  margin-top: var(--space-1);
+  font-weight: 400;
+  color: var(--color-meta);
+}
+
+.settings-table th[scope="row"] > .help-term > code {
+  color: inherit;
+}
+
+/* A setting's change: its field and Save on one line, what the field takes under them. */
+.setting-change {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 16rem;
+}
+
+.setting-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+}
+
+.setting-form > .setting-hint {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* A hint is metadata (ADR-0057): the metadata size, in the metadata colour. */
+.setting-hint {
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+}
+
+/* What a field takes shows while it is being changed, so the rows stay one line each; screen readers hear it with the
+   field (aria-describedby) whether shown or not. */
+.setting-form:not(:focus-within) > .setting-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@media (width < 40rem) {
+  .setting-change {
+    min-width: 12rem;
+  }
+}

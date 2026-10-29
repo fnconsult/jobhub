@@ -29,7 +29,7 @@ const rowOf = (within: Page | Locator, page: Page, name: string) => within.getBy
 
 /** France Travail's sheet, on Paramètres' Sources tab (#396, formerly the Clés section): its keys and each API's state. */
 const SHEET = "/admin/parametres?tab=sources&fournisseur=france-travail";
-const sheetOf = (page: Page) => page.locator('aside[data-sheet="france-travail"]');
+const sheetOf = (page: Page) => page.locator('[data-sheet="france-travail"]');
 const keyOf = (page: Page, name: string) => sheetOf(page).locator(`[data-key="${name}"]`);
 /** The Job discovery sources: Paramètres' Sources tab (#396, formerly Sites de recherche). */
 const SOURCES = "/admin/parametres?tab=sources";

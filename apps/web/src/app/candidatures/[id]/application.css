@@ -113,7 +113,8 @@
 }
 
 /* A card is as wide as the page's column: the reading measure (70ch) is for lines of text. */
-ul.application-interviews > li.application-interview {
+/* Above `.workspace > .page :is(p, li, dd, .lead)` in app.css. */
+.workspace ul.application-interviews > li.application-interview {
   max-width: none;
 }
 

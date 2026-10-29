@@ -124,7 +124,8 @@
 }
 
 /* A card is as wide as its list: the page's reading measure (70ch) is for its lines of text, not its cards. */
-ol.job-offer-results > li.job-offer-result {
+/* Above `.workspace > .page :is(p, li, dd, .lead)` in app.css. */
+.workspace ol.job-offer-results > li.job-offer-result {
   max-width: none;
 }
 

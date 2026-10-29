@@ -155,6 +155,7 @@ th[aria-sort] .applications-sort__mark {
 }
 
 /* A card is as wide as its column: the page's reading measure (70ch) is for lines of text. */
-ul.applications-cards > li.applications-card {
+/* Above `.workspace > .page :is(p, li, dd, .lead)` in app.css. */
+.workspace ul.applications-cards > li.applications-card {
   max-width: none;
 }

@@ -68,6 +68,19 @@ const OFFERS = [
     postedAt: null,
     site: "indeed.fr",
   },
+  // Not found by the Job Search: saved from elsewhere, so the Job Search's third Job Offer stays unsaved.
+  {
+    title: "Directrice financière de transition",
+    employer: "Descours & Cabaud",
+    location: "Lyon",
+    contract: "freelance",
+    remote: "hybrid",
+    salary: [null, null],
+    skills: ["IFRS", "Trésorerie"],
+    years: 15,
+    postedAt: "2026-10-20T09:00:00Z",
+    site: "michaelpage.fr",
+  },
 ] as const;
 
 async function query<T = Record<string, unknown>>(sql: string, values: unknown[] = []): Promise<T[]> {
@@ -83,8 +96,9 @@ async function query<T = Record<string, unknown>>(sql: string, values: unknown[]
 type Seeded = { profileId: string; applicationId: string };
 
 /**
- * A Candidate with one Profile, its Job Search done on a fixed day with the three Job Offers, and three Applications:
- * the first offer at « Entretien » with an Interview, the second « Postulée », the third « À postuler ».
+ * A Candidate with one Profile, its Job Search done on a fixed day with the first three Job Offers, and three
+ * Applications: the first offer at « Entretien » with an Interview, the second « Postulée », the fourth « À postuler »
+ * (the third stays unsaved, its card offering « Enregistrer en candidature »).
  */
 async function seed(page: Page, email: string): Promise<Seeded> {
   const [candidate] = await query<{ id: string }>(`SELECT id FROM candidate WHERE email = $1`, [email]);
@@ -123,10 +137,10 @@ async function seed(page: Page, email: string): Promise<Seeded> {
   }
   await query(
     `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, $4, $5)`,
-    [candidate!.id, profileId, offerIds, "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z"],
+    [candidate!.id, profileId, offerIds.slice(0, 3), "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z"],
   );
   const applicationIds: string[] = [];
-  for (const jobOfferId of offerIds) {
+  for (const jobOfferId of [offerIds[0], offerIds[1], offerIds[3]]) {
     const saved = await page.request.post("/api/applications", { headers: { origin }, data: { jobOfferId, profileId } });
     expect(saved.ok(), await saved.text()).toBe(true);
     applicationIds.push((await saved.json()).id);

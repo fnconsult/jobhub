@@ -3,7 +3,7 @@
  * offer a Job Offer for the Candidate unless it is already there for them.
  *
  *   const reading = createEmailReading({ readings, jobOffers, profiles, ai, guardrails, taskPlaybooks });
- *   await reading.read(receivedOfferEmailId); // { outcome: "offers_found" | "other" | "failed" | "set_aside_by_guardrail" | "not_awaiting" }, or throws to be tried again
+ *   await reading.read(receivedOfferEmailId); // { outcome: "offers_found" | "other" | "failed" | "guardrail" | "not_awaiting" }, or throws to be tried again
  *
  * One try, as AI Activity shows its live steps and each Job Offer's Provenance keeps them:
  *  1. the email's text, taken with the Email intake Tool (`brevo-inbound`, read);
@@ -79,7 +79,7 @@ export interface EmailReadingOptions {
   now?: () => Date;
 }
 
-export type EmailReadOutcome = { outcome: "offers_found" | "other" | "failed" | "set_aside_by_guardrail" | "not_awaiting" };
+export type EmailReadOutcome = { outcome: "offers_found" | "other" | "failed" | "guardrail" | "not_awaiting" };
 
 export interface EmailReading {
   /** Reads one Received offer email (see above). Throws when a try failed and another is left. */
@@ -170,7 +170,7 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
         if (guarded.outcome !== "read") {
           await progress.flush();
           await readings.setAside(id);
-          return { outcome: "set_aside_by_guardrail" };
+          return { outcome: "guardrail" };
         }
         const { kind, offers } = guarded.reading;
         if (!email.manualForward) run.site(`https://${email.senderDomain}/`);

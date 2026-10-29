@@ -23,6 +23,7 @@
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",
     "./email-intake": "./src/email-intake/inbound.ts",
     "./email-intake/reading": "./src/email-intake/reading.ts",
+    "./email-intake/received-offers": "./src/email-intake/received-offers.ts",
     "./search-sites": "./src/search-sites/index.ts",
     "./mailers": "./src/auth/mailers.ts",
     "./provider-secrets": "./src/provider-secrets/worker.ts",

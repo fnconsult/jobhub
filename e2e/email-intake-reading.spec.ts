@@ -279,7 +279,7 @@ test.describe("Email intake: the worker reads Received offer emails into Job Off
 
     const email = await sendAndRead(me.page, marie.address, trapped);
 
-    expect(email).toMatchObject({ outcome: "set_aside_by_guardrail", kind: null, offers: [] });
+    expect(email).toMatchObject({ outcome: "guardrail", kind: null, offers: [] });
     expect(await jobOfferCountOf("offres-piege.test")).toBe(0);
     const triggers = await query<{ guardrail: string; setting: string; agent: string }>(`SELECT guardrail, setting, agent FROM guardrail_trigger WHERE agent = 'email_intake' AND action = 'blocked' ORDER BY id`);
     expect(triggers).toHaveLength(triggersBefore + 1);

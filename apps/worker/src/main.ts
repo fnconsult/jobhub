@@ -6,6 +6,7 @@ import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
+import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
 import { workerGuardrails } from "@jobhub/web/guardrails/checks";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
@@ -119,6 +120,7 @@ const mailer = worker.mailer;
 const billing = createBilling({ database, baseURL });
 // SECRETS_MASTER_KEYS: Apple's client secret is sealed under it, and so are the Received offer emails' texts.
 const secretCipher = secretCipherFromEnv(process.env);
+const digestApplications = createApplications(database, { jobOffers, profiles });
 // The Job Digest schedule queues jobs on the runner, which starts once the jobs exist.
 const started: { runner?: JobRunner } = {};
 const jobs = createJobs({
@@ -133,8 +135,10 @@ const jobs = createJobs({
   jobDigests: createJobDigests(database, {
     profiles,
     jobOffers,
-    applications: createApplications(database, { jobOffers, profiles }),
+    applications: digestApplications,
     billing,
+    // The Job Offers Email intake gave each Profile join its Job Digest (#447).
+    receivedOffers: createReceivedOffers(database, { jobOffers, profiles, applications: digestApplications }),
     mailer,
     baseURL,
     config: () => jobDigestsConfigFromEnv(settingsEnv()),

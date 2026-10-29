@@ -76,7 +76,7 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
   const now = options.now ?? (() => new Date());
 
   /** Ends its reading with `outcome` and nothing read: its text deleted, its live steps cleared. */
-  async function ended(id: string, outcome: "failed" | "set_aside_by_guardrail"): Promise<void> {
+  async function ended(id: string, outcome: "failed" | "guardrail"): Promise<void> {
     await database.query(
       `UPDATE received_offer_email
           SET outcome = $3, read_at = $2, progress = NULL,
@@ -158,7 +158,7 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
     },
 
     async setAside(id) {
-      await ended(id, "set_aside_by_guardrail");
+      await ended(id, "guardrail");
     },
   };
 }

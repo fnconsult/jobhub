@@ -139,3 +139,26 @@
 .job-searches-group > .ds-note {
   margin-bottom: var(--space-4);
 }
+
+/* ADR-0009: "Chercher pour mes N profils (N recherches)" is long; on a phone it wraps inside the card rather than
+   pushing the page sideways (the Design System's button keeps its label on one line by default). */
+.job-searches-criteria .stack {
+  max-width: 100%;
+}
+
+.job-searches-criteria .stack .ds-button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
+/* A swimlane scrolls on its own: positioned, so a visually hidden label inside a card is clipped by it and cannot widen
+   the page (ADR-0009). */
+.job-searches-group .lane-track {
+  position: relative;
+}
+
+/* The Profile chooser's select reaches the 44px target floor (ADR-0009), as the page's buttons do. */
+.workspace > .page .job-searches-chooser .ds-input:not([data-density] .ds-input) {
+  min-height: var(--control-height);
+}

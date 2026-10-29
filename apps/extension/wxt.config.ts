@@ -17,9 +17,12 @@ export default defineConfig({
     default_locale: "fr",
     // activeTab + scripting: manual Capture of the page the person is viewing, on their click (ADR-0002).
     // storage: the Guest session (storage.session, in memory). alarms: forgetting it on time (ADR-0003).
+    // sidePanel: the extension lives in the browser's Side Panel (ADR-0054, entrypoints/sidepanel), not in a popup.
     // Job boards are reached through the badge content script's matches (src/job-page.ts, JOB_SITES).
-    permissions: ["activeTab", "scripting", "storage", "alarms"],
-    // Asked only when the person opts in, from the popup, to the badge on every site (src/all-sites-detection.ts, ALL_SITES).
+    permissions: ["activeTab", "scripting", "storage", "alarms", "sidePanel"],
+    // The toolbar icon, with no popup: it opens the Side Panel (src/side-panel.ts).
+    action: { default_title: "__MSG_extName__" },
+    // Asked only when the person opts in, from the Side Panel, to the badge on every site (src/all-sites-detection.ts, ALL_SITES).
     optional_host_permissions: ["https://*/*"],
     // Lets the browser send the web app's session cookie with the extension's requests. And JOB_SITES, which
     // the badge's matches already cover: so Capture may read a job site's iframe in another site's page

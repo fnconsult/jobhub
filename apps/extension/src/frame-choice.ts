@@ -1,7 +1,7 @@
 /**
  * Which frame of a tab a manual Capture takes. Some career sites show an empty
  * shell and put the posting in an iframe from their ATS (gestmax.fr, #187): the
- * popup reads every frame it may read, and keeps the one holding the posting.
+ * Side Panel reads every frame it may read, and keeps the one holding the posting.
  */
 import type { CapturedJobOffer, JobPage } from "./job-page";
 
@@ -27,8 +27,14 @@ const better = (a: Candidate, b: Candidate) =>
  * frame's URL.
  */
 export function chooseFrame(frames: readonly FrameRead[]): CapturedJobOffer | null {
+  return choosePage(frames)?.jobOffer ?? null;
+}
+
+/** The page of the frame `chooseFrame` takes: its Job Offer, and whether a posting is detected there (the Side Panel's posting in view). */
+export function choosePage(frames: readonly FrameRead[]): { detected: boolean; jobOffer: CapturedJobOffer } | null {
   const candidates = frames.flatMap(({ frameId, page }): Candidate[] =>
     page?.jobOffer && (frameId === 0 || isWebPage(page.jobOffer.source.url)) ? [{ frameId, detected: page.detected, jobOffer: page.jobOffer }] : [],
   );
-  return candidates.sort(better)[0]?.jobOffer ?? null;
+  const chosen = candidates.sort(better)[0];
+  return chosen ? { detected: chosen.detected, jobOffer: chosen.jobOffer } : null;
 }

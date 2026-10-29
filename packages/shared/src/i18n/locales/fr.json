@@ -39,6 +39,8 @@
     "unreachable": "Jobbbox est injoignable pour le moment. Vérifiez votre connexion et réessayez.",
     "badge": "Analyser cette offre",
     "badgeLabel": "Analyser cette offre avec Jobbbox",
+    "detected": "Offre détectée sur cette page.",
+    "guest": "Invité",
     "analysis": {
       "title": "Analyse de l'offre",
       "noJobOffer": "Aucune offre capturée. Ouvrez une offre d'emploi, puis cliquez sur « Analyser cette offre » ou sur « Capturer cette page » dans l'extension Jobbbox.",
@@ -91,7 +93,7 @@
       "covered": "Présentes dans votre CV : {{skills}}",
       "missing": "Absentes de votre CV : {{skills}}",
       "years": "Votre CV : {{cv}} ans · l'offre : {{required}} ans",
-      "signUp": "Créer un compte pour garder cette offre et votre CV",
+      "signUp": "Créer mon compte et garder cette offre",
       "offer": "L'offre : {{value}}",
       "offerYears": "L'offre : {{required}} ans",
       "salary": {
@@ -107,7 +109,7 @@
       "saveTitle": "Enregistrer dans mes candidatures",
       "profileLabel": "Profil utilisé pour cette candidature",
       "newProfileFromCv": "Un nouveau profil, à partir de ce CV",
-      "save": "Enregistrer la candidature",
+      "save": "Enregistrer en candidature",
       "saving": "Enregistrement en cours…",
       "firstProfileHint": "Importez votre CV ci-dessous : il deviendra votre premier profil, et cette offre votre première candidature.",
       "saved": "Cette offre est enregistrée dans vos candidatures, au statut « À postuler ».",
@@ -116,7 +118,14 @@
       "searchCriteriaMissing": "Nous n'avons trouvé ni dans votre CV ni dans l'offre le poste visé et le lieu de votre recherche. Créez votre profil sur Jobbbox, puis enregistrez de nouveau cette offre.",
       "createProfile": "Créer mon profil sur Jobbbox",
       "profileQuotaReached": "Votre formule ne permet pas de créer un autre profil. Choisissez l'un de vos profils.",
-      "wanted": "Vous cherchez : {{value}}"
+      "wanted": "Vous cherchez : {{value}}",
+      "notSpecified": "non précisé",
+      "points": "{{earned}} / {{possible}}",
+      "strengths": "Points forts : {{items}}.",
+      "gaps": "À renforcer : {{items}}.",
+      "signIn": "J'ai déjà un compte · Se connecter",
+      "dropCv": "Glissez votre CV ici",
+      "chooseFile": "Choisir un fichier"
     },
     "allSites": "Détecter les offres sur tous les sites",
     "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."

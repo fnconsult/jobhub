@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 // A package specifier, not "./src/...": Next.js resolves relative imports in this file
 // against the working directory, which is the repo root for `next start apps/web`.
-import { loadRootEnv, rootVersion } from "@jobhub/web/root-env";
+import { loadRootEnv } from "@jobhub/web/root-env";
 
 // Next.js only reads `.env*` from apps/web; the README's `.env` lives at the repo root.
 loadRootEnv();
@@ -9,8 +9,6 @@ loadRootEnv();
 const nextConfig: NextConfig = {
   // Self-contained server bundle, deployable as a container in an EU region (ADR-0007).
   output: "standalone",
-  // The Version the build serves (ADR-0063): the root package.json's, for Nouveautés (src/public-pages/deployment.ts).
-  env: { JOBHUB_VERSION: rootVersion() ?? "" },
   transpilePackages: ["@jobhub/shared", "@jobhub/ai", "@jobhub/coach-knowledge", "@jobhub/help"],
   // The Unicode fonts a PDF export embeds are read from node_modules at run time (src/export/fonts.ts).
   // `npm run build` checks they all made it into the standalone output (scripts/check-standalone-fonts.ts).

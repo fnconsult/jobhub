@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadRootEnv, repoRoot, rootVersion } from "./root-env";
+import { loadRootEnv, repoRoot } from "./root-env";
 
 describe("loadRootEnv", () => {
   const dirs: string[] = [];
@@ -42,30 +42,5 @@ describe("repoRoot", () => {
   it("is the monorepo root, where the README tells developers to create .env", () => {
     expect(existsSync(path.join(repoRoot, ".env.example"))).toBe(true);
     expect(existsSync(path.join(repoRoot, "apps", "web", "next.config.ts"))).toBe(true);
-  });
-});
-
-describe("rootVersion", () => {
-  const dirs: string[] = [];
-  afterEach(() => {
-    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-  });
-  function rootWith(manifest: object): string {
-    const dir = mkdtempSync(path.join(tmpdir(), "jobhub-root-version-"));
-    dirs.push(dir);
-    writeFileSync(path.join(dir, "package.json"), JSON.stringify(manifest));
-    return dir;
-  }
-
-  it("is the Version the root package.json carries (ADR-0063): what main or a Promotion serves", () => {
-    expect(rootVersion(rootWith({ name: "jobhub", version: "0.3.1" }))).toBe("0.3.1");
-  });
-
-  it("is null when it carries none", () => {
-    expect(rootVersion(rootWith({ name: "jobhub" }))).toBeNull();
-  });
-
-  it("is this repo's", () => {
-    expect(rootVersion()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });

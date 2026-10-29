@@ -5,7 +5,8 @@ import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { Button } from "./Button";
-import { Scrim } from "./overlay";
+import { OverlayPortal, Scrim } from "./overlay";
+import { useHydrated } from "./hydrated";
 import "./Drawer.css";
 
 type AutoFocusEvent = Event;
@@ -45,10 +46,16 @@ export function Drawer({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const hydrated = useHydrated();
   return (
     <RadixDialog.Root open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
-      {trigger ? <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger> : null}
-      <RadixDialog.Portal>
+      {/* Disabled until the page is hydrated: clicked before, it would not open (#446). Its own `disabled` wins. */}
+      {trigger ? (
+        <RadixDialog.Trigger asChild disabled={!hydrated}>
+          {trigger}
+        </RadixDialog.Trigger>
+      ) : null}
+      <OverlayPortal>
         <Scrim />
         <RadixDialog.Content
           className={["ds-drawer", className].filter(Boolean).join(" ")}
@@ -75,7 +82,7 @@ export function Drawer({
             children
           )}
         </RadixDialog.Content>
-      </RadixDialog.Portal>
+      </OverlayPortal>
     </RadixDialog.Root>
   );
 }

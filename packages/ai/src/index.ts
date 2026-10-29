@@ -43,7 +43,7 @@ export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingPro
 export type { AiLayerDeps } from "./env";
 export { checkAiRoutingChange } from "./routing-check";
 export type { AiRoutingCheckDeps, AiRoutingRefusal } from "./routing-check";
-export { findIdentity, identityIn } from "./identity-scan";
+export { findIdentity, identityIn, personNamesIn } from "./identity-scan";
 export type { IdentityHit } from "./identity-scan";
 export { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 export { givenNameOf, redactIdentity, REDACTION_NOTE } from "./redaction";
@@ -59,6 +59,8 @@ export { createProvenanceRecorder } from "./provenance-recorder";
 export type { ProvenanceRecorder, ProvenanceRecorderOptions } from "./provenance-recorder";
 export type { FeatureStep, StepSubject, StepTool } from "./activity";
 export { readJobPage, readOfferFields } from "./job-offer-reading";
+export { readOfferEmail } from "./offer-email-reading";
+export type { EmailOffer, OfferEmailKind, OfferEmailReading } from "./offer-email-reading";
 export { readCompanyFacts } from "./company-facts";
 export type { CompanyFactsRequest } from "./company-facts";
 export type { OfferFields } from "./job-offer-reading";
@@ -67,7 +69,7 @@ export { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, MAX_CO
 export type { CompanyNewsArticle, CompanyNewsRequest } from "./company-news";
 export { DEFAULT_JOB_SEARCH_SHAPE } from "./search-query";
 export type { JobSearchQuery, JobSearchShape, QueryLanguage } from "./search-query";
-export { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
+export { euOnly, PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS } from "./types";
 export type * from "./types";
 export { allUsageLogs, createConsoleUsageLog } from "./usage";
 export { EFFORTS, effortHandling, isEffort } from "./effort";

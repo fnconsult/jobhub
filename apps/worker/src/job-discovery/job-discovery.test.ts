@@ -316,7 +316,7 @@ describe("Job discovery", () => {
         sources: [],
         pages: {},
         titles: JSON.stringify({ fr: ["DAF", "Directeur administratif"], en: ["CFO", "Finance Director", "Head of Finance"] }),
-        settings: async () => ({ sources: { france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true }, sites: [{ domain: "apec.fr", enabled: true }] }),
+        settings: async () => ({ sources: { france_travail: true, fantastic_jobs: true, web_search: true, ats_apis: true, email_intake: true }, sites: [{ domain: "apec.fr", enabled: true }] }),
       });
 
       await discovery.discover({ candidateId: "c", criteria });

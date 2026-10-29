@@ -45,6 +45,7 @@ import type { HumanCoach } from "../human-coaches";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
 import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages } from "./conversation";
+import { emailIntakeSetupGuide } from "../email-intake/setup-guide";
 import { EXPLAINING, explainedSchema, explainedText } from "./explained";
 
 export { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentMessages, type AssistantMessage, type ExplainedItem } from "./conversation";
@@ -67,6 +68,8 @@ export interface BackOfficeAssistantSources {
   administrators(): Promise<Administrator[]>;
   /** The Back Office Audit, newest first (`audit`). */
   journal(limit: number): Promise<BackOfficeAuditEntry[]>;
+  /** The Email intake domain in use, EMAIL_INTAKE_DOMAIN (`searchSites`): its MX records are explained for it (#448). */
+  emailIntakeDomain(): Promise<string>;
 }
 
 /** Who is asking: their Candidate id (for EU AI consent) and what their roles allow. */
@@ -154,6 +157,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   roles: { name: "Administrateurs et rôles du Back Office", page: routes.adminAdministrators },
   audit: { name: "Activité › Actions des administrateurs (Back Office Audit)", page: routes.adminAudit() },
   discoveryRuns: { name: "Activité › Recherches : chaque run de la recherche d'offres (Job discovery), ses recherches et ses chiffres", page: routes.adminDiscoveryRuns() },
+  receivedEmails: { name: "Activité › Emails reçus : chaque email d'offres reçu par l'adresse de transfert d'un candidat (Email intake), sans candidat ni contenu", page: routes.adminReceivedEmails() },
   jobSearches: { name: "La recherche d'offres (Job Search) d'un candidat derrière un run, ouverte depuis Activité › Recherches" },
   // On each provider's sheet in Paramètres (#396), formerly the Clés section.
   providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)", page: routes.adminPlatformSettings },
@@ -277,6 +281,14 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     ].join("\n");
   },
 
+  async searchSites(sources) {
+    return [
+      heading("searchSites"),
+      "Les sources de la recherche d'offres (onglet Sources de Paramètres), chacune activée ou non : API France Travail, API Fantastic.jobs, recherche web, API publiques des ATS et Réception par email ; les sites de la recherche web (onglet Recherche web) et ceux où l'extension s'affiche (onglet Extension). Chaque changement est inscrit dans Activité › Actions des administrateurs.",
+      emailIntakeSetupGuide(await sources.emailIntakeDomain()),
+    ].join("\n");
+  },
+
   async guardrails() {
     return [
       heading("guardrails"),
@@ -393,8 +405,10 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   job_discovery_sources: "sources de la recherche d'offres",
   job_discovery_sites: "sites de la recherche d'offres",
   job_sites: "sites de l'extension",
+  recognised_senders: "expéditeurs reconnus (Réception par email)",
   ai_messages: "appels IA",
   discovery_runs: "recherches d'offres (Activité)",
+  received_emails: "emails reçus (Activité)",
   coaching_playbooks: "playbooks de coaching",
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",

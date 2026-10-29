@@ -101,7 +101,41 @@ describe("Anthropic provider", () => {
     expect(provider.residency).toBe("outside_eu");
     expect(new URL(requests[0]!.url).hostname).toBe("api.anthropic.com");
     expect(requests[0]!.headers.get("x-api-key")).toBe("sk-ant");
-    expect(requests[0]!.body).toMatchObject({ model: "claude-opus-5-5" });
+    expect(requests[0]!.body).toMatchObject({ model: "claude-sonnet-5-5" });
+  });
+
+  describe("on the direct API, picks its default model by the call's effort (ADR-0007 amendment of 2026-10-28)", () => {
+    it.each([
+      ["low", "claude-haiku-5-5"],
+      ["medium", "claude-sonnet-5-5"],
+      ["high", "claude-opus-5-5"],
+      [undefined, "claude-sonnet-5-5"],
+    ] as const)("effort %s: %s", async (effort, model) => {
+      const { fetch, requests } = fakeFetch(anthropicReply);
+      const provider = createAnthropicProvider({ endpoint: { kind: "direct", apiKey: "sk-ant" }, fetch });
+
+      await provider.generate!({ ...textInput, ...(effort ? { effort } : {}) });
+
+      expect(requests[0]!.body).toMatchObject({ model });
+      expect(provider.defaultModelFor?.(effort)).toBe(model);
+    });
+
+    it("keeps a model the route names, whatever the effort", async () => {
+      const { fetch, requests } = fakeFetch(anthropicReply);
+      const provider = createAnthropicProvider({ endpoint: { kind: "direct", apiKey: "sk-ant" }, fetch });
+
+      await provider.generate!({ ...textInput, model: "claude-opus-5-5", effort: "low" });
+
+      expect(requests[0]!.body).toMatchObject({ model: "claude-opus-5-5" });
+    });
+
+    it("says so, for the Back Office; Bedrock keeps its one default model", () => {
+      expect(createAnthropicProvider({ endpoint: { kind: "direct", apiKey: "k" } }).modelByEffort).toEqual({ low: "claude-haiku-5-5", medium: "claude-sonnet-5-5", high: "claude-opus-5-5" });
+      const bedrock = createAnthropicProvider({ endpoint: { kind: "bedrock", region: "eu-north-1", apiKey: "k" } });
+      expect(bedrock.modelByEffort).toBeUndefined();
+      expect(bedrock.defaultModelFor).toBeUndefined();
+      expect(bedrock.defaultModel).toBe("anthropic.claude-opus-5");
+    });
   });
 
   it("raises a provider error when Claude refuses", async () => {

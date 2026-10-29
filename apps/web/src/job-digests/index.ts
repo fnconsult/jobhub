@@ -24,7 +24,8 @@
  *
  * Selecting a Job Digest's Job Offers: the Job Offers stored since the
  * Profile's previous Job Digest (a week back for the first, by default), whoever stored
- * them, except Guest-only and Expired ones and those whose Posting date is
+ * them, and those Email intake gave the Profile from the emails read since then
+ * (#447: however long ago they were stored; no Job Search, no Job Search Notification), except Guest-only and Expired ones and those whose Posting date is
  * more than 30 days ago; scored against the Profile's current Master CV, kept
  * from the threshold up, best first (an undated Job Offer after a dated one
  * with an equal Match Score). The email gives each its Posting date, or says
@@ -59,17 +60,19 @@ import {
   type Plan,
   type Provenance,
 } from "@jobhub/shared";
-import { createI18n, type Locale } from "@jobhub/shared/i18n";
+import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
 import type { Mailer } from "../auth";
 import type { Billing, PlanName } from "../billing";
+import type { ReceivedOffers } from "../email-intake/received-offers";
 import { visibleTo, type JobOffers } from "../job-offers";
 import { readNumberSetting } from "../platform-settings/catalog";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
-import { DIGEST_TIME_ZONE, latestSlot } from "./schedule";
+import { jobDigestEmail } from "./email";
+import { latestSlot } from "./schedule";
 
 export { DIGEST_HOUR, DIGEST_TIME_ZONE, latestSlot } from "./schedule";
 
@@ -192,6 +195,8 @@ export interface JobDigestsDeps {
   applications: Pick<Applications, "list">;
   /** Plans only: a Job Digest uses no Plan Quota. */
   billing: Pick<Billing, "entitlements" | "plans" | "upgradeFor">;
+  /** The Job Offers Email intake gave the Profile (#447): in its Job Digest like the stored ones. */
+  receivedOffers: Pick<ReceivedOffers, "givenTo">;
   mailer: Mailer;
   /** Public origin of the web app; the email's links point here. */
   baseURL: string;
@@ -391,16 +396,27 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     return new Set([...rows.map((row) => row.id), ...saved.map((application) => application.jobOffer.id)]);
   }
 
-  /** The ids of the Job Offers the Candidate may see stored since the Profile's previous Job Digest (or the look-back), most recent first. */
+  /**
+   * The ids of the Job Offers the Candidate may see stored since the Profile's previous Job Digest (or the look-back),
+   * most recent first, then those Email intake gave the Profile since then (#447).
+   */
   async function poolOf(candidateId: string, profileId: string, at: Date, firstLookBackDays: number): Promise<string[]> {
-    const { rows } = await database.query<{ id: string }>(
-      `SELECT id FROM job_offer
-        WHERE created_at > COALESCE((SELECT max(sent_at) FROM job_digest WHERE profile_id = $1 AND candidate_id = $2), $3)
-          AND created_at <= $4 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous AND ${visibleTo("$2")}
-        ORDER BY created_at DESC LIMIT $5`,
-      [profileId, candidateId, new Date(at.getTime() - firstLookBackDays * DAY_MS), at, POOL_MAX],
-    );
-    return rows.map((row) => row.id);
+    const { rows: previous } = await database.query<{ since: Date | null }>(`SELECT max(sent_at) AS since FROM job_digest WHERE profile_id = $1 AND candidate_id = $2`, [
+      profileId,
+      candidateId,
+    ]);
+    const since = previous[0]?.since ?? new Date(at.getTime() - firstLookBackDays * DAY_MS);
+    const [{ rows }, received] = await Promise.all([
+      database.query<{ id: string }>(
+        `SELECT id FROM job_offer
+          WHERE created_at > $1 AND created_at <= $2 AND guest_expires_at IS NULL AND expired_at IS NULL AND NOT spontaneous AND ${visibleTo("$3")}
+          ORDER BY created_at DESC LIMIT $4`,
+        [since, at, candidateId, POOL_MAX],
+      ),
+      deps.receivedOffers.givenTo(candidateId, profileId, since, at),
+    ]);
+    // Email intake's are checked like any id: `eligible` keeps only those the Candidate may see.
+    return [...rows.map((row) => row.id), ...received];
   }
 
   /**
@@ -436,31 +452,28 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
     );
     const candidate = rows[0];
     if (!candidate) return;
-    const i18n = createI18n(candidate.interfaceLanguage);
-    const { t } = i18n;
-    const count = digest.results.length;
-    const day = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: DIGEST_TIME_ZONE });
-    const items = digest.results.slice(0, EMAIL_MAX_RESULTS).map(({ jobOffer, matchScore }) => {
-      const where = [jobOffer.employer, jobOffer.location].filter(Boolean).join(", ");
-      return [
-        `- ${jobOffer.title}${where ? ` (${where})` : ""}`,
-        `  ${t(matchScoreReliability(matchScore) === "partial" ? "jobDigest.email.matchScorePartial" : "jobDigest.email.matchScore", { score: matchScore.score })}`,
-        `  ${jobOffer.postedAt ? t("jobDigest.email.postedAt", { date: day.format(jobOffer.postedAt) }) : t("jobDigest.email.dateUnknown")}`,
-        `  ${new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString()}`,
-      ].join("\n");
-    });
-    const text = [
-      t("jobDigest.email.intro", { count, profile: digest.profile.name }),
-      items.join("\n\n"),
-      t("jobDigest.email.seeDigest", { count, url: new URL(routes.jobDigest(digest.id), deps.baseURL).toString() }),
-      t("jobDigest.email.signature"),
-      "--",
-      t("jobDigest.email.unsubscribe", { url: unsubscribePageURL(deps.baseURL, token, i18n.language as Locale) }),
-    ].join("\n\n");
+    const language: Locale = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;
+    const email = jobDigestEmail(
+      {
+        profileName: digest.profile.name,
+        count: digest.results.length,
+        offers: digest.results.slice(0, EMAIL_MAX_RESULTS).map(({ jobOffer, matchScore }) => ({
+          title: jobOffer.title,
+          employer: jobOffer.employer,
+          location: jobOffer.location,
+          postedAt: jobOffer.postedAt,
+          score: matchScore.score,
+          partial: matchScoreReliability(matchScore) === "partial",
+          url: new URL(routes.jobOffer(jobOffer.id, digest.profile.id), deps.baseURL).toString(),
+        })),
+        digestUrl: new URL(routes.jobDigest(digest.id), deps.baseURL).toString(),
+        unsubscribeUrl: unsubscribePageURL(deps.baseURL, token, language),
+      },
+      language,
+    );
     await deps.mailer.send({
       to: candidate.email,
-      subject: t("jobDigest.email.subject", { count, profile: digest.profile.name }),
-      text,
+      ...email,
       headers: {
         "List-Unsubscribe": `<${oneClickUnsubscribeURL(deps.baseURL, token)}>`,
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

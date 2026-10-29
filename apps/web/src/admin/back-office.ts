@@ -53,9 +53,13 @@ export const BACK_OFFICE_SECTIONS = [
   "job_discovery_sources",
   "job_discovery_sites",
   "job_sites",
+  // The platform's Recognised senders, on the Email intake sheet (#448).
+  "recognised_senders",
   "ai_messages",
   // A Job Search opened from Activité › Recherches (#404), named by its run; and an Administrator denied the Recherches.
   "discovery_runs",
+  // An Administrator denied Activité › Emails reçus (#449).
+  "received_emails",
   "coaching_playbooks",
   "eval_cases",
   "guardrails",
@@ -213,6 +217,7 @@ const DENIED_SECTIONS = {
   audit: "journal",
   discoveryRuns: "discovery_runs",
   jobSearches: "discovery_runs",
+  receivedEmails: "received_emails",
   planQuotas: "plan_quotas",
   plans: "plans",
   coupons: "coupons",

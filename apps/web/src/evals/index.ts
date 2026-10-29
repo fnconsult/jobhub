@@ -34,7 +34,7 @@ import { createCoach, MAX_MESSAGE_LENGTH, type CoachFocus } from "../coach";
 import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
-import { ALWAYS_ON_GUARDRAILS, createGuardrails, GUARDRAIL_IDS, type GuardrailConfig, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
+import { ALWAYS_ON_GUARDRAILS, createGuardrails, GUARDRAIL_IDS, guardrailSettingsOf, type GuardrailConfig, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
 import {
   AI_COACH_EVAL_CASES,
   EVAL_IN_VIEW_KINDS,
@@ -322,9 +322,14 @@ async function playAll<T, R>(items: readonly T[], play: (item: T) => Promise<R>)
 const mean = (values: number[]) => (values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : null);
 const sumCost = (calls: GenerateResult[]) => calls.reduce((sum, call) => sum + costInEur(call), 0);
 
-/** The verdict a Guardrail case expects on `settings`: one its Guardrail must block is flagged when it is set to flag only. */
-const expectedVerdict = (each: GuardrailEvalCase, settings: Record<GuardrailId, GuardrailSetting>): GuardrailVerdict =>
-  each.expected === "block" && !ALWAYS_ON_GUARDRAILS.includes(each.guardrail) && settings[each.guardrail] === "flag" ? "flag" : each.expected;
+/**
+ * The verdict a Guardrail case expects on `settings`: one its Guardrail must block is flagged when it is set to flag only,
+ * let through when it is switched off.
+ */
+function expectedVerdict(each: GuardrailEvalCase, settings: Record<GuardrailId, GuardrailSetting>): GuardrailVerdict {
+  if (each.expected !== "block" || ALWAYS_ON_GUARDRAILS.includes(each.guardrail)) return each.expected;
+  return settings[each.guardrail] === "flag" ? "flag" : settings[each.guardrail] === "off" ? "let_through" : "block";
+}
 
 interface RunRow {
   id: string;
@@ -561,22 +566,26 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
 
     async runGuardrails(starter, requested) {
       const startedAt = now();
-      const settings = Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, ALWAYS_ON_GUARDRAILS.includes(id) ? "block" : requested[id] === "flag" ? "flag" : "block"])) as Record<GuardrailId, GuardrailSetting>;
+      const settings = Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, guardrailSettingsOf(id).includes(requested[id]) ? requested[id] : "block"])) as Record<GuardrailId, GuardrailSetting>;
       const { messages } = await deps.guardrails.current();
       const results = await playAll(deps.cases?.guardrails ?? GUARDRAIL_EVAL_CASES, async (each): Promise<GuardrailCaseResult> => {
         const triggers: GuardrailTrigger[] = [];
         const guardrails = createGuardrails({ ai, config: { current: async () => ({ settings, messages }) }, triggers: { record: (trigger) => void triggers.push(trigger) } });
         const started = clock();
-        const guarded = await guardrails.guard("ai_coach", {
-          candidateId: "eval",
-          language: "fr",
-          message: each.message,
-          written: [each.message],
-          reply: async () => ({ text: each.reply ?? NEUTRAL_REPLY, secrets: [] }),
-        });
+        // An email case plays Email intake's reading, the reading as the case gives it; any other, the AI Coach's reply.
+        const email = each.email;
+        const guarded = email
+          ? await guardrails.guardEmail({ candidateId: "eval", email: { text: each.message, authenticated: email.authenticated }, read: async () => email.reading })
+          : await guardrails.guard("ai_coach", {
+              candidateId: "eval",
+              language: "fr",
+              message: each.message,
+              written: [each.message],
+              reply: async () => ({ text: each.reply ?? NEUTRAL_REPLY, secrets: [] }),
+            });
         const responseMs = Math.round(clock() - started);
-        const verdict: GuardrailVerdict =
-          guarded.outcome !== "replied" ? "block" : triggers.some((trigger) => trigger.guardrail === each.guardrail && trigger.action === "flagged") ? "flag" : "let_through";
+        const stopped = guarded.outcome !== "replied" && guarded.outcome !== "read";
+        const verdict: GuardrailVerdict = stopped ? "block" : triggers.some((trigger) => trigger.guardrail === each.guardrail && trigger.action === "flagged") ? "flag" : "let_through";
         const expected = expectedVerdict(each, settings);
         return { case: each, expected, verdict, passed: verdict === expected, costEur: sumCost(guarded.checks), responseMs };
       });

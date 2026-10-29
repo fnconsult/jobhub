@@ -50,6 +50,21 @@ describe.skipIf(!connectionString)("Guardrail settings, Guardrail messages and G
       expect(await store.setSetting("prompt_injection", "off")).toEqual({ ok: false, error: "invalid" });
       expect((await store.config.current()).settings.distress).toBe("block");
     });
+
+    it("switches the email Guardrail off, and back to flag only (#446)", async () => {
+      expect(await store.setSetting("email_injection", "off")).toEqual({ ok: true, before: "block", after: "off", changed: true });
+      expect((await store.config.current()).settings.email_injection).toBe("off");
+      expect(await store.setSetting("email_injection", "flag")).toEqual({ ok: true, before: "off", after: "flag", changed: true });
+      expect((await store.list()).find((each) => each.id === "email_injection")).toMatchObject({ setting: "flag", alwaysOn: false, settings: ["block", "flag", "off"] });
+    });
+  });
+
+  describe("the email Guardrail, which answers no one (#446)", () => {
+    it("has no Guardrail message to serve, write or validate", async () => {
+      expect((await store.list()).find((each) => each.id === "email_injection")).toMatchObject({ messages: null });
+      expect(await store.saveMessage(claire, "email_injection", "fr", "Écarté.")).toEqual({ ok: false, error: "not_found" });
+      expect(Object.keys((await store.config.current()).messages)).not.toContain("email_injection");
+    });
   });
 
   describe("Guardrail messages", () => {
@@ -84,7 +99,7 @@ describe.skipIf(!connectionString)("Guardrail settings, Guardrail messages and G
       expect(changed).toMatchObject({ ok: true, before: { version: 1 }, version: { version: 2, validation: null } });
       expect((await production.config.current()).messages.prompt_injection.fr).toBe("Version 1");
       expect((await store.config.current()).messages.prompt_injection.fr).toBe("Version 2");
-      expect((await production.list()).find((each) => each.id === "prompt_injection")!.messages.fr).toMatchObject({ latest: { version: 2 }, served: { version: 1 } });
+      expect((await production.list()).find((each) => each.id === "prompt_injection")!.messages!.fr).toMatchObject({ latest: { version: 2 }, served: { version: 1 } });
     });
 
     it("validates only the latest version, once", async () => {

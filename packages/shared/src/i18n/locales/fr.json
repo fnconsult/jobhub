@@ -132,7 +132,11 @@
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",
-    "body": "Bonjour,\n\nCliquez sur ce lien pour vous connecter à Jobbbox :\n{{url}}\n\nCe lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.\nSi vous n'avez pas demandé à vous connecter, ignorez simplement ce message.\n\nL'équipe Jobbbox"
+    "title": "Connectez-vous à Jobbbox",
+    "action": "Me connecter à Jobbbox",
+    "validity": "Ce lien est valable {{minutes}} minutes et ne fonctionne qu'une seule fois.",
+    "ignore": "Si vous n'avez pas demandé à vous connecter, ignorez simplement ce message.",
+    "reason": "Vous recevez cet e-mail parce qu'un lien de connexion à Jobbbox a été demandé pour cette adresse."
   },
   "nav": {
     "signIn": "Se connecter",
@@ -211,11 +215,18 @@
   },
   "webSearchAlert": {
     "subject": "Jobbbox : la recherche web a dépassé son seuil d'alerte de {{month}}",
-    "body": "Bonjour,\n\nLa recherche web a coûté {{spend}} en {{month}} (heure de Paris), au-delà du seuil d'alerte mensuel de {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Rien n'est coupé : la découverte d'offres et les dossiers entreprise continuent de chercher.\n\nCe montant est estimé aux prix en vigueur de chaque unité facturée (appel, requête, crédit), sans déduire les crédits gratuits des fournisseurs. Les prix et le seuil se règlent dans l'onglet Recherche web de Paramètres.\n\nLe détail est dans Consommation IA :\n{{url}}\n\nVous ne recevrez pas d'autre alerte ce mois-ci.\n\nL'équipe Jobbbox"
+    "title": "La recherche web a dépassé son seuil d'alerte de {{month}}",
+    "spend": "La recherche web a coûté {{spend}} en {{month}} (heure de Paris), au-delà du seuil d'alerte mensuel de {{threshold}} (WEB_SEARCH_MONTHLY_ALERT_EUR). Rien n'est coupé : la découverte d'offres et les dossiers entreprise continuent de chercher.",
+    "estimate": "Ce montant est estimé aux prix en vigueur de chaque unité facturée (appel, requête, crédit), sans déduire les crédits gratuits des fournisseurs. Les prix et le seuil se règlent dans l'onglet Recherche web de Paramètres.",
+    "action": "Voir le détail dans Consommation IA",
+    "last": "Vous ne recevrez pas d'autre alerte ce mois-ci."
   },
   "appleAlert": {
     "subject": "Jobbbox : la connexion avec Apple doit être réparée",
-    "body": "Bonjour,\n\nLe worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :\n\n{{failures}}\n\nTant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres :\n{{url}}\n\nL'équipe Jobbbox",
+    "title": "La connexion avec Apple doit être réparée",
+    "intro": "Le worker n'a pas pu signer un nouveau secret client pour la connexion avec Apple :",
+    "outro": "Tant que ce n'est pas réparé, la connexion avec Apple s'arrêtera à l'expiration du secret en cours (sa date est affichée dans le back office). Vérifiez l'identifiant d'équipe, l'identifiant de clé et la clé .p8 dans l'onglet Connexion de Paramètres.",
+    "action": "Ouvrir l'onglet Connexion",
     "reasons": {
       "missing_secret": "l'identifiant d'équipe, l'identifiant de clé ou la clé .p8 manque ou ne se déchiffre plus (clé maîtresse retirée ?)",
       "invalid_apple_key": "La clé .p8 ou un identifiant enregistré ne permet pas de signer le secret",
@@ -300,7 +311,122 @@
       "error": "Une erreur est survenue. Réessayez.",
       "invalid": "Saisissez une adresse e-mail valide.",
       "too_many": "Vous avez déjà ajouté 10 adresses : retirez-en une d'abord."
-    }
+    },
+    "wizardLink": "Configurer le transfert pas à pas"
+  },
+  "forwardingWizard": {
+    "title": "Configurer le transfert pas à pas",
+    "intro": "Quelques étapes pour que les alertes d'offres de votre messagerie arrivent à Jobbbox. Rien n'est fait dans votre messagerie à votre place : vous gardez la main.",
+    "progress": "Étape {{current}} sur {{total}}",
+    "back": "Retour",
+    "next": "Continuer",
+    "steps": {
+      "provider": "Votre messagerie",
+      "switchOn": "Activer la réception par email",
+      "address": "Votre adresse de transfert",
+      "confirmation": "Le code de confirmation de Gmail",
+      "firstEmail": "Le premier email",
+      "done": "C'est prêt"
+    },
+    "provider": {
+      "legend": "Quelle messagerie reçoit vos alertes d'offres ?",
+      "names": {
+        "gmail": "Gmail",
+        "outlook": "Outlook.com (Hotmail, Live)",
+        "icloud": "iCloud Mail",
+        "orange": "Orange",
+        "other": "Autre (Yahoo, AOL, Free, SFR…)"
+      }
+    },
+    "switchOn": {
+      "read": "Ce qui est lu : seul le texte des emails qui arrivent à votre adresse de transfert, venant d'expéditeurs d'alertes reconnus ou de vos propres adresses. Jamais leurs pièces jointes ni leurs images.",
+      "kept": "Ce qui est gardé : les offres trouvées. Le texte d'un email n'est pas gardé une fois lu (au plus 72 heures, chiffré, s'il faut le relire).",
+      "ai": "Traitement par IA : un modèle d'IA hébergé dans l'Union européenne lit chaque email pour en tirer les offres.",
+      "date": "La date d'activation est enregistrée. Vous pouvez changer d'adresse ou désactiver à tout moment.",
+      "off": "La réception par email n'est pas encore activée.",
+      "action": "Activer et continuer"
+    },
+    "address": {
+      "explanation": "Copiez cette adresse : c'est vers elle que votre messagerie transférera vos alertes. Elle est à vous seul."
+    },
+    "hint": {
+      "settings": "Les réglages de la messagerie sont en général derrière la roue dentée, en haut à droite. Faites ces étapes sur un ordinateur."
+    },
+    "guides": {
+      "gmailAddress": {
+        "title": "Ajouter votre adresse de transfert dans Gmail",
+        "steps": {
+          "1": "Ouvrez Gmail sur un ordinateur, puis les paramètres (la roue dentée) et « Voir tous les paramètres ».",
+          "2": "Ouvrez l'onglet consacré au transfert (« Transfert et POP/IMAP »).",
+          "3": "Choisissez « Ajouter une adresse de transfert » et collez votre adresse de transfert.",
+          "4": "Validez : Gmail envoie un code de confirmation à cette adresse. Jobbbox le reçoit et vous le montre à l'étape suivante.",
+          "5": "Ne choisissez pas de transférer tout votre courrier : seules vos alertes seront transférées, par un filtre, juste après."
+        }
+      },
+      "gmailFilter": {
+        "title": "Transférer vos alertes par un filtre Gmail",
+        "steps": {
+          "1": "Laissez le transfert automatique désactivé dans l'onglet de transfert : c'est le filtre qui transfère.",
+          "2": "Dans la barre de recherche de Gmail, ouvrez les options de recherche.",
+          "3": "Dans « De », saisissez les expéditeurs de vos alertes séparés par OR, par exemple : linkedin.com OR indeed.com OR cadremploi.fr.",
+          "4": "Choisissez « Créer un filtre ».",
+          "5": "Cochez « Le transférer à » et choisissez votre adresse de transfert.",
+          "6": "Validez en créant le filtre."
+        }
+      },
+      "outlook": {
+        "title": "Transférer vos alertes par une règle Outlook.com",
+        "notice": "Outlook.com peut vous demander d'activer la vérification en deux étapes, ou de confirmer votre identité, avant d'autoriser un transfert. Les libellés peuvent différer de ceux cités ici.",
+        "steps": {
+          "1": "Ouvrez Outlook.com sur un ordinateur, puis les paramètres (la roue dentée).",
+          "2": "Ouvrez la partie Courrier, puis les règles.",
+          "3": "Ajoutez une règle dont la condition est l'expéditeur : saisissez les expéditeurs de vos alertes (linkedin.com, indeed.com, cadremploi.fr…).",
+          "4": "Comme action, choisissez de transférer le message, vers votre adresse de transfert.",
+          "5": "Enregistrez la règle.",
+          "6": "Si Outlook.com demande de vérifier votre identité, suivez ses instructions : c'est sa protection habituelle du transfert."
+        }
+      },
+      "icloud": {
+        "title": "Transférer vos alertes par une règle iCloud Mail",
+        "notice": "Une règle iCloud ne transfère qu'à une seule adresse. Les libellés peuvent différer de ceux cités ici.",
+        "steps": {
+          "1": "Ouvrez icloud.com/mail sur un ordinateur, puis les réglages.",
+          "2": "Ouvrez les règles et ajoutez-en une.",
+          "3": "Comme condition, choisissez l'expéditeur, et saisissez celui d'une de vos alertes (une règle par expéditeur si besoin).",
+          "4": "Comme action, choisissez de transférer, vers votre adresse de transfert.",
+          "5": "Enregistrez la règle."
+        }
+      },
+      "manual": {
+        "title": "Transférer vos alertes à la main",
+        "orangeNotice": "Le transfert automatique d'Orange n'a pas encore été testé par Jobbbox et peut être restreint par Orange : transférez vos alertes à la main pour l'instant.",
+        "otherNotice": "Yahoo et AOL ne proposent le transfert automatique qu'avec Mail Plus. Pour Free, SFR et les autres messageries, transférez vos alertes à la main tant que leur transfert automatique n'est pas testé.",
+        "steps": {
+          "1": "Ouvrez une alerte d'offres, ou le message d'un recruteur.",
+          "2": "Choisissez « Transférer ».",
+          "3": "Collez votre adresse de transfert comme destinataire, puis envoyez.",
+          "4": "Envoyez-le depuis l'une de vos adresses listées ci-dessous : un email transféré à la main n'est lu que s'il vient de l'une d'elles."
+        }
+      }
+    },
+    "confirmation": {
+      "explanation": "Gmail envoie un code de confirmation à votre adresse de transfert. Saisissez-le dans Gmail, ou ouvrez le lien de confirmation.",
+      "waiting": "En attente du code de Gmail…",
+      "codeLabel": "Code de confirmation",
+      "link": "Confirmer avec le lien de Gmail",
+      "unreadable": "La confirmation de Gmail est arrivée, mais son code ne peut plus être lu : renvoyez-la depuis Gmail."
+    },
+    "firstEmail": {
+      "explanation": "Dès qu'un email arrive à votre adresse de transfert, le transfert est confirmé. Attendez votre prochaine alerte, ou transférez-en une à la main. Cela peut prendre quelques minutes, parfois plus.",
+      "waiting": "En attente du premier email…",
+      "received": "Premier email reçu le {{date}}.",
+      "unrecognised": "Il vient d'un expéditeur non reconnu : il n'a pas été lu. Vos alertes, elles, le seront."
+    },
+    "done": {
+      "explanation": "Les offres des emails transférés apparaîtront dans « Reçues par email », sur la page Recherches d'offres.",
+      "back": "Retour à Réception par email"
+    },
+    "error": "Une erreur est survenue. Réessayez."
   },
   "euAiConsent": {
     "title": "IA européenne pour vos données d'identité",
@@ -1000,7 +1126,9 @@
       "tools": "Outils",
       "unansweredQuestions": "Questions sans réponse",
       "activity": "Activité",
-      "discoveryRuns": "Recherches"
+      "discoveryRuns": "Recherches",
+      "designSystem": "Design System",
+      "receivedEmails": "Emails reçus"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1335,7 +1463,8 @@
           "france_travail": "API France Travail",
           "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
-          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)"
+          "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)",
+          "email_intake": "Réception par email (Brevo Inbound)"
         },
         "awaitingAccess": "En attente d'accès",
         "accessRefused": "Indisponible : accès refusé par France Travail (API Offres d'emploi). Les recherches d'offres continuent sans elle."
@@ -1380,6 +1509,58 @@
         "siteExists": "Ce site est déjà dans la liste.",
         "siteForbidden": "Ce site interdit l'exploration dans ses conditions d'utilisation : il ne peut pas être ajouté ni activé.",
         "notFound": "Cet élément n'existe plus. La page a été actualisée."
+      }
+    },
+    "emailIntake": {
+      "settingsTitle": "Réglages de la réception par email",
+      "settingsCaption": "Réglages de la réception par email",
+      "senders": {
+        "title": "Expéditeurs reconnus",
+        "intro": "Seuls les emails d'un expéditeur reconnu sont lus, authentifié par son domaine, ou par son adresse complète quand le domaine envoie pour plusieurs entreprises (jobs2web.com). Un expéditeur désactivé reste listé et n'est plus lu.",
+        "caption": "Expéditeurs reconnus de la plateforme",
+        "sender": "Expéditeur",
+        "match": "Reconnu par",
+        "matches": {
+          "domain": "Domaine",
+          "address": "Adresse complète"
+        },
+        "label": "Libellé",
+        "status": "État",
+        "actions": "Actions",
+        "platformList": "Liste de la plateforme",
+        "enable": "Activer {{sender}}",
+        "disable": "Désactiver {{sender}}",
+        "remove": "Supprimer {{sender}}",
+        "relabel": "Changer le libellé de {{sender}}",
+        "newLabel": "Nouveau libellé de {{sender}}",
+        "saveLabel": "Enregistrer le libellé de {{sender}}",
+        "addTitle": "Ajouter un expéditeur",
+        "senderField": "Domaine ou adresse de l'expéditeur",
+        "senderHelp": "Un domaine (alertes.exemple.fr) ou, pour une plateforme d'envoi partagée, l'adresse complète.",
+        "labelField": "Libellé",
+        "labelHelp": "« plateforme ou entreprise – site », 120 caractères au plus, pour la lecture seulement.",
+        "add": "Ajouter l'expéditeur",
+        "none": "Aucun expéditeur reconnu : aucun email n'est lu, sauf les transferts manuels des candidats."
+      },
+      "proposed": {
+        "title": "Expéditeurs proposés",
+        "intro": "Les expéditeurs que des candidats ont ajoutés pour eux seuls et que la liste de la plateforme n'a pas : combien de candidats, jamais lesquels. Accepter en ajoute un à la liste, pour tous.",
+        "caption": "Expéditeurs proposés par les candidats",
+        "candidates": "Candidats",
+        "lastAdded": "Dernier ajout",
+        "proposedBy_one": "Proposé par {{count}} candidat",
+        "proposedBy_other": "Proposé par {{count}} candidats",
+        "labelFor": "Libellé de {{sender}}",
+        "accept": "Accepter {{sender}}",
+        "none": "Aucun expéditeur proposé."
+      },
+      "notices": {
+        "added": "Expéditeur ajouté à la liste de la plateforme.",
+        "updated": "Expéditeur enregistré.",
+        "removed": "Expéditeur supprimé de la liste.",
+        "invalid": "Indiquez un domaine ou une adresse d'expéditeur, et un libellé de 120 caractères au plus.",
+        "exists": "Cet expéditeur est déjà dans la liste.",
+        "notFound": "Cet expéditeur n'est plus dans la liste."
       }
     },
     "providerSecrets": {
@@ -1465,6 +1646,7 @@
       "groups": {
         "ai_routing": "Routage de l'IA",
         "email": "E-mail",
+        "email_intake": "Réception par email",
         "job_digest": "Job Digest",
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
@@ -1524,7 +1706,7 @@
       "save": "Enregistrer",
       "restore": "Rétablir",
       "restoreHelp": "Efface la valeur du back office : celle de l'environnement s'applique, sinon le défaut du code.",
-      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (données personnelles hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite dans Activité.",
+      "editIntro": "Une valeur enregistrée s'applique en quelques secondes dans l'application et le worker, sans redémarrage (au prochain e-mail, pour l'expéditeur). Une modification du routage de l'IA est vérifiée avant d'être enregistrée : une route que la couche IA refuserait (une tâche réservée à l'UE envoyée hors UE, clé manquante) est refusée, et un modèle nommé est testé par un appel. Chaque modification et chaque tentative refusée est inscrite dans Activité.",
       "rules": {
         "whole": "un nombre entier de {{min}} à {{max}}",
         "wholeAboveMin": "un nombre entier supérieur à {{min}}, jusqu'à {{max}}",
@@ -1701,7 +1883,7 @@
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
-        },
+      },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
         "sourcePlaybook": "Playbook, version {{version}}",
@@ -1753,7 +1935,8 @@
           "providerHelp": "Un fournisseur hors UE reçoit des appels expurgés de l'identité du Candidat ; un fournisseur sans clé peut être choisi, ses appels échouent jusqu'à ce qu'elle soit saisie.",
           "model": "Modèle",
           "modelHelp": "Vide : le modèle par défaut du fournisseur. Un modèle saisi est testé par un appel à l'enregistrement, sauf si la clé du fournisseur manque.",
-          "personalData": "Cette tâche reçoit des données personnelles : un fournisseur hors UE est refusé à l'enregistrement, et les appels avec identité suivent le consentement IA UE.",
+          "personalData": "Cette tâche reçoit des données personnelles : un fournisseur hors UE reçoit des appels expurgés de l'identité du Candidat, et les appels avec identité suivent le consentement IA UE.",
+          "euOnly": "Cette tâche ne s'exécute que dans l'UE : un fournisseur hors UE est refusé à l'enregistrement.",
           "noPersonalData": "Cette tâche ne reçoit aucune donnée personnelle : un fournisseur hors UE est permis.",
           "applies": "Enregistrer s'applique dès le prochain appel, sans redémarrage ; un run déjà lancé garde son modèle. Le changement est inscrit dans le Journal.",
           "restore": "Rétablir le défaut",
@@ -1838,6 +2021,7 @@
         "job_discovery_sources": "Sources de la recherche d'offres",
         "job_discovery_sites": "Sites de la recherche d'offres",
         "job_sites": "Sites de l'extension",
+        "recognised_senders": "Expéditeurs reconnus (Réception par email)",
         "sign_in_providers": "Connexion",
         "ai_messages": "Activité › Appels IA",
         "coaching_playbooks": "Playbooks de coaching",
@@ -1851,7 +2035,8 @@
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
-        "discovery_runs": "Activité › Recherches"
+        "discovery_runs": "Activité › Recherches",
+        "received_emails": "Activité › Emails reçus"
       },
       "actions": {
         "added": "Ajout",
@@ -1903,6 +2088,24 @@
       "toolCall": "Appel",
       "toolCallResult": "{{outcome}}, {{duration}}",
       "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées.",
+      "linkedMailboxes": "Boîtes reliées",
+      "linkedMailboxesIntro": "Avec le filtre Boîtes reliées, chaque boîte reliée activée, dont l'adresse de transfert est remplacée ou coupée, ou qui atteint son plafond du jour, apparaît à côté des modifications du back office. Aucun candidat, aucune adresse, aucun contenu d'email n'est enregistré ; gardé {{months}} mois.",
+      "linkedMailboxesCaption": "Modifications du back office et événements des boîtes reliées, des plus récents aux plus anciens",
+      "byCandidate": "Un candidat",
+      "byEmailIntake": "Jobbbox (réception des emails)",
+      "linkedMailboxTarget": "Boîte reliée (adresse de transfert)",
+      "linkedMailboxEvents": {
+        "switched_on": "Activée",
+        "replaced": "Adresse remplacée",
+        "switched_off": "Coupée",
+        "daily_cap_reached": "Plafond du jour atteint"
+      },
+      "linkedMailboxEventDetails": {
+        "switched_on": "Le candidat a activé la réception de ses emails d'offres ; une adresse de transfert lui a été donnée.",
+        "replaced": "Le candidat a remplacé son adresse de transfert : l'ancienne ne reçoit plus rien.",
+        "switched_off": "Le candidat a coupé la réception de ses emails : son adresse ne reçoit plus rien.",
+        "daily_cap_reached": "Plafond d'emails du jour atteint : les emails suivants de ce jour sont écartés sans être lus."
+      },
       "outcome": "Résultat",
       "outcomes": {
         "succeeded": "Réussi",
@@ -1996,6 +2199,7 @@
         "web_search": "Recherche web",
         "back_office_assistant": "Assistant du back office",
         "guardrail": "Garde-fous",
+        "email_guardrail": "Garde-fou des emails",
         "eval": "Évaluations"
       },
       "reasonsTitle": "Échecs et avertissements par raison",
@@ -2093,6 +2297,7 @@
       "validatedBy": "validée par {{name}} le {{date}}",
       "notValidated": "non validée",
       "defaultModel": "modèle par défaut ({{model}})",
+      "defaultModelByEffort": "modèle par défaut (selon l'effort)",
       "providerDefault": "modèle par défaut",
       "agentSummary": "{{provider}} · {{model}} · effort {{effort}}",
       "efforts": {
@@ -2224,7 +2429,7 @@
     },
     "guardrails": {
       "title": "Garde-fous",
-      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise) est toujours transmis comme une donnée, jamais comme une instruction.",
+      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent, ainsi que les emails reçus par la réception par email avant qu'une IA ne les lise. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise, emails) est toujours transmis comme une donnée, jamais comme une instruction.",
       "servingValidated": "En production, un message n'est servi qu'une fois validé par un administrateur nommé autre que son auteur, chaque langue à part. D'ici là, le texte par défaut de Jobbbox s'applique.",
       "servingLatest": "Dans cet environnement, le dernier message écrit est servi, validé ou non. En production, seul un message validé l'est.",
       "caption": "Les garde-fous et leur réglage",
@@ -2233,26 +2438,31 @@
       "setting": "Réglage",
       "settingLabel": "Quand il détecte quelque chose",
       "settingHelp": "Bloquer : le message n'est pas envoyé, ou la réponse est réécrite une fois puis remplacée par le message du garde-fou. Signaler seulement : tout passe, et le déclenchement est compté.",
+      "settingHelpEmail": "Bloquer : l'email n'est pas lu par l'IA, ne donne aucune offre et est écarté par un garde-fou. Signaler seulement : il est lu, et le déclenchement est compté. Désactivé : aucun contrôle à l'entrée ; les règles fixes sur la lecture s'appliquent toujours.",
       "saveSetting": "Enregistrer le réglage",
       "alwaysOn": "Bloque toujours",
       "alwaysOnHelp": "Ce garde-fou bloque toujours : il ne peut pas être réglé sur « signaler seulement ».",
+      "noMessage": "Ce garde-fou n'affiche aucun message : personne ne lit sa réponse. Un email bloqué apparaît « écarté par un garde-fou » pour le candidat et dans Activité.",
       "settings": {
         "block": "Bloquer",
-        "flag": "Signaler seulement"
+        "flag": "Signaler seulement",
+        "off": "Désactivé"
       },
       "names": {
         "prompt_injection": "Injection d'instructions",
         "personal_data_leak": "Fuite de données personnelles",
         "secret_disclosure": "Divulgation de secrets",
         "harmful_advice": "Conseil hors rôle ou dangereux",
-        "distress": "Détresse"
+        "distress": "Détresse",
+        "email_injection": "Contenu piégé dans un email"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
         "personal_data_leak": "Une réponse qui donne les coordonnées ou les données personnelles d'un tiers.",
         "secret_disclosure": "Une réponse qui dévoile les instructions de l'IA, les règles des playbooks de coaching ou une clé (Provider Secrets).",
         "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
-        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté."
+        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
+        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée."
       },
       "languages": {
         "fr": "français",
@@ -2520,6 +2730,8 @@
         "cases": "Cas joués",
         "context": "Situation",
         "message": "Message",
+        "email": "Email reçu (son texte, tel que la réception par email le garde)",
+        "emailReading": "Lecture que l'IA est censée donner",
         "inView": "Consulte",
         "criteria": "Critères",
         "consults": "Playbook à consulter",
@@ -2637,9 +2849,59 @@
       "tabsLabel": "Onglets d'Activité",
       "tabs": {
         "discoveryRuns": "Recherches",
+        "receivedEmails": "Emails reçus",
         "aiMessages": "Appels IA",
         "audit": "Actions des administrateurs"
       }
+    },
+    "receivedEmails": {
+      "intro": "Chaque email d'offres reçu par l'adresse de transfert d'un candidat (Email intake) : quand, le domaine de l'expéditeur, son type, les offres trouvées et ce qu'il est devenu. Aucun candidat n'est nommé et rien du contenu de l'email n'est gardé ici ; chaque ligne est gardée {{months}} mois, même après la suppression du compte du candidat.",
+      "filter": "Filtrer les emails reçus",
+      "outcome": "Résultat",
+      "anyOutcome": "Tous les résultats",
+      "outcomes": {
+        "awaiting_reading": "En attente de lecture",
+        "offers_found": "Offres trouvées",
+        "other": "Autre",
+        "set_aside_by_guardrail": "Écarté par un garde-fou",
+        "unrecognised_sender": "Expéditeur non reconnu",
+        "over_daily_cap": "Plafond atteint",
+        "forwarding_confirmation": "Confirmation de transfert",
+        "failed": "Échec"
+      },
+      "kind": "Type",
+      "anyKind": "Tous les types",
+      "kinds": {
+        "alert": "Alerte",
+        "recruiter": "Recruteur",
+        "other": "Autre"
+      },
+      "period": "Période",
+      "periods": {
+        "today": "Aujourd'hui",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "all": "Tout (24 mois)"
+      },
+      "apply": "Afficher",
+      "none": "Aucun email reçu sur cette période.",
+      "count_one": "{{count}} email",
+      "count_other": "{{count}} emails",
+      "limit": "Seuls les {{count}} emails les plus récents sont affichés.",
+      "caption": "Emails d'offres reçus, du plus récent au plus ancien",
+      "at": "Reçu le",
+      "sender": "Domaine de l'expéditeur",
+      "manualForward": "transféré à la main",
+      "offers": "Offres nouvelles / déjà là",
+      "offersValue": "{{new}} / {{alreadyStored}}",
+      "guardrail": "Garde-fou",
+      "guardrails": {
+        "passed": "Passé",
+        "flagged": "Signalé",
+        "blocked": "Bloqué"
+      },
+      "notRead": "Non lu",
+      "noCandidate": "Aucun nom, e-mail ni identifiant de candidat ici, et rien du contenu des emails."
     },
     "discoveryRuns": {
       "intro": "Chaque run de la recherche d'offres (Job discovery), lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest : ses recherches et ce qu'elles ont donné. Les requêtes, les critères et le lien vers la recherche du candidat sont gardés {{days}} jours ; les chiffres des runs, {{months}} mois.",
@@ -3437,11 +3699,15 @@
     "abandonAccept": "Classer comme abandonnée",
     "email": {
       "subject": "Une relance vous attend : {{title}}",
-      "body": "Bonjour,\n\nVotre candidature « {{title}} » est restée sans réponse. Votre coach Jobbbox vous a préparé un brouillon de relance : relisez-le, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé.\n\n{{url}}\n\nL'équipe Jobbbox"
+      "title": "Une relance vous attend",
+      "body": "Votre candidature « {{title}} » est restée sans réponse. Votre coach Jobbbox vous a préparé un brouillon de relance : relisez-le, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé.",
+      "action": "Lire la relance"
     },
     "abandonEmail": {
       "subject": "Toujours sans réponse : {{title}}",
-      "body": "Bonjour,\n\nVos relances pour « {{title}} » sont restées sans réponse. Votre coach Jobbbox vous suggère de classer cette candidature comme abandonnée.\n\n{{url}}\n\nL'équipe Jobbbox"
+      "title": "Toujours sans réponse",
+      "body": "Vos relances pour « {{title}} » sont restées sans réponse. Votre coach Jobbbox vous suggère de classer cette candidature comme abandonnée.",
+      "action": "Ouvrir la candidature"
     },
     "noticesTitle": "Relances à faire",
     "noticeFollowUp": "Relance prête : {{title}}",
@@ -3455,7 +3721,9 @@
     "delaysInvalid": "Indiquez un nombre entier de jours ouvrés, de 1 à {{max}}.",
     "delaysError": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
     "noneWaiting": "Aucune relance à faire pour l'instant.",
-    "delaysIntro": "Votre coach propose une relance quand une candidature reste sans nouvelles après ces délais."
+    "delaysIntro": "Votre coach propose une relance quand une candidature reste sans nouvelles après ces délais.",
+    "emailReason": "Vous recevez cet e-mail parce qu'une de vos candidatures est restée sans réponse au-delà de votre délai de relance.",
+    "emailSettings": "Modifier mes délais de relance"
   },
   "humanCoaches": {
     "title": "Mes coachs humains",
@@ -3589,16 +3857,18 @@
     "email": {
       "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
       "subject_other": "Job Digest « {{profile}} » : {{count}} nouvelles offres",
-      "intro_one": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
-      "intro_other": "Bonjour,\n\nVotre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
+      "title_one": "{{count}} nouvelle offre pour « {{profile}} »",
+      "title_other": "{{count}} nouvelles offres pour « {{profile}} »",
+      "intro_one": "Votre coach a trouvé {{count}} nouvelle offre pour votre profil « {{profile}} » :",
+      "intro_other": "Votre coach a trouvé {{count}} nouvelles offres pour votre profil « {{profile}} », de la plus proche à la moins proche de votre CV de référence :",
       "matchScore": "score de correspondance : {{score}} / 100",
       "matchScorePartial": "score de correspondance : {{score}} / 100, partiel",
       "postedAt": "publiée le {{date}}",
       "dateUnknown": "date de publication : date inconnue",
-      "seeDigest_one": "Retrouvez ce Job Digest dans Jobbbox :\n{{url}}",
-      "seeDigest_other": "Retrouvez ce Job Digest et ses {{count}} offres dans Jobbbox :\n{{url}}",
-      "unsubscribe": "Ne plus recevoir le Job Digest de ce profil :\n{{url}}",
-      "signature": "L'équipe Jobbbox"
+      "seeDigest_one": "Voir l'offre",
+      "seeDigest_other": "Voir les {{count}} offres",
+      "reason": "Vous recevez cet e-mail parce que le Job Digest de votre profil « {{profile}} » est activé.",
+      "unsubscribe": "Ne plus recevoir le Job Digest de ce profil"
     },
     "unsubscribePage": {
       "title": "Se désabonner du Job Digest",
@@ -3641,6 +3911,43 @@
     "groupTitle": "Offres pour « {{profile}} »",
     "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
     "searchThisProfile": "Chercher pour ce profil seul"
+  },
+  "receivedByEmail": {
+    "title": "Reçues par email",
+    "fresh_one": "{{count}} nouvelle cette semaine",
+    "fresh_other": "{{count}} nouvelles cette semaine",
+    "intro_one": "{{count}} offre tirée de vos emails d'offres pour ce profil, la plus récente en premier.",
+    "intro_other": "{{count}} offres tirées de vos emails d'offres pour ce profil, les plus récentes en premier.",
+    "none": "Aucune offre reçue par email pour ce profil pour l'instant.",
+    "off": "Recevez aussi ici les offres de vos alertes d'emploi et des messages de recruteurs, en les transférant à Jobbbox.",
+    "setUp": "Configurer le transfert pas à pas",
+    "listLabel": "Offres reçues par email pour « {{profile}} »",
+    "receivedFrom": "Reçue le {{date}} de {{domain}}",
+    "unclassified": {
+      "title": "Non classées",
+      "intro": "Offres reçues par email qu'aucun de vos profils ne rejoint assez (correspondance sous 60), la plus récente en premier.",
+      "none": "Aucune offre non classée.",
+      "listLabel": "Offres reçues par email non classées",
+      "bestScore": "Meilleure correspondance : {{score}} sur 100"
+    },
+    "ignored": {
+      "title_one": "{{count}} mail ignoré cette semaine",
+      "title_other": "{{count}} mails ignorés cette semaine",
+      "intro": "Ces emails n'ont donné aucune offre. Seuls leur raison, le domaine de l'expéditeur et la date sont gardés, jamais leur contenu.",
+      "listLabel": "Mails ignorés cette semaine",
+      "item": "{{reason}} : {{domain}}, le {{date}}",
+      "reasons": {
+        "other": "Autre",
+        "unrecognised_sender": "Expéditeur non reconnu",
+        "guardrail": "Écarté par un garde-fou",
+        "failed": "Échec"
+      }
+    },
+    "tooBroad": {
+      "title": "Filtre trop large",
+      "text": "{{count}} emails sont arrivés à votre adresse de transfert le {{date}}. Votre filtre transfère sans doute plus que vos alertes d'offres : resserrez-le.",
+      "link": "Revoir le transfert pas à pas"
+    }
   },
   "failureReasons": {
     "provider_unavailable": "Fournisseur indisponible",
@@ -3711,8 +4018,10 @@
     "email": {
       "subject_one": "Rappel : votre rendez-vous de demain, {{date}}",
       "subject_other": "Rappel : vos {{count}} rendez-vous de demain, {{date}}",
-      "intro_one": "Bonjour,\n\nPour vous y préparer, voici votre rendez-vous de demain, {{date}} :",
-      "intro_other": "Bonjour,\n\nPour vous y préparer, voici vos {{count}} rendez-vous de demain, {{date}} :",
+      "title_one": "Votre rendez-vous de demain",
+      "title_other": "Vos {{count}} rendez-vous de demain",
+      "intro_one": "Pour vous y préparer, voici votre rendez-vous de demain, {{date}} :",
+      "intro_other": "Pour vous y préparer, voici vos {{count}} rendez-vous de demain, {{date}} :",
       "interview": "{{time}} · Entretien : {{title}}",
       "interviewAt": "{{time}} · Entretien : {{title}} chez {{employer}}",
       "coachingSession": "{{time}} · Séance de coaching avec {{coach}}",
@@ -3721,9 +4030,9 @@
       "place": "Lieu ou lien : {{place}}",
       "videoLink": "Lien : {{url}}",
       "note": "Note : {{note}}",
-      "seeAgenda": "Retrouvez-les dans votre agenda :\n{{url}}",
-      "signature": "L'équipe Jobbbox",
-      "settings": "Ne plus recevoir ces rappels :\n{{url}}"
+      "seeAgenda": "Ouvrir mon agenda",
+      "reason": "Vous recevez cet e-mail parce que les rappels de rendez-vous sont activés dans votre compte.",
+      "settings": "Ne plus recevoir ces rappels"
     },
     "settings": {
       "title": "Rappels de rendez-vous",
@@ -3978,6 +4287,44 @@
     "close": "Fermer",
     "cancel": "Annuler",
     "ring": "{{label}} : {{value}} sur 100",
+    "page": {
+      "intro": "Chaque couleur, la typographie et chaque composant du Design System, dans le thème et la Densité choisis ici, pour cette page seulement. Les écrans sont vérifiés par rapport à elle.",
+      "theme": "Thème",
+      "light": "Clair",
+      "dark": "Sombre",
+      "density": "Densité",
+      "confort": "Confort",
+      "compact": "Compact",
+      "foundations": "Fondations",
+      "colors": "Couleurs",
+      "token": "Jeton",
+      "swatch": "Aperçu",
+      "lightValue": "Clair",
+      "darkValue": "Sombre",
+      "typography": "Typographie",
+      "typeShown": "{{density}} · corps {{size}} px",
+      "style": "Style",
+      "sample": "Exemple",
+      "px": "{{size}} px",
+      "styles": {
+        "h1": "Titre de page",
+        "h2": "Titre de section",
+        "h3": "Sous-titre",
+        "lead": "Chapeau",
+        "body": "Corps",
+        "meta": "Métadonnée"
+      },
+      "samples": {
+        "h1": "Mes candidatures",
+        "h2": "Dernières offres trouvées",
+        "h3": "Fournisseur actif",
+        "lead": "Votre coach a trouvé 12 offres cette semaine.",
+        "body": "Votre coach cherche des offres selon les critères de votre profil.",
+        "meta": "Publiée le 23 octobre 2026 · jobtenir.com"
+      },
+      "components": "Composants",
+      "componentsSubtitle": "Chaque composant et ses états, tels que les écrans les utilisent."
+    },
     "gallery": {
       "eyebrow": "Design System",
       "title": "Composants",
@@ -4078,6 +4425,14 @@
       "dialogText": "Ses recherches et ses offres sont supprimées avec lui.",
       "dialogConfirm": "Supprimer",
       "confirmed": "Profil supprimé."
+    }
+  },
+  "emails": {
+    "greeting": "Bonjour,",
+    "signature": "L'équipe Jobbbox",
+    "linkLead": "{{label}} :",
+    "reasons": {
+      "superAdmin": "Vous recevez cet e-mail parce que vous êtes super-admin de Jobbbox."
     }
   }
 }

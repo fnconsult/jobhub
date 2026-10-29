@@ -73,6 +73,12 @@ describe("PageHeader (#462)", () => {
     expect(within(header).getByText("Ce que la plateforme utilise.")).toBeTruthy();
     expect(within(header).getByRole("button", { name: "Ajouter" })).toBeTruthy();
   });
+
+  it("takes a lower heading level on a page whose title is already its level-1 heading (the Design System page, #463)", () => {
+    renderInFrench(<PageHeader title="Composants" headingLevel={2} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Composants" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+  });
 });
 
 describe("Ring (#462)", () => {

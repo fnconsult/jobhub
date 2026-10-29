@@ -5,6 +5,9 @@ import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
+import { createEmailReadings } from "@jobhub/web/email-intake/reading";
+import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
+import { workerGuardrails } from "@jobhub/web/guardrails/checks";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
@@ -24,6 +27,7 @@ import { createWebSearchAlert, postgresWebSearchAlertStore, webSearchAlertThresh
 import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
+import { createEmailReading } from "./email-intake";
 import { createJobs, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
 
@@ -56,6 +60,8 @@ jobDigestsConfigFromEnv(settingsEnv());
 webSearchAlertThresholdFromEnv(settingsEnv());
 
 const profiles = createProfiles(database);
+// The task Playbooks at the version this environment serves (JOBHUB_TARGET): Job discovery's, and Email intake's reading.
+const taskPlaybooks = taskPlaybooksReader(database, process.env);
 const jobOffers = createJobOffers(database);
 const searchSites = createSearchSites(database);
 // The Sectors', Subsectors' and Domains' labels (#236): refreshed monthly, read by each Job discovery run.
@@ -89,7 +95,7 @@ const worker = workerClients({
   targetCompanies: createTargetCompanies(database),
   targetCompanySettings: () => targetCompanySettingsFromEnv(settingsEnv()),
   // The task Playbooks at the version this environment serves (JOBHUB_TARGET), as the web app reads them.
-  taskPlaybooks: taskPlaybooksReader(database, process.env),
+  taskPlaybooks,
   euAiConsent: (candidateId) => euAiConsents.has(candidateId),
   identityOf: candidateIdentityOf(database),
   log: (line) => console.warn(line),
@@ -112,6 +118,9 @@ mailerFromEnv(secretsWithSettings(secrets, platformSettings.resolver).current().
 const mailer = worker.mailer;
 
 const billing = createBilling({ database, baseURL });
+// SECRETS_MASTER_KEYS: Apple's client secret is sealed under it, and so are the Received offer emails' texts.
+const secretCipher = secretCipherFromEnv(process.env);
+const digestApplications = createApplications(database, { jobOffers, profiles });
 // The Job Digest schedule queues jobs on the runner, which starts once the jobs exist.
 const started: { runner?: JobRunner } = {};
 const jobs = createJobs({
@@ -126,8 +135,10 @@ const jobs = createJobs({
   jobDigests: createJobDigests(database, {
     profiles,
     jobOffers,
-    applications: createApplications(database, { jobOffers, profiles }),
+    applications: digestApplications,
     billing,
+    // The Job Offers Email intake gave each Profile join its Job Digest (#447).
+    receivedOffers: createReceivedOffers(database, { jobOffers, profiles, applications: digestApplications }),
     mailer,
     baseURL,
     config: () => jobDigestsConfigFromEnv(settingsEnv()),
@@ -136,7 +147,7 @@ const jobs = createJobs({
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
   providerSecrets: providerSecrets.reader,
   referenceData,
-  signInProviders: signInProvidersWorker(database, { cipher: secretCipherFromEnv(process.env), env: process.env }),
+  signInProviders: signInProvidersWorker(database, { cipher: secretCipher, env: process.env }),
   // Every super-admin hears of it once a month: the month's web search spend reached WEB_SEARCH_MONTHLY_ALERT_EUR (#403).
   webSearchAlert: createWebSearchAlert({
     store: postgresWebSearchAlertStore(database),
@@ -152,6 +163,17 @@ const jobs = createJobs({
   },
   // The source re-check's page reads, as Job discovery's: a page_read of each site's domain.
   externalApis,
+  // Email intake (#445): each Received offer email the inbound route queued, read on the served version of its Task
+  // Playbook (only on an EU endpoint, ADR-0052), its text opened under SECRETS_MASTER_KEYS as the web app sealed it,
+  // guarded by the « Contenu piégé dans un email » Guardrail and the fixed output rules (#446).
+  emailReading: createEmailReading({
+    readings: createEmailReadings(database, { cipher: () => secretCipher }),
+    jobOffers,
+    profiles,
+    ai: worker.ai,
+    guardrails: workerGuardrails(database, worker.ai),
+    taskPlaybooks,
+  }),
   enqueue: async (name, data) => {
     if (!started.runner) throw new Error("the job runner has not started yet");
     await started.runner.enqueue(name, data);

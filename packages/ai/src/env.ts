@@ -8,7 +8,7 @@ import { createPerplexityProvider, PERPLEXITY_MAX_QUERIES, PERPLEXITY_SEARCH_TYP
 import { createTavilyProvider, TAVILY_DEPTHS } from "./providers/tavily";
 import type { CandidateIdentity } from "./redaction";
 import { createFakeProvider } from "./testing";
-import { PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type TextTask, type UsageLog } from "./types";
+import { euOnly, PROVIDER_IDS, SEARCH_TASK, TEXT_TASKS, type AiProvider, type AiTask, type ProviderId, type TextTask, type UsageLog } from "./types";
 import { createConsoleUsageLog } from "./usage";
 
 type Env = Record<string, string | undefined>;
@@ -20,16 +20,17 @@ const DEFAULT_PROVIDER: Record<Exclude<AiTask, keyof typeof DEFAULT_TASK>, Provi
   coaching: "anthropic",
   cv_parsing: "anthropic",
   offer_analysis: "anthropic",
-  /** Claude where it is reached in the EU, else Mistral, as every task with personal data: never outside the EU (ADR-0052). */
+  /** Claude where it is reached in the EU, else Mistral: never outside the EU (ADR-0052). */
   offer_email_reading: "anthropic",
   web_search: "perplexity",
 };
 /**
  * A task whose provider is not set takes another task's provider, and its model unless one is set:
  * job titles are public text, like Job Offers; the Back Office Assistant is a coach, for Administrators;
- * Guardrails check what the AI Coach reads and writes (ADR-0022); the AI judge of Eval Runs reads the AI Coach's replies (ADR-0023).
+ * Guardrails check what the AI Coach reads and writes (ADR-0022); the AI judge of Eval Runs reads the AI Coach's replies (ADR-0023);
+ * the email Guardrail checks the email Email intake reads, so it runs where the reading does: in the EU (ADR-0052).
  */
-const DEFAULT_TASK = { job_titles: "offer_analysis", back_office_assistant: "coaching", guardrail: "coaching", eval: "coaching" } as const satisfies Partial<Record<AiTask, AiTask>>;
+const DEFAULT_TASK = { job_titles: "offer_analysis", back_office_assistant: "coaching", guardrail: "coaching", eval: "coaching", email_guardrail: "offer_email_reading" } as const satisfies Partial<Record<AiTask, AiTask>>;
 
 const taskKey = (task: AiTask, suffix: "PROVIDER" | "MODEL") => `AI_${task.toUpperCase()}_${suffix}`;
 
@@ -44,7 +45,7 @@ const OPENAI_DATA_RESIDENCIES = ["eu", "us"] as const;
 
 /** The code's defaults of the AI layer's settings that are not keys: what it uses when env sets nothing. */
 const DEFAULTS = {
-  ANTHROPIC_ENDPOINT: "auto",
+  ANTHROPIC_ENDPOINT: "direct",
   BEDROCK_REGION: "eu-north-1",
   VERTEX_REGION: "europe-west1",
   OPENAI_DATA_RESIDENCY: "eu",
@@ -162,10 +163,12 @@ function wholeIn(env: Env, key: string, min: number, max: number, fallback: stri
 }
 
 /**
- * Where Claude is reached (ANTHROPIC_ENDPOINT). `auto`, the default, follows the keys entered:
- * the direct API with ANTHROPIC_API_KEY, Bedrock with AWS_BEARER_TOKEN_BEDROCK, both with both
- * keys, and Bedrock through the AWS credential chain (e.g. the ECS task role) with neither.
- * The direct API comes first: with both, tasks without personal data use it (ai-layer.ts).
+ * Where Claude is reached (ANTHROPIC_ENDPOINT). `direct`, the default, is Claude's own API, for every
+ * task, those with personal data too (ADR-0007 amendment of 2026-10-28: AWS refused Bedrock access).
+ * `auto` follows the keys entered: the direct API with ANTHROPIC_API_KEY, Bedrock with
+ * AWS_BEARER_TOKEN_BEDROCK, both with both keys, and Bedrock through the AWS credential chain
+ * (e.g. the ECS task role) with neither. The direct API comes first: with both, tasks without
+ * personal data use it (ai-layer.ts).
  * `bedrock` or `vertex` (an older .env's setting) keeps every task on that endpoint, and an
  * ANTHROPIC_API_KEY entered adds the direct API after it: only a route naming one of its models
  * (a Playbook Agent's, offered outside the EU) reaches it.
@@ -189,7 +192,7 @@ function anthropicEndpoints(env: Env): AnthropicEndpoint[] {
   }
 }
 
-/** Whether Claude is reached through an EU-resident endpoint, so it is the default for tasks with personal data. */
+/** Whether Claude is reached through an EU-resident endpoint, so it is the default for tasks only run in the EU. */
 function anthropicInEu(env: Env): boolean {
   const kind = oneOf(env, "ANTHROPIC_ENDPOINT", ANTHROPIC_ENDPOINTS, DEFAULTS.ANTHROPIC_ENDPOINT);
   if (kind === "auto") return !env.ANTHROPIC_API_KEY?.trim() || Boolean(env.AWS_BEARER_TOKEN_BEDROCK?.trim());
@@ -277,12 +280,12 @@ function searchFallbackFromEnv(env: Env, active: ProviderId): ProviderId | undef
 
 /** Which provider (and model, when set) serves each task: AI_<TASK>_PROVIDER and AI_<TASK>_MODEL, else the defaults. */
 function routesFromEnv(env: Env, fake: boolean): Record<AiTask, Route> {
-  // Claude reached only outside the EU (the direct API): tasks with personal data default to Mistral, a
-  // preference for an EU endpoint where nothing is configured. AI_<TASK>_PROVIDER may name any provider.
-  const personalFallback = !fake && !anthropicInEu(env);
+  // Claude reached only outside the EU (the direct API): a task only run in the EU (ADR-0052) defaults to Mistral.
+  // Tasks with personal data stay on Claude, redacted (ADR-0007 amendment of 2026-10-28). AI_<TASK>_PROVIDER may name any provider.
+  const euFallback = !fake && !anthropicInEu(env);
   const defaultProvider = (task: keyof typeof DEFAULT_PROVIDER): ProviderId => {
     const provider = DEFAULT_PROVIDER[task];
-    return provider === "anthropic" && personalFallback && TEXT_TASKS[task as TextTask]?.personalData ? IDENTITY_PROVIDER : provider;
+    return provider === "anthropic" && euFallback && task !== SEARCH_TASK && euOnly(task as TextTask) ? IDENTITY_PROVIDER : provider;
   };
   const routes: Partial<Record<AiTask, Route>> = {};
   const routeOf = (provider: ProviderId, model: string | undefined): Route => (model ? { provider, model } : { provider });
@@ -344,6 +347,8 @@ export interface RoutedTarget {
   route: Route;
   /** Whether its calls carry personal data: a text task's, or the identity route's. */
   personalData: boolean;
+  /** Whether it may only reach an EU endpoint: a task marked `euOnly` (ADR-0052), or the identity route. */
+  euOnly: boolean;
   /** The endpoint it reaches, as the AI layer chooses it; none when its provider cannot be built (a key missing). */
   endpoint?: AiProvider;
 }
@@ -370,11 +375,12 @@ export function routedTargets(env: Env, deps: { fetch?: typeof globalThis.fetch;
   const targets: RoutedTarget[] = TASKS.map((task) => {
     const route = routes[task];
     const personalData = task !== SEARCH_TASK && TEXT_TASKS[task as TextTask].personalData;
-    return { target: task, providerSetting: taskKey(task, "PROVIDER"), modelSetting: taskKey(task, "MODEL"), route, personalData, endpoint: endpointFor(providersOf(route.provider), route, personalData) };
+    const onlyEu = task !== SEARCH_TASK && euOnly(task as TextTask);
+    return { target: task, providerSetting: taskKey(task, "PROVIDER"), modelSetting: taskKey(task, "MODEL"), route, personalData, euOnly: onlyEu, endpoint: endpointFor(providersOf(route.provider), route, personalData) };
   });
   const identityRoute: Route = { provider: IDENTITY_PROVIDER, ...(env.AI_IDENTITY_MODEL?.trim() ? { model: env.AI_IDENTITY_MODEL.trim() } : {}) };
   const identity = fake ? createFakeProvider({ id: IDENTITY_PROVIDER }) : env.MISTRAL_API_KEY?.trim() ? endpointFor(providersOf(IDENTITY_PROVIDER), identityRoute, true) : undefined;
-  targets.push({ target: "identity", providerSetting: "AI_IDENTITY_MODEL", modelSetting: "AI_IDENTITY_MODEL", route: identityRoute, personalData: true, endpoint: identity });
+  targets.push({ target: "identity", providerSetting: "AI_IDENTITY_MODEL", modelSetting: "AI_IDENTITY_MODEL", route: identityRoute, personalData: true, euOnly: true, endpoint: identity });
   return targets;
 }
 

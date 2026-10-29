@@ -22,6 +22,7 @@ export const routes = {
   accountEuAi: "/compte/ia-europeenne",
   /** « Réception par email » (#441): Email intake and the Candidate's Forwarding address. */
   accountEmailIntake: "/compte/reception-email",
+  accountEmailIntakeWizard: "/compte/reception-email/assistant",
   accountSignIn: "/compte/connexion",
   accountPreferences: "/compte/preferences",
   accountTools: "/compte/outils",
@@ -119,7 +120,7 @@ export const routes = {
   adminAiUsage: (period?: string) => (period ? `/admin/consommation-ia?periode=${encodeURIComponent(period)}` : "/admin/consommation-ia"),
   /**
    * Back Office Activity (« Activité », #404, ADR-0042): one page, a tab each for Recherches (the Job discovery runs),
-   * Appels IA (the AI Message Log) and Actions des administrateurs (the Back Office Audit). Its own address opens the
+   * Emails reçus (#449), Appels IA (the AI Message Log) and Actions des administrateurs (the Back Office Audit). Its own address opens the
    * first tab the Administrator may read.
    */
   adminActivity: "/admin/activite",
@@ -133,6 +134,15 @@ export const routes = {
     }).toString();
     return `/admin/activite/recherches${query ? `?${query}` : ""}`;
   },
+  /** Emails reçus (#449): every Received offer email of Email intake, filtered (`resultat`, `type`, `periode`); no Candidate named; super-admins, Technique and Support. */
+  adminReceivedEmails: (filter: { outcome?: string; kind?: string; period?: string } = {}) => {
+    const query = new URLSearchParams({
+      ...(filter.outcome ? { resultat: filter.outcome } : {}),
+      ...(filter.kind ? { type: filter.kind } : {}),
+      ...(filter.period ? { periode: filter.period } : {}),
+    }).toString();
+    return `/admin/activite/emails-recus${query ? `?${query}` : ""}`;
+  },
   /** The Job Search behind a run: super-admins only, each opening written to the Back Office Audit. */
   adminDiscoveryRunJobSearch: (runId: string) => `/admin/activite/recherches/${encodeURIComponent(runId)}/recherche`,
   /** Appels IA (the AI Message Log, formerly Journaux IA): the list, filtered, or one call; super-admins only, every call opened is audited. */
@@ -142,6 +152,8 @@ export const routes = {
   },
   adminAiMessage: (id: string) => `/admin/activite/appels-ia/${encodeURIComponent(id)}`,
   /** Administrators and their Back Office Roles. */
+  /** The Design System page (#463): every token and component, in either theme and Density; every Back Office Role reads it. */
+  adminDesignSystem: "/admin/design-system",
   adminAdministrators: "/admin/administrateurs",
   /**
    * Actions des administrateurs (the Back Office Audit, formerly Journal), newest first; with a section, only its changes;

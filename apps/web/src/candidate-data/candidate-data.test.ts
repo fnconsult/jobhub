@@ -862,7 +862,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   });
 
   it("the export holds the Candidate's Forwarding addresses, each with its activation date, and the sending addresses they added (#441)", async () => {
-    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [] });
+    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [], recognisedSenders: [] });
     let now = new Date("2026-10-01T08:00:00Z");
     const drawn = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"];
     const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", localPart: () => drawn.shift()!, now: () => now });
@@ -878,7 +878,19 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       ],
       sendingAddresses: [{ address: "marie@orange.fr", addedAt: new Date("2026-10-01T08:00:00Z") }],
       receivedOfferEmails: [],
+      recognisedSenders: [],
     });
+  });
+
+  it("the export holds the Recognised senders the Candidate added for themselves (#448, #450)", async () => {
+    await database.query(
+      `INSERT INTO candidate_recognised_sender (candidate_id, match, value, label, added_at) VALUES ($1, 'domain', 'alertes.monster.fr', 'Monster', $2)`,
+      [candidateId, new Date("2026-10-20T08:00:00Z")],
+    );
+
+    expect((await candidateData.export(candidateId)).emailIntake.recognisedSenders).toEqual([
+      { match: "domain", value: "alertes.monster.fr", label: "Monster", addedAt: new Date("2026-10-20T08:00:00Z") },
+    ]);
   });
 
   it("the export holds the Candidate's Received offer emails: outcome, sender's domain and dates, never their text (#442)", async () => {
@@ -886,6 +898,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => now });
     const { address } = await emailIntake.switchOn(candidateId);
     const inbound = createEmailIntakeInbound(database, {
+      switchedOn: async () => true,
       emailIntake,
       cipher: () => createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]])),
       queue: { send: async () => {} },

@@ -25,7 +25,7 @@ function recordingFetch() {
 
 const WEB_SEARCH_HOSTS = ["api.search.brave.com", "api.tavily.com"];
 
-const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
+const base = { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
 
 describe("AI layer configured from the environment", () => {
   it("defaults to Claude on Bedrock eu-north-1 for text tasks and Perplexity for web search", async () => {
@@ -64,7 +64,7 @@ describe("AI layer configured from the environment", () => {
     async (provider, key, host) => {
       const { fetch, hosts } = recordingFetch();
       const usage = createMemoryUsageLog();
-      const env = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", AI_WEB_SEARCH_PROVIDER: provider, [key]: "search-key" };
+      const env = { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", AI_WEB_SEARCH_PROVIDER: provider, [key]: "search-key" };
 
       await createAiLayerFromEnv(env, { fetch, usage }).searchWeb({ candidateId: "c", criteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] } });
 
@@ -126,6 +126,66 @@ describe("AI layer configured from the environment", () => {
     expect(usage.entries.map((e) => e.task)).toEqual(["eval", "eval"]);
   });
 
+  describe("Claude's direct API, ANTHROPIC_ENDPOINT's default (ADR-0007 amendment of 2026-10-28)", () => {
+    // Mistral's key for offer email reading alone, which runs only in the EU (ADR-0052).
+    const direct = { PERPLEXITY_API_KEY: "pk", ANTHROPIC_API_KEY: "sk-ant", MISTRAL_API_KEY: "mk" };
+    /** Answers as Claude, or fails with a 400 under `failing`, and records the model each call asked for. */
+    const claudeFetch = (failing = false) => {
+      const models: string[] = [];
+      const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(await new Request(input, init).text()) as { model: string };
+        models.push(body.model);
+        if (failing) return new Response(JSON.stringify({ type: "error", error: { type: "invalid_request_error", message: "refused" } }), { status: 400, headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify({ id: "m", type: "message", role: "assistant", model: body.model, content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: { input_tokens: 3, output_tokens: 2 } }), { headers: { "content-type": "application/json" } });
+      }) as typeof globalThis.fetch;
+      return { fetch, models };
+    };
+
+    it("serves every task with personal data, redacted", async () => {
+      const { fetch, models } = claudeFetch();
+      const ai = createAiLayerFromEnv(direct, { fetch, usage: createMemoryUsageLog() });
+
+      await ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" });
+      await ai.generate({ task: "coaching", candidateId: "c", prompt: "Bonjour" });
+
+      expect(models).toEqual(["claude-sonnet-5-5", "claude-sonnet-5-5"]);
+      expect(taskRouteFromEnv(direct, "scoring")).toEqual({ provider: "anthropic" });
+    });
+
+    it("runs a route naming no model on the model for its effort, a named model winning", async () => {
+      const { fetch, models } = claudeFetch();
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayerFromEnv(direct, { fetch, usage });
+      const claude = { provider: "anthropic" } as const;
+
+      await ai.generate({ task: "coaching", candidateId: "c", prompt: "?", route: claude, effort: "low" });
+      await ai.generate({ task: "coaching", candidateId: "c", prompt: "?", route: claude, effort: "medium" });
+      await ai.generate({ task: "coaching", candidateId: "c", prompt: "?", route: claude, effort: "high" });
+      await ai.generate({ task: "coaching", candidateId: "c", prompt: "?", route: claude });
+      await ai.generate({ task: "coaching", candidateId: "c", prompt: "?", route: { ...claude, model: "claude-opus-5-5" }, effort: "low" });
+
+      expect(models).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]);
+      expect(usage.entries.map((entry) => entry.model)).toEqual(models);
+    });
+
+    it("records a failed call with the model for its effort", async () => {
+      const { fetch } = claudeFetch(true);
+      const usage = createMemoryUsageLog();
+      const ai = createAiLayerFromEnv(direct, { fetch, usage });
+
+      await expect(ai.generate({ task: "coaching", candidateId: "c", prompt: "?", effort: "low" })).rejects.toThrow();
+
+      expect(usage.entries[0]).toMatchObject({ outcome: "failed", model: "claude-haiku-5-5" });
+    });
+
+    it("offers Playbook Agents its default model by effort; Bedrock keeps a single one", () => {
+      const claudeOf = (env: Record<string, string>) => createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).agentModels().find((choice) => choice.provider === "anthropic");
+
+      expect(claudeOf(direct)).toMatchObject({ defaultModel: "claude-sonnet-5-5", defaultModelByEffort: { low: "claude-haiku-5-5", medium: "claude-sonnet-5-5", high: "claude-opus-5-5" } });
+      expect(claudeOf(base)?.defaultModelByEffort).toBeUndefined();
+    });
+  });
+
   it("starts with a personal-data task routed to the direct Anthropic API, as configured", async () => {
     const { fetch, hosts } = recordingFetch();
     const ai = createAiLayerFromEnv({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_SCORING_PROVIDER: "anthropic" }, { fetch, usage: createMemoryUsageLog() });
@@ -147,8 +207,8 @@ describe("AI layer configured from the environment", () => {
     expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.mistral.ai"]);
   });
 
-  describe("Claude endpoint chosen by the keys entered (ANTHROPIC_ENDPOINT=auto, the default)", () => {
-    const keys = { PERPLEXITY_API_KEY: "pk", MISTRAL_API_KEY: "mk" };
+  describe("Claude endpoint chosen by the keys entered (ANTHROPIC_ENDPOINT=auto)", () => {
+    const keys = { ANTHROPIC_ENDPOINT: "auto", PERPLEXITY_API_KEY: "pk", MISTRAL_API_KEY: "mk" };
     const run = async (env: Record<string, string>) => {
       const { fetch, hosts } = recordingFetch();
       const usage = createMemoryUsageLog();
@@ -158,8 +218,8 @@ describe("AI layer configured from the environment", () => {
       return { hosts, providers: usage.entries.map((e) => e.provider) };
     };
 
-    it("with the Anthropic key alone: Claude direct for public tasks, Mistral for personal data", async () => {
-      expect(await run({ ...keys, ANTHROPIC_API_KEY: "sk-ant" })).toEqual({ hosts: ["api.mistral.ai", "api.anthropic.com"], providers: ["mistral", "anthropic"] });
+    it("with the Anthropic key alone: Claude direct for every task, personal data too, redacted (ADR-0007 amendment of 2026-10-28)", async () => {
+      expect(await run({ ...keys, ANTHROPIC_API_KEY: "sk-ant" })).toEqual({ hosts: ["api.anthropic.com", "api.anthropic.com"], providers: ["anthropic", "anthropic"] });
     });
 
     it("with the Bedrock key alone: Claude on Bedrock for every task", async () => {
@@ -173,7 +233,7 @@ describe("AI layer configured from the environment", () => {
       });
     });
 
-    it("with the Anthropic key alone, personal-data tasks name the missing Mistral key", () => {
+    it("with the Anthropic key alone, offer email reading (EU only) names the missing Mistral key", () => {
       expect(() => createAiLayerFromEnv({ PERPLEXITY_API_KEY: "pk", ANTHROPIC_API_KEY: "sk-ant" })).toThrow(/MISTRAL_API_KEY/);
     });
   });
@@ -224,7 +284,7 @@ describe("AI layer configured from the environment", () => {
 
     it("starts: every other task works, and web search is unavailable, naming the missing key", async () => {
       const { fetch, hosts } = recordingFetch();
-      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k" }, { fetch, usage: createMemoryUsageLog() });
+      const ai = createAiLayerFromEnv({ ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "k" }, { fetch, usage: createMemoryUsageLog() });
 
       await expect(ai.generate({ task: "scoring", candidateId: "c", prompt: "CV" })).resolves.toMatchObject({ text: "ok" });
       expect(ai.webSearchAvailable()).toBe(false);
@@ -246,7 +306,7 @@ describe("AI layer configured from the environment", () => {
 
     it("searches with a task Playbook's Search provider whose key is entered", async () => {
       const { fetch, hosts } = recordingFetch();
-      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k", BRAVE_SEARCH_API_KEY: "bk" }, { fetch, usage: createMemoryUsageLog() });
+      const ai = createAiLayerFromEnv({ ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "k", BRAVE_SEARCH_API_KEY: "bk" }, { fetch, usage: createMemoryUsageLog() });
 
       expect(ai.webSearchAvailable({ provider: "brave" })).toBe(true);
       await ai.searchWeb({ candidateId: "c", criteria, route: { provider: "brave" } });
@@ -260,7 +320,7 @@ describe("AI layer configured from the environment", () => {
     it("goes to the fallback Search provider when its key is entered (ADR-0043): web search stays available", async () => {
       const { fetch, hosts } = recordingFetch();
       const ai = createAiLayerFromEnv(
-        { AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily", TAVILY_API_KEY: "tk" },
+        { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily", TAVILY_API_KEY: "tk" },
         { fetch, usage: createMemoryUsageLog() },
       );
 
@@ -271,7 +331,7 @@ describe("AI layer configured from the environment", () => {
     });
 
     it("is unavailable when the fallback Search provider's key is missing too, and the AI layer still starts", async () => {
-      const ai = createAiLayerFromEnv({ AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily" }, { usage: createMemoryUsageLog() });
+      const ai = createAiLayerFromEnv({ ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "k", AI_WEB_SEARCH_PROVIDER: "brave", AI_WEB_SEARCH_FALLBACK_PROVIDER: "tavily" }, { usage: createMemoryUsageLog() });
 
       expect(ai.webSearchAvailable()).toBe(false);
       await expect(ai.searchWeb({ candidateId: "c", criteria })).rejects.toThrow(/BRAVE_SEARCH_API_KEY/);
@@ -352,8 +412,8 @@ describe("AI layer configured from the environment", () => {
         { provider: "openai", residency: "outside_eu" },
       ]);
       expect(choices({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk", PERPLEXITY_API_KEY: "pk" }).map(({ provider, endpoint, residency }) => ({ provider, endpoint, residency }))).toEqual([
-        { provider: "mistral", endpoint: "api.mistral.ai", residency: "eu" },
         { provider: "anthropic", endpoint: "api.anthropic.com", residency: "outside_eu" },
+        { provider: "mistral", endpoint: "api.mistral.ai", residency: "eu" },
       ]);
     });
 
@@ -371,7 +431,7 @@ describe("AI layer configured from the environment", () => {
       it.each(cases)("is offered %s, its models marked outside the EU", (_, env) => {
         const claude = createAiLayerFromEnv(env, { usage: createMemoryUsageLog() }).agentModels().find((choice) => choice.provider === "anthropic");
         expect(claude?.endpoint).toContain("api.anthropic.com");
-        expect(claude?.models.filter((each) => each.residency === "outside_eu").map((each) => each.model)).toEqual(["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]);
+        expect(claude?.models.filter((each) => each.residency === "outside_eu").map((each) => each.model)).toEqual(["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"]);
       });
 
       it.each(cases)("serves a Playbook Agent %s, redacted, and a consenting Candidate's identity still goes to Mistral", async (_, env) => {
@@ -413,8 +473,12 @@ describe("AI layer configured from the environment", () => {
         provider: "mistral",
         model: "mistral-medium-3-5",
       });
-      // Claude reached only outside the EU: the AI Coach is on Mistral.
-      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "coaching")).toEqual({ provider: "mistral" });
+      // Claude reached only outside the EU: the AI Coach stays on Claude, redacted; only a task run in the EU alone is on Mistral.
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "coaching")).toEqual({ provider: "anthropic" });
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "offer_email_reading")).toEqual({ provider: "mistral" });
+      // The email Guardrail checks the email the reading reads: it takes the reading's route, in the EU (#446, ADR-0052).
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak" }, "email_guardrail")).toEqual({ provider: "mistral" });
+      expect(taskRouteFromEnv({ ANTHROPIC_API_KEY: "ak", AI_OFFER_EMAIL_READING_PROVIDER: "mistral", AI_OFFER_EMAIL_READING_MODEL: "mistral-large-latest" }, "email_guardrail")).toEqual({ provider: "mistral", model: "mistral-large-latest" });
     });
   });
 
@@ -422,7 +486,7 @@ describe("AI layer configured from the environment", () => {
     const providers = modelSettingProviders({ AI_COACHING_PROVIDER: "mistral", AI_WEB_SEARCH_PROVIDER: "tavily" });
 
     expect(providers).toMatchObject({ AI_SCORING_MODEL: "anthropic", AI_COACHING_MODEL: "mistral", AI_GUARDRAIL_MODEL: "mistral", AI_WEB_SEARCH_MODEL: "tavily", AI_IDENTITY_MODEL: "mistral" });
-    expect(Object.keys(providers)).toHaveLength(12);
+    expect(Object.keys(providers)).toHaveLength(13);
   });
 
   describe("web-search providers a task Playbook may choose (ADR-0026)", () => {

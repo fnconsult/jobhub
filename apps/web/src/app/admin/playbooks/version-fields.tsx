@@ -1,7 +1,7 @@
 import { EFFORTS, type AgentModelChoice } from "@jobhub/ai";
 import type { TaskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
 import type { PlaybookKind, PlaybookVersion } from "@/coaching-playbooks";
-import { agentModelValue, effortOf, outsideEu } from "@/admin/playbook-form";
+import { agentModelValue, defaultModelLabel, effortOf, outsideEu } from "@/admin/playbook-form";
 import { getServerT } from "@/i18n/server";
 
 /**
@@ -75,7 +75,7 @@ export async function PlaybookVersionFields({
               {models.map((choice) => (
                 <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
                   <option value={agentModelValue(choice.provider, null)}>
-                    {`${choice.provider} · ${t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" })}${where(models, choice, null)}`}
+                    {`${choice.provider} · ${defaultModelLabel(t, choice)}${where(models, choice, null)}`}
                   </option>
                   {choice.models.map((each) => (
                     <option key={each.model} value={agentModelValue(choice.provider, each.model)}>
@@ -121,7 +121,7 @@ export async function PlaybookVersionFields({
             {searchModels.map((choice) => (
               <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
                 <option value={agentModelValue(choice.provider, null)}>
-                  {`${choice.provider} · ${t("admin.coachingPlaybooks.defaultModel", { model: choice.defaultModel ?? "?" })}${where(searchModels, choice, null)}`}
+                  {`${choice.provider} · ${defaultModelLabel(t, choice)}${where(searchModels, choice, null)}`}
                 </option>
                 {choice.models.map((each) => (
                   <option key={each.model} value={agentModelValue(choice.provider, each.model)}>

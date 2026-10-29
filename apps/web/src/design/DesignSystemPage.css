@@ -1,0 +1,54 @@
+@layer base, components;
+
+@layer components {
+  /* The part of the page in the theme and Density its toggles chose: its own canvas, so the dark theme shows whole. */
+  .ds-system {
+    color: var(--color-text);
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-system__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ds-system__intro {
+    flex: 1 1 24rem;
+    max-width: 44rem;
+    margin: 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-system__toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .ds-system__swatch {
+    display: inline-block;
+    width: 2.5rem;
+    height: 1.5rem;
+    vertical-align: middle;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+  }
+
+  .ds-system__sample {
+    line-height: var(--line-height-heading);
+  }
+
+  .ds-system__sample[data-style="meta"] {
+    color: var(--color-meta);
+  }
+
+  .ds-system__meta {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+}

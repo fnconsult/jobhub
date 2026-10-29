@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { authClient } from "@/auth/client";
+import { useHydrated } from "@/design/hydrated";
 
 /** The Candidate's Interface Language. (Signing out is in the Sidebar's foot.) */
 export function AccountSettings({ interfaceLanguage }: { interfaceLanguage: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
+  // Picked before the page is hydrated, the language would not be saved (#446).
+  const hydrated = useHydrated();
   const [saved, setSaved] = useState(false);
 
   async function changeLanguage(value: string) {
@@ -31,6 +34,7 @@ export function AccountSettings({ interfaceLanguage }: { interfaceLanguage: stri
           id={id}
           className="input"
           defaultValue={interfaceLanguage}
+          disabled={!hydrated}
           onChange={(event) => void changeLanguage(event.target.value)}
         >
           {SUPPORTED_LOCALES.map((locale) => (

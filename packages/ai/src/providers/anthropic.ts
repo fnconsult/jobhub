@@ -1,7 +1,7 @@
 import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
-import { effortHandling } from "../effort";
+import { effortHandling, type Effort } from "../effort";
 import { AiProviderError } from "../errors";
 import type { AiProvider, Residency, TextInput, TextOutput, TokenUsage } from "../types";
 
@@ -28,8 +28,14 @@ export interface AnthropicProviderOptions {
   maxRetries?: number;
 }
 
-/** The Claude models offered a Playbook Agent (#225), the default first. */
+/** The Claude models offered a Playbook Agent (#225), largest first. */
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"];
+/**
+ * The direct API's default model follows the call's effort (ADR-0007 amendment of 2026-10-28): a model a route
+ * names always wins. With no effort, Sonnet.
+ */
+export const DIRECT_MODEL_BY_EFFORT: Readonly<Record<Effort, string>> = { low: "claude-haiku-5-5", medium: "claude-sonnet-5-5", high: "claude-opus-5-5" };
+const DIRECT_DEFAULT_MODEL = DIRECT_MODEL_BY_EFFORT.medium;
 /** Bedrock serves older ones in the EU: no 5.5 model in eu-north-1 (October 2026). */
 const BEDROCK_MODELS = ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"];
 
@@ -111,19 +117,23 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
   // Bedrock names Claude's models with its own prefix.
   const named = (model: string) => (endpoint.kind === "bedrock" ? `anthropic.${model}` : model);
   const catalog = endpoint.kind === "bedrock" ? BEDROCK_MODELS : MODELS;
-  const defaultModel = options.defaultModel ?? named(catalog[0]!);
+  // The direct API picks its default by effort, unless one is given; Bedrock and Vertex keep their largest model.
+  const byEffort = endpoint.kind === "direct" && options.defaultModel === undefined;
+  const defaultModel = options.defaultModel ?? (byEffort ? DIRECT_DEFAULT_MODEL : named(catalog[0]!));
+  const defaultModelFor = (effort?: Effort): string => (byEffort && effort ? DIRECT_MODEL_BY_EFFORT[effort] : defaultModel);
   let client: MessagesClient | undefined;
 
   return {
     id: "anthropic",
     defaultModel,
+    ...(byEffort ? { defaultModelFor, modelByEffort: DIRECT_MODEL_BY_EFFORT } : {}),
     models: [...new Set([defaultModel, ...catalog.map(named)])],
     endpoint: endpoint.kind === "direct" ? "api.anthropic.com" : `${endpoint.kind} ${endpoint.region}`,
     residency: residencyOf(endpoint),
 
     async generate(input: TextInput): Promise<TextOutput> {
       client ??= clientFor(options);
-      const model = input.model ?? defaultModel;
+      const model = input.model ?? defaultModelFor(input.effort);
       let message: Anthropic.Message;
       try {
         message = await client.messages.create({

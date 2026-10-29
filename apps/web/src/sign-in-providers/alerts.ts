@@ -1,4 +1,5 @@
-import { createI18n } from "@jobhub/shared/i18n";
+import { createI18n, type Locale } from "@jobhub/shared/i18n";
+import { renderEmail, type RenderedEmail } from "../emails";
 import { routes } from "../routes";
 
 /** Why Apple's client secret could not be signed again. */
@@ -6,14 +7,21 @@ export type AppleFailureReason = "missing_secret" | "invalid_apple_key" | "no_ma
 
 /**
  * The email the super-admins get when the worker could not sign Apple's client secret
- * again: the sign-in with Apple stops working when the one in use expires. In French,
- * the Jobbbox team's language. Names no secret.
+ * again: the sign-in with Apple stops working when the one in use expires. In French by
+ * default, the Jobbbox team's language. Names no secret.
  */
-export function appleFailureEmail(failed: readonly { id: string; reason: AppleFailureReason }[], appUrl: string): { subject: string; text: string } {
-  const { t } = createI18n("fr");
-  const lines = failed.map(({ id, reason }) => `- ${id} : ${t(`appleAlert.reasons.${reason}`)}`);
-  return {
+export function appleFailureEmail(failed: readonly { id: string; reason: AppleFailureReason }[], appUrl: string, language: Locale = "fr"): RenderedEmail {
+  const { t } = createI18n(language);
+  return renderEmail({
+    language,
     subject: t("appleAlert.subject"),
-    text: t("appleAlert.body", { failures: lines.join("\n"), url: new URL(routes.adminSignInProviders, appUrl).toString() }),
-  };
+    title: t("appleAlert.title"),
+    body: [
+      t("appleAlert.intro"),
+      ...failed.map(({ id, reason }) => ({ card: { title: id, details: [t(`appleAlert.reasons.${reason}`)] } })),
+      t("appleAlert.outro"),
+      { action: { label: t("appleAlert.action"), url: new URL(routes.adminSignInProviders, appUrl).toString() } },
+    ],
+    footer: { reason: t("emails.reasons.superAdmin") },
+  });
 }

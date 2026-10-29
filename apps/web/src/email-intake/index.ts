@@ -6,12 +6,16 @@
  * replaced or off, so it is not given again while the account lasts; once the account is deleted
  * (its rows cascade away), only the 80 random bits of the local part keep it from coming back.
  *
+ * Switching on, replacing and switching off are each a Linked mailbox event of the Journal, naming no
+ * Candidate (activity.ts, #449).
+ *
  * Also the Candidate's own sending addresses (#437): their account's and those they add, from
  * which an email they forward by hand is theirs to read.
  */
 import { randomBytes } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction } from "../database/pool";
+import { migrateEmailIntakeActivity, recordLinkedMailboxEvent } from "./activity";
 import { SEEDED_RECOGNISED_SENDERS } from "./recognised-senders";
 
 /** The Candidate's Forwarding address in use, and when it was given to them. */
@@ -105,7 +109,11 @@ export function createEmailIntake(database: Pool, options: EmailIntakeOptions): 
       const inUse = await forwardingAddress(candidateId);
       if (inUse) return inUse;
       try {
-        return await give(database, candidateId);
+        return await inTransaction(database, async (client) => {
+          const given = await give(client, candidateId);
+          await recordLinkedMailboxEvent(client, "switched_on", given.activatedAt);
+          return given;
+        });
       } catch (error) {
         // Switched on twice at once: the other one won.
         if (isUniqueViolation(error, "forwarding_address_one_active")) return (await forwardingAddress(candidateId))!;
@@ -113,10 +121,17 @@ export function createEmailIntake(database: Pool, options: EmailIntakeOptions): 
       }
     },
     async replace(candidateId) {
-      return inTransaction(database, async (client) => ((await stop(client, candidateId, "replaced")) ? give(client, candidateId) : null));
+      return inTransaction(database, async (client) => {
+        if (!(await stop(client, candidateId, "replaced"))) return null;
+        const given = await give(client, candidateId);
+        await recordLinkedMailboxEvent(client, "replaced", given.activatedAt);
+        return given;
+      });
     },
     async switchOff(candidateId) {
-      await stop(database, candidateId, "off");
+      await inTransaction(database, async (client) => {
+        if (await stop(client, candidateId, "off")) await recordLinkedMailboxEvent(client, "switched_off", now());
+      });
     },
     async candidateAt(address) {
       const { rows } = await database.query<{ candidate_id: string }>(`SELECT candidate_id FROM forwarding_address WHERE address = $1 AND state = 'active'`, [
@@ -164,13 +179,40 @@ export interface ExportedEmailIntake {
   forwardingAddresses: { address: string; state: "active" | "replaced" | "off"; activatedAt: Date; endedAt: Date | null }[];
   /** The sending addresses they added, oldest first (their account's is the account's own email). */
   sendingAddresses: { address: string; addedAt: Date }[];
-  /** Their Received offer emails of the last 12 months, newest first: what became of each, its sender's domain and dates; never its text. */
-  receivedOfferEmails: { id: string; outcome: string; senderDomain: string; receivedAt: Date; sentAt: Date | null }[];
+  /**
+   * Their Received offer emails of the last 12 months, newest first: what became of each, the kind the AI read (null
+   * until read), its sender's domain and dates, and the offers it gave (#445); never its text.
+   */
+  receivedOfferEmails: {
+    id: string;
+    outcome: string;
+    kind: string | null;
+    senderDomain: string;
+    receivedAt: Date;
+    sentAt: Date | null;
+    offers: ExportedEmailOffer[];
+  }[];
+  /** The Recognised senders they added for themselves (#450), oldest first. */
+  recognisedSenders: { match: "domain" | "address"; value: string; label: string; addedAt: Date }[];
+}
+
+/**
+ * One offer a Received offer email gave, in its order: new (its Job Offer, the Profile it went to, null for « Non
+ * classées », and its Match Score), seen (« déjà vue »: its Job Offer), to_capture (a Forbidden site's: its title and
+ * link) or too_old.
+ */
+export interface ExportedEmailOffer {
+  disposition: string;
+  jobOfferId: string | null;
+  profileId: string | null;
+  matchScore: number | null;
+  title: string | null;
+  link: string | null;
 }
 
 /** The Candidate's Email intake for their Data export (ADR-0051). */
 export async function emailIntakeOf(database: Pool, candidateId: string): Promise<ExportedEmailIntake> {
-  const [forwardingAddresses, sendingAddresses, receivedOfferEmails] = await Promise.all([
+  const [forwardingAddresses, sendingAddresses, receivedOfferEmails, recognisedSenders] = await Promise.all([
     database.query<ExportedEmailIntake["forwardingAddresses"][number]>(
       `SELECT address, state, activated_at AS "activatedAt", ended_at AS "endedAt" FROM forwarding_address WHERE candidate_id = $1 ORDER BY activated_at DESC, address`,
       [candidateId],
@@ -179,17 +221,45 @@ export async function emailIntakeOf(database: Pool, candidateId: string): Promis
       `SELECT address, added_at AS "addedAt" FROM sending_address WHERE candidate_id = $1 ORDER BY added_at, address`,
       [candidateId],
     ),
-    database.query<ExportedEmailIntake["receivedOfferEmails"][number]>(
-      `SELECT id, outcome, sender_domain AS "senderDomain", received_at AS "receivedAt", sent_at AS "sentAt"
+    database.query<Omit<ExportedEmailIntake["receivedOfferEmails"][number], "offers">>(
+      `SELECT id, outcome, kind, sender_domain AS "senderDomain", received_at AS "receivedAt", sent_at AS "sentAt"
        FROM received_offer_email WHERE candidate_id = $1 ORDER BY received_at DESC, id`,
       [candidateId],
     ),
+    database.query<ExportedEmailIntake["recognisedSenders"][number]>(
+      `SELECT match, value, label, added_at AS "addedAt" FROM candidate_recognised_sender WHERE candidate_id = $1 ORDER BY added_at, value`,
+      [candidateId],
+    ),
   ]);
-  return { forwardingAddresses: forwardingAddresses.rows, sendingAddresses: sendingAddresses.rows, receivedOfferEmails: receivedOfferEmails.rows };
+  const offers = await offersOf(database, candidateId);
+  return {
+    forwardingAddresses: forwardingAddresses.rows,
+    sendingAddresses: sendingAddresses.rows,
+    receivedOfferEmails: receivedOfferEmails.rows.map((email) => ({ ...email, offers: offers.get(email.id) ?? [] })),
+    recognisedSenders: recognisedSenders.rows,
+  };
+}
+
+/** The offers the Candidate's Received offer emails gave, by email, in each one's order; none before their table exists. */
+async function offersOf(database: Pool, candidateId: string): Promise<Map<string, ExportedEmailOffer[]>> {
+  const byEmail = new Map<string, ExportedEmailOffer[]>();
+  try {
+    const { rows } = await database.query<ExportedEmailOffer & { emailId: string }>(
+      `SELECT received_offer_email_id AS "emailId", disposition, job_offer_id AS "jobOfferId", profile_id AS "profileId",
+              match_score AS "matchScore", title, link
+         FROM received_offer_email_offer WHERE candidate_id = $1 ORDER BY received_offer_email_id, position`,
+      [candidateId],
+    );
+    for (const { emailId, ...offer } of rows) byEmail.set(emailId, [...(byEmail.get(emailId) ?? []), offer]);
+  } catch (error) {
+    if ((error as { code?: string }).code !== "42P01") throw error;
+  }
+  return byEmail;
 }
 
 /** Creates or upgrades the Email intake tables. Run after the Candidate table. Safe to run repeatedly. */
 export async function migrateEmailIntake(database: Pool): Promise<void> {
+  await migrateEmailIntakeActivity(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS forwarding_address (
       address text PRIMARY KEY,
@@ -223,12 +293,30 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
       UNIQUE (candidate_id, message_id)
     );
     CREATE INDEX IF NOT EXISTS received_offer_email_received_at ON received_offer_email (received_at);
+    -- Its reading (#445): the kind the AI read, how many tries, when it was read, and its live steps while it is read.
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS kind text CHECK (kind IN ('alert', 'recruiter', 'other'));
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS read_tries integer NOT NULL DEFAULT 0;
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS read_at timestamptz;
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS progress jsonb;
+    -- Its row of Activité › Emails reçus (#449): the Candidate's row points to it, so it outlives the account.
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS activity_id uuid REFERENCES received_email_activity (id) ON DELETE SET NULL;
     -- The platform's Recognised senders (#437): seeded once, then kept by Administrators.
     CREATE TABLE IF NOT EXISTS recognised_sender (
       match text NOT NULL CHECK (match IN ('domain', 'address')),
       value text PRIMARY KEY,
       label text NOT NULL,
       aligned boolean NOT NULL DEFAULT false
+    );
+    -- A disabled Recognised sender stays listed, unread (#448).
+    ALTER TABLE recognised_sender ADD COLUMN IF NOT EXISTS enabled boolean NOT NULL DEFAULT true;
+    -- The senders a Candidate added for themselves (#450): counted, naming no one, in « Expéditeurs proposés » (#448).
+    CREATE TABLE IF NOT EXISTS candidate_recognised_sender (
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      match text NOT NULL CHECK (match IN ('domain', 'address')),
+      value text NOT NULL,
+      label text NOT NULL,
+      added_at timestamptz NOT NULL,
+      PRIMARY KEY (candidate_id, value)
     );
   `);
   await seedRecognisedSenders(database);

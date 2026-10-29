@@ -11,6 +11,7 @@ import { getAiUsageLog } from "@/ai-usage/server";
 import { platformSettingsStore } from "@/platform-settings";
 import { aiRoutingCheck } from "@/platform-settings/ai-routing";
 import { getSecretResolver } from "@/provider-secrets/server";
+import { getRecognisedSenderList } from "@/email-intake/server";
 import { getSearchSites } from "@/search-sites/server";
 import { needsSsoForBackOffice } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
@@ -21,6 +22,7 @@ import { createCoachingPlaybooksBackOffice, type CoachingPlaybooksBackOffice } f
 import { createEvalCasesBackOffice, type EvalCasesBackOffice } from "./eval-cases-back-office";
 import { createGuardrailsBackOffice, type GuardrailsBackOffice } from "./guardrails-back-office";
 import { createPlatformSettingsBackOffice, type PlatformSettingsBackOffice } from "./platform-settings-back-office";
+import { createRecognisedSendersBackOffice, type RecognisedSendersBackOffice } from "./recognised-senders-back-office";
 import { createSearchSitesBackOffice, type SearchSitesBackOffice } from "./search-sites-back-office";
 import { createSignalementsBackOffice, type SignalementsBackOffice } from "./signalements-back-office";
 import { createUnansweredQuestionsBackOffice, type UnansweredQuestionsBackOffice } from "./unanswered-questions-back-office";
@@ -30,6 +32,7 @@ import { getUnansweredQuestions } from "@/unanswered-questions/server";
 let backOffice: BackOffice | undefined;
 let administrators: Administrators | undefined;
 let searchSitesBackOffice: SearchSitesBackOffice | undefined;
+let recognisedSendersBackOffice: RecognisedSendersBackOffice | undefined;
 let coachingPlaybooksBackOffice: CoachingPlaybooksBackOffice | undefined;
 let guardrailsBackOffice: GuardrailsBackOffice | undefined;
 let evalCasesBackOffice: EvalCasesBackOffice | undefined;
@@ -53,6 +56,12 @@ export function getAdministrators(): Administrators {
 export function getSearchSitesBackOffice(): SearchSitesBackOffice {
   searchSitesBackOffice ??= createSearchSitesBackOffice(getSearchSites(), getBackOffice());
   return searchSitesBackOffice;
+}
+
+/** The platform's Recognised senders' Back Office writes, on the Email intake sheet, each recorded in the Back Office Audit (#448). */
+export function getRecognisedSendersBackOffice(): RecognisedSendersBackOffice {
+  recognisedSendersBackOffice ??= createRecognisedSendersBackOffice(getRecognisedSenderList(), getBackOffice());
+  return recognisedSendersBackOffice;
 }
 
 /** The Coaching Playbooks' Back Office writes, each recorded in the Back Office Audit (#225). */

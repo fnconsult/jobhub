@@ -1,19 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { checkAiRoutingChange } from "./routing-check";
 import { createMemoryUsageLog } from "./testing";
 
-/** Claude on Bedrock (EU) for the text tasks, Perplexity for web search: the defaults with their keys. */
-const base = { AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
+/** Mistral as if it were reached outside the EU, while `outside` is set: how an identity route leaving the EU is tested. */
+const mistral = vi.hoisted(() => ({ outside: false }));
+vi.mock("./providers/chat-completions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./providers/chat-completions")>();
+  return {
+    ...actual,
+    createMistralProvider: (options: Parameters<typeof actual.createMistralProvider>[0]) => {
+      const provider = actual.createMistralProvider(options);
+      return mistral.outside ? { ...provider, residency: "outside_eu" as const } : provider;
+    },
+  };
+});
+
+/** Claude on Bedrock (EU) for the text tasks, Perplexity for web search. */
+const base = { ANTHROPIC_ENDPOINT: "auto", AWS_BEARER_TOKEN_BEDROCK: "bedrock-key", PERPLEXITY_API_KEY: "pk" };
 
 describe("checkAiRoutingChange: an AI routing change checked as the AI layer would build it (#301)", () => {
-  it("refuses a task with personal data newly routed outside the EU, naming the task and where it would go", async () => {
-    const after = { ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_SCORING_PROVIDER: "openai" };
+  it("lets a task with personal data go outside the EU: Redaction takes the Candidate's identity out (ADR-0007 amendment of 2026-10-28)", async () => {
+    expect(await checkAiRoutingChange(base, { ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_SCORING_PROVIDER: "openai" })).toBeNull();
+  });
+
+  it("lets every task with personal data go to Claude's direct API, ANTHROPIC_ENDPOINT's default", async () => {
+    const direct = { PERPLEXITY_API_KEY: "pk", ANTHROPIC_API_KEY: "sk-ant", MISTRAL_API_KEY: "mk" };
+
+    expect(await checkAiRoutingChange(base, direct)).toBeNull();
+    expect(await checkAiRoutingChange(base, { ...direct, ANTHROPIC_ENDPOINT: "direct" })).toBeNull();
+  });
+
+  it("refuses a task that runs only in the EU newly routed outside it, naming the task and where it would go (ADR-0052)", async () => {
+    const after = { ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_OFFER_EMAIL_READING_PROVIDER: "openai" };
 
     const refusal = await checkAiRoutingChange(base, after);
 
     expect(refusal?.reason).toBe("data_residency");
-    expect(refusal?.technical.message).toMatch(/scoring/);
+    expect(refusal?.technical.message).toMatch(/AI_OFFER_EMAIL_READING_PROVIDER: the offer_email_reading task runs only in the EU/);
     expect(refusal?.technical.message).toMatch(/api\.openai\.com/);
+    // Claude's direct API is outside the EU too.
+    const direct = { ...base, ANTHROPIC_API_KEY: "sk-ant", ANTHROPIC_ENDPOINT: "direct", MISTRAL_API_KEY: "mk" };
+    expect((await checkAiRoutingChange(direct, { ...direct, AI_OFFER_EMAIL_READING_PROVIDER: "anthropic" }))?.technical.message).toMatch(/offer_email_reading.*api\.anthropic\.com/);
+  });
+
+  it("refuses the identity route (EU AI Consent) when its endpoint is outside the EU", async () => {
+    const keys = { ...base, MISTRAL_API_KEY: "mk" };
+    mistral.outside = true;
+    try {
+      const refusal = await checkAiRoutingChange(base, keys);
+
+      expect(refusal?.reason).toBe("data_residency");
+      expect(refusal?.technical.message).toMatch(/identity|EU-resident/);
+    } finally {
+      mistral.outside = false;
+    }
+    expect(await checkAiRoutingChange(base, keys)).toBeNull();
   });
 
   it("lets a task without personal data go outside the EU", async () => {
@@ -23,22 +64,22 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
   });
 
   it("does not block a change over a problem the configuration already had", async () => {
-    const outside = { ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_SCORING_PROVIDER: "openai" };
+    const outside = { ...base, OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_OFFER_EMAIL_READING_PROVIDER: "openai" };
 
-    expect(await checkAiRoutingChange(outside, { ...outside, BEDROCK_REGION: "eu-west-3" })).toBeNull();
+    expect(await checkAiRoutingChange(outside, { ...outside, AI_OFFER_EMAIL_READING_PROVIDER: "openai" })).toBeNull();
   });
 
   describe("checks EU data residency even where the configuration in use already has a problem", () => {
-    const outsideForScoring = { OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_SCORING_PROVIDER: "openai" };
+    const outsideForEmails = { OPENAI_API_KEY: "ok", OPENAI_DATA_RESIDENCY: "us", AI_OFFER_EMAIL_READING_PROVIDER: "openai" };
 
     it("when a key the configuration in use needs is missing", async () => {
       // Writing on Mistral without its key: the AI layer would not start, before as after.
       const broken = { ...base, AI_WRITING_PROVIDER: "mistral" };
 
-      const refusal = await checkAiRoutingChange(broken, { ...broken, ...outsideForScoring });
+      const refusal = await checkAiRoutingChange(broken, { ...broken, ...outsideForEmails });
 
       expect(refusal?.reason).toBe("data_residency");
-      expect(refusal?.technical.message).toMatch(/scoring/);
+      expect(refusal?.technical.message).toMatch(/offer_email_reading/);
     });
 
     it("when a task is routed to a provider that cannot serve it", async () => {
@@ -56,10 +97,10 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
       // OpenAI, in the US, already named for a task without personal data but without its key.
       const keyless = { ...base, OPENAI_DATA_RESIDENCY: "us", AI_OFFER_ANALYSIS_PROVIDER: "openai" };
 
-      const refusal = await checkAiRoutingChange(keyless, { ...keyless, AI_SCORING_PROVIDER: "openai" });
+      const refusal = await checkAiRoutingChange(keyless, { ...keyless, AI_OFFER_EMAIL_READING_PROVIDER: "openai" });
 
       expect(refusal?.reason).toBe("data_residency");
-      expect(refusal?.technical.message).toMatch(/scoring/);
+      expect(refusal?.technical.message).toMatch(/offer_email_reading/);
     });
   });
 

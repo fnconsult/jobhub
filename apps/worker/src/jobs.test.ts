@@ -21,10 +21,11 @@ import { migrateJobSearches } from "@jobhub/web/job-searches";
 import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
 import { createSecretKey, randomBytes } from "node:crypto";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../web/src/email-intake";
+import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundPayload } from "../../web/src/email-intake/fixtures/brevo-inbound";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -678,6 +679,28 @@ const otherDeps = {
   log: () => {},
 };
 
+describe("the Email intake reading job (#445)", () => {
+  it("reads each Received offer email queued by the inbound route, tried 3 times within 72 hours", async () => {
+    const read: string[] = [];
+    const logs: string[] = [];
+    const job = createJobs({ ...otherDeps, database: noDatabase, log: (line) => logs.push(line), emailReading: { read: async (id) => (read.push(id), { outcome: "offers_found" }) } })[EMAIL_INTAKE_READ];
+
+    expect(EMAIL_INTAKE_READ).toBe("email-intake.read");
+    expect(job?.retry).toEqual({ limit: 2, delaySeconds: 600, backoff: true });
+    await job!.handler({ receivedOfferEmailId: "email-1" });
+    await job!.handler({ nothing: true });
+
+    expect(read).toEqual(["email-1"]);
+    expect(logs).toEqual(["[email-intake] Received offer email email-1 read: offers_found", "[email-intake] ignored a malformed job"]);
+  });
+
+  it("throws what a failed try throws, for the job runner to try again", async () => {
+    const job = createJobs({ ...otherDeps, database: noDatabase, emailReading: { read: async () => Promise.reject(new Error("provider down")) } })[EMAIL_INTAKE_READ];
+
+    await expect(job!.handler({ receivedOfferEmailId: "email-1" })).rejects.toThrow("provider down");
+  });
+});
+
 describe("the Follow-ups job", () => {
   it("proposes, every working morning, the Follow-ups now due", async () => {
     const runs: Date[] = [];
@@ -1069,6 +1092,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const { address } = await emailIntake.switchOn(candidateId);
       const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
       const inbound = createEmailIntakeInbound(database, {
+        switchedOn: async () => true,
         emailIntake,
         cipher: () => cipher,
         queue: { send: async () => {} },
@@ -1094,6 +1118,31 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
         "[email-intake] 1 Received offer email text(s) purged after 72 hours, 0 Received offer email(s) after 12 months",
         "[email-intake] 0 Received offer email text(s) purged after 72 hours, 1 Received offer email(s) after 12 months",
       ]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("purges, with them, Activité's Emails reçus rows and the Linked mailbox events 24 months after, not with the emails (#449)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateEmailIntake(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const arrived = new Date("2026-10-27T09:30:00Z");
+      const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", now: () => arrived });
+      await emailIntake.switchOn(candidateId);
+      const activity = createEmailIntakeActivity(database);
+      const logs: string[] = [];
+      const jobAt = (days: number) => createJobs({ ...otherDeps, database, now: () => new Date(arrived.getTime() + days * 86_400_000), log: (line) => logs.push(line) })[EMAIL_INTAKE_PURGE]!;
+
+      await jobAt(366).handler({});
+      expect(await activity.linkedMailboxEvents(10)).toHaveLength(1);
+
+      await jobAt(731).handler({});
+      expect(await activity.linkedMailboxEvents(10)).toEqual([]);
+      expect(logs).toEqual(["[email-intake] 0 Emails reçus row(s) and 1 Linked mailbox event(s) purged after 24 months"]);
     } finally {
       await testAuth.stop();
     }

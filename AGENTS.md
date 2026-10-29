@@ -13,3 +13,7 @@ Default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-huma
 ### Domain docs
 
 Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Documentation
+
+Every issue ships its Help Articles, Release Note fragment, privacy register and « Légal : » issue with its code. See `docs/agents/documentation.md`.

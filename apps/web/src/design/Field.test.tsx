@@ -38,6 +38,17 @@ describe("Field (#462)", () => {
     expect(description(input)).toBe("En euros par an. Saisissez un montant en euros, par exemple 80 000.");
   });
 
+  it("gives its control the id it is told, still named and described by its label and hint (#466)", () => {
+    renderInFrench(
+      <Field id="new-case-title" label="Titre" hint="Ce que le cas met à l'épreuve.">
+        <TextInput />
+      </Field>,
+    );
+    const input = screen.getByRole("textbox", { name: "Titre" });
+    expect(input.id).toBe("new-case-title");
+    expect(description(input)).toBe("Ce que le cas met à l'épreuve.");
+  });
+
   it("labels a select and a textarea the same way", () => {
     renderInFrench(
       <>
@@ -80,6 +91,19 @@ describe("Checkbox, Radio and Switch (#462)", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     await user.keyboard(" ");
     expect(onCheckedChange).toHaveBeenCalledWith(true);
+  });
+});
+
+describe("a Checkbox or Radio with a hint (#466)", () => {
+  it("describes its box with the hint under its words", () => {
+    renderInFrench(
+      <>
+        <Checkbox name="roles" value="support" label="Support" hint="Lit les signalements et y répond." />
+        <Radio name="kind" value="percent" label="Pourcentage" hint="De 1 à 100 %." />
+      </>,
+    );
+    expect(description(screen.getByRole("checkbox", { name: "Support" }))).toBe("Lit les signalements et y répond.");
+    expect(description(screen.getByRole("radio", { name: "Pourcentage" }))).toBe("De 1 à 100 %.");
   });
 });
 

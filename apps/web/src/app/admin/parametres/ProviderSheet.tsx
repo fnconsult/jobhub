@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { AddressDrawer } from "@/design/AddressDrawer";
 import { buttonClass } from "@/design/button-class";
-import { TextInput } from "@/design/Field";
+import { Checkbox, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { Pill, Status } from "@/design/Pill";
 import { Table } from "@/design/Table";
@@ -201,7 +201,7 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
   const { t } = ctx;
   return (
     <div className="stack">
-      <div className="provider-secret-actions">
+      <div className="parametres-actions">
         {source && source !== "missing" ? (
           <form action={testSecret}>
             <Here ctx={ctx} />
@@ -222,10 +222,10 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
         ) : null}
       </div>
       {ctx.canSaveSecrets ? (
-        <details className="provider-secret-replace">
+        <details className="parametres-replace">
           <summary>{t("admin.providerSecrets.replaceLegend", { name })}</summary>
           {/* Write-only: the field is always empty, the value saved is never sent back. */}
-          <form className="stack quota-form" action={replaceSecret}>
+          <form className="stack parametres-form" action={replaceSecret}>
             <Here ctx={ctx} />
             <input type="hidden" name="name" value={name} />
             <fieldset>
@@ -235,11 +235,7 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
                 <TextInput id={`value-${name}`} name="value" type="password" required autoComplete="new-password" spellCheck={false} aria-describedby={`value-${name}-help`} />
                 <p id={`value-${name}-help`}>{t("admin.providerSecrets.newValueHelp")}</p>
               </div>
-              <div className="checkbox-field">
-                <input id={`anyway-${name}`} type="checkbox" name="saveAnyway" aria-describedby={`anyway-${name}-help`} />
-                <label htmlFor={`anyway-${name}`}>{t("admin.providerSecrets.saveAnyway")}</label>
-                <p id={`anyway-${name}-help`}>{t("admin.providerSecrets.saveAnywayHelp")}</p>
-              </div>
+              <Checkbox id={`anyway-${name}`} name="saveAnyway" label={t("admin.providerSecrets.saveAnyway")} hint={t("admin.providerSecrets.saveAnywayHelp")} />
               <button className={buttonClass({ variant: "primary" })} type="submit">
                 {t("admin.providerSecrets.replace", { name })}
               </button>

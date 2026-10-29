@@ -7,7 +7,7 @@ import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { AddressDrawer } from "@/design/AddressDrawer";
 import { buttonClass } from "@/design/button-class";
-import { Field, Select } from "@/design/Field";
+import { Checkbox, Field, Select } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { Table } from "@/design/Table";
@@ -115,10 +115,7 @@ export default async function DiscoveryRunsPage({ searchParams }: { searchParams
               ))}
             </Select>
           </Field>
-          <label className="choice">
-            <input name="secours" type="checkbox" value="1" defaultChecked={filter.fallback} />
-            {t("admin.discoveryRuns.fallbackOnly")}
-          </label>
+          <Checkbox name="secours" value="1" defaultChecked={filter.fallback} label={t("admin.discoveryRuns.fallbackOnly")} />
           <div className="activity-filter-actions">
             <button type="submit" className={buttonClass()}>
               {t("admin.discoveryRuns.apply")}

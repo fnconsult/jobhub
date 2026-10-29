@@ -1,7 +1,7 @@
 import { JOB_DISCOVERY_SOURCES, TOOLS, type JobDiscoverySource, type Tool } from "@jobhub/shared";
 import { AddressDrawer } from "@/design/AddressDrawer";
 import { buttonClass } from "@/design/button-class";
-import { Select, TextInput } from "@/design/Field";
+import { Checkbox, Select, TextInput } from "@/design/Field";
 import { platformSetting } from "@/platform-settings/catalog";
 import { ADD_TYPES, parametresHref, parametresTab, tabOfTool, type AddType } from "@/platform-settings/parametres";
 import { PROVIDER_SECRET_NAMES } from "@/provider-secrets/catalog";
@@ -89,7 +89,7 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
         ) : null}
         {type === "key" ? (
           // Write-only: the field is always empty, the value saved is never sent back.
-          <form className="stack quota-form" action={replaceSecret}>
+          <form className="stack parametres-form" action={replaceSecret}>
             <Here ctx={ctx} sheet="" />
             <label htmlFor="add-key">{t("admin.platformSettings.add.keyLabel")}</label>
             <Select id="add-key" name="name">
@@ -102,11 +102,7 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
             <label htmlFor="add-key-value">{t("admin.platformSettings.add.keyValue")}</label>
             <TextInput id="add-key-value" name="value" type="password" required autoComplete="new-password" spellCheck={false} aria-describedby="add-key-value-help" />
             <p id="add-key-value-help">{t("admin.providerSecrets.newValueHelp")}</p>
-            <div className="checkbox-field">
-              <input id="add-key-anyway" type="checkbox" name="saveAnyway" aria-describedby="add-key-anyway-help" />
-              <label htmlFor="add-key-anyway">{t("admin.providerSecrets.saveAnyway")}</label>
-              <p id="add-key-anyway-help">{t("admin.providerSecrets.saveAnywayHelp")}</p>
-            </div>
+            <Checkbox id="add-key-anyway" name="saveAnyway" label={t("admin.providerSecrets.saveAnyway")} hint={t("admin.providerSecrets.saveAnywayHelp")} />
             <button className={buttonClass({ variant: "primary" })} type="submit">
               {t("admin.platformSettings.save")}
             </button>

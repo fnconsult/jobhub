@@ -5,8 +5,27 @@
  */
 import type { TFunction, TOptions } from "i18next";
 
-/** The pages whose intro is cut to one line: the pilot pages of the Compact Density, and Activité's tabs. */
-export const INTRO_PAGES = ["platformSettings", "dashboard", "discoveryRuns", "receivedEmails", "aiMessages", "audit"] as const;
+/** The pages whose intro is cut to one line: the pilot pages of the Compact Density, Activité's tabs (#465), and every other section (#466). */
+export const INTRO_PAGES = [
+  "platformSettings",
+  "dashboard",
+  "discoveryRuns",
+  "receivedEmails",
+  "aiMessages",
+  "audit",
+  "signalements",
+  "plans",
+  "planQuotas",
+  "coupons",
+  "humanCoaches",
+  "coachCost",
+  "coachingPlaybooks",
+  "guardrails",
+  "unansweredQuestions",
+  "tools",
+  "administrators",
+  "aiUsage",
+] as const;
 export type IntroPage = (typeof INTRO_PAGES)[number];
 
 export interface PageIntroText {
@@ -26,6 +45,18 @@ const TEXTS = {
   receivedEmails: { line: "admin.receivedEmails.subtitle", explanation: ["admin.receivedEmails.intro"] },
   aiMessages: { line: "admin.aiMessages.subtitle", explanation: ["admin.aiMessages.intro"] },
   audit: { line: "admin.journal.subtitle", explanation: ["admin.journal.intro"] },
+  signalements: { line: "admin.signalements.subtitle", explanation: ["admin.signalements.intro", "admin.signalements.noDeletion"] },
+  plans: { line: "admin.plans.subtitle", explanation: ["admin.plans.intro"] },
+  planQuotas: { line: "admin.planQuotas.subtitle", explanation: ["admin.planQuotas.intro"] },
+  coupons: { line: "admin.coupons.subtitle", explanation: ["admin.coupons.intro"] },
+  humanCoaches: { line: "admin.humanCoaches.subtitle", explanation: ["admin.humanCoaches.intro"] },
+  coachCost: { line: "admin.coachCost.subtitle", explanation: ["admin.coachCost.intro"] },
+  coachingPlaybooks: { line: "admin.coachingPlaybooks.subtitle", explanation: ["admin.coachingPlaybooks.intro"] },
+  guardrails: { line: "admin.guardrails.subtitle", explanation: ["admin.guardrails.intro"] },
+  unansweredQuestions: { line: "admin.unansweredQuestions.subtitle", explanation: ["admin.unansweredQuestions.intro", "admin.unansweredQuestions.privacy"] },
+  tools: { line: "admin.tools.subtitle", explanation: ["admin.tools.intro"] },
+  administrators: { line: "admin.administrators.subtitle", explanation: ["admin.administrators.intro"] },
+  aiUsage: { line: "admin.aiUsage.subtitle", explanation: ["admin.aiUsage.intro"] },
 } as const satisfies Record<IntroPage, { line: string; explanation: readonly string[] }>;
 
 /** `page`'s intro, its explanation filled with `values` (a retention, the Administrator's roles). */

@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { Card } from "@/design/Card";
+import { Properties, Property } from "@/design/Properties";
 import { GUARDRAIL_IDS, type GuardrailId } from "@/guardrails";
 import type { EvalRun, GuardrailCaseResult, JudgedCaseResult } from "@/evals";
 import { getEvals } from "@/evals/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { agentText, evalRunFormat } from "../run-views";
+import "../../section.css";
+
+/** The language Jobbbox's team writes Playbooks, Eval Cases and their rules in. */
+const FRENCH = "fr";
 
 type Params = Promise<{ id: string }>;
 
@@ -42,125 +49,106 @@ export default async function EvalRunPage({ params }: { params: Params }) {
   const guardrailName = (id: GuardrailId) => t(`admin.guardrails.names.${id}`);
 
   const judgedCase = (result: JudgedCaseResult, index: number) => (
-    <section key={index} className="stack" aria-labelledby={`case-${index}`}>
-      <h3 id={`case-${index}`}>{result.case.title}</h3>
-      <dl>
-        <dt>{t("admin.evals.run.context")}</dt>
-        <dd lang="fr">{result.case.context}</dd>
-        <dt>{t("admin.evals.run.message")}</dt>
-        <dd lang="fr">{result.case.message}</dd>
-        {result.case.inView ? (
-          <>
-            <dt>{t("admin.evals.run.inView")}</dt>
-            <dd lang="fr">
-              {t(`admin.evals.cases.inViewKinds.${result.case.inView.kind}`)} : {result.case.inView.text}
-            </dd>
-          </>
-        ) : null}
-        <dt>{t("admin.evals.run.criteria")}</dt>
-        <dd lang="fr">{result.case.criteria}</dd>
-        {result.case.consults ? (
-          <>
-            <dt>{t("admin.evals.run.consults")}</dt>
-            <dd>{result.case.consults}</dd>
-          </>
-        ) : null}
-        <dt>{t("admin.evals.run.consulted")}</dt>
-        <dd>{result.consulted.length > 0 ? result.consulted.join(", ") : t("admin.evals.run.noneConsulted")}</dd>
-        <dt>{t("admin.evals.run.reply")}</dt>
-        <dd lang="fr" className="eval-reply">
-          {result.reply ?? t("admin.evals.run.noReply")}
-        </dd>
-        <dt>{t("admin.evals.run.caseScore")}</dt>
-        <dd>{format.score(result.score === null ? null : Math.round(result.score * 100))}</dd>
-        {result.reason ? (
-          <>
-            <dt>{t("admin.evals.run.reason")}</dt>
-            <dd lang="fr">{result.reason}</dd>
-          </>
-        ) : null}
-        <dt>{t("admin.evals.run.caseCost")}</dt>
-        <dd>{format.cost(result.costEur)}</dd>
-        <dt>{t("admin.evals.run.caseTime")}</dt>
-        <dd>{format.time(result.responseMs)}</dd>
-      </dl>
-    </section>
+    <CaseCard key={index} id={`case-${index}`} title={result.case.title}>
+      <Property term={t("admin.evals.run.context")} lang={FRENCH}>
+        {result.case.context}
+      </Property>
+      <Property term={t("admin.evals.run.message")} lang={FRENCH}>
+        {result.case.message}
+      </Property>
+      {result.case.inView ? (
+        <Property term={t("admin.evals.run.inView")} lang={FRENCH}>
+          {t(`admin.evals.cases.inViewKinds.${result.case.inView.kind}`)} : {result.case.inView.text}
+        </Property>
+      ) : null}
+      <Property term={t("admin.evals.run.criteria")} lang={FRENCH}>
+        {result.case.criteria}
+      </Property>
+      {result.case.consults ? <Property term={t("admin.evals.run.consults")}>{result.case.consults}</Property> : null}
+      <Property term={t("admin.evals.run.consulted")}>{result.consulted.length > 0 ? result.consulted.join(", ") : t("admin.evals.run.noneConsulted")}</Property>
+      <Property term={t("admin.evals.run.reply")} lang={FRENCH}>
+        <span className="section-text">{result.reply ?? t("admin.evals.run.noReply")}</span>
+      </Property>
+      <Property term={t("admin.evals.run.caseScore")}>{format.score(result.score === null ? null : Math.round(result.score * 100))}</Property>
+      {result.reason ? (
+        <Property term={t("admin.evals.run.reason")} lang={FRENCH}>
+          {result.reason}
+        </Property>
+      ) : null}
+      <Property term={t("admin.evals.run.caseCost")}>{format.cost(result.costEur)}</Property>
+      <Property term={t("admin.evals.run.caseTime")}>{format.time(result.responseMs)}</Property>
+    </CaseCard>
   );
 
   return (
-    <BackOfficeLayout access={access}>
-      <p>
-        <Link href={back}>{t("admin.evals.back")}</Link>
-      </p>
-      <h1>{t("admin.evals.title")}</h1>
-      <p className="lead">
-        {subject.kind === "coaching_playbook"
-          ? t("admin.evals.run.subjects.coaching_playbook", { playbook: playbookTitle, version: String(subject.version) })
-          : t(`admin.evals.run.subjects.${subject.kind}`)}
-      </p>
-      <dl>
-        <dt>{t("admin.evals.runs.startedBy")}</dt>
-        <dd>{t("admin.evals.run.startedBy", { author: run.startedBy, date: format.at(run.startedAt) })}</dd>
-        {subject.kind === "coaching_playbook" ? (
-          <>
-            <dt>{t("admin.evals.run.agent")}</dt>
-            <dd>
-              {agentText(t, subject.agent)} ({t(subject.asSaved ? "admin.evals.runs.asSaved" : "admin.evals.runs.tried")})
-            </dd>
-          </>
-        ) : null}
-        {subject.kind === "guardrails" ? (
-          <>
-            <dt>{t("admin.evals.run.settings")}</dt>
-            <dd>{GUARDRAIL_IDS.map((id) => `${guardrailName(id)} : ${t(`admin.guardrails.settings.${subject.settings[id]}`)}`).join(" ; ")}</dd>
-          </>
-        ) : null}
-        <dt>{t("admin.evals.run.judge")}</dt>
-        <dd>{run.judge ? `${run.judge.provider} · ${run.judge.model}` : t("admin.evals.run.noJudge")}</dd>
-        <dt>{t("admin.evals.runs.score")}</dt>
-        <dd>{format.score(run.score)}</dd>
-        <dt>{t("admin.evals.runs.cost")}</dt>
-        <dd>{format.cost(run.costEur)}</dd>
-        <dt>{t("admin.evals.runs.responseTime")}</dt>
-        <dd>{format.time(run.responseMs)}</dd>
-      </dl>
+    <BackOfficeLayout access={access} title={t("admin.evals.title")}>
+      <div className="section-page">
+        <p>
+          <Link href={back}>{t("admin.evals.back")}</Link>
+        </p>
+        <p className="section-lead">
+          {subject.kind === "coaching_playbook"
+            ? t("admin.evals.run.subjects.coaching_playbook", { playbook: playbookTitle, version: String(subject.version) })
+            : t(`admin.evals.run.subjects.${subject.kind}`)}
+        </p>
+        <Card>
+          <Properties>
+            <Property term={t("admin.evals.runs.startedBy")}>{t("admin.evals.run.startedBy", { author: run.startedBy, date: format.at(run.startedAt) })}</Property>
+            {subject.kind === "coaching_playbook" ? (
+              <Property term={t("admin.evals.run.agent")}>
+                {agentText(t, subject.agent)} ({t(subject.asSaved ? "admin.evals.runs.asSaved" : "admin.evals.runs.tried")})
+              </Property>
+            ) : null}
+            {subject.kind === "guardrails" ? (
+              <Property term={t("admin.evals.run.settings")}>{GUARDRAIL_IDS.map((id) => `${guardrailName(id)} : ${t(`admin.guardrails.settings.${subject.settings[id]}`)}`).join(" ; ")}</Property>
+            ) : null}
+            <Property term={t("admin.evals.run.judge")}>{run.judge ? `${run.judge.provider} · ${run.judge.model}` : t("admin.evals.run.noJudge")}</Property>
+            <Property term={t("admin.evals.runs.score")}>{format.score(run.score)}</Property>
+            <Property term={t("admin.evals.runs.cost")}>{format.cost(run.costEur)}</Property>
+            <Property term={t("admin.evals.runs.responseTime")}>{format.time(run.responseMs)}</Property>
+          </Properties>
+        </Card>
 
-      <h2>{t("admin.evals.run.cases")}</h2>
-      {run.results.map((result, index) =>
-        isGuardrailResult(result) ? (
-          <section key={index} className="stack" aria-labelledby={`case-${index}`}>
-            <h3 id={`case-${index}`}>{result.case.title}</h3>
-            <dl>
-              <dt>{t("admin.evals.run.guardrail")}</dt>
-              <dd>{guardrailName(result.case.guardrail)}</dd>
-              <dt>{t(result.case.email ? "admin.evals.run.email" : "admin.evals.run.message")}</dt>
-              <dd lang="fr">{result.case.message}</dd>
+        <h2>{t("admin.evals.run.cases")}</h2>
+        {run.results.map((result, index) =>
+          isGuardrailResult(result) ? (
+            <CaseCard key={index} id={`case-${index}`} title={result.case.title}>
+              <Property term={t("admin.evals.run.guardrail")}>{guardrailName(result.case.guardrail)}</Property>
+              <Property term={t(result.case.email ? "admin.evals.run.email" : "admin.evals.run.message")} lang={FRENCH}>
+                {result.case.message}
+              </Property>
               {result.case.email ? (
-                <>
-                  <dt>{t("admin.evals.run.emailReading")}</dt>
-                  <dd lang="fr">{JSON.stringify(result.case.email.reading)}</dd>
-                </>
+                <Property term={t("admin.evals.run.emailReading")} lang={FRENCH}>
+                  {JSON.stringify(result.case.email.reading)}
+                </Property>
               ) : null}
               {result.case.reply ? (
-                <>
-                  <dt>{t("admin.evals.run.reply")}</dt>
-                  <dd lang="fr">{result.case.reply}</dd>
-                </>
+                <Property term={t("admin.evals.run.reply")} lang={FRENCH}>
+                  {result.case.reply}
+                </Property>
               ) : null}
-              <dt>{t("admin.evals.run.expected")}</dt>
-              <dd>{t(`admin.evals.run.verdicts.${result.expected}`)}</dd>
-              <dt>{t("admin.evals.run.verdict")}</dt>
-              <dd>
+              <Property term={t("admin.evals.run.expected")}>{t(`admin.evals.run.verdicts.${result.expected}`)}</Property>
+              <Property term={t("admin.evals.run.verdict")}>
                 {t(`admin.evals.run.verdicts.${result.verdict}`)} ({t(result.passed ? "admin.evals.run.passed" : "admin.evals.run.failed")})
-              </dd>
-              <dt>{t("admin.evals.run.caseCost")}</dt>
-              <dd>{format.cost(result.costEur)}</dd>
-            </dl>
-          </section>
-        ) : (
-          judgedCase(result, index)
-        ),
-      )}
+              </Property>
+              <Property term={t("admin.evals.run.caseCost")}>{format.cost(result.costEur)}</Property>
+            </CaseCard>
+          ) : (
+            judgedCase(result, index)
+          ),
+        )}
+      </div>
     </BackOfficeLayout>
+  );
+}
+
+/** One case the run played: a region named by its title, on a card, its properties inside. */
+function CaseCard({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={id}>
+      <Card title={<span id={id}>{title}</span>} headingLevel={3}>
+        <Properties>{children}</Properties>
+      </Card>
+    </section>
   );
 }

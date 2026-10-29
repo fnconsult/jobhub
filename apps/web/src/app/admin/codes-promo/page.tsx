@@ -1,14 +1,26 @@
 import { FREE_PLAN } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { couponFromForm } from "@/admin/coupon-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import type { Coupon, CouponError, PlanDefinition } from "@/billing";
 import { couponTermsLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Checkbox, Field, Radio, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Pill } from "@/design/Pill";
+import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "coupons";
 
 const ERRORS = [
   "invalid_code",
@@ -77,180 +89,147 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
 
   return (
     <BackOfficeLayout access={access} title={t("admin.coupons.title")}>
-      <p className="lead">{t("admin.coupons.intro")}</p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {createdCoupon ? (
-        <p className="notice" role="status">
-          {t("admin.coupons.created", { code: createdCoupon.code })}
-        </p>
-      ) : null}
-      {deactivatedCoupon ? (
-        <p className="notice" role="status">
-          {t("admin.coupons.deactivated", { code: deactivatedCoupon.code })}
-        </p>
-      ) : null}
-      {isError(error) ? (
-        <p className="notice" role="alert">
-          {t(`admin.coupons.errors.${error}`)}
-        </p>
-      ) : null}
+      <div className="section-page">
+        <PageIntro t={t} page={INTRO} subject={t("admin.coupons.title")}>
+          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+        </PageIntro>
+        {createdCoupon ? (
+          <Note tone="success" role="status">
+            {t("admin.coupons.created", { code: createdCoupon.code })}
+          </Note>
+        ) : null}
+        {deactivatedCoupon ? (
+          <Note tone="success" role="status">
+            {t("admin.coupons.deactivated", { code: deactivatedCoupon.code })}
+          </Note>
+        ) : null}
+        {isError(error) ? (
+          <Note tone="danger" role="alert">
+            {t(`admin.coupons.errors.${error}`)}
+          </Note>
+        ) : null}
 
-      {coupons === null ? (
-        <p className="notice" role="alert">
-          {t("admin.coupons.unavailable")}
-        </p>
-      ) : coupons.length === 0 ? (
-        <p>{t("admin.coupons.none")}</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="application-table">
-            <caption>{t("admin.coupons.caption")}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.coupons.code")}</th>
-                <th scope="col">{t("admin.coupons.terms")}</th>
-                <th scope="col">{t("admin.coupons.plans")}</th>
-                <th scope="col">{t("admin.coupons.expiresAt")}</th>
-                <th scope="col">{t("admin.coupons.redemptions")}</th>
-                <th scope="col">{t("admin.coupons.statusLabel")}</th>
-                <th scope="col">{t("admin.coupons.link")}</th>
-                {canWrite ? <td /> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {coupons.map((coupon) =>
-                "unreadable" in coupon ? (
-                  <tr key={coupon.id}>
-                    <th scope="row">
-                      <code>{coupon.code}</code>
-                    </th>
-                    <td colSpan={canWrite ? 7 : 6}>{t("admin.coupons.unreadable")}</td>
-                  </tr>
-                ) : (
-                <tr key={coupon.id}>
-                  <th scope="row">
-                    <code>{coupon.code}</code>
-                  </th>
-                  <td>
-                    {couponTermsLabel(coupon, locale)}
-                    {coupon.firstPaymentOnly ? ` (${t("admin.coupons.firstPaymentOnly")})` : null}
-                  </td>
-                  <td>{planNames(coupon)}</td>
-                  <td>{coupon.expiresAt ? date.format(coupon.expiresAt) : t("admin.coupons.noExpiry")}</td>
-                  <td>
-                    {coupon.maxRedemptions === null
+        {coupons === null ? (
+          <Note tone="danger" role="alert">
+            {t("admin.coupons.unavailable")}
+          </Note>
+        ) : coupons.length === 0 ? (
+          <p>{t("admin.coupons.none")}</p>
+        ) : (
+          <Table
+            label={t("admin.coupons.caption")}
+            columns={[
+              { header: t("admin.coupons.code"), rowHeader: true, cell: (coupon) => <code>{coupon.code}</code> },
+              {
+                header: t("admin.coupons.terms"),
+                cell: (coupon) =>
+                  "unreadable" in coupon ? (
+                    t("admin.coupons.unreadable")
+                  ) : (
+                    <>
+                      {couponTermsLabel(coupon, locale)}
+                      {coupon.firstPaymentOnly ? ` (${t("admin.coupons.firstPaymentOnly")})` : null}
+                    </>
+                  ),
+              },
+              { header: t("admin.coupons.plans"), cell: (coupon) => ("unreadable" in coupon ? null : planNames(coupon)) },
+              {
+                header: t("admin.coupons.expiresAt"),
+                cell: (coupon) => ("unreadable" in coupon ? null : coupon.expiresAt ? date.format(coupon.expiresAt) : t("admin.coupons.noExpiry")),
+              },
+              {
+                header: t("admin.coupons.redemptions"),
+                numeric: true,
+                cell: (coupon) =>
+                  "unreadable" in coupon
+                    ? null
+                    : coupon.maxRedemptions === null
                       ? coupon.timesRedeemed
-                      : t("admin.coupons.redemptionsOf", { used: coupon.timesRedeemed, max: coupon.maxRedemptions })}
-                  </td>
-                  <td>{t(`admin.coupons.status.${coupon.active ? "active" : "inactive"}`)}</td>
-                  <td>
-                    <code>{`${routes.subscription}?code=${encodeURIComponent(coupon.code)}`}</code>
-                  </td>
-                  {canWrite ? (
-                    <td>
-                      {coupon.active ? (
-                        <form action={deactivateCoupon}>
-                          <input type="hidden" name="coupon" value={coupon.id} />
-                          <button className="button" type="submit">
-                            {t("admin.coupons.deactivate", { code: coupon.code })}
-                          </button>
-                        </form>
-                      ) : null}
-                    </td>
-                  ) : null}
-                </tr>
-                ),
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {canWrite ? <p>{t("admin.coupons.deactivateHelp")}</p> : null}
+                      : t("admin.coupons.redemptionsOf", { used: coupon.timesRedeemed, max: coupon.maxRedemptions }),
+              },
+              {
+                header: t("admin.coupons.statusLabel"),
+                cell: (coupon) =>
+                  "unreadable" in coupon ? null : <Pill tone={coupon.active ? "success" : "neutral"}>{t(`admin.coupons.status.${coupon.active ? "active" : "inactive"}`)}</Pill>,
+              },
+              { header: t("admin.coupons.link"), cell: (coupon) => ("unreadable" in coupon ? null : <code>{`${routes.subscription}?code=${encodeURIComponent(coupon.code)}`}</code>) },
+              ...(canWrite
+                ? [
+                    {
+                      header: <span className="visually-hidden">{t("admin.rowActions")}</span>,
+                      cell: (coupon: (typeof coupons)[number]) =>
+                        "unreadable" in coupon || !coupon.active ? null : (
+                          <form action={deactivateCoupon}>
+                            <input type="hidden" name="coupon" value={coupon.id} />
+                            <button className={buttonClass({ variant: "danger", size: "sm" })} type="submit">
+                              {t("admin.coupons.deactivate", { code: coupon.code })}
+                            </button>
+                          </form>
+                        ),
+                    },
+                  ]
+                : []),
+            ]}
+            rows={coupons}
+            rowKey={(coupon) => coupon.id}
+          />
+        )}
+        {canWrite ? <p className="section-meta">{t("admin.coupons.deactivateHelp")}</p> : null}
 
-      {canWrite ? <CreateCouponForm plans={sold} locale={locale} t={t} /> : null}
+        {canWrite ? <CreateCouponForm plans={sold} locale={locale} t={t} /> : null}
+      </div>
     </BackOfficeLayout>
   );
 }
 
 function CreateCouponForm({ plans, locale, t }: { plans: PlanDefinition[]; locale: "fr" | "en"; t: Awaited<ReturnType<typeof getServerT>> }) {
   return (
-    <form className="stack quota-form" action={createCoupon}>
-      <fieldset>
-        <legend>
-          <h2>{t("admin.coupons.createTitle")}</h2>
-        </legend>
-        <p>{t("admin.coupons.createHelp")}</p>
-        <div className="stack">
-          <label htmlFor="new-coupon-code">{t("admin.coupons.code")}</label>
-          <input
-            id="new-coupon-code"
-            className="input"
-            name="code"
-            required
-            pattern="[A-Za-z0-9_\-]{3,40}"
-            autoComplete="off"
-            spellCheck={false}
-            aria-describedby="new-coupon-code-help"
-          />
-          <p id="new-coupon-code-help">{t("admin.coupons.codeHelp")}</p>
+    <form action={createCoupon}>
+      <Card title={t("admin.coupons.createTitle")}>
+        <div className="section-form">
+          <p>{t("admin.coupons.createHelp")}</p>
+          <Field label={t("admin.coupons.code")} hint={t("admin.coupons.codeHelp")}>
+            <TextInput name="code" required pattern="[A-Za-z0-9_\-]{3,40}" autoComplete="off" spellCheck={false} />
+          </Field>
+          <fieldset>
+            <legend>{t("admin.coupons.kind")}</legend>
+            {KINDS.map((kind) => (
+              <Radio key={kind} name="kind" value={kind} defaultChecked={kind === "percent"} label={t(`admin.coupons.kinds.${kind}`)} />
+            ))}
+          </fieldset>
+          <Field label={t("admin.coupons.value")} hint={t("admin.coupons.valueHelp")}>
+            <TextInput name="value" required inputMode="decimal" autoComplete="off" />
+          </Field>
+          <fieldset>
+            <legend>{t("admin.coupons.duration")}</legend>
+            {DURATIONS.map((duration) => (
+              <Radio key={duration} name="duration" value={duration} defaultChecked={duration === "once"} label={t(`admin.coupons.durations.${duration}`)} />
+            ))}
+          </fieldset>
+          <Field label={t("admin.coupons.durationInMonths")} hint={t("admin.coupons.durationInMonthsHelp")}>
+            <TextInput name="durationInMonths" type="number" min={1} max={36} />
+          </Field>
+          <fieldset aria-describedby="new-coupon-plans-help">
+            <legend>{t("admin.coupons.plans")}</legend>
+            <p id="new-coupon-plans-help" className="section-meta">
+              {t("admin.coupons.plansHelp")}
+            </p>
+            {plans.map((plan) => (
+              <Checkbox key={plan.key} name="plans" value={plan.key} label={plan.name[locale]} />
+            ))}
+          </fieldset>
+          <Field label={t("admin.coupons.expiresAt")} hint={t("admin.coupons.expiresAtHelp")}>
+            <TextInput name="expiresAt" type="date" />
+          </Field>
+          <Field label={t("admin.coupons.maxRedemptions")} hint={t("admin.coupons.maxRedemptionsHelp")}>
+            <TextInput name="maxRedemptions" type="number" min={1} />
+          </Field>
+          <Checkbox name="firstPaymentOnly" label={t("admin.coupons.firstPaymentOnlyLabel")} hint={t("admin.coupons.firstPaymentOnlyHelp")} />
+          <button className={buttonClass({ variant: "primary" })} type="submit">
+            {t("admin.coupons.create")}
+          </button>
         </div>
-        <fieldset className="stack">
-          <legend>{t("admin.coupons.kind")}</legend>
-          {KINDS.map((kind) => (
-            <div key={kind} className="checkbox-field">
-              <input id={`new-coupon-kind-${kind}`} type="radio" name="kind" value={kind} defaultChecked={kind === "percent"} />
-              <label htmlFor={`new-coupon-kind-${kind}`}>{t(`admin.coupons.kinds.${kind}`)}</label>
-            </div>
-          ))}
-        </fieldset>
-        <div className="stack">
-          <label htmlFor="new-coupon-value">{t("admin.coupons.value")}</label>
-          <input id="new-coupon-value" className="input" name="value" required inputMode="decimal" autoComplete="off" aria-describedby="new-coupon-value-help" />
-          <p id="new-coupon-value-help">{t("admin.coupons.valueHelp")}</p>
-        </div>
-        <fieldset className="stack">
-          <legend>{t("admin.coupons.duration")}</legend>
-          {DURATIONS.map((duration) => (
-            <div key={duration} className="checkbox-field">
-              <input id={`new-coupon-duration-${duration}`} type="radio" name="duration" value={duration} defaultChecked={duration === "once"} />
-              <label htmlFor={`new-coupon-duration-${duration}`}>{t(`admin.coupons.durations.${duration}`)}</label>
-            </div>
-          ))}
-        </fieldset>
-        <div className="stack">
-          <label htmlFor="new-coupon-months">{t("admin.coupons.durationInMonths")}</label>
-          <input id="new-coupon-months" className="input" name="durationInMonths" type="number" min={1} max={36} aria-describedby="new-coupon-months-help" />
-          <p id="new-coupon-months-help">{t("admin.coupons.durationInMonthsHelp")}</p>
-        </div>
-        <fieldset className="stack" aria-describedby="new-coupon-plans-help">
-          <legend>{t("admin.coupons.plans")}</legend>
-          <p id="new-coupon-plans-help">{t("admin.coupons.plansHelp")}</p>
-          {plans.map((plan) => (
-            <div key={plan.key} className="checkbox-field">
-              <input id={`new-coupon-plan-${plan.key}`} type="checkbox" name="plans" value={plan.key} />
-              <label htmlFor={`new-coupon-plan-${plan.key}`}>{plan.name[locale]}</label>
-            </div>
-          ))}
-        </fieldset>
-        <div className="stack">
-          <label htmlFor="new-coupon-expires">{t("admin.coupons.expiresAt")}</label>
-          <input id="new-coupon-expires" className="input" name="expiresAt" type="date" aria-describedby="new-coupon-expires-help" />
-          <p id="new-coupon-expires-help">{t("admin.coupons.expiresAtHelp")}</p>
-        </div>
-        <div className="stack">
-          <label htmlFor="new-coupon-max">{t("admin.coupons.maxRedemptions")}</label>
-          <input id="new-coupon-max" className="input" name="maxRedemptions" type="number" min={1} aria-describedby="new-coupon-max-help" />
-          <p id="new-coupon-max-help">{t("admin.coupons.maxRedemptionsHelp")}</p>
-        </div>
-        <div className="checkbox-field">
-          <input id="new-coupon-first" type="checkbox" name="firstPaymentOnly" aria-describedby="new-coupon-first-help" />
-          <label htmlFor="new-coupon-first">{t("admin.coupons.firstPaymentOnlyLabel")}</label>
-          <p id="new-coupon-first-help">{t("admin.coupons.firstPaymentOnlyHelp")}</p>
-        </div>
-        <button className="button button-primary" type="submit">
-          {t("admin.coupons.create")}
-        </button>
-      </fieldset>
+      </Card>
     </form>
   );
 }

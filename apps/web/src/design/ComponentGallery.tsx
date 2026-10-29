@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { Amount } from "./Amount";
@@ -59,19 +59,20 @@ const UP_BAD: Trend = { direction: "up", tone: "danger", text: "" };
 const UP_GOOD: Trend = { direction: "up", tone: "success", text: "" };
 
 /**
- * Every Design System component (#462), each in its states, as the components' test page shows them for the e2e
- * suite's axe and keyboard checks, in the Density of what holds it. Interactive: the switch, the segmented control,
- * the tabs, the rows, the Toast, the Drawer and the Dialog work.
+ * Every Design System component (#462), each in its states, as the components' test page and the Design System page
+ * (#463) show them, in the Density and theme of what holds it. Interactive: the switch, the segmented control, the
+ * tabs, the rows, the Toast, the Drawer and the Dialog work. `head` comes first, in its place: the components' test
+ * page's own PageHeader (its level-1 heading) unless the page gives another.
  */
-export function ComponentGallery() {
+export function ComponentGallery({ head }: { head?: ReactNode }) {
   return (
     <ToastProvider>
-      <Gallery />
+      <Gallery head={head} />
     </ToastProvider>
   );
 }
 
-function Gallery() {
+function Gallery({ head }: { head?: ReactNode }) {
   const { t } = useTranslation();
   const toast = useToast();
   const [digest, setDigest] = useState(true);
@@ -99,12 +100,14 @@ function Gallery() {
 
   return (
     <div className="ds-gallery">
-      <PageHeader
-        eyebrow={t("designSystem.gallery.eyebrow")}
-        title={t("designSystem.gallery.title")}
-        subtitle={t("designSystem.gallery.subtitle")}
-        actions={<Button icon={<Icons.add />}>{t("designSystem.gallery.add")}</Button>}
-      />
+      {head ?? (
+        <PageHeader
+          eyebrow={t("designSystem.gallery.eyebrow")}
+          title={t("designSystem.gallery.title")}
+          subtitle={t("designSystem.gallery.subtitle")}
+          actions={<Button icon={<Icons.add />}>{t("designSystem.gallery.add")}</Button>}
+        />
+      )}
 
       <section className="ds-gallery__section" aria-labelledby="ds-buttons">
         <h2 id="ds-buttons">{t("designSystem.gallery.buttons")}</h2>

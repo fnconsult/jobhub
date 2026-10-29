@@ -5,7 +5,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { Button } from "./Button";
-import { Scrim } from "./overlay";
+import { OverlayPortal, Scrim } from "./overlay";
 import { useHydrated } from "./hydrated";
 import "./Drawer.css";
 
@@ -55,7 +55,7 @@ export function Drawer({
           {trigger}
         </RadixDialog.Trigger>
       ) : null}
-      <RadixDialog.Portal>
+      <OverlayPortal>
         <Scrim />
         <RadixDialog.Content
           className={["ds-drawer", className].filter(Boolean).join(" ")}
@@ -82,7 +82,7 @@ export function Drawer({
             children
           )}
         </RadixDialog.Content>
-      </RadixDialog.Portal>
+      </OverlayPortal>
     </RadixDialog.Root>
   );
 }

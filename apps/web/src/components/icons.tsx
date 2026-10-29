@@ -28,6 +28,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Palette,
   MessageCircleQuestion,
   MessageSquare,
   NotebookText,
@@ -117,6 +118,8 @@ const LUCIDE = {
   // An envelope: Activité › Emails reçus, Email intake's Received offer emails (#449).
   receivedEmails: Mail,
   tools: Wrench,
+  // A palette: the Design System page (#463).
+  designSystem: Palette,
   administrators: ShieldCheck,
   journal: NotebookText,
   // The Design System's Notes and Stats (#462).

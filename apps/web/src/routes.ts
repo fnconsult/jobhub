@@ -152,6 +152,8 @@ export const routes = {
   },
   adminAiMessage: (id: string) => `/admin/activite/appels-ia/${encodeURIComponent(id)}`,
   /** Administrators and their Back Office Roles. */
+  /** The Design System page (#463): every token and component, in either theme and Density; every Back Office Role reads it. */
+  adminDesignSystem: "/admin/design-system",
   adminAdministrators: "/admin/administrateurs",
   /**
    * Actions des administrateurs (the Back Office Audit, formerly Journal), newest first; with a section, only its changes;

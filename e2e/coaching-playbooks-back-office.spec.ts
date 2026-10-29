@@ -58,9 +58,14 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await grant(page, editorEmail, "playbook-editor");
     const id = `e2e-salaire-${unique()}`;
 
-    // The editor's Back Office holds this section alone, under Coaching.
+    // The editor's Back Office holds this section alone, under Coaching, and the Design System page every role reads (#463).
     await editor.goto("/admin");
-    await expect(editor.getByRole("navigation", { name: admin.nav.label }).getByRole("link")).toHaveText([admin.nav.dashboard, admin.sections.coachingPlaybooks, admin.nav.account]);
+    await expect(editor.getByRole("navigation", { name: admin.nav.label }).getByRole("link")).toHaveText([
+      admin.nav.dashboard,
+      admin.sections.coachingPlaybooks,
+      admin.sections.designSystem,
+      admin.nav.account,
+    ]);
     await editor.goto("/admin/playbooks");
     await expect(editor.getByRole("heading", { level: 1 })).toHaveText(playbooks.title);
     await expect(editor.getByRole("row").filter({ hasText: playbooks.kinds.core_digest })).toContainText(playbooks.notValidated);

@@ -1,7 +1,10 @@
 import { routes } from "../routes";
 import type { BackOfficeAccess, BackOfficeResource } from "./access";
 
-/** The Back Office's pages (its sections), each covered by one resource: an Administrator sees a section when a role lets them read it. */
+/**
+ * The Back Office's pages (its sections), each covered by one resource: an Administrator sees a section when a role lets them read it.
+ * A page covered by none (`resource: null`) is read by every Administrator, whatever their Back Office Roles.
+ */
 export const BACK_OFFICE_PAGES = {
   signalements: { href: routes.adminSignalements(), resource: "signalements" },
   plans: { href: routes.adminPlans, resource: "plans" },
@@ -26,11 +29,19 @@ export const BACK_OFFICE_PAGES = {
   aiMessages: { href: routes.adminAiMessages(), resource: "aiMessages" },
   searchSites: { href: routes.adminSearchSites, resource: "searchSites" },
   tools: { href: routes.adminTools, resource: "tools" },
+  // The Design System page (#463, ADR-0053): the reference screens are checked against, read by every Back Office Role.
+  designSystem: { href: routes.adminDesignSystem, resource: null },
   administrators: { href: routes.adminAdministrators, resource: "roles" },
   journal: { href: routes.adminAudit(), resource: "audit" },
-} as const satisfies Record<string, { href: string; resource: BackOfficeResource }>;
+} as const satisfies Record<string, { href: string; resource: BackOfficeResource | null }>;
 
 export type BackOfficePage = keyof typeof BACK_OFFICE_PAGES;
+
+/** Whether `access` reads `page`: a role covers its resource, or, for a page covered by none, any Back Office Role at all. */
+export function readsPage(access: BackOfficeAccess, page: BackOfficePage): boolean {
+  const { resource } = BACK_OFFICE_PAGES[page];
+  return resource === null ? access.isAdministrator : access.can(resource, "read");
+}
 
 /**
  * The sidebar's groups, in order (map #123).
@@ -40,7 +51,7 @@ const GROUPS = [
   { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost", "coachingPlaybooks", "guardrails"] },
   { key: "content", sections: ["unansweredQuestions"] },
-  { key: "platform", sections: ["platformSettings", "aiUsage", "activity", "tools"] },
+  { key: "platform", sections: ["platformSettings", "aiUsage", "activity", "tools", "designSystem"] },
   { key: "team", sections: ["administrators"] },
 ] as const satisfies ReadonlyArray<{ key: string; sections: readonly BackOfficePage[] }>;
 
@@ -72,7 +83,7 @@ export function backOfficeNav(access: BackOfficeAccess, counts: BackOfficeCounts
   return GROUPS.map((group) => ({
     key: group.key,
     sections: group.sections
-      .filter((key) => access.can(BACK_OFFICE_PAGES[key].resource, "read"))
+      .filter((key) => readsPage(access, key))
       .map((key) => {
         const count = countOf(access, key, counts);
         return { key, href: BACK_OFFICE_PAGES[key].href, ...(count === undefined ? {} : { count }) };

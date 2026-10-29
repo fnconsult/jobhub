@@ -1118,6 +1118,7 @@
       "unansweredQuestions": "Questions sans réponse",
       "activity": "Activité",
       "discoveryRuns": "Recherches",
+      "designSystem": "Design System",
       "receivedEmails": "Emails reçus"
     },
     "signInProviders": {
@@ -4277,6 +4278,44 @@
     "close": "Fermer",
     "cancel": "Annuler",
     "ring": "{{label}} : {{value}} sur 100",
+    "page": {
+      "intro": "Chaque couleur, la typographie et chaque composant du Design System, dans le thème et la Densité choisis ici, pour cette page seulement. Les écrans sont vérifiés par rapport à elle.",
+      "theme": "Thème",
+      "light": "Clair",
+      "dark": "Sombre",
+      "density": "Densité",
+      "confort": "Confort",
+      "compact": "Compact",
+      "foundations": "Fondations",
+      "colors": "Couleurs",
+      "token": "Jeton",
+      "swatch": "Aperçu",
+      "lightValue": "Clair",
+      "darkValue": "Sombre",
+      "typography": "Typographie",
+      "typeShown": "{{density}} · corps {{size}} px",
+      "style": "Style",
+      "sample": "Exemple",
+      "px": "{{size}} px",
+      "styles": {
+        "h1": "Titre de page",
+        "h2": "Titre de section",
+        "h3": "Sous-titre",
+        "lead": "Chapeau",
+        "body": "Corps",
+        "meta": "Métadonnée"
+      },
+      "samples": {
+        "h1": "Mes candidatures",
+        "h2": "Dernières offres trouvées",
+        "h3": "Fournisseur actif",
+        "lead": "Votre coach a trouvé 12 offres cette semaine.",
+        "body": "Votre coach cherche des offres selon les critères de votre profil.",
+        "meta": "Publiée le 23 octobre 2026 · jobtenir.com"
+      },
+      "components": "Composants",
+      "componentsSubtitle": "Chaque composant et ses états, tels que les écrans les utilisent."
+    },
     "gallery": {
       "eyebrow": "Design System",
       "title": "Composants",

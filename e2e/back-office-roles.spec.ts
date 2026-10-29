@@ -6,7 +6,7 @@ import { newAddress } from "./support/mailbox";
 // Issue #204: Back Office Roles. ADMIN_EMAILS members are permanent super-admins;
 // they grant roles to existing accounts on the Administrateurs page. Each role
 // reaches only its sections (the others are left out of the sidebar and answer
-// 404), Support reads without saving, and every grant and revoke is in Activité › Actions des administrateurs.
+// 404), the Design System page (#463) among them for every role, Support reads without saving, and every grant and revoke is in Activité › Actions des administrateurs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const page404 = fr.notFound.title;
@@ -31,6 +31,7 @@ const SECTIONS = {
   aiUsage: "/admin/consommation-ia",
   activity: "/admin/activite",
   tools: "/admin/outils",
+  designSystem: "/admin/design-system",
   administrators: "/admin/administrateurs",
 } as const;
 type Section = keyof typeof SECTIONS;
@@ -120,7 +121,7 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
+    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
@@ -169,18 +170,18 @@ test.describe("Back Office Roles", () => {
     await grant(page, coaches, ["coach-manager"]);
     await grant(page, support, ["support"]);
 
-    await expectSections(plansPage, ["plans", "planQuotas", "coupons"]);
+    await expectSections(plansPage, ["plans", "planQuotas", "coupons", "designSystem"]);
     await plansPage.goto(SECTIONS.plans);
     await expect(plansPage.getByRole("button", { name: admin.plans.create })).toBeEnabled();
     await plansPage.goto(SECTIONS.planQuotas);
     await expect(plansPage.getByRole("button", { name: tr(admin.planQuotas.save, { plan: fr.billing.plans.premium }) })).toBeEnabled();
 
-    await expectSections(coachesPage, ["humanCoaches", "coachCost"]);
+    await expectSections(coachesPage, ["humanCoaches", "coachCost", "designSystem"]);
     await coachesPage.goto(SECTIONS.humanCoaches);
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
     // Support reads Activité's Recherches, never its Appels IA nor its Actions des administrateurs (#404).
-    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools"], ["discoveryRuns"]);
+    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem"], ["discoveryRuns"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
@@ -235,7 +236,7 @@ test.describe("Back Office Roles", () => {
     await grant(page, technique, ["platform-manager"]);
 
     // The keys, the Sign-in Providers and the search sites are on Paramètres' tabs (#396).
-    await expectSections(techniquePage, ["platformSettings", "aiUsage", "activity", "tools"], ["discoveryRuns", "journal"]);
+    await expectSections(techniquePage, ["platformSettings", "aiUsage", "activity", "tools", "designSystem"], ["discoveryRuns", "journal"]);
     // Changes the search sites: the Sources' switches and the Job discovery sites (Recherche web tab).
     await techniquePage.goto(SOURCES);
     await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);

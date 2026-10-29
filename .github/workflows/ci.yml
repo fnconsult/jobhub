@@ -38,7 +38,51 @@ jobs:
       - run: npm run build
       - run: npm run db:migrate
       - run: npx playwright install --with-deps chromium
+      # The screenshot specs run here for their axe checks; their comparisons run in the `screenshots` job, in the
+      # Playwright image the baselines are drawn in, whose fonts match theirs.
       - run: npm run test:e2e
+        env:
+          E2E_SCREENSHOTS: "0"
+
+  # The screenshot baselines (#463, docs/agents/screenshot-baselines.md): every spec with a toHaveScreenshot, in the
+  # Playwright image of the version the repo pins, as scripts/update-screenshot-baselines.sh draws them. A screen that
+  # differs from its baseline fails the run.
+  screenshots:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jobhub
+          POSTGRES_PASSWORD: jobhub
+          POSTGRES_DB: jobhub
+        options: >-
+          --health-cmd "pg_isready -U jobhub -d jobhub"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://jobhub:jobhub@postgres:5432/jobhub
+      NEXT_TELEMETRY_DISABLED: "1"
+      E2E_SCREENSHOTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      # The image's Playwright must be the one the repo pins, or its Chromium draws otherwise.
+      - run: test "$(node -p 'require("./package-lock.json").packages["node_modules/@playwright/test"].version')" = "1.63.0"
+      - run: npm ci
+      - run: npm run build
+      - run: npm run db:migrate
+      - run: npx playwright test --project=web $(grep -l toHaveScreenshot e2e/*.spec.ts)
+      # A failed comparison's expected, actual and diff images, and its trace.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshot-results
+          path: test-results/
+          retention-days: 14
 
   # The images .github/workflows/deploy.yml ships to the VPS: a Dockerfile that no longer
   # builds should fail here, on the pull request, not during a deployment.

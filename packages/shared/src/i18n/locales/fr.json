@@ -2561,6 +2561,7 @@
       "firstAskedAt": "Première fois",
       "lastAskedAt": "Dernière fois",
       "answer": "Réponse du coach IA",
+      "answerOf": "Réponse du coach IA : {{question}}",
       "actions": "Actions",
       "markWritten": "Article écrit",
       "markWrittenLabel": "Article écrit : {{question}}",

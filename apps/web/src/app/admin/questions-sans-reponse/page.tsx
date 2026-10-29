@@ -1,15 +1,23 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUnansweredQuestionsBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { Button } from "@/design/Button";
+import { buttonClass } from "@/design/button-class";
+import { Drawer } from "@/design/Drawer";
+import { FilterLinks } from "@/design/FilterLinks";
+import { Note } from "@/design/Note";
+import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { UNANSWERED_QUESTION_LANGUAGES, type UnansweredQuestionLanguage, type UnansweredQuestionMark } from "@/unanswered-questions";
 import { getUnansweredQuestions } from "@/unanswered-questions/server";
+import "../section.css";
 
-const CURRENT = "page";
+/** The filters' id for « Toutes », which the address leaves out. */
+const ALL = "all";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to those whose roles do not cover it would carry its title.
@@ -56,98 +64,114 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
 
   return (
     <BackOfficeLayout access={access} title={t("admin.unansweredQuestions.title")}>
-      <p className="lead">{t("admin.unansweredQuestions.intro")}</p>
-      <p>{t("admin.unansweredQuestions.privacy")}</p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {marque === "written" || marque === "dismissed" ? (
-        <p className="notice" role="status">
-          {t(`admin.unansweredQuestions.marked.${marque}`)}
-        </p>
-      ) : null}
-      {erreur ? (
-        <p className="notice" role="alert">
-          {t("admin.unansweredQuestions.notMarked")}
-        </p>
-      ) : null}
+      <div className="section-page">
+        <PageIntro t={t} page="unansweredQuestions" subject={t("admin.unansweredQuestions.title")}>
+          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+        </PageIntro>
+        {marque === "written" || marque === "dismissed" ? (
+          <Note tone="success" role="status">
+            {t(`admin.unansweredQuestions.marked.${marque}`)}
+          </Note>
+        ) : null}
+        {erreur ? (
+          <Note tone="danger" role="alert">
+            {t("admin.unansweredQuestions.notMarked")}
+          </Note>
+        ) : null}
 
-      <nav aria-label={t("admin.unansweredQuestions.routeFilter")}>
-        <ul className="journal-filter">
-          {[undefined, ...pages].map((option) => (
-            <li key={option ?? "all"}>
-              <Link href={routes.adminUnansweredQuestions({ ...(option ? { route: option } : {}), ...(language ? { language } : {}) })} aria-current={option === route ? CURRENT : undefined}>
-                {option ?? t("admin.unansweredQuestions.allRoutes")}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <nav aria-label={t("admin.unansweredQuestions.languageFilter")}>
-        <ul className="journal-filter">
-          {[undefined, ...UNANSWERED_QUESTION_LANGUAGES].map((option) => (
-            <li key={option ?? "all"}>
-              <Link href={routes.adminUnansweredQuestions({ ...(route ? { route } : {}), ...(option ? { language: option } : {}) })} aria-current={option === language ? CURRENT : undefined}>
-                {option ? t(`admin.unansweredQuestions.languages.${option}`) : t("admin.unansweredQuestions.allLanguages")}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+        <FilterLinks
+          label={t("admin.unansweredQuestions.routeFilter")}
+          shown={route ?? ALL}
+          links={[undefined, ...pages].map((option) => ({
+            id: option ?? ALL,
+            href: routes.adminUnansweredQuestions({ ...(option ? { route: option } : {}), ...(language ? { language } : {}) }),
+            label: option ?? t("admin.unansweredQuestions.allRoutes"),
+          }))}
+        />
+        <FilterLinks
+          label={t("admin.unansweredQuestions.languageFilter")}
+          shown={language ?? ALL}
+          links={[undefined, ...UNANSWERED_QUESTION_LANGUAGES].map((option) => ({
+            id: option ?? ALL,
+            href: routes.adminUnansweredQuestions({ ...(route ? { route } : {}), ...(option ? { language: option } : {}) }),
+            label: option ? t(`admin.unansweredQuestions.languages.${option}`) : t("admin.unansweredQuestions.allLanguages"),
+          }))}
+        />
 
-      {shown.length === 0 ? (
-        <p>{t("admin.unansweredQuestions.none")}</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="application-table">
-            <caption>{t("admin.unansweredQuestions.caption")}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.unansweredQuestions.question")}</th>
-                <th scope="col">{t("admin.unansweredQuestions.route")}</th>
-                <th scope="col">{t("admin.unansweredQuestions.count")}</th>
-                <th scope="col">{t("admin.unansweredQuestions.firstAskedAt")}</th>
-                <th scope="col">{t("admin.unansweredQuestions.lastAskedAt")}</th>
-                <th scope="col">{t("admin.unansweredQuestions.answer")}</th>
-                <th scope="col">{t("admin.unansweredQuestions.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((each) => (
-                <tr key={each.id}>
-                  <th scope="row" lang={each.language}>
-                    {each.question}
-                  </th>
-                  <td>
+        {shown.length === 0 ? (
+          <p>{t("admin.unansweredQuestions.none")}</p>
+        ) : (
+          <Table
+            label={t("admin.unansweredQuestions.caption")}
+            columns={[
+              {
+                key: "question",
+                header: t("admin.unansweredQuestions.question"),
+                rowHeader: true,
+                cell: (each) => <span lang={each.language}>{each.question}</span>,
+              },
+              {
+                key: "route",
+                header: t("admin.unansweredQuestions.route"),
+                cell: (each) => (
+                  <>
                     {each.route ? <code>{each.route}</code> : t("admin.unansweredQuestions.unknownRoute")} · {t(`admin.unansweredQuestions.languages.${each.language}`)}
-                  </td>
-                  <td>{number.format(each.count)}</td>
-                  <td>{when(each.firstAskedAt)}</td>
-                  <td>{when(each.lastAskedAt)}</td>
-                  <td>
-                    <details>
-                      <summary>{t("admin.unansweredQuestions.answer")}</summary>
-                      <p lang={each.language} className="unanswered-answer">
-                        {each.answer}
-                      </p>
-                    </details>
-                  </td>
-                  <td>
-                    <BackOfficeForm canWrite={canWrite} action={mark} className="actions">
-                      <input type="hidden" name="id" value={each.id} />
-                      <input type="hidden" name="route" value={route ?? ""} />
-                      <input type="hidden" name="language" value={language ?? ""} />
-                      {MARKS.map(({ status, label, named }) => (
-                        <button key={status} className="button" type="submit" name="status" value={status} disabled={!canWrite} aria-label={t(named, { question: each.question })}>
-                          {t(label)}
-                        </button>
-                      ))}
-                    </BackOfficeForm>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </>
+                ),
+              },
+              { key: "count", header: t("admin.unansweredQuestions.count"), numeric: true, cell: (each) => number.format(each.count) },
+              { key: "first", header: t("admin.unansweredQuestions.firstAskedAt"), cell: (each) => when(each.firstAskedAt) },
+              { key: "last", header: t("admin.unansweredQuestions.lastAskedAt"), cell: (each) => when(each.lastAskedAt) },
+              {
+                key: "answer",
+                header: t("admin.unansweredQuestions.answer"),
+                // The AI Coach's answer on demand, in a Drawer: the table stays one line per question.
+                cell: (each) => (
+                  <Drawer
+                    title={<span lang={each.language}>{each.question}</span>}
+                    trigger={
+                      <Button size="sm" aria-label={t("admin.unansweredQuestions.answerOf", { question: each.question })}>
+                        {t("admin.unansweredQuestions.answer")}
+                      </Button>
+                    }
+                  >
+                    <h3>{t("admin.unansweredQuestions.answer")}</h3>
+                    <p lang={each.language} className="section-text">
+                      {each.answer}
+                    </p>
+                  </Drawer>
+                ),
+              },
+              {
+                key: "actions",
+                header: t("admin.unansweredQuestions.actions"),
+                cell: (each) => (
+                  <BackOfficeForm canWrite={canWrite} action={mark} className="section-actions">
+                    <input type="hidden" name="id" value={each.id} />
+                    <input type="hidden" name="route" value={route ?? ""} />
+                    <input type="hidden" name="language" value={language ?? ""} />
+                    {MARKS.map(({ status, label, named }) => (
+                      <button
+                        key={status}
+                        className={buttonClass({ size: "sm" })}
+                        type="submit"
+                        name="status"
+                        value={status}
+                        disabled={!canWrite}
+                        aria-label={t(named, { question: each.question })}
+                      >
+                        {t(label)}
+                      </button>
+                    ))}
+                  </BackOfficeForm>
+                ),
+              },
+            ]}
+            rows={shown}
+            rowKey={(each) => each.id}
+          />
+        )}
+      </div>
     </BackOfficeLayout>
   );
 }

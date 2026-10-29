@@ -37,6 +37,11 @@
   flex: 1 1 24rem;
 }
 
+/* A row's own page: what it is, on one line under its title, as a section's intro. */
+.section-lead {
+  color: var(--color-secondary);
+}
+
 /* A part of the page under its heading: its heading, its text and its table, spaced alike. */
 .section-block {
   display: flex;

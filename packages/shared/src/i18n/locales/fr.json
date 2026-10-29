@@ -1013,6 +1013,7 @@
     "title": "Back office",
     "yourRoles": "Vos rôles : {{roles}}.",
     "readOnly": "Lecture seule : vos rôles ne permettent pas de modifier cette section.",
+    "rowActions": "Actions",
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "Ce que la plateforme consomme, et comment se porte la recherche d'offres.",

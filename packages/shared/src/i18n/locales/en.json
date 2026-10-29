@@ -1013,6 +1013,7 @@
     "title": "Back office",
     "yourRoles": "Your roles: {{roles}}.",
     "readOnly": "Read only: your roles do not allow changes to this section.",
+    "rowActions": "Actions",
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "What the platform consumes, and how Job discovery is doing.",

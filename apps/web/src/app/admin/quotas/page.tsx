@@ -6,8 +6,14 @@ import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Checkbox, Field, Select, Textarea, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import "../section.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -53,96 +59,83 @@ export default async function PlanQuotasPage({
 
   return (
     <BackOfficeLayout access={access} title={t("admin.planQuotas.title")}>
-      <p className="lead">{t("admin.planQuotas.intro")}</p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {savedPlan ? (
-        <p className="notice" role="status">
-          {t("admin.planQuotas.saved", { plan: savedPlan.name[locale] })}
-        </p>
-      ) : null}
-      {invalid ? (
-        <p className="notice" role="alert">
-          {t("admin.planQuotas.invalid")}
-        </p>
-      ) : null}
-      {plans.map(({ key: plan, name, status }) => (
-        <BackOfficeForm key={plan} canWrite={canWrite} className="stack quota-form" action={savePlanQuotas}>
-          <input type="hidden" name="plan" value={plan} />
-          {/* Read-only for roles that may not change Plan Quotas: no field to edit, no button to save. */}
-          <fieldset disabled={!canWrite}>
-            <legend>
-              <h2>
-                {t("admin.planQuotas.plan", { plan: name[locale] })}
-                {status === "hidden" ? ` (${t("admin.plans.status.hidden")})` : null}
-              </h2>
-            </legend>
-            {LIMITED_QUOTAS.map((quota) => {
-              const id = `${plan}-${quota}`;
-              const weekly = WEEKLY_QUOTAS.includes(quota as WeeklyQuota);
-              return (
-                <div key={quota} className="stack">
-                  <label htmlFor={id}>
-                    {weekly ? `${t(`billing.quotas.${quota}`)} (${t("admin.planQuotas.weekly")})` : t(`billing.quotas.${quota}`)}
-                  </label>
-                  <input
-                    id={id}
-                    className="input"
-                    name={quota}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    defaultValue={quotas[plan]?.[quota] ?? ""}
-                    aria-describedby={`${id}-help`}
-                  />
-                  <p id={`${id}-help`}>{t("admin.planQuotas.limitHelp")}</p>
-                </div>
-              );
-            })}
-            <div className="stack">
-              <label htmlFor={`${plan}-jobDigest`}>{t("billing.quotas.jobDigest")}</label>
-              <select id={`${plan}-jobDigest`} className="input" name="jobDigest" defaultValue={quotas[plan]?.jobDigest}>
-                {JOB_DIGEST_FREQUENCIES.map((frequency) => (
-                  <option key={frequency} value={frequency}>
-                    {t(`billing.jobDigest.${frequency}`)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {canWrite ? (
-              <button className="button button-primary" type="submit">
-                {t("admin.planQuotas.save", { plan: name[locale] })}
-              </button>
-            ) : null}
-          </fieldset>
-        </BackOfficeForm>
-      ))}
-      {canWrite ? (
-        <form className="stack quota-form" action={resetWeeklyUsage} aria-labelledby="reset-usage">
-          <h2 id="reset-usage">{t("admin.planQuotas.reset.title")}</h2>
-          <p>{t("admin.planQuotas.reset.intro")}</p>
-          {reset !== undefined ? (
-            <p className="notice" role="status">
-              {t("admin.planQuotas.reset.done", { count: Number(reset) || 0 })}
-            </p>
-          ) : null}
-          {resetRefused ? (
-            <p className="notice" role="alert">
-              {t("admin.planQuotas.reset.refused")}
-            </p>
-          ) : null}
-          <div className="stack">
-            <label htmlFor="reset-reason">{t("admin.planQuotas.reset.reason")}</label>
-            <textarea id="reset-reason" className="input" name="reason" rows={3} required aria-describedby="reset-reason-help" />
-            <p id="reset-reason-help">{t("admin.planQuotas.reset.reasonHelp")}</p>
-          </div>
-          <label className="choice">
-            <input type="checkbox" name="confirm" required />
-            {t("admin.planQuotas.reset.confirm")}
-          </label>
-          <button className="button button-danger" type="submit">
-            {t("admin.planQuotas.reset.submit")}
-          </button>
-        </form>
-      ) : null}
+      <div className="section-page">
+        <PageIntro t={t} page="planQuotas" subject={t("admin.planQuotas.title")}>
+          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+        </PageIntro>
+        {savedPlan ? (
+          <Note tone="success" role="status">
+            {t("admin.planQuotas.saved", { plan: savedPlan.name[locale] })}
+          </Note>
+        ) : null}
+        {invalid ? (
+          <Note tone="danger" role="alert">
+            {t("admin.planQuotas.invalid")}
+          </Note>
+        ) : null}
+        {plans.map(({ key: plan, name, status }) => (
+          <BackOfficeForm key={plan} canWrite={canWrite} action={savePlanQuotas}>
+            <input type="hidden" name="plan" value={plan} />
+            <Card title={`${t("admin.planQuotas.plan", { plan: name[locale] })}${status === "hidden" ? ` (${t("admin.plans.status.hidden")})` : ""}`}>
+              {/* Read-only for roles that may not change Plan Quotas: no field to edit, no button to save. */}
+              <fieldset className="section-form" disabled={!canWrite}>
+                {LIMITED_QUOTAS.map((quota) => {
+                  const weekly = WEEKLY_QUOTAS.includes(quota as WeeklyQuota);
+                  return (
+                    <Field
+                      key={quota}
+                      label={weekly ? `${t(`billing.quotas.${quota}`)} (${t("admin.planQuotas.weekly")})` : t(`billing.quotas.${quota}`)}
+                      hint={t("admin.planQuotas.limitHelp")}
+                    >
+                      <TextInput name={quota} inputMode="numeric" pattern="[0-9]*" defaultValue={quotas[plan]?.[quota] ?? ""} />
+                    </Field>
+                  );
+                })}
+                <Field label={t("billing.quotas.jobDigest")}>
+                  <Select name="jobDigest" defaultValue={quotas[plan]?.jobDigest}>
+                    {JOB_DIGEST_FREQUENCIES.map((frequency) => (
+                      <option key={frequency} value={frequency}>
+                        {t(`billing.jobDigest.${frequency}`)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {canWrite ? (
+                  <button className={buttonClass({ variant: "primary" })} type="submit">
+                    {t("admin.planQuotas.save", { plan: name[locale] })}
+                  </button>
+                ) : null}
+              </fieldset>
+            </Card>
+          </BackOfficeForm>
+        ))}
+        {canWrite ? (
+          <form action={resetWeeklyUsage} aria-labelledby="reset-usage">
+            <Card title={<span id="reset-usage">{t("admin.planQuotas.reset.title")}</span>}>
+              <div className="section-form">
+                <p>{t("admin.planQuotas.reset.intro")}</p>
+                {reset !== undefined ? (
+                  <Note tone="success" role="status">
+                    {t("admin.planQuotas.reset.done", { count: Number(reset) || 0 })}
+                  </Note>
+                ) : null}
+                {resetRefused ? (
+                  <Note tone="danger" role="alert">
+                    {t("admin.planQuotas.reset.refused")}
+                  </Note>
+                ) : null}
+                <Field label={t("admin.planQuotas.reset.reason")} hint={t("admin.planQuotas.reset.reasonHelp")}>
+                  <Textarea name="reason" required />
+                </Field>
+                <Checkbox name="confirm" required label={t("admin.planQuotas.reset.confirm")} />
+                <button className={buttonClass({ variant: "danger" })} type="submit">
+                  {t("admin.planQuotas.reset.submit")}
+                </button>
+              </div>
+            </Card>
+          </form>
+        ) : null}
+      </div>
     </BackOfficeLayout>
   );
 }

@@ -7,8 +7,17 @@ import type { PlanDefinition, PlanError } from "@/billing";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Checkbox, Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Pill } from "@/design/Pill";
+import { Properties, Property } from "@/design/Properties";
+import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import "../section.css";
 
 const ERRORS = [
   "unknown_plan",
@@ -90,165 +99,123 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
 
   return (
     <BackOfficeLayout access={access} title={t("admin.plans.title")}>
-      <p className="lead">{t("admin.plans.intro")}</p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {savedPlan ? (
-        <p className="notice" role="status">
-          {t("admin.plans.saved", { plan: name(savedPlan) })}
-        </p>
-      ) : null}
-      {createdPlan ? (
-        <p className="notice" role="status">
-          {t("admin.plans.created", { plan: name(createdPlan) })}
-        </p>
-      ) : null}
-      {moved ? (
-        <p className="notice" role="status">
-          {t("admin.plans.moved")}
-        </p>
-      ) : null}
-      {isError(error) ? (
-        <p className="notice" role="alert">
-          {t(`admin.plans.errors.${error}`)}
-        </p>
-      ) : null}
+      <div className="section-page">
+        <PageIntro t={t} page="plans" subject={t("admin.plans.title")}>
+          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+        </PageIntro>
+        {savedPlan ? (
+          <Note tone="success" role="status">
+            {t("admin.plans.saved", { plan: name(savedPlan) })}
+          </Note>
+        ) : null}
+        {createdPlan ? (
+          <Note tone="success" role="status">
+            {t("admin.plans.created", { plan: name(createdPlan) })}
+          </Note>
+        ) : null}
+        {moved ? (
+          <Note tone="success" role="status">
+            {t("admin.plans.moved")}
+          </Note>
+        ) : null}
+        {isError(error) ? (
+          <Note tone="danger" role="alert">
+            {t(`admin.plans.errors.${error}`)}
+          </Note>
+        ) : null}
 
-      <div className="table-scroll">
-        <table className="application-table">
-          <caption>{t("admin.plans.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.plans.rank")}</th>
-              <th scope="col">{t("admin.plans.name")}</th>
-              <th scope="col">{t("admin.plans.key")}</th>
-              <th scope="col">{t("admin.plans.statusLabel")}</th>
-              <th scope="col">{t("admin.plans.product")}</th>
-              <th scope="col">{t("admin.plans.features")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {plans.map((plan, index) => {
-              // Free stays first: it has no buttons, and the Plan just above it cannot go down.
-              const canMoveUp = plan.key !== FREE_PLAN && index < plans.length - 1;
-              const canMoveDown = plan.key !== FREE_PLAN && index > 1;
-              return (
-                <tr key={plan.key}>
-                  <td>
-                    <span className="plan-rank">
-                      {plan.rank}
-                      {canWrite && canMoveUp ? <MoveButton plan={plan} direction={UP} label={t("admin.plans.moveUp", { plan: name(plan) })} /> : null}
-                      {canWrite && canMoveDown ? <MoveButton plan={plan} direction={DOWN} label={t("admin.plans.moveDown", { plan: name(plan) })} /> : null}
-                    </span>
-                  </td>
-                  <th scope="row">{name(plan)}</th>
-                  <td>
-                    <code>{plan.key}</code>
-                  </td>
-                  <td>{t(`admin.plans.status.${plan.status}`)}</td>
-                  <td>{plan.stripeProductId ? <code>{plan.stripeProductId}</code> : t("admin.plans.noProduct")}</td>
-                  <td>{features(plan)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+        <Table
+          label={t("admin.plans.caption")}
+          columns={[
+            {
+              key: "rank",
+              header: t("admin.plans.rank"),
+              cell: ({ plan, index }) => {
+                // Free stays first: it has no buttons, and the Plan just above it cannot go down.
+                const canMoveUp = plan.key !== FREE_PLAN && index < plans.length - 1;
+                const canMoveDown = plan.key !== FREE_PLAN && index > 1;
+                return (
+                  <span className="section-actions">
+                    {plan.rank}
+                    {canWrite && canMoveUp ? <MoveButton plan={plan} direction={UP} label={t("admin.plans.moveUp", { plan: name(plan) })} /> : null}
+                    {canWrite && canMoveDown ? <MoveButton plan={plan} direction={DOWN} label={t("admin.plans.moveDown", { plan: name(plan) })} /> : null}
+                  </span>
+                );
+              },
+            },
+            { key: "name", header: t("admin.plans.name"), rowHeader: true, cell: ({ plan }) => name(plan) },
+            { key: "key", header: t("admin.plans.key"), cell: ({ plan }) => <code>{plan.key}</code> },
+            { key: "status", header: t("admin.plans.statusLabel"), cell: ({ plan }) => <Pill tone={plan.status === "offered" ? "success" : "neutral"}>{t(`admin.plans.status.${plan.status}`)}</Pill> },
+            { key: "product", header: t("admin.plans.product"), cell: ({ plan }) => (plan.stripeProductId ? <code>{plan.stripeProductId}</code> : t("admin.plans.noProduct")) },
+            { key: "features", header: t("admin.plans.features"), cell: ({ plan }) => features(plan) },
+          ]}
+          rows={plans.map((plan, index) => ({ plan, index }))}
+          rowKey={({ plan }) => plan.key}
+        />
 
-      {plans.map((plan) => {
-        const id = (field: string) => `plan-${plan.key}-${field}`;
-        const free = plan.key === FREE_PLAN;
-        return (
-          <BackOfficeForm key={plan.key} canWrite={canWrite} className="stack quota-form" action={savePlan}>
-            <input type="hidden" name="plan" value={plan.key} />
-            {/* Read-only for roles that may not change Plans: the fields show, disabled, with nothing to send. */}
-            <fieldset disabled={!canWrite}>
-              <legend>
-                <h2>{t("admin.plans.edit", { plan: name(plan) })}</h2>
-              </legend>
-              {free ? <p>{t("admin.plans.free")}</p> : null}
-              <NameFields id={id} plan={plan} labels={{ fr: t("admin.plans.nameFr"), en: t("admin.plans.nameEn") }} />
-              {free ? (
-                // Free is always offered: what the form sends says so.
-                <input type="hidden" name="offered" value={TICKED} />
-              ) : (
-                <>
-                  <div className="checkbox-field">
-                    <input id={id("offered")} type="checkbox" name="offered" defaultChecked={plan.status === "offered"} aria-describedby={id("offered-help")} />
-                    <label htmlFor={id("offered")}>{t("admin.plans.offeredLabel")}</label>
-                    <p id={id("offered-help")}>{t("admin.plans.hiddenHelp")}</p>
-                  </div>
-                  {plan.stripeProductId ? (
-                    // Frozen once set: its subscribers stay on that product. Shown, never sent.
-                    <div className="stack">
-                      <dl>
-                        <dt>{t("admin.plans.product")}</dt>
-                        <dd>
-                          <code>{plan.stripeProductId}</code>
-                        </dd>
-                      </dl>
-                      <p>{t("admin.plans.productFrozenHelp")}</p>
-                    </div>
+        {plans.map((plan) => {
+          const free = plan.key === FREE_PLAN;
+          return (
+            <BackOfficeForm key={plan.key} canWrite={canWrite} action={savePlan}>
+              <input type="hidden" name="plan" value={plan.key} />
+              <Card title={t("admin.plans.edit", { plan: name(plan) })}>
+                {/* Read-only for roles that may not change Plans: the fields show, disabled, with nothing to send. */}
+                <fieldset className="section-form" disabled={!canWrite}>
+                  {free ? <p>{t("admin.plans.free")}</p> : null}
+                  <NameFields plan={plan} labels={{ fr: t("admin.plans.nameFr"), en: t("admin.plans.nameEn") }} />
+                  {free ? (
+                    // Free is always offered: what the form sends says so.
+                    <input type="hidden" name="offered" value={TICKED} />
                   ) : (
-                    <div className="stack">
-                      <label htmlFor={id("product")}>{t("admin.plans.product")}</label>
-                      <input
-                        id={id("product")}
-                        className="input"
-                        name="stripeProductId"
-                        autoComplete="off"
-                        spellCheck={false}
-                        aria-describedby={id("product-help")}
-                      />
-                      <p id={id("product-help")}>{t("admin.plans.productHelp")}</p>
-                    </div>
+                    <>
+                      <Checkbox name="offered" defaultChecked={plan.status === "offered"} label={t("admin.plans.offeredLabel")} hint={t("admin.plans.hiddenHelp")} />
+                      {plan.stripeProductId ? (
+                        // Frozen once set: its subscribers stay on that product. Shown, never sent.
+                        <Properties>
+                          <Property term={t("admin.plans.product")} meta={t("admin.plans.productFrozenHelp")}>
+                            <code>{plan.stripeProductId}</code>
+                          </Property>
+                        </Properties>
+                      ) : (
+                        <Field label={t("admin.plans.product")} hint={t("admin.plans.productHelp")}>
+                          <TextInput name="stripeProductId" autoComplete="off" spellCheck={false} />
+                        </Field>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-              <FeatureFields id={id} checked={plan.features} t={t} />
-              {canWrite ? (
-                <button className="button button-primary" type="submit">
-                  {t("admin.plans.save", { plan: name(plan) })}
-                </button>
-              ) : null}
-            </fieldset>
-          </BackOfficeForm>
-        );
-      })}
+                  <FeatureFields checked={plan.features} t={t} />
+                  {canWrite ? (
+                    <button className={buttonClass({ variant: "primary" })} type="submit">
+                      {t("admin.plans.save", { plan: name(plan) })}
+                    </button>
+                  ) : null}
+                </fieldset>
+              </Card>
+            </BackOfficeForm>
+          );
+        })}
 
-      {canWrite ? (
-        <form className="stack quota-form" action={createPlan}>
-          <fieldset>
-            <legend>
-              <h2>{t("admin.plans.createTitle")}</h2>
-            </legend>
-            <p>{t("admin.plans.createHelp")}</p>
-            <div className="stack">
-              <label htmlFor="new-plan-key">{t("admin.plans.key")}</label>
-              <input
-                id="new-plan-key"
-                className="input"
-                name="key"
-                required
-                pattern="[a-z][a-z0-9\-]{1,31}"
-                autoComplete="off"
-                spellCheck={false}
-                aria-describedby="new-plan-key-help"
-              />
-              <p id="new-plan-key-help">{t("admin.plans.keyHelp")}</p>
-            </div>
-            <NameFields id={(field) => `new-plan-${field}`} labels={{ fr: t("admin.plans.nameFr"), en: t("admin.plans.nameEn") }} />
-            <div className="stack">
-              <label htmlFor="new-plan-product">{t("admin.plans.product")}</label>
-              <input id="new-plan-product" className="input" name="stripeProductId" required autoComplete="off" spellCheck={false} aria-describedby="new-plan-product-help" />
-              <p id="new-plan-product-help">{t("admin.plans.productHelp")}</p>
-            </div>
-            <FeatureFields id={(field) => `new-plan-${field}`} checked={[]} t={t} />
-            <button className="button button-primary" type="submit">
-              {t("admin.plans.create")}
-            </button>
-          </fieldset>
-        </form>
-      ) : null}
+        {canWrite ? (
+          <form action={createPlan}>
+            <Card title={t("admin.plans.createTitle")}>
+              <div className="section-form">
+                <p>{t("admin.plans.createHelp")}</p>
+                <Field label={t("admin.plans.key")} hint={t("admin.plans.keyHelp")}>
+                  <TextInput name="key" required pattern="[a-z][a-z0-9\-]{1,31}" autoComplete="off" spellCheck={false} />
+                </Field>
+                <NameFields labels={{ fr: t("admin.plans.nameFr"), en: t("admin.plans.nameEn") }} />
+                <Field label={t("admin.plans.product")} hint={t("admin.plans.productHelp")}>
+                  <TextInput name="stripeProductId" required autoComplete="off" spellCheck={false} />
+                </Field>
+                <FeatureFields checked={[]} t={t} />
+                <button className={buttonClass({ variant: "primary" })} type="submit">
+                  {t("admin.plans.create")}
+                </button>
+              </div>
+            </Card>
+          </form>
+        ) : null}
+      </div>
     </BackOfficeLayout>
   );
 }
@@ -258,38 +225,39 @@ function MoveButton({ plan, direction, label }: { plan: PlanDefinition; directio
     <form action={movePlan}>
       <input type="hidden" name="plan" value={plan.key} />
       <input type="hidden" name="direction" value={direction} />
-      <button className="button" type="submit" aria-label={label} title={label}>
+      <button className={buttonClass({ size: "sm" })} type="submit" aria-label={label} title={label}>
         <span aria-hidden="true">{direction === UP ? "↑" : "↓"}</span>
       </button>
     </form>
   );
 }
 
-function NameFields({ id, plan, labels }: { id: (field: string) => string; plan?: PlanDefinition; labels: { fr: string; en: string } }) {
+function NameFields({ plan, labels }: { plan?: PlanDefinition; labels: { fr: string; en: string } }) {
   return (
     <>
-      <div className="stack">
-        <label htmlFor={id("name-fr")}>{labels.fr}</label>
-        <input id={id("name-fr")} className="input" name="nameFr" lang="fr" required maxLength={60} defaultValue={plan?.name.fr} autoComplete="off" />
-      </div>
-      <div className="stack">
-        <label htmlFor={id("name-en")}>{labels.en}</label>
-        <input id={id("name-en")} className="input" name="nameEn" lang="en" required maxLength={60} defaultValue={plan?.name.en} autoComplete="off" />
-      </div>
+      <Field label={labels.fr}>
+        <TextInput name="nameFr" lang="fr" required maxLength={60} defaultValue={plan?.name.fr} autoComplete="off" />
+      </Field>
+      <Field label={labels.en}>
+        <TextInput name="nameEn" lang="en" required maxLength={60} defaultValue={plan?.name.en} autoComplete="off" />
+      </Field>
     </>
   );
 }
 
-function FeatureFields({ id, checked, t }: { id: (field: string) => string; checked: readonly string[]; t: Awaited<ReturnType<typeof getServerT>> }) {
+function FeatureFields({ checked, t }: { checked: readonly string[]; t: Awaited<ReturnType<typeof getServerT>> }) {
   return (
-    <fieldset className="stack">
+    <fieldset>
       <legend>{t("admin.plans.features")}</legend>
       {PLAN_FEATURES.map((feature) => (
-        <div key={feature} className="checkbox-field">
-          <input id={id(feature)} type="checkbox" name="features" value={feature} defaultChecked={checked.includes(feature)} aria-describedby={id(`${feature}-help`)} />
-          <label htmlFor={id(feature)}>{t(`admin.plans.featureNames.${feature}`)}</label>
-          <p id={id(`${feature}-help`)}>{t(`admin.plans.featureHelp.${feature}`)}</p>
-        </div>
+        <Checkbox
+          key={feature}
+          name="features"
+          value={feature}
+          defaultChecked={checked.includes(feature)}
+          label={t(`admin.plans.featureNames.${feature}`)}
+          hint={t(`admin.plans.featureHelp.${feature}`)}
+        />
       ))}
     </fieldset>
   );

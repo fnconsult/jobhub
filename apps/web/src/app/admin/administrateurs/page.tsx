@@ -3,8 +3,15 @@ import { redirect } from "next/navigation";
 import { BACK_OFFICE_ROLES, isBackOfficeRole } from "@/admin/access";
 import { getAdministrators, requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Checkbox, Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Table } from "@/design/Table";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import "../section.css";
 
 const ERRORS = ["unknown_account", "unverified_account", "no_role", "own_super_admin", "permanent", "last_super_admin", "forbidden"] as const;
 type ErrorCode = (typeof ERRORS)[number];
@@ -47,99 +54,88 @@ export default async function AdministratorsPage({ searchParams }: { searchParam
 
   return (
     <BackOfficeLayout access={access} title={t("admin.administrators.title")}>
-      <p className="lead">{t("admin.administrators.intro")}</p>
-      {grantedRoles.length > 0 ? (
-        <p className="notice" role="status">
-          {t("admin.administrators.granted", { roles: grantedRoles.map(roleName).join(", ") })}
-        </p>
-      ) : null}
-      {revoked ? (
-        <p className="notice" role="status">
-          {t("admin.administrators.revoked")}
-        </p>
-      ) : null}
-      {isError(error) ? (
-        <p className="notice" role="alert">
-          {t(`admin.administrators.errors.${error}`)}
-        </p>
-      ) : null}
+      <div className="section-page">
+        <PageIntro t={t} page="administrators" subject={t("admin.administrators.title")} />
+        {grantedRoles.length > 0 ? (
+          <Note tone="success" role="status">
+            {t("admin.administrators.granted", { roles: grantedRoles.map(roleName).join(", ") })}
+          </Note>
+        ) : null}
+        {revoked ? (
+          <Note tone="success" role="status">
+            {t("admin.administrators.revoked")}
+          </Note>
+        ) : null}
+        {isError(error) ? (
+          <Note tone="danger" role="alert">
+            {t(`admin.administrators.errors.${error}`)}
+          </Note>
+        ) : null}
 
-      <div className="table-scroll">
-        <table className="application-table">
-          <caption>{t("admin.administrators.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.administrators.email")}</th>
-              <th scope="col">{t("admin.administrators.roles")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {administrators.map((administrator) => (
-              <tr key={administrator.candidateId}>
-                <th scope="row">{administrator.email}</th>
-                <td>
-                  <ul className="administrator-roles">
-                    {administrator.roles.map((role) => {
-                      // An ADMIN_EMAILS member's super-admin role, and one's own, cannot be revoked: no button.
-                      const permanent = role === "super-admin" && administrator.permanent;
-                      const own = role === "super-admin" && administrator.candidateId === me.id;
-                      return (
-                        <li key={role}>
-                          <span>
-                            {roleName(role)}
-                            {permanent ? (
-                              <>
-                                {" "}
-                                <strong title={t("admin.administrators.permanentHelp")}>({t("admin.administrators.permanent")})</strong>
-                              </>
-                            ) : null}
-                          </span>
-                          {permanent || own ? null : (
-                            <form action={revokeRole}>
-                              <input type="hidden" name="candidateId" value={administrator.candidateId} />
-                              <input type="hidden" name="role" value={role} />
-                              <button className="button" type="submit">
-                                {t("admin.administrators.revoke", { role: roleName(role), email: administrator.email })}
-                              </button>
-                            </form>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Table
+          label={t("admin.administrators.caption")}
+          columns={[
+            { key: "email", header: t("admin.administrators.email"), rowHeader: true, cell: (administrator) => administrator.email },
+            {
+              key: "roles",
+              header: t("admin.administrators.roles"),
+              cell: (administrator) => (
+                <ul className="section-list">
+                  {administrator.roles.map((role) => {
+                    // An ADMIN_EMAILS member's super-admin role, and one's own, cannot be revoked: no button.
+                    const permanent = role === "super-admin" && administrator.permanent;
+                    const own = role === "super-admin" && administrator.candidateId === me.id;
+                    return (
+                      <li key={role} className="section-actions">
+                        <span>
+                          {roleName(role)}
+                          {permanent ? (
+                            <>
+                              {" "}
+                              <strong title={t("admin.administrators.permanentHelp")}>({t("admin.administrators.permanent")})</strong>
+                            </>
+                          ) : null}
+                        </span>
+                        {permanent || own ? null : (
+                          <form action={revokeRole}>
+                            <input type="hidden" name="candidateId" value={administrator.candidateId} />
+                            <input type="hidden" name="role" value={role} />
+                            <button className={buttonClass({ size: "sm" })} type="submit">
+                              {t("admin.administrators.revoke", { role: roleName(role), email: administrator.email })}
+                            </button>
+                          </form>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ),
+            },
+          ]}
+          rows={administrators}
+          rowKey={(administrator) => administrator.candidateId}
+        />
+        {administrators.some((administrator) => administrator.permanent) ? <p className="section-meta">{t("admin.administrators.permanentHelp")}</p> : null}
+
+        <form action={grantRoles}>
+          <Card title={t("admin.administrators.grantTitle")}>
+            <div className="section-form">
+              <Field label={t("admin.administrators.grantEmail")} hint={t("admin.administrators.grantEmailHelp")}>
+                <TextInput name="email" type="email" required autoComplete="off" />
+              </Field>
+              <fieldset>
+                <legend>{t("admin.administrators.grantRoles")}</legend>
+                {BACK_OFFICE_ROLES.map((role) => (
+                  <Checkbox key={role} name="roles" value={role} label={roleName(role)} hint={t(`admin.administrators.roleHelp.${role}`)} />
+                ))}
+              </fieldset>
+              <button className={buttonClass({ variant: "primary" })} type="submit">
+                {t("admin.administrators.grant")}
+              </button>
+            </div>
+          </Card>
+        </form>
       </div>
-      {administrators.some((administrator) => administrator.permanent) ? <p>{t("admin.administrators.permanentHelp")}</p> : null}
-
-      <form className="stack quota-form" action={grantRoles}>
-        <fieldset>
-          <legend>
-            <h2>{t("admin.administrators.grantTitle")}</h2>
-          </legend>
-          <div className="stack">
-            <label htmlFor="grant-email">{t("admin.administrators.grantEmail")}</label>
-            <input id="grant-email" className="input" name="email" type="email" required autoComplete="off" aria-describedby="grant-email-help" />
-            <p id="grant-email-help">{t("admin.administrators.grantEmailHelp")}</p>
-          </div>
-          <fieldset className="stack">
-            <legend>{t("admin.administrators.grantRoles")}</legend>
-            {BACK_OFFICE_ROLES.map((role) => (
-              <div key={role} className="checkbox-field">
-                <input id={`grant-${role}`} type="checkbox" name="roles" value={role} aria-describedby={`grant-${role}-help`} />
-                <label htmlFor={`grant-${role}`}>{roleName(role)}</label>
-                <p id={`grant-${role}-help`}>{t(`admin.administrators.roleHelp.${role}`)}</p>
-              </div>
-            ))}
-          </fieldset>
-          <button className="button button-primary" type="submit">
-            {t("admin.administrators.grant")}
-          </button>
-        </fieldset>
-      </form>
     </BackOfficeLayout>
   );
 }

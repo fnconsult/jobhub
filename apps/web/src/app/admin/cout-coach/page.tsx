@@ -4,7 +4,10 @@ import { requireBackOffice } from "@/admin/server";
 import { COACH_MESSAGE_COST_TARGET_EUR } from "@/coach-conversations";
 import { coachCostOfLastDays, playbookAgentCostOfLastDays } from "@/coach-conversations/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import "../section.css";
 
 /** How many days back the page looks. */
 const DAYS = 30;
@@ -37,79 +40,58 @@ export default async function CoachCostPage() {
 
   return (
     <BackOfficeLayout access={access} title={t("admin.coachCost.title")}>
-      <p className="lead">{t("admin.coachCost.intro", { days: String(DAYS), target: eur.format(COACH_MESSAGE_COST_TARGET_EUR) })}</p>
-      <p>{t("admin.coachCost.estimate", { rate: number.format(EUR_PER_USD) })}</p>
-      {days.length === 0 ? (
-        <p>{t("admin.coachCost.none")}</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="application-table">
-            <caption>{t("admin.coachCost.caption")}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.coachCost.day")}</th>
-                <th scope="col">{t("admin.coachCost.messages")}</th>
-                <th scope="col">{t("admin.coachCost.median")}</th>
-                <th scope="col">{t("admin.coachCost.p90")}</th>
-                <th scope="col">{t("admin.coachCost.inputTokens")}</th>
-                <th scope="col">{t("admin.coachCost.cachedInputTokens")}</th>
-                <th scope="col">{t("admin.coachCost.outputTokens")}</th>
-                <th scope="col">{t("admin.coachCost.models")}</th>
-                <th scope="col">{t("admin.coachCost.playbooks")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {days.map((day) => (
-                <tr key={day.day}>
-                  <th scope="row">
-                    <time dateTime={day.day}>{date.format(new Date(`${day.day}T00:00:00Z`))}</time>
-                  </th>
-                  <td>{number.format(day.messages)}</td>
-                  <td>{cost(day.medianEur)}</td>
-                  <td>{cost(day.p90Eur)}</td>
-                  <td>{number.format(day.inputTokens)}</td>
-                  <td>{number.format(day.cachedInputTokens)}</td>
-                  <td>{number.format(day.outputTokens)}</td>
-                  <td>{day.models.map((model) => `${model.provider} ${model.model} (${number.format(model.messages)})`).join(", ")}</td>
-                  <td>{day.playbooks.map((playbook) => `${playbook.id} ${playbook.version} (${number.format(playbook.messages)})`).join(", ")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <section className="stack" aria-labelledby="agents-title">
-        <h2 id="agents-title">{t("admin.coachCost.agents.title")}</h2>
-        <p>{t("admin.coachCost.agents.intro", { days: String(DAYS) })}</p>
-        {agents.length === 0 ? (
-          <p>{t("admin.coachCost.agents.none")}</p>
+      <div className="section-page">
+        <PageIntro t={t} page="coachCost" subject={t("admin.coachCost.title")} values={{ days: String(DAYS), target: eur.format(COACH_MESSAGE_COST_TARGET_EUR) }} />
+        <p className="section-meta">{t("admin.coachCost.estimate", { rate: number.format(EUR_PER_USD) })}</p>
+        {days.length === 0 ? (
+          <p>{t("admin.coachCost.none")}</p>
         ) : (
-          <div className="table-scroll">
-            <table className="application-table">
-              <caption>{t("admin.coachCost.agents.caption")}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t("admin.coachCost.agents.playbook")}</th>
-                  <th scope="col">{t("admin.coachCost.agents.consultations")}</th>
-                  <th scope="col">{t("admin.coachCost.agents.median")}</th>
-                  <th scope="col">{t("admin.coachCost.agents.models")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agents.map((agent) => (
-                  <tr key={agent.playbookId}>
-                    <th scope="row">{agent.playbookId}</th>
-                    <td>{number.format(agent.consultations)}</td>
-                    <td>{eur.format(agent.medianEur)}</td>
-                    <td>{agent.models.map((model) => `${model.provider} ${model.model} (${number.format(model.consultations)})`).join(", ")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            label={t("admin.coachCost.caption")}
+            columns={[
+              { key: "day", header: t("admin.coachCost.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{date.format(new Date(`${day.day}T00:00:00Z`))}</time> },
+              { key: "messages", header: t("admin.coachCost.messages"), numeric: true, cell: (day) => number.format(day.messages) },
+              { key: "median", header: t("admin.coachCost.median"), numeric: true, cell: (day) => cost(day.medianEur) },
+              { key: "p90", header: t("admin.coachCost.p90"), numeric: true, cell: (day) => cost(day.p90Eur) },
+              { key: "input", header: t("admin.coachCost.inputTokens"), numeric: true, cell: (day) => number.format(day.inputTokens) },
+              { key: "cached", header: t("admin.coachCost.cachedInputTokens"), numeric: true, cell: (day) => number.format(day.cachedInputTokens) },
+              { key: "output", header: t("admin.coachCost.outputTokens"), numeric: true, cell: (day) => number.format(day.outputTokens) },
+              { key: "models", header: t("admin.coachCost.models"), cell: (day) => day.models.map((model) => `${model.provider} ${model.model} (${number.format(model.messages)})`).join(", ") },
+              {
+                key: "playbooks",
+                header: t("admin.coachCost.playbooks"),
+                cell: (day) => day.playbooks.map((playbook) => `${playbook.id} ${playbook.version} (${number.format(playbook.messages)})`).join(", "),
+              },
+            ]}
+            rows={days}
+            rowKey={(day) => day.day}
+          />
         )}
-      </section>
+
+        <section className="section-block" aria-labelledby="agents-title">
+          <h2 id="agents-title">{t("admin.coachCost.agents.title")}</h2>
+          <p>{t("admin.coachCost.agents.intro", { days: String(DAYS) })}</p>
+          {agents.length === 0 ? (
+            <p>{t("admin.coachCost.agents.none")}</p>
+          ) : (
+            <Table
+              label={t("admin.coachCost.agents.caption")}
+              columns={[
+                { key: "playbook", header: t("admin.coachCost.agents.playbook"), rowHeader: true, cell: (agent) => agent.playbookId },
+                { key: "consultations", header: t("admin.coachCost.agents.consultations"), numeric: true, cell: (agent) => number.format(agent.consultations) },
+                { key: "median", header: t("admin.coachCost.agents.median"), numeric: true, cell: (agent) => eur.format(agent.medianEur) },
+                {
+                  key: "models",
+                  header: t("admin.coachCost.agents.models"),
+                  cell: (agent) => agent.models.map((model) => `${model.provider} ${model.model} (${number.format(model.consultations)})`).join(", "),
+                },
+              ]}
+              rows={agents}
+              rowKey={(agent) => agent.playbookId}
+            />
+          )}
+        </section>
+      </div>
     </BackOfficeLayout>
   );
 }

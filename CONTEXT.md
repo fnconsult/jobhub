@@ -707,6 +707,20 @@ _Avoid_: Paywall, upsell, upgrade popup
 What a Candidate is shown while their subscription is past due: Stripe is retrying a failed payment and the Plan is kept. It sends them to the Stripe customer portal to update their payment method, and disappears once payment succeeds. Shown only in the Candidate's sidebar layout.
 _Avoid_: Dunning banner, billing alert
 
+### Legal texts
+
+**Legal Text**:
+One of Jobbbox's public legal documents: the CGU, the CGV (with the withdrawal form), the privacy policy (with its cookies and « IA dans Jobbbox » sections) and the legal notice. One set for every role, with a section per role; French is binding, English is a translation.
+_Avoid_: Terms page, policy page, legal page
+
+**Legal Text Version**:
+One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor. A correction is a new version; earlier versions stay readable.
+_Avoid_: Revision, edition, draft
+
+**Acceptance**:
+A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof. Only the CGU and the CGV are accepted: the privacy policy and the legal notice are information, never accepted. A Guest ticks the short CGU in the extension, held only in the Guest session.
+_Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
+
 ### Operations
 
 **Back Office**:

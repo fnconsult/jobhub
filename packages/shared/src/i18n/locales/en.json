@@ -312,7 +312,37 @@
       "invalid": "Enter a valid email address.",
       "too_many": "You have already added 10 addresses: remove one first."
     },
-    "wizardLink": "Set up forwarding step by step"
+    "wizardLink": "Set up forwarding step by step",
+    "recognised": {
+      "title": "Your alert senders",
+      "explanation": "Jobbbox only reads emails from senders it recognises. If one of your alerts is ignored as « unrecognised sender », add its sender: it is recognised for you alone, from its next email. The email already ignored is not recovered.",
+      "fromHint": "Paste the sending address, the one on the email's « From: » line: that is what counts, not the careers site or the job board's site.",
+      "senderLabel": "Sending address (« From: »)",
+      "labelLabel": "Name to show (optional)",
+      "add": "It's a job alert",
+      "added": "Sender added: it is recognised for you from its next email.",
+      "ownTitle": "Added by you",
+      "ownNone": "You have added no sender.",
+      "ownListLabel": "Senders added by you",
+      "item": "{{label}} ({{value}})",
+      "remove": "Remove",
+      "removeLabel": "Remove {{value}}",
+      "platformTitle": "Recognised by Jobbbox",
+      "platformIntro": "You can switch one off for yourself alone: its emails are then ignored.",
+      "platformListLabel": "Senders recognised by Jobbbox",
+      "switchedOff": "switched off for you",
+      "switchOff": "Switch off for me",
+      "switchOn": "Switch back on",
+      "switchOffLabel": "Switch {{label}} off for me",
+      "switchOnLabel": "Switch {{label}} back on for me",
+      "errors": {
+        "invalid": "Enter the email's sending address (« From: »), or its domain.",
+        "address_needed": "This domain sends for many companies: paste the full sending address (« From: »).",
+        "already_recognised": "Jobbbox already recognises this sender. If you switched it off for yourself, switch it back on.",
+        "too_many": "You have already added 50 senders: remove one first.",
+        "error": "Something went wrong. Try again."
+      }
+    }
   },
   "forwardingWizard": {
     "title": "Set up forwarding step by step",
@@ -3963,7 +3993,13 @@
         "unrecognised_sender": "Unrecognised sender",
         "guardrail": "Set aside by a guardrail",
         "failed": "Failed"
-      }
+      },
+      "recognise": "It's a job alert",
+      "recogniseLabel": "{{domain}}: it's a job alert",
+      "recognised": "Recognised for you from its next email.",
+      "recognisedAlready": "Now recognised for you.",
+      "pasteAddress": "Add its « From: » address",
+      "pasteAddressHint": "This domain sends for many companies: the full sending address is needed."
     },
     "tooBroad": {
       "title": "Filter too broad",

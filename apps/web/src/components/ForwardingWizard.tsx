@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import type { CandidateSender, PlatformSender } from "@/email-intake/candidate-senders";
 import type { ForwardingSetup } from "@/email-intake/forwarding-setup";
 import { guideOf, MAILBOX_PROVIDERS, wizardSteps, type MailboxProvider, type WizardStep } from "@/email-intake/forwarding-wizard";
 import { routes } from "@/routes";
+import { RecognisedSenders } from "./RecognisedSenders";
 import { SendingAddresses } from "./SendingAddresses";
 
 /** How often the wizard asks whether Gmail's code or the first email arrived. */
@@ -32,10 +34,21 @@ async function fetchSetup(): Promise<ForwardingSetup | null> {
  * The step-by-step forwarding setup wizard (#451): the Candidate chooses their mailbox provider, switches Email intake
  * on (what is read, kept, processed by AI; the date recorded), copies their Forwarding address, follows their provider's
  * guide (for Gmail: adding the address, the confirmation code Jobbbox received, then the filter on alert senders; for
- * Orange and « Autre »: forwarding by hand, from their own sending addresses), then waits for the first email.
+ * Orange and « Autre »: forwarding by hand, from their own sending addresses), then waits for the first email. Once
+ * it arrives, the Candidate can paste an alert's sending address to have it recognised for them alone (#450).
  * A short CSS animation shows where a mailbox's settings usually are; none runs with reduced motion.
  */
-export function ForwardingWizard({ initial, sendingAddresses, locale }: { initial: ForwardingSetup | null; sendingAddresses: string[]; locale: string }) {
+export function ForwardingWizard({
+  initial,
+  sendingAddresses,
+  recognisedSenders,
+  locale,
+}: {
+  initial: ForwardingSetup | null;
+  sendingAddresses: string[];
+  recognisedSenders: { own: CandidateSender[]; platform: PlatformSender[] };
+  locale: string;
+}) {
   const { t } = useTranslation();
   const id = useId();
   const [provider, setProvider] = useState<MailboxProvider | null>(null);
@@ -239,6 +252,7 @@ export function ForwardingWizard({ initial, sendingAddresses, locale }: { initia
               </p>
             ) : null}
             <p>{t("forwardingWizard.done.explanation")}</p>
+            <RecognisedSenders initial={recognisedSenders} compact nested />
             <Link href={routes.accountEmailIntake}>{t("forwardingWizard.done.back")}</Link>
           </>
         ) : null}

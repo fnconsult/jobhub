@@ -5,6 +5,7 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
 import { alertEmail, authenticationResults, inboundItem, inboundPayload, unknownSenderEmail } from "./fixtures/brevo-inbound";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
+import { createCandidateSenders } from "./candidate-senders";
 import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, inIpRanges, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
 
 const SECRET = "brevo-inbound-test-secret-0123456789";
@@ -142,6 +143,37 @@ describe.skipIf(!connectionString)("Email intake: the emails Brevo Inbound Parsi
 
       expect((await received())[0]).toMatchObject({ outcome: "unrecognised_sender", senderDomain: "alertes.cadremploi.fr" });
       expect(sent).toEqual([]);
+    });
+
+    it("after a Candidate adds a sender, reads its next email for them and still sets it aside for another (#450)", async () => {
+      const cookie = await signInWithMagicLink(testAuth, "jean.martin@example.fr");
+      const jean = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+      const jeansAddress = (await emailIntake.switchOn(jean)).address;
+      const monster = (to: string, messageId: string) => alertEmail(to, { from: "alertes@mail.monster.fr", messageId });
+      await post(inboundPayload(monster(address, "<first@mail.monster.fr>")));
+      expect((await received())[0]).toMatchObject({ outcome: "unrecognised_sender", senderDomain: "mail.monster.fr" });
+
+      expect(await createCandidateSenders(database).add(marie, { sender: "mail.monster.fr", label: "Monster" })).toMatchObject({ ok: true });
+      now = new Date(now.getTime() + 60_000);
+      await post(inboundPayload(monster(address, "<next@mail.monster.fr>"), monster(jeansAddress, "<jean@mail.monster.fr>")));
+
+      // The email already set aside is not recovered.
+      const maries = await received();
+      expect(maries.map(({ outcome }) => outcome)).toEqual(["awaiting_reading", "unrecognised_sender"]);
+      expect((await emailIntakeOf(database, jean)).receivedOfferEmails.map(({ outcome }) => outcome)).toEqual(["unrecognised_sender"]);
+      expect(sent).toEqual([{ name: EMAIL_INTAKE_READ_QUEUE, data: { receivedOfferEmailId: maries[0]!.id } }]);
+    });
+
+    it("sets aside a platform sender's email for a Candidate who switched it off for themselves, not for another (#450)", async () => {
+      const cookie = await signInWithMagicLink(testAuth, "jean.martin@example.fr");
+      const jean = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+      const jeansAddress = (await emailIntake.switchOn(jean)).address;
+
+      expect(await createCandidateSenders(database).switchPlatformSender(marie, "cadremploi.fr", false)).toBe(true);
+      await post(inboundPayload(alertEmail(address), alertEmail(jeansAddress)));
+
+      expect((await received()).map(({ outcome }) => outcome)).toEqual(["unrecognised_sender"]);
+      expect((await emailIntakeOf(database, jean)).receivedOfferEmails.map(({ outcome }) => outcome)).toEqual(["awaiting_reading"]);
     });
 
     it("reads a manual forward from the Candidate's own address, and keeps Gmail's forwarding confirmation without queueing it", async () => {

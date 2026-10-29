@@ -9,7 +9,8 @@
  * token; else 401) and from Brevo's IP ranges when some are set (else 403). While Email intake is switched off on the
  * Sources tab of Paramètres (#448), every email is discarded unread: no row, nothing queued. Else each email:
  *  - to no Forwarding address in use (unknown, replaced or switched off): discarded unread, no row;
- *  - from a sender Email intake does not read (recognised-senders.ts): a row « expéditeur non reconnu », no text;
+ *  - from a sender Email intake does not read for that Candidate (recognised-senders.ts; the platform's list, less those
+ *    they switched off, plus those they added, candidate-senders.ts): a row « expéditeur non reconnu », no text;
  *  - past the Candidate's daily cap (Paris day): a row « plafond atteint », no text, nothing queued;
  *  - else: a row awaiting reading, its text encrypted (AES-GCM under SECRETS_MASTER_KEYS, bound to its row), and a job
  *    on EMAIL_INTAKE_READ_QUEUE for the worker; Gmail's forwarding confirmation is kept the same way for the setup
@@ -27,7 +28,8 @@ import type { SealedSecret, SecretCipher } from "../provider-secrets/cipher";
 import { recordLinkedMailboxEvent, recordReceivedEmail } from "./activity";
 import type { EmailIntake } from "./index";
 import { readInboundEmails, type InboundEmail } from "./inbound-email";
-import { senderStanding, type RecognisedSender } from "./recognised-senders";
+import { recognisedSendersFor } from "./candidate-senders";
+import { senderStanding } from "./recognised-senders";
 
 // What the worker purges with them: Activité's Emails reçus rows and the Journal's Linked mailbox events (#449).
 export { ACTIVITY_RETENTION_MONTHS, purgeEmailIntakeActivity } from "./activity";
@@ -143,12 +145,6 @@ const domainOf = (address: string) => address.slice(address.lastIndexOf("@") + 1
 export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInboundOptions): EmailIntakeInbound {
   const now = options.now ?? (() => new Date());
 
-  async function recognisedSenders(client: PoolClient): Promise<RecognisedSender[]> {
-    // The enabled ones: a sender an Administrator disabled is no longer read (#448).
-    const { rows } = await client.query<RecognisedSender>(`SELECT match, value, label, aligned FROM recognised_sender WHERE enabled`);
-    return rows;
-  }
-
   /** How many of the Candidate's emails were read, and set aside past the cap, on the Paris day of `at`. */
   async function today(client: PoolClient, candidateId: string, at: Date): Promise<{ read: number; overCap: number }> {
     const { rows } = await client.query<{ read: number; overCap: number }>(
@@ -175,7 +171,7 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
       if (rowCount) return;
 
       const receivedAt = now();
-      const standing = senderStanding(email, { recognisedSenders: await recognisedSenders(client), sendingAddresses });
+      const standing = senderStanding(email, { recognisedSenders: await recognisedSendersFor(client, owner), sendingAddresses });
       let outcome: ReceivedOfferEmailOutcome;
       if (standing === "unrecognised") outcome = "unrecognised_sender";
       else if (standing === "forwarding_confirmation") outcome = "forwarding_confirmation";

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ForwardingAddress } from "@/email-intake";
+import type { CandidateSender, PlatformSender } from "@/email-intake/candidate-senders";
 import { routes } from "@/routes";
+import { RecognisedSenders } from "./RecognisedSenders";
 import { SendingAddresses } from "./SendingAddresses";
 
 /** What waits for the Candidate's confirmation: both stop the address in use at once. */
@@ -12,16 +14,19 @@ type Pending = "replace" | "switchOff" | null;
 
 /**
  * Mon compte's « Réception par email » (#441, ADR-0051): switches Email intake on (dated) or off, shows the
- * Forwarding address to copy, replaces it, and lists the Candidate's own sending addresses for manual forwards.
+ * Forwarding address to copy, replaces it, and lists the Candidate's own sending addresses for manual forwards and
+ * their Recognised senders (#450).
  * The step-by-step setup wizard per mailbox provider (#451) opens from here.
  */
 export function EmailIntakeForm({
   forwardingAddress: initial,
   sendingAddresses: initialSending,
+  recognisedSenders,
   locale,
 }: {
   forwardingAddress: ForwardingAddress | null;
   sendingAddresses: string[];
+  recognisedSenders: { own: CandidateSender[]; platform: PlatformSender[] };
   locale: string;
 }) {
   const { t } = useTranslation();
@@ -131,6 +136,7 @@ export function EmailIntakeForm({
         )}
       </section>
       <SendingAddresses initial={initialSending} />
+      <RecognisedSenders initial={recognisedSenders} />
       {error ? (
         <p className="field-error" role="alert">
           {t("emailIntake.errors.error")}

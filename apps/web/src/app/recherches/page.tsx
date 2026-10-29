@@ -15,7 +15,7 @@ import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { emailIntakeLimits } from "@/email-intake/domain";
 import type { ReceivedOffersOverview } from "@/email-intake/received-offers";
-import { getEmailIntake, getReceivedOffers } from "@/email-intake/server";
+import { getCandidateSenders, getEmailIntake, getReceivedOffers } from "@/email-intake/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import type { JobSearch } from "@/job-searches";
 import { getJobSearches } from "@/job-searches/server";
@@ -36,10 +36,16 @@ type Profile = { id: string; name: string };
 type Standing = { profile: Profile; searching: JobSearch | null; latest: JobSearch | null };
 
 /** What Email intake gave the Candidate (#447), and whether it is on for them: the « Reçues par email » sections. */
-async function emailIntakeOf(candidateId: string): Promise<{ overview: ReceivedOffersOverview; switchedOn: boolean }> {
+async function emailIntakeOf(candidateId: string): Promise<{ overview: ReceivedOffersOverview; switchedOn: boolean; ownSenders: string[] }> {
   const { broadFilterThreshold } = emailIntakeLimits(getPlatformSettingsResolver().current());
-  const [overview, address] = await Promise.all([getReceivedOffers().overview(candidateId, { broadFilterThreshold }), getEmailIntake().forwardingAddress(candidateId)]);
-  return { overview, switchedOn: address !== null };
+  const [overview, address, senders] = await Promise.all([
+    getReceivedOffers().overview(candidateId, { broadFilterThreshold }),
+    getEmailIntake().forwardingAddress(candidateId),
+    getCandidateSenders().list(candidateId),
+  ]);
+  // The domains the Candidate added (#450): their ignored emails no longer offer « C'est une alerte d'offres ».
+  const ownSenders = senders.own.filter((sender) => sender.match === "domain").map((sender) => sender.value);
+  return { overview, switchedOn: address !== null, ownSenders };
 }
 
 /** The Job Searches the page shows, for AI Activity: each Profile's search under way and its latest done one. */
@@ -126,7 +132,7 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
         {searching ? <RefreshWhileSearching /> : null}
         <ProfileStanding standing={standing} t={t} locale={locale} date={date} />
         <ReceivedByEmail profile={chosen} group={emailIntake.overview.byProfile[chosen.id]} t={t} locale={locale} headingLevel={2} />
-        <EmailIntakeStanding overview={emailIntake.overview} switchedOn={emailIntake.switchedOn} t={t} locale={locale} headingLevel={2} />
+        <EmailIntakeStanding overview={emailIntake.overview} switchedOn={emailIntake.switchedOn} ownSenders={emailIntake.ownSenders} t={t} locale={locale} headingLevel={2} />
       </CandidateLayout>
     );
   }
@@ -171,7 +177,7 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
           />
         )}
       </section>
-      <EmailIntakeStanding overview={emailIntake.overview} switchedOn={emailIntake.switchedOn} t={t} locale={locale} headingLevel={2} />
+      <EmailIntakeStanding overview={emailIntake.overview} switchedOn={emailIntake.switchedOn} ownSenders={emailIntake.ownSenders} t={t} locale={locale} headingLevel={2} />
     </CandidateLayout>
   );
 }

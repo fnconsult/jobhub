@@ -42,7 +42,7 @@ const status = (ctx: Ctx, enabled: boolean) => ctx.t(enabled ? "admin.searchSite
 export function AddJobDiscoverySiteForm({ ctx, legend = true }: { ctx: Ctx; legend?: boolean }) {
   const { t } = ctx;
   return (
-    <BackOfficeForm canWrite={ctx.can.sites} className="stack quota-form" action={addJobDiscoverySite}>
+    <BackOfficeForm canWrite={ctx.can.sites} className="stack parametres-form" action={addJobDiscoverySite}>
       <Here ctx={ctx} sheet="" />
       {/* Read-only for roles that may not change the search sites: the fields show, disabled, with nothing to send. */}
       <fieldset disabled={!ctx.can.sites}>
@@ -66,7 +66,7 @@ export function AddJobDiscoverySiteForm({ ctx, legend = true }: { ctx: Ctx; lege
 export function AddJobSiteForm({ ctx, legend = true }: { ctx: Ctx; legend?: boolean }) {
   const { t } = ctx;
   return (
-    <BackOfficeForm canWrite={ctx.can.sites} className="stack quota-form" action={addJobSite}>
+    <BackOfficeForm canWrite={ctx.can.sites} className="stack parametres-form" action={addJobSite}>
       <Here ctx={ctx} sheet="" />
       <fieldset disabled={!ctx.can.sites}>
         <legend className={legend ? undefined : "visually-hidden"}>

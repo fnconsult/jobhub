@@ -3,11 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
+import { Properties, Property } from "@/design/Properties";
+import { Table } from "@/design/Table";
 import type { DiscoveryRunPeriod } from "@/discovery-runs";
 import { getDiscoveryRuns } from "@/discovery-runs/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getJobSearches } from "@/job-searches/server";
 import { routes } from "@/routes";
+import "../../../../section.css";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,59 +43,53 @@ export default async function RunJobSearchPage({ params }: Params) {
 
   return (
     <BackOfficeLayout access={access} title={t("admin.discoveryRuns.jobSearch.title")}>
-      <p>
-        <Link prefetch={false} href={routes.adminDiscoveryRuns({ period: ANY_PERIOD, run: id })}>
-          {t("admin.discoveryRuns.jobSearch.back")}
-        </Link>
-      </p>
-      <p className="notice" role="status">
-        {t("admin.discoveryRuns.jobSearch.audited")}
-      </p>
-      <dl className="props" aria-label={t("admin.discoveryRuns.jobSearch.title")}>
-        <dt>{t("admin.discoveryRuns.jobSearch.startedAt")}</dt>
-        <dd>
-          <time dateTime={jobSearch.startedAt.toISOString()}>{at.format(jobSearch.startedAt)}</time>
-        </dd>
-        <dt>{t("admin.discoveryRuns.jobSearch.status")}</dt>
-        <dd>{t(`admin.discoveryRuns.jobSearch.statuses.${jobSearch.status}`)}</dd>
-        <dt>{t("admin.discoveryRuns.jobSearch.criteria")}</dt>
-        <dd>{[jobSearch.profile.searchCriteria.targetRole, ...jobSearch.profile.searchCriteria.locations].join(" · ")}</dd>
-      </dl>
-      <h2>{t("admin.discoveryRuns.jobSearch.results", { count: jobSearch.results.length })}</h2>
-      {jobSearch.results.length === 0 ? (
-        <p>{t("admin.discoveryRuns.jobSearch.noResult")}</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="application-table">
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.discoveryRuns.jobSearch.offer")}</th>
-                <th scope="col">{t("admin.discoveryRuns.jobSearch.employer")}</th>
-                <th scope="col">{t("admin.discoveryRuns.jobSearch.location")}</th>
-                <th scope="col">{t("admin.discoveryRuns.jobSearch.matchScore")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {jobSearch.results.map(({ jobOffer, matchScore }) => (
-                <tr key={jobOffer.id}>
-                  <th scope="row">
-                    {jobOffer.source.url ? (
+      <div className="section-page">
+        <p>
+          <Link prefetch={false} href={routes.adminDiscoveryRuns({ period: ANY_PERIOD, run: id })}>
+            {t("admin.discoveryRuns.jobSearch.back")}
+          </Link>
+        </p>
+        <Note role="status">{t("admin.discoveryRuns.jobSearch.audited")}</Note>
+        <Card>
+          <Properties label={t("admin.discoveryRuns.jobSearch.title")}>
+            <Property term={t("admin.discoveryRuns.jobSearch.startedAt")}>
+              <time dateTime={jobSearch.startedAt.toISOString()}>{at.format(jobSearch.startedAt)}</time>
+            </Property>
+            <Property term={t("admin.discoveryRuns.jobSearch.status")}>{t(`admin.discoveryRuns.jobSearch.statuses.${jobSearch.status}`)}</Property>
+            <Property term={t("admin.discoveryRuns.jobSearch.criteria")}>{[jobSearch.profile.searchCriteria.targetRole, ...jobSearch.profile.searchCriteria.locations].join(" · ")}</Property>
+          </Properties>
+        </Card>
+        <section className="section-block" aria-labelledby="job-search-results">
+          <h2 id="job-search-results">{t("admin.discoveryRuns.jobSearch.results", { count: jobSearch.results.length })}</h2>
+          {jobSearch.results.length === 0 ? (
+            <p>{t("admin.discoveryRuns.jobSearch.noResult")}</p>
+          ) : (
+            <Table
+              label={t("admin.discoveryRuns.jobSearch.results", { count: jobSearch.results.length })}
+              columns={[
+                {
+                  key: "offer",
+                  header: t("admin.discoveryRuns.jobSearch.offer"),
+                  rowHeader: true,
+                  cell: ({ jobOffer }) =>
+                    jobOffer.source.url ? (
                       <a href={jobOffer.source.url} rel="noreferrer noopener" target="_blank">
                         {jobOffer.title}
                       </a>
                     ) : (
                       jobOffer.title
-                    )}
-                  </th>
-                  <td>{jobOffer.employer ?? "—"}</td>
-                  <td>{jobOffer.location ?? "—"}</td>
-                  <td>{matchScore.score}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    ),
+                },
+                { key: "employer", header: t("admin.discoveryRuns.jobSearch.employer"), cell: ({ jobOffer }) => jobOffer.employer ?? "—" },
+                { key: "location", header: t("admin.discoveryRuns.jobSearch.location"), cell: ({ jobOffer }) => jobOffer.location ?? "—" },
+                { key: "matchScore", header: t("admin.discoveryRuns.jobSearch.matchScore"), numeric: true, cell: ({ matchScore }) => matchScore.score },
+              ]}
+              rows={jobSearch.results}
+              rowKey={({ jobOffer }) => jobOffer.id}
+            />
+          )}
+        </section>
+      </div>
     </BackOfficeLayout>
   );
 }

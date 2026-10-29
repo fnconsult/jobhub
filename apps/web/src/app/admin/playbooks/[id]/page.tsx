@@ -33,6 +33,8 @@ type Params = Promise<{ id: string }>;
 const CURRENT = "page";
 /** The edit form's field ids start with this. */
 const EDIT_FORM = "edit-playbook";
+/** The new Eval Case form's field ids start with this. */
+const NEW_CASE_FORM = "new-case";
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -146,18 +148,18 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
     ) : (
       none
     );
-  const caseFields = (evalCase?: PlaybookEvalCase) => (
+  const caseFields = (prefix: string, evalCase?: PlaybookEvalCase) => (
     <>
-      <Field label={t("admin.evals.cases.fields.title")}>
+      <Field id={`${prefix}-title`} label={t("admin.evals.cases.fields.title")}>
         <TextInput name="title" required maxLength={120} lang="fr" defaultValue={evalCase?.title} />
       </Field>
-      <Field label={t("admin.evals.cases.fields.context")} hint={t("admin.evals.cases.fields.contextHelp")}>
+      <Field id={`${prefix}-context`} label={t("admin.evals.cases.fields.context")} hint={t("admin.evals.cases.fields.contextHelp")}>
         <Textarea name="context" required lang="fr" defaultValue={evalCase?.context} />
       </Field>
-      <Field label={t("admin.evals.cases.fields.message")}>
+      <Field id={`${prefix}-message`} label={t("admin.evals.cases.fields.message")}>
         <Textarea name="message" required lang="fr" defaultValue={evalCase?.message} />
       </Field>
-      <Field label={t("admin.evals.cases.fields.inViewKind")}>
+      <Field id={`${prefix}-in-view-kind`} label={t("admin.evals.cases.fields.inViewKind")}>
         <Select name="inViewKind" defaultValue={evalCase?.inView?.kind ?? ""}>
           <option value="">{t("admin.evals.cases.fields.inViewNone")}</option>
           {EVAL_IN_VIEW_KINDS.map((kind) => (
@@ -167,10 +169,10 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
           ))}
         </Select>
       </Field>
-      <Field label={t("admin.evals.cases.fields.inViewText")} hint={t("admin.evals.cases.fields.inViewTextHelp")}>
+      <Field id={`${prefix}-in-view-text`} label={t("admin.evals.cases.fields.inViewText")} hint={t("admin.evals.cases.fields.inViewTextHelp")}>
         <Textarea name="inViewText" rows={4} lang="fr" defaultValue={evalCase?.inView?.text} />
       </Field>
-      <Field label={t("admin.evals.cases.fields.criteria")} hint={t("admin.evals.cases.fields.criteriaHelp")}>
+      <Field id={`${prefix}-criteria`} label={t("admin.evals.cases.fields.criteria")} hint={t("admin.evals.cases.fields.criteriaHelp")}>
         <Textarea name="criteria" required lang="fr" defaultValue={evalCase?.criteria} />
       </Field>
     </>
@@ -320,7 +322,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                           <BackOfficeForm canWrite={canWrite} action={saveEvalCase} className="section-form">
                             <input type="hidden" name="playbookId" value={playbook.id} />
                             <input type="hidden" name="caseId" value={evalCase.id} />
-                            {caseFields(evalCase)}
+                            {caseFields(`edit-case-${evalCase.id}`, evalCase)}
                             <button className={buttonClass({ variant: "primary" })} type="submit">
                               {t("admin.evals.cases.save")}
                             </button>
@@ -363,7 +365,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
               <Card title={t("admin.evals.cases.add")} headingLevel={3}>
                 <fieldset className="section-form" disabled={!canWrite}>
                   <input type="hidden" name="playbookId" value={playbook.id} />
-                  {caseFields()}
+                  {caseFields(NEW_CASE_FORM)}
                   <button className={buttonClass({ variant: "primary" })} type="submit">
                     {t("admin.evals.cases.addButton")}
                   </button>

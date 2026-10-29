@@ -35,14 +35,16 @@ function useWiring<T extends { id?: string; "aria-describedby"?: string }>(props
 /**
  * A labelled form field (#462): its label above, its one control (TextInput, Select or Textarea) named by it, a hint
  * under it, and the error that replaces nothing (the hint stays) and marks the control invalid. The control is
- * described by the hint then the error, so a screen reader reads both.
+ * described by the hint then the error, so a screen reader reads both. `id`: the control's own, for a page's hook or
+ * anchor; one is made up otherwise.
  */
-export function Field({ label, hint, error, children }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode }) {
-  const id = useId();
+export function Field({ id: controlId, label, hint, error, children }: { id?: string; label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode }) {
+  const generated = useId();
+  const id = controlId ?? generated;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const wiring: ControlWiring = {
-    id: `${id}-control`,
+    id: controlId ?? `${id}-control`,
     "aria-describedby": [hintId, errorId].filter(Boolean).join(" ") || undefined,
     "aria-invalid": error ? true : undefined,
   };

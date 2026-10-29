@@ -120,7 +120,7 @@ export function EmailIntakeSections({ ctx, lists }: { ctx: Ctx; lists: EmailInta
             rowAttributes={(sender) => ({ "data-sender": sender.value })}
           />
         )}
-        <BackOfficeForm canWrite={ctx.can.sites} action={addRecognisedSender} className="stack quota-form">
+        <BackOfficeForm canWrite={ctx.can.sites} action={addRecognisedSender} className="stack parametres-form">
           <Here ctx={ctx} />
           <fieldset disabled={!ctx.can.sites}>
             <legend>{t("admin.emailIntake.senders.addTitle")}</legend>

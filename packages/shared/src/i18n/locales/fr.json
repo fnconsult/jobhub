@@ -1117,7 +1117,8 @@
       "tools": "Outils",
       "unansweredQuestions": "Questions sans réponse",
       "activity": "Activité",
-      "discoveryRuns": "Recherches"
+      "discoveryRuns": "Recherches",
+      "receivedEmails": "Emails reçus"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -2024,7 +2025,8 @@
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
-        "discovery_runs": "Activité › Recherches"
+        "discovery_runs": "Activité › Recherches",
+        "received_emails": "Activité › Emails reçus"
       },
       "actions": {
         "added": "Ajout",
@@ -2076,6 +2078,24 @@
       "toolCall": "Appel",
       "toolCallResult": "{{outcome}}, {{duration}}",
       "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées.",
+      "linkedMailboxes": "Boîtes reliées",
+      "linkedMailboxesIntro": "Avec le filtre Boîtes reliées, chaque boîte reliée activée, dont l'adresse de transfert est remplacée ou coupée, ou qui atteint son plafond du jour, apparaît à côté des modifications du back office. Aucun candidat, aucune adresse, aucun contenu d'email n'est enregistré ; gardé {{months}} mois.",
+      "linkedMailboxesCaption": "Modifications du back office et événements des boîtes reliées, des plus récents aux plus anciens",
+      "byCandidate": "Un candidat",
+      "byEmailIntake": "Jobbbox (réception des emails)",
+      "linkedMailboxTarget": "Boîte reliée (adresse de transfert)",
+      "linkedMailboxEvents": {
+        "switched_on": "Activée",
+        "replaced": "Adresse remplacée",
+        "switched_off": "Coupée",
+        "daily_cap_reached": "Plafond du jour atteint"
+      },
+      "linkedMailboxEventDetails": {
+        "switched_on": "Le candidat a activé la réception de ses emails d'offres ; une adresse de transfert lui a été donnée.",
+        "replaced": "Le candidat a remplacé son adresse de transfert : l'ancienne ne reçoit plus rien.",
+        "switched_off": "Le candidat a coupé la réception de ses emails : son adresse ne reçoit plus rien.",
+        "daily_cap_reached": "Plafond d'emails du jour atteint : les emails suivants de ce jour sont écartés sans être lus."
+      },
       "outcome": "Résultat",
       "outcomes": {
         "succeeded": "Réussi",
@@ -2811,9 +2831,59 @@
       "tabsLabel": "Onglets d'Activité",
       "tabs": {
         "discoveryRuns": "Recherches",
+        "receivedEmails": "Emails reçus",
         "aiMessages": "Appels IA",
         "audit": "Actions des administrateurs"
       }
+    },
+    "receivedEmails": {
+      "intro": "Chaque email d'offres reçu par l'adresse de transfert d'un candidat (Email intake) : quand, le domaine de l'expéditeur, son type, les offres trouvées et ce qu'il est devenu. Aucun candidat n'est nommé et rien du contenu de l'email n'est gardé ici ; chaque ligne est gardée {{months}} mois, même après la suppression du compte du candidat.",
+      "filter": "Filtrer les emails reçus",
+      "outcome": "Résultat",
+      "anyOutcome": "Tous les résultats",
+      "outcomes": {
+        "awaiting_reading": "En attente de lecture",
+        "offers_found": "Offres trouvées",
+        "other": "Autre",
+        "set_aside_by_guardrail": "Écarté par un garde-fou",
+        "unrecognised_sender": "Expéditeur non reconnu",
+        "over_daily_cap": "Plafond atteint",
+        "forwarding_confirmation": "Confirmation de transfert",
+        "failed": "Échec"
+      },
+      "kind": "Type",
+      "anyKind": "Tous les types",
+      "kinds": {
+        "alert": "Alerte",
+        "recruiter": "Recruteur",
+        "other": "Autre"
+      },
+      "period": "Période",
+      "periods": {
+        "today": "Aujourd'hui",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "all": "Tout (24 mois)"
+      },
+      "apply": "Afficher",
+      "none": "Aucun email reçu sur cette période.",
+      "count_one": "{{count}} email",
+      "count_other": "{{count}} emails",
+      "limit": "Seuls les {{count}} emails les plus récents sont affichés.",
+      "caption": "Emails d'offres reçus, du plus récent au plus ancien",
+      "at": "Reçu le",
+      "sender": "Domaine de l'expéditeur",
+      "manualForward": "transféré à la main",
+      "offers": "Offres nouvelles / déjà là",
+      "offersValue": "{{new}} / {{alreadyStored}}",
+      "guardrail": "Garde-fou",
+      "guardrails": {
+        "passed": "Passé",
+        "flagged": "Signalé",
+        "blocked": "Bloqué"
+      },
+      "notRead": "Non lu",
+      "noCandidate": "Aucun nom, e-mail ni identifiant de candidat ici, et rien du contenu des emails."
     },
     "discoveryRuns": {
       "intro": "Chaque run de la recherche d'offres (Job discovery), lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest : ses recherches et ce qu'elles ont donné. Les requêtes, les critères et le lien vers la recherche du candidat sont gardés {{days}} jours ; les chiffres des runs, {{months}} mois.",

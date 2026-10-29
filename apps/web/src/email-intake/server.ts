@@ -8,6 +8,7 @@ import { secretCipherFromEnv, type SecretCipher } from "@/provider-secrets/ciphe
 import { getSecretResolver } from "@/provider-secrets/server";
 import { getSearchSites } from "@/search-sites/server";
 import { emailIntakeDomain, emailIntakeLimits } from "./domain";
+import { createEmailIntakeActivity, type EmailIntakeActivity } from "./activity";
 import { forwardingSetupOf, type ForwardingSetup } from "./forwarding-setup";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 import { createEmailIntake, type EmailIntake } from "./index";
@@ -59,4 +60,12 @@ export function getEmailIntakeInbound(): EmailIntakeInbound {
 /** How far the Candidate's forwarding setup got (#451): Gmail's confirmation read with the texts' cipher, when there is one. */
 export function getForwardingSetup(candidateId: string): Promise<ForwardingSetup | null> {
   return forwardingSetupOf(sharedPool(), (cipher ??= secretCipherFromEnv(process.env)), candidateId);
+}
+
+let activity: EmailIntakeActivity | undefined;
+
+/** Email intake as the Back Office shows it (#449): Activité › Emails reçus and the Journal's Linked mailbox events, naming no Candidate. */
+export function getEmailIntakeActivity(): EmailIntakeActivity {
+  activity ??= createEmailIntakeActivity(sharedPool());
+  return activity;
 }

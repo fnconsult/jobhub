@@ -126,6 +126,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "job_discovery_source", // issue #188: the Job discovery sources, each enabled or not
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
+        "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
         "master_cv_version",
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
@@ -135,6 +136,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "provider_api_access", // issue #400: what each France Travail API answered its latest connection test
         "provider_secret", // issue #208: Provider Secrets, encrypted
         "quota_usage",
+        "received_email_activity", // issue #449: Activité › Emails reçus, one row per Received offer email, no Candidate, kept 24 months
         "received_offer_email", // issue #442: each email Email intake took, its outcome and sender's domain; its text encrypted, 72 hours at most
         "received_offer_email_offer", // issue #445: the offers each Received offer email gave (new, déjà vue, À capturer, too old)
         "recognised_sender", // issue #442: the platform's Recognised senders; no Candidate data
@@ -252,7 +254,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
-        // Email intake (issue #442): the Received offer emails go with their Candidate.
+        // Email intake (issue #442): the Received offer emails go with their Candidate; each points to its row of
+        // Activité › Emails reçus (issue #449), which names no one and outlives them.
+        { from_table: "received_offer_email", from_column: "activity_id", to_table: "received_email_activity" },
         { from_table: "received_offer_email", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #445): the offers an email gave go with it, its Candidate, its Job Offer and the Profile it went to.
         { from_table: "received_offer_email_offer", from_column: "candidate_id", to_table: "candidate" },

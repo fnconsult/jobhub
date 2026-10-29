@@ -6,12 +6,16 @@
  * replaced or off, so it is not given again while the account lasts; once the account is deleted
  * (its rows cascade away), only the 80 random bits of the local part keep it from coming back.
  *
+ * Switching on, replacing and switching off are each a Linked mailbox event of the Journal, naming no
+ * Candidate (activity.ts, #449).
+ *
  * Also the Candidate's own sending addresses (#437): their account's and those they add, from
  * which an email they forward by hand is theirs to read.
  */
 import { randomBytes } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction } from "../database/pool";
+import { migrateEmailIntakeActivity, recordLinkedMailboxEvent } from "./activity";
 import { SEEDED_RECOGNISED_SENDERS } from "./recognised-senders";
 
 /** The Candidate's Forwarding address in use, and when it was given to them. */
@@ -105,7 +109,11 @@ export function createEmailIntake(database: Pool, options: EmailIntakeOptions): 
       const inUse = await forwardingAddress(candidateId);
       if (inUse) return inUse;
       try {
-        return await give(database, candidateId);
+        return await inTransaction(database, async (client) => {
+          const given = await give(client, candidateId);
+          await recordLinkedMailboxEvent(client, "switched_on", given.activatedAt);
+          return given;
+        });
       } catch (error) {
         // Switched on twice at once: the other one won.
         if (isUniqueViolation(error, "forwarding_address_one_active")) return (await forwardingAddress(candidateId))!;
@@ -113,10 +121,17 @@ export function createEmailIntake(database: Pool, options: EmailIntakeOptions): 
       }
     },
     async replace(candidateId) {
-      return inTransaction(database, async (client) => ((await stop(client, candidateId, "replaced")) ? give(client, candidateId) : null));
+      return inTransaction(database, async (client) => {
+        if (!(await stop(client, candidateId, "replaced"))) return null;
+        const given = await give(client, candidateId);
+        await recordLinkedMailboxEvent(client, "replaced", given.activatedAt);
+        return given;
+      });
     },
     async switchOff(candidateId) {
-      await stop(database, candidateId, "off");
+      await inTransaction(database, async (client) => {
+        if (await stop(client, candidateId, "off")) await recordLinkedMailboxEvent(client, "switched_off", now());
+      });
     },
     async candidateAt(address) {
       const { rows } = await database.query<{ candidate_id: string }>(`SELECT candidate_id FROM forwarding_address WHERE address = $1 AND state = 'active'`, [
@@ -244,6 +259,7 @@ async function offersOf(database: Pool, candidateId: string): Promise<Map<string
 
 /** Creates or upgrades the Email intake tables. Run after the Candidate table. Safe to run repeatedly. */
 export async function migrateEmailIntake(database: Pool): Promise<void> {
+  await migrateEmailIntakeActivity(database);
   await database.query(`
     CREATE TABLE IF NOT EXISTS forwarding_address (
       address text PRIMARY KEY,
@@ -282,6 +298,8 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
     ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS read_tries integer NOT NULL DEFAULT 0;
     ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS read_at timestamptz;
     ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS progress jsonb;
+    -- Its row of Activité › Emails reçus (#449): the Candidate's row points to it, so it outlives the account.
+    ALTER TABLE received_offer_email ADD COLUMN IF NOT EXISTS activity_id uuid REFERENCES received_email_activity (id) ON DELETE SET NULL;
     -- The platform's Recognised senders (#437): seeded once, then kept by Administrators.
     CREATE TABLE IF NOT EXISTS recognised_sender (
       match text NOT NULL CHECK (match IN ('domain', 'address')),

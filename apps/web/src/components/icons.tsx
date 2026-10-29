@@ -114,6 +114,8 @@ const LUCIDE = {
   activity: Activity,
   // A magnifier: Activité › Recherches, the Job discovery runs (#404).
   discoveryRuns: SearchCheck,
+  // An envelope: Activité › Emails reçus, Email intake's Received offer emails (#449).
+  receivedEmails: Mail,
   tools: Wrench,
   administrators: ShieldCheck,
   journal: NotebookText,

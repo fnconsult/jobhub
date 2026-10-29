@@ -126,6 +126,19 @@ async function insertJobOffers(offers: readonly (typeof OFFERS)[number][], batch
   return offerIds;
 }
 
+/**
+ * The metrics a done Job Search's worker records (#109): a seeded row carries them too, since every finished or failed
+ * run has them (job-search-metrics.spec.ts checks the whole database, these rows included). Two minutes, `matched` offers.
+ */
+function doneRunMetrics(matched: number): string {
+  return JSON.stringify({
+    funnel: { providerUrls: matched, fetched: matched, extracted: matched, alreadyStored: 0, afterDedup: matched, matched },
+    skipped: {},
+    costEur: 0,
+    durationMs: 120_000,
+  });
+}
+
 type Seeded = { profileId: string; applicationId: string };
 
 /**
@@ -143,8 +156,8 @@ async function seed(page: Page, email: string): Promise<Seeded> {
   const profileId: string = (await created.json()).id;
   const offerIds = await insertJobOffers(OFFERS);
   await query(
-    `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, $4, $5)`,
-    [candidate!.id, profileId, offerIds.slice(0, 3), "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z"],
+    `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, $4, $5, $6)`,
+    [candidate!.id, profileId, offerIds.slice(0, 3), "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z", doneRunMetrics(3)],
   );
   const applicationIds: string[] = [];
   for (const jobOfferId of [offerIds[0], offerIds[1], offerIds[3]]) {
@@ -284,8 +297,8 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
       expect(created.status(), await created.text()).toBe(201);
       const offerIds = await insertJobOffers(OFFERS.slice(0, 3), `all-${index}-`);
       await query(
-        `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, $4, $5)`,
-        [candidate!.id, (await created.json()).id, offerIds, "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z"],
+        `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, $4, $5, $6)`,
+        [candidate!.id, (await created.json()).id, offerIds, "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z", doneRunMetrics(offerIds.length)],
       );
     }
 

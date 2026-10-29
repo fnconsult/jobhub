@@ -17,9 +17,7 @@ export async function SignInStage({ title, intro, notices, children }: { title: 
   return (
     <main id="main" className="ds-sign-in">
       <div className="ds-sign-in__column">
-        <span className="ds-sign-in__logo" aria-hidden>
-          {t("app.name").charAt(0)}
-        </span>
+        <span className="ds-sign-in__logo" data-initial={t("app.name").charAt(0)} aria-hidden />
         <h1 className="ds-sign-in__title">{title}</h1>
         {intro ? <p className="ds-sign-in__intro">{intro}</p> : null}
         {notices}

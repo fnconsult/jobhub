@@ -27,9 +27,7 @@ export async function PublicSite({ current, signInLink = true, children }: { cur
     <div className="ds-site">
       <header className="ds-site__head">
         <Link className="ds-site__brand" href={routes.home}>
-          <span className="ds-site__logo" aria-hidden>
-            {t("app.name").charAt(0)}
-          </span>
+          <span className="ds-site__logo" data-initial={t("app.name").charAt(0)} aria-hidden />
           {t("app.name")}
         </Link>
         <nav className="ds-site__nav" aria-label={t("publicSite.nav")}>

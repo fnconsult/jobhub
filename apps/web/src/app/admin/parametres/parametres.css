@@ -47,6 +47,12 @@
   color: var(--color-secondary);
 }
 
+/* The settings' Table takes the width it is given (a .stack lines its children up at their own width), so a wide one
+   scrolls in its frame rather than widen the page. */
+.settings-table {
+  width: 100%;
+}
+
 /* A setting's row: its name in code under its label, in the metadata colour. */
 .settings-table th[scope="row"] .setting-name,
 .settings-table th[scope="row"] > code {

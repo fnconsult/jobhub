@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import { AddressDrawer, useLeaveAddressDrawer } from "./AddressDrawer";
 import { renderInFrench } from "./testing";
 
@@ -83,5 +85,17 @@ describe("AddressDrawer: a Drawer the address opens (#465)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(push).toHaveBeenCalledWith(CLOSED, { scroll: false });
     expect(document.activeElement).not.toBe(screen.getByRole("link", { name: "Perplexity" }));
+  });
+
+  it("is in the server's HTML, open, so its forms work before the page's scripts run", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(
+      <I18nProvider locale="fr">
+        <Parametres />
+      </I18nProvider>,
+    );
+    const drawer = container.querySelector('[role="dialog"][data-sheet="perplexity"]');
+    expect(drawer?.textContent).toContain("Perplexity");
+    expect(drawer?.querySelector('button[type="submit"]')?.textContent).toBe("Tester");
   });
 });

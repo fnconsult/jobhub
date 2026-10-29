@@ -229,7 +229,8 @@ test.describe("Paramètres in tabs (#396)", () => {
     await supportPage.goto(`${PATH}?tab=ia&fournisseur=mistral`);
     await expect(sheet(supportPage).locator('[data-key="MISTRAL_API_KEY"]')).toContainText(texts.providers.keySet);
     await expect(sheet(supportPage)).toContainText(texts.sheet.readOnlyKeys);
-    await expect(sheet(supportPage).getByRole("button")).toHaveCount(0);
+    // No action on its key: its one button is the Drawer's « Fermer » (#465).
+    await expect(sheet(supportPage).getByRole("button")).toHaveText([fr.designSystem.close]);
     expect(await supportPage.content()).not.toContain("e2e-mistral-key");
   });
 });

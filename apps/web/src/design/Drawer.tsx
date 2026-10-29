@@ -1,7 +1,7 @@
 "use client";
 
 import * as RadixDialog from "@radix-ui/react-dialog";
-import type { ReactElement, ReactNode } from "react";
+import { Fragment, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import type { DataAttributes } from "./attributes";
@@ -18,7 +18,9 @@ type AutoFocusEvent = Event;
  * optional `footer` for its actions; without one, its content draws its own head and holds a DrawerTitle (the
  * Sidebar's menu on a phone). The focus goes inside on opening and stays there; Escape, the scrim or « Fermer » close
  * it, the focus back on its trigger. Full screen on a phone. Opened by its `trigger`, or by its owner (`open`).
- * `size="wide"` for a detail that needs room (a run's table of offers).
+ * `size="wide"` for a detail that needs room (a run's table of offers). `inPlace`: drawn where it stands in the page
+ * rather than in a portal, so the server sends it already open (a Drawer the address opens) and its forms work before
+ * the page's scripts run.
  */
 export function Drawer({
   trigger,
@@ -29,6 +31,7 @@ export function Drawer({
   footer,
   side = "right",
   size = "md",
+  inPlace = false,
   className,
   onOpenAutoFocus,
   onCloseAutoFocus,
@@ -44,6 +47,7 @@ export function Drawer({
   footer?: ReactNode;
   side?: "right" | "left";
   size?: "md" | "wide";
+  inPlace?: boolean;
   className?: string;
   onOpenAutoFocus?: (event: AutoFocusEvent) => void;
   onCloseAutoFocus?: (event: AutoFocusEvent) => void;
@@ -52,6 +56,7 @@ export function Drawer({
 }) {
   const { t } = useTranslation();
   const hydrated = useHydrated();
+  const Layer = inPlace ? Fragment : OverlayPortal;
   return (
     <RadixDialog.Root open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
       {/* Disabled until the page is hydrated: clicked before, it would not open (#446). Its own `disabled` wins. */}
@@ -60,7 +65,7 @@ export function Drawer({
           {trigger}
         </RadixDialog.Trigger>
       ) : null}
-      <OverlayPortal>
+      <Layer>
         <Scrim />
         <RadixDialog.Content
           {...data}
@@ -89,7 +94,7 @@ export function Drawer({
             children
           )}
         </RadixDialog.Content>
-      </OverlayPortal>
+      </Layer>
     </RadixDialog.Root>
   );
 }

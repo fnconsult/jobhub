@@ -5,6 +5,8 @@
   /* Positioned, so visually hidden words in its cells scroll and clip with it rather than widen the page. */
   .ds-table-wrap {
     position: relative;
+    width: 100%;
+    max-width: 100%;
     overflow-x: auto;
     background: var(--color-background);
     border: 1px solid var(--color-border);

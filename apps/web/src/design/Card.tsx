@@ -71,16 +71,18 @@ export function Stat({ label, name, value, meta, note, progress, trend }: { labe
       {meta ? <dd className="ds-stat__meta">{meta}</dd> : null}
       {note ? <dd className="ds-stat__meta">{note}</dd> : null}
       {percent !== undefined ? (
-        <dd
-          className="ds-stat__bar"
-          role="progressbar"
-          aria-label={name ?? (typeof label === "string" ? label : undefined)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          data-reached={progress !== undefined && progress >= 100 ? true : undefined}
-        >
-          <span style={{ width: `${percent}%` }} />
+        <dd className="ds-stat__progress">
+          <div
+            className="ds-stat__bar"
+            role="progressbar"
+            aria-label={name ?? (typeof label === "string" ? label : undefined)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+            data-reached={progress !== undefined && progress >= 100 ? true : undefined}
+          >
+            <span style={{ width: `${percent}%` }} />
+          </div>
         </dd>
       ) : null}
       {trend ? (

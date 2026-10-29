@@ -7,7 +7,8 @@ import { Drawer } from "./Drawer";
 
 /**
  * A Drawer the address opens (#465): a server page draws it, open, while its address says so (Paramètres'
- * `&fournisseur=perplexity`, Activité's `?run=`), so it survives a reload and a server form's redirect. It is the Drawer
+ * `&fournisseur=perplexity`, Activité's `?run=`), so it survives a reload and a server form's redirect. It is drawn in
+ * place, so the server sends it open, its forms working before the page's scripts run. It is the Drawer
  * in every other way: a dialog named by its `title`, the focus inside and kept there, the page behind out of reach.
  * « Fermer », Escape or the scrim go to `closeHref`, the address without it, and put the focus back on `opener` (a
  * selector for the link that opened it, on the page behind) when the page shows it. A page gives it a `key` per thing it
@@ -57,6 +58,7 @@ export function AddressDrawer({
         }}
         title={title}
         size={size}
+        inPlace
         footer={footer}
       >
         {children}

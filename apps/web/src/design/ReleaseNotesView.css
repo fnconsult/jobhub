@@ -1,0 +1,160 @@
+@layer base, components;
+
+/* The Nouveautés page's Release Notes (#470): prototype `#changelog`, variant A. */
+@layer components {
+  .ds-releases__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: 0 0 var(--space-6);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* The chosen pill: the text colour as its surface. */
+  .ds-releases__filters > [aria-pressed="true"] {
+    color: var(--color-on-inverse);
+    background: var(--color-inverse);
+    border-color: var(--color-inverse);
+  }
+
+  .ds-releases__beta {
+    margin-top: var(--space-6);
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent-line);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-releases__beta-head {
+    padding: var(--space-6) var(--space-6) 0;
+  }
+
+  .ds-releases__beta-head > h2 {
+    margin: 0;
+    font-size: var(--font-size-h3);
+    color: var(--color-accent);
+  }
+
+  .ds-releases__beta-head > p {
+    margin: var(--space-1) 0 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-releases__beta > .ds-release {
+    padding-inline: var(--space-6);
+    border-bottom: 0;
+  }
+
+  .ds-releases__none,
+  .ds-releases__empty {
+    padding: var(--space-8) 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-release {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    gap: var(--space-8);
+    padding: var(--space-8) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* Its date and Version stay in view while its block is read. */
+  .ds-release__when {
+    position: sticky;
+    top: calc(var(--site-head-height, 4rem) + var(--space-4));
+    display: grid;
+    gap: var(--space-1);
+    align-self: start;
+  }
+
+  .ds-release__when > time {
+    font-weight: 500;
+  }
+
+  .ds-release__version {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  .ds-release__body {
+    display: grid;
+    gap: var(--space-4);
+    max-width: 44rem;
+  }
+
+  .ds-release__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .ds-release__title {
+    margin: 0;
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+    line-height: var(--line-height-heading);
+    letter-spacing: -0.015em;
+  }
+
+  .ds-release__intro > p {
+    margin: 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-release__intro > p + p {
+    margin-top: var(--space-3);
+  }
+
+  .ds-release__shot {
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-release__shot > img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .ds-release__changes {
+    display: grid;
+    gap: var(--space-2);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .ds-release__changes > li {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: var(--space-3);
+    align-items: baseline;
+  }
+
+  .ds-release__changes > li > .ds-pill {
+    justify-self: start;
+  }
+
+  .ds-release__changes p {
+    margin: 0;
+  }
+
+  @media (max-width: 56rem) {
+    .ds-release {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-4);
+    }
+
+    .ds-release__when {
+      position: static;
+    }
+
+    .ds-release__changes > li {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-1);
+    }
+  }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { JobDiscoveryDashboard } from "@/back-office-dashboard";
 import { ChartTips } from "@/components/ChartTips";
+import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
 import { getServerT } from "@/i18n/server";
 import { settingHref } from "@/platform-settings/parametres";
 import { routes } from "@/routes";
@@ -18,6 +19,18 @@ const seriesOf = (provider: string) => {
   const slot = (SEARCH_PROVIDER_IDS as readonly string[]).indexOf(provider);
   return `chart-series-${slot < 0 ? SEARCH_PROVIDER_IDS.length + 1 : slot + 1}`;
 };
+
+/** A Dashboard figure, as an Explainable label tells the Back Office Assistant about it (#407). */
+const FIGURE: Pick<ExplainedContext, "kind"> = { kind: "figure" };
+/** The block's figures, by their key in code. */
+const FIGURES = {
+  webSpend: "web_search_spend",
+  averageRun: "average_run_cost",
+  costPerNewOffer: "cost_per_new_job_offer",
+  runs: "runs",
+  fellBack: "runs_fell_back",
+  failedCalls: "failed_ai_calls",
+} as const;
 
 /** The gradient under the month's cumulative line: one per page, the Dashboard has one such chart. */
 const CUMULATIVE_FILL = "dashboard-cumulative-fill";
@@ -103,6 +116,49 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
   const budgetShare = runs.averageCostEur !== null && runs.budgetEur > 0 ? runs.averageCostEur / runs.budgetEur : null;
   const stopTotal = runs.stopReasons.reduce((sum, row) => sum + row.runs, 0);
   const itemsTotal = runs.averageCostByItem.reduce((sum, row) => sum + row.eur, 0);
+  // The block's figures, as Stat cards: each label an Explainable label (#407), told its value and line (#465).
+  const noValue = t("admin.dashboard.jobDiscovery.noValue");
+  const kpis: { id: string; label: string; value: string; sub: string; progress: number | null }[] = [
+    {
+      id: FIGURES.webSpend,
+      label: t("admin.dashboard.jobDiscovery.webSpend"),
+      value: fine.format(webSearch.spendEur),
+      sub: thresholdShare === null ? t("admin.dashboard.jobDiscovery.noThreshold") : t("admin.dashboard.jobDiscovery.ofThreshold", { percent: percent.format(thresholdShare), threshold: eur.format(webSearch.thresholdEur) }),
+      progress: thresholdShare,
+    },
+    {
+      id: FIGURES.averageRun,
+      label: t("admin.dashboard.jobDiscovery.averageRun"),
+      value: runs.averageCostEur === null ? noValue : fine.format(runs.averageCostEur),
+      sub:
+        runs.averageCostEur === null
+          ? t("admin.dashboard.jobDiscovery.budgetOnly", { budget: fine.format(runs.budgetEur) })
+          : t("admin.dashboard.jobDiscovery.ofBudget", { budget: fine.format(runs.budgetEur), percent: share(runs.averageCostEur, runs.budgetEur) }),
+      progress: budgetShare,
+    },
+    {
+      id: FIGURES.costPerNewOffer,
+      label: t("admin.dashboard.jobDiscovery.costPerNewOffer"),
+      value: runs.costPerNewJobOfferEur === null ? noValue : fine.format(runs.costPerNewJobOfferEur),
+      sub: t("admin.dashboard.jobDiscovery.newOffers", { count: runs.newJobOffers }),
+      progress: null,
+    },
+    { id: FIGURES.runs, label: t("admin.dashboard.jobDiscovery.runs"), value: number.format(runs.count), sub: t("admin.dashboard.jobDiscovery.runsSub"), progress: null },
+    {
+      id: FIGURES.fellBack,
+      label: t("admin.dashboard.jobDiscovery.fellBack"),
+      value: share(runs.fellBack, runs.count),
+      sub: t("admin.dashboard.jobDiscovery.fellBackSub", { count: runs.fellBack }),
+      progress: null,
+    },
+    {
+      id: FIGURES.failedCalls,
+      label: t("admin.dashboard.jobDiscovery.failedCalls"),
+      value: share(calls.failures, calls.calls),
+      sub: t("admin.dashboard.jobDiscovery.failedCallsSub", { failures: number.format(calls.failures), calls: number.format(calls.calls) }),
+      progress: null,
+    },
+  ];
   const axis = (top: number, format: (value: number) => string) => (
     <div className="chart-axis" aria-hidden="true">
       {[top, top / 2, 0].map((value) => (
@@ -127,49 +183,23 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
       </h2>
 
       <dl className="kpis">
-        <div className="kpi">
-          <dt>{t("admin.dashboard.jobDiscovery.webSpend")}</dt>
-          <dd className="kpi-value">{fine.format(webSearch.spendEur)}</dd>
-          <dd className="kpi-sub">{thresholdShare === null ? t("admin.dashboard.jobDiscovery.noThreshold") : t("admin.dashboard.jobDiscovery.ofThreshold", { percent: percent.format(thresholdShare), threshold: eur.format(webSearch.thresholdEur) })}</dd>
-          {thresholdShare === null ? null : <KpiBar share={thresholdShare} />}
-        </div>
-        <div className="kpi">
-          <dt>{t("admin.dashboard.jobDiscovery.averageRun")}</dt>
-          <dd className="kpi-value">{runs.averageCostEur === null ? t("admin.dashboard.jobDiscovery.noValue") : fine.format(runs.averageCostEur)}</dd>
-          <dd className="kpi-sub">
-            {runs.averageCostEur === null
-              ? t("admin.dashboard.jobDiscovery.budgetOnly", { budget: fine.format(runs.budgetEur) })
-              : t("admin.dashboard.jobDiscovery.ofBudget", { budget: fine.format(runs.budgetEur), percent: share(runs.averageCostEur, runs.budgetEur) })}
-          </dd>
-          {budgetShare === null ? null : <KpiBar share={budgetShare} />}
-        </div>
-        <div className="kpi">
-          <dt>{t("admin.dashboard.jobDiscovery.costPerNewOffer")}</dt>
-          <dd className="kpi-value">{runs.costPerNewJobOfferEur === null ? t("admin.dashboard.jobDiscovery.noValue") : fine.format(runs.costPerNewJobOfferEur)}</dd>
-          <dd className="kpi-sub">{t("admin.dashboard.jobDiscovery.newOffers", { count: runs.newJobOffers })}</dd>
-        </div>
-        <div className="kpi">
-          <dt>{t("admin.dashboard.jobDiscovery.runs")}</dt>
-          <dd className="kpi-value">{number.format(runs.count)}</dd>
-          <dd className="kpi-sub">{t("admin.dashboard.jobDiscovery.runsSub")}</dd>
-        </div>
-        <div className="kpi">
-          <dt>{t("admin.dashboard.jobDiscovery.fellBack")}</dt>
-          <dd className="kpi-value">{share(runs.fellBack, runs.count)}</dd>
-          <dd className="kpi-sub">{t("admin.dashboard.jobDiscovery.fellBackSub", { count: runs.fellBack })}</dd>
-        </div>
-        <div className="kpi">
-          <dt>{t("admin.dashboard.jobDiscovery.failedCalls")}</dt>
-          <dd className="kpi-value">{share(calls.failures, calls.calls)}</dd>
-          <dd className="kpi-sub">{t("admin.dashboard.jobDiscovery.failedCallsSub", { failures: number.format(calls.failures), calls: number.format(calls.calls) })}</dd>
-          {calls.unpricedTools > 0 ? (
-            <dd className="kpi-sub kpi-warning">
-              <Link prefetch={false} href={routes.adminAiUsage(figures.month)}>
-                {t("admin.dashboard.jobDiscovery.unpricedTools", { count: calls.unpricedTools })}
-              </Link>
-            </dd>
-          ) : null}
-        </div>
+        {kpis.map((kpi) => (
+          <div key={kpi.id} className="kpi">
+            <dt>
+              <ExplainableLabel item={{ ...FIGURE, id: kpi.id, value: kpi.value, state: kpi.sub }}>{kpi.label}</ExplainableLabel>
+            </dt>
+            <dd className="kpi-value">{kpi.value}</dd>
+            <dd className="kpi-sub">{kpi.sub}</dd>
+            {kpi.progress === null ? null : <KpiBar share={kpi.progress} />}
+            {kpi.id === FIGURES.failedCalls && calls.unpricedTools > 0 ? (
+              <dd className="kpi-sub kpi-warning">
+                <Link prefetch={false} href={routes.adminAiUsage(figures.month)}>
+                  {t("admin.dashboard.jobDiscovery.unpricedTools", { count: calls.unpricedTools })}
+                </Link>
+              </dd>
+            ) : null}
+          </div>
+        ))}
       </dl>
 
       <figure className="chart">

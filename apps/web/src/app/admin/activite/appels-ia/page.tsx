@@ -1,5 +1,5 @@
 import type { AiTask } from "@jobhub/ai";
-import { AI_CALL_FAILURE_REASONS, OUTCOMES } from "@jobhub/shared";
+import { AI_CALL_FAILURE_REASONS, OUTCOMES, type Outcome } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireBackOffice } from "@/admin/server";
@@ -7,6 +7,7 @@ import { MESSAGE_LOG_RETENTION_DAYS } from "@/ai-usage";
 import { AI_TASKS, aiMessageLogFilter, LIST_LIMIT } from "@/ai-usage/message-log";
 import { getAiMessageLogs } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { Status, type StatusTone } from "@/design/Pill";
 import { PageIntro } from "@/components/PageIntro";
 import type { ActivityTabId } from "@/admin/activity";
 import { ActivityTabs } from "../ActivityTabs";
@@ -14,6 +15,9 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
 type Task = AiTask;
+
+/** How a call ended, as its status dot says it beside its words (#465). */
+const OUTCOME_TONE: Record<Outcome, StatusTone> = { ok: "success", warning: "warn", failed: "danger" };
 
 /** This tab of Activité (#404). */
 const TAB: ActivityTabId = "aiMessages";
@@ -137,7 +141,7 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
                     <td>{log.provider ? `${log.provider} ${log.model ?? ""}` : t("admin.aiMessages.noProvider")}</td>
                     <td>{log.candidate?.email ?? t("admin.aiMessages.noCandidate")}</td>
                     <td>
-                      {t(`admin.aiMessages.outcomes.${log.outcome}`)}
+                      <Status tone={OUTCOME_TONE[log.outcome]}>{t(`admin.aiMessages.outcomes.${log.outcome}`)}</Status>
                       {[log.reason, ...log.warnings.filter((warning) => warning !== log.reason)].flatMap((reason) => (reason ? [` · ${t(`failureReasons.${reason}`)}`] : []))}
                       {log.sent ? null : ` · ${t("admin.aiMessages.notSent")}`}
                     </td>

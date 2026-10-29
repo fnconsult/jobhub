@@ -5863,6 +5863,17 @@ textarea.title-edit {
   color: var(--color-meta);
 }
 
+/* What a field takes shows while it is being changed, so the rows stay one line each; screen readers hear it with the
+   field (aria-describedby) whether shown or not. */
+.in-design-system .setting-form:not(:focus-within) > .setting-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .in-design-system .setting-form > .button {
   min-height: calc(var(--size-control) - var(--space-1));
   padding: 0 var(--space-3);

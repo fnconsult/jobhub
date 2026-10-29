@@ -1419,6 +1419,7 @@
       "invalid": "Vérifiez les champs : un nom, une adresse e-mail valide et un lien de réservation Cal.com en https.",
       "emailTaken": "Un coach utilise déjà cette adresse e-mail.",
       "listTitle": "Coachs actifs",
+      "caption": "Liste des coachs",
       "none": "Aucun coach pour l'instant.",
       "retire": "Retirer {{name}}",
       "retired": "Coach retiré. Ses séances passées sont conservées."

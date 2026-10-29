@@ -1,10 +1,11 @@
 @layer base, components;
 
 @layer components {
-  /* Term and value on one line, the terms in one column; long values wrap within theirs. */
+  /* Term and value on one line, the terms in one column as wide as the longest (13rem at most), so the values keep
+     the rest even in a narrow place (a table's cell); long values wrap within theirs. */
   .ds-props {
     display: grid;
-    grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr);
+    grid-template-columns: fit-content(13rem) minmax(0, 1fr);
     gap: var(--space-2) var(--space-4);
     margin: 0;
   }

@@ -1419,6 +1419,7 @@
       "invalid": "Check the fields: a name, a valid email address and an https Cal.com booking link.",
       "emailTaken": "A coach already uses this email address.",
       "listTitle": "Active coaches",
+      "caption": "Coach list",
       "none": "No coaches yet.",
       "retire": "Retire {{name}}",
       "retired": "Coach retired. Their past sessions are kept."

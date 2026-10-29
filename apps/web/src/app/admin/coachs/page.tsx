@@ -81,7 +81,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
             <p>{t("admin.humanCoaches.none")}</p>
           ) : (
             <Table
-              label={t("admin.humanCoaches.listTitle")}
+              label={t("admin.humanCoaches.caption")}
               columns={[
                 { header: t("admin.humanCoaches.name"), rowHeader: true, cell: (coach) => coach.name },
                 { header: t("admin.humanCoaches.email"), cell: (coach) => coach.email },

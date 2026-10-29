@@ -158,7 +158,7 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
           <h2 id="models-title">{t("admin.coachingPlaybooks.models.title")}</h2>
           <p>{t("admin.coachingPlaybooks.fields.modelHelp")}</p>
           <Table
-            label={t("admin.coachingPlaybooks.models.caption")}
+            label={t("admin.coachingPlaybooks.models.title")}
             columns={[
               { header: t("admin.coachingPlaybooks.models.provider"), rowHeader: true, cell: ({ choice }) => `${choice.provider} (${choice.endpoint})` },
               { header: t("admin.coachingPlaybooks.models.model"), cell: ({ each }) => each.model },

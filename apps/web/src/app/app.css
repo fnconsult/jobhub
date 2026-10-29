@@ -5762,7 +5762,9 @@ textarea.title-edit {
 }
 
 /* Tables: in a card that scrolls sideways on its own (Table); column headers are metadata. */
+/* Positioned, so the visually hidden words in its cells scroll and clip with it rather than widen the page. */
 .in-design-system .table-scroll {
+  position: relative;
   margin: 0;
   background: var(--color-background);
   border: 1px solid var(--color-border);

@@ -1,0 +1,50 @@
+@layer base, components;
+
+@layer components {
+  /* Term and value on one line, the terms in one column; long values wrap within theirs. */
+  .ds-props {
+    display: grid;
+    grid-template-columns: minmax(8rem, 13rem) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+    margin: 0;
+  }
+
+  .ds-prop {
+    display: contents;
+  }
+
+  .ds-prop > dt {
+    grid-column: 1;
+    color: var(--color-secondary);
+  }
+
+  .ds-prop > dd {
+    grid-column: 2;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* What goes with a value: metadata, under it. */
+  .ds-prop__meta {
+    margin-top: calc(-1 * var(--space-1));
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  @media (width < 40rem) {
+    .ds-props {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-1);
+    }
+
+    .ds-prop > dt,
+    .ds-prop > dd {
+      grid-column: 1;
+    }
+
+    .ds-prop > dt:not(:first-child) {
+      margin-top: var(--space-2);
+    }
+  }
+}

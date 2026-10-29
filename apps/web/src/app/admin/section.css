@@ -1,0 +1,129 @@
+/* A Back Office section's own layout (#466), on Paramètres' model: what is not a Design System component's. Its tables,
+   cards, notes, fields, pills, properties and filters are the components themselves (ADR-0053); this file holds only how
+   the sections place them, in one column. */
+.section-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section-page :is(h2, h3) {
+  margin: 0;
+  font-weight: 600;
+}
+
+.section-page h2 {
+  font-size: var(--font-size-h3);
+}
+
+.section-page h3 {
+  font-size: var(--font-size-body);
+}
+
+.section-page :is(p, ul, ol) {
+  margin-block: 0;
+}
+
+/* The intro on its line, an action at its end. */
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-head > .page-intro {
+  flex: 1 1 24rem;
+}
+
+/* A part of the page under its heading: its heading, its text and its table, spaced alike. */
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* A form on a card: its fields one under the other, at a readable width, its button at the end. */
+.section-form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 40rem;
+}
+
+.section-form fieldset {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.section-form legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  font-weight: 500;
+}
+
+.section-form > :last-child:is(button, .ds-button) {
+  justify-self: start;
+}
+
+/* Buttons, or a value and its buttons, on one wrapping line. */
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+}
+
+.section-actions > form {
+  margin: 0;
+}
+
+/* A list without bullets, each item on its own line. */
+.section-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Words kept as they were written (a Candidate's message, an AI's reply, a Playbook's rules): line breaks kept, long
+   tokens wrapped. */
+.section-text {
+  margin: 0;
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Such words set apart from the page: a block on the surface colour. */
+.section-text[data-boxed] {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* The team's reply, quoted. */
+blockquote.section-text {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-border-strong);
+}
+
+/* What goes with a value: metadata. */
+.section-meta {
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+}
+
+/* A cell's text on its own line under the cell's value. */
+.ds-table .section-meta {
+  display: block;
+}

@@ -83,6 +83,19 @@ describe("Checkbox, Radio and Switch (#462)", () => {
   });
 });
 
+describe("a Checkbox or Radio with a hint (#466)", () => {
+  it("describes its box with the hint under its words", () => {
+    renderInFrench(
+      <>
+        <Checkbox name="roles" value="support" label="Support" hint="Lit les signalements et y répond." />
+        <Radio name="kind" value="percent" label="Pourcentage" hint="De 1 à 100 %." />
+      </>,
+    );
+    expect(description(screen.getByRole("checkbox", { name: "Support" }))).toBe("Lit les signalements et y répond.");
+    expect(description(screen.getByRole("radio", { name: "Pourcentage" }))).toBe("De 1 à 100 %.");
+  });
+});
+
 function Period() {
   const [value, setValue] = useState("week");
   return (

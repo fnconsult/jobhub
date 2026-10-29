@@ -80,26 +80,38 @@ export function Textarea({ className, ref, ...props }: TextareaHTMLAttributes<HT
   return <textarea ref={ref} rows={3} {...useWiring(props)} className={join("ds-input", "ds-textarea", className)} />;
 }
 
-type ChoiceProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode };
+type ChoiceProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; hint?: ReactNode };
 
-/** A checkbox, its words beside it: the whole line is its target. */
-export function Checkbox({ label, className, ...props }: ChoiceProps) {
-  return (
-    <label className={join("ds-choice", className)}>
-      <input type="checkbox" {...props} />
+/** A checkbox or radio button, its words beside it (the whole line is its target), and its `hint` under them, which describes it. */
+function Choice({ type, label, hint, className, ...props }: ChoiceProps & { type: "checkbox" | "radio" }) {
+  const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
+  const describedBy = [props["aria-describedby"], hintId].filter(Boolean).join(" ") || undefined;
+  const choice = (
+    <label className={join("ds-choice", hint ? undefined : className)}>
+      <input type={type} {...props} aria-describedby={describedBy} />
       {label}
     </label>
+  );
+  if (!hint) return choice;
+  return (
+    <div className={join("ds-choice-field", className)}>
+      {choice}
+      <p id={hintId} className="ds-field__hint ds-choice__hint">
+        {hint}
+      </p>
+    </div>
   );
 }
 
+/** A checkbox, its words beside it: the whole line is its target. */
+export function Checkbox(props: ChoiceProps) {
+  return <Choice type="checkbox" {...props} />;
+}
+
 /** A radio button, its words beside it: the whole line is its target. */
-export function Radio({ label, className, ...props }: ChoiceProps) {
-  return (
-    <label className={join("ds-choice", className)}>
-      <input type="radio" {...props} />
-      {label}
-    </label>
-  );
+export function Radio(props: ChoiceProps) {
+  return <Choice type="radio" {...props} />;
 }
 
 /**

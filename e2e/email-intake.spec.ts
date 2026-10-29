@@ -115,7 +115,7 @@ test.describe("Email intake: the Forwarding address", () => {
 
     await signInWithMagicLink(page, email);
     const fresh = await (await page.request.get("/api/account/export")).json();
-    expect(fresh.emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [], recognisedSenders: [] });
+    expect(fresh.emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [], recognisedSenders: [], switchedOffSenders: [] });
     expect(JSON.stringify(fresh)).not.toContain(address);
     const regained = await (await page.request.put("/api/account/email-intake", { headers })).json();
     expect(regained.address).not.toBe(address);

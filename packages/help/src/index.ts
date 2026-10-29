@@ -7,9 +7,20 @@
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  */
 import { ARTICLES } from "./articles.generated";
+import type { ReleaseNote } from "./release-notes";
+import { RELEASE_NOTES } from "./release-notes.generated";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import type { HelpArticle, HelpLocale } from "./types";
 
+export {
+  nouveautes,
+  RELEASE_NOTE_CHANGE_KINDS,
+  RELEASE_NOTE_TAGS,
+  type Nouveautes,
+  type ReleaseNote,
+  type ReleaseNoteChangeKind,
+  type ReleaseNoteTag,
+} from "./release-notes";
 export { HELP_ARTICLE_KINDS, HELP_LOCALES, type HelpArticle, type HelpArticleKind, type HelpLocale } from "./types";
 
 /** Every Help Article in `locale`: the page articles, then the glossary, then the frequent questions, each by title. */
@@ -33,6 +44,14 @@ export function search(query: string, locale: HelpLocale, { limit = 4 }: { limit
  */
 export function questionKey(query: string): string {
   return queryWords(query).sort().join(" ");
+}
+
+/**
+ * The Release Notes this build carries (ADR-0063), in `locale`, newest first: what Nouveautés reads, through
+ * `nouveautes`, which sets the Beta's next Version apart. Written by the team, never by an AI.
+ */
+export function releaseNotes(locale: HelpLocale): readonly ReleaseNote[] {
+  return RELEASE_NOTES[locale];
 }
 
 const indexes = new Map<HelpLocale, IndexedArticle[]>();

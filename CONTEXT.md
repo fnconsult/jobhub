@@ -46,6 +46,10 @@ _Avoid_: Anonymous user, visitor, lead
 The browser-held, time-limited holding of a Guest's captured Job Offer and CV: at most 23 hours, deleted on request. When the Guest creates an account or signs in, the CV becomes a Profile and the Job Offer an Application, then both leave the session.
 _Avoid_: Temporary account, trial
 
+**Visitor**:
+A person reading Jobbbox's public site without being signed in: the Help Centre, the legal texts, Nouveautés. Leaves no CV and no Job Offer. The role follows the surface and the sign-in, not the person: the same person is a Guest in the extension and a Visitor on the site, and a signed-out Candidate is a Visitor.
+_Avoid_: Anonymous user, prospect, lead, Guest (for someone on the site)
+
 ### Coaching
 
 **AI Coach**:
@@ -873,8 +877,12 @@ The AI Coach panel shown to Administrators in the Back Office. Answers questions
 _Avoid_: Admin bot, admin copilot
 
 **Help Article**:
-One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile).
+One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile). Each article is meant for one audience (Visitor, Guest, Candidate or Human Coach), is public, and reads the same in the Coach panel and in the Help Centre. Nothing written for Administrators is a Help Article.
 _Avoid_: Help page, KB article, doc
+
+**Help Centre**:
+The public part of the site that lists every Help Article by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Coach panel shows the same articles in context.
+_Avoid_: KB, support site, help desk
 
 **Article card**:
 A Help Article shown in the Coach panel's conversation, from the box's suggestions « Dans l'aide, sans IA », the page in view or « Souvent demandé ». Kept only in the browser: gone after a reload, never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.

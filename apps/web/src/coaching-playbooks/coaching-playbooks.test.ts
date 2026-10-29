@@ -18,7 +18,7 @@ const connectionString = process.env.DATABASE_URL;
 
 /** The text models the AI layer offers in these tests, one outside the EU. */
 const MODELS: AgentModelChoice[] = [
-  { provider: "mistral", endpoint: "api.mistral.ai", residency: "eu", models: [{ model: "mistral-large-latest", effort: "ignored", residency: "eu" }, { model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] },
+  { provider: "mistral", endpoint: "api.eu.mistral.ai", residency: "eu", models: [{ model: "mistral-large-latest", effort: "ignored", residency: "eu" }, { model: "mistral-medium-3-5", effort: "medium_as_high", residency: "eu" }] },
   { provider: "anthropic", endpoint: "bedrock eu-west-3", residency: "eu", models: [{ model: "anthropic.claude-opus-5-5", effort: "native", residency: "eu" }] },
   { provider: "openai", endpoint: "api.openai.com", residency: "outside_eu", models: [{ model: "gpt-5", effort: "native", residency: "outside_eu" }] },
 ];

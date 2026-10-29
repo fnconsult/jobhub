@@ -199,7 +199,7 @@ export const TOOLS = [
     settings: [{ name: "AI_IDENTITY_MODEL" }],
     usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
     residency: "eu",
-    residencyNote: { fr: "Dans l'UE par défaut (api.mistral.ai).", en: "In the EU by default (api.mistral.ai)." },
+    residencyNote: { fr: "Dans l'UE (api.eu.mistral.ai, inférence régionale UE et AELE).", en: "In the EU (api.eu.mistral.ai, EU and EFTA regional inference)." },
   },
   {
     id: "openai",

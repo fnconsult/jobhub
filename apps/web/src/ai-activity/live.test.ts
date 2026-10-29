@@ -19,7 +19,7 @@ describe("AI Activity's live actions", () => {
 
   it("an ended step replaces its start, with the model that served (named for people), its tokens and time", () => {
     const ended: ProvenanceStep = {
-      kind: "ai", activity: "think_write", task: "coaching", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest",
+      kind: "ai", activity: "think_write", task: "coaching", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest",
       tokens: { input: 1200, output: 300 }, ms: 2400, at, outcome: "ok", count: 1,
     };
     const actions = apply(

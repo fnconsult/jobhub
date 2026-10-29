@@ -141,7 +141,7 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
   const TESTS: Record<SecretProvider, (env: Env, io: Io) => Promise<ConnectionTestResult>> = {
     async mistral(env, { bearer }) {
       const found = keys(env, "MISTRAL_API_KEY");
-      return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.mistral.ai/v1/models", found.MISTRAL_API_KEY);
+      return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.eu.mistral.ai/v1/models", found.MISTRAL_API_KEY);
     },
     async perplexity(env, { bearer }) {
       const found = keys(env, "PERPLEXITY_API_KEY");

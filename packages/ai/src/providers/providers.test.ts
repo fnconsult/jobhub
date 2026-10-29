@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
+import { residencyOf } from "@jobhub/shared";
 import { AiProviderError } from "../errors";
 import { createAnthropicProvider } from "./anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./chat-completions";
@@ -196,6 +197,14 @@ const chatReply = (content: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe("Mistral provider", () => {
+  it("calls Mistral's EU regional host, the only one the shared catalogue counts as in the EU (#522)", () => {
+    const provider = createMistralProvider({ apiKey: "mk" });
+
+    expect(provider.endpoint).toBe("api.eu.mistral.ai");
+    expect(residencyOf(provider.endpoint)).toBe(provider.residency);
+    expect(residencyOf("api.mistral.ai")).toBe("outside_eu");
+  });
+
   it("calls the Mistral chat API with the system prompt first and is EU-resident", async () => {
     const { fetch, requests } = fakeFetch(chatReply("Madame,"));
     const provider = createMistralProvider({ apiKey: "mk", fetch });
@@ -203,7 +212,7 @@ describe("Mistral provider", () => {
     const output = await provider.generate!(textInput);
 
     expect(provider.residency).toBe("eu");
-    expect(requests[0]!.url).toBe("https://api.mistral.ai/v1/chat/completions");
+    expect(requests[0]!.url).toBe("https://api.eu.mistral.ai/v1/chat/completions");
     expect(requests[0]!.headers.get("authorization")).toBe("Bearer mk");
     expect(requests[0]!.body).toMatchObject({
       model: "mistral-large-latest",

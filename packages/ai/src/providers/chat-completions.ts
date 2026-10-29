@@ -90,15 +90,19 @@ interface TextProviderOptions {
   fetch?: typeof globalThis.fetch;
 }
 
-/** Mistral AI's API is hosted in the EU. */
+/**
+ * Mistral AI's EU regional endpoint: inference stays in the EU and EFTA. The global api.mistral.ai makes no
+ * such commitment (docs.mistral.ai/inference/regional-inference), so the identity route and `euOnly` tasks
+ * must not use it.
+ */
 export function createMistralProvider(options: TextProviderOptions): AiProvider {
-  const client = { provider: "mistral" as const, baseUrl: "https://api.mistral.ai/v1", apiKey: options.apiKey, fetch: options.fetch };
+  const client = { provider: "mistral" as const, baseUrl: "https://api.eu.mistral.ai/v1", apiKey: options.apiKey, fetch: options.fetch };
   const defaultModel = options.defaultModel ?? "mistral-large-latest";
   return {
     id: "mistral",
     defaultModel,
     models: [...new Set([defaultModel, "mistral-medium-3-5", "mistral-small-latest"])],
-    endpoint: "api.mistral.ai",
+    endpoint: "api.eu.mistral.ai",
     residency: "eu",
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;

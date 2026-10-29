@@ -56,8 +56,8 @@ const requests = (): LoggedRequest[] =>
   existsSync(requestLog) ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : [];
 const fetchesOf = (url: string) => requests().filter((r) => r.url === url);
 /** The LLM reading a page; the other Mistral call of a run is its job title step (#112). */
-const llmPageReads = () => requests().filter((r) => r.url.startsWith("https://api.mistral.ai/") && !r.body.includes("autres intitulés"));
-const jobTitleSteps = () => requests().filter((r) => r.url.startsWith("https://api.mistral.ai/") && r.body.includes("autres intitulés"));
+const llmPageReads = () => requests().filter((r) => r.url.startsWith("https://api.eu.mistral.ai/") && !r.body.includes("autres intitulés"));
+const jobTitleSteps = () => requests().filter((r) => r.url.startsWith("https://api.eu.mistral.ai/") && r.body.includes("autres intitulés"));
 
 let worker: ChildProcess | undefined;
 let workerOutput = "";

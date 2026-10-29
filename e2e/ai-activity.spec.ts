@@ -7,7 +7,7 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #332: AI Activity, the Candidate's top-bar button left of « Aide et coach », and the « Cette page » pane it opens,
 // read from each element's stored Provenance: the page's content and the AI Coach replies about its object. The AI is
-// faked inside the server (fake-mistral.mjs): every Coach reply runs on Mistral Large (api.mistral.ai, in the EU).
+// faked inside the server (fake-mistral.mjs): every Coach reply runs on Mistral Large (api.eu.mistral.ai, in the EU).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const SUPER_ADMIN = "ai-activity-office@e2e.jobbbox.test";
 

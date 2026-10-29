@@ -96,7 +96,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
     expect(hosts).toEqual({
       // Claude's direct API: ANTHROPIC_ENDPOINT's default (ADR-0007 amendment of 2026-10-28).
       anthropic: "api.anthropic.com",
-      mistral: "api.mistral.ai",
+      mistral: "api.eu.mistral.ai",
       openai: "eu.api.openai.com",
     });
   });
@@ -116,7 +116,7 @@ test.describe("AI layer: one module hides the provider, routing is configuration
     );
     ok(r);
     expect(r.requests.map((req) => req.host)).toEqual([
-      "api.mistral.ai",
+      "api.eu.mistral.ai",
       "eu.api.openai.com",
       // Claude's direct API, the default endpoint.
       "api.anthropic.com",
@@ -180,7 +180,7 @@ test.describe("AI layer: provider adapters", () => {
     const r = runAi({ ...KEYS, AI_SCORING_PROVIDER: "mistral", AI_WRITING_PROVIDER: "openai" }, [score(), write(), search()]);
     ok(r);
     expect(r.requests.map((req) => req.url)).toEqual([
-      "https://api.mistral.ai/v1/chat/completions",
+      "https://api.eu.mistral.ai/v1/chat/completions",
       "https://eu.api.openai.com/v1/chat/completions",
       "https://api.perplexity.ai/search",
     ]);
@@ -354,7 +354,7 @@ test.describe("AI layer: token usage is logged per Candidate", () => {
     expect(r.usage).toHaveLength(4);
     expect(r.usage).toEqual([
       expect.objectContaining({ candidateId: "cand-1", task: "scoring", provider: "anthropic", endpoint: "api.anthropic.com", model: "claude-sonnet-5-5", inputTokens: 200, outputTokens: 50 }),
-      expect.objectContaining({ candidateId: "cand-1", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", inputTokens: 120, outputTokens: 30 }),
+      expect.objectContaining({ candidateId: "cand-1", task: "writing", provider: "mistral", endpoint: "api.eu.mistral.ai", inputTokens: 120, outputTokens: 30 }),
       expect.objectContaining({ candidateId: "cand-2", task: "web_search", provider: "perplexity", inputTokens: 0, outputTokens: 0 }),
       expect.objectContaining({ candidateId: null, task: "scoring", inputTokens: 200, outputTokens: 50 }),
     ]);
@@ -571,7 +571,7 @@ test.describe("AI layer: identity routing under EU AI consent (issue #121)", () 
   test("consent and identity: the call goes to Mistral, and usage says so", () => {
     const r = runAi(routing, [letter("cand-consenting", true)]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["api.mistral.ai"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.eu.mistral.ai"]);
     expect(r.usage).toEqual([expect.objectContaining({ candidateId: "cand-consenting", task: "writing", provider: "mistral" })]);
   });
 
@@ -599,7 +599,7 @@ test.describe("AI layer: identity routing under EU AI consent (issue #121)", () 
     const prompt = "Rappelez-moi au 06 12 34 56 78 pour ma candidature";
     const r = runAi(routing, [{ kind: "generate", task: "coaching", candidateId: "cand-consenting", prompt }]);
     ok(r);
-    expect(r.requests.map((req) => req.host)).toEqual(["api.mistral.ai"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.eu.mistral.ai"]);
     expect(r.usage[0]).toMatchObject({ provider: "mistral", task: "coaching" });
     expect(r.stderr).toMatch(/undeclared identity/i);
     expect(r.stderr).toContain("cand-consenting");

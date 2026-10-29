@@ -124,7 +124,7 @@ describe("the Tool a recorded call was made to", () => {
   });
 
   it("is found by its AI provider id and, for Claude, the endpoint that served it", () => {
-    expect(toolOfUsage({ table: "ai_usage", provider: "mistral", endpoint: "api.mistral.ai" })?.id).toBe("mistral");
+    expect(toolOfUsage({ table: "ai_usage", provider: "mistral", endpoint: "api.eu.mistral.ai" })?.id).toBe("mistral");
     expect(toolOfUsage({ table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com" })?.id).toBe("anthropic");
     expect(toolOfUsage({ table: "ai_usage", provider: "anthropic", endpoint: "bedrock eu-west-3" })?.id).toBe("anthropic-bedrock");
     expect(toolOfUsage({ table: "ai_usage", provider: "anthropic", endpoint: "vertex europe-west1" })?.id).toBe("anthropic-vertex");

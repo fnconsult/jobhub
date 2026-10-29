@@ -9,7 +9,7 @@ import { chooseInPanelMenu } from "./support/coach-panel";
 // Issue #327: each AI Coach reply keeps its Provenance, and one quiet line under it says what served it (the model that
 // actually did, tokens · time, Tools, Provenance sites and the hour). « Votre coach » and « Vous » are read only by screen
 // readers. The same line sits under each Back Office Assistant reply. The AI is faked inside the server (fake-mistral.mjs):
-// every task runs on Mistral (api.mistral.ai, EU), its default model mistral-large-latest.
+// every task runs on Mistral (api.eu.mistral.ai, EU), its default model mistral-large-latest.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 /** A permanent super-admin of the suite's own (playwright.config.ts), for the Back Office Assistant. */

@@ -221,7 +221,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
   it("counts an AI Tool's failed and warned calls of the last 30 days per Failure Reason, and lists each call's code, never its technical reason (#262)", async () => {
     const ai = createPostgresUsageLog(database);
     const technicalReason = { class: "AiProviderError", provider: "mistral", status: 503, message: "upstream down for jeanne@example.fr" };
-    const mistralCall = (overrides: Partial<UsageEntry>) => aiCall({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large", ...overrides });
+    const mistralCall = (overrides: Partial<UsageEntry>) => aiCall({ provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large", ...overrides });
     await ai.record(mistralCall({}));
     await ai.record(mistralCall({ outcome: "failed", reason: "provider_unavailable", technicalReason, costEur: 0 }));
     await ai.record(mistralCall({ outcome: "failed", reason: "provider_unavailable", technicalReason, costEur: 0, task: "scoring" }));
@@ -257,7 +257,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
 
   it("lists an AI Tool's key connection tests among its calls, and counts them in its figures", async () => {
     const ai = createPostgresUsageLog(database);
-    await ai.record(aiCall({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large", at: new Date("2026-10-19T08:00:00Z") }));
+    await ai.record(aiCall({ provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large", at: new Date("2026-10-19T08:00:00Z") }));
     await createPostgresExternalApiLog(database).record(
       externalCall({ provider: "mistral", operation: "connection_test", ok: false, httpStatus: 401, durationMs: 120, costEur: null, at: new Date("2026-10-19T09:00:00Z") }),
     );

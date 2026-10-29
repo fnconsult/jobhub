@@ -107,7 +107,7 @@ async function discoveryRun(budgetEnv: Record<string, string>) {
       fetched: (url: string) => requests.filter((r) => r.url === url).length,
       requested: (prefix: string) => requests.filter((r) => r.url.startsWith(prefix)).length,
       // The LLM reading a page, not the run's job title step (#112).
-      llmCalls: requests.filter((r) => r.url.startsWith("https://api.mistral.ai/") && !r.body.includes("autres intitulés")).length,
+      llmCalls: requests.filter((r) => r.url.startsWith("https://api.eu.mistral.ai/") && !r.body.includes("autres intitulés")).length,
       stored: await storedJobOffers(tag),
     };
   } finally {

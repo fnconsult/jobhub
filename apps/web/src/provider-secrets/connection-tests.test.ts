@@ -15,7 +15,7 @@ function fakeFetch(status = 200, body: unknown = {}) {
 
 describe("testing a provider's keys with its cheapest authenticated call", () => {
   it.each<[SecretProvider, Record<string, string>, string, string, Record<string, string>]>([
-    ["mistral", { MISTRAL_API_KEY: "mk" }, "GET", "https://api.mistral.ai/v1/models", { authorization: "Bearer mk" }],
+    ["mistral", { MISTRAL_API_KEY: "mk" }, "GET", "https://api.eu.mistral.ai/v1/models", { authorization: "Bearer mk" }],
     ["perplexity", { PERPLEXITY_API_KEY: "pk" }, "GET", "https://api.perplexity.ai/v1/models", { authorization: "Bearer pk" }],
     ["anthropic", { ANTHROPIC_API_KEY: "ak" }, "GET", "https://api.anthropic.com/v1/models", { "x-api-key": "ak", "anthropic-version": "2023-06-01" }],
     ["bedrock", { AWS_BEARER_TOKEN_BEDROCK: "bk", BEDROCK_REGION: "eu-central-1" }, "GET", "https://bedrock-mantle.eu-central-1.api.aws/v1/models", { authorization: "Bearer bk" }],

@@ -3,7 +3,7 @@
 //  - Perplexity's Search API (api.perplexity.ai), which "finds" the result
 //    pages listed in RESULT_PAGES below, and Brave's (api.search.brave.com, #399),
 //    which finds the same with any key;
-//  - Mistral's EU API (api.mistral.ai), which plays the LLM reading a page
+//  - Mistral's EU API (api.eu.mistral.ai), which plays the LLM reading a page
 //    that has no JobPosting structured data;
 //  - the job sites themselves: a careers page with JobPosting JSON-LD, the same
 //    posting mirrored on another site, a plain page only an LLM can read, a
@@ -437,7 +437,7 @@ globalThis.fetch = async (input, init = {}) => {
     if (searchDownFlag && existsSync(searchDownFlag)) return Response.json({ error: { message: "e2e: Perplexity is down" } }, { status: 503 });
     return perplexity();
   }
-  if (url.origin === "https://api.mistral.ai") return mistral(JSON.parse(body || "{}"));
+  if (url.origin === "https://api.eu.mistral.ai") return mistral(JSON.parse(body || "{}"));
   if (url.origin === "https://api.search.brave.com") return brave();
 
   if (fjMode && url.hostname === "data.fantastic.jobs") return fantasticJobsSite(request, url);

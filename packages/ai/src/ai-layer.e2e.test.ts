@@ -57,9 +57,9 @@ describe("every provider call reports endpoint, durationMs and outcome", () => {
 
     const result = await ai.generate({ task: "writing", candidateId: null, prompt: "Lettre" });
 
-    expect(result).toMatchObject({ provider: "mistral", endpoint: "api.mistral.ai", outcome: "ok", text: "Bonjour" });
+    expect(result).toMatchObject({ provider: "mistral", endpoint: "api.eu.mistral.ai", outcome: "ok", text: "Bonjour" });
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
-    expect(usage.entries[0]).toMatchObject({ endpoint: "api.mistral.ai", outcome: "ok", durationMs: result.durationMs });
+    expect(usage.entries[0]).toMatchObject({ endpoint: "api.eu.mistral.ai", outcome: "ok", durationMs: result.durationMs });
   });
 
   it("a web search over HTTP", async () => {

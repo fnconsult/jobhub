@@ -37,7 +37,7 @@ const AI_PROVIDERS: ReadonlySet<string> = new Set(TOOLS.flatMap((tool) => (tool.
 const TASK = /^[a-z][a-z_]{1,39}$/;
 /** A model as its provider names it, e.g. `anthropic.claude-opus-5`, `claude-opus-5@20260101`, `openai/gpt-6-luna`: no space. */
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,99}$/;
-/** An endpoint with its region, e.g. `bedrock eu-north-1`, `api.mistral.ai`: a host or a kind and a region. */
+/** An endpoint with its region, e.g. `bedrock eu-north-1`, `api.eu.mistral.ai`: a host or a kind and a region. */
 const ENDPOINT = /^[a-z0-9][a-z0-9.-]{0,79}( [a-z0-9-]{1,40})?$/;
 /** An id's shape: a value that has it is never kept, whatever field it is in. */
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;

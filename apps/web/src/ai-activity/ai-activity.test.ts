@@ -234,7 +234,7 @@ describe("AI Activity's page loaders (#332)", () => {
     it("shows `/profils/[id]/*`'s Master CV, read from the Candidate's file, with the model that read it", async () => {
       const read: Provenance = {
         v: 1,
-        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-2508", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
+        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-2508", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
         sites: [{ kind: "candidate", links: [] }],
         startedAt: at,
         wallMs: 4300,
@@ -255,7 +255,7 @@ describe("AI Activity's page loaders (#332)", () => {
 describe("the Application's Tailored Documents, as AI Activity reads them on its pages (#334)", () => {
   const written = (model: string): Provenance => ({
     v: 1,
-    steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", endpoint: "api.mistral.ai", model, tokens: { input: 4000, output: 900 }, ms: 8200, at: "2026-10-23T10:40:00.000Z", outcome: "ok", count: 1 }],
+    steps: [{ kind: "ai", activity: "write", task: "writing", provider: "mistral", endpoint: "api.eu.mistral.ai", model, tokens: { input: 4000, output: 900 }, ms: 8200, at: "2026-10-23T10:40:00.000Z", outcome: "ok", count: 1 }],
     sites: [],
     startedAt: "2026-10-23T10:40:00.000Z",
     wallMs: 8200,

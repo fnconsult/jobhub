@@ -60,7 +60,7 @@ describe("AI Activity's « Cette page » pane (#332)", () => {
   });
 
   it("names each model for people, with where it ran, its raw id kept for the tooltip, and the EU AI Consent or outside-EU route", () => {
-    const consent = provenance([ai({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", euAiConsent: true }), ai({ provider: "anthropic", endpoint: "api.anthropic.com" })]);
+    const consent = provenance([ai({ provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", euAiConsent: true }), ai({ provider: "anthropic", endpoint: "api.anthropic.com" })]);
 
     expect(aiActivityPane([activityElement("coach_reply", consent)]).models).toEqual([
       { name: "Mistral Large", ids: ["mistral-large-latest"], where: { fr: "Mistral AI · UE", en: "Mistral AI · EU" }, euAiConsent: true, outsideEu: false, tokens: 1800, ms: 4200 },
@@ -160,7 +160,7 @@ describe("AI Activity's « Cette page » pane (#332)", () => {
 
     it("still counts what a stopped or failed element spent, in the Total and the closed button's summary", () => {
       const stopped = provenance([ai({ tokens: { input: 1000, output: 200 } }), ai({ activity: "read", task: "offer_analysis", outcome: "stopped", tokens: undefined })], { wallMs: 3000 });
-      const failed = provenance([ai({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 400, output: 100 } })], { wallMs: 2000 });
+      const failed = provenance([ai({ provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", tokens: { input: 400, output: 100 } })], { wallMs: 2000 });
 
       const pane = aiActivityPane([activityElement("job_search", stopped), activityElement("job_search", failed, { ended: { state: "failed", reason: null } })]);
 

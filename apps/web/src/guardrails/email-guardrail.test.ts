@@ -254,7 +254,7 @@ describe("the email Guardrail's model check runs only in the EU, like the email'
     const { guardrails, hosts, usage } = fromEnv({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk" });
 
     await expect(guardrails.guardEmail(request(ALERT, reader().read))).resolves.toMatchObject({ outcome: "read" });
-    expect(hosts).toEqual(["api.mistral.ai"]);
+    expect(hosts).toEqual(["api.eu.mistral.ai"]);
     expect(usage.entries).toEqual([expect.objectContaining({ task: "email_guardrail", provider: "mistral", outcome: "ok" })]);
   });
 

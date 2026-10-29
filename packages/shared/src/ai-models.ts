@@ -90,7 +90,9 @@ const VERTEX_REGIONS: Record<string, Region> = {
 /** Endpoints that are one host, where it runs. */
 const HOSTS: Record<string, { platform: Translated; residency: Residency }> = {
   "api.anthropic.com": { platform: { fr: "API Anthropic", en: "Anthropic API" }, residency: "outside_eu" },
-  "api.mistral.ai": { platform: { fr: "Mistral AI", en: "Mistral AI" }, residency: "eu" },
+  "api.eu.mistral.ai": { platform: { fr: "Mistral AI", en: "Mistral AI" }, residency: "eu" },
+  // The global host: Mistral does not commit to an inference location there (docs.mistral.ai/inference/regional-inference).
+  "api.mistral.ai": { platform: { fr: "Mistral AI", en: "Mistral AI" }, residency: "outside_eu" },
   "eu.api.openai.com": { platform: { fr: "OpenAI", en: "OpenAI" }, residency: "eu" },
   "api.openai.com": { platform: { fr: "OpenAI", en: "OpenAI" }, residency: "outside_eu" },
   "api.perplexity.ai": { platform: { fr: "Perplexity", en: "Perplexity" }, residency: "outside_eu" },

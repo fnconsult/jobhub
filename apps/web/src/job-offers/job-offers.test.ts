@@ -33,7 +33,7 @@ const found: Provenance = {
 /** The summary written later, when its Application page was first shown. */
 const summarized: Provenance = {
   v: 1,
-  steps: [{ kind: "ai", activity: "think_write", task: "offer_analysis", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 2000, output: 200 }, ms: 1500, at: "2026-10-24T08:00:00.000Z", outcome: "ok", count: 1 }],
+  steps: [{ kind: "ai", activity: "think_write", task: "offer_analysis", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-3-5", tokens: { input: 2000, output: 200 }, ms: 1500, at: "2026-10-24T08:00:00.000Z", outcome: "ok", count: 1 }],
   sites: [{ kind: "web", domain: "welcometothejungle.com", links: ["https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-lyon"] }],
   startedAt: "2026-10-24T08:00:00.000Z",
   wallMs: 1600,

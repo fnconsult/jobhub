@@ -68,13 +68,20 @@
     overflow-wrap: anywhere;
   }
 
+  /* One column the Drawer's width: an `auto` one would grow to its widest child's narrowest width (a table's), every
+     line of text then running past the Drawer's side. The column's gap spaces its children, not their own margins. */
   .ds-drawer__body {
     display: grid;
     flex: 1;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
     align-content: start;
     padding: var(--space-6);
     overflow-y: auto;
+  }
+
+  .ds-drawer__body > * {
+    margin-block: 0;
   }
 
   .ds-drawer__footer {

@@ -120,6 +120,12 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
         // Nothing runs off the side: a wide table scrolls in its own frame.
         expect(await page.evaluate(() => document.documentElement.scrollWidth), `${name}: the page's width`).toBeLessThanOrEqual(width);
         const sheet = shot.name === "parametres-sheet";
+        // Nor off the Drawer's side: its content wraps to the Drawer's width, a wide table scrolling in its own frame. The
+        // page's width cannot show it, the Drawer being fixed to the window.
+        if (sheet) {
+          const body = await page.locator("[data-sheet] .ds-drawer__body").evaluate((element) => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth }));
+          expect(body.scrollWidth, `${name}: the sheet's content width`).toBeLessThanOrEqual(body.clientWidth);
+        }
         await expectNoAxeViolations(page, sheet ? "[data-sheet]" : "#main");
         if (comparesScreenshots()) {
           // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.

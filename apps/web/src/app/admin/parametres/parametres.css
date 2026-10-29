@@ -36,6 +36,13 @@
   margin-block: 0;
 }
 
+/* A side panel's sections (a provider's sheet, « + Ajouter », an AI task's): each a .stack, its gap spacing what it
+   holds, not their own margins on top of it. */
+.parametres .ds-drawer :is(p, ul, h3),
+.parametres .ds-drawer .stack {
+  margin-block: 0;
+}
+
 .active-provider {
   font-size: var(--font-size-h3);
   font-weight: 600;

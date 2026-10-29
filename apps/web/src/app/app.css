@@ -2943,7 +2943,8 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   display: none;
 }
 
-.tabpanel > .stack {
+.tabpanel > .stack,
+.ds-drawer__body > .stack {
   margin-top: 0;
 }
 

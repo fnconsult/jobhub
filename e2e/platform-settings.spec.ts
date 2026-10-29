@@ -122,7 +122,9 @@ test.describe("Platform Settings (Paramètres)", () => {
     test("a super-admin changes a setting, a value out of its bounds is refused, « Rétablir » goes back to the code's default, all in the Journal", async ({ page }) => {
       await signInWithMagicLink(page, SUPER_ADMIN);
       await page.goto(`${PATH}?tab=sources`);
-      await expect(page.getByText(texts.editIntro)).toBeVisible();
+      // The intro is one line (#465): how a change applies is behind « En savoir plus », for the Back Office Assistant.
+      await expect(page.getByText(texts.subtitle)).toBeVisible();
+      await expect(page.getByRole("button", { name: admin.pageIntro.more })).toBeVisible();
       const setting = row(page, EDITED);
       const field = setting.getByRole("textbox", { name: tr(texts.newValue, { name: EDITED }) });
       await expect(setting).toContainText(tr(texts.accepted, { rule: tr(texts.rules.whole, { min: "0", max: "100" }) }));

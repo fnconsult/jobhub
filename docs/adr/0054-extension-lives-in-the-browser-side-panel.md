@@ -11,3 +11,5 @@ The extension's popup closes as soon as the person clicks the job posting, so re
 
 - **A panel injected into the page (iframe)**: it works in any browser, but it breaks on some sites, fights their CSS and covers their content.
 - **Keep the popup**: it closes on every click in the page.
+
+A content-script click survives the message to the service worker, so `sidePanel.open({ tabId })` works from the badge (checked in #471).

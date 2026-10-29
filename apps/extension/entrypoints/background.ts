@@ -5,7 +5,8 @@ import { readCandidateSession } from "../src/candidate-session";
 import { createGuestSession } from "../src/guest-session";
 import { createJobbboxApi } from "../src/jobbbox-api";
 import { createJobSites } from "../src/job-sites";
-import type { AnalyseReply, ExtensionMessage } from "../src/messages";
+import type { ExtensionMessage } from "../src/messages";
+import { createSidePanel } from "../src/side-panel";
 import { WEB_ORIGIN } from "../src/web-app";
 
 const EXPIRY_ALARM = "guest-session-expiry";
@@ -16,18 +17,15 @@ export default defineBackground(() => {
   // The Job Sites set in the Back Office, for the badge (read from the web app, kept an hour).
   const jobSites = createJobSites({ origin: WEB_ORIGIN, fetch: (input, init) => fetch(input, init), storage: browser.storage.local });
 
-  async function analyse(jobOffer: Extract<ExtensionMessage, { type: "analyse" }>["jobOffer"]): Promise<AnalyseReply> {
-    const captured = await api.capture(jobOffer);
-    if (!captured.ok) return captured;
-    await session.keepJobOffer(captured.jobOffer);
-    await browser.tabs.create({ url: browser.runtime.getURL("/analyse.html") });
-    return { ok: true };
-  }
+  // The extension lives in the browser's Side Panel (ADR-0054): the toolbar icon and the badge open it.
+  const sidePanel = createSidePanel({ sidePanel: browser.sidePanel, api, session });
+  void sidePanel.openOnToolbarIcon().catch((error: unknown) => console.error("Jobbbox: the toolbar icon's Side Panel", error));
 
   browser.runtime.onMessage.addListener((message: ExtensionMessage, sender, reply) => {
     if (sender.id !== browser.runtime.id) return false;
     if (message.type === "analyse") {
-      void analyse(message.jobOffer).then(reply);
+      // From the badge (a content script, in a tab), the panel opens beside it, in the person's click; from the panel, it is open.
+      void sidePanel.capture(message.jobOffer, sender.tab).then(reply);
       return true;
     }
     if (message.type === "job-sites") {
@@ -41,7 +39,7 @@ export default defineBackground(() => {
     return false;
   });
 
-  // The badge on every site, exactly while the person grants it (from the popup).
+  // The badge on every site, exactly while the person grants it (from the Side Panel).
   const allSites = createAllSitesDetection({ permissions: browser.permissions, scripting: browser.scripting });
   const syncAllSites = () => void allSites.sync().catch((error: unknown) => console.error("Jobbbox: badge on every site", error));
   syncAllSites();

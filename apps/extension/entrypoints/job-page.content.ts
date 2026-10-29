@@ -71,7 +71,7 @@ export default defineContentScript({
     button.addEventListener("click", async () => {
       status.textContent = "";
       const { jobOffer } = readJobPage(snapshotPage(document));
-      // A posting's address with nothing to read yet (a page still loading, say): say so, as the popup does.
+      // A posting's address with nothing to read yet (a page still loading, say): say so, as the Side Panel does.
       if (!jobOffer) return void (status.textContent = t("extension.captureImpossible"));
       button.disabled = true;
       const reply = await browser.runtime

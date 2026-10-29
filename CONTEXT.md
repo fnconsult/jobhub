@@ -391,7 +391,7 @@ A domain Administrators list in the Back Office for Job discovery. While enabled
 _Avoid_: Source (alone), whitelist, blacklist
 
 **Job Site**:
-A site where the browser extension shows its "Analyser cette offre" badge, as a match pattern (e.g. `https://*.gestmax.fr/*`), optionally with the pattern of its posting pages. Built-in Job Sites are in the extension's manifest and can only be disabled; Administrators add others in the Back Office, where they get the badge only for people who allowed the extension on every site. A disabled Job Site gets no badge, but Capture from the popup still works there. The extension reads the list from the web app, keeping the last one read, or its built-in Job Sites before any.
+A site where the browser extension shows its "Analyser cette offre" badge, as a match pattern (e.g. `https://*.gestmax.fr/*`), optionally with the pattern of its posting pages. Built-in Job Sites are in the extension's manifest and can only be disabled; Administrators add others in the Back Office, where they get the badge only for people who allowed the extension on every site. A disabled Job Site gets no badge, but Capture from the Side Panel still works there. The extension reads the list from the web app, keeping the last one read, or its built-in Job Sites before any.
 _Avoid_: Job board (for the setting), watched site
 
 **Posting date**:
@@ -645,8 +645,11 @@ A part of a page that sets its own theme and Density, inside which the Drawers a
 A reference image of a screen, drawn in the pinned Playwright image and compared with the screen in CI. A difference fails the check until someone redraws the baseline on purpose.
 
 **Side Panel**:
-The extension's pane docked to the right of the browser's page, beside the job posting the person is reading, where Capture, the Match Score and the extension's other functions live. It replaces the popup and is opened by the toolbar icon or a Job Site's badge.
+The extension's pane docked to the right of the browser's page, beside the job posting the person is reading, where Capture, the Match Score and the extension's other functions live. It replaces the popup and is opened by the toolbar icon or a Job Site's badge; the badge's Capture lands in the Guest session the panel reads. Once open, it follows the **Posting in view**.
 _Avoid_: Popup, sidebar (that is the web app's Sidebar)
+
+**Posting in view**:
+What the page in the active tab of the Side Panel's window reads as: a Job Site's posting, a page to capture by hand, or no posting. The Side Panel follows it from tab to tab and offers « Offre détectée sur cette page ».
 
 ### Delivery
 

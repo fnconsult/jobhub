@@ -339,6 +339,19 @@ function fulfilment(criterion: { status: CriterionStatus }): number {
 /** Out of 100: the known criteria of a reliable Match Score weigh at least this much (e.g. skills and seniority). */
 export const RELIABLE_KNOWN_WEIGHT = 50;
 
+/** A criterion of the Match Score. */
+export type MatchCriterion = keyof MatchScore["breakdown"];
+
+/**
+ * A criterion's points: what the CV earns, out of what the criterion weighs (whole points), as the
+ * Match Score's detail draws it in a bar. None when the criterion could not be compared.
+ */
+export function criterionPoints(breakdown: MatchScore["breakdown"], name: MatchCriterion): { earned: number; possible: number } | undefined {
+  const criterion = breakdown[name];
+  if (criterion.status === "unknown") return undefined;
+  return { earned: Math.round(WEIGHTS[name] * fulfilment(criterion)), possible: WEIGHTS[name] };
+}
+
 /** The weight, out of 100, of the criteria the breakdown knows. */
 export function knownWeight(breakdown: MatchScore["breakdown"]): number {
   return (Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).reduce((sum, name) => sum + (breakdown[name].status === "unknown" ? 0 : WEIGHTS[name]), 0);

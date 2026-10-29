@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseFrame, type FrameRead } from "./frame-choice";
+import { chooseFrame, choosePage, type FrameRead } from "./frame-choice";
 import type { CapturedJobOffer } from "./job-page";
 
 function jobOffer(url: string, title: string, content: string): CapturedJobOffer {
@@ -62,5 +62,13 @@ describe("choosing the frame a Capture takes", () => {
   it("has nothing to capture when no frame has a Job Offer", () => {
     expect(chooseFrame([{ frameId: 0, page: null }, { frameId: 1, page: { detected: false, jobOffer: null } }])).toBeNull();
     expect(chooseFrame([])).toBeNull();
+  });
+});
+
+describe("the page a tab shows, for the Side Panel's posting in view", () => {
+  it("is the chosen frame's, saying whether a posting is detected there", () => {
+    expect(choosePage([shell, postingFrame])).toEqual({ detected: true, jobOffer: postingFrame.page!.jobOffer });
+    expect(choosePage([shell])).toEqual({ detected: false, jobOffer: shell.page!.jobOffer });
+    expect(choosePage([{ frameId: 0, page: null }])).toBeNull();
   });
 });

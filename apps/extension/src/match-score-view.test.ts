@@ -36,14 +36,16 @@ describe("a Match Score, as the Guest reads it", () => {
   it("gives the score and each criterion with what it compared, in the Interface Language", () => {
     expect(describeMatchScore(matchScore, createI18n("fr"))).toEqual({
       score: "Match Score : 72 / 100",
+      ring: 72,
       notes: [],
       criteria: [
-        { label: "Compétences", status: "Correspond en partie", details: ["Présentes dans votre CV : IFRS, SAP", "Absentes de votre CV : Power BI"] },
-        { label: "Expérience", status: "Correspond", details: ["Votre CV : 25 ans · l'offre : 15 ans"] },
-        { label: "Lieu", status: "Correspond", details: ["Lyon", "Vous cherchez : Lyon (69003)"] },
-        { label: "Salaire", status: "Non précisé dans l'offre", details: [] },
-        { label: "Type de contrat", status: "Non précisé dans l'offre", details: [] },
+        { label: "Compétences", points: "27 / 40", fill: 68, status: "Correspond en partie", details: ["Présentes dans votre CV : IFRS, SAP", "Absentes de votre CV : Power BI"] },
+        { label: "Expérience", points: "20 / 20", fill: 100, status: "Correspond", details: ["Votre CV : 25 ans · l'offre : 15 ans"] },
+        { label: "Lieu", points: "15 / 15", fill: 100, status: "Correspond", details: ["Lyon", "Vous cherchez : Lyon (69003)"] },
+        { label: "Salaire", points: "non précisé", status: "Non précisé dans l'offre", details: [] },
+        { label: "Type de contrat", points: "non précisé", status: "Non précisé dans l'offre", details: [] },
       ],
+      strengthsAndGaps: ["Points forts : IFRS, SAP, expérience et lieu.", "À renforcer : Power BI."],
     });
   });
 
@@ -59,7 +61,7 @@ describe("a Match Score, as the Guest reads it", () => {
       },
     };
 
-    expect(plain(describeMatchScore(guest, createI18n("fr")).criteria)).toEqual([
+    expect(plain(describeMatchScore(guest, createI18n("fr")).criteria).map(({ label, status, details }) => ({ label, status, details }))).toEqual([
       { label: "Compétences", status: "Non précisé dans l'offre", details: [] },
       { label: "Expérience", status: "Non trouvé dans votre CV", details: ["L'offre : 10 ans"] },
       { label: "Lieu", status: "Aucune préférence de votre part à comparer", details: ["Lyon"] },
@@ -83,9 +85,41 @@ describe("a Match Score, as the Guest reads it", () => {
 
     expect(view.criteria[3]).toEqual({
       label: "Salaire",
+      points: "0 / 10",
+      fill: 0,
       status: "Ne correspond pas",
       details: ["L'offre : à partir de 60 000 € brut par an", "Votre minimum : 80 000 € brut par an"],
     });
+  });
+});
+
+describe("a Match Score's strengths and gaps, as the signed-in Candidate reads them beside the ring", () => {
+  it("name nothing when nothing could be compared", () => {
+    const unknown: MatchScore = {
+      score: 0,
+      breakdown: {
+        skills: { status: "unknown", covered: [], missing: [] },
+        seniority: { status: "unknown" },
+        location: { status: "unknown" },
+        salary: { status: "unknown" },
+        contractType: { status: "unknown" },
+      },
+    };
+
+    const view = describeMatchScore(unknown, createI18n("fr"));
+
+    expect(view.strengthsAndGaps).toEqual([]);
+    expect(view.ring).toBeUndefined();
+    expect(view.criteria.map((criterion) => criterion.points)).toEqual(Array(5).fill("non précisé"));
+  });
+
+  it("name the criteria that do not match among the gaps, in the Interface Language", () => {
+    const view = describeMatchScore(
+      { ...matchScore, breakdown: { ...matchScore.breakdown, skills: { status: "match", covered: ["IFRS"], missing: [] }, contractType: { status: "mismatch", offer: "freelance", wanted: ["cdi"] } } },
+      createI18n("en"),
+    );
+
+    expect(view.strengthsAndGaps).toEqual(["Strengths: IFRS, experience, and location.", "To work on: contract type."]);
   });
 });
 

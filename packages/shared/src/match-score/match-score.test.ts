@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CvContent, JobOfferDetails, SearchCriteria } from "../domain";
-import { matchScoreReliability, scoreMatch, wantedValues } from "./index";
+import { criterionPoints, matchScoreReliability, scoreMatch, wantedValues, type MatchScore } from "./index";
 
 const cv: CvContent = {
   fullName: "Marie Dupont",
@@ -343,5 +343,26 @@ describe("Match Score", () => {
 
     expect(master).toMatchObject({ score: 50, breakdown: { skills: { covered: ["IFRS"], missing: ["Power BI"] } } });
     expect(tailored).toMatchObject({ score: 100, breakdown: { skills: { status: "match", covered: ["IFRS", "Power BI"], missing: [] } } });
+  });
+});
+
+describe("each criterion's points, as the Match Score's detail draws them in bars", () => {
+  const breakdown: MatchScore["breakdown"] = {
+    skills: { status: "partial", covered: ["IFRS", "SAP"], missing: ["Power BI"] },
+    seniority: { status: "match", cvYears: 25, requiredYears: 15 },
+    location: { status: "partial", offer: "Lyon" },
+    salary: { status: "unknown" },
+    contractType: { status: "mismatch", offer: "freelance", wanted: ["cdi"] },
+  };
+
+  it("are what the CV earns out of what the criterion weighs, rounded to whole points", () => {
+    expect(criterionPoints(breakdown, "skills")).toEqual({ earned: 27, possible: 40 });
+    expect(criterionPoints(breakdown, "seniority")).toEqual({ earned: 20, possible: 20 });
+    expect(criterionPoints(breakdown, "location")).toEqual({ earned: 8, possible: 15 });
+    expect(criterionPoints(breakdown, "contractType")).toEqual({ earned: 0, possible: 15 });
+  });
+
+  it("are none for a criterion that could not be compared", () => {
+    expect(criterionPoints(breakdown, "salary")).toBeUndefined();
   });
 });

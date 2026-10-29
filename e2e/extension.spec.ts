@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import path from "node:path";
-import { chromium, expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { chromium, expect, test, type BrowserContext, type Page, type Worker } from "@playwright/test";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
@@ -53,12 +53,23 @@ test.describe("browser extension", () => {
     expect(fr.extDescription.message).toMatch(/offre d'emploi/);
   });
 
-  test("loads in Chrome and its popup speaks French from the shared catalogue", async () => {
+  test("declares the Side Panel and no popup (ADR-0054)", () => {
+    const manifest = JSON.parse(readFileSync(path.join(extensionDir, "manifest.json"), "utf8"));
+    expect(manifest.side_panel).toEqual({ default_path: "sidepanel.html" });
+    expect(manifest.permissions).toContain("sidePanel");
+    // The toolbar icon has no popup: it opens the Side Panel.
+    expect(manifest.action).not.toHaveProperty("default_popup");
+    expect(JSON.stringify(manifest)).not.toContain("popup");
+    expect(existsSync(path.join(extensionDir, "popup.html"))).toBe(false);
+    expect(existsSync(path.join(extensionDir, "analyse.html"))).toBe(false);
+  });
+
+  test("loads in Chrome and its Side Panel speaks French from the shared catalogue", async () => {
     const page = await context.newPage();
-    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/popup.html`);
+    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-    await expect(page).toHaveTitle("Jobbbox");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Jobbbox");
+    await expect(page).toHaveTitle(`${frCatalogue.extension.analysis.title} – Jobbbox`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(frCatalogue.extension.analysis.title);
     await expect(page.getByText("Capturez une offre d'emploi depuis la page que vous consultez.")).toBeVisible();
 
     const allowed = new Set(catalogueStrings(frCatalogue));
@@ -66,9 +77,9 @@ test.describe("browser extension", () => {
     expect(texts.map((t) => t.text).filter((text) => !allowed.has(text))).toEqual([]);
   });
 
-  test("popup uses the shared design tokens and meets the ADR-0009 floor", async () => {
+  test("the Side Panel uses the shared design tokens and meets the ADR-0009 floor", async () => {
     const page = await context.newPage();
-    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/popup.html`);
+    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("17px");
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(255, 255, 255)");
@@ -106,17 +117,18 @@ test.describe("browser extension shares the web app session", () => {
     await context?.close();
   });
 
-  async function openPopup(): Promise<Page> {
-    const popup = await context.newPage();
-    await popup.goto(`chrome-extension://${unpackedExtensionId(e2eExtensionDir)}/popup.html`);
-    await expect(popup.getByRole("heading", { level: 1 })).toBeVisible();
-    return popup;
+  /** The Side Panel's page, opened in a tab: Playwright cannot drive the browser's Side Panel itself. */
+  async function openPanel(): Promise<Page> {
+    const panel = await context.newPage();
+    await panel.goto(`chrome-extension://${unpackedExtensionId(e2eExtensionDir)}/sidepanel.html`);
+    await expect(panel.getByRole("heading", { level: 1 })).toBeVisible();
+    return panel;
   }
 
-  test("is signed out, and points to the web sign-in page, while nobody is signed in", async () => {
-    const popup = await openPopup();
-    await expect(popup.getByText(frCatalogue.extension.signedOut)).toBeVisible();
-    await expect(popup.getByRole("link", { name: frCatalogue.extension.signIn })).toHaveAttribute(
+  test("is a Guest, and points to the web sign-in page, while nobody is signed in", async () => {
+    const panel = await openPanel();
+    await expect(panel.getByText(frCatalogue.extension.guest, { exact: true })).toBeVisible();
+    await expect(panel.getByRole("link", { name: frCatalogue.extension.analysis.signIn })).toHaveAttribute(
       "href",
       `${origin}/connexion`,
     );
@@ -127,9 +139,10 @@ test.describe("browser extension shares the web app session", () => {
     const web = await context.newPage();
     await signInWithMagicLink(web, email);
 
-    let popup = await openPopup();
-    await expect(popup.getByText(frCatalogue.extension.signedInAs.replace("{{email}}", email))).toBeVisible();
-    await expect(popup.getByRole("link", { name: frCatalogue.extension.account })).toHaveAttribute(
+    let panel = await openPanel();
+    await expect(panel.getByText(frCatalogue.extension.guest, { exact: true })).toHaveCount(0);
+    await expect(panel.getByText(frCatalogue.extension.signedInAs.replace("{{email}}", email))).toBeVisible();
+    await expect(panel.getByRole("link", { name: frCatalogue.extension.account })).toHaveAttribute(
       "href",
       `${origin}/compte`,
     );
@@ -138,13 +151,13 @@ test.describe("browser extension shares the web app session", () => {
     await web.goto("/compte/preferences");
     await web.getByLabel(frCatalogue.account.interfaceLanguage).selectOption("en");
     await expect(web.locator("html")).toHaveAttribute("lang", "en");
-    popup = await openPopup();
-    await expect(popup.locator("html")).toHaveAttribute("lang", "en");
-    await expect(popup.getByText(en.extension.signedInAs.replace("{{email}}", email))).toBeVisible();
-    await expect(popup.getByRole("link", { name: en.extension.account })).toBeVisible();
+    panel = await openPanel();
+    await expect(panel.locator("html")).toHaveAttribute("lang", "en");
+    await expect(panel.getByText(en.extension.signedInAs.replace("{{email}}", email))).toBeVisible();
+    await expect(panel.getByRole("link", { name: en.extension.account })).toBeVisible();
 
     // The extension is a trusted origin: it may act for the Candidate (here, sign out).
-    const status = await popup.evaluate(async (webOrigin) => {
+    const status = await panel.evaluate(async (webOrigin) => {
       const response = await fetch(`${webOrigin}/api/auth/sign-out`, {
         method: "POST",
         credentials: "include",
@@ -156,8 +169,8 @@ test.describe("browser extension shares the web app session", () => {
     expect(status).toBe(200);
     await web.goto("/compte");
     await expect(web).toHaveURL(/\/connexion$/);
-    popup = await openPopup();
-    await expect(popup.getByText(frCatalogue.extension.signedOut)).toBeVisible();
+    panel = await openPanel();
+    await expect(panel.getByText(frCatalogue.extension.guest, { exact: true })).toBeVisible();
   });
 });
 
@@ -246,6 +259,54 @@ test.describe("Guest Capture and Match Score", () => {
   type SessionStorage = { get(key: string): Promise<Record<string, { cv: { fullName: string }; jobOffer: { id: string }; expiresAt: number }>> };
   const guestSession = (page: Page) =>
     page.evaluate(() => (globalThis as unknown as { chrome: { storage: { session: SessionStorage } } }).chrome.storage.session.get("guestSession"));
+
+  // The Side Panel (ADR-0054). Playwright cannot drive the browser's Side Panel itself: the extension's service worker
+  // tells whether it is open, and the panel's page is driven in a tab, the same page reading the same Guest session.
+  type SidePanelBrowser = {
+    runtime: { getContexts(filter: { contextTypes: string[] }): Promise<unknown[]> };
+    sidePanel: { getPanelBehavior(): Promise<{ openPanelOnActionClick?: boolean }>; close(options: { windowId: number } | { tabId: number }): Promise<void> };
+    windows: { getAll(options: { populate: true }): Promise<{ id: number; tabs?: { id: number }[] }[]> };
+    storage: { session: SessionStorage };
+  };
+  const serviceWorker = async () => {
+    const ours = (worker: Worker) => worker.url().startsWith(`chrome-extension://${extensionId()}/`);
+    return context.serviceWorkers().find(ours) ?? context.waitForEvent("serviceworker", ours);
+  };
+  /** How many Side Panels the browser shows. */
+  const openSidePanels = async () =>
+    (await serviceWorker()).evaluate(async () => {
+      const { runtime } = (globalThis as unknown as { chrome: SidePanelBrowser }).chrome;
+      return (await runtime.getContexts({ contextTypes: ["SIDE_PANEL"] })).length;
+    });
+  /** Closes the browser's Side Panel, so only its page in a tab acts (on a sign-up, say). */
+  const closeSidePanels = async () => {
+    await (await serviceWorker()).evaluate(async () => {
+      const { sidePanel, windows } = (globalThis as unknown as { chrome: SidePanelBrowser }).chrome;
+      // Opened for the badge's tab, it is closed for that tab; the toolbar icon's, for the window.
+      for (const { id, tabs } of await windows.getAll({ populate: true })) {
+        await sidePanel.close({ windowId: id }).catch(() => {});
+        for (const tab of tabs ?? []) await sidePanel.close({ tabId: tab.id }).catch(() => {});
+      }
+    });
+    await expect.poll(openSidePanels).toBe(0);
+  };
+  /** The Guest session as stored, read by the service worker, which forgets nothing on reading it. */
+  const storedGuestSession = async () =>
+    (await serviceWorker()).evaluate(() => (globalThis as unknown as { chrome: SidePanelBrowser }).chrome.storage.session.get("guestSession"));
+  /** The Side Panel's page, in a tab. */
+  const openPanel = async () => {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId()}/sidepanel.html`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
+    return page;
+  };
+  /** The posting's badge opens the browser's Side Panel beside it; its page is then driven in a tab. */
+  const panelFromBadge = async (jobPage: Page) => {
+    await jobPage.getByRole("button", { name: fr.badgeLabel }).click();
+    await expect.poll(openSidePanels).toBe(1);
+    await closeSidePanels();
+    return openPanel();
+  };
   /** Whether a text comes from the catalogue, its {{placeholders}} filled. */
   const fromCatalogue = (text: string) =>
     catalogueStrings(frCatalogue).some((entry) =>
@@ -259,7 +320,7 @@ test.describe("Guest Capture and Match Score", () => {
     expect(manifest).not.toHaveProperty("update_url");
     const messages = readFileSync(path.join(e2eExtensionDir, "_locales/fr/messages.json"), "utf8");
     expect(messages).not.toMatch(/chrome/i);
-    expect(manifest.permissions.sort()).toEqual(["activeTab", "alarms", "scripting", "storage"]);
+    expect(manifest.permissions.sort()).toEqual(["activeTab", "alarms", "scripting", "sidePanel", "storage"]);
     expect(manifest.content_scripts[0].matches).toContain("https://www.welcometothejungle.com/*");
     // The web app, for its session cookie, and the Job Sites the badge already matches, so Capture may read a
     // job site's iframe in another site's page (gestmax.fr, #187): nothing beyond them.
@@ -267,35 +328,52 @@ test.describe("Guest Capture and Match Score", () => {
     for (const pattern of manifest.content_scripts[0].matches) expect(pattern).toMatch(/^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+\/\*$/);
     expect(manifest.content_scripts[0].all_frames).toBe(true);
     expect(JSON.stringify(manifest)).not.toContain("<all_urls>");
-    // Every other site only if the person opts in, from the popup; the badge's script is then registered from the build.
+    // Every other site only if the person opts in, from the Side Panel; the badge's script is then registered from the build.
     expect(manifest.optional_host_permissions).toEqual(["https://*/*"]);
     expect(manifest.content_scripts[0].js).toEqual(["content-scripts/job-page.js"]);
   });
 
   test("offers, unticked, to detect postings on every site, an employer's own career site included", async () => {
-    const popup = await context.newPage();
-    await popup.goto(`chrome-extension://${extensionId()}/popup.html`);
-    const option = popup.getByRole("checkbox", { name: fr.allSites });
+    const panel = await openPanel();
+    const option = panel.getByRole("checkbox", { name: fr.allSites });
     await expect(option).not.toBeChecked();
     await expect(option).toHaveAccessibleDescription(fr.allSitesHint);
   });
 
-  test("shows the badge on a job posting, captures it, and scores the Guest's CV, keeping it in the browser only", async () => {
+  test("opens the Side Panel from the toolbar icon, which has no popup (ADR-0054)", async () => {
+    const manifest = JSON.parse(readFileSync(path.join(e2eExtensionDir, "manifest.json"), "utf8"));
+    expect(manifest.side_panel).toEqual({ default_path: "sidepanel.html" });
+    expect(manifest.action).not.toHaveProperty("default_popup");
+    // Chrome and Edge open the panel on the toolbar icon's click once the extension asks them to.
+    const behavior = await (await serviceWorker()).evaluate(() => (globalThis as unknown as { chrome: SidePanelBrowser }).chrome.sidePanel.getPanelBehavior());
+    expect(behavior).toEqual({ openPanelOnActionClick: true });
+  });
+
+  test("shows the badge on a job posting, which opens the Side Panel, captures it, and scores the Guest's CV, keeping it in the browser only", async () => {
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
     const badge = jobPage.getByRole("button", { name: fr.badgeLabel });
     await expect(badge).toBeVisible();
     await expect(badge).toHaveText(fr.badge);
 
-    const [analysis] = await Promise.all([context.waitForEvent("page"), badge.click()]);
-    await expect(analysis).toHaveURL(`chrome-extension://${extensionId()}/analyse.html`);
-    await expect(analysis.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
+    // The badge opens the browser's Side Panel beside the posting, the page itself staying where it is.
+    const pages = context.pages().length;
+    const analysis = await panelFromBadge(jobPage);
+    expect(context.pages()).toHaveLength(pages + 1);
+    await expect(analysis.getByText(fr.guest, { exact: true })).toBeVisible();
     await expect(analysis.getByText("Directeur administratif et financier H/F")).toBeVisible();
     await expect(analysis.getByText(fr.analysis.guestNotice)).toBeVisible();
+    await expect(analysis.getByRole("link", { name: fr.analysis.signIn })).toHaveAttribute("href", `${origin}/connexion`);
 
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
+    // Then: another CV, the Match Score's detail, when the Guest's data goes, and the footer's two ways out.
+    await expect(analysis.getByRole("button", { name: fr.analysis.changeCv })).toBeVisible();
+    await expect(analysis.getByText(fr.analysis.breakdownTitle)).toBeVisible();
+    await expect(analysis.getByText(/^Vos données seront effacées au plus tard le /)).toBeVisible();
+    await expect(analysis.getByRole("link", { name: fr.analysis.signUp })).toBeVisible();
+    await expect(analysis.getByRole("button", { name: fr.analysis.forget })).toBeVisible();
     await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation"))).toBeVisible();
     await expect(analysis.getByText(fr.analysis.missing.replace("{{skills}}", "Power BI"))).toBeVisible();
     // The offer states its salary: the Guest, who gave no minimum, is told so, not that the offer is silent.
@@ -305,7 +383,8 @@ test.describe("Guest Capture and Match Score", () => {
 
     // ADR-0009 floor, and every text from the catalogue but the Job Offer's own.
     const texts = await renderedTexts(analysis);
-    expect(texts.map((t) => t.text).filter((text) => !fromCatalogue(text) && !/Directeur|Groupe Seb|^Lyon$/.test(text))).toEqual([]);
+    // The ring's number draws the Match Score the score line says.
+    expect(texts.map((t) => t.text).filter((text) => !fromCatalogue(text) && !/Directeur|Groupe Seb|^Lyon$|^\d+$/.test(text))).toEqual([]);
     for (const t of texts) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
@@ -353,18 +432,11 @@ test.describe("Guest Capture and Match Score", () => {
     context.on("request", listener);
     return { requests, bodies, stop: () => context.off("request", listener) };
   };
-  const reopenAnalysis = async () => {
-    const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId()}/analyse.html`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
-    return page;
-  };
+  const reopenAnalysis = openPanel;
   const captureFromBadge = async (url: string) => {
     const jobPage = await context.newPage();
     await jobPage.goto(url);
-    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
-    await expect(analysis.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
-    return analysis;
+    return panelFromBadge(jobPage);
   };
   const otherCvFile = {
     name: "CV Marie Dupont 2026.pdf",
@@ -579,30 +651,55 @@ test.describe("Guest Capture and Match Score", () => {
     await jobPage.waitForTimeout(2500);
     await expect(jobPage.getByRole("button", { name: fr.badgeLabel })).toHaveCount(0);
 
-    const popup = await context.newPage();
-    await popup.goto(`chrome-extension://${extensionId()}/popup.html`);
+    // The Side Panel reads the page in view, here the article: no posting, so a Capture by hand.
+    const analysis = await openPanel();
     await jobPage.bringToFront();
-    const [analysis] = await Promise.all([
-      context.waitForEvent("page"),
-      popup.getByRole("button", { name: fr.capturePage }).click(),
-    ]);
+    await analysis.getByRole("button", { name: fr.capturePage }).click();
     await expect(analysis.getByText("Directeur administratif et financier H/F", { exact: true })).toBeVisible();
     await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toBeVisible();
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+  });
+
+  test("follows the posting in view from tab to tab: « Offre détectée sur cette page », analysed in a click", async () => {
+    const analysis = await openPanel();
+    const article = await context.newPage();
+    await article.goto(articleUrl);
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    await jobPage.bringToFront();
+    await expect(analysis.getByText(fr.detected)).toBeVisible();
+    await expect(analysis.getByText("Directeur administratif et financier H/F", { exact: true })).toBeVisible();
+
+    // Another tab, with no posting: the panel follows it.
+    await article.bringToFront();
+    await expect(analysis.getByText(fr.detected)).toHaveCount(0);
+    await expect(analysis.getByRole("button", { name: fr.capturePage })).toBeVisible();
+
+    // Back on the posting, analysed from the panel: its Job Offer is shown, the posting still detected.
+    await jobPage.bringToFront();
+    await analysis.getByRole("button", { name: fr.badge }).click();
+    await expect(analysis.getByRole("heading", { level: 2, name: "Directeur administratif et financier H/F" })).toBeVisible();
+    await expect(analysis.getByText(fr.detected)).toBeVisible();
+    await expect(analysis.getByRole("button", { name: fr.badge })).toHaveCount(0);
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });
 
   test("says so when the badge is clicked on a posting's address with nothing to capture", async () => {
     const jobPage = await context.newPage();
     await jobPage.goto(emptyPostingUrl);
-    const pages = context.pages().length;
     await jobPage.getByRole("button", { name: fr.badgeLabel }).click();
     await expect(jobPage.getByRole("status")).toHaveText(fr.captureImpossible);
-    expect(context.pages()).toHaveLength(pages);
+    // The Side Panel opened on the click, and nothing was captured into it.
+    expect(await storedGuestSession()).toEqual({});
+    await closeSidePanels();
   });
 
   test("shows only the latest CV error, however many files were refused", async () => {
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
-    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const analysis = await panelFromBadge(jobPage);
     const file = analysis.getByLabel(frCatalogue.cvUpload.fileLabel);
     const submit = analysis.getByRole("button", { name: fr.analysis.submit });
 
@@ -631,12 +728,9 @@ test.describe("Guest Capture and Match Score", () => {
   test("detects a posting on an employer's career site by its JobPosting, read in this browser and never fetched by Jobbbox", async () => {
     const careerPage = await context.newPage();
     await careerPage.goto(careerPageUrl);
-    const [analysis] = await Promise.all([
-      context.waitForEvent("page"),
-      careerPage.getByRole("button", { name: fr.badgeLabel }).click(),
-    ]);
+    const analysis = await panelFromBadge(careerPage);
     await expect(analysis.getByText(careerPosting.title, { exact: true })).toBeVisible();
-    await expect(analysis.getByText("— Groupe Seb · Lyon")).toBeVisible();
+    await expect(analysis.getByText("Groupe Seb · Lyon", { exact: true })).toBeVisible();
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
@@ -682,10 +776,7 @@ test.describe("Guest Capture and Match Score", () => {
     const capturedAt = Date.now();
     const boardPage = await context.newPage();
     await boardPage.goto(Object.keys(boardPages)[0]!);
-    const [analysis] = await Promise.all([
-      context.waitForEvent("page"),
-      boardPage.getByRole("button", { name: fr.badgeLabel }).click(),
-    ]);
+    const analysis = await panelFromBadge(boardPage);
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(fr.analysis.scoreNotComputable, { exact: true })).toBeVisible();
@@ -711,10 +802,7 @@ test.describe("Guest Capture and Match Score", () => {
   test("forgets the Guest session in the browser when it expires, even if the Guest never comes back to it", async () => {
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
-    const [analysis] = await Promise.all([
-      context.waitForEvent("page"),
-      jobPage.getByRole("button", { name: fr.badgeLabel }).click(),
-    ]);
+    const analysis = await panelFromBadge(jobPage);
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
@@ -729,12 +817,9 @@ test.describe("Guest Capture and Match Score", () => {
       await storage.set({ guestSession: { ...guestSession, expiresAt: Date.now() + 3_000 } });
     });
     await analysis.close();
-    const popup = await context.newPage();
-    await popup.goto(`chrome-extension://${extensionId()}/popup.html`);
-    await expect.poll(() => guestSession(popup), { timeout: 30_000 }).toEqual({});
+    await expect.poll(storedGuestSession, { timeout: 30_000 }).toEqual({});
 
-    const later = await context.newPage();
-    await later.goto(`chrome-extension://${extensionId()}/analyse.html`);
+    const later = await openPanel();
     await expect(later.getByText(fr.analysis.noJobOffer)).toBeVisible();
   });
 
@@ -743,7 +828,7 @@ test.describe("Guest Capture and Match Score", () => {
     await signInWithMagicLink(web, newAddress("extension-candidate"));
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
-    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const analysis = await panelFromBadge(jobPage);
 
     await expect(analysis.getByText(fr.analysis.candidateNotice)).toBeVisible();
     await expect(analysis.getByText(fr.analysis.guestNotice)).toHaveCount(0);
@@ -767,7 +852,7 @@ test.describe("Guest Capture and Match Score", () => {
   test("a Guest who signs up from the extension keeps their work: their CV becomes their first Profile, the Job Offer their first Application", async () => {
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
-    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const analysis = await panelFromBadge(jobPage);
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
@@ -810,12 +895,12 @@ test.describe("Guest Capture and Match Score", () => {
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(scoreLine)).toBeVisible();
 
-    // Another page of the extension holds the Match Score's lock and never lets it go: the analysis
-    // page, opened again, never finishes its first render.
-    const holder = await context.newPage();
-    await holder.goto(`chrome-extension://${extensionId()}/popup.html`);
+    // Another part of the extension (its service worker) holds the Match Score's lock and never lets it go: the
+    // Side Panel, opened again, never finishes its first render.
+    const holder = await serviceWorker();
     await holder.evaluate(() => {
-      void navigator.locks.request("jobbbox-match-score", () => new Promise(() => {}));
+      const held = globalThis as unknown as { releaseMatchScoreLock?: () => void };
+      void navigator.locks.request("jobbbox-match-score", () => new Promise<void>((resolve) => (held.releaseMatchScoreLock = resolve)));
     });
     await analysis.reload();
     await expect(analysis.getByText(fr.analysis.scoring)).toBeVisible();
@@ -835,7 +920,7 @@ test.describe("Guest Capture and Match Score", () => {
       expect(profiles).toEqual([{ id: application.profile.id, name: application.profile.name }]);
       await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
     } finally {
-      await holder.close();
+      await holder.evaluate(() => (globalThis as unknown as { releaseMatchScoreLock?: () => void }).releaseMatchScoreLock?.());
     }
   });
 
@@ -849,7 +934,7 @@ test.describe("Guest Capture and Match Score", () => {
     // The analysis page, opened again, on a clock the test moves forward.
     const analysis = await context.newPage();
     await analysis.clock.install();
-    await analysis.goto(`chrome-extension://${extensionId()}/analyse.html`);
+    await analysis.goto(`chrome-extension://${extensionId()}/sidepanel.html`);
     await expect(analysis.getByText(scoreLine)).toBeVisible();
 
     // The web app takes the next Match Score request and never answers it.
@@ -916,7 +1001,7 @@ test.describe("Guest Capture and Match Score", () => {
     // As a Guest, they capture a posting and score their CV.
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
-    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const analysis = await panelFromBadge(jobPage);
     await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
     await analysis.getByRole("button", { name: fr.analysis.submit }).click();
     await expect(analysis.getByText(/^Match Score : \d+ \/ 100$/)).toBeVisible();
@@ -970,7 +1055,7 @@ test.describe("Guest Capture and Match Score", () => {
     const scores = countScoreRequests();
     const jobPage = await context.newPage();
     await jobPage.goto(postingUrl);
-    const [analysis] = await Promise.all([context.waitForEvent("page"), jobPage.getByRole("button", { name: fr.badgeLabel }).click()]);
+    const analysis = await panelFromBadge(jobPage);
 
     // Scored against their first Profile at once; switching the Profile scores the Job Offer against that one (#75).
     const scoredWith = analysis.getByLabel(fr.analysis.scoreProfileLabel);

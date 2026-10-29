@@ -8,8 +8,10 @@ import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
 // (#465) as the model. Their screenshot baselines, light, at the desktop width, live in e2e/__screenshots__ and fail CI on
 // a visual difference; axe runs on each. Only the page (`<main>`) is compared: the shell has its own baselines
 // (shell-screenshots.spec.ts). What other specs change runs alongside (the screenshot specs share one server): who holds a
-// Back Office Role, and every count of calls or cost. So Administrateurs is shot by its form, Consommation IA by its
-// totals with their figures masked, and Outils with its figures masked.
+// Back Office Role, and every count of calls or cost. So Administrateurs is shot by its form, with the Administrators
+// table above it left out (its rows are not a whole number of pixels high: one more Administrator moved the form by a
+// fraction of a pixel, and every line of its text was drawn otherwise), Consommation IA by its totals with their figures
+// masked, and Outils with its figures masked.
 // How to update a baseline on purpose: docs/agents/screenshot-baselines.md.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
@@ -27,6 +29,8 @@ type Section = {
   target?: (page: Page) => Locator;
   /** What changes with the day or with the other specs, masked. */
   mask?: string[];
+  /** What the other specs lengthen above the target, left out of the page before it is shot, so the target lands where it did. */
+  leaveOut?: string[];
 };
 
 const SECTIONS: Section[] = [
@@ -49,6 +53,7 @@ const SECTIONS: Section[] = [
     path: "/admin/administrateurs",
     ready: (page) => page.getByRole("heading", { name: admin.administrators.grantTitle }),
     target: (page) => page.locator("main form").filter({ has: page.getByRole("heading", { name: admin.administrators.grantTitle }) }),
+    leaveOut: ["main .ds-table-wrap"],
   },
   {
     name: "consommation-ia",
@@ -70,6 +75,11 @@ async function settled(page: Page) {
         .map((animation) => animation.finished.catch(() => undefined)),
     ),
   );
+}
+
+/** Shot as toHaveScreenshot shoots it (playwright.config.ts): animations stopped, caret hidden. */
+function shoot(target: Locator) {
+  return target.screenshot({ animations: "disabled", caret: "hide" });
 }
 
 async function expectNoAxeViolations(page: Page) {
@@ -101,11 +111,24 @@ test.describe("every other Back Office section in the Design System (#466)", () 
       // Nothing runs off the side: a wide table scrolls in its own frame.
       expect(await page.evaluate(() => document.documentElement.scrollWidth), "the page's width").toBeLessThanOrEqual(DESKTOP.width);
       await expectNoAxeViolations(page);
-      if (comparesScreenshots()) {
-        // The page whole, its column drawn at once with nothing to scroll into view.
+      if (section.leaveOut) await page.addStyleTag({ content: `${section.leaveOut.join(", ")} { display: none !important; }` });
+      // The page whole, its column drawn at once with nothing to scroll into view.
+      const fitPage = async () => {
         await page.setViewportSize({ width: DESKTOP.width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
         await settled(page);
-        const target = section.target?.(page) ?? page.locator("#main");
+      };
+      await fitPage();
+      const target = section.target?.(page) ?? page.locator("#main");
+      if (section.leaveOut) {
+        // What is left out could hold anything when the target is shot: twice as long, the target is drawn the same, on any machine.
+        const before = await shoot(target);
+        for (const selector of section.leaveOut) {
+          await page.locator(selector).evaluateAll((elements) => elements.forEach((element) => element.after(element.cloneNode(true))));
+        }
+        await fitPage();
+        expect((await shoot(target)).equals(before), `the ${section.name} shot moves with ${section.leaveOut.join(", ")}`).toBe(true);
+      }
+      if (comparesScreenshots()) {
         await expect(target).toHaveScreenshot(`${section.name}-desktop.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
       }
       await page.close();

@@ -126,3 +126,12 @@ ul.application-interviews > li.application-interview {
 .application-page form .ds-input {
   max-width: 28rem;
 }
+
+/* Buttons named after their Interview (« Modifier l'entretien du vendredi 12 mars 2027 à 14:30 ») wrap on a phone
+   rather than run off its side. */
+.application-page .ds-button {
+  max-width: 100%;
+  padding-block: var(--space-1);
+  text-align: start;
+  white-space: normal;
+}

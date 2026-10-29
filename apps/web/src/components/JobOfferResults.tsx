@@ -24,7 +24,8 @@ export interface JobOfferResult {
  * and "Pourquoi 86 ?" opening the score's reasons.
  * The results view of Job Searches and Job Digests. Each title is a level-2
  * heading, or `headingLevel` under a heading of the page's own (results grouped by Profile);
- * `label` names the list (default "Offres trouvées").
+ * `label` names the list (default "Offres trouvées"); `idScope` keeps its titles' ids apart from another list of the
+ * same Profile's Job Offers on the page (« Reçues par email », #447).
  */
 export function JobOfferResults({
   results,
@@ -33,28 +34,44 @@ export function JobOfferResults({
   locale,
   headingLevel = 2,
   label,
+  idScope = "search-result",
 }: {
   results: JobOfferResult[];
   profileId: string;
   t: TFunction;
   locale: string;
-  headingLevel?: 2 | 3 | 4;
+  headingLevel?: 2 | 3 | 4 | 5;
   label?: string;
+  idScope?: string;
 }) {
   return (
     <ol className="rows" aria-label={label ?? t("jobSearch.resultsLabel")}>
       {results.map((result) => (
-        <Result key={result.jobOffer.id} result={result} profileId={profileId} t={t} locale={locale} headingLevel={headingLevel} />
+        <Result key={result.jobOffer.id} result={result} profileId={profileId} t={t} locale={locale} headingLevel={headingLevel} idScope={idScope} />
       ))}
     </ol>
   );
 }
 
-function Result({ result, profileId, t, locale, headingLevel }: { result: JobOfferResult; profileId: string; t: TFunction; locale: string; headingLevel: 2 | 3 | 4 }) {
-  const Heading = (["h2", "h3", "h4"] as const)[headingLevel - 2]!;
+function Result({
+  result,
+  profileId,
+  t,
+  locale,
+  headingLevel,
+  idScope,
+}: {
+  result: JobOfferResult;
+  profileId: string;
+  t: TFunction;
+  locale: string;
+  headingLevel: 2 | 3 | 4 | 5;
+  idScope: string;
+}) {
+  const Heading = (["h2", "h3", "h4", "h5"] as const)[headingLevel - 2]!;
   const { jobOffer, matchScore, applicationId } = result;
   // The same Job Offer can be found for two Profiles shown on one page: one id each.
-  const titleId = `search-result-${profileId}-${jobOffer.id}`;
+  const titleId = `${idScope}-${profileId}-${jobOffer.id}`;
   const site = jobOfferSite(jobOffer);
   const postedOn = jobOffer.postedAt
     ? t("jobSearch.postedOn", { date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(jobOffer.postedAt)) })

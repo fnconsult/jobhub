@@ -7,11 +7,14 @@
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  */
 import { ARTICLES } from "./articles.generated";
+import { compareLegalVersions, type LegalDocument, type LegalDocumentId } from "./legal";
+import { LEGAL_DOCUMENT_VERSIONS } from "./legal-documents.generated";
 import type { ReleaseNote } from "./release-notes";
 import { RELEASE_NOTES } from "./release-notes.generated";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import type { HelpArticle, HelpLocale } from "./types";
 
+export { isLegalDocumentId, LEGAL_DOCUMENTS, type LegalDocument, type LegalDocumentId } from "./legal";
 export {
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,
@@ -52,6 +55,23 @@ export function questionKey(query: string): string {
  */
 export function releaseNotes(locale: HelpLocale): readonly ReleaseNote[] {
   return RELEASE_NOTES[locale];
+}
+
+/**
+ * A Legal Document as the Légal page shows it (#470): its latest version, or `version` when asked, and the other
+ * versions newest first (« Versions précédentes »). Null while the team has written no text for it, or for a version
+ * it never had. `written` defaults to the versions this build carries.
+ */
+export function legalDocument(
+  id: LegalDocumentId,
+  locale: HelpLocale,
+  { version }: { version?: string } = {},
+  written: readonly LegalDocument[] = LEGAL_DOCUMENT_VERSIONS[locale],
+): { document: LegalDocument; earlier: { version: string; effective: string }[] } | null {
+  const versions = written.filter((entry) => entry.id === id).sort((a, b) => compareLegalVersions(b.version, a.version));
+  const document = version ? versions.find((entry) => entry.version === version) : versions[0];
+  if (!document) return null;
+  return { document, earlier: versions.filter((entry) => entry !== document).map((entry) => ({ version: entry.version, effective: entry.effective })) };
 }
 
 const indexes = new Map<HelpLocale, IndexedArticle[]>();

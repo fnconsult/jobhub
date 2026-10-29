@@ -5,6 +5,10 @@ import { createApplications, migrateApplications, type Applications } from "../a
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { MailMessage } from "../auth";
 import { createBilling, migrateBilling, type Billing } from "../billing";
+import { migrateEmailIntake } from "../email-intake";
+import { migrateEmailReadings } from "../email-intake/reading";
+import { createReceivedOffers } from "../email-intake/received-offers";
+import { seedReceivedOfferEmail } from "../email-intake/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, migrateJobSearches, type JobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
@@ -99,6 +103,7 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
       jobOffers,
       applications,
       billing,
+      receivedOffers: createReceivedOffers(database, { jobOffers, profiles, applications }),
       mailer: { send: async (message) => void outbox.push(message) },
       baseURL: "https://app.jobbbox.fr",
       now: () => clock.now,
@@ -118,6 +123,8 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
     await migrateBilling(database);
     await migrateJobSearches(database);
     await migrateJobDigests(database);
+    await migrateEmailIntake(database);
+    await migrateEmailReadings(database);
     // A Thursday, in French summer time.
     clock = { now: new Date("2026-10-15T08:00:00+02:00") };
     captured = 0;
@@ -343,6 +350,66 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
 
       expect(digest?.results.map((result) => result.jobOffer.id).sort()).toEqual([mine, shared].sort());
       expect(await jobDigests.get(candidateId, digest!.id)).toMatchObject({ results: expect.not.arrayContaining([expect.objectContaining({ jobOffer: expect.objectContaining({ id: theirs }) })]) });
+    });
+
+    describe("from Email intake (#447)", () => {
+      const DAY = 24 * HOUR;
+      /** A Received offer email read now (on the test clock) that gave the Candidate these Job Offers, for `profile` (null: « Non classées »). */
+      const receivedByEmail = (owner: string, profile: string | null, ...jobOfferIds: string[]) =>
+        seedReceivedOfferEmail(database, {
+          candidateId: owner,
+          receivedAt: clock.now,
+          offers: jobOfferIds.map((jobOfferId) => ({ disposition: "new" as const, jobOfferId, profileId: profile, matchScore: profile ? 100 : 40 })),
+        });
+
+      it("includes a new Email intake offer of the Profile once, even one stored long before, as the stored Job Offers' are", async () => {
+        await subscribed();
+        // A shared Job Offer someone stored a month ago, new for this Candidate when their alert brought it.
+        const fromAlert = await strong("DAF reçue par email", { storedAt: new Date(clock.now.getTime() - 30 * DAY) });
+        await receivedByEmail(candidateId, profileId, fromAlert);
+
+        const first = await jobDigests.deliver(candidateId, profileId, async () => discovered());
+        expect(first.digest?.results.map((result) => result.jobOffer.id)).toEqual([fromAlert]);
+
+        later(7 * 24);
+        await receivedByEmail(candidateId, profileId, fromAlert);
+        const second = await jobDigests.deliver(candidateId, profileId, async () => discovered());
+        expect(second.digest).toBeNull();
+      });
+
+      it("leaves out the Email intake offers of another Profile, « Non classées », and those read before the previous Job Digest", async () => {
+        const otherProfile = await createProfile(candidateId, "Consultant transformation");
+        const longAgo = new Date(clock.now.getTime() - 30 * DAY);
+        const forOther = await strong("Pour l'autre Profil", { storedAt: longAgo });
+        const unclassified = await strong("Non classée", { storedAt: longAgo });
+        const beforeLookBack = await strong("Lue il y a huit jours", { storedAt: longAgo });
+        await receivedByEmail(candidateId, otherProfile, forOther);
+        await receivedByEmail(candidateId, null, unclassified);
+        const now = clock.now;
+        clock.now = new Date(now.getTime() - 8 * DAY);
+        await receivedByEmail(candidateId, profileId, beforeLookBack);
+        clock.now = now;
+        await subscribed();
+
+        const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
+
+        expect(digest).toBeNull();
+      });
+
+      it("never includes a Job Offer private to another Candidate, even one an email of theirs gave", async () => {
+        await subscribed();
+        const othersProfile = await createProfile(otherCandidateId);
+        const theirs = await strong("Offre d'un recruteur à Paul", { privateTo: otherCandidateId });
+        const mine = await strong("Offre d'un recruteur à Marie", { privateTo: candidateId, storedAt: new Date(clock.now.getTime() - 30 * DAY) });
+        await receivedByEmail(otherCandidateId, othersProfile, theirs);
+        await receivedByEmail(candidateId, profileId, mine);
+        // A row naming another's private Job Offer for this Candidate is never trusted to show it.
+        await receivedByEmail(candidateId, profileId, theirs);
+
+        const { digest } = await jobDigests.deliver(candidateId, profileId, async () => discovered());
+
+        expect(digest?.results.map((result) => result.jobOffer.id)).toEqual([mine]);
+      });
     });
 
     it("leaves out the Job Offers a failed or a stopped Job Search kept and showed (#331)", async () => {

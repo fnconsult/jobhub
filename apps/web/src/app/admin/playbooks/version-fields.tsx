@@ -2,6 +2,7 @@ import { EFFORTS, type AgentModelChoice } from "@jobhub/ai";
 import type { TaskPlaybookSeed } from "@jobhub/coach-knowledge/tasks";
 import type { PlaybookKind, PlaybookVersion } from "@/coaching-playbooks";
 import { agentModelValue, defaultModelLabel, effortOf, outsideEu } from "@/admin/playbook-form";
+import { Field, Select, Textarea } from "@/design/Field";
 import { getServerT } from "@/i18n/server";
 
 /**
@@ -37,7 +38,8 @@ export async function PlaybookVersionFields({
   const offeredSearch = searchModels.flatMap((choice) => [agentModelValue(choice.provider, null), ...choice.models.map((each) => agentModelValue(choice.provider, each.model))]);
   /** " (hors UE)" after a model that runs outside the EU. */
   const where = (choices: AgentModelChoice[], choice: AgentModelChoice, model: string | null) => (outsideEu(choices, choice.provider, model) ? ` (${t("admin.coachingPlaybooks.outsideEu")})` : "");
-  const id = (field: string) => `${idPrefix}-${field}`;
+  /** The sections and slots a task Playbook's text must hold, which describe its field. */
+  const sectionsId = `${idPrefix}-content-sections`;
   const isTask = kind === "task";
   const hasAgent = kind === "playbook" || (isTask && task?.agent !== false);
   const slots = isTask ? [...(task?.slots ?? []), ...(task?.sections ?? []).flatMap((section) => section.slots ?? [])] : [];
@@ -45,11 +47,11 @@ export async function PlaybookVersionFields({
   const contentHelp = kind === "sources" ? "admin.coachingPlaybooks.fields.sourcesHelp" : isTask ? "admin.coachingPlaybooks.fields.taskContentHelp" : "admin.coachingPlaybooks.fields.contentHelp";
   return (
     <>
-      <div className="stack">
-        <label htmlFor={id("content")}>{t(contentLabel)}</label>
-        <textarea id={id("content")} className="input" name="content" rows={18} required lang="fr" defaultValue={version?.content} aria-describedby={id("content-help")} />
-        <div id={id("content-help")}>
-          <p>{t(contentHelp)}</p>
+      <Field label={t(contentLabel)} hint={t(contentHelp)}>
+        <Textarea name="content" rows={18} required lang="fr" defaultValue={version?.content} aria-describedby={task?.sections || slots.length > 0 ? sectionsId : undefined} />
+      </Field>
+      {task?.sections || slots.length > 0 ? (
+        <div id={sectionsId} className="section-meta">
           {task?.sections ? (
             <>
               <p>{t("admin.coachingPlaybooks.fields.taskSections")}</p>
@@ -64,12 +66,11 @@ export async function PlaybookVersionFields({
           ) : null}
           {slots.length > 0 ? <p>{t("admin.coachingPlaybooks.fields.taskSlots", { slots: [...new Set(slots)].map((slot) => `{{${slot}}}`).join(", ") })}</p> : null}
         </div>
-      </div>
+      ) : null}
       {hasAgent ? (
         <>
-          <div className="stack">
-            <label htmlFor={id("model")}>{t(isTask ? "admin.coachingPlaybooks.fields.taskModel" : "admin.coachingPlaybooks.fields.model")}</label>
-            <select id={id("model")} className="input" name="agentModel" required defaultValue={current} aria-describedby={id("model-help")}>
+          <Field label={t(isTask ? "admin.coachingPlaybooks.fields.taskModel" : "admin.coachingPlaybooks.fields.model")} hint={t(isTask ? "admin.coachingPlaybooks.fields.taskModelHelp" : "admin.coachingPlaybooks.fields.modelHelp")}>
+            <Select name="agentModel" required defaultValue={current}>
               {/* A model no longer offered stays visible, so saving tells why it is refused rather than changing it silently. */}
               {current && !offered.includes(current) && agent ? <option value={current}>{`${agent.provider} · ${agent.model ?? t("admin.coachingPlaybooks.providerDefault")}`}</option> : null}
               {models.map((choice) => (
@@ -84,37 +85,36 @@ export async function PlaybookVersionFields({
                   ))}
                 </optgroup>
               ))}
-            </select>
-            <p id={id("model-help")}>{t(isTask ? "admin.coachingPlaybooks.fields.taskModelHelp" : "admin.coachingPlaybooks.fields.modelHelp")}</p>
-          </div>
-          <div className="stack">
-            <label htmlFor={id("effort")}>{t("admin.coachingPlaybooks.fields.effort")}</label>
-            <select id={id("effort")} className="input" name="effort" required={!isTask} defaultValue={agent ? (agent.effort ?? "") : isTask ? "" : "medium"} aria-describedby={id("effort-help")}>
+            </Select>
+          </Field>
+          <Field
+            label={t("admin.coachingPlaybooks.fields.effort")}
+            hint={
+              <>
+                {t("admin.coachingPlaybooks.fields.effortHelp")}
+                {agent && effortOf(models, agent.provider, agent.model) !== "native" ? ` (${t(`admin.coachingPlaybooks.effortHandling.${effortOf(models, agent.provider, agent.model)}`)})` : null}
+              </>
+            }
+          >
+            <Select name="effort" required={!isTask} defaultValue={agent ? (agent.effort ?? "") : isTask ? "" : "medium"}>
               {isTask ? <option value="">{t("admin.coachingPlaybooks.fields.effortNone")}</option> : null}
               {EFFORTS.map((effort) => (
                 <option key={effort} value={effort}>
                   {t(`admin.coachingPlaybooks.efforts.${effort}`)}
                 </option>
               ))}
-            </select>
-            <p id={id("effort-help")}>
-              {t("admin.coachingPlaybooks.fields.effortHelp")}
-              {agent && effortOf(models, agent.provider, agent.model) !== "native" ? ` (${t(`admin.coachingPlaybooks.effortHandling.${effortOf(models, agent.provider, agent.model)}`)})` : null}
-            </p>
-          </div>
+            </Select>
+          </Field>
           {isTask ? null : (
-            <div className="stack">
-              <label htmlFor={id("consult-when")}>{t("admin.coachingPlaybooks.fields.consultWhen")}</label>
-              <textarea id={id("consult-when")} className="input" name="consultWhen" rows={3} required lang="fr" defaultValue={agent?.consultWhen} aria-describedby={id("consult-when-help")} />
-              <p id={id("consult-when-help")}>{t("admin.coachingPlaybooks.fields.consultWhenHelp")}</p>
-            </div>
+            <Field label={t("admin.coachingPlaybooks.fields.consultWhen")} hint={t("admin.coachingPlaybooks.fields.consultWhenHelp")}>
+              <Textarea name="consultWhen" required lang="fr" defaultValue={agent?.consultWhen} />
+            </Field>
           )}
         </>
       ) : null}
       {isTask && task?.search ? (
-        <div className="stack">
-          <label htmlFor={id("search-model")}>{t("admin.coachingPlaybooks.fields.searchModel")}</label>
-          <select id={id("search-model")} className="input" name="searchModel" defaultValue={currentSearch} aria-describedby={id("search-model-help")}>
+        <Field label={t("admin.coachingPlaybooks.fields.searchModel")} hint={t("admin.coachingPlaybooks.fields.searchModelHelp")}>
+          <Select name="searchModel" defaultValue={currentSearch}>
             <option value="">{t("admin.coachingPlaybooks.fields.searchConfigured")}</option>
             {/* A provider no longer offered stays visible, so saving tells why it is refused rather than changing it silently. */}
             {search && !offeredSearch.includes(currentSearch) ? <option value={currentSearch}>{`${search.provider} · ${search.model ?? t("admin.coachingPlaybooks.providerDefault")}`}</option> : null}
@@ -130,9 +130,8 @@ export async function PlaybookVersionFields({
                 ))}
               </optgroup>
             ))}
-          </select>
-          <p id={id("search-model-help")}>{t("admin.coachingPlaybooks.fields.searchModelHelp")}</p>
-        </div>
+          </Select>
+        </Field>
       ) : null}
     </>
   );

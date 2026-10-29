@@ -2154,6 +2154,7 @@
       "months": "Month by month",
       "range": "From {{from}} to {{to}}",
       "totalsTitle": "Totals",
+      "tokensTitle": "Tokens",
       "calls": "Calls",
       "failures": "Failures",
       "failureRate": "Failure rate",

@@ -89,6 +89,15 @@
   margin: 0;
 }
 
+/* A filter's fields on one wrapping line, its button on their line. */
+.section-filter {
+  align-items: flex-end;
+}
+
+.section-filter > .ds-field {
+  flex: 0 1 16rem;
+}
+
 /* A list without bullets, each item on its own line. */
 .section-list {
   display: flex;

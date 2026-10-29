@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Table, type Column } from "@/design/Table";
 import type { EvalRun } from "@/evals";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
@@ -37,58 +38,24 @@ export async function EvalRunsTable({ runs, caption }: { runs: EvalRun[]; captio
   const format = evalRunFormat(t, locale);
   if (runs.length === 0) return <p>{t("admin.evals.runs.none")}</p>;
   const playbookRuns = runs.some((run) => run.subject.kind === "coaching_playbook");
-  return (
-    <div className="table-scroll">
-      <table className="application-table">
-        <caption>{caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t("admin.evals.runs.startedAt")}</th>
-            {playbookRuns ? (
-              <>
-                <th scope="col">{t("admin.evals.runs.version")}</th>
-                <th scope="col">{t("admin.evals.runs.agent")}</th>
-              </>
-            ) : null}
-            <th scope="col">{t("admin.evals.runs.score")}</th>
-            <th scope="col">{t("admin.evals.runs.cost")}</th>
-            <th scope="col">{t("admin.evals.runs.responseTime")}</th>
-            <th scope="col">{t("admin.evals.runs.startedBy")}</th>
-            <th scope="col">{t("admin.evals.runs.details")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.map((run) => (
-            <tr key={run.id}>
-              <th scope="row">
-                <time dateTime={run.startedAt.toISOString()}>{format.at(run.startedAt)}</time>
-              </th>
-              {playbookRuns ? (
-                run.subject.kind === "coaching_playbook" ? (
-                  <>
-                    <td>{run.subject.version}</td>
-                    <td>
-                      {agentText(t, run.subject.agent)} ({t(run.subject.asSaved ? "admin.evals.runs.asSaved" : "admin.evals.runs.tried")})
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td />
-                    <td />
-                  </>
-                )
-              ) : null}
-              <td>{format.score(run.score)}</td>
-              <td>{format.cost(run.costEur)}</td>
-              <td>{format.time(run.responseMs)}</td>
-              <td>{run.startedBy}</td>
-              <td>
-                <Link href={routes.adminEvalRun(run.id)}>{t("admin.evals.runs.open")}</Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const columns: Column<EvalRun>[] = [
+    { key: "startedAt", header: t("admin.evals.runs.startedAt"), rowHeader: true, cell: (run) => <time dateTime={run.startedAt.toISOString()}>{format.at(run.startedAt)}</time> },
+    ...(playbookRuns
+      ? [
+          { key: "version", header: t("admin.evals.runs.version"), cell: (run: EvalRun) => (run.subject.kind === "coaching_playbook" ? run.subject.version : null) },
+          {
+            key: "agent",
+            header: t("admin.evals.runs.agent"),
+            cell: (run: EvalRun) =>
+              run.subject.kind === "coaching_playbook" ? `${agentText(t, run.subject.agent)} (${t(run.subject.asSaved ? "admin.evals.runs.asSaved" : "admin.evals.runs.tried")})` : null,
+          },
+        ]
+      : []),
+    { key: "score", header: t("admin.evals.runs.score"), numeric: true, cell: (run) => format.score(run.score) },
+    { key: "cost", header: t("admin.evals.runs.cost"), numeric: true, cell: (run) => format.cost(run.costEur) },
+    { key: "time", header: t("admin.evals.runs.responseTime"), numeric: true, cell: (run) => format.time(run.responseMs) },
+    { key: "startedBy", header: t("admin.evals.runs.startedBy"), cell: (run) => run.startedBy },
+    { key: "details", header: t("admin.evals.runs.details"), cell: (run) => <Link href={routes.adminEvalRun(run.id)}>{t("admin.evals.runs.open")}</Link> },
+  ];
+  return <Table label={caption} columns={columns} rows={runs} rowKey={(run) => run.id} />;
 }

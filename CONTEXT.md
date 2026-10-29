@@ -661,6 +661,38 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 One run of an AI agent by a delivery workflow (e.g. implementing, testing or reviewing a GitHub issue), recorded with the time, tokens and verification round it used so delivery cost per issue can be followed up. Internal to the team building Jobbbox; unrelated to the AI Coach.
 _Avoid_: Job, task, session, AI call
 
+**Version**:
+The one number `X.Y.Z` (SemVer) that names what the web app and the worker serve. It exists once it is Promoted: until then, `main` carries the next Version and the Beta shows it with its commit (« X.Y.Z (main·sha) »); Production shows it bare. No suffix such as `-beta`. Not the Extension Version, nor the API Version.
+_Avoid_: Release, build, tag
+
+**Beta**:
+The environment `main` is deployed to (staging.jobbbox.ai): the next Version, before its Promotion. Agents deploy it; Candidates of Production never see it.
+_Avoid_: Staging (in product discussions), preview, preprod
+
+**Promotion**:
+The step, run by the product owner alone, that turns what the Beta serves into a Version in Production: it checks that the version numbers agree, CI passed, the Beta serves that commit and, unless nothing a Candidate can see changed, its Release Note exists in French and in English, then tags the Version and deploys it. `main` then moves on to the next Version. No agent may Promote.
+_Avoid_: Release, go-live, prod deploy
+
+**Extension Version**:
+The extension's own number `X.Y.Z` (only digits, as the browser stores require), published on two store listings: the public one, tied to Production, and an unlisted beta one, tied to the Beta. It moves apart from the Version, since a store review can hold it back and an extension change needs no web change.
+_Avoid_: Version (for the extension)
+
+**API Version**:
+A whole number (1, 2, …) naming the contract between the extension and the web app, raised only when a change breaks an extension already installed. The extension states the API Version it speaks; the web app serves the current one and the one before. An older extension is asked to update itself (« Mettez à jour l'extension »). Payment and email providers' webhooks are outside it.
+_Avoid_: API release, endpoint version
+
+**Release Note**:
+What one Version or Extension Version brings, written for Candidates in French and in English (the French text prevails): a title, a short introduction, its Nouveautés tags and its « Nouveau », « Amélioré » and « Corrigé » lines, with an optional image. Written before the Promotion and never changed after it. A Version with nothing a Candidate can see has none; it still gets its tag and a technical GitHub Release. Its GitHub Release carries the French text, the English text, then the list of changes. The first one, 0.1.0, sums up what already existed.
+_Avoid_: Changelog entry, patch notes
+
+**Nouveautés**:
+The public page (`/nouveautes`) listing the Release Notes, newest first, filtered by tag. On the Beta it also shows the next Version's Release Note under « Version bêta, pas encore publiée ». It has no subscription form.
+_Avoid_: Changelog, What's new, blog
+
+**Nouveautés email**:
+The email that tells a Candidate about a Release Note marked to be announced, at most once a week, in their Interface Language: its title, introduction and « Nouveau » lines, with a link to Nouveautés, without tracking. Only Candidates receive it, and only once they have ticked it themselves in Mon compte (never ticked by default), with the date they did. Unsubscribing needs no sign-in; the choice is in their Data export. A Visitor cannot subscribe.
+_Avoid_: Newsletter, changelog email
+
 ### Billing
 
 **Coaching Session Price**:

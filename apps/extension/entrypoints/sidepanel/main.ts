@@ -461,6 +461,8 @@ function scoreProfileSelect(profiles: ProfileOption[], profileId: string): HTMLE
 }
 
 async function forget() {
+  // Shown as forgotten below: the session's change is not another Job Offer to show.
+  shownJobOfferId = undefined;
   await session.forget();
   shownMatchScore = undefined;
   await render({ text: t("extension.analysis.forgotten") });

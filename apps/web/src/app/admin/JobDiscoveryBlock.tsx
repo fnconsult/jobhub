@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import type { JobDiscoveryDashboard } from "@/back-office-dashboard";
 import { ChartTips } from "@/components/ChartTips";
 import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
+import { FigureCard, Stat, Stats } from "@/design/Card";
+import { Table, type Column } from "@/design/Table";
 import { getServerT } from "@/i18n/server";
 import { settingHref } from "@/platform-settings/parametres";
 import { routes } from "@/routes";
@@ -35,14 +37,8 @@ const FIGURES = {
 /** The gradient under the month's cumulative line: one per page, the Dashboard has one such chart. */
 const CUMULATIVE_FILL = "dashboard-cumulative-fill";
 
-/** A Stat card's progress bar towards its limit (a threshold, a budget), in the danger colour once past it; its figure is in words beside it. */
-function KpiBar({ share }: { share: number }) {
-  return (
-    <dd className="kpi-bar" aria-hidden="true">
-      <span className={share >= 1 ? "kpi-bar-crossed" : undefined} style={{ width: `${Math.min(100, share * 100)}%` }} />
-    </dd>
-  );
-}
+/** The cumulative table's last row: the month-end estimate. */
+const ESTIMATE = "estimate";
 
 /** A chart's scale top: `max` rounded up to a readable step, never 0. */
 function scaleTop(max: number): number {
@@ -51,17 +47,12 @@ function scaleTop(max: number): number {
   return Math.ceil(max / step) * step;
 }
 
-/** A chart's table view, folded under it. */
-function TableView({ t, caption, children }: { t: T; caption: string; children: ReactNode }) {
+/** A chart's table view, folded under it: the Design System's Table, named by the chart. */
+function TableView<Row>({ t, caption, columns, rows, rowKey }: { t: T; caption: string; columns: Column<Row>[]; rows: readonly Row[]; rowKey: (row: Row) => string }) {
   return (
     <details className="chart-table">
       <summary>{t("admin.dashboard.tableView")}</summary>
-      <div className="table-scroll">
-        <table className="application-table">
-          <caption>{caption}</caption>
-          {children}
-        </table>
-      </div>
+      <Table label={caption} columns={columns} rows={rows} rowKey={rowKey} />
     </details>
   );
 }
@@ -118,7 +109,7 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
   const itemsTotal = runs.averageCostByItem.reduce((sum, row) => sum + row.eur, 0);
   // The block's figures, as Stat cards: each label an Explainable label (#407), told its value and line (#465).
   const noValue = t("admin.dashboard.jobDiscovery.noValue");
-  const kpis: { id: string; label: string; value: string; sub: string; progress: number | null }[] = [
+  const kpis: { id: string; label: string; value: string; sub: string; progress: number | null; note?: ReactNode }[] = [
     {
       id: FIGURES.webSpend,
       label: t("admin.dashboard.jobDiscovery.webSpend"),
@@ -157,8 +148,16 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
       value: share(calls.failures, calls.calls),
       sub: t("admin.dashboard.jobDiscovery.failedCallsSub", { failures: number.format(calls.failures), calls: number.format(calls.calls) }),
       progress: null,
+      note:
+        calls.unpricedTools > 0 ? (
+          <Link prefetch={false} href={routes.adminAiUsage(figures.month)}>
+            {t("admin.dashboard.jobDiscovery.unpricedTools", { count: calls.unpricedTools })}
+          </Link>
+        ) : undefined,
     },
   ];
+  /** A day of the month, as the tables name it. */
+  const dayCell = (day: { day: string }) => <time dateTime={day.day}>{dayName.format(dateOf(day.day))}</time>;
   const axis = (top: number, format: (value: number) => string) => (
     <div className="chart-axis" aria-hidden="true">
       {[top, top / 2, 0].map((value) => (
@@ -182,28 +181,21 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
         {t("admin.dashboard.jobDiscovery.title")} <span className="dashboard-period">· {t("admin.dashboard.jobDiscovery.period", { month: monthName.format(dateOf(`${figures.month}-01`)), day: figures.daysSoFar })}</span>
       </h2>
 
-      <dl className="kpis">
+      <Stats>
         {kpis.map((kpi) => (
-          <div key={kpi.id} className="kpi">
-            <dt>
-              <ExplainableLabel item={{ ...FIGURE, id: kpi.id, value: kpi.value, state: kpi.sub }}>{kpi.label}</ExplainableLabel>
-            </dt>
-            <dd className="kpi-value">{kpi.value}</dd>
-            <dd className="kpi-sub">{kpi.sub}</dd>
-            {kpi.progress === null ? null : <KpiBar share={kpi.progress} />}
-            {kpi.id === FIGURES.failedCalls && calls.unpricedTools > 0 ? (
-              <dd className="kpi-sub kpi-warning">
-                <Link prefetch={false} href={routes.adminAiUsage(figures.month)}>
-                  {t("admin.dashboard.jobDiscovery.unpricedTools", { count: calls.unpricedTools })}
-                </Link>
-              </dd>
-            ) : null}
-          </div>
+          <Stat
+            key={kpi.id}
+            label={<ExplainableLabel item={{ ...FIGURE, id: kpi.id, value: kpi.value, state: kpi.sub }}>{kpi.label}</ExplainableLabel>}
+            name={kpi.label}
+            value={kpi.value}
+            meta={kpi.sub}
+            note={kpi.note}
+            progress={kpi.progress === null ? undefined : kpi.progress * 100}
+          />
         ))}
-      </dl>
+      </Stats>
 
-      <figure className="chart">
-        <figcaption>{t("admin.dashboard.jobDiscovery.dailyTitle")}</figcaption>
+      <FigureCard className="chart" caption={t("admin.dashboard.jobDiscovery.dailyTitle")}>
         {webSearch.providers.length === 0 ? (
           <p>{t("admin.dashboard.jobDiscovery.noSpend")}</p>
         ) : (
@@ -244,37 +236,26 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
             </ChartTips>
           </>
         )}
-        <TableView t={t} caption={t("admin.dashboard.jobDiscovery.dailyTitle")}>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.dashboard.jobDiscovery.day")}</th>
-              {webSearch.providers.map((provider) => (
-                <th key={provider} scope="col">
-                  {providerName(provider)}
-                </th>
-              ))}
-              <th scope="col">{t("admin.dashboard.jobDiscovery.total")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {webSearch.days.map((day) => (
-              <tr key={day.day}>
-                <th scope="row">
-                  <time dateTime={day.day}>{dayName.format(dateOf(day.day))}</time>
-                </th>
-                {webSearch.providers.map((provider) => (
-                  <td key={provider}>{fine.format(day.byProvider[provider] ?? 0)}</td>
-                ))}
-                <td>{fine.format(day.totalEur)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </TableView>
-      </figure>
+        <TableView
+          t={t}
+          caption={t("admin.dashboard.jobDiscovery.dailyTitle")}
+          columns={[
+            { header: t("admin.dashboard.jobDiscovery.day"), rowHeader: true, cell: dayCell },
+            ...webSearch.providers.map((provider) => ({
+              key: provider,
+              header: providerName(provider),
+              numeric: true,
+              cell: (day: (typeof webSearch.days)[number]) => fine.format(day.byProvider[provider] ?? 0),
+            })),
+            { header: t("admin.dashboard.jobDiscovery.total"), numeric: true, cell: (day) => fine.format(day.totalEur) },
+          ]}
+          rows={webSearch.days}
+          rowKey={(day) => day.day}
+        />
+      </FigureCard>
 
       <div className="dashboard-pair">
-        <figure className="chart">
-          <figcaption>{t("admin.dashboard.jobDiscovery.cumulativeTitle")}</figcaption>
+        <FigureCard className="chart" caption={t("admin.dashboard.jobDiscovery.cumulativeTitle")}>
           <p className="chart-note">
             {t("admin.dashboard.jobDiscovery.cumulativeNow", { spend: eur.format(webSearch.spendEur), day: last ? dayName.format(dateOf(last.day)) : "", estimate: eur.format(webSearch.monthEndEstimateEur) })}
           </p>
@@ -326,32 +307,22 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
               </li>
             ) : null}
           </ul>
-          <TableView t={t} caption={t("admin.dashboard.jobDiscovery.cumulativeTitle")}>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.dashboard.jobDiscovery.day")}</th>
-                <th scope="col">{t("admin.dashboard.jobDiscovery.cumulative")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {webSearch.days.map((day) => (
-                <tr key={day.day}>
-                  <th scope="row">
-                    <time dateTime={day.day}>{dayName.format(dateOf(day.day))}</time>
-                  </th>
-                  <td>{fine.format(day.cumulativeEur)}</td>
-                </tr>
-              ))}
-              <tr>
-                <th scope="row">{t("admin.dashboard.jobDiscovery.estimateLine")}</th>
-                <td>{fine.format(webSearch.monthEndEstimateEur)}</td>
-              </tr>
-            </tbody>
-          </TableView>
-        </figure>
+          <TableView
+            t={t}
+            caption={t("admin.dashboard.jobDiscovery.cumulativeTitle")}
+            columns={[
+              { header: t("admin.dashboard.jobDiscovery.day"), rowHeader: true, cell: (row) => row.label },
+              { header: t("admin.dashboard.jobDiscovery.cumulative"), numeric: true, cell: (row) => fine.format(row.eur) },
+            ]}
+            rows={[
+              ...webSearch.days.map((day) => ({ key: day.day, label: dayCell(day), eur: day.cumulativeEur })),
+              { key: ESTIMATE, label: t("admin.dashboard.jobDiscovery.estimateLine"), eur: webSearch.monthEndEstimateEur },
+            ]}
+            rowKey={(row) => row.key}
+          />
+        </FigureCard>
 
-        <figure className="chart">
-          <figcaption>{t("admin.dashboard.jobDiscovery.stopsTitle")}</figcaption>
+        <FigureCard className="chart" caption={t("admin.dashboard.jobDiscovery.stopsTitle")}>
           <p className="chart-note">{t("admin.dashboard.jobDiscovery.runsThisMonth", { count: runs.count })}</p>
           {stopTotal === 0 ? (
             <p>{t("admin.dashboard.jobDiscovery.noRuns")}</p>
@@ -367,29 +338,21 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
               />
             </ChartTips>
           )}
-          <TableView t={t} caption={t("admin.dashboard.jobDiscovery.stopsTitle")}>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.dashboard.jobDiscovery.reason")}</th>
-                <th scope="col">{t("admin.dashboard.jobDiscovery.runs")}</th>
-                <th scope="col">{t("admin.dashboard.jobDiscovery.share")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.stopReasons.map((row) => (
-                <tr key={row.reason}>
-                  <th scope="row">{t(`admin.dashboard.jobDiscovery.stopReasons.${row.reason}`)}</th>
-                  <td>{number.format(row.runs)}</td>
-                  <td>{share(row.runs, stopTotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </TableView>
-        </figure>
+          <TableView
+            t={t}
+            caption={t("admin.dashboard.jobDiscovery.stopsTitle")}
+            columns={[
+              { header: t("admin.dashboard.jobDiscovery.reason"), rowHeader: true, cell: (row) => t(`admin.dashboard.jobDiscovery.stopReasons.${row.reason}`) },
+              { header: t("admin.dashboard.jobDiscovery.runs"), numeric: true, cell: (row) => number.format(row.runs) },
+              { header: t("admin.dashboard.jobDiscovery.share"), numeric: true, cell: (row) => share(row.runs, stopTotal) },
+            ]}
+            rows={runs.stopReasons}
+            rowKey={(row) => row.reason}
+          />
+        </FigureCard>
       </div>
 
-      <figure className="chart">
-        <figcaption>{t("admin.dashboard.jobDiscovery.itemsTitle")}</figcaption>
+      <FigureCard className="chart" caption={t("admin.dashboard.jobDiscovery.itemsTitle")}>
         {runs.itemizedRuns === 0 ? (
           <p>{t("admin.dashboard.jobDiscovery.noItems")}</p>
         ) : (
@@ -406,25 +369,18 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
             </ChartTips>
           </>
         )}
-        <TableView t={t} caption={t("admin.dashboard.jobDiscovery.itemsTitle")}>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.dashboard.jobDiscovery.item")}</th>
-              <th scope="col">{t("admin.dashboard.jobDiscovery.averageCost")}</th>
-              <th scope="col">{t("admin.dashboard.jobDiscovery.share")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.averageCostByItem.map((row) => (
-              <tr key={row.item}>
-                <th scope="row">{t(`admin.dashboard.jobDiscovery.items.${row.item}`)}</th>
-                <td>{fine.format(row.eur)}</td>
-                <td>{share(row.eur, itemsTotal)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </TableView>
-      </figure>
+        <TableView
+          t={t}
+          caption={t("admin.dashboard.jobDiscovery.itemsTitle")}
+          columns={[
+            { header: t("admin.dashboard.jobDiscovery.item"), rowHeader: true, cell: (row) => t(`admin.dashboard.jobDiscovery.items.${row.item}`) },
+            { header: t("admin.dashboard.jobDiscovery.averageCost"), numeric: true, cell: (row) => fine.format(row.eur) },
+            { header: t("admin.dashboard.jobDiscovery.share"), numeric: true, cell: (row) => share(row.eur, itemsTotal) },
+          ]}
+          rows={runs.averageCostByItem}
+          rowKey={(row) => row.item}
+        />
+      </FigureCard>
 
       <ul className="dashboard-links">
         <li>

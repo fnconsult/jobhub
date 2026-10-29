@@ -23,9 +23,9 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 
 /** Lusha's sheet, on Paramètres' Enrichissement de contacts tab (#396): its key is the one these specs change. */
 const SHEET = "/admin/parametres?tab=enrichissement&fournisseur=lusha";
-const sheetOf = (page: Page) => page.locator('aside[data-sheet="lusha"]');
+const sheetOf = (page: Page) => page.locator('[data-sheet="lusha"]');
 /** A key on the sheet open in `page`. */
-const row = (page: Page, name: string) => page.locator(`aside[data-sheet] [data-key="${name}"]`);
+const row = (page: Page, name: string) => page.locator(`[data-sheet] [data-key="${name}"]`);
 
 /** Pastes `value` as the new value of `name` on Lusha's sheet, ticking "save anyway" if asked, and submits. */
 async function replace(page: Page, name: string, value: string, { saveAnyway = false } = {}) {

@@ -2,7 +2,12 @@ import { PRICE_SETTINGS } from "@jobhub/ai";
 import { isFranceTravailApi } from "@jobhub/shared";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Status } from "@/design/Pill";
+import { AddressDrawer } from "@/design/AddressDrawer";
+import { buttonClass } from "@/design/button-class";
+import { TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Pill, Status } from "@/design/Pill";
+import { Table } from "@/design/Table";
 import { parametresHref, pricesOfTool, settingHref, sheetSettingsOf, type PossibleProvider } from "@/platform-settings/parametres";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import type { ApiAccess, ProviderApiAccess, ProviderSecretStatus } from "@/provider-secrets/index";
@@ -14,7 +19,7 @@ import { KeyCell, LastTest, STATUS_TONE, usedByLabel } from "./ProvidersSection"
 import { SettingsTable } from "./SettingsTable";
 
 /**
- * A provider's sheet, in a side panel over its tab (#396): its Provider Secrets (replaced, cleared and tested by
+ * A provider's sheet, in the Drawer over its tab (#396, #465), opened from the address (`&fournisseur=`): its Provider Secrets (replaced, cleared and tested by
  * super-admins only, ADR-0020: a value goes in, never out), the keys env alone holds, its own settings and what it
  * serves, each of its APIs' access at its latest connection test (France Travail's, #400), the prices of its billed
  * units with their list price, source and date, changed here (#403), its uses whose price is not known, and a link to
@@ -52,13 +57,7 @@ export function ProviderSheet({
   const purpose = ctx.locale === "en" ? tool.purpose.en : tool.purpose.fr;
 
   return (
-    <aside className="side-sheet stack" aria-labelledby="sheet-title" data-sheet={tool.id}>
-      <div className="side-sheet-head">
-        <h2 id="sheet-title">{tool.name}</h2>
-        <Link prefetch={false} className="button" href={parametresHref(tab.id)}>
-          {t("admin.platformSettings.sheet.close")}
-        </Link>
-      </div>
+    <AddressDrawer title={tool.name} closeHref={parametresHref(tab.id)} opener={`[data-opens-sheet="${tool.id}"]`} data-sheet={tool.id}>
       <p>{purpose}</p>
       {notices}
       <p>
@@ -121,7 +120,7 @@ export function ProviderSheet({
       <p>
         <Link prefetch={false} href={routes.adminTool(tool.id)}>{t("admin.platformSettings.sheet.toolPage")}</Link>
       </p>
-    </aside>
+    </AddressDrawer>
   );
 }
 
@@ -141,9 +140,9 @@ function PricesSection({ ctx, row, settings, unpricedCalls }: { ctx: Ctx; row: P
       <h3 id="sheet-prices">{t("admin.platformSettings.sheet.pricesTitle")}</h3>
       {names.length > 0 ? <p>{t("admin.platformSettings.sheet.pricesIntro")}</p> : null}
       {unpricedCalls > 0 ? (
-        <p className="notice" data-unpriced={unpricedCalls}>
-          {t("admin.platformSettings.sheet.unpriced", { count: unpricedCalls })}
-        </p>
+        <Note tone="warn" data-unpriced={String(unpricedCalls)}>
+          <p>{t("admin.platformSettings.sheet.unpriced", { count: unpricedCalls })}</p>
+        </Note>
       ) : null}
       {prices.length > 0 ? (
         <>
@@ -184,29 +183,15 @@ function ApiAccessTable({ ctx, apiAccess }: { ctx: Ctx; apiAccess: readonly Prov
     <section className="stack" aria-labelledby="sheet-api-access">
       <h3 id="sheet-api-access">{t("admin.providerSecrets.apiAccess.title")}</h3>
       <p>{t("admin.providerSecrets.apiAccess.intro", { at: ctx.at.format(apiAccess[0]!.testedAt) })}</p>
-      <div className="table-scroll">
-        <table className="application-table">
-          <caption className="visually-hidden">{t("admin.providerSecrets.apiAccess.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.providerSecrets.apiAccess.api")}</th>
-              <th scope="col">{t("admin.providerSecrets.apiAccess.state")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {apiAccess.map(({ api, state }) => (
-              <tr key={api}>
-                <th scope="row">{isFranceTravailApi(api) ? t(`admin.providerSecrets.apiAccess.apis.${api}`) : api}</th>
-                <td>
-                  <span className="pill" data-tone={ACCESS_TONE[state]}>
-                    {t(`admin.providerSecrets.apiAccess.states.${state}`)}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table
+        label={t("admin.providerSecrets.apiAccess.caption")}
+        columns={[
+          { header: t("admin.providerSecrets.apiAccess.api"), rowHeader: true, cell: ({ api }) => (isFranceTravailApi(api) ? t(`admin.providerSecrets.apiAccess.apis.${api}`) : api) },
+          { header: t("admin.providerSecrets.apiAccess.state"), cell: ({ state }) => <Pill tone={ACCESS_TONE[state]}>{t(`admin.providerSecrets.apiAccess.states.${state}`)}</Pill> },
+        ]}
+        rows={apiAccess}
+        rowKey={({ api }) => api}
+      />
     </section>
   );
 }
@@ -221,7 +206,7 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
           <form action={testSecret}>
             <Here ctx={ctx} />
             <input type="hidden" name="name" value={name} />
-            <button className="button" type="submit">
+            <button className={buttonClass()} type="submit">
               {t("admin.providerSecrets.test", { name })}
             </button>
           </form>
@@ -230,7 +215,7 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
           <form action={clearSecret}>
             <Here ctx={ctx} />
             <input type="hidden" name="name" value={name} />
-            <button className="button" type="submit">
+            <button className={buttonClass()} type="submit">
               {t("admin.providerSecrets.clear", { name })}
             </button>
           </form>
@@ -247,7 +232,7 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
               <legend className="visually-hidden">{t("admin.providerSecrets.replaceLegend", { name })}</legend>
               <div className="stack">
                 <label htmlFor={`value-${name}`}>{t("admin.providerSecrets.newValue", { name })}</label>
-                <input id={`value-${name}`} className="input" name="value" type="password" required autoComplete="new-password" spellCheck={false} aria-describedby={`value-${name}-help`} />
+                <TextInput id={`value-${name}`} name="value" type="password" required autoComplete="new-password" spellCheck={false} aria-describedby={`value-${name}-help`} />
                 <p id={`value-${name}-help`}>{t("admin.providerSecrets.newValueHelp")}</p>
               </div>
               <div className="checkbox-field">
@@ -255,7 +240,7 @@ function SecretActions({ ctx, name, source }: { ctx: Ctx; name: string; source: 
                 <label htmlFor={`anyway-${name}`}>{t("admin.providerSecrets.saveAnyway")}</label>
                 <p id={`anyway-${name}-help`}>{t("admin.providerSecrets.saveAnywayHelp")}</p>
               </div>
-              <button className="button button-primary" type="submit">
+              <button className={buttonClass({ variant: "primary" })} type="submit">
                 {t("admin.providerSecrets.replace", { name })}
               </button>
             </fieldset>

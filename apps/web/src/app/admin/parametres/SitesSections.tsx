@@ -1,8 +1,11 @@
+import { buttonClass } from "@/design/button-class";
+import { TextInput } from "@/design/Field";
 import { FORBIDDEN_SITES, type JobDiscoverySite } from "@jobhub/shared";
 import type { JobSite } from "@/search-sites/index";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { addJobDiscoverySite, addJobSite, removeJobDiscoverySite, removeJobSite, setJobDiscoverySite, setJobSite } from "./actions";
-import { Here, ScrollFrame, type Ctx } from "./context";
+import { Table } from "@/design/Table";
+import { Here, type Ctx } from "./context";
 
 /** The form field naming the row an action is for. */
 const FIELDS = { domain: "domain", pattern: "pattern" } as const;
@@ -14,7 +17,7 @@ function Toggle({ ctx, action, name, value, enabled, label }: { ctx: Ctx; action
       <Here ctx={ctx} />
       <input type="hidden" name={name} value={value} />
       <input type="hidden" name="enabled" value={String(!enabled)} />
-      <button className="button" type="submit" disabled={!ctx.can.sites}>
+      <button className={buttonClass()} type="submit" disabled={!ctx.can.sites}>
         {ctx.t(enabled ? "admin.searchSites.disable" : "admin.searchSites.enable", { name: label })}
       </button>
     </BackOfficeForm>
@@ -26,7 +29,7 @@ function Remove({ ctx, action, name, value }: { ctx: Ctx; action: (form: FormDat
     <BackOfficeForm canWrite={ctx.can.sites} action={action}>
       <Here ctx={ctx} />
       <input type="hidden" name={name} value={value} />
-      <button className="button" type="submit" disabled={!ctx.can.sites}>
+      <button className={buttonClass()} type="submit" disabled={!ctx.can.sites}>
         {ctx.t("admin.searchSites.remove", { name: value })}
       </button>
     </BackOfficeForm>
@@ -48,10 +51,10 @@ export function AddJobDiscoverySiteForm({ ctx, legend = true }: { ctx: Ctx; lege
         </legend>
         <div className="stack">
           <label htmlFor="discovery-site-domain">{t("admin.searchSites.discoverySites.domain")}</label>
-          <input id="discovery-site-domain" className="input" name="domain" required autoComplete="off" aria-describedby="discovery-site-domain-help" />
+          <TextInput id="discovery-site-domain" name="domain" required autoComplete="off" aria-describedby="discovery-site-domain-help" />
           <p id="discovery-site-domain-help">{t("admin.searchSites.discoverySites.domainHelp")}</p>
         </div>
-        <button className="button button-primary" type="submit">
+        <button className={buttonClass({ variant: "primary" })} type="submit">
           {t("admin.searchSites.discoverySites.add")}
         </button>
       </fieldset>
@@ -71,15 +74,15 @@ export function AddJobSiteForm({ ctx, legend = true }: { ctx: Ctx; legend?: bool
         </legend>
         <div className="stack">
           <label htmlFor="job-site-pattern">{t("admin.searchSites.jobSites.pattern")}</label>
-          <input id="job-site-pattern" className="input" name="pattern" required autoComplete="off" aria-describedby="job-site-pattern-help" />
+          <TextInput id="job-site-pattern" name="pattern" required autoComplete="off" aria-describedby="job-site-pattern-help" />
           <p id="job-site-pattern-help">{t("admin.searchSites.jobSites.patternHelp")}</p>
         </div>
         <div className="stack">
           <label htmlFor="job-site-posting-pages">{t("admin.searchSites.jobSites.postingPagesOptional")}</label>
-          <input id="job-site-posting-pages" className="input" name="postingPages" autoComplete="off" aria-describedby="job-site-posting-pages-help" />
+          <TextInput id="job-site-posting-pages" name="postingPages" autoComplete="off" aria-describedby="job-site-posting-pages-help" />
           <p id="job-site-posting-pages-help">{t("admin.searchSites.jobSites.postingPagesHelp")}</p>
         </div>
-        <button className="button button-primary" type="submit">
+        <button className={buttonClass({ variant: "primary" })} type="submit">
           {t("admin.searchSites.jobSites.add")}
         </button>
       </fieldset>
@@ -98,30 +101,24 @@ export function DiscoverySitesSection({ ctx, sites, adding }: { ctx: Ctx; sites:
       {sites.length === 0 ? (
         <p>{t("admin.searchSites.discoverySites.none")}</p>
       ) : (
-        <ScrollFrame label={t("admin.searchSites.discoverySites.caption")}>
-          <table className="application-table">
-            <caption>{t("admin.searchSites.discoverySites.caption")}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.searchSites.discoverySites.domain")}</th>
-                <th scope="col">{t("admin.searchSites.status")}</th>
-                <th scope="col">{t("admin.searchSites.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sites.map((site) => (
-                <tr key={site.domain}>
-                  <th scope="row">{site.domain}</th>
-                  <td>{status(ctx, site.enabled)}</td>
-                  <td className="stack">
-                    <Toggle ctx={ctx} action={setJobDiscoverySite} name={FIELDS.domain} value={site.domain} enabled={site.enabled} label={site.domain} />
-                    <Remove ctx={ctx} action={removeJobDiscoverySite} name={FIELDS.domain} value={site.domain} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </ScrollFrame>
+        <Table
+          label={t("admin.searchSites.discoverySites.caption")}
+          columns={[
+            { header: t("admin.searchSites.discoverySites.domain"), rowHeader: true, cell: (site) => site.domain },
+            { header: t("admin.searchSites.status"), cell: (site) => status(ctx, site.enabled) },
+            {
+              header: t("admin.searchSites.actions"),
+              cell: (site) => (
+                <div className="stack">
+                  <Toggle ctx={ctx} action={setJobDiscoverySite} name={FIELDS.domain} value={site.domain} enabled={site.enabled} label={site.domain} />
+                  <Remove ctx={ctx} action={removeJobDiscoverySite} name={FIELDS.domain} value={site.domain} />
+                </div>
+              ),
+            },
+          ]}
+          rows={sites}
+          rowKey={(site) => site.domain}
+        />
       )}
       {/* While « + Ajouter » shows the same form, it is not drawn twice: its fields keep one id. */}
       {adding ? null : <AddJobDiscoverySiteForm ctx={ctx} />}
@@ -136,36 +133,26 @@ export function JobSitesSection({ ctx, sites, adding }: { ctx: Ctx; sites: reado
     <section className="stack" aria-labelledby="job-sites-title">
       <h2 id="job-sites-title">{t("admin.searchSites.jobSites.title")}</h2>
       <p>{t("admin.searchSites.jobSites.intro")}</p>
-      <ScrollFrame label={t("admin.searchSites.jobSites.caption")}>
-        <table className="application-table">
-          <caption>{t("admin.searchSites.jobSites.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.searchSites.jobSites.pattern")}</th>
-              <th scope="col">{t("admin.searchSites.jobSites.postingPages")}</th>
-              <th scope="col">{t("admin.searchSites.jobSites.origin")}</th>
-              <th scope="col">{t("admin.searchSites.status")}</th>
-              <th scope="col">{t("admin.searchSites.actions")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sites.map((site) => (
-              <tr key={site.pattern}>
-                <th scope="row">
-                  <code>{site.pattern}</code>
-                </th>
-                <td>{site.postingPages ? <code>{site.postingPages}</code> : t("admin.searchSites.jobSites.anyPostingPage")}</td>
-                <td>{t(site.builtIn ? "admin.searchSites.jobSites.builtIn" : "admin.searchSites.jobSites.added")}</td>
-                <td>{status(ctx, site.enabled)}</td>
-                <td className="stack">
-                  <Toggle ctx={ctx} action={setJobSite} name={FIELDS.pattern} value={site.pattern} enabled={site.enabled} label={site.pattern} />
-                  {site.builtIn ? null : <Remove ctx={ctx} action={removeJobSite} name={FIELDS.pattern} value={site.pattern} />}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </ScrollFrame>
+      <Table
+        label={t("admin.searchSites.jobSites.caption")}
+        columns={[
+          { header: t("admin.searchSites.jobSites.pattern"), rowHeader: true, cell: (site) => <code>{site.pattern}</code> },
+          { header: t("admin.searchSites.jobSites.postingPages"), cell: (site) => (site.postingPages ? <code>{site.postingPages}</code> : t("admin.searchSites.jobSites.anyPostingPage")) },
+          { header: t("admin.searchSites.jobSites.origin"), cell: (site) => t(site.builtIn ? "admin.searchSites.jobSites.builtIn" : "admin.searchSites.jobSites.added") },
+          { header: t("admin.searchSites.status"), cell: (site) => status(ctx, site.enabled) },
+          {
+            header: t("admin.searchSites.actions"),
+            cell: (site) => (
+              <div className="stack">
+                <Toggle ctx={ctx} action={setJobSite} name={FIELDS.pattern} value={site.pattern} enabled={site.enabled} label={site.pattern} />
+                {site.builtIn ? null : <Remove ctx={ctx} action={removeJobSite} name={FIELDS.pattern} value={site.pattern} />}
+              </div>
+            ),
+          },
+        ]}
+        rows={sites}
+        rowKey={(site) => site.pattern}
+      />
       {adding ? null : <AddJobSiteForm ctx={ctx} />}
     </section>
   );

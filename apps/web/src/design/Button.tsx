@@ -1,19 +1,9 @@
 "use client";
 
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode, Ref } from "react";
-import "./Button.css";
+import { buttonClass, type ButtonSize, type ButtonVariant } from "./button-class";
 
-export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dangerSolid";
-export type ButtonSize = "md" | "sm";
-
-/**
- * The class names of a Button, for a link or a Radix trigger drawn as one (`<Link className={buttonClass(…)}>`).
- * `variant`: primary (the page's one main action), secondary (the default), quiet (text in the accent), danger (a
- * destructive action, outlined) or dangerSolid (the confirming button of a destructive Dialog).
- */
-export function buttonClass({ variant = "secondary", size = "md" }: { variant?: ButtonVariant; size?: ButtonSize } = {}): string {
-  return ["ds-button", `ds-button--${variant}`, size === "sm" ? "ds-button--sm" : ""].filter(Boolean).join(" ");
-}
+export { buttonClass, type ButtonSize, type ButtonVariant };
 
 export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className"> & {
   variant?: ButtonVariant;

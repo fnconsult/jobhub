@@ -250,7 +250,7 @@ test.describe("Tools (Outils)", () => {
     await page.locator("summary", { hasText: tr(keys.replaceLegend, { name: "LUSHA_API_KEY" }) }).click();
     await page.getByLabel(tr(keys.newValue, { name: "LUSHA_API_KEY" })).fill(`e2e-traced-secret-${Date.now()}`);
     await page.getByRole("button", { name: tr(keys.replace, { name: "LUSHA_API_KEY" }) }).click();
-    await expect(page.locator("aside[data-sheet]").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
+    await expect(page.locator("[data-sheet]").getByRole("alert").first()).toHaveText(tr(keys.errors.test_failed, { name: "LUSHA_API_KEY" }));
 
     for (const [id, name] of [["google", "Google"], ["lusha", "Lusha"]] as const) {
       await page.goto(`/admin/outils/${id}`);

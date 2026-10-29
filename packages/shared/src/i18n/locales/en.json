@@ -1799,7 +1799,6 @@
         }
       },
       "sheet": {
-        "close": "Close the sheet",
         "keysTitle": "Keys",
         "settingsTitle": "Its settings",
         "noSettings": "No settings of its own.",
@@ -1860,7 +1859,6 @@
         "sourceLabel": "Source to enable",
         "noSource": "Every source is already enabled.",
         "enableSource": "Enable the source",
-        "close": "Close",
         "keyValue": "Key value"
       },
       "explain": {
@@ -2959,7 +2957,6 @@
         "failed": "Failed"
       },
       "noCandidate": "Queries built from the Search Criteria alone; no Candidate name or email here.",
-      "close": "Close",
       "stoppedBy": "stop: {{reason}}",
       "fallbackDetail": "{{from}} failed ({{reason}}): the rest of the run went to {{to}}, the fallback provider.",
       "funnelTitle": "Funnel (Discovery metrics)",

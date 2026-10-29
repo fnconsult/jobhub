@@ -2,6 +2,7 @@ import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
 import { pageIntro, type IntroPage } from "@/admin/page-intro";
 import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
+import "./PageIntro.css";
 
 /** What « En savoir plus » explains: the page, by its intro (#407). */
 const INTRO: ExplainedContext["kind"] = "intro";

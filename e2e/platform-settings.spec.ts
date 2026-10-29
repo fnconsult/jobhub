@@ -191,9 +191,9 @@ test.describe("Platform Settings (Paramètres)", () => {
       // read-only, no form to replace, test or clear one.
       const KEY = "LUSHA_API_KEY";
       const SHEET = `${PATH}?tab=enrichissement&fournisseur=lusha`;
-      const key = (on: Page) => on.locator(`aside[data-sheet="lusha"] [data-key="${KEY}"]`);
+      const key = (on: Page) => on.locator(`[data-sheet="lusha"] [data-key="${KEY}"]`);
       expect((await techniquePage.goto(SHEET))?.status()).toBe(200);
-      await expect(techniquePage.locator('aside[data-sheet="lusha"]')).toContainText(texts.sheet.readOnlyKeys);
+      await expect(techniquePage.locator('[data-sheet="lusha"]')).toContainText(texts.sheet.readOnlyKeys);
       await expect(key(techniquePage)).toBeVisible();
       await expect(key(techniquePage).locator("form")).toHaveCount(0);
       await expect(techniquePage.locator('input[type="password"]')).toHaveCount(0);

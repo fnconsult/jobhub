@@ -7,6 +7,7 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { JobDiscoveryBlock } from "./JobDiscoveryBlock";
+import "./dashboard.css";
 
 /** Its intro (#465): one line, the rest behind « En savoir plus ». */
 const INTRO: IntroPage = "dashboard";
@@ -30,10 +31,12 @@ export default async function BackOfficeDashboardPage() {
   const blocks = dashboardBlocks(access);
   const jobDiscovery = blocks.includes("jobDiscovery") ? await currentJobDiscoveryDashboard() : null;
   return (
-    <BackOfficeLayout access={access} title={t("admin.dashboard.title")} inDesignSystem>
-      <PageIntro t={t} page={INTRO} subject={t("admin.dashboard.title")} values={{ roles: access.roles.map((role) => t(`admin.roles.${role}`)).join(", ") }} />
-      {blocks.length === 0 ? <p>{t("admin.dashboard.noBlocks")}</p> : null}
-      {jobDiscovery ? <JobDiscoveryBlock figures={jobDiscovery} locale={locale} /> : null}
+    <BackOfficeLayout access={access} title={t("admin.dashboard.title")}>
+      <div className="dashboard">
+        <PageIntro t={t} page={INTRO} subject={t("admin.dashboard.title")} values={{ roles: access.roles.map((role) => t(`admin.roles.${role}`)).join(", ") }} />
+        {blocks.length === 0 ? <p>{t("admin.dashboard.noBlocks")}</p> : null}
+        {jobDiscovery ? <JobDiscoveryBlock figures={jobDiscovery} locale={locale} /> : null}
+      </div>
     </BackOfficeLayout>
   );
 }

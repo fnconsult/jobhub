@@ -1799,7 +1799,6 @@
         }
       },
       "sheet": {
-        "close": "Fermer la fiche",
         "keysTitle": "Clés",
         "settingsTitle": "Ses paramètres",
         "noSettings": "Aucun paramètre propre.",
@@ -1860,7 +1859,6 @@
         "sourceLabel": "Source à activer",
         "noSource": "Toutes les sources sont déjà activées.",
         "enableSource": "Activer la source",
-        "close": "Fermer",
         "keyValue": "Valeur de la clé"
       },
       "explain": {
@@ -2959,7 +2957,6 @@
         "failed": "Échec"
       },
       "noCandidate": "Requêtes construites depuis les critères de recherche uniquement ; aucun nom ni e-mail de candidat ici.",
-      "close": "Fermer",
       "stoppedBy": "arrêt : {{reason}}",
       "fallbackDetail": "{{from}} a échoué ({{reason}}) : le reste du run est passé par {{to}}, le fournisseur de secours.",
       "funnelTitle": "Entonnoir (Discovery metrics)",

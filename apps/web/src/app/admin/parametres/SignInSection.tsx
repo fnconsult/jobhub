@@ -1,3 +1,7 @@
+import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
+import { TextInput, Textarea } from "@/design/Field";
+import { Pill } from "@/design/Pill";
 import { TestSignInButton } from "@/components/TestSignInButton";
 import { isMultiTenant, PROVIDER_TYPES, SOCIAL_TYPES, type SignInProviderType } from "@/sign-in-providers/catalog";
 import type { SaveError, SignInProviderStatus, SignInSecretSource } from "@/sign-in-providers/index";
@@ -5,6 +9,9 @@ import { linksByEmail } from "@/sign-in-providers/policy";
 import { removeProvider, saveProvider, setRequireSso, startTestSignIn } from "./actions";
 import { Here, type Ctx, type T } from "./context";
 import { SIGN_IN_SWITCHES } from "./notices";
+
+/** Microsoft's tenant for personal accounts, a new Microsoft provider's default. */
+const DEFAULT_TENANT = "consumers";
 
 /** A Sign-in Provider's save errors, as admin.signInProviders.errors names them. */
 export const SIGN_IN_ERRORS = [
@@ -59,7 +66,11 @@ export function SignInSection({
 
   return (
     <>
-      {canWrite && !canSave ? <p className="notice">{t("admin.signInProviders.noMasterKey")}</p> : null}
+      {canWrite && !canSave ? (
+        <Note tone="warn">
+          <p>{t("admin.signInProviders.noMasterKey")}</p>
+        </Note>
+      ) : null}
       <section className="stack" aria-labelledby="require-sso-title">
         <h2 id="require-sso-title">{t("admin.signInProviders.ssoTitle")}</h2>
         <p>{t("admin.signInProviders.ssoHelp")}</p>
@@ -70,7 +81,7 @@ export function SignInSection({
               <input id="require-sso" type="checkbox" name="requireSso" defaultChecked={settings.requireSsoForAdministrators} />
               <label htmlFor="require-sso">{t("admin.signInProviders.ssoLabel")}</label>
             </div>
-            <button className="button" type="submit">
+            <button className={buttonClass()} type="submit">
               {t("admin.signInProviders.ssoSave")}
             </button>
           </form>
@@ -85,10 +96,7 @@ export function SignInSection({
         {providers.map((provider) => (
           <article key={provider.id} className="stack sign-in-provider" aria-labelledby={`provider-${provider.id}`}>
             <h3 id={`provider-${provider.id}`}>
-              {provider.displayName}{" "}
-              <span className="pill" data-tone={provider.enabled ? "success" : "accent"}>
-                {t(provider.enabled ? "admin.signInProviders.enabled" : "admin.signInProviders.disabled")}
-              </span>
+              {provider.displayName} <Pill tone={provider.enabled ? "success" : "accent"}>{t(provider.enabled ? "admin.signInProviders.enabled" : "admin.signInProviders.disabled")}</Pill>
             </h3>
             <dl>
               <dt>{t("admin.signInProviders.type")}</dt>
@@ -114,9 +122,9 @@ export function SignInSection({
               <dt>{t("admin.signInProviders.secrets")}</dt>
               <dd>
                 {provider.secrets.map((secret) => (
-                  <span key={secret.field} className="pill" data-tone={TONE[secret.source]}>
+                  <Pill key={secret.field} tone={TONE[secret.source]}>
                     {t(`admin.signInProviders.fields.${secret.field}`)} : {t(`admin.signInProviders.sources.${secret.source}`)}
-                  </span>
+                  </Pill>
                 ))}
               </dd>
               {provider.apple ? <AppleDates apple={provider.apple} format={day} t={t} /> : null}
@@ -133,14 +141,18 @@ export function SignInSection({
                 {provider.updatedBy ?? t("admin.signInProviders.fromEnv")}, <time dateTime={provider.updatedAt.toISOString()}>{at.format(provider.updatedAt)}</time>
               </dd>
             </dl>
-            {provider.type === "microsoft" && isMultiTenant(provider.tenantId ?? undefined) ? <p className="notice">{t("admin.signInProviders.multiTenantHelp")}</p> : null}
+            {provider.type === "microsoft" && isMultiTenant(provider.tenantId ?? undefined) ? (
+              <Note tone="warn">
+                <p>{t("admin.signInProviders.multiTenantHelp")}</p>
+              </Note>
+            ) : null}
             {canWrite ? (
               <div className="provider-secret-actions">
                 {provider.enabled ? null : <TestSignInButton providerId={provider.id} displayName={provider.displayName} start={startTestSignIn} />}
                 <form action={removeProvider}>
                   <Here ctx={ctx} />
                   <input type="hidden" name="id" value={provider.id} />
-                  <button className="button" type="submit">
+                  <button className={buttonClass()} type="submit">
                     {t("admin.signInProviders.remove", { name: provider.displayName })}
                   </button>
                 </form>
@@ -183,9 +195,7 @@ function AppleDates({ apple, format, t }: { apple: NonNullable<SignInProviderSta
         {apple.failedAt ? (
           <>
             <br />
-            <span className="pill" data-tone="danger">
-              {t("admin.signInProviders.appleFailed", { at: format.format(apple.failedAt) })}
-            </span>
+            <Pill tone="danger">{t("admin.signInProviders.appleFailed", { at: format.format(apple.failedAt) })}</Pill>
           </>
         ) : null}
       </dd>
@@ -211,37 +221,51 @@ export function ProviderForm({ ctx, type, provider, formKey }: { ctx: Ctx; type:
           ) : (
             <div className="stack">
               <label htmlFor={field("id")}>{t("admin.signInProviders.id")}</label>
-              <input id={field("id")} className="input" name="id" required pattern="[a-z][a-z0-9\-]{1,31}" spellCheck={false} aria-describedby={field("id-help")} />
+              <TextInput id={field("id")} name="id" required pattern="[a-z][a-z0-9\-]{1,31}" spellCheck={false} aria-describedby={field("id-help")} />
               <p id={field("id-help")}>{t("admin.signInProviders.idHelp")}</p>
             </div>
           )
         ) : null}
         <div className="stack">
           <label htmlFor={field("displayName")}>{t("admin.signInProviders.displayName")}</label>
-          <input id={field("displayName")} className="input" name="displayName" required maxLength={60} defaultValue={provider?.displayName ?? (PROVIDER_TYPES[type].defaultName ? t(`admin.signInProviders.types.${type}`) : "")} />
+          <TextInput
+            id={field("displayName")}
+            name="displayName"
+            required
+            maxLength={60}
+            defaultValue={provider?.displayName ?? (PROVIDER_TYPES[type].defaultName ? t(`admin.signInProviders.types.${type}`) : "")}
+          />
         </div>
         <div className="stack">
           <label htmlFor={field("clientId")}>{t(type === "apple" ? "admin.signInProviders.serviceId" : "admin.signInProviders.clientId")}</label>
-          <input id={field("clientId")} className="input" name="clientId" required maxLength={512} spellCheck={false} defaultValue={provider?.clientId ?? ""} />
+          <TextInput id={field("clientId")} name="clientId" required maxLength={512} spellCheck={false} defaultValue={provider?.clientId ?? ""} />
         </div>
         {PROVIDER_TYPES[type].setting === "discoveryUrl" ? (
           <div className="stack">
             <label htmlFor={field("discoveryUrl")}>{t("admin.signInProviders.discoveryUrl")}</label>
-            <input id={field("discoveryUrl")} className="input" name="discoveryUrl" type="url" required spellCheck={false} defaultValue={provider?.discoveryUrl ?? ""} aria-describedby={field("discoveryUrl-help")} />
+            <TextInput
+              id={field("discoveryUrl")}
+              name="discoveryUrl"
+              type="url"
+              required
+              spellCheck={false}
+              defaultValue={provider?.discoveryUrl ?? ""}
+              aria-describedby={field("discoveryUrl-help")}
+            />
             <p id={field("discoveryUrl-help")}>{t("admin.signInProviders.discoveryUrlHelp")}</p>
           </div>
         ) : null}
         {PROVIDER_TYPES[type].setting === "tenantId" ? (
           <div className="stack">
             <label htmlFor={field("tenantId")}>{t("admin.signInProviders.tenantId")}</label>
-            <input id={field("tenantId")} className="input" name="tenantId" spellCheck={false} defaultValue={provider?.tenantId ?? "consumers"} aria-describedby={field("tenantId-help")} />
+            <TextInput id={field("tenantId")} name="tenantId" spellCheck={false} defaultValue={provider?.tenantId ?? DEFAULT_TENANT} aria-describedby={field("tenantId-help")} />
             <p id={field("tenantId-help")}>{t("admin.signInProviders.tenantIdHelp")}</p>
           </div>
         ) : null}
         {PROVIDER_TYPES[type].setting === "appBundleIdentifier" ? (
           <div className="stack">
             <label htmlFor={field("appBundleIdentifier")}>{t("admin.signInProviders.appBundleIdentifier")}</label>
-            <input id={field("appBundleIdentifier")} className="input" name="appBundleIdentifier" spellCheck={false} defaultValue={provider?.appBundleIdentifier ?? ""} />
+            <TextInput id={field("appBundleIdentifier")} name="appBundleIdentifier" spellCheck={false} defaultValue={provider?.appBundleIdentifier ?? ""} />
           </div>
         ) : null}
         {PROVIDER_TYPES[type].secretFields.map((secret) => (
@@ -249,11 +273,10 @@ export function ProviderForm({ ctx, type, provider, formKey }: { ctx: Ctx; type:
             <label htmlFor={field(secret)}>{t(`admin.signInProviders.fields.${secret}`)}</label>
             {/* Write-only: the field is always empty, the value saved is never sent back. */}
             {secret === "privateKey" ? (
-              <textarea id={field(secret)} className="input" name={secret} rows={6} spellCheck={false} autoComplete="off" required={!provider} aria-describedby={field(`${secret}-help`)} />
+              <Textarea id={field(secret)} name={secret} rows={6} spellCheck={false} autoComplete="off" required={!provider} aria-describedby={field(`${secret}-help`)} />
             ) : (
-              <input
+              <TextInput
                 id={field(secret)}
-                className="input"
                 name={secret}
                 type={secret === "clientSecret" ? "password" : "text"}
                 autoComplete="new-password"
@@ -276,8 +299,14 @@ export function ProviderForm({ ctx, type, provider, formKey }: { ctx: Ctx; type:
             checked={provider?.trustedForLinking ?? false}
           />
         ) : null}
-        <Switch name={SIGN_IN_SWITCHES.enabled} id={field(SIGN_IN_SWITCHES.enabled)} label={t("admin.signInProviders.enabledLabel")} help={t("admin.signInProviders.enabledHelp")} checked={provider?.enabled ?? false} />
-        <button className="button button-primary" type="submit">
+        <Switch
+          name={SIGN_IN_SWITCHES.enabled}
+          id={field(SIGN_IN_SWITCHES.enabled)}
+          label={t("admin.signInProviders.enabledLabel")}
+          help={t("admin.signInProviders.enabledHelp")}
+          checked={provider?.enabled ?? false}
+        />
+        <button className={buttonClass({ variant: "primary" })} type="submit">
           {t("admin.signInProviders.save")}
         </button>
       </fieldset>

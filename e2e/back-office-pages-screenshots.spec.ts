@@ -48,18 +48,21 @@ async function recordCalls() {
 const PAGES = [
   {
     name: "parametres",
+    component: "main .ds-tabs__list",
     path: "/admin/parametres?tab=recherche-web",
     ready: (page: Page) => page.locator("[data-active-provider]"),
     mask: () => [] as string[],
   },
   {
     name: "parametres-sheet",
+    component: '.ds-drawer[data-sheet="perplexity"]',
     path: "/admin/parametres?tab=recherche-web&fournisseur=perplexity",
-    ready: (page: Page) => page.locator('aside[data-sheet="perplexity"]'),
+    ready: (page: Page) => page.locator('[data-sheet="perplexity"]'),
     mask: () => [] as string[],
   },
   {
     name: "dashboard",
+    component: "main .ds-stat",
     path: "/admin",
     ready: (page: Page) => page.getByRole("region", { name: new RegExp(`^${admin.dashboard.jobDiscovery.title}`) }),
     // The month and day, and the axes and notes that follow the days of the month.
@@ -67,6 +70,7 @@ const PAGES = [
   },
   {
     name: "activite",
+    component: "main .ds-table",
     path: `/admin/activite/appels-ia?model=${MODEL}`,
     ready: (page: Page) => page.getByRole("table", { name: admin.aiMessages.caption }),
     mask: () => [] as string[],
@@ -110,15 +114,16 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
         await page.setViewportSize({ width, height });
         await page.goto(shot.path);
         await expect(shot.ready(page)).toBeVisible({ timeout: 20_000 });
-        await expect(page.locator("main .in-design-system")).toBeAttached();
+        // Drawn with the Design System's components (ADR-0053), not the old markup restyled.
+        await expect(page.locator(shot.component).first()).toBeAttached();
         await settled(page);
         // Nothing runs off the side: a wide table scrolls in its own frame.
         expect(await page.evaluate(() => document.documentElement.scrollWidth), `${name}: the page's width`).toBeLessThanOrEqual(width);
         const sheet = shot.name === "parametres-sheet";
-        await expectNoAxeViolations(page, sheet ? "aside[data-sheet]" : "#main");
+        await expectNoAxeViolations(page, sheet ? "[data-sheet]" : "#main");
         if (comparesScreenshots()) {
           // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.
-          const target: Locator = sheet ? page.locator("aside[data-sheet]") : page.locator("#main");
+          const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
           if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
           await settled(page);
           await expect(target).toHaveScreenshot(`${shot.name}-${name}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });

@@ -61,7 +61,7 @@ async function expectRecordedAt(since: Date, usd: number) {
   for (const cost of await perplexitySearchCosts(since)) expect(cost).toBeCloseTo(usd * EUR_PER_USD, 9);
 }
 
-const row = (page: Page, name: string) => page.locator(`aside[data-sheet] tr[data-setting="${name}"]`);
+const row = (page: Page, name: string) => page.locator(`[data-sheet] tr[data-setting="${name}"]`);
 
 test.describe("prices of the Tools' billed units (#403)", () => {
   test.afterAll(async () => {
@@ -81,7 +81,7 @@ test.describe("prices of the Tools' billed units (#403)", () => {
     // Perplexity's sheet shows the price, its list price with its source and date, and changes it.
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto(SHEET);
-    const sheet = page.locator("aside[data-sheet='perplexity']");
+    const sheet = page.locator("[data-sheet='perplexity']");
     await expect(sheet.getByRole("heading", { name: texts.sheet.pricesTitle })).toBeVisible();
     await expect(sheet.locator(`li[data-list-price="${PRICE}"]`)).toContainText(tr(texts.sheet.listPrice, { name: PRICE, price: "0.001", unit: texts.sheet.units.call, date: "2026-10-27" }));
     await expect(sheet.locator(`li[data-list-price="${PRICE}"]`).getByRole("link", { name: texts.sheet.listPriceSource })).toHaveAttribute("href", "https://docs.perplexity.ai/docs/getting-started/pricing");

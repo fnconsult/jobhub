@@ -11,6 +11,9 @@ import { aiUsageReportOf } from "@/ai-usage/server";
 import { applyLatestSignIn } from "@/auth/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
+import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
+import { TabLinks } from "@/design/TabLinks";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { aiTaskRoutes, keyMissing, playbookAgentRows, searchTaskRows, type PlaybookWithVersions } from "@/platform-settings/ai-tasks";
@@ -56,14 +59,12 @@ import { ProvidersSection } from "./ProvidersSection";
 import { SIGN_IN_ERRORS, SignInSection } from "./SignInSection";
 import { DiscoverySitesSection, JobSitesSection } from "./SitesSections";
 import { SourcesSection } from "./SourcesSection";
+import "./parametres.css";
 
 type Search = Record<string, string | string[] | undefined>;
 const isSignInError = (value: unknown): value is (typeof SIGN_IN_ERRORS)[number] => SIGN_IN_ERRORS.includes(value as (typeof SIGN_IN_ERRORS)[number]);
 const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
 
-/** How the tabs' links say which one is shown (`.tab` styles, ADR-0018), and to assistive technologies. */
-const TAB_STATE = { shown: "active", hidden: "inactive" } as const;
-const CURRENT = "page";
 const WEB_SEARCH_TAB = parametresTab("recherche-web");
 
 /** Its intro (#465): one line, the rest behind « En savoir plus ». */
@@ -175,10 +176,10 @@ function Notices({ ctx, search, signInProviders, requireSso }: { ctx: Ctx; searc
   return (
     <>
       {notices.map((each) => (
-        <div key={each.text} className="notice stack" role={each.role}>
+        <Note key={each.text} tone={each.role === "alert" ? "danger" : "success"} role={each.role}>
           <p>{each.text}</p>
           {each.detail}
-        </div>
+        </Note>
       ))}
     </>
   );
@@ -307,84 +308,101 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const notices = <Notices ctx={ctx} search={search} signInProviders={signInProviders} requireSso={signInSettings?.requireSsoForAdministrators ?? false} />;
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.platformSettings.title")} inDesignSystem>
-      <div className="parametres-head">
-        <PageIntro t={t} page={INTRO} subject={t("admin.platformSettings.title")}>
-          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
-        </PageIntro>
-        {allowed.length > 0 ? (
-          <Link prefetch={false} className="button button-primary" href={parametresHref(tab.id, { ajouter: addTypeFor(tab, undefined, allowed) })}>
-            {t("admin.platformSettings.add.button")}
-          </Link>
-        ) : null}
-      </div>
-
-      <nav aria-label={t("admin.platformSettings.tabsLabel")}>
-        <ul className="tablist parametres-tabs">
-          {PARAMETRES_TABS.map((each) => (
-            <li key={each.id}>
-              <Link prefetch={false} className="tab" href={parametresHref(each.id)} data-state={each.id === tab.id ? TAB_STATE.shown : TAB_STATE.hidden} aria-current={each.id === tab.id ? CURRENT : undefined}>
-                {t(`admin.platformSettings.tabs.${each.id}`)}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {confirming ? (
-        <section className="notice stack" role="alert" aria-labelledby="confirm-setting">
-          <h2 id="confirm-setting">{t("admin.platformSettings.confirmDpa.title")}</h2>
-          <p>{t("admin.platformSettings.confirmDpa.question")}</p>
-          <form className="stack" action={confirmNotice === "restoreUnconfirmed" ? restoreSetting : saveSetting}>
-            <Here ctx={ctx} />
-            <input type="hidden" name="name" value={confirming.name} />
-            <input type="hidden" name="value" value={confirming.confirm} />
-            <input type="hidden" name={FORM.confirmed} value={CONFIRMED} />
-            <button className="button button-primary" type="submit">
-              {t("admin.platformSettings.confirmDpa.yes")}
-            </button>
-          </form>
-          <Link prefetch={false} href={parametresHref(tab.id, {}, `setting-${confirming.name}`)}>{t("admin.platformSettings.confirmDpa.cancel")}</Link>
-        </section>
-      ) : sheet || openRoute || openAgent ? null : (
-        notices
-      )}
-      {differing > 0 ? (
-        <p className="notice" role="status">
-          {t("admin.platformSettings.differs", { count: differing })}
-        </p>
-      ) : null}
-
-      <div className="tabpanel" data-tab={tab.id}>
-        {/* Its consumption and budget figures are on the Dashboard, for those who read them (#408). */}
-        {tab.id === "web_search" && dashboardBlocks(access).includes("jobDiscovery") ? (
-          <p>
-            <Link prefetch={false} href={routes.admin}>
-              {t("admin.platformSettings.dashboardLink")}
+    <BackOfficeLayout access={access} title={t("admin.platformSettings.title")}>
+      <div className="parametres">
+        <div className="parametres-head">
+          <PageIntro t={t} page={INTRO} subject={t("admin.platformSettings.title")}>
+            {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+          </PageIntro>
+          {allowed.length > 0 ? (
+            <Link prefetch={false} className={buttonClass({ variant: "primary" })} href={parametresHref(tab.id, { ajouter: addTypeFor(tab, undefined, allowed) })} data-opens-add>
+              {t("admin.platformSettings.add.button")}
             </Link>
-          </p>
-        ) : null}
-        {tab.id === "environment" ? (
-          <EnvironmentSection ctx={ctx} rows={envOnly} retired={retiredSettingsSet(process.env)} />
-        ) : (
-          <ProvidersSection ctx={ctx} rows={rows} settings={settings} envOnly={envOnly} />
-        )}
-        {tab.id === "sources" && sources ? (
-          <SourcesSection ctx={ctx} sources={sources} rows={rows} webSearch={possibleProviders(WEB_SEARCH_TAB, state).find((row) => row.active)} heldBack={{ email_intake: emailIntakeHeld }} />
-        ) : null}
-        {tab.id === "web_search" ? <SearchTasksSection ctx={ctx} rows={searchRows} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
-        {tab.id === "ai" ? <AiTasksSection ctx={ctx} routes={taskRoutes} agents={readsPlaybooks ? agentRows : []} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
-        {tab.id === "web_search" && discoverySites ? <DiscoverySitesSection ctx={ctx} sites={discoverySites} adding={adding === "job_discovery_site"} /> : null}
-        {tab.id === "extension" && jobSites ? <JobSitesSection ctx={ctx} sites={jobSites} adding={adding === "job_site"} /> : null}
-        {tab.id === "sign_in" && signInSettings ? (
-          <SignInSection ctx={ctx} providers={signInProviders} requireSsoForAdministrators={signInSettings.requireSsoForAdministrators} openForm={one(search.form)} adding={adding === "sign_in_provider"} />
-        ) : null}
-      </div>
+          ) : null}
+        </div>
 
-      {sheet ? <ProviderSheet ctx={ctx} row={sheet} secrets={secrets} apiAccess={apiAccess} settings={settings} unpricedCalls={unpricedCalls} notices={notices} emailIntake={emailIntakeLists} /> : null}
-      {openRoute ? <RoutePanel ctx={ctx} route={openRoute} choices={choices} keyMissingOf={(provider) => keyMissing(state, provider)} notices={notices} /> : null}
-      {openAgent && openAgentLatest ? <PlaybookAgentPanel ctx={ctx} row={openAgent} latest={openAgentLatest} choices={choices} notices={notices} /> : null}
-      {adding ? <AddPanel ctx={ctx} type={adding} allowed={allowed} sources={sources ?? ALL_SOURCES} signInTypes={signInProviders.map((provider) => provider.type)} /> : null}
+        <TabLinks
+          label={t("admin.platformSettings.tabsLabel")}
+          tabs={PARAMETRES_TABS.map((each) => ({ id: each.id, href: parametresHref(each.id), label: t(`admin.platformSettings.tabs.${each.id}`) }))}
+          shown={tab.id}
+        />
+
+        {confirming ? (
+          <Note tone="warn" role="alert" title={t("admin.platformSettings.confirmDpa.title")}>
+            <p>{t("admin.platformSettings.confirmDpa.question")}</p>
+            <form className="stack" action={confirmNotice === "restoreUnconfirmed" ? restoreSetting : saveSetting}>
+              <Here ctx={ctx} />
+              <input type="hidden" name="name" value={confirming.name} />
+              <input type="hidden" name="value" value={confirming.confirm} />
+              <input type="hidden" name={FORM.confirmed} value={CONFIRMED} />
+              <button className={buttonClass({ variant: "primary" })} type="submit">
+                {t("admin.platformSettings.confirmDpa.yes")}
+              </button>
+            </form>
+            <p>
+              <Link prefetch={false} href={parametresHref(tab.id, {}, `setting-${confirming.name}`)}>
+                {t("admin.platformSettings.confirmDpa.cancel")}
+              </Link>
+            </p>
+          </Note>
+        ) : sheet || openRoute || openAgent ? null : (
+          notices
+        )}
+        {differing > 0 ? (
+          <Note tone="warn" role="status">
+            <p>{t("admin.platformSettings.differs", { count: differing })}</p>
+          </Note>
+        ) : null}
+
+        <div className="parametres-panel" data-tab={tab.id}>
+          {/* Its consumption and budget figures are on the Dashboard, for those who read them (#408). */}
+          {tab.id === "web_search" && dashboardBlocks(access).includes("jobDiscovery") ? (
+            <p>
+              <Link prefetch={false} href={routes.admin}>
+                {t("admin.platformSettings.dashboardLink")}
+              </Link>
+            </p>
+          ) : null}
+          {tab.id === "environment" ? (
+            <EnvironmentSection ctx={ctx} rows={envOnly} retired={retiredSettingsSet(process.env)} />
+          ) : (
+            <ProvidersSection ctx={ctx} rows={rows} settings={settings} envOnly={envOnly} />
+          )}
+          {tab.id === "sources" && sources ? (
+            <SourcesSection ctx={ctx} sources={sources} rows={rows} webSearch={possibleProviders(WEB_SEARCH_TAB, state).find((row) => row.active)} heldBack={{ email_intake: emailIntakeHeld }} />
+          ) : null}
+          {tab.id === "web_search" ? <SearchTasksSection ctx={ctx} rows={searchRows} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
+          {tab.id === "ai" ? <AiTasksSection ctx={ctx} routes={taskRoutes} agents={readsPlaybooks ? agentRows : []} canEditPlaybooks={ctx.can.playbooks && playbooks !== null} /> : null}
+          {tab.id === "web_search" && discoverySites ? <DiscoverySitesSection ctx={ctx} sites={discoverySites} adding={adding === "job_discovery_site"} /> : null}
+          {tab.id === "extension" && jobSites ? <JobSitesSection ctx={ctx} sites={jobSites} adding={adding === "job_site"} /> : null}
+          {tab.id === "sign_in" && signInSettings ? (
+            <SignInSection
+              ctx={ctx}
+              providers={signInProviders}
+              requireSsoForAdministrators={signInSettings.requireSsoForAdministrators}
+              openForm={one(search.form)}
+              adding={adding === "sign_in_provider"}
+            />
+          ) : null}
+        </div>
+
+        {sheet ? (
+          <ProviderSheet
+            key={sheet.tool.id}
+            ctx={ctx}
+            row={sheet}
+            secrets={secrets}
+            apiAccess={apiAccess}
+            settings={settings}
+            unpricedCalls={unpricedCalls}
+            notices={notices}
+            emailIntake={emailIntakeLists}
+          />
+        ) : null}
+        {openRoute ? <RoutePanel key={openRoute.task} ctx={ctx} route={openRoute} choices={choices} keyMissingOf={(provider) => keyMissing(state, provider)} notices={notices} /> : null}
+        {openAgent && openAgentLatest ? <PlaybookAgentPanel key={openAgent.id} ctx={ctx} row={openAgent} latest={openAgentLatest} choices={choices} notices={notices} /> : null}
+        {adding ? <AddPanel key={adding} ctx={ctx} type={adding} allowed={allowed} sources={sources ?? ALL_SOURCES} signInTypes={signInProviders.map((provider) => provider.type)} /> : null}
+      </div>
     </BackOfficeLayout>
   );
 }

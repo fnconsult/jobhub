@@ -10,6 +10,7 @@ import {
 } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { isBackOfficeRole } from "@/admin/access";
 import {
   BACK_OFFICE_OUTCOMES,
@@ -28,6 +29,7 @@ import { journalTimeline, toolCallOk, type JournalLine } from "@/admin/journal-t
 import { ACTIVITY_RETENTION_MONTHS } from "@/email-intake/activity";
 import { getEmailIntakeActivity } from "@/email-intake/server";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { Table } from "@/design/Table";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
 import { EVAL_IN_VIEW_KINDS, type EvalInView } from "@/evals/cases";
@@ -36,6 +38,7 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
 import type { ActivityTabId } from "@/admin/activity";
 import { ActivityTabs } from "../ActivityTabs";
+import "../activite.css";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import type { ToolCall } from "@/tools";
@@ -81,6 +84,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * Changes, and its technical detail behind « Détail technique ». The Résultat filter combines with the
  * section's in the URL.
  */
+/** The Journal's columns, in order, each named by its `admin.journal` key. */
+const COLUMNS = ["at", "administrator", "section", "target", "action", "outcome", "changes"] as const;
+/** How a row says what kind of line it is (`data-kind`), for the tests. */
+const KINDS = { linkedMailbox: "linked-mailbox", toolCall: "tool-call" } as const;
+/** A line of the Journal, its cells drawn by its kind: an Administrator's action, a Tool call, a Linked mailbox's event. */
+type JournalRow = { key: string; kind?: string; cells: Record<(typeof COLUMNS)[number], ReactNode> };
+
 export default async function JournalPage({ searchParams }: { searchParams: Promise<{ section?: string; outcome?: string }> }) {
   const { access } = await requireBackOffice("audit");
   const locale = await getRequestLocale();
@@ -188,113 +198,104 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   };
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.activity.title")} inDesignSystem>
-      <ActivityTabs access={access} shown={TAB} />
-      <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.audit")} values={{ years: String(RETENTION_YEARS) }} />
-      <nav aria-label={t("admin.journal.filter")}>
-        <ul className="journal-filter">
-          {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
-            <li key={option ?? "all"}>
-              <Link href={routes.adminAudit({ section: option, outcome })} aria-current={option === section && !beside ? CURRENT : undefined}>
-                {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
-              </Link>
-            </li>
-          ))}
-          {readsTools ? (
+    <BackOfficeLayout access={access} title={t("admin.activity.title")}>
+      <div className="activite">
+        <ActivityTabs access={access} shown={TAB} />
+        <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.audit")} values={{ years: String(RETENTION_YEARS) }} />
+        <nav aria-label={t("admin.journal.filter")}>
+          <ul className="journal-filter">
+            {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
+              <li key={option ?? "all"}>
+                <Link href={routes.adminAudit({ section: option, outcome })} aria-current={option === section && !beside ? CURRENT : undefined}>
+                  {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
+                </Link>
+              </li>
+            ))}
+            {readsTools ? (
+              <li>
+                <Link href={routes.adminAudit({ section: TOOLS_FILTER, outcome })} aria-current={withTools ? CURRENT : undefined}>
+                  {t("admin.journal.tools")}
+                </Link>
+              </li>
+            ) : null}
             <li>
-              <Link href={routes.adminAudit({ section: TOOLS_FILTER, outcome })} aria-current={withTools ? CURRENT : undefined}>
-                {t("admin.journal.tools")}
+              <Link href={routes.adminAudit({ section: LINKED_MAILBOXES_FILTER, outcome })} aria-current={withLinkedMailboxes ? CURRENT : undefined}>
+                {t("admin.journal.linkedMailboxes")}
               </Link>
             </li>
-          ) : null}
-          <li>
-            <Link href={routes.adminAudit({ section: LINKED_MAILBOXES_FILTER, outcome })} aria-current={withLinkedMailboxes ? CURRENT : undefined}>
-              {t("admin.journal.linkedMailboxes")}
-            </Link>
-          </li>
-        </ul>
-      </nav>
-      <nav aria-label={t("admin.journal.outcomeFilter")}>
-        <ul className="journal-filter">
-          {[undefined, ...BACK_OFFICE_OUTCOMES].map((option) => (
-            <li key={option ?? "all"}>
-              <Link href={routes.adminAudit({ section: shownSection, outcome: option })} aria-current={option === outcome ? CURRENT : undefined}>
-                {t(`admin.journal.outcomeFilters.${option ?? "all"}`)}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      {withTools ? <p>{t("admin.journal.toolsIntro")}</p> : null}
-      {withLinkedMailboxes ? <p>{t("admin.journal.linkedMailboxesIntro", { months: String(ACTIVITY_RETENTION_MONTHS) })}</p> : null}
-      {lines.length === 0 ? (
-        <p>{t("admin.journal.none")}</p>
-      ) : (
-        <div className="table-scroll">
-          <table className="application-table">
-            <caption>{t(withTools ? "admin.journal.toolsCaption" : withLinkedMailboxes ? "admin.journal.linkedMailboxesCaption" : "admin.journal.caption")}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t("admin.journal.at")}</th>
-                <th scope="col">{t("admin.journal.administrator")}</th>
-                <th scope="col">{t("admin.journal.section")}</th>
-                <th scope="col">{t("admin.journal.target")}</th>
-                <th scope="col">{t("admin.journal.action")}</th>
-                <th scope="col">{t("admin.journal.outcome")}</th>
-                <th scope="col">{t("admin.journal.changes")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((line, index) => {
-                if (line.kind === "linked_mailbox") {
-                  const { event } = line;
-                  return (
-                    <tr key={`mailbox-${event.id}`} data-kind="linked-mailbox">
-                      <th scope="row">
-                        <time dateTime={event.at.toISOString()}>{at.format(event.at)}</time>
-                      </th>
-                      <td>{t(event.event === "daily_cap_reached" ? "admin.journal.byEmailIntake" : "admin.journal.byCandidate")}</td>
-                      <td>{t("admin.journal.linkedMailboxes")}</td>
-                      <td>{t("admin.journal.linkedMailboxTarget")}</td>
-                      <td>{t(`admin.journal.linkedMailboxEvents.${event.event}`)}</td>
-                      <td>{t("admin.journal.outcomes.succeeded")}</td>
-                      <td>{t(`admin.journal.linkedMailboxEventDetails.${event.event}`)}</td>
-                    </tr>
-                  );
-                }
-                if (line.kind === "tool_call") {
-                  const { tool, call } = line;
-                  return (
-                    <tr key={`call-${call.at.toISOString()}-${index}`} data-kind="tool-call">
-                      <th scope="row">
-                        <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time>
-                      </th>
-                      <td>{t("admin.journal.byJobbbox")}</td>
-                      <td>{t("admin.journal.tools")}</td>
-                      <td>
-                        <Link href={routes.adminTool(tool.id)}>{tool.name}</Link>
-                      </td>
-                      <td>
+          </ul>
+        </nav>
+        <nav aria-label={t("admin.journal.outcomeFilter")}>
+          <ul className="journal-filter">
+            {[undefined, ...BACK_OFFICE_OUTCOMES].map((option) => (
+              <li key={option ?? "all"}>
+                <Link href={routes.adminAudit({ section: shownSection, outcome: option })} aria-current={option === outcome ? CURRENT : undefined}>
+                  {t(`admin.journal.outcomeFilters.${option ?? "all"}`)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {withTools ? <p>{t("admin.journal.toolsIntro")}</p> : null}
+        {withLinkedMailboxes ? <p>{t("admin.journal.linkedMailboxesIntro", { months: String(ACTIVITY_RETENTION_MONTHS) })}</p> : null}
+        {lines.length === 0 ? (
+          <p>{t("admin.journal.none")}</p>
+        ) : (
+          <Table
+            label={t(withTools ? "admin.journal.toolsCaption" : withLinkedMailboxes ? "admin.journal.linkedMailboxesCaption" : "admin.journal.caption")}
+            columns={COLUMNS.map((column) => ({ key: column, header: t(`admin.journal.${column}`), rowHeader: column === "at", cell: (row: JournalRow) => row.cells[column] }))}
+            rows={lines.map((line, index): JournalRow => {
+              if (line.kind === "linked_mailbox") {
+                const { event } = line;
+                return {
+                  key: `mailbox-${event.id}`,
+                  kind: KINDS.linkedMailbox,
+                  cells: {
+                    at: <time dateTime={event.at.toISOString()}>{at.format(event.at)}</time>,
+                    administrator: t(event.event === "daily_cap_reached" ? "admin.journal.byEmailIntake" : "admin.journal.byCandidate"),
+                    section: t("admin.journal.linkedMailboxes"),
+                    target: t("admin.journal.linkedMailboxTarget"),
+                    action: t(`admin.journal.linkedMailboxEvents.${event.event}`),
+                    outcome: t("admin.journal.outcomes.succeeded"),
+                    changes: t(`admin.journal.linkedMailboxEventDetails.${event.event}`),
+                  },
+                };
+              }
+              if (line.kind === "tool_call") {
+                const { tool, call } = line;
+                return {
+                  key: `call-${call.at.toISOString()}-${index}`,
+                  kind: KINDS.toolCall,
+                  cells: {
+                    at: <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time>,
+                    administrator: t("admin.journal.byJobbbox"),
+                    section: t("admin.journal.tools"),
+                    target: <Link href={routes.adminTool(tool.id)}>{tool.name}</Link>,
+                    action: (
+                      <>
                         {t("admin.journal.toolCall")} <code>{call.operation}</code>
-                      </td>
-                      <td>{t(`admin.journal.outcomes.${call.ok ? "succeeded" : "failed"}`)}</td>
-                      <td>{callResult(call)}</td>
-                    </tr>
-                  );
-                }
-                const { entry } = line;
-                const changes = journalChanges(entry.before, entry.after);
-                return (
-                  <tr key={entry.id}>
-                    <th scope="row">
-                      <time dateTime={entry.at.toISOString()}>{at.format(entry.at)}</time>
-                    </th>
-                    <td>
+                      </>
+                    ),
+                    outcome: t(`admin.journal.outcomes.${call.ok ? "succeeded" : "failed"}`),
+                    changes: callResult(call),
+                  },
+                };
+              }
+              const { entry } = line;
+              const changes = journalChanges(entry.before, entry.after);
+              return {
+                key: entry.id,
+                cells: {
+                  at: <time dateTime={entry.at.toISOString()}>{at.format(entry.at)}</time>,
+                  administrator: (
+                    <>
                       {entry.actor.email}
                       {entry.actor.candidateId === null ? ` (${t("admin.journal.accountDeleted")})` : null}
-                    </td>
-                    <td>{t(`admin.journal.sections.${entry.section}`)}</td>
-                    <td>
+                    </>
+                  ),
+                  section: t(`admin.journal.sections.${entry.section}`),
+                  target: (
+                    <>
                       {target(entry)}
                       {entry.section === "coaching_playbooks" && versionOf(entry) !== null ? (
                         <>
@@ -314,64 +315,66 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                           (<Link href={`${routes.adminGuardrails}#${entry.target}`}>{t("admin.journal.viewGuardrail")}</Link>)
                         </>
                       ) : null}
-                    </td>
-                    <td>{t(`admin.journal.actions.${entry.action}`)}</td>
-                    <td>{t(`admin.journal.outcomes.${entry.outcome}`)}</td>
-                    <td>
-                      {entry.failure ? (
-                        <>
-                          <p>{t("admin.journal.failed", { tried: t(`admin.journal.actions.${entry.failure.tried}`), reason: t(`failureReasons.${entry.failure.reason}`) })}</p>
-                          {entry.failure.field ? <p>{t("admin.journal.fieldAtFault", { field: fieldName(entry.section, entry.failure.field) })}</p> : null}
-                          {entry.failure.technical ? (
-                            <details className="journal-technical">
-                              <summary>{t("admin.journal.technicalDetail")}</summary>
-                              <dl>
-                                <dt>{t("admin.journal.technical.class")}</dt>
-                                <dd>{entry.failure.technical.class}</dd>
-                                {entry.failure.technical.provider ? (
-                                  <>
-                                    <dt>{t("admin.journal.technical.provider")}</dt>
-                                    <dd>{entry.failure.technical.provider}</dd>
-                                  </>
-                                ) : null}
-                                {entry.failure.technical.status === undefined ? null : (
-                                  <>
-                                    <dt>{t("admin.journal.technical.status")}</dt>
-                                    <dd>{entry.failure.technical.status}</dd>
-                                  </>
-                                )}
-                                <dt>{t("admin.journal.technical.message")}</dt>
-                                <dd>
-                                  <code>{entry.failure.technical.message}</code>
-                                </dd>
-                              </dl>
-                            </details>
-                          ) : null}
-                        </>
-                      ) : entry.action === "viewed" || entry.action === "tested" ? null : isSecretAction(entry.action) ? (
-                        t(`admin.journal.secret.${entry.action}`)
-                      ) : changes.length === 0 ? (
-                        t("admin.journal.unchanged")
-                      ) : (
-                        <ul className="journal-changes">
-                          {changes.map((change) => (
-                            <li key={change.field ?? ""}>{changeLine(entry, change)}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {beside ? (
-        lines.length === LIMIT ? <p>{t("admin.journal.toolsLimit", { count: String(LIMIT) })}</p> : null
-      ) : entries.length === LIMIT ? (
-        <p>{t("admin.journal.limit", { count: String(LIMIT) })}</p>
-      ) : null}
+                    </>
+                  ),
+                  action: t(`admin.journal.actions.${entry.action}`),
+                  outcome: t(`admin.journal.outcomes.${entry.outcome}`),
+                  changes: entry.failure ? (
+                    <>
+                      <p>{t("admin.journal.failed", { tried: t(`admin.journal.actions.${entry.failure.tried}`), reason: t(`failureReasons.${entry.failure.reason}`) })}</p>
+                      {entry.failure.field ? <p>{t("admin.journal.fieldAtFault", { field: fieldName(entry.section, entry.failure.field) })}</p> : null}
+                      {entry.failure.technical ? (
+                        <details className="journal-technical">
+                          <summary>{t("admin.journal.technicalDetail")}</summary>
+                          <dl>
+                            <dt>{t("admin.journal.technical.class")}</dt>
+                            <dd>{entry.failure.technical.class}</dd>
+                            {entry.failure.technical.provider ? (
+                              <>
+                                <dt>{t("admin.journal.technical.provider")}</dt>
+                                <dd>{entry.failure.technical.provider}</dd>
+                              </>
+                            ) : null}
+                            {entry.failure.technical.status === undefined ? null : (
+                              <>
+                                <dt>{t("admin.journal.technical.status")}</dt>
+                                <dd>{entry.failure.technical.status}</dd>
+                              </>
+                            )}
+                            <dt>{t("admin.journal.technical.message")}</dt>
+                            <dd>
+                              <code>{entry.failure.technical.message}</code>
+                            </dd>
+                          </dl>
+                        </details>
+                      ) : null}
+                    </>
+                  ) : entry.action === "viewed" || entry.action === "tested" ? null : isSecretAction(entry.action) ? (
+                    t(`admin.journal.secret.${entry.action}`)
+                  ) : changes.length === 0 ? (
+                    t("admin.journal.unchanged")
+                  ) : (
+                    <ul className="journal-changes">
+                      {changes.map((change) => (
+                        <li key={change.field ?? ""}>{changeLine(entry, change)}</li>
+                      ))}
+                    </ul>
+                  ),
+                },
+              };
+            })}
+            rowKey={(row) => row.key}
+            rowAttributes={(row) => ({ "data-kind": row.kind })}
+          />
+        )}
+        {beside ? (
+          lines.length === LIMIT ? (
+            <p>{t("admin.journal.toolsLimit", { count: String(LIMIT) })}</p>
+          ) : null
+        ) : entries.length === LIMIT ? (
+          <p>{t("admin.journal.limit", { count: String(LIMIT) })}</p>
+        ) : null}
+      </div>
     </BackOfficeLayout>
   );
 }

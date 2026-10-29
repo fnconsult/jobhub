@@ -39,12 +39,15 @@ const TABS = [
 const unique = () => `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 const tabs = (page: Page) => page.getByRole("navigation", { name: texts.tabsLabel });
-const sheet = (page: Page) => page.locator("aside[data-sheet]");
+const sheet = (page: Page) => page.locator("[data-sheet]");
 
-/** WCAG 2.1 A and AA, on the page's main region (the sidebar is checked elsewhere). */
-async function expectAccessible(page: Page, label: string) {
-  const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-  expect(results.violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`), label).toEqual([]);
+/** WCAG 2.1 A and AA, on the page's main region (the sidebar is checked elsewhere), or on what `include` names. */
+async function expectAccessible(page: Page, label: string, include = "main") {
+  const results = await new AxeBuilder({ page }).include(include).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(
+    results.violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`),
+    label,
+  ).toEqual([]);
 }
 
 async function personPage(browser: Browser, email: string): Promise<Page> {
@@ -96,13 +99,29 @@ test.describe("Paramètres in tabs (#396)", () => {
     await expect(perplexity).toContainText("PERPLEXITY_API_KEY");
     await expect(perplexity).toContainText(keys.sources.env);
     await expect(perplexity).toContainText(admin.aiUsage.tasks.web_search);
-    await perplexity.getByRole("link", { name: tr(texts.providers.open, { name: "Perplexity" }) }).click();
+    const opener = perplexity.getByRole("link", { name: tr(texts.providers.open, { name: "Perplexity" }) });
+    await opener.click();
     await expect(page).toHaveURL(`${origin}${PATH}?tab=recherche-web&fournisseur=perplexity`);
-    await expect(sheet(page).getByRole("heading", { level: 2 })).toHaveText("Perplexity");
-    await expect(sheet(page).getByRole("link", { name: texts.sheet.toolPage })).toHaveAttribute("href", "/admin/outils/perplexity");
-    await expectAccessible(page, "sheet");
-    await sheet(page).getByRole("link", { name: texts.sheet.close }).click();
+    // The sheet is the Drawer (#465): a dialog named by the provider, the focus inside it and kept there, so the page
+    // behind is out of reach; Escape or « Fermer » close it, the address without it, the focus back on its link.
+    const drawer = page.getByRole("dialog", { name: "Perplexity" });
+    await expect(drawer).toHaveAttribute("data-sheet", "perplexity");
+    await expect(drawer.getByRole("heading", { level: 2 })).toHaveText("Perplexity");
+    await expect(drawer.getByRole("link", { name: texts.sheet.toolPage })).toHaveAttribute("href", "/admin/outils/perplexity");
+    for (let press = 0; press < 12; press++) {
+      await page.keyboard.press("Tab");
+      expect(await drawer.evaluate((element) => element.contains(document.activeElement)), `Tab ${press + 1}`).toBe(true);
+    }
+    await expectAccessible(page, "sheet", "[data-sheet]");
+    await page.keyboard.press("Escape");
     await expect(sheet(page)).toHaveCount(0);
+    await expect(page).toHaveURL(`${origin}${PATH}?tab=recherche-web`);
+    await expect(opener).toBeFocused();
+    await opener.click();
+    await drawer.getByRole("button", { name: fr.designSystem.close }).click();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(page).toHaveURL(`${origin}${PATH}?tab=recherche-web`);
+    await expect(opener).toBeFocused();
 
     // « + Ajouter », preselected from the tab.
     await page.goto(`${PATH}?tab=extension`);

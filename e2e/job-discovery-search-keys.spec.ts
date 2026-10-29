@@ -71,7 +71,7 @@ async function adminPage(browser: Browser): Promise<Page> {
 /** A Search provider's sheet, on Paramètres' Recherche web tab (#396, formerly Clés), and a key there. */
 const sheetHref = (provider: string) => `/admin/parametres?tab=recherche-web&fournisseur=${provider}`;
 const SHEET = sheetHref("brave");
-const sheetOf = (page: Page, provider = "brave") => page.locator(`aside[data-sheet="${provider}"]`);
+const sheetOf = (page: Page, provider = "brave") => page.locator(`[data-sheet="${provider}"]`);
 const keyRow = (page: Page, name = NAME, provider = "brave") => sheetOf(page, provider).locator(`[data-key="${name}"]`);
 
 async function replaceKey(page: Page, value: string) {

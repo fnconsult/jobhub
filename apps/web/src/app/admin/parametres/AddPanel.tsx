@@ -1,5 +1,7 @@
 import { JOB_DISCOVERY_SOURCES, TOOLS, type JobDiscoverySource, type Tool } from "@jobhub/shared";
-import Link from "next/link";
+import { AddressDrawer } from "@/design/AddressDrawer";
+import { buttonClass } from "@/design/button-class";
+import { Select, TextInput } from "@/design/Field";
 import { platformSetting } from "@/platform-settings/catalog";
 import { ADD_TYPES, parametresHref, parametresTab, tabOfTool, type AddType } from "@/platform-settings/parametres";
 import { PROVIDER_SECRET_NAMES } from "@/provider-secrets/catalog";
@@ -31,7 +33,7 @@ export function addableTypes(ctx: Ctx): AddType[] {
 }
 
 /**
- * « + Ajouter » (#396), in a side panel: one type select (provider, key, model, source, Job discovery site, Job Site,
+ * « + Ajouter » (#396), in the Drawer (#465), opened from the address (`&ajouter=`): one type select (provider, key, model, source, Job discovery site, Job Site,
  * Sign-in Provider), preselected from the tab, then the form for that type. Each form comes back to the tab that
  * shows what it added.
  */
@@ -50,24 +52,18 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
   const onSignIn = on("connexion");
 
   return (
-    <aside className="side-sheet stack" aria-labelledby="add-panel-title" data-add-panel={type}>
-      <div className="side-sheet-head">
-        <h2 id="add-panel-title">{t("admin.platformSettings.add.title")}</h2>
-        <Link prefetch={false} className="button" href={parametresHref(ctx.tab.id)}>
-          {t("admin.platformSettings.add.close")}
-        </Link>
-      </div>
+    <AddressDrawer title={t("admin.platformSettings.add.title")} closeHref={parametresHref(ctx.tab.id)} opener="[data-opens-add]" data-add-panel={type}>
       <form className="stack" method="get" action={routes.adminPlatformSettings}>
         <input type="hidden" name={FORM.tab} value={ctx.tab.slug} />
         <label htmlFor="add-type">{t("admin.platformSettings.add.type")}</label>
-        <select id="add-type" className="input" name="ajouter" defaultValue={type}>
+        <Select id="add-type" name="ajouter" defaultValue={type}>
           {allowed.map((choice) => (
             <option key={choice} value={choice}>
               {t(`admin.platformSettings.add.types.${choice}`)}
             </option>
           ))}
-        </select>
-        <button className="button" type="submit">
+        </Select>
+        <button className={buttonClass()} type="submit">
           {t("admin.platformSettings.add.choose")}
         </button>
       </form>
@@ -78,15 +74,15 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
           <form className="stack" action={openProviderSheet}>
             <Here ctx={ctx} sheet="" />
             <label htmlFor="add-provider">{t("admin.platformSettings.add.providerLabel")}</label>
-            <select id="add-provider" className="input" name="provider" aria-describedby="add-provider-help" defaultValue={withKeys.find((tool) => tabOfTool(tool)?.id === ctx.tab.id)?.id}>
+            <Select id="add-provider" name="provider" aria-describedby="add-provider-help" defaultValue={withKeys.find((tool) => tabOfTool(tool)?.id === ctx.tab.id)?.id}>
               {withKeys.map((tool) => (
                 <option key={tool.id} value={tool.id}>
                   {tool.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <p id="add-provider-help">{t("admin.platformSettings.add.providerHelp")}</p>
-            <button className="button button-primary" type="submit">
+            <button className={buttonClass({ variant: "primary" })} type="submit">
               {t("admin.platformSettings.add.openSheet")}
             </button>
           </form>
@@ -96,22 +92,22 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
           <form className="stack quota-form" action={replaceSecret}>
             <Here ctx={ctx} sheet="" />
             <label htmlFor="add-key">{t("admin.platformSettings.add.keyLabel")}</label>
-            <select id="add-key" className="input" name="name">
+            <Select id="add-key" name="name">
               {PROVIDER_SECRET_NAMES.map((name) => (
                 <option key={name} value={name}>
                   {name}
                 </option>
               ))}
-            </select>
+            </Select>
             <label htmlFor="add-key-value">{t("admin.platformSettings.add.keyValue")}</label>
-            <input id="add-key-value" className="input" name="value" type="password" required autoComplete="new-password" spellCheck={false} aria-describedby="add-key-value-help" />
+            <TextInput id="add-key-value" name="value" type="password" required autoComplete="new-password" spellCheck={false} aria-describedby="add-key-value-help" />
             <p id="add-key-value-help">{t("admin.providerSecrets.newValueHelp")}</p>
             <div className="checkbox-field">
               <input id="add-key-anyway" type="checkbox" name="saveAnyway" aria-describedby="add-key-anyway-help" />
               <label htmlFor="add-key-anyway">{t("admin.providerSecrets.saveAnyway")}</label>
               <p id="add-key-anyway-help">{t("admin.providerSecrets.saveAnywayHelp")}</p>
             </div>
-            <button className="button button-primary" type="submit">
+            <button className={buttonClass({ variant: "primary" })} type="submit">
               {t("admin.platformSettings.save")}
             </button>
           </form>
@@ -120,17 +116,17 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
           <form className="stack" action={saveSetting}>
             <Here ctx={onAi} />
             <label htmlFor="add-model-setting">{t("admin.platformSettings.add.modelSetting")}</label>
-            <select id="add-model-setting" className="input" name="name">
+            <Select id="add-model-setting" name="name">
               {models.map((name) => (
                 <option key={name} value={name}>
                   {name}
                 </option>
               ))}
-            </select>
+            </Select>
             <label htmlFor="add-model-value">{t("admin.platformSettings.add.modelValue")}</label>
-            <input id="add-model-value" className="input" name="value" required aria-describedby="add-model-help" />
+            <TextInput id="add-model-value" name="value" required aria-describedby="add-model-help" />
             <p id="add-model-help">{t("admin.platformSettings.rules.model", { provider: "" })}</p>
-            <button className="button button-primary" type="submit">
+            <button className={buttonClass({ variant: "primary" })} type="submit">
               {t("admin.platformSettings.save")}
             </button>
           </form>
@@ -143,14 +139,14 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
               <Here ctx={onSources} />
               <input type="hidden" name="enabled" value={String(true)} />
               <label htmlFor="add-source">{t("admin.platformSettings.add.sourceLabel")}</label>
-              <select id="add-source" className="input" name="source">
+              <Select id="add-source" name="source">
                 {disabledSources.map((source) => (
                   <option key={source} value={source}>
                     {t(`admin.searchSites.sources.names.${source}`)}
                   </option>
                 ))}
-              </select>
-              <button className="button button-primary" type="submit">
+              </Select>
+              <button className={buttonClass({ variant: "primary" })} type="submit">
                 {t("admin.platformSettings.add.enableSource")}
               </button>
             </form>
@@ -167,6 +163,6 @@ export function AddPanel({ ctx, type, allowed, sources, signInTypes }: { ctx: Ct
             ))
           : null}
       </section>
-    </aside>
+    </AddressDrawer>
   );
 }

@@ -24,3 +24,12 @@ export function loadRootEnv(rootDir: string = repoRoot): void {
     if (process.env[name] === undefined && value !== undefined) process.env[name] = value;
   }
 }
+
+/**
+ * The Version the root package.json carries (ADR-0063): on `main` the next one, the Beta's; on `prod` the one
+ * Promoted. next.config.ts sets it into the build as JOBHUB_VERSION. Null when it carries none.
+ */
+export function rootVersion(rootDir: string = repoRoot): string | null {
+  const manifest = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf8")) as { version?: unknown };
+  return typeof manifest.version === "string" && manifest.version ? manifest.version : null;
+}

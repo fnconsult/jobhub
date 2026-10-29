@@ -618,6 +618,10 @@ _Avoid_: Email template, newsletter design
 The Back Office page, under Plateforme, that shows every component and colour of the Design System, in both Densities and both themes, as the reference that screens are checked against. Every Back Office Role can read it.
 _Avoid_: Storybook, style guide
 
+**Back Office page in the Design System**:
+A Back Office section already drawn in the Compact Density look of the Design System (tabs, tables, status dots, cards, filters, side panels); sections move over one page at a time. Today: Paramètres, Dashboard and Activité.
+_Avoid_: Redesigned page, new theme
+
 **Drawer**:
 The Design System's panel that slides in from the side over the page, for anything the person fills in or reads in detail: a form, a Section on phones, the Sidebar's menu on phones. It holds focus while open and « Fermer » or Escape returns focus to what opened it.
 _Avoid_: Modal, popup, dialog (a Dialog only confirms)
@@ -718,7 +722,7 @@ The Back Office page « Activité » (Plateforme group) where Administrators see
 _Avoid_: Logs, journal, history
 
 **Explainable label**:
-The dotted-underlined label of a setting, source, warning or Dashboard figure in the Back Office; it opens the Back Office Assistant asking it to explain that item in context: what it does, its value and where it comes from, why it is unavailable, what a change would do.
+The dotted-underlined label of a setting, source, warning or Dashboard figure in the Back Office; it opens the Back Office Assistant asking it to explain that item in context: what it does, its value and where it comes from, why it is unavailable, what a change would do. A page's intro is one muted line followed by an « En savoir plus » Explainable label that carries the longer explanation.
 _Avoid_: Tooltip, help icon
 
 **Back Office Role**:

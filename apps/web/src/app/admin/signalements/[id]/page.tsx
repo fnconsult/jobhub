@@ -5,9 +5,15 @@ import { getSignalementsBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, Textarea } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Properties, Property } from "@/design/Properties";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { REPLY_MAX_LENGTH, SIGNALEMENT_STATUSES } from "@/signalements/values";
+import "../../section.css";
 
 type Params = { params: Promise<{ id: string }>; searchParams: Promise<{ fait?: string; erreur?: string }> };
 
@@ -66,128 +72,118 @@ export default async function SignalementPage({ params, searchParams }: Params) 
 
   return (
     <BackOfficeLayout access={access} title={t("admin.signalements.detailTitle", { type, date: at.format(signalement.createdAt) })}>
-      <p>
-        <Link href={routes.adminSignalements()}>{t("admin.signalements.back")}</Link>
-      </p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {isDone(fait) ? (
-        <p className="notice" role="status">
-          {t(`admin.signalements.notices.${fait}`)}
-        </p>
-      ) : null}
-      {isRefused(erreur) ? (
-        <p className="notice" role="alert">
-          {t(`admin.signalements.notices.${erreur}`)}
-        </p>
-      ) : null}
-
-      {signalement.candidate ? (
+      <div className="section-page">
         <p>
-          {t("admin.signalements.sentBy", {
-            email: signalement.candidate.email,
-            plan: plans.find((plan) => plan.key === signalement.candidate!.plan)?.name[locale] ?? signalement.candidate.plan,
-          })}
+          <Link href={routes.adminSignalements()}>{t("admin.signalements.back")}</Link>
         </p>
-      ) : null}
-
-      <section className="stack" aria-labelledby="message-title">
-        <h2 id="message-title">{t("admin.signalements.message")}</h2>
-        <p className="signalement-text" lang={context.interfaceLanguage}>
-          {signalement.message}
-        </p>
-        {signalement.attachedQuestion !== null ? (
-          <>
-            <h3>{t("admin.signalements.attachedQuestion")}</h3>
-            <p className="signalement-text" lang={context.interfaceLanguage}>
-              {signalement.attachedQuestion}
-            </p>
-            <h3>{t("admin.signalements.attachedCoachReply")}</h3>
-            <p className="signalement-text" lang={context.interfaceLanguage}>
-              {signalement.attachedCoachReply}
-            </p>
-          </>
+        {canWrite ? null : <Note>{t("admin.readOnly")}</Note>}
+        {isDone(fait) ? (
+          <Note tone="success" role="status">
+            {t(`admin.signalements.notices.${fait}`)}
+          </Note>
         ) : null}
-      </section>
+        {isRefused(erreur) ? (
+          <Note tone="danger" role="alert">
+            {t(`admin.signalements.notices.${erreur}`)}
+          </Note>
+        ) : null}
 
-      <section className="stack" aria-labelledby="context-title">
-        <h2 id="context-title">{t("admin.signalements.context")}</h2>
-        <dl className="signalement-context">
-          <dt>{t("admin.signalements.page")}</dt>
-          <dd>{context.path ? <code>{context.path}</code> : t("admin.signalements.unknownPage")}</dd>
-          <dt>{t("admin.signalements.version")}</dt>
-          <dd>
-            <code>{context.version}</code>
-          </dd>
-          <dt>{t("admin.signalements.browser")}</dt>
-          <dd>{context.browser ?? t("admin.signalements.unknownBrowser")}</dd>
-          <dt>{t("admin.signalements.language")}</dt>
-          <dd>{t(`languages.${context.interfaceLanguage}`)}</dd>
-          <dt>{t("admin.signalements.textSize")}</dt>
-          <dd>{t(`textSize.${context.textSize}`)}</dd>
-        </dl>
-      </section>
+        {signalement.candidate ? (
+          <p>
+            {t("admin.signalements.sentBy", {
+              email: signalement.candidate.email,
+              plan: plans.find((plan) => plan.key === signalement.candidate!.plan)?.name[locale] ?? signalement.candidate.plan,
+            })}
+          </p>
+        ) : null}
 
-      <section className="stack" aria-labelledby="status-title">
-        <h2 id="status-title">{t("admin.signalements.statusTitle")}</h2>
-        <p>{t("admin.signalements.statusNow", { status: t(`admin.signalements.statuses.${signalement.status}`) })}</p>
-        <p>{t("admin.signalements.statusHelp")}</p>
-        <BackOfficeForm canWrite={canWrite} action={changeStatus} className="actions">
-          <input type="hidden" name="id" value={signalement.id} />
-          {SIGNALEMENT_STATUSES.map((status) => (
-            <button
-              key={status}
-              className={status === signalement.status ? "button button-primary" : "button"}
-              type="submit"
-              name="status"
-              value={status}
-              disabled={!canWrite}
-              aria-pressed={status === signalement.status}
-            >
-              {t("admin.signalements.markAs", { status: t(`admin.signalements.statuses.${status}`) })}
-            </button>
-          ))}
-        </BackOfficeForm>
-      </section>
+        <Card title={t("admin.signalements.message")}>
+          <div className="section-block">
+            <p className="section-text" lang={context.interfaceLanguage}>
+              {signalement.message}
+            </p>
+            {signalement.attachedQuestion !== null ? (
+              <>
+                <h3>{t("admin.signalements.attachedQuestion")}</h3>
+                <p className="section-text" lang={context.interfaceLanguage}>
+                  {signalement.attachedQuestion}
+                </p>
+                <h3>{t("admin.signalements.attachedCoachReply")}</h3>
+                <p className="section-text" lang={context.interfaceLanguage}>
+                  {signalement.attachedCoachReply}
+                </p>
+              </>
+            ) : null}
+          </div>
+        </Card>
 
-      <section className="stack" aria-labelledby="reply-title">
-        <h2 id="reply-title">{t("admin.signalements.replyTitle")}</h2>
-        <p id="reply-help">{t("admin.signalements.replyHelp")}</p>
-        {handled ? (
-          <>
-            <p>{t("admin.signalements.replyLocked")}</p>
-            {signalement.reply ? (
-              <blockquote className="signalement-text" lang={context.interfaceLanguage}>
-                <p>{signalement.reply}</p>
-                <footer>{t("admin.signalements.signature")}</footer>
-              </blockquote>
-            ) : (
-              <p>{t("admin.signalements.noReply")}</p>
-            )}
-          </>
-        ) : (
-          <BackOfficeForm canWrite={canWrite} action={reply} className="stack quota-form">
-            <fieldset disabled={!canWrite}>
-              <legend className="visually-hidden">{t("admin.signalements.replyTitle")}</legend>
+        <Card title={t("admin.signalements.context")}>
+          <Properties>
+            <Property term={t("admin.signalements.page")}>{context.path ? <code>{context.path}</code> : t("admin.signalements.unknownPage")}</Property>
+            <Property term={t("admin.signalements.version")}>
+              <code>{context.version}</code>
+            </Property>
+            <Property term={t("admin.signalements.browser")}>{context.browser ?? t("admin.signalements.unknownBrowser")}</Property>
+            <Property term={t("admin.signalements.language")}>{t(`languages.${context.interfaceLanguage}`)}</Property>
+            <Property term={t("admin.signalements.textSize")}>{t(`textSize.${context.textSize}`)}</Property>
+          </Properties>
+        </Card>
+
+        <Card title={t("admin.signalements.statusTitle")}>
+          <div className="section-block">
+            <p>{t("admin.signalements.statusNow", { status: t(`admin.signalements.statuses.${signalement.status}`) })}</p>
+            <p className="section-meta">{t("admin.signalements.statusHelp")}</p>
+            <BackOfficeForm canWrite={canWrite} action={changeStatus} className="section-actions">
               <input type="hidden" name="id" value={signalement.id} />
-              <label htmlFor="signalement-reply">{t("admin.signalements.replyTitle")}</label>
-              <textarea
-                id="signalement-reply"
-                className="input"
-                name="reply"
-                rows={6}
-                required
-                maxLength={REPLY_MAX_LENGTH}
-                defaultValue={signalement.reply ?? ""}
-                aria-describedby="reply-help reply-signature"
-              />
-              <p id="reply-signature">— {t("admin.signalements.signature")}</p>
-              <button className="button button-primary" type="submit">
-                {t("admin.signalements.saveReply")}
-              </button>
-            </fieldset>
-          </BackOfficeForm>
-        )}
-      </section>
+              {SIGNALEMENT_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  className={buttonClass({ variant: status === signalement.status ? "primary" : "secondary" })}
+                  type="submit"
+                  name="status"
+                  value={status}
+                  disabled={!canWrite}
+                  aria-pressed={status === signalement.status}
+                >
+                  {t("admin.signalements.markAs", { status: t(`admin.signalements.statuses.${status}`) })}
+                </button>
+              ))}
+            </BackOfficeForm>
+          </div>
+        </Card>
+
+        <Card title={t("admin.signalements.replyTitle")}>
+          <div className="section-block">
+            <p id="reply-help">{t("admin.signalements.replyHelp")}</p>
+            {handled ? (
+              <>
+                <p>{t("admin.signalements.replyLocked")}</p>
+                {signalement.reply ? (
+                  <blockquote className="section-text" lang={context.interfaceLanguage}>
+                    <p>{signalement.reply}</p>
+                    <footer>{t("admin.signalements.signature")}</footer>
+                  </blockquote>
+                ) : (
+                  <p>{t("admin.signalements.noReply")}</p>
+                )}
+              </>
+            ) : (
+              <BackOfficeForm canWrite={canWrite} action={reply}>
+                <fieldset className="section-form" disabled={!canWrite}>
+                  <legend className="visually-hidden">{t("admin.signalements.replyTitle")}</legend>
+                  <input type="hidden" name="id" value={signalement.id} />
+                  <Field label={t("admin.signalements.replyTitle")} hint={`— ${t("admin.signalements.signature")}`}>
+                    <Textarea name="reply" rows={6} required maxLength={REPLY_MAX_LENGTH} defaultValue={signalement.reply ?? ""} aria-describedby="reply-help" />
+                  </Field>
+                  <button className={buttonClass({ variant: "primary" })} type="submit">
+                    {t("admin.signalements.saveReply")}
+                  </button>
+                </fieldset>
+              </BackOfficeForm>
+            )}
+          </div>
+        </Card>
+      </div>
     </BackOfficeLayout>
   );
 }

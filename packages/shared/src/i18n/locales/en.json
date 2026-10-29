@@ -1043,6 +1043,7 @@
     "title": "Back office",
     "yourRoles": "Your roles: {{roles}}.",
     "readOnly": "Read only: your roles do not allow changes to this section.",
+    "rowActions": "Actions",
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "What the platform consumes, and how Job discovery is doing.",
@@ -1261,6 +1262,7 @@
     },
     "plans": {
       "title": "Plans",
+      "subtitle": "The Plans offered to Candidates, in the order of the comparison.",
       "intro": "The Plans offered to Candidates, in the order of the comparison: each is tied to a Stripe product, whose default price is sold at checkout. Prices are set in Stripe, quotas in the Quotas section.",
       "caption": "The Plans, from the lowest to the highest",
       "rank": "Rank",
@@ -1329,6 +1331,7 @@
     },
     "planQuotas": {
       "title": "Plan Quotas",
+      "subtitle": "Each Plan's quotas, applied at once.",
       "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
       "plan": "{{plan}} Plan",
       "limitHelp": "A number, or empty for unlimited",
@@ -1354,6 +1357,7 @@
     },
     "coupons": {
       "title": "Coupons",
+      "subtitle": "The coupons created in Stripe, and how often they are redeemed.",
       "intro": "The codes Candidates type when paying for a Plan, or receive in a link. They are created in Stripe, which counts how often they are redeemed. Coaching Sessions take no coupon.",
       "caption": "The coupons, newest first",
       "unavailable": "Stripe is not answering: the coupons cannot be listed for now.",
@@ -1432,6 +1436,7 @@
     },
     "humanCoaches": {
       "title": "Human coaches",
+      "subtitle": "The coaches Candidates can book.",
       "intro": "The coaches Candidates can book. They sign in with the email address given here. Jobbbox pays them outside the platform.",
       "addTitle": "Add a coach",
       "name": "Name",
@@ -1444,12 +1449,14 @@
       "invalid": "Check the fields: a name, a valid email address and an https Cal.com booking link.",
       "emailTaken": "A coach already uses this email address.",
       "listTitle": "Active coaches",
+      "caption": "Coach list",
       "none": "No coaches yet.",
       "retire": "Retire {{name}}",
       "retired": "Coach retired. Their past sessions are kept."
     },
     "coachCost": {
       "title": "AI Coach cost",
+      "subtitle": "What one AI Coach reply costs, day by day.",
       "intro": "Estimated cost of one AI Coach reply, day by day (Paris time), over the last {{days}} days. Target: {{target}} per message.",
       "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} to $1 (an assumption, not today's rate), frozen when each reply was made. Deleted conversations are no longer counted.",
       "none": "No AI Coach reply in this period.",
@@ -2003,6 +2010,7 @@
     },
     "administrators": {
       "title": "Administrators",
+      "subtitle": "The team members who use the back office, and their roles.",
       "intro": "The Jobbbox team members who can use the back office, and their roles. A revoked role stops giving access from the next page.",
       "caption": "Administrators and their roles",
       "email": "Email address",
@@ -2161,6 +2169,7 @@
     },
     "aiUsage": {
       "title": "AI consumption",
+      "subtitle": "What AI and external tools cost, over the chosen period.",
       "intro": "Every AI call (all tasks, not only the AI Coach), the tools the models use and the calls to external tools (France Travail, contact enrichment, Stripe, Brevo, sign-in, pages read…), over the chosen period (Paris time).",
       "estimate": "Estimates at the providers' list prices, in dollars converted at €{{rate}} per $1 (an assumption, not today's rate), fixed when each call was made. Aggregates only: no Candidate, no text.",
       "coachCostLink": "Median and 90th percentile of one AI Coach reply's cost: Coach cost",
@@ -2176,6 +2185,7 @@
       "months": "Month by month",
       "range": "From {{from}} to {{to}}",
       "totalsTitle": "Totals",
+      "tokensTitle": "Tokens",
       "calls": "Calls",
       "failures": "Failures",
       "failureRate": "Failure rate",
@@ -2307,6 +2317,7 @@
     },
     "coachingPlaybooks": {
       "title": "Coaching Playbooks",
+      "subtitle": "The AI Coach's rules and the AI task playbooks, version by version.",
       "intro": "The rules the AI Coach applies: the Core Digest, the Sources list and each playbook with its Playbook Agent, the specialist the AI Coach consults. Further down, the AI task playbooks. Changing a validated version makes a new version; every version is kept.",
       "servingValidated": "This environment (production) serves only the latest version of each that a person validated.",
       "servingLatest": "This environment serves the latest version of each, validated or not. Production serves only validated versions.",
@@ -2461,6 +2472,7 @@
     },
     "guardrails": {
       "title": "Guardrails",
+      "subtitle": "What the Guardrails check, and the message they show.",
       "intro": "Guardrails check what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and what they reply, as well as the emails Email intake receives before an AI reads them. Their list is fixed in code: you tune each one and write the message it shows instead. What the Candidate did not write (job offers, CVs, company dossiers, emails) always goes in as data, never as instructions.",
       "servingValidated": "In production, a message is served only once validated by a named Administrator other than its author, each language apart. Until then, Jobbbox's default text applies.",
       "servingLatest": "In this environment, the latest message written is served, validated or not. In production, only a validated one is.",
@@ -2562,6 +2574,7 @@
     },
     "unansweredQuestions": {
       "title": "Unanswered questions",
+      "subtitle": "The questions about Jobbbox the help did not answer.",
       "intro": "The questions asked to the AI Coach about using Jobbbox that no help article answered. Write the article or add a synonym in the help, then mark the question « Article written »; dismiss those that are not gaps in the help. An AI answer never becomes help by itself.",
       "privacy": "Each question is kept redacted, with no link to the Candidate who asked it, 12 months at most after it was last asked, and 30 days once marked.",
       "routeFilter": "Filter by page",
@@ -2580,6 +2593,7 @@
       "firstAskedAt": "First asked",
       "lastAskedAt": "Last asked",
       "answer": "The AI Coach's answer",
+      "answerOf": "AI Coach answer: {{question}}",
       "actions": "Actions",
       "markWritten": "Article written",
       "markWrittenLabel": "Article written: {{question}}",
@@ -2602,6 +2616,7 @@
     },
     "signalements": {
       "title": "Feedback",
+      "subtitle": "What Candidates send the team, oldest first.",
       "intro": "The bugs, ideas and questions Candidates send from the app, to handle oldest first. Read by the team only, never by an AI.",
       "questionsOnly": "Your roles show you the questions only, without the Candidate's email or Plan.",
       "noDeletion": "Feedback cannot be deleted from the back office.",
@@ -2798,6 +2813,7 @@
     },
     "tools": {
       "title": "Tools",
+      "subtitle": "Every external tool called, its state and its calls over the last 30 days.",
       "intro": "Every external tool the application calls, from the web app and the worker: what it is for, where it processes data, whether it is configured and its calls over the last 30 days. Neither what the calls said nor any key is shown.",
       "categories": {
         "ai_model": "AI models",

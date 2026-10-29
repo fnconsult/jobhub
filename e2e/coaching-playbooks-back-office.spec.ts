@@ -129,7 +129,7 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await editor.getByRole("button", { name: playbooks.detail.save }).click();
     await expect(notice(editor)).toHaveText(tr(playbooks.notices.saved, { version: "2" }));
     await editor.goto(`/admin/playbooks/${id}?version=1`);
-    await expect(editor.locator(".playbook-rules")).toHaveText("# Négocier son salaire\n\n**R1. Visez le haut de la fourchette.** [S24]");
+    await expect(editor.locator("[data-playbook-rules]")).toHaveText("# Négocier son salaire\n\n**R1. Visez le haut de la fourchette.** [S24]");
     expect(await coachPrompt(editor, `Mon salaire ? E2E_CONSULT=${id}`)).toContain(`<avis-playbook id="${id}" version="2">`);
 
     // Archived: kept, but no longer served.
@@ -217,7 +217,7 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     await page.goto(`/admin/playbooks/${imported[0]}?version=1`);
     await expect(page.getByText(playbooks.detail.importAuthor)).toBeVisible();
     await expect(page.getByText(playbooks.notValidated, { exact: true })).toBeVisible();
-    await expect(page.locator(".playbook-rules")).not.toBeEmpty();
+    await expect(page.locator("[data-playbook-rules]")).not.toBeEmpty();
     await expect(page.getByLabel(playbooks.fields.consultWhen)).not.toHaveValue("");
   });
 

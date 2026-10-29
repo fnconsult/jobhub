@@ -4,6 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { Card, Stat, Stats } from "@/design/Card";
+import { Pill, Status } from "@/design/Pill";
+import { Properties, Property } from "@/design/Properties";
+import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { keyHref, settingHref } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
@@ -13,6 +17,7 @@ import { toolPage } from "@/tools/server";
 import { SOURCE_TONE } from "../../parametres/tone";
 import { EnvBadge } from "../EnvBadge";
 import { STATUS_TONE } from "../tone";
+import "../../section.css";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -56,198 +61,147 @@ export default async function ToolPage({ params }: Params) {
 
   return (
     <BackOfficeLayout access={access} title={tool.name}>
-      <p>
-        <Link href={routes.adminTools}>{t("admin.tools.back")}</Link>
-      </p>
-      <p className="lead">{tool.purpose[locale]}</p>
+      <div className="section-page">
+        <p>
+          <Link href={routes.adminTools}>{t("admin.tools.back")}</Link>
+        </p>
+        <p className="section-lead">{tool.purpose[locale]}</p>
 
-      <h2>{t("admin.tools.details")}</h2>
-      <dl className="props" aria-label={t("admin.tools.details")}>
-        <dt>{t("admin.tools.category")}</dt>
-        <dd>{t(`admin.tools.categories.${tool.category}`)}</dd>
-        <dt>{t("admin.tools.status")}</dt>
-        <dd>
-          <span className="pill" data-tone={STATUS_TONE[row.status]}>
-            {t(`admin.tools.statuses.${row.status}`)}
-          </span>
-          {row.settingsFromEnv.length > 0 ? (
-            <>
-              {" "}
-              <EnvBadge text={t("admin.tools.envBadge")} label={t("admin.tools.envBadgeLabel", { settings: row.settingsFromEnv.join(", ") })} />
-            </>
-          ) : null}
-          {row.missingKeys.length > 0 ? <> {t("admin.tools.missingKeys", { keys: row.missingKeys.join(", ") })}</> : null}
-          {row.missingSettings.length > 0 ? <> {t("admin.tools.missingSettings", { settings: row.missingSettings.join(", ") })}</> : null}
-          {row.status === "awaiting_access" ? <> {t("admin.tools.accessRefused", { provider: row.tool.name })}</> : null}
-        </dd>
-        <dt>{t("admin.tools.keys")}</dt>
-        <dd>
-          {tool.keys.length === 0
-            ? t("admin.tools.noKeys")
-            : tool.keys.map((name, index) => (
-                <span key={name}>
-                  {index > 0 ? ", " : null}
-                  {readsSecrets && isProviderSecretName(name) ? (
-                    <Link href={keyHref(name) ?? routes.adminPlatformSettings}>
-                      <code>{name}</code>
-                    </Link>
-                  ) : (
-                    <code>{name}</code>
-                  )}
-                </span>
-              ))}
-        </dd>
-        <dt>{t("admin.tools.residency")}</dt>
-        <dd>
-          {t(`admin.tools.residencies.${tool.residency}`)}
-          {tool.residencyNote ? <> · {tool.residencyNote[locale]}</> : null}
-        </dd>
-        <dt>{t("admin.tools.runsIn")}</dt>
-        <dd>{t(`admin.tools.runsInValues.${tool.runsIn}`)}</dd>
-        <dt>{t("admin.tools.module")}</dt>
-        <dd>
-          <code>{tool.module}</code>
-        </dd>
-      </dl>
-
-      {row.settings.length > 0 ? (
-        <section className="stack" aria-labelledby="tool-settings">
-          <h2 id="tool-settings">{t("admin.tools.settingsTitle")}</h2>
-          <p>{t("admin.tools.settingsIntro")}</p>
-          <div className="table-scroll">
-            <table className="application-table">
-              <caption className="visually-hidden">{t("admin.tools.settingsCaption", { name: tool.name })}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t("admin.platformSettings.setting")}</th>
-                  <th scope="col">{t("admin.platformSettings.value")}</th>
-                  <th scope="col">{t("admin.platformSettings.source")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {row.settings.map((setting) => (
-                  <tr key={setting.name} data-setting={setting.name}>
-                    <th scope="row">
-                      {readsSettings ? (
-                        <Link href={settingHref(setting.name)}>
-                          <code>{setting.name}</code>
+        <Card title={t("admin.tools.details")}>
+          <Properties label={t("admin.tools.details")}>
+            <Property term={t("admin.tools.category")}>{t(`admin.tools.categories.${tool.category}`)}</Property>
+            <Property term={t("admin.tools.status")}>
+              <span className="section-actions">
+                <Status tone={STATUS_TONE[row.status] ?? "neutral"}>{t(`admin.tools.statuses.${row.status}`)}</Status>
+                {row.settingsFromEnv.length > 0 ? (
+                  <EnvBadge text={t("admin.tools.envBadge")} label={t("admin.tools.envBadgeLabel", { settings: row.settingsFromEnv.join(", ") })} />
+                ) : null}
+              </span>
+              {row.missingKeys.length > 0 ? <span className="section-meta">{t("admin.tools.missingKeys", { keys: row.missingKeys.join(", ") })}</span> : null}
+              {row.missingSettings.length > 0 ? <span className="section-meta">{t("admin.tools.missingSettings", { settings: row.missingSettings.join(", ") })}</span> : null}
+              {row.status === "awaiting_access" ? <span className="section-meta">{t("admin.tools.accessRefused", { provider: row.tool.name })}</span> : null}
+            </Property>
+            <Property term={t("admin.tools.keys")}>
+              {tool.keys.length === 0
+                ? t("admin.tools.noKeys")
+                : tool.keys.map((name, index) => (
+                    <span key={name}>
+                      {index > 0 ? ", " : null}
+                      {readsSecrets && isProviderSecretName(name) ? (
+                        <Link href={keyHref(name) ?? routes.adminPlatformSettings}>
+                          <code>{name}</code>
                         </Link>
                       ) : (
-                        <code>{setting.name}</code>
+                        <code>{name}</code>
                       )}
-                    </th>
-                    <td>
+                    </span>
+                  ))}
+            </Property>
+            <Property term={t("admin.tools.residency")}>
+              {t(`admin.tools.residencies.${tool.residency}`)}
+              {tool.residencyNote ? <> · {tool.residencyNote[locale]}</> : null}
+            </Property>
+            <Property term={t("admin.tools.runsIn")}>{t(`admin.tools.runsInValues.${tool.runsIn}`)}</Property>
+            <Property term={t("admin.tools.module")}>
+              <code>{tool.module}</code>
+            </Property>
+          </Properties>
+        </Card>
+
+        {row.settings.length > 0 ? (
+          <section className="section-block" aria-labelledby="tool-settings">
+            <h2 id="tool-settings">{t("admin.tools.settingsTitle")}</h2>
+            <p>{t("admin.tools.settingsIntro")}</p>
+            <Table
+              label={t("admin.tools.settingsCaption", { name: tool.name })}
+              columns={[
+                {
+                  header: t("admin.platformSettings.setting"),
+                  rowHeader: true,
+                  cell: (setting) =>
+                    readsSettings ? (
+                      <Link href={settingHref(setting.name)}>
+                        <code>{setting.name}</code>
+                      </Link>
+                    ) : (
+                      <code>{setting.name}</code>
+                    ),
+                },
+                {
+                  header: t("admin.platformSettings.value"),
+                  cell: (setting) => (
+                    <span className="section-actions">
                       {setting.value ? <code>{setting.value}</code> : t("admin.platformSettings.empty")}
-                      {setting.differsFromDefault ? (
-                        <>
-                          {" "}
-                          <strong className="pill" data-tone="danger">
-                            {t("admin.platformSettings.differsFlag")}
-                          </strong>
-                        </>
-                      ) : null}
-                    </td>
-                    <td>
-                      <span className="pill" data-tone={SOURCE_TONE[setting.source]}>
-                        {t(`admin.platformSettings.sources.${setting.source}`)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
+                      {setting.differsFromDefault ? <Pill tone="danger">{t("admin.platformSettings.differsFlag")}</Pill> : null}
+                    </span>
+                  ),
+                },
+                { header: t("admin.platformSettings.source"), cell: (setting) => <Pill tone={SOURCE_TONE[setting.source] ?? "neutral"}>{t(`admin.platformSettings.sources.${setting.source}`)}</Pill> },
+              ]}
+              rows={row.settings}
+              rowKey={(setting) => setting.name}
+              rowAttributes={(setting) => ({ "data-setting": setting.name })}
+            />
+          </section>
+        ) : null}
 
-      {row.figures ? (
-        <>
-          <h2>{t("admin.tools.figuresTitle")}</h2>
-          <dl className="props" aria-label={t("admin.tools.figuresTitle")}>
-            <dt>{t("admin.tools.calls")}</dt>
-            <dd>{number.format(row.figures.calls)}</dd>
-            <dt>{t("admin.tools.failures")}</dt>
-            <dd>{number.format(row.figures.failures)}</dd>
-            <dt>{t("admin.tools.cost")}</dt>
-            <dd>{cost(row.figures.costEur)}</dd>
-          </dl>
+        {row.figures ? (
+          <section className="section-block" aria-labelledby="tool-figures">
+            <h2 id="tool-figures">{t("admin.tools.figuresTitle")}</h2>
+            <Stats label={t("admin.tools.figuresTitle")}>
+              <Stat label={t("admin.tools.calls")} value={number.format(row.figures.calls)} />
+              <Stat label={t("admin.tools.failures")} value={number.format(row.figures.failures)} />
+              <Stat label={t("admin.tools.cost")} value={cost(row.figures.costEur)} />
+            </Stats>
 
-          {tool.usage?.table === "ai_usage" ? (
+            {tool.usage?.table === "ai_usage" ? (
+              <>
+                <h3>{t("admin.tools.reasonsTitle")}</h3>
+                {row.figures.reasons.length === 0 ? (
+                  <p>{t("admin.tools.noReasons")}</p>
+                ) : (
+                  <Table
+                    label={t("admin.tools.reasonsCaption", { name: tool.name })}
+                    columns={[
+                      { header: t("admin.tools.code"), cell: (count) => <code>{count.reason}</code> },
+                      { header: t("admin.tools.reason"), cell: (count) => t(`failureReasons.${count.reason}`) },
+                      { header: t("admin.tools.outcome"), cell: (count) => (count.outcome === "warning" ? t("admin.tools.warning") : t("admin.tools.failed")) },
+                      { header: t("admin.tools.calls"), numeric: true, cell: (count) => number.format(count.calls) },
+                    ]}
+                    rows={row.figures.reasons}
+                    rowKey={(count) => `${count.outcome} ${count.reason}`}
+                  />
+                )}
+              </>
+            ) : null}
+          </section>
+        ) : null}
+
+        <section className="section-block" aria-labelledby="tool-calls">
+          <h2 id="tool-calls">{t("admin.tools.latestCalls")}</h2>
+          {!tool.usage ? (
+            <p>{t("admin.tools.notTracedHelp")}</p>
+          ) : calls.length === 0 ? (
+            <p>{t("admin.tools.noCalls")}</p>
+          ) : (
             <>
-              <h3>{t("admin.tools.reasonsTitle")}</h3>
-              {row.figures.reasons.length === 0 ? (
-                <p>{t("admin.tools.noReasons")}</p>
-              ) : (
-                <div className="table-scroll">
-                  <table className="application-table">
-                    <caption>{t("admin.tools.reasonsCaption", { name: tool.name })}</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">{t("admin.tools.code")}</th>
-                        <th scope="col">{t("admin.tools.reason")}</th>
-                        <th scope="col">{t("admin.tools.outcome")}</th>
-                        <th scope="col">{t("admin.tools.calls")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {row.figures.reasons.map((count) => (
-                        <tr key={`${count.outcome} ${count.reason}`}>
-                          <td>
-                            <code>{count.reason}</code>
-                          </td>
-                          <td>{t(`failureReasons.${count.reason}`)}</td>
-                          <td>{count.outcome === "warning" ? t("admin.tools.warning") : t("admin.tools.failed")}</td>
-                          <td>{number.format(count.calls)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <p>{t("admin.tools.latestCallsIntro", { count: LATEST_CALLS })}</p>
+              <Table
+                label={t("admin.tools.callsCaption", { name: tool.name })}
+                columns={[
+                  { header: t("admin.tools.at"), cell: (call) => <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time> },
+                  { header: t("admin.tools.operation"), cell: (call) => <code>{call.operation}</code> },
+                  { header: t("admin.tools.outcome"), cell: (call) => outcome(call) },
+                  { header: t("admin.tools.duration"), numeric: true, cell: (call) => milliseconds.format(call.durationMs) },
+                  { header: t("admin.tools.callCost"), numeric: true, cell: (call) => cost(call.costEur) },
+                ]}
+                rows={calls.map((call, index) => ({ ...call, index }))}
+                rowKey={(call) => `${call.at.toISOString()}-${call.index}`}
+              />
             </>
-          ) : null}
-        </>
-      ) : null}
-
-      <h2>{t("admin.tools.latestCalls")}</h2>
-      {!tool.usage ? (
-        <p>{t("admin.tools.notTracedHelp")}</p>
-      ) : calls.length === 0 ? (
-        <p>{t("admin.tools.noCalls")}</p>
-      ) : (
-        <>
-          <p>{t("admin.tools.latestCallsIntro", { count: LATEST_CALLS })}</p>
-          <div className="table-scroll">
-            <table className="application-table">
-              <caption className="visually-hidden">{t("admin.tools.callsCaption", { name: tool.name })}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t("admin.tools.at")}</th>
-                  <th scope="col">{t("admin.tools.operation")}</th>
-                  <th scope="col">{t("admin.tools.outcome")}</th>
-                  <th scope="col">{t("admin.tools.duration")}</th>
-                  <th scope="col">{t("admin.tools.callCost")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {calls.map((call, index) => (
-                  <tr key={`${call.at.toISOString()}-${index}`}>
-                    <td>
-                      <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time>
-                    </td>
-                    <td>
-                      <code>{call.operation}</code>
-                    </td>
-                    <td>{outcome(call)}</td>
-                    <td>{milliseconds.format(call.durationMs)}</td>
-                    <td>{cost(call.costEur)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+          )}
+        </section>
+      </div>
     </BackOfficeLayout>
   );
 }

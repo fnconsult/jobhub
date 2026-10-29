@@ -1,6 +1,6 @@
 import { buttonClass } from "@/design/button-class";
 import { Note } from "@/design/Note";
-import { TextInput, Textarea } from "@/design/Field";
+import { Checkbox, TextInput, Textarea } from "@/design/Field";
 import { Pill } from "@/design/Pill";
 import { TestSignInButton } from "@/components/TestSignInButton";
 import { isMultiTenant, PROVIDER_TYPES, SOCIAL_TYPES, type SignInProviderType } from "@/sign-in-providers/catalog";
@@ -77,10 +77,7 @@ export function SignInSection({
         {canWrite ? (
           <form className="stack" action={setRequireSso}>
             <Here ctx={ctx} />
-            <div className="checkbox-field">
-              <input id="require-sso" type="checkbox" name="requireSso" defaultChecked={settings.requireSsoForAdministrators} />
-              <label htmlFor="require-sso">{t("admin.signInProviders.ssoLabel")}</label>
-            </div>
+            <Checkbox id="require-sso" name="requireSso" defaultChecked={settings.requireSsoForAdministrators} label={t("admin.signInProviders.ssoLabel")} />
             <button className={buttonClass()} type="submit">
               {t("admin.signInProviders.ssoSave")}
             </button>
@@ -147,7 +144,7 @@ export function SignInSection({
               </Note>
             ) : null}
             {canWrite ? (
-              <div className="provider-secret-actions">
+              <div className="parametres-actions">
                 {provider.enabled ? null : <TestSignInButton providerId={provider.id} displayName={provider.displayName} start={startTestSignIn} />}
                 <form action={removeProvider}>
                   <Here ctx={ctx} />
@@ -209,7 +206,7 @@ export function ProviderForm({ ctx, type, provider, formKey }: { ctx: Ctx; type:
   const field = (name: string) => `${formKey}-${name}`;
   const secretHelp = provider ? t("admin.signInProviders.secretKeepHelp") : t("admin.signInProviders.secretHelp");
   return (
-    <form className="stack quota-form" action={saveProvider}>
+    <form className="stack parametres-form" action={saveProvider}>
       <Here ctx={ctx} sheet="" />
       <input type="hidden" name="type" value={type} />
       <input type="hidden" name="formKey" value={formKey} />
@@ -316,10 +313,6 @@ export function ProviderForm({ ctx, type, provider, formKey }: { ctx: Ctx; type:
 
 function Switch({ name, id, label, help, checked }: { name: string; id: string; label: string; help?: string; checked: boolean }) {
   return (
-    <div className="checkbox-field">
-      <input id={id} type="checkbox" name={name} defaultChecked={checked} aria-describedby={help ? `${id}-help` : undefined} />
-      <label htmlFor={id}>{label}</label>
-      {help ? <p id={`${id}-help`}>{help}</p> : null}
-    </div>
+    <Checkbox id={id} name={name} defaultChecked={checked} label={label} hint={help} />
   );
 }

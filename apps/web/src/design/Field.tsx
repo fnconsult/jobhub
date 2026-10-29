@@ -35,14 +35,16 @@ function useWiring<T extends { id?: string; "aria-describedby"?: string }>(props
 /**
  * A labelled form field (#462): its label above, its one control (TextInput, Select or Textarea) named by it, a hint
  * under it, and the error that replaces nothing (the hint stays) and marks the control invalid. The control is
- * described by the hint then the error, so a screen reader reads both.
+ * described by the hint then the error, so a screen reader reads both. `id`: the control's own, for a page's hook or
+ * anchor; one is made up otherwise.
  */
-export function Field({ label, hint, error, children }: { label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode }) {
-  const id = useId();
+export function Field({ id: controlId, label, hint, error, children }: { id?: string; label: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode }) {
+  const generated = useId();
+  const id = controlId ?? generated;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const wiring: ControlWiring = {
-    id: `${id}-control`,
+    id: controlId ?? `${id}-control`,
     "aria-describedby": [hintId, errorId].filter(Boolean).join(" ") || undefined,
     "aria-invalid": error ? true : undefined,
   };
@@ -80,26 +82,38 @@ export function Textarea({ className, ref, ...props }: TextareaHTMLAttributes<HT
   return <textarea ref={ref} rows={3} {...useWiring(props)} className={join("ds-input", "ds-textarea", className)} />;
 }
 
-type ChoiceProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode };
+type ChoiceProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label: ReactNode; hint?: ReactNode };
 
-/** A checkbox, its words beside it: the whole line is its target. */
-export function Checkbox({ label, className, ...props }: ChoiceProps) {
-  return (
-    <label className={join("ds-choice", className)}>
-      <input type="checkbox" {...props} />
+/** A checkbox or radio button, its words beside it (the whole line is its target), and its `hint` under them, which describes it. */
+function Choice({ type, label, hint, className, ...props }: ChoiceProps & { type: "checkbox" | "radio" }) {
+  const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
+  const describedBy = [props["aria-describedby"], hintId].filter(Boolean).join(" ") || undefined;
+  const choice = (
+    <label className={join("ds-choice", hint ? undefined : className)}>
+      <input type={type} {...props} aria-describedby={describedBy} />
       {label}
     </label>
+  );
+  if (!hint) return choice;
+  return (
+    <div className={join("ds-choice-field", className)}>
+      {choice}
+      <p id={hintId} className="ds-field__hint ds-choice__hint">
+        {hint}
+      </p>
+    </div>
   );
 }
 
+/** A checkbox, its words beside it: the whole line is its target. */
+export function Checkbox(props: ChoiceProps) {
+  return <Choice type="checkbox" {...props} />;
+}
+
 /** A radio button, its words beside it: the whole line is its target. */
-export function Radio({ label, className, ...props }: ChoiceProps) {
-  return (
-    <label className={join("ds-choice", className)}>
-      <input type="radio" {...props} />
-      {label}
-    </label>
-  );
+export function Radio(props: ChoiceProps) {
+  return <Choice type="radio" {...props} />;
 }
 
 /**

@@ -6,7 +6,7 @@ import { chromium, expect, test, type BrowserContext, type Page, type Worker } f
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
-import { e2eExtensionDir, unpackedExtensionId as idOf } from "./support/extension";
+import { e2eExtensionDir, unpackedExtensionId as idOf, watchSidePanel } from "./support/extension";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 
@@ -217,6 +217,7 @@ test.describe("Guest Capture and Match Score", () => {
   const careerPageUrl = "https://groupeseb.teamtailor.com/fr/carrieres/responsable-consolidation-lyon";
   const careerSiteVisits: IncomingMessage[] = [];
   let careerSite: Server;
+  let sidePanel: Awaited<ReturnType<typeof watchSidePanel>>;
   const postingUrl = "https://www.welcometothejungle.com/fr/companies/seb/jobs/daf-lyon";
   // A posting's address whose page has nothing to read yet (a single-page app still loading).
   const emptyPostingUrl = "https://www.welcometothejungle.com/fr/companies/seb/jobs/empty";
@@ -248,6 +249,7 @@ test.describe("Guest Capture and Match Score", () => {
     });
     await new Promise<void>((resolve) => careerSite.listen(careerSitePort, "127.0.0.1", resolve));
     await context.route(careerPageUrl, async (route) => route.fulfill({ response: await route.fetch({ url: careerSiteUrl }) }));
+    sidePanel = await watchSidePanel(context, extensionId());
   });
 
   test.afterAll(async () => {
@@ -306,10 +308,16 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.analysis.title);
     return page;
   };
-  /** The posting's badge opens the browser's Side Panel beside it; its page is then driven in a tab. */
+  /**
+   * The posting's badge opens the browser's Side Panel beside it; its page is then driven in a tab. The Side Panel
+   * acts on opening (a signed-in Candidate's Job Offer is scored at once): it is closed once it has done so, so
+   * nothing it asks for is cut short, and what it asked for is counted with the rest (`countScoreRequests`).
+   */
   const panelFromBadge = async (jobPage: Page) => {
+    sidePanel.expectOpening();
     await jobPage.getByRole("button", { name: fr.badgeLabel }).click();
     await expect.poll(openSidePanels).toBe(1);
+    await expect.poll(() => sidePanel.settled(), { timeout: 30_000 }).toBe(true);
     await closeSidePanels();
     return openPanel();
   };
@@ -436,7 +444,16 @@ test.describe("Guest Capture and Match Score", () => {
       bodies.push(JSON.parse(request.postData() ?? "{}"));
     };
     context.on("request", listener);
-    return { requests, bodies, stop: () => context.off("request", listener) };
+    // The browser's Side Panel, which Playwright does not see, is watched over CDP.
+    const stopPanel = sidePanel.onRequest((request) => listener({ url: () => request.url, postData: () => request.postData ?? null }));
+    return {
+      requests,
+      bodies,
+      stop: () => {
+        context.off("request", listener);
+        stopPanel();
+      },
+    };
   };
   const reopenAnalysis = openPanel;
   const captureFromBadge = async (url: string) => {
@@ -601,11 +618,7 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByText(scoreLine)).toBeVisible();
     await expect(analysis.getByLabel(fr.analysis.scoreProfileLabel)).toHaveValue(profileId);
     await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toHaveCount(0);
-    // The browser's own Side Panel may have asked for it before its page was driven in a tab, out of this context's sight:
-    // what is seen is at most that one request, and the Plan Quota below counts the Match Score used exactly once.
-    expect(scores.bodies.length).toBeLessThanOrEqual(1);
-    for (const body of scores.bodies) expect(body).toEqual({ jobOfferId: expect.any(String), profileId });
-    const seen = scores.requests.length; // what the tab saw of the first score; the rest is asked for in the tab
+    expect(scores.bodies).toEqual([{ jobOfferId: expect.any(String), profileId }]);
     const shown = await analysis.getByText(scoreLine).textContent();
     expect(await used()).toBe("1 sur 1");
 
@@ -617,7 +630,7 @@ test.describe("Guest Capture and Match Score", () => {
     const reopened = await reopenAnalysis();
     await expect(reopened.getByText(scoreLine)).toHaveText(shown!);
     await reopened.close();
-    expect(scores.requests).toHaveLength(seen);
+    expect(scores.requests).toHaveLength(1);
     expect(await used()).toBe("1 sur 1");
 
     // A rescore uses the Plan Quota, so it is confirmed first: cancelled, it asks for nothing (#76).
@@ -626,7 +639,7 @@ test.describe("Guest Capture and Match Score", () => {
     await analysis.getByRole("button", { name: fr.analysis.rescoreCancel }).click();
     await expect(analysis.getByText(fr.analysis.rescoreConfirm)).toHaveCount(0);
     await expect(analysis.getByRole("button", { name: fr.analysis.rescore })).toBeVisible();
-    expect(scores.requests).toHaveLength(seen);
+    expect(scores.requests).toHaveLength(1);
 
     // Confirmed, it would use the Plan Quota, but the Free Plan's one Match Score of the week went on
     // the first score: the Upgrade Prompt (QA case 11.3). A rescore within the quota is driven above, for a Guest.
@@ -635,13 +648,13 @@ test.describe("Guest Capture and Match Score", () => {
     const prompt = analysis.getByRole("alert").filter({ hasText: "Vous avez utilisé le Match Score compris cette semaine" });
     await expect(prompt).toBeVisible();
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", `${origin}/abonnement`);
-    expect(scores.requests).toHaveLength(seen + 1);
+    expect(scores.requests).toHaveLength(2);
     expect(await used()).toBe("1 sur 1");
 
     // The kept Match Score is still shown on reopen, past the quota, without asking for one.
     await analysis.reload();
     await expect(analysis.getByText(scoreLine)).toBeVisible();
-    expect(scores.requests).toHaveLength(seen + 1);
+    expect(scores.requests).toHaveLength(2);
     scores.stop();
 
     // Another CV can still be scored instead, and the Profile chosen again.
@@ -1075,17 +1088,14 @@ test.describe("Guest Capture and Match Score", () => {
     await scoredWith.selectOption({ label: "Consultante transformation" });
     await expect(analysis.getByText(fr.analysis.covered.replace("{{skills}}", "IFRS, Consolidation, Power BI"))).toHaveCount(0);
     await expect(analysis.getByText(scoreLine)).not.toHaveText(first!);
-    // The first Match Score may have been asked for by the browser's own Side Panel, out of this context's sight;
-    // the switch, made in the tab, scores against the second Profile and is always seen.
-    expect(scores.bodies.map((body) => body.profileId).at(-1)).toBe(profileIds[1]);
-    const switched = scores.requests.length;
+    expect(scores.bodies.map((body) => body.profileId)).toEqual(profileIds);
     // Reopened, the page shows the Match Score kept for the Profile chosen, without asking for one.
     const second = await analysis.getByText(scoreLine).textContent();
     const reopened = await reopenAnalysis();
     await expect(reopened.getByLabel(fr.analysis.scoreProfileLabel)).toHaveValue(profileIds[1]!);
     await expect(reopened.getByText(scoreLine)).toHaveText(second!);
     await reopened.close();
-    expect(scores.requests).toHaveLength(switched);
+    expect(scores.requests).toHaveLength(2);
     scores.stop();
 
     const profile = analysis.getByLabel(fr.analysis.profileLabel);

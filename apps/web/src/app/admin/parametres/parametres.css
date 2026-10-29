@@ -115,3 +115,29 @@
     min-width: 12rem;
   }
 }
+
+/* A form in a side panel or under a table (« Ajouter un site », a key's replacement): its fields in a framed group. */
+.parametres-form fieldset {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* A key's Test and Clear buttons on one wrapping line. */
+.parametres-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A key's replacement, folded under its summary. */
+.parametres-replace summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}

@@ -1190,44 +1190,8 @@ th[aria-sort] .sort-mark {
   font-size: var(--font-size-h3);
 }
 
-.quota-form fieldset {
-  display: grid;
-  gap: var(--space-3);
-  width: 100%;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
 .application-table tbody th {
   font-weight: 400;
-}
-
-/* Garde-fous: a day's unavailable checks, one line per Failure Reason under the total (#261). */
-.trigger-reasons {
-  margin: var(--space-1) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Back Office Journal: the section filter on one wrapping line, each change on its own line. */
-.journal-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.journal-filter [aria-current="page"] {
-  font-weight: 700;
-}
-
-/* « Questions sans réponse » (#344): the AI Coach's answer, on demand, as it was written. */
-.unanswered-answer {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 /* A Signalement's words (#376): the Candidate's message, the attached question and coach reply, the team's reply, as typed. */
@@ -1254,32 +1218,8 @@ blockquote.signalement-text {
   overflow-wrap: anywhere;
 }
 
-.journal-changes {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-wrap: anywhere;
-}
-
-/* A failed attempt's reason, then its technical detail on demand (#263). */
-nav + nav > .journal-filter {
-  margin-top: var(--space-2);
-}
-
 .application-table td > p {
   margin: 0;
-}
-
-.journal-technical dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: var(--space-1) var(--space-3);
-  margin: var(--space-2) 0 0;
-}
-
-.journal-technical dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 /* A percentage width gives a select no min-content width, so the table would
@@ -3466,23 +3406,6 @@ textarea.title-edit {
   min-height: var(--control-height);
 }
 
-/* The Administrateurs page (#204): each role held, with the button that revokes it. */
-.administrator-roles {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.administrator-roles li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  align-items: center;
-}
-
 /* Search Criteria (ADR-0025, #235): the places as chips on one line, then the input that suggests
    more; and a group of checkboxes without a frame where a property row already names it. */
 .places-field {
@@ -3647,49 +3570,8 @@ textarea.title-edit {
   margin: 0;
 }
 
-/* The Clés page (#208): each key's Test and Clear buttons, and one folded replace form per key. */
-.provider-secret-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .provider-secrets code {
   overflow-wrap: anywhere;
-}
-
-.provider-secret-replace summary {
-  min-height: var(--control-height);
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* A Plan's rank in the Back Office's Plans table, with its buttons to move it up or down. */
-.plan-rank {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.plan-rank form {
-  margin: 0;
-}
-
-/* What an AI call said, on the Journaux IA page (#218): kept as written, long tokens wrapped. */
-.ai-message-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* A Playbook Version's rules, as written (#225). */
-.playbook-rules {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-family: inherit;
-  margin: 0;
 }
 
 /* The Agenda (#246): upcoming Agenda Items by day; the past ones dimmed. */

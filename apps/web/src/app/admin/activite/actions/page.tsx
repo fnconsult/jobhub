@@ -29,6 +29,8 @@ import { journalTimeline, toolCallOk, type JournalLine } from "@/admin/journal-t
 import { ACTIVITY_RETENTION_MONTHS } from "@/email-intake/activity";
 import { getEmailIntakeActivity } from "@/email-intake/server";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
+import { FilterLinks } from "@/design/FilterLinks";
+import { Properties, Property } from "@/design/Properties";
 import { Table } from "@/design/Table";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
@@ -61,7 +63,8 @@ const versionOf = (entry: BackOfficeAuditEntry): number | null => {
 };
 
 /** `aria-current` of the link to the section being shown. */
-const CURRENT = "page";
+/** The filters' id for « Toutes », which the address leaves out. */
+const ALL = "all";
 
 /** The Outils filter (#234): the calls to the Tools, next to every Back Office change. */
 const TOOLS_FILTER = "tools";
@@ -202,40 +205,28 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       <div className="activite">
         <ActivityTabs access={access} shown={TAB} />
         <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.audit")} values={{ years: String(RETENTION_YEARS) }} />
-        <nav aria-label={t("admin.journal.filter")}>
-          <ul className="journal-filter">
-            {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
-              <li key={option ?? "all"}>
-                <Link href={routes.adminAudit({ section: option, outcome })} aria-current={option === section && !beside ? CURRENT : undefined}>
-                  {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
-                </Link>
-              </li>
-            ))}
-            {readsTools ? (
-              <li>
-                <Link href={routes.adminAudit({ section: TOOLS_FILTER, outcome })} aria-current={withTools ? CURRENT : undefined}>
-                  {t("admin.journal.tools")}
-                </Link>
-              </li>
-            ) : null}
-            <li>
-              <Link href={routes.adminAudit({ section: LINKED_MAILBOXES_FILTER, outcome })} aria-current={withLinkedMailboxes ? CURRENT : undefined}>
-                {t("admin.journal.linkedMailboxes")}
-              </Link>
-            </li>
-          </ul>
-        </nav>
-        <nav aria-label={t("admin.journal.outcomeFilter")}>
-          <ul className="journal-filter">
-            {[undefined, ...BACK_OFFICE_OUTCOMES].map((option) => (
-              <li key={option ?? "all"}>
-                <Link href={routes.adminAudit({ section: shownSection, outcome: option })} aria-current={option === outcome ? CURRENT : undefined}>
-                  {t(`admin.journal.outcomeFilters.${option ?? "all"}`)}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <FilterLinks
+          label={t("admin.journal.filter")}
+          shown={shownSection ?? ALL}
+          links={[
+            ...[undefined, ...BACK_OFFICE_SECTIONS].map((option) => ({
+              id: option ?? ALL,
+              href: routes.adminAudit({ section: option, outcome }),
+              label: option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all"),
+            })),
+            ...(readsTools ? [{ id: TOOLS_FILTER, href: routes.adminAudit({ section: TOOLS_FILTER, outcome }), label: t("admin.journal.tools") }] : []),
+            { id: LINKED_MAILBOXES_FILTER, href: routes.adminAudit({ section: LINKED_MAILBOXES_FILTER, outcome }), label: t("admin.journal.linkedMailboxes") },
+          ]}
+        />
+        <FilterLinks
+          label={t("admin.journal.outcomeFilter")}
+          shown={outcome ?? ALL}
+          links={[undefined, ...BACK_OFFICE_OUTCOMES].map((option) => ({
+            id: option ?? ALL,
+            href: routes.adminAudit({ section: shownSection, outcome: option }),
+            label: t(`admin.journal.outcomeFilters.${option ?? "all"}`),
+          }))}
+        />
         {withTools ? <p>{t("admin.journal.toolsIntro")}</p> : null}
         {withLinkedMailboxes ? <p>{t("admin.journal.linkedMailboxesIntro", { months: String(ACTIVITY_RETENTION_MONTHS) })}</p> : null}
         {lines.length === 0 ? (
@@ -324,28 +315,16 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                       <p>{t("admin.journal.failed", { tried: t(`admin.journal.actions.${entry.failure.tried}`), reason: t(`failureReasons.${entry.failure.reason}`) })}</p>
                       {entry.failure.field ? <p>{t("admin.journal.fieldAtFault", { field: fieldName(entry.section, entry.failure.field) })}</p> : null}
                       {entry.failure.technical ? (
-                        <details className="journal-technical">
+                        <details>
                           <summary>{t("admin.journal.technicalDetail")}</summary>
-                          <dl>
-                            <dt>{t("admin.journal.technical.class")}</dt>
-                            <dd>{entry.failure.technical.class}</dd>
-                            {entry.failure.technical.provider ? (
-                              <>
-                                <dt>{t("admin.journal.technical.provider")}</dt>
-                                <dd>{entry.failure.technical.provider}</dd>
-                              </>
-                            ) : null}
-                            {entry.failure.technical.status === undefined ? null : (
-                              <>
-                                <dt>{t("admin.journal.technical.status")}</dt>
-                                <dd>{entry.failure.technical.status}</dd>
-                              </>
-                            )}
-                            <dt>{t("admin.journal.technical.message")}</dt>
-                            <dd>
+                          <Properties>
+                            <Property term={t("admin.journal.technical.class")}>{entry.failure.technical.class}</Property>
+                            {entry.failure.technical.provider ? <Property term={t("admin.journal.technical.provider")}>{entry.failure.technical.provider}</Property> : null}
+                            {entry.failure.technical.status === undefined ? null : <Property term={t("admin.journal.technical.status")}>{entry.failure.technical.status}</Property>}
+                            <Property term={t("admin.journal.technical.message")}>
                               <code>{entry.failure.technical.message}</code>
-                            </dd>
-                          </dl>
+                            </Property>
+                          </Properties>
                         </details>
                       ) : null}
                     </>
@@ -354,7 +333,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
                   ) : changes.length === 0 ? (
                     t("admin.journal.unchanged")
                   ) : (
-                    <ul className="journal-changes">
+                    <ul className="activity-changes">
                       {changes.map((change) => (
                         <li key={change.field ?? ""}>{changeLine(entry, change)}</li>
                       ))}

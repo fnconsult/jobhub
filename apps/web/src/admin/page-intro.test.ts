@@ -12,9 +12,21 @@ const VALUES: Record<IntroPage, Record<string, string>> = {
   receivedEmails: { months: "13" },
   aiMessages: { days: "30" },
   audit: { years: "5" },
+  signalements: {},
+  plans: {},
+  planQuotas: {},
+  coupons: {},
+  humanCoaches: {},
+  coachCost: { days: "30", target: "0,0200 €" },
+  coachingPlaybooks: {},
+  guardrails: {},
+  unansweredQuestions: {},
+  tools: {},
+  administrators: {},
+  aiUsage: {},
 };
 
-describe("a Back Office page's intro in the Compact Density (#465)", () => {
+describe("a Back Office page's intro in the Compact Density (#465, #466)", () => {
   for (const locale of SUPPORTED_LOCALES) {
     const { t } = createI18n(locale);
 
@@ -45,5 +57,13 @@ describe("a Back Office page's intro in the Compact Density (#465)", () => {
   it("the Dashboard's explanation names the Administrator's roles", () => {
     const { t } = createI18n("fr");
     expect(pageIntro(t, "dashboard", { roles: "Support" }).explanation).toContain(t("admin.yourRoles", { roles: "Support" }));
+  });
+
+  it("every other section's explanation keeps what its long intro said (#466)", () => {
+    const { t } = createI18n("fr");
+    expect(pageIntro(t, "signalements", {}).explanation).toContain(t("admin.signalements.noDeletion"));
+    expect(pageIntro(t, "unansweredQuestions", {}).explanation).toContain(t("admin.unansweredQuestions.privacy"));
+    expect(pageIntro(t, "coachCost", { days: "30", target: "0,0200 €" }).explanation).toContain(t("admin.coachCost.intro", { days: "30", target: "0,0200 €" }));
+    expect(pageIntro(t, "guardrails", {}).explanation).toContain(t("admin.guardrails.intro"));
   });
 });

@@ -2,13 +2,16 @@
  * Email intake's reading of a Received offer email in the worker (#445, ADR-0049, ADR-0052): its kind and offers, each
  * offer a Job Offer for the Candidate unless it is already there for them.
  *
- *   const reading = createEmailReading({ readings, jobOffers, profiles, ai, taskPlaybooks });
- *   await reading.read(receivedOfferEmailId); // { outcome: "offers_found" | "other" | "failed" | "not_awaiting" }, or throws to be tried again
+ *   const reading = createEmailReading({ readings, jobOffers, profiles, ai, guardrails, taskPlaybooks });
+ *   await reading.read(receivedOfferEmailId); // { outcome: "offers_found" | "other" | "failed" | "guardrail" | "not_awaiting" }, or throws to be tried again
  *
  * One try, as AI Activity shows its live steps and each Job Offer's Provenance keeps them:
  *  1. the email's text, taken with the Email intake Tool (`brevo-inbound`, read);
  *  2. one `offer_email_reading` call on the served version of « Lire un email d'offres d'emploi » (readOfferEmail):
- *     its kind (alert, recruiter, other) and offers; while no version is served, the try fails without a call;
+ *     its kind (alert, recruiter, other) and offers; while no version is served, the try fails without a call. It is
+ *     guarded (#446, ADR-0052): first the « Contenu piégé dans un email » Guardrail (fixed rules, then one `guardrail`
+ *     model check, both in its Provenance), which may block the email before any AI reads it; then the fixed output
+ *     rules, always on. Either sets the email aside by a Guardrail: no Job Offer, its text deleted;
  *  3. each offer's link through its sender's module (offer-links.ts); one linking to a Forbidden site makes no Job
  *     Offer: it is kept « À capturer »; one published more than 30 days ago (its stated date, else the email's) neither;
  *  4. the Match Score rules: each offer against each of the Candidate's active Profiles, counted against no Plan
@@ -36,6 +39,7 @@ import {
 } from "@jobhub/shared";
 import { TEXT_RETENTION_HOURS } from "@jobhub/web/email-intake";
 import type { EmailReadings, ReadEmailOffer } from "@jobhub/web/email-intake/reading";
+import type { Guardrails } from "@jobhub/web/guardrails/checks";
 import type { JobOffers } from "@jobhub/web/job-offers";
 import { servedTaskRun, type TaskPlaybookReader } from "@jobhub/web/task-playbooks";
 import { offerLink } from "./offer-links";
@@ -66,6 +70,8 @@ export interface EmailReadingOptions {
     get(candidateId: string, profileId: string): Promise<{ id: string; archived: boolean; searchCriteria: SearchCriteria; masterCv: { content: CvContent } } | null>;
   };
   ai: AiLayer;
+  /** The Guardrails as the Back Office tunes them: the email Guardrail and the reading's output rules. */
+  guardrails: Pick<Guardrails, "guardEmail">;
   /** The task Playbooks at the version this environment serves. Without it, no version is served: no email is read. */
   taskPlaybooks?: TaskPlaybookReader;
   /** Default: FORBIDDEN_SITES. */
@@ -73,7 +79,7 @@ export interface EmailReadingOptions {
   now?: () => Date;
 }
 
-export type EmailReadOutcome = { outcome: "offers_found" | "other" | "failed" | "not_awaiting" };
+export type EmailReadOutcome = { outcome: "offers_found" | "other" | "failed" | "guardrail" | "not_awaiting" };
 
 export interface EmailReading {
   /** Reads one Received offer email (see above). Throws when a try failed and another is left. */
@@ -154,7 +160,19 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
       try {
         const served = await servedTaskRun(options.taskPlaybooks, PLAYBOOK, options.ai);
         if (!served) throw new Error(`No version of the Task Playbook "${PLAYBOOK}" is served: no email is read`);
-        const { kind, offers } = await readOfferEmail(run.ai, { candidateId: email.candidateId, text, instructions: served.instructions() });
+        const guarded = await options.guardrails.guardEmail({
+          candidateId: email.candidateId,
+          ai: run.ai,
+          // Only an authenticated sender's email is queued for reading: a Recognised sender's, or the Candidate's own (inbound.ts).
+          email: { text, authenticated: true },
+          read: () => readOfferEmail(run.ai, { candidateId: email.candidateId, text, instructions: served.instructions() }),
+        });
+        if (guarded.outcome !== "read") {
+          await progress.flush();
+          await readings.setAside(id);
+          return { outcome: "guardrail" };
+        }
+        const { kind, offers } = guarded.reading;
         if (!email.manualForward) run.site(`https://${email.senderDomain}/`);
 
         // Which offers may become Job Offers: not a Forbidden site's, not published more than 30 days ago.

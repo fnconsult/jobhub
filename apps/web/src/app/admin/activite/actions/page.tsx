@@ -25,6 +25,8 @@ import {
 import { journalChanges, type JournalChange } from "@/admin/journal-changes";
 import { journalFieldName, SEARCH_SITES_SECTIONS } from "@/admin/journal-fields";
 import { journalTimeline, toolCallOk, type JournalLine } from "@/admin/journal-timeline";
+import { ACTIVITY_RETENTION_MONTHS } from "@/email-intake/activity";
+import { getEmailIntakeActivity } from "@/email-intake/server";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { couponDiscountLabel } from "@/billing/coupon-label";
 import { getBilling } from "@/billing/server";
@@ -59,6 +61,8 @@ const CURRENT = "page";
 
 /** The Outils filter (#234): the calls to the Tools, next to every Back Office change. */
 const TOOLS_FILTER = "tools";
+/** The Boîtes reliées filter (#449): the Linked mailbox events, next to every Back Office change; they name no Candidate. */
+const LINKED_MAILBOXES_FILTER = "linked_mailboxes";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -70,7 +74,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Activité › Actions des administrateurs (formerly the Journal, #404): Administrators read the Back Office Audit: every change made in the Back Office, newest first, by
- * section. With the Outils filter (those who may read the Tools), the calls to the Tools beside them.
+ * section. With the Outils filter (those who may read the Tools), the calls to the Tools beside them; with the Boîtes
+ * reliées filter, the Linked mailbox events (switched on, replaced, off, daily cap reached), naming no Candidate.
  * Every attempt that failed or was refused is there too (#263): its Résultat, its Failure Reason in
  * Changes, and its technical detail behind « Détail technique ». The Résultat filter combines with the
  * section's in the URL.
@@ -82,16 +87,20 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   const { section: requested, outcome: requestedOutcome } = await searchParams;
   const readsTools = access.can("tools", "read");
   const withTools = requested === TOOLS_FILTER && readsTools;
+  const withLinkedMailboxes = requested === LINKED_MAILBOXES_FILTER;
+  /** Outils or Boîtes reliées: other lines beside the changes, so the limit counts lines, not entries. */
+  const beside = withTools || withLinkedMailboxes;
   const section = isBackOfficeSection(requested) ? requested : undefined;
   const outcome = isBackOfficeOutcome(requestedOutcome) ? requestedOutcome : undefined;
   /** The section filter as the URL holds it, kept when the Résultat filter changes. */
-  const shownSection = withTools ? TOOLS_FILTER : section;
-  const [entries, plans, toolCalls] = await Promise.all([
+  const shownSection = withTools ? TOOLS_FILTER : withLinkedMailboxes ? LINKED_MAILBOXES_FILTER : section;
+  const [entries, plans, toolCalls, linkedMailboxEvents] = await Promise.all([
     getBackOffice().journal({ section, outcome, limit: LIMIT }),
     getBilling().plans(),
     withTools ? latestToolCallsNow(LIMIT, { ok: outcome && toolCallOk(outcome) }) : Promise.resolve([]),
+    withLinkedMailboxes ? getEmailIntakeActivity().linkedMailboxEvents(LIMIT) : Promise.resolve([]),
   ]);
-  const lines: JournalLine[] = journalTimeline(entries, toolCalls, LIMIT, outcome);
+  const lines: JournalLine[] = journalTimeline(entries, { toolCalls, linkedMailboxEvents }, LIMIT, outcome);
   /** What an entry changed, named as the Back Office names it: a Plan as it is named now; an unknown key stays as recorded. */
   const target = (entry: BackOfficeAuditEntry): string => {
     if (entry.section === "plans" || entry.section === "plan_quotas") return plans.find((plan) => plan.key === entry.target)?.name[locale] ?? entry.target;
@@ -185,7 +194,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         <ul className="journal-filter">
           {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (
             <li key={option ?? "all"}>
-              <Link href={routes.adminAudit({ section: option, outcome })} aria-current={option === section && !withTools ? CURRENT : undefined}>
+              <Link href={routes.adminAudit({ section: option, outcome })} aria-current={option === section && !beside ? CURRENT : undefined}>
                 {option ? t(`admin.journal.sections.${option}`) : t("admin.journal.all")}
               </Link>
             </li>
@@ -197,6 +206,11 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
               </Link>
             </li>
           ) : null}
+          <li>
+            <Link href={routes.adminAudit({ section: LINKED_MAILBOXES_FILTER, outcome })} aria-current={withLinkedMailboxes ? CURRENT : undefined}>
+              {t("admin.journal.linkedMailboxes")}
+            </Link>
+          </li>
         </ul>
       </nav>
       <nav aria-label={t("admin.journal.outcomeFilter")}>
@@ -211,12 +225,13 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         </ul>
       </nav>
       {withTools ? <p>{t("admin.journal.toolsIntro")}</p> : null}
+      {withLinkedMailboxes ? <p>{t("admin.journal.linkedMailboxesIntro", { months: String(ACTIVITY_RETENTION_MONTHS) })}</p> : null}
       {lines.length === 0 ? (
         <p>{t("admin.journal.none")}</p>
       ) : (
         <div className="table-scroll">
           <table className="application-table">
-            <caption>{t(withTools ? "admin.journal.toolsCaption" : "admin.journal.caption")}</caption>
+            <caption>{t(withTools ? "admin.journal.toolsCaption" : withLinkedMailboxes ? "admin.journal.linkedMailboxesCaption" : "admin.journal.caption")}</caption>
             <thead>
               <tr>
                 <th scope="col">{t("admin.journal.at")}</th>
@@ -230,6 +245,22 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
             </thead>
             <tbody>
               {lines.map((line, index) => {
+                if (line.kind === "linked_mailbox") {
+                  const { event } = line;
+                  return (
+                    <tr key={`mailbox-${event.id}`} data-kind="linked-mailbox">
+                      <th scope="row">
+                        <time dateTime={event.at.toISOString()}>{at.format(event.at)}</time>
+                      </th>
+                      <td>{t(event.event === "daily_cap_reached" ? "admin.journal.byEmailIntake" : "admin.journal.byCandidate")}</td>
+                      <td>{t("admin.journal.linkedMailboxes")}</td>
+                      <td>{t("admin.journal.linkedMailboxTarget")}</td>
+                      <td>{t(`admin.journal.linkedMailboxEvents.${event.event}`)}</td>
+                      <td>{t("admin.journal.outcomes.succeeded")}</td>
+                      <td>{t(`admin.journal.linkedMailboxEventDetails.${event.event}`)}</td>
+                    </tr>
+                  );
+                }
                 if (line.kind === "tool_call") {
                   const { tool, call } = line;
                   return (
@@ -335,7 +366,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
           </table>
         </div>
       )}
-      {withTools ? (
+      {beside ? (
         lines.length === LIMIT ? <p>{t("admin.journal.toolsLimit", { count: String(LIMIT) })}</p> : null
       ) : entries.length === LIMIT ? (
         <p>{t("admin.journal.limit", { count: String(LIMIT) })}</p>

@@ -157,6 +157,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   roles: { name: "Administrateurs et rôles du Back Office", page: routes.adminAdministrators },
   audit: { name: "Activité › Actions des administrateurs (Back Office Audit)", page: routes.adminAudit() },
   discoveryRuns: { name: "Activité › Recherches : chaque run de la recherche d'offres (Job discovery), ses recherches et ses chiffres", page: routes.adminDiscoveryRuns() },
+  receivedEmails: { name: "Activité › Emails reçus : chaque email d'offres reçu par l'adresse de transfert d'un candidat (Email intake), sans candidat ni contenu", page: routes.adminReceivedEmails() },
   jobSearches: { name: "La recherche d'offres (Job Search) d'un candidat derrière un run, ouverte depuis Activité › Recherches" },
   // On each provider's sheet in Paramètres (#396), formerly the Clés section.
   providerSecrets: { name: "Clés des fournisseurs (Provider Secrets)", page: routes.adminPlatformSettings },
@@ -407,6 +408,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   recognised_senders: "expéditeurs reconnus (Réception par email)",
   ai_messages: "appels IA",
   discovery_runs: "recherches d'offres (Activité)",
+  received_emails: "emails reçus (Activité)",
   coaching_playbooks: "playbooks de coaching",
   eval_cases: "cas d'évaluation",
   guardrails: "garde-fous",

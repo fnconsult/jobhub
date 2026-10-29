@@ -5,20 +5,25 @@ import { activityTabs, legacyActivityRedirect } from "./activity";
 const tabs = (roles: Parameters<typeof backOfficeAccess>[0]) => activityTabs(backOfficeAccess(roles)).map((tab) => [tab.id, tab.href]);
 
 describe("Activité's tabs (#404)", () => {
-  it("are Recherches, Appels IA and Actions des administrateurs for a super-admin, in that order", () => {
+  it("are Recherches, Emails reçus, Appels IA and Actions des administrateurs for a super-admin, in that order", () => {
     expect(tabs(["super-admin"])).toEqual([
       ["discoveryRuns", "/admin/activite/recherches"],
+      ["receivedEmails", "/admin/activite/emails-recus"],
       ["aiMessages", "/admin/activite/appels-ia"],
       ["audit", "/admin/activite/actions"],
     ]);
   });
 
-  it("are only those a role reads: Technique the Recherches and the Actions des administrateurs, Support the Recherches, others none", () => {
+  it("are only those a role reads: Technique the Recherches, the Emails reçus and the Actions des administrateurs, Support the Recherches and the Emails reçus, others none", () => {
     expect(tabs(["platform-manager"])).toEqual([
       ["discoveryRuns", "/admin/activite/recherches"],
+      ["receivedEmails", "/admin/activite/emails-recus"],
       ["audit", "/admin/activite/actions"],
     ]);
-    expect(tabs(["support"])).toEqual([["discoveryRuns", "/admin/activite/recherches"]]);
+    expect(tabs(["support"])).toEqual([
+      ["discoveryRuns", "/admin/activite/recherches"],
+      ["receivedEmails", "/admin/activite/emails-recus"],
+    ]);
     expect(tabs(["plans-manager"])).toEqual([]);
   });
 });

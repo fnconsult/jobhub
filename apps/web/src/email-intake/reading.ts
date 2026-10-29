@@ -7,8 +7,9 @@
  *   await readings.progress(id, events);                     // its live steps, while it is read
  *   await readings.read(id, { kind, offers });               // offers found, or « autre »: its text deleted
  *   await readings.tryFailed(id) / readings.failed(id);      // a try that failed: text kept to try again / « échec »
+ *   await readings.setAside(id);                             // set aside by a Guardrail (#446): no offer, its text deleted
  *
- * Each try is counted when it starts, so a worker that dies mid-try still uses one. Once read or failed, its text is
+ * Each try is counted when it starts, so a worker that dies mid-try still uses one. Once read, failed or set aside, its text is
  * deleted and its live steps cleared; what is kept is the kind, the outcome, the sender's domain and the offers it
  * gave (`received_offer_email_offer`): the Job Offers new for the Candidate with the Profile each went to (none:
  * « Non classées ») and its Match Score, those already there for them, and those « À capturer » (a Forbidden site's,
@@ -17,6 +18,7 @@
 import type { ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { inTransaction } from "../database/pool";
+import { recordReading } from "./activity";
 import type { SecretCipher } from "../provider-secrets/cipher";
 import { receivedTextOf } from "./inbound";
 
@@ -67,10 +69,28 @@ export interface EmailReadings {
   tryFailed(id: string): Promise<void>;
   /** Its last try failed: « échec », its text deleted, its live steps cleared. */
   failed(id: string): Promise<void>;
+  /** Set aside by a Guardrail (« écarté par un garde-fou », #446): no kind, no offer, its text deleted, its live steps cleared. */
+  setAside(id: string): Promise<void>;
 }
 
 export function createEmailReadings(database: Pool, options: { cipher: () => SecretCipher | null; now?: () => Date }): EmailReadings {
   const now = options.now ?? (() => new Date());
+
+  /** Ends its reading with `outcome` and nothing read: its text deleted, its live steps cleared. */
+  async function ended(id: string, outcome: "failed" | "guardrail"): Promise<void> {
+    await inTransaction(database, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE received_offer_email
+            SET outcome = $3, read_at = $2, progress = NULL,
+                text_ciphertext = NULL, text_iv = NULL, text_tag = NULL, text_key_version = NULL
+          WHERE id = $1 AND outcome = 'awaiting_reading'`,
+        [id, now(), outcome],
+      );
+      // Its row of Activité › Emails reçus (#449).
+      if (rowCount) await recordReading(client, id, { outcome: outcome === "failed" ? "failed" : "set_aside_by_guardrail" });
+    });
+  }
+
   return {
     async startTry(id) {
       const { rows } = await database.query<Omit<EmailToRead, "text">>(
@@ -113,6 +133,13 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
         );
         const candidateId = rows[0]?.candidateId;
         if (!candidateId) return;
+        // Its row of Activité › Emails reçus (#449): the counts only, naming no Candidate.
+        await recordReading(client, id, {
+          kind,
+          newOffers: offers.filter((offer) => offer.disposition === "new").length,
+          alreadyStored: offers.filter((offer) => offer.disposition === "seen").length,
+          outcome: offers.length > 0 ? "offers_found" : "other",
+        });
         for (const [position, offer] of offers.entries()) {
           await client.query(
             `INSERT INTO received_offer_email_offer
@@ -139,13 +166,11 @@ export function createEmailReadings(database: Pool, options: { cipher: () => Sec
     },
 
     async failed(id) {
-      await database.query(
-        `UPDATE received_offer_email
-            SET outcome = 'failed', read_at = $2, progress = NULL,
-                text_ciphertext = NULL, text_iv = NULL, text_tag = NULL, text_key_version = NULL
-          WHERE id = $1 AND outcome = 'awaiting_reading'`,
-        [id, now()],
-      );
+      await ended(id, "failed");
+    },
+
+    async setAside(id) {
+      await ended(id, "guardrail");
     },
   };
 }

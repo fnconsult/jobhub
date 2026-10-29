@@ -1118,7 +1118,8 @@
       "unansweredQuestions": "Questions sans réponse",
       "activity": "Activité",
       "discoveryRuns": "Recherches",
-      "designSystem": "Design System"
+      "designSystem": "Design System",
+      "receivedEmails": "Emails reçus"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -2025,7 +2026,8 @@
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
-        "discovery_runs": "Activité › Recherches"
+        "discovery_runs": "Activité › Recherches",
+        "received_emails": "Activité › Emails reçus"
       },
       "actions": {
         "added": "Ajout",
@@ -2077,6 +2079,24 @@
       "toolCall": "Appel",
       "toolCallResult": "{{outcome}}, {{duration}}",
       "toolsLimit": "Seules les {{count}} lignes les plus récentes sont affichées.",
+      "linkedMailboxes": "Boîtes reliées",
+      "linkedMailboxesIntro": "Avec le filtre Boîtes reliées, chaque boîte reliée activée, dont l'adresse de transfert est remplacée ou coupée, ou qui atteint son plafond du jour, apparaît à côté des modifications du back office. Aucun candidat, aucune adresse, aucun contenu d'email n'est enregistré ; gardé {{months}} mois.",
+      "linkedMailboxesCaption": "Modifications du back office et événements des boîtes reliées, des plus récents aux plus anciens",
+      "byCandidate": "Un candidat",
+      "byEmailIntake": "Jobbbox (réception des emails)",
+      "linkedMailboxTarget": "Boîte reliée (adresse de transfert)",
+      "linkedMailboxEvents": {
+        "switched_on": "Activée",
+        "replaced": "Adresse remplacée",
+        "switched_off": "Coupée",
+        "daily_cap_reached": "Plafond du jour atteint"
+      },
+      "linkedMailboxEventDetails": {
+        "switched_on": "Le candidat a activé la réception de ses emails d'offres ; une adresse de transfert lui a été donnée.",
+        "replaced": "Le candidat a remplacé son adresse de transfert : l'ancienne ne reçoit plus rien.",
+        "switched_off": "Le candidat a coupé la réception de ses emails : son adresse ne reçoit plus rien.",
+        "daily_cap_reached": "Plafond d'emails du jour atteint : les emails suivants de ce jour sont écartés sans être lus."
+      },
       "outcome": "Résultat",
       "outcomes": {
         "succeeded": "Réussi",
@@ -2170,6 +2190,7 @@
         "web_search": "Recherche web",
         "back_office_assistant": "Assistant du back office",
         "guardrail": "Garde-fous",
+        "email_guardrail": "Garde-fou des emails",
         "eval": "Évaluations"
       },
       "reasonsTitle": "Échecs et avertissements par raison",
@@ -2399,7 +2420,7 @@
     },
     "guardrails": {
       "title": "Garde-fous",
-      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise) est toujours transmis comme une donnée, jamais comme une instruction.",
+      "intro": "Les garde-fous contrôlent ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et ce qu'ils répondent, ainsi que les emails reçus par la réception par email avant qu'une IA ne les lise. Leur liste est fixée dans le code : vous réglez chacun et écrivez le message qu'il affiche à sa place. Ce que le candidat n'a pas écrit (offres, CV, dossiers d'entreprise, emails) est toujours transmis comme une donnée, jamais comme une instruction.",
       "servingValidated": "En production, un message n'est servi qu'une fois validé par un administrateur nommé autre que son auteur, chaque langue à part. D'ici là, le texte par défaut de Jobbbox s'applique.",
       "servingLatest": "Dans cet environnement, le dernier message écrit est servi, validé ou non. En production, seul un message validé l'est.",
       "caption": "Les garde-fous et leur réglage",
@@ -2408,26 +2429,31 @@
       "setting": "Réglage",
       "settingLabel": "Quand il détecte quelque chose",
       "settingHelp": "Bloquer : le message n'est pas envoyé, ou la réponse est réécrite une fois puis remplacée par le message du garde-fou. Signaler seulement : tout passe, et le déclenchement est compté.",
+      "settingHelpEmail": "Bloquer : l'email n'est pas lu par l'IA, ne donne aucune offre et est écarté par un garde-fou. Signaler seulement : il est lu, et le déclenchement est compté. Désactivé : aucun contrôle à l'entrée ; les règles fixes sur la lecture s'appliquent toujours.",
       "saveSetting": "Enregistrer le réglage",
       "alwaysOn": "Bloque toujours",
       "alwaysOnHelp": "Ce garde-fou bloque toujours : il ne peut pas être réglé sur « signaler seulement ».",
+      "noMessage": "Ce garde-fou n'affiche aucun message : personne ne lit sa réponse. Un email bloqué apparaît « écarté par un garde-fou » pour le candidat et dans Activité.",
       "settings": {
         "block": "Bloquer",
-        "flag": "Signaler seulement"
+        "flag": "Signaler seulement",
+        "off": "Désactivé"
       },
       "names": {
         "prompt_injection": "Injection d'instructions",
         "personal_data_leak": "Fuite de données personnelles",
         "secret_disclosure": "Divulgation de secrets",
         "harmful_advice": "Conseil hors rôle ou dangereux",
-        "distress": "Détresse"
+        "distress": "Détresse",
+        "email_injection": "Contenu piégé dans un email"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
         "personal_data_leak": "Une réponse qui donne les coordonnées ou les données personnelles d'un tiers.",
         "secret_disclosure": "Une réponse qui dévoile les instructions de l'IA, les règles des playbooks de coaching ou une clé (Provider Secrets).",
         "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
-        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté."
+        "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
+        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée."
       },
       "languages": {
         "fr": "français",
@@ -2695,6 +2721,8 @@
         "cases": "Cas joués",
         "context": "Situation",
         "message": "Message",
+        "email": "Email reçu (son texte, tel que la réception par email le garde)",
+        "emailReading": "Lecture que l'IA est censée donner",
         "inView": "Consulte",
         "criteria": "Critères",
         "consults": "Playbook à consulter",
@@ -2812,9 +2840,59 @@
       "tabsLabel": "Onglets d'Activité",
       "tabs": {
         "discoveryRuns": "Recherches",
+        "receivedEmails": "Emails reçus",
         "aiMessages": "Appels IA",
         "audit": "Actions des administrateurs"
       }
+    },
+    "receivedEmails": {
+      "intro": "Chaque email d'offres reçu par l'adresse de transfert d'un candidat (Email intake) : quand, le domaine de l'expéditeur, son type, les offres trouvées et ce qu'il est devenu. Aucun candidat n'est nommé et rien du contenu de l'email n'est gardé ici ; chaque ligne est gardée {{months}} mois, même après la suppression du compte du candidat.",
+      "filter": "Filtrer les emails reçus",
+      "outcome": "Résultat",
+      "anyOutcome": "Tous les résultats",
+      "outcomes": {
+        "awaiting_reading": "En attente de lecture",
+        "offers_found": "Offres trouvées",
+        "other": "Autre",
+        "set_aside_by_guardrail": "Écarté par un garde-fou",
+        "unrecognised_sender": "Expéditeur non reconnu",
+        "over_daily_cap": "Plafond atteint",
+        "forwarding_confirmation": "Confirmation de transfert",
+        "failed": "Échec"
+      },
+      "kind": "Type",
+      "anyKind": "Tous les types",
+      "kinds": {
+        "alert": "Alerte",
+        "recruiter": "Recruteur",
+        "other": "Autre"
+      },
+      "period": "Période",
+      "periods": {
+        "today": "Aujourd'hui",
+        "7d": "7 derniers jours",
+        "30d": "30 derniers jours",
+        "all": "Tout (24 mois)"
+      },
+      "apply": "Afficher",
+      "none": "Aucun email reçu sur cette période.",
+      "count_one": "{{count}} email",
+      "count_other": "{{count}} emails",
+      "limit": "Seuls les {{count}} emails les plus récents sont affichés.",
+      "caption": "Emails d'offres reçus, du plus récent au plus ancien",
+      "at": "Reçu le",
+      "sender": "Domaine de l'expéditeur",
+      "manualForward": "transféré à la main",
+      "offers": "Offres nouvelles / déjà là",
+      "offersValue": "{{new}} / {{alreadyStored}}",
+      "guardrail": "Garde-fou",
+      "guardrails": {
+        "passed": "Passé",
+        "flagged": "Signalé",
+        "blocked": "Bloqué"
+      },
+      "notRead": "Non lu",
+      "noCandidate": "Aucun nom, e-mail ni identifiant de candidat ici, et rien du contenu des emails."
     },
     "discoveryRuns": {
       "intro": "Chaque run de la recherche d'offres (Job discovery), lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest : ses recherches et ce qu'elles ont donné. Les requêtes, les critères et le lien vers la recherche du candidat sont gardés {{days}} jours ; les chiffres des runs, {{months}} mois.",

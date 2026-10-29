@@ -1118,7 +1118,8 @@
       "unansweredQuestions": "Unanswered questions",
       "activity": "Activity",
       "discoveryRuns": "Searches",
-      "designSystem": "Design System"
+      "designSystem": "Design System",
+      "receivedEmails": "Received emails"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -2025,7 +2026,8 @@
         "journal": "Activity › Administrator actions",
         "unanswered_questions": "Unanswered questions",
         "signalements": "Feedback",
-        "discovery_runs": "Activity › Searches"
+        "discovery_runs": "Activity › Searches",
+        "received_emails": "Activity › Received emails"
       },
       "actions": {
         "added": "Added",
@@ -2077,6 +2079,24 @@
       "toolCall": "Call",
       "toolCallResult": "{{outcome}}, {{duration}}",
       "toolsLimit": "Only the {{count}} most recent lines are shown.",
+      "linkedMailboxes": "Linked mailboxes",
+      "linkedMailboxesIntro": "With the Linked mailboxes filter, each Linked mailbox switched on, whose Forwarding address is replaced or switched off, or that reaches its daily cap, appears next to the back office changes. No Candidate, no address and no email content is recorded; kept {{months}} months.",
+      "linkedMailboxesCaption": "Back office changes and Linked mailbox events, newest first",
+      "byCandidate": "A Candidate",
+      "byEmailIntake": "Jobbbox (Email intake)",
+      "linkedMailboxTarget": "Linked mailbox (Forwarding address)",
+      "linkedMailboxEvents": {
+        "switched_on": "Switched on",
+        "replaced": "Address replaced",
+        "switched_off": "Switched off",
+        "daily_cap_reached": "Daily cap reached"
+      },
+      "linkedMailboxEventDetails": {
+        "switched_on": "The Candidate switched Email intake on; they were given a Forwarding address.",
+        "replaced": "The Candidate replaced their Forwarding address: the old one receives nothing any more.",
+        "switched_off": "The Candidate switched Email intake off: their address receives nothing any more.",
+        "daily_cap_reached": "Daily cap of emails reached: the day's further emails are set aside unread."
+      },
       "outcome": "Result",
       "outcomes": {
         "succeeded": "Succeeded",
@@ -2170,6 +2190,7 @@
         "web_search": "Web search",
         "back_office_assistant": "Back Office Assistant",
         "guardrail": "Guardrails",
+        "email_guardrail": "Email Guardrail",
         "eval": "Evaluations"
       },
       "reasonsTitle": "Failures and warnings per reason",
@@ -2399,7 +2420,7 @@
     },
     "guardrails": {
       "title": "Guardrails",
-      "intro": "Guardrails check what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and what they reply. Their list is fixed in code: you tune each one and write the message it shows instead. What the Candidate did not write (job offers, CVs, company dossiers) always goes in as data, never as instructions.",
+      "intro": "Guardrails check what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and what they reply, as well as the emails Email intake receives before an AI reads them. Their list is fixed in code: you tune each one and write the message it shows instead. What the Candidate did not write (job offers, CVs, company dossiers, emails) always goes in as data, never as instructions.",
       "servingValidated": "In production, a message is served only once validated by a named Administrator other than its author, each language apart. Until then, Jobbbox's default text applies.",
       "servingLatest": "In this environment, the latest message written is served, validated or not. In production, only a validated one is.",
       "caption": "The guardrails and their setting",
@@ -2408,26 +2429,31 @@
       "setting": "Setting",
       "settingLabel": "When it finds something",
       "settingHelp": "Block: the message is not sent, or the reply is written again once then replaced by the guardrail's message. Flag only: everything goes through, and the trigger is counted.",
+      "settingHelpEmail": "Block: the email is not read by the AI, gives no job offer and is set aside by a guardrail. Flag only: it is read, and the trigger is counted. Off: no check on input; the fixed rules on the reading always apply.",
       "saveSetting": "Save the setting",
       "alwaysOn": "Always blocks",
       "alwaysOnHelp": "This guardrail always blocks: it cannot be set to flag only.",
+      "noMessage": "This guardrail shows no message: no one reads its answer. A blocked email shows as « set aside by a guardrail » to the Candidate and in Activity.",
       "settings": {
         "block": "Block",
-        "flag": "Flag only"
+        "flag": "Flag only",
+        "off": "Off"
       },
       "names": {
         "prompt_injection": "Prompt injection",
         "personal_data_leak": "Personal data leak",
         "secret_disclosure": "Secret disclosure",
         "harmful_advice": "Out-of-scope or harmful advice",
-        "distress": "Distress"
+        "distress": "Distress",
+        "email_injection": "Booby-trapped email content"
       },
       "descriptions": {
         "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
         "personal_data_leak": "A reply that gives a third party's contact details or personal data.",
         "secret_disclosure": "A reply that reveals the AI's instructions, the coaching playbooks' rules or a key (Provider Secrets).",
         "harmful_advice": "A reply that gives legal, medical or financial advice, or discriminatory advice, age included.",
-        "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted."
+        "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted.",
+        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside."
       },
       "languages": {
         "fr": "French",
@@ -2695,6 +2721,8 @@
         "cases": "Cases played",
         "context": "Situation",
         "message": "Message",
+        "email": "Email received (its text, as Email intake keeps it)",
+        "emailReading": "Reading the AI is made to give",
         "inView": "In view",
         "criteria": "Criteria",
         "consults": "Playbook to consult",
@@ -2812,9 +2840,59 @@
       "tabsLabel": "Activity tabs",
       "tabs": {
         "discoveryRuns": "Searches",
+        "receivedEmails": "Received emails",
         "aiMessages": "AI calls",
         "audit": "Administrator actions"
       }
+    },
+    "receivedEmails": {
+      "intro": "Each offer email a Candidate's Forwarding address received (Email intake): when, the sender's domain, its kind, the offers found and its outcome. No Candidate is named and nothing of the email's content is kept here; each row is kept {{months}} months, even after the Candidate's account is deleted.",
+      "filter": "Filter the received emails",
+      "outcome": "Outcome",
+      "anyOutcome": "All outcomes",
+      "outcomes": {
+        "awaiting_reading": "Awaiting reading",
+        "offers_found": "Offers found",
+        "other": "Other",
+        "set_aside_by_guardrail": "Set aside by a Guardrail",
+        "unrecognised_sender": "Unrecognised sender",
+        "over_daily_cap": "Daily cap reached",
+        "forwarding_confirmation": "Forwarding confirmation",
+        "failed": "Failed"
+      },
+      "kind": "Kind",
+      "anyKind": "All kinds",
+      "kinds": {
+        "alert": "Alert",
+        "recruiter": "Recruiter",
+        "other": "Other"
+      },
+      "period": "Period",
+      "periods": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "all": "All (24 months)"
+      },
+      "apply": "Show",
+      "none": "No email received in this period.",
+      "count_one": "{{count}} email",
+      "count_other": "{{count}} emails",
+      "limit": "Only the {{count}} most recent emails are shown.",
+      "caption": "Offer emails received, newest first",
+      "at": "Received",
+      "sender": "Sender's domain",
+      "manualForward": "forwarded by hand",
+      "offers": "Offers new / already stored",
+      "offersValue": "{{new}} / {{alreadyStored}}",
+      "guardrail": "Guardrail",
+      "guardrails": {
+        "passed": "Passed",
+        "flagged": "Flagged",
+        "blocked": "Blocked"
+      },
+      "notRead": "Not read",
+      "noCandidate": "No Candidate name, email or id here, and nothing of the emails' content."
     },
     "discoveryRuns": {
       "intro": "Every run of Job discovery, started by a Candidate's Job Search or to top up a Job Digest: its searches and what they gave. Queries, criteria and the link to the Candidate's Job Search are kept {{days}} days; the runs' figures, {{months}} months.",

@@ -142,7 +142,7 @@ test.describe("Back Office « Activité » (#404)", () => {
     await office.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.activity, exact: true }).click();
     await expect(office).toHaveURL(/\/admin\/activite\/recherches$/);
     await expect(office.getByRole("heading", { level: 1 })).toHaveText(admin.activity.title);
-    await expect(office.getByRole("navigation", { name: admin.activity.tabsLabel }).getByRole("link")).toHaveText([admin.activity.tabs.discoveryRuns, admin.activity.tabs.aiMessages, admin.activity.tabs.audit]);
+    await expect(office.getByRole("navigation", { name: admin.activity.tabsLabel }).getByRole("link")).toHaveText([admin.activity.tabs.discoveryRuns, admin.activity.tabs.receivedEmails, admin.activity.tabs.aiMessages, admin.activity.tabs.audit]);
 
     // One row: a Job Search's, its Profile by pseudonym with its criteria, its provider and why it stopped. No Candidate named.
     const row = office.locator(`tr[data-run="${runId}"]`);
@@ -208,7 +208,7 @@ test.describe("Back Office « Activité » (#404)", () => {
 
     await support.goto("/admin/activite");
     await expect(support).toHaveURL(/\/admin\/activite\/recherches$/);
-    await expect(support.getByRole("navigation", { name: admin.activity.tabsLabel }).getByRole("link")).toHaveText([admin.activity.tabs.discoveryRuns]);
+    await expect(support.getByRole("navigation", { name: admin.activity.tabsLabel }).getByRole("link")).toHaveText([admin.activity.tabs.discoveryRuns, admin.activity.tabs.receivedEmails]);
     await support.goto(`/admin/activite/recherches?periode=all&run=${runId}`);
     const panel = support.locator(`[data-run-panel="${runId}"]`);
     await expect(panel.getByTestId("run-searches")).toContainText(`« ${targetRole} » à Lyon`);

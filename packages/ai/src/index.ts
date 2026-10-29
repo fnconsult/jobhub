@@ -43,7 +43,7 @@ export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingPro
 export type { AiLayerDeps } from "./env";
 export { checkAiRoutingChange } from "./routing-check";
 export type { AiRoutingCheckDeps, AiRoutingRefusal } from "./routing-check";
-export { findIdentity, identityIn } from "./identity-scan";
+export { findIdentity, identityIn, personNamesIn } from "./identity-scan";
 export type { IdentityHit } from "./identity-scan";
 export { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 export { givenNameOf, redactIdentity, REDACTION_NOTE } from "./redaction";

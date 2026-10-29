@@ -89,3 +89,45 @@ export function findIdentity(texts: readonly string[]): IdentityHit[] {
 export function identityIn(text: string): { phones: string[]; emails: string[] } {
   return { phones: phonesIn(text), emails: [...text.matchAll(EMAILS)].map((match) => match[0].replace(/[.,;:!?)]+$/, "")) };
 }
+
+/** Common first names: one followed by a capitalised word is taken for a person's name. */
+export const FIRST_NAMES = new Set(
+  (
+    "jean pierre paul jacques michel philippe alain bernard patrick nicolas christophe olivier laurent thierry eric éric stéphane " +
+    "sébastien julien thomas antoine alexandre maxime vincent françois francois frédéric frederic guillaume pascal didier gilles " +
+    "daniel marc luc louis henri emmanuel xavier yves hugo lucas léo leo gabriel arthur raphaël raphael mathieu matthieu benoît benoit " +
+    "marie anne sophie isabelle nathalie catherine sylvie christine valérie valerie sandrine céline celine julie caroline aurélie " +
+    "camille léa lea chloé chloe emma manon sarah laura pauline juliette charlotte hélène helene florence martine monique " +
+    "agnès agnes béatrice beatrice delphine virginie émilie emilie élodie elodie margaux inès ines alice louise jeanne " +
+    "florent hans peter john james robert michael william david richard joseph charles mark steven steve elon jeff tim " +
+    "bill sundar satya andy brian kevin jason ryan matthew mary patricia jennifer linda elizabeth barbara susan jessica karen " +
+    "nancy lisa betty sandra ashley emily donna michelle kimberly amy melissa rebecca laura anna maria klaus wolfgang jürgen " +
+    "stefan andreas markus carlos jose josé juan luis antonio giuseppe marco giovanni luca " +
+    "claire cécile cecile lucie mathilde anaïs anais justine marion audrey stéphanie stephanie corinne véronique veronique " +
+    "karine laurence brigitte romain damien jérôme jerome fabrice sylvain cédric cedric arnaud hervé herve bruno franck"
+  ).split(" "),
+);
+
+/** Words that name a person by the word after them: « Mme Durand », « M. Martin ». */
+const HONORIFIC = /^(?:mme|mlle|madame|mademoiselle|monsieur|m\.|mr|mrs|ms|dr)$/i;
+
+/**
+ * The people `text` names, each as written, in order (#446): a common first name followed by a capitalised word
+ * (« Claire Martin »), or a capitalised word after an honorific (« Mme Durand »). A name the list does not know,
+ * written alone, is not found: Redaction and Guardrails never rely on this alone.
+ */
+export function personNamesIn(text: string): string[] {
+  const tokens = text.normalize("NFC").split(/[\s"«»“”‘’(),:;!?|/–—]+/u).filter(Boolean);
+  const capitalised = (word: string | undefined): word is string => word !== undefined && /^\p{Lu}\p{Ll}/u.test(word);
+  const bare = (word: string) => word.replace(/[.,]+$/, "");
+  const names: string[] = [];
+  for (let index = 0; index + 1 < tokens.length; index += 1) {
+    const [word, next] = [tokens[index]!, tokens[index + 1]];
+    if (!capitalised(next)) continue;
+    if ((capitalised(word) && FIRST_NAMES.has(bare(word).toLowerCase())) || HONORIFIC.test(word)) {
+      names.push(`${bare(word)} ${bare(next)}`);
+      index += 1;
+    }
+  }
+  return names;
+}

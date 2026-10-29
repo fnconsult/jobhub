@@ -24,6 +24,7 @@ export const BACK_OFFICE_PAGES = {
   // Activité (#404): one sidebar entry, read by whoever reads its Recherches (every reader of its other tabs does); its tabs
   // are the pages a denied Administrator is recorded on.
   discoveryRuns: { href: routes.adminDiscoveryRuns(), resource: "discoveryRuns" },
+  receivedEmails: { href: routes.adminReceivedEmails(), resource: "receivedEmails" },
   activity: { href: routes.adminActivity, resource: "discoveryRuns" },
   aiMessages: { href: routes.adminAiMessages(), resource: "aiMessages" },
   searchSites: { href: routes.adminSearchSites, resource: "searchSites" },

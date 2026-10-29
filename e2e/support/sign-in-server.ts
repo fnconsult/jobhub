@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import pg from "pg";
-import { fromNewAddress } from "./candidate";
+import { fromNewAddress, requestSignInLink } from "./candidate";
 import { emailsIn, linkIn } from "./mailbox";
 import { derivedPort } from "./ports";
 
@@ -99,9 +99,7 @@ export async function signInByEmail(page: Page, server: SignInServer, email: str
   const already = emailsIn(server.output(), email).length;
   await fromNewAddress(page);
   await page.goto(`${server.origin}/connexion`);
-  await page.getByLabel(/Votre adresse e-mail|Your email address/).fill(email);
-  await page.getByRole("button", { name: /Recevoir mon lien|Send me a sign-in link/ }).click();
-  await expect(page.getByRole("status")).toBeVisible();
+  await requestSignInLink(page, email);
   await expect.poll(() => emailsIn(server.output(), email).length, { message: `sign-in email to ${email}` }).toBeGreaterThan(already);
   await page.goto(linkIn(emailsIn(server.output(), email)[already]!));
   await expect(page).toHaveURL(`${server.origin}/compte`);

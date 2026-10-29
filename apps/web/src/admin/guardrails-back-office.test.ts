@@ -117,10 +117,19 @@ describe.skipIf(!connectionString)("Guardrails' Back Office writes and their Bac
       ]);
     });
 
+    it("switches the email Guardrail off only after its Eval Cases are played on it, and records it (#446)", async () => {
+      const saved = await changes.setSetting(claire, "email_injection", "off");
+
+      expect(saved).toMatchObject({ ok: true, changed: true, before: "block", after: "off", run: { id: "run-1" } });
+      expect(played).toEqual([expect.objectContaining({ email_injection: "off", prompt_injection: "block" })]);
+      expect(await backOffice.journal({ section: "guardrails" })).toMatchObject([{ target: "email_injection", action: "updated", before: { setting: "block" }, after: { setting: "off" } }]);
+    });
+
     it("plays no Eval Case when the setting is unchanged or refused, nor when a Guardrail message changes", async () => {
       await changes.setSetting(claire, "harmful_advice", "block");
       await changes.setSetting(claire, "distress", "flag");
       await changes.setSetting(claire, "harmful_advice", "sometimes");
+      await changes.setSetting(claire, "prompt_injection", "off");
       await changes.saveMessage(claire, "harmful_advice", "fr", "Adressez-vous à un professionnel.");
       await changes.validateMessage(paul, "harmful_advice", "fr", 1);
 

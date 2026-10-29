@@ -7,7 +7,14 @@ import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
-import { EMAIL_INTAKE_READ_QUEUE, purgeReceivedOfferEmails, RETENTION_MONTHS as RECEIVED_EMAIL_RETENTION_MONTHS, TEXT_RETENTION_HOURS } from "@jobhub/web/email-intake";
+import {
+  ACTIVITY_RETENTION_MONTHS as EMAIL_INTAKE_ACTIVITY_RETENTION_MONTHS,
+  EMAIL_INTAKE_READ_QUEUE,
+  purgeEmailIntakeActivity,
+  purgeReceivedOfferEmails,
+  RETENTION_MONTHS as RECEIVED_EMAIL_RETENTION_MONTHS,
+  TEXT_RETENTION_HOURS,
+} from "@jobhub/web/email-intake";
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
@@ -91,8 +98,9 @@ export const DISCOVERY_RUNS_PURGE = "discovery-runs.purge";
 
 /**
  * Queue name: delete the Received offer emails' texts TEXT_RETENTION_HOURS after they arrived, read or not, and the
- * Received offer emails RECEIVED_EMAIL_RETENTION_MONTHS after (#442, ADR-0051). Runs hourly: a text never stays much
- * past its 72 hours.
+ * Received offer emails RECEIVED_EMAIL_RETENTION_MONTHS after (#442, ADR-0051); the Back Office's Emails reçus rows and
+ * Linked mailbox events EMAIL_INTAKE_ACTIVITY_RETENTION_MONTHS after (#449). Runs hourly: a text never stays much past
+ * its 72 hours.
  */
 export const EMAIL_INTAKE_PURGE = "email-intake.purge";
 
@@ -663,6 +671,13 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           if (purged.texts || purged.emails) {
             log(
               `[email-intake] ${purged.texts} Received offer email text(s) purged after ${TEXT_RETENTION_HOURS} hours, ${purged.emails} Received offer email(s) after ${RECEIVED_EMAIL_RETENTION_MONTHS} months`,
+            );
+          }
+          // The Back Office's rows, naming no Candidate (#449): kept longer than the emails, whatever became of the account.
+          const back = await purgeEmailIntakeActivity(deps.database, now());
+          if (back.receivedEmails || back.linkedMailboxEvents) {
+            log(
+              `[email-intake] ${back.receivedEmails} Emails reçus row(s) and ${back.linkedMailboxEvents} Linked mailbox event(s) purged after ${EMAIL_INTAKE_ACTIVITY_RETENTION_MONTHS} months`,
             );
           }
         }),

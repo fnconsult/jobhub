@@ -1006,6 +1006,7 @@
     "readOnly": "Lecture seule : vos rôles ne permettent pas de modifier cette section.",
     "dashboard": {
       "title": "Dashboard",
+      "subtitle": "Ce que la plateforme consomme, et comment se porte la recherche d'offres.",
       "intro": "Ce que la plateforme consomme et comment se porte la recherche d'offres. Chaque bloc n'apparaît qu'aux rôles qui lisent sa rubrique.",
       "noBlocks": "Aucun indicateur pour vos rôles : la barre latérale mène à vos rubriques.",
       "tableView": "Vue tableau",
@@ -1631,6 +1632,7 @@
     },
     "platformSettings": {
       "title": "Paramètres",
+      "subtitle": "Les réglages de la plateforme, par type d'outil.",
       "intro": "Les réglages de la plateforme, par type d'outil : le fournisseur actif et ses réglages, puis chaque fournisseur possible avec ses clés, son dernier test et ce qu'il sert. Une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur la valeur par défaut du code.",
       "differs_one": "{{count}} réglage vient de l'environnement et diffère de la valeur par défaut du code : vérifiez qu'il est voulu.",
       "differs_other": "{{count}} réglages viennent de l'environnement et diffèrent de la valeur par défaut du code : vérifiez qu'ils sont voulus.",
@@ -2117,7 +2119,8 @@
         "provider": "Fournisseur",
         "status": "Statut HTTP",
         "message": "Message"
-      }
+      },
+      "subtitle": "Chaque modification faite dans le back office, et chaque tentative refusée."
     },
     "aiUsage": {
       "title": "Consommation IA",
@@ -2207,6 +2210,7 @@
     },
     "aiMessages": {
       "title": "Appel IA",
+      "subtitle": "Le texte de chaque appel à l'IA, clés et secrets masqués.",
       "intro": "Le texte de chaque appel à l'IA (prompt et réponse), clés et secrets masqués, gardé {{days}} jours pour la qualité et le débogage. Données personnelles : chaque appel ouvert est inscrit dans Actions des administrateurs.",
       "filter": "Filtrer",
       "task": "Tâche",
@@ -2892,7 +2896,8 @@
         "blocked": "Bloqué"
       },
       "notRead": "Non lu",
-      "noCandidate": "Aucun nom, e-mail ni identifiant de candidat ici, et rien du contenu des emails."
+      "noCandidate": "Aucun nom, e-mail ni identifiant de candidat ici, et rien du contenu des emails.",
+      "subtitle": "Chaque email d'offres reçu par l'adresse de transfert d'un candidat."
     },
     "discoveryRuns": {
       "intro": "Chaque run de la recherche d'offres (Job discovery), lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest : ses recherches et ce qu'elles ont donné. Les requêtes, les critères et le lien vers la recherche du candidat sont gardés {{days}} jours ; les chiffres des runs, {{months}} mois.",
@@ -3023,7 +3028,11 @@
         "employer": "Employeur",
         "location": "Lieu",
         "matchScore": "Match Score"
-      }
+      },
+      "subtitle": "Chaque run de la recherche d'offres et ce qu'il a donné."
+    },
+    "pageIntro": {
+      "more": "En savoir plus"
     }
   },
   "backOfficeAssistant": {

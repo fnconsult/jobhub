@@ -4481,5 +4481,12 @@
     "reasons": {
       "superAdmin": "Vous recevez cet e-mail parce que vous êtes super-admin de Jobbbox."
     }
+  },
+  "quickActions": {
+    "label": "Actions rapides",
+    "searchJobOffers": "Chercher des offres",
+    "addApplication": "Ajouter une candidature",
+    "scheduleInterview": "Planifier un entretien",
+    "askCoach": "Demander au coach"
   }
 }

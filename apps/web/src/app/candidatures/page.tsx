@@ -4,7 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { INTERVIEW_TIME_ZONE, type ApplicationSummary } from "@/applications";
 import { getApplications } from "@/applications/server";
-import { APPLICATION_SORTS, applicationListHref, applicationListView, isArchivedApplication, viewApplications, type ApplicationListParams, type ApplicationListView, type ApplicationSort } from "@/applications/list-view";
+import { applicationListHref, applicationListView, isArchivedApplication, viewApplications, type ApplicationListParams, type ApplicationListView, type ApplicationSort } from "@/applications/list-view";
 import { getCurrentCandidate } from "@/auth/server";
 import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";

@@ -4,6 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyStateHelp, HelpText } from "@/components/HelpTerm";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
+import { Pill } from "@/design/Pill";
+import "./ActionCardList.css";
 
 /** What the page needs to show one Action Card. */
 export interface ActionCardView {
@@ -21,6 +26,9 @@ export interface ActionCardView {
   /** The body is a draft the Candidate sends themselves (e.g. a Follow-up): set apart as one, with a button to copy it. */
   draft?: boolean;
 }
+
+/** Each Action Card is an article, one of a list (#467). */
+const CARD_ELEMENT = "article";
 
 /** The heading of the page's Action Cards, while there are some. */
 const TITLE_ID = "action-cards-title";
@@ -101,9 +109,9 @@ export function ActionCardList({ cards: shown, alone = false }: { cards: ActionC
         </p>
       ) : null}
       {outcome && outcome.kind !== "error" ? (
-        <p className="notice" role="status">
+        <Note tone="success" role="status">
           {t(`actionCards.${outcome.kind}`)}
-        </p>
+        </Note>
       ) : null}
       {alone && cards.length === 0 ? (
         <p>
@@ -111,9 +119,8 @@ export function ActionCardList({ cards: shown, alone = false }: { cards: ActionC
         </p>
       ) : null}
       {cards.map((card) => (
-        <article key={card.id} className="action-card" aria-labelledby={`action-card-${card.id}`}>
-          {card.label ? <p className="action-card-label">{card.label}</p> : null}
-          <h3 id={`action-card-${card.id}`}>{card.title}</h3>
+        // The card's label (« Relance suggérée ») as a pill at the end of its title line (#467).
+        <Card key={card.id} as={CARD_ELEMENT} headingLevel={3} headingId={`action-card-${card.id}`} title={card.title} actions={card.label ? <Pill tone="accent">{card.label}</Pill> : undefined}>
           <p className={card.draft ? "draft" : "cv-text"}>{card.body}</p>
           {card.hint ? <p className="hint">{card.hint}</p> : null}
           {outcome?.kind === "error" && outcome.cardId === card.id ? (
@@ -122,15 +129,15 @@ export function ActionCardList({ cards: shown, alone = false }: { cards: ActionC
             </p>
           ) : null}
           <div className="actions">
-            <button className="button button-primary" type="button" disabled={busy === card.id} onClick={() => decide(card, "accept")}>
+            <button className={buttonClass({ variant: "primary" })} type="button" disabled={busy === card.id} onClick={() => decide(card, "accept")}>
               {card.acceptLabel ?? t("actionCards.accept")}
             </button>
             {card.draft ? (
-              <button className="button" type="button" onClick={() => copy(card)}>
+              <button className={buttonClass()} type="button" onClick={() => copy(card)}>
                 {t("actionCards.copyDraft")}
               </button>
             ) : null}
-            <button className="button button-quiet" type="button" disabled={busy === card.id} onClick={() => decide(card, "dismiss")}>
+            <button className={buttonClass({ variant: "quiet" })} type="button" disabled={busy === card.id} onClick={() => decide(card, "dismiss")}>
               {card.dismissLabel ?? t("actionCards.dismiss")}
             </button>
           </div>
@@ -143,7 +150,7 @@ export function ActionCardList({ cards: shown, alone = false }: { cards: ActionC
               </p>
             )
           ) : null}
-        </article>
+        </Card>
       ))}
     </section>
   );

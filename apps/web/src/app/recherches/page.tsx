@@ -1,3 +1,4 @@
+import type { Activity } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -36,6 +37,8 @@ const ALL = "tous";
 const LANES = "couloirs";
 /** `aria-current` of the link to the view being shown. */
 const CURRENT = "page";
+/** The Activity of a Job Search under way: its glyph, the magnifier sweeping. */
+const SEARCHING: Activity = "search";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 type Profile = { id: string; name: string };
@@ -234,7 +237,7 @@ function ProfileChooser({ profiles, chosen, lanes, t }: { profiles: Profile[]; c
 function SearchRunning({ search, t }: { search: JobSearch; t: T }) {
   return (
     <p className="job-searches-step">
-      <ActivityGlyph activity="search" live />
+      <ActivityGlyph activity={SEARCHING} live />
       <span>{t("jobSearchesPage.searching")}</span>
       <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={routes.jobSearch(search.id)}>
         {t("jobSearchesPage.seeRunning")}

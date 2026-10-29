@@ -2639,6 +2639,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 auto;
 }
 
+/* On the Candidate's pages (Confort, no Density scope set), the Design System's buttons, links drawn as one and « Pourquoi
+   92 ? » included, reach the 44px target floor (ADR-0009) at every Text Size; the Back Office and the Design System
+   page's previews, each in a Density scope, keep the Density's control height (#467). */
+.workspace > .page .ds-button:not([data-density] .ds-button) {
+  min-height: var(--control-height);
+}
+
 /* Its buttons reach the 44px floor (ADR-0009), links as well as buttons. */
 .job-search-notification .button,
 .signalement-notification .button {

@@ -33,7 +33,11 @@
   line-height: var(--line-height-heading);
 }
 
+/* A 2.75rem target (ADR-0009) that keeps the title close to its facts: the padding is taken back by the margin. */
 .job-offer-result__title a {
+  display: inline-block;
+  padding: calc((2.75rem - 1lh) / 2) 0;
+  margin: calc((2.75rem - 1lh) / -2) 0;
   color: var(--color-text);
   text-decoration: none;
 }

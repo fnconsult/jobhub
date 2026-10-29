@@ -195,6 +195,19 @@ test.describe("Interface Language", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
   });
 
+  // #446: picked from the server's HTML, before React had attached its handler, the choice was lost and the page
+  // stayed French. The page's scripts are held back here, so the select is reached while the page is still loading.
+  test("picked while the page is still loading, English still takes", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("language-early"));
+    await page.route("**/_next/static/chunks/**", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      await route.continue();
+    });
+    await page.goto("/compte/preferences", { waitUntil: "commit" });
+    await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en", { timeout: 15_000 });
+  });
+
   test("only supported languages are accepted", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("unsupported"));
     const response = await page.request.post("/api/auth/update-user", {

@@ -9,7 +9,9 @@
  * and `purgeExpiredGuardrailTriggers(database, now)` (the worker, nightly) and `migrateGuardrails(database)`.
  *
  * Rules kept here, whoever calls:
- *  - A Guardrail blocks until set to flag only; distress, personal data leak and secret disclosure can never be.
+ *  - A Guardrail blocks until set to flag only; distress, personal data leak and secret disclosure can never be. Only the
+ *    email Guardrail (« Contenu piégé dans un email », #446) can be switched off; it has no Guardrail message, as no one
+ *    reads its answer.
  *  - Each saved Guardrail message is a new version, by its author; a version is Human-validated once, by a named
  *    Administrator other than its author, only while it is the latest; each language apart.
  *  - `serving: "validated"` (production) serves the latest Human-validated message of each language,
@@ -30,8 +32,10 @@ import {
   DEFAULT_GUARDRAIL_MESSAGES,
   GUARDRAIL_IDS,
   GUARDRAIL_LANGUAGES,
-  GUARDRAIL_SETTINGS,
+  guardrailSettingsOf,
+  hasGuardrailMessage,
   isGuardrailId,
+  MESSAGE_GUARDRAILS,
   type GuardrailAction,
   type GuardrailConfig,
   type GuardrailId,
@@ -39,6 +43,7 @@ import {
   type GuardrailMessages,
   type GuardrailSetting,
   type GuardrailTriggerLog,
+  type MessageGuardrailId,
 } from "./index";
 
 /** How long a Guardrail Trigger is kept, like AI Usage. */
@@ -65,12 +70,16 @@ export interface GuardrailMessageVersion {
   validation: { name: string; email: string; at: Date } | null;
 }
 
-/** One Guardrail as the Back Office shows it. `served`: null while the default text applies. */
+/**
+ * One Guardrail as the Back Office shows it: `settings`, those it can have; `messages`, null for a Guardrail that answers
+ * with none (the email Guardrail); `served`, null while the default text applies.
+ */
 export interface GuardrailOverview {
   id: GuardrailId;
   alwaysOn: boolean;
   setting: GuardrailSetting;
-  messages: Record<GuardrailLanguage, { latest: GuardrailMessageVersion | null; served: GuardrailMessageVersion | null; default: string }>;
+  settings: readonly GuardrailSetting[];
+  messages: Record<GuardrailLanguage, { latest: GuardrailMessageVersion | null; served: GuardrailMessageVersion | null; default: string }> | null;
 }
 
 /** Guardrail Triggers of one day (Paris time) and one Guardrail. */
@@ -117,6 +126,9 @@ export async function migrateGuardrails(database: Pool): Promise<void> {
       setting text NOT NULL CHECK (setting IN ('block', 'flag')),
       updated_at timestamptz NOT NULL DEFAULT now()
     );
+    -- The email Guardrail can be switched off (#446).
+    ALTER TABLE guardrail_setting DROP CONSTRAINT IF EXISTS guardrail_setting_setting_check;
+    ALTER TABLE guardrail_setting ADD CONSTRAINT guardrail_setting_setting_check CHECK (setting IN ('block', 'flag', 'off'));
     CREATE TABLE IF NOT EXISTS guardrail_message (
       guardrail text NOT NULL,
       language text NOT NULL,
@@ -179,7 +191,6 @@ const messageFrom = (row: MessageRow): GuardrailMessageVersion => ({
 
 const isGuardrailFailureReason = (value: unknown): value is GuardrailFailureReason => GUARDRAIL_FAILURE_REASONS.includes(value as GuardrailFailureReason);
 const isLanguage = (value: unknown): value is GuardrailLanguage => GUARDRAIL_LANGUAGES.includes(value as GuardrailLanguage);
-const isSetting = (value: unknown): value is GuardrailSetting => GUARDRAIL_SETTINGS.includes(value as GuardrailSetting);
 const normalEmail = (email: string) => email.trim().toLowerCase();
 const key = (id: string, language: string) => `${id} ${language}`;
 
@@ -187,7 +198,12 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
   async function settings(within: Queryable): Promise<Record<GuardrailId, GuardrailSetting>> {
     const { rows } = await within.query<{ guardrail: string; setting: GuardrailSetting }>("SELECT guardrail, setting FROM guardrail_setting");
     const stored = new Map(rows.map((row) => [row.guardrail, row.setting]));
-    return Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, ALWAYS_ON_GUARDRAILS.includes(id) ? "block" : (stored.get(id) ?? "block")])) as Record<GuardrailId, GuardrailSetting>;
+    return Object.fromEntries(
+      GUARDRAIL_IDS.map((id) => {
+        const setting = stored.get(id);
+        return [id, setting && guardrailSettingsOf(id).includes(setting) ? setting : "block"];
+      }),
+    ) as Record<GuardrailId, GuardrailSetting>;
   }
 
   /** The latest, or the latest Human-validated, message of each Guardrail and language. */
@@ -207,7 +223,7 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
       async current() {
         const [current, served] = await Promise.all([settings(database), servedMessages(database)]);
         const messages = Object.fromEntries(
-          GUARDRAIL_IDS.map((id) => [id, Object.fromEntries(GUARDRAIL_LANGUAGES.map((language) => [language, served.get(key(id, language))?.text ?? DEFAULT_GUARDRAIL_MESSAGES[id][language]]))]),
+          MESSAGE_GUARDRAILS.map((id) => [id, Object.fromEntries(GUARDRAIL_LANGUAGES.map((language) => [language, served.get(key(id, language))?.text ?? DEFAULT_GUARDRAIL_MESSAGES[id][language]]))]),
         ) as GuardrailMessages;
         return { settings: current, messages };
       },
@@ -228,23 +244,27 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
 
     async list() {
       const [current, latest, served] = await Promise.all([settings(database), latestMessages(database, false), servedMessages(database)]);
-      return GUARDRAIL_IDS.map((id) => ({
-        id,
-        alwaysOn: ALWAYS_ON_GUARDRAILS.includes(id),
-        setting: current[id],
-        messages: Object.fromEntries(
+      const messagesOf = (id: MessageGuardrailId) =>
+        Object.fromEntries(
           GUARDRAIL_LANGUAGES.map((language) => [
             language,
             { latest: latest.get(key(id, language)) ?? null, served: served.get(key(id, language)) ?? null, default: DEFAULT_GUARDRAIL_MESSAGES[id][language] },
           ]),
-        ) as GuardrailOverview["messages"],
+        ) as NonNullable<GuardrailOverview["messages"]>;
+      return GUARDRAIL_IDS.map((id) => ({
+        id,
+        alwaysOn: ALWAYS_ON_GUARDRAILS.includes(id),
+        setting: current[id],
+        settings: guardrailSettingsOf(id),
+        messages: hasGuardrailMessage(id) ? messagesOf(id) : null,
       }));
     },
 
     async setSetting(id, setting, within = database) {
       if (!isGuardrailId(id)) return { ok: false, error: "not_found" };
-      if (!isSetting(setting)) return { ok: false, error: "invalid" };
       if (ALWAYS_ON_GUARDRAILS.includes(id)) return { ok: false, error: "always_on" };
+      const isSetting = (value: unknown): value is GuardrailSetting => guardrailSettingsOf(id).includes(value as GuardrailSetting);
+      if (!isSetting(setting)) return { ok: false, error: "invalid" };
       const before = (await settings(within))[id];
       if (before === setting) return { ok: true, before, after: setting, changed: false };
       await within.query(
@@ -256,7 +276,7 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
     },
 
     async saveMessage(author, id, language, text, within = database) {
-      if (!isGuardrailId(id) || !isLanguage(language)) return { ok: false, error: "not_found" };
+      if (!isGuardrailId(id) || !hasGuardrailMessage(id) || !isLanguage(language)) return { ok: false, error: "not_found" };
       const content = typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "";
       if (!content || content.length > MAX_GUARDRAIL_MESSAGE_LENGTH) return { ok: false, error: "invalid" };
       if (id === "distress" && !content.includes(DISTRESS_HELPLINE)) return { ok: false, error: "helpline_missing" };
@@ -271,7 +291,7 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
     },
 
     async validateMessage(validator, id, language, version, within = database) {
-      if (!isGuardrailId(id) || !isLanguage(language)) return { ok: false, error: "not_found" };
+      if (!isGuardrailId(id) || !hasGuardrailMessage(id) || !isLanguage(language)) return { ok: false, error: "not_found" };
       const latest = (await latestMessages(within, false)).get(key(id, language));
       if (!latest || !Number.isInteger(version) || version < 1 || version > latest.version) return { ok: false, error: "not_found" };
       if (version !== latest.version) return { ok: false, error: "not_latest" };

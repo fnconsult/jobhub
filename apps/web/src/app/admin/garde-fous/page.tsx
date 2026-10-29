@@ -6,7 +6,7 @@ import { playbookServing } from "@/coaching-playbooks/serving";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { getEvals } from "@/evals/server";
-import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, type GuardrailId, type GuardrailLanguage } from "@/guardrails";
+import { GUARDRAIL_LANGUAGES, type GuardrailId, type GuardrailLanguage } from "@/guardrails";
 import { GUARDRAIL_FAILURE_REASONS } from "@jobhub/shared";
 import { getGuardrailStore, guardrailTriggersOfLastDays } from "@/guardrails/server";
 import { TRIGGER_RETENTION_MONTHS, type GuardrailMessageVersion, type GuardrailTriggerDay } from "@/guardrails/store";
@@ -157,14 +157,14 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
                 <input type="hidden" name="guardrail" value={guardrail.id} />
                 <label htmlFor={`${guardrail.id}-setting`}>{t("admin.guardrails.settingLabel")}</label>
                 <select id={`${guardrail.id}-setting`} className="input" name="setting" defaultValue={guardrail.setting} aria-describedby={`${guardrail.id}-setting-help`}>
-                  {GUARDRAIL_SETTINGS.map((setting) => (
+                  {guardrail.settings.map((setting) => (
                     <option key={setting} value={setting}>
                       {t(`admin.guardrails.settings.${setting}`)}
                     </option>
                   ))}
                 </select>
                 <p id={`${guardrail.id}-setting-help`}>
-                  {t("admin.guardrails.settingHelp")} {t("admin.guardrails.settingHelpEvals")}
+                  {t(guardrail.messages ? "admin.guardrails.settingHelp" : "admin.guardrails.settingHelpEmail")} {t("admin.guardrails.settingHelpEvals")}
                 </p>
                 <button className="button button-primary" type="submit">
                   {t("admin.guardrails.saveSetting")}
@@ -173,7 +173,9 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
             </BackOfficeForm>
           )}
 
+          {guardrail.messages ? null : <p>{t("admin.guardrails.noMessage")}</p>}
           {GUARDRAIL_LANGUAGES.map((each) => {
+            if (!guardrail.messages) return null;
             const { latest, served, default: fallback } = guardrail.messages[each];
             const prefix = `${guardrail.id}-${each}`;
             return (

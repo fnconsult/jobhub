@@ -128,6 +128,11 @@ globalThis.fetch = async (input, init) => {
       : { harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"), personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"), secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET") };
     return completion(body, JSON.stringify(verdict));
   }
+  // The email Guardrail's model check (#446, "Tu contrôles un email") finds indirect prompt injection in an email holding
+  // "E2E_EMAIL_INJECTION", and in the fake recruiter's Eval Case, asking for the Candidate's social security number.
+  if (system.startsWith("Tu contrôles un email")) {
+    return completion(body, JSON.stringify({ email_injection: prompt.includes("E2E_EMAIL_INJECTION") || prompt.includes("numéro de sécurité sociale") }));
+  }
   if (system.startsWith("Tu es le juge des évaluations")) {
     const low = prompt.includes("E2E_JUDGE_LOW");
     return completion(body, JSON.stringify({ score: low ? 2 : 8, raison: low ? "E2E : la réponse ne remplit pas les critères." : "E2E : la réponse remplit les critères." }));

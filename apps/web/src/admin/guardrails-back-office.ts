@@ -14,7 +14,7 @@
  * Guardrail message, play no Eval Case.
  */
 import type { EvalRun, Evals, GuardrailsRun } from "../evals";
-import { ALWAYS_ON_GUARDRAILS, GUARDRAIL_SETTINGS, isGuardrailId, type GuardrailSetting } from "../guardrails";
+import { ALWAYS_ON_GUARDRAILS, guardrailSettingsOf, isGuardrailId, type GuardrailSetting } from "../guardrails";
 import type { GuardrailMessageVersion, GuardrailStore, SaveMessageResult, SetSettingResult, ValidateMessageResult } from "../guardrails/store";
 import type { BackOffice, BackOfficeActor, BackOfficeChange } from "./back-office";
 
@@ -49,7 +49,7 @@ export function createGuardrailsBackOffice(
   return {
     async setSetting(actor, id, setting) {
       const { settings } = await store.config.current();
-      const changes = isGuardrailId(id) && !ALWAYS_ON_GUARDRAILS.includes(id) && GUARDRAIL_SETTINGS.includes(setting as GuardrailSetting) && settings[id] !== setting;
+      const changes = isGuardrailId(id) && !ALWAYS_ON_GUARDRAILS.includes(id) && guardrailSettingsOf(id).includes(setting as GuardrailSetting) && settings[id] !== setting;
       // Unchanged or unusable: the store says which, and nothing is played.
       if (!changes) return record(actor, id, setting);
       const { run, refused } = await evals.runGuardrails(actor, { ...settings, [id]: setting as GuardrailSetting });

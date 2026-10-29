@@ -6,7 +6,9 @@ import {
   createGuardrails,
   DEFAULT_GUARDRAIL_MESSAGES,
   GUARDRAIL_IDS,
+  guardrailSettingsOf,
   guardrailsOf,
+  MESSAGE_GUARDRAILS,
   type GuardedReply,
   type GuardrailAgent,
   type GuardrailId,
@@ -80,22 +82,30 @@ const guardrailIds = (triggers: GuardrailTrigger[]) => triggers.map((trigger) =>
 
 describe("the catalogue of Guardrails, fixed in code", () => {
   it("has a stable id for each Guardrail", () => {
-    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress"]);
+    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection"]);
   });
 
   it("never lets the distress, personal data leak and secret disclosure Guardrails be switched off", () => {
     expect(ALWAYS_ON_GUARDRAILS).toEqual(["personal_data_leak", "secret_disclosure", "distress"]);
   });
 
-  it("gives the AI Coach and Playbook Agents every Guardrail, the Back Office Assistant only injection, leaks and secrets, and nothing else any", () => {
-    expect(guardrailsOf("ai_coach")).toEqual(GUARDRAIL_IDS);
-    expect(guardrailsOf("playbook_agent")).toEqual(GUARDRAIL_IDS);
+  it("lets only the email Guardrail be switched off; the others block or flag, those always on only block", () => {
+    expect(guardrailSettingsOf("email_injection")).toEqual(["block", "flag", "off"]);
+    expect(guardrailSettingsOf("prompt_injection")).toEqual(["block", "flag"]);
+    expect(guardrailSettingsOf("distress")).toEqual(["block"]);
+  });
+
+  it("gives the AI Coach and Playbook Agents every conversation's Guardrail, the Back Office Assistant only injection, leaks and secrets, Email intake its own, and nothing else any", () => {
+    expect(guardrailsOf("ai_coach")).toEqual(MESSAGE_GUARDRAILS);
+    expect(guardrailsOf("playbook_agent")).toEqual(MESSAGE_GUARDRAILS);
     expect(guardrailsOf("back_office_assistant")).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure"]);
+    expect(guardrailsOf("email_intake")).toEqual(["email_injection"]);
     expect(guardrailsOf("tailored_cv" as GuardrailAgent)).toEqual([]);
   });
 
-  it("has a default Guardrail message in French and in English for each, the distress one giving the 3114 helpline", () => {
-    for (const id of GUARDRAIL_IDS) {
+  it("has a default Guardrail message in French and in English for each conversation's Guardrail, the distress one giving the 3114 helpline", () => {
+    expect(MESSAGE_GUARDRAILS).toEqual(GUARDRAIL_IDS.filter((id) => id !== "email_injection"));
+    for (const id of MESSAGE_GUARDRAILS) {
       expect(DEFAULT_GUARDRAIL_MESSAGES[id].fr.length).toBeGreaterThan(20);
       expect(DEFAULT_GUARDRAIL_MESSAGES[id].en.length).toBeGreaterThan(20);
     }

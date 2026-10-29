@@ -133,8 +133,14 @@ export default async function EvalRunPage({ params }: { params: Params }) {
             <dl>
               <dt>{t("admin.evals.run.guardrail")}</dt>
               <dd>{guardrailName(result.case.guardrail)}</dd>
-              <dt>{t("admin.evals.run.message")}</dt>
+              <dt>{t(result.case.email ? "admin.evals.run.email" : "admin.evals.run.message")}</dt>
               <dd lang="fr">{result.case.message}</dd>
+              {result.case.email ? (
+                <>
+                  <dt>{t("admin.evals.run.emailReading")}</dt>
+                  <dd lang="fr">{JSON.stringify(result.case.email.reading)}</dd>
+                </>
+              ) : null}
               {result.case.reply ? (
                 <>
                   <dt>{t("admin.evals.run.reply")}</dt>

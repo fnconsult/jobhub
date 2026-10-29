@@ -93,7 +93,8 @@ export type ReadingRecord =
       /** Left out while no Guardrail runs on the reading. */
       guardrail?: EmailGuardrailVerdict;
     }
-  | { outcome: "failed" };
+  /** « échec », or set aside by a Guardrail (#446): no kind, no offers; the Guardrail blocked it. */
+  | { outcome: "failed" | "set_aside_by_guardrail" };
 
 /** What happened to a Linked mailbox, as the Journal lists it. */
 export const LINKED_MAILBOX_EVENTS = ["switched_on", "replaced", "switched_off", "daily_cap_reached"] as const;
@@ -203,8 +204,8 @@ export async function recordReading(client: Queryable, receivedOfferEmailId: str
   await client.query(
     `UPDATE received_email_activity a SET kind = $2, new_offers = $3, already_stored = $4, outcome = $5, guardrail = $6
        FROM received_offer_email e WHERE e.id = $1 AND e.activity_id = a.id`,
-    reading.outcome === "failed"
-      ? [receivedOfferEmailId, null, null, null, reading.outcome, null]
+    !("kind" in reading)
+      ? [receivedOfferEmailId, null, null, null, reading.outcome, reading.outcome === "failed" ? null : "blocked"]
       : [receivedOfferEmailId, reading.kind, Math.max(0, reading.newOffers), Math.max(0, reading.alreadyStored), reading.outcome, reading.guardrail ?? null],
   );
 }

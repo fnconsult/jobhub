@@ -7,6 +7,7 @@ import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
 import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
+import { workerGuardrails } from "@jobhub/web/guardrails/checks";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
@@ -163,12 +164,14 @@ const jobs = createJobs({
   // The source re-check's page reads, as Job discovery's: a page_read of each site's domain.
   externalApis,
   // Email intake (#445): each Received offer email the inbound route queued, read on the served version of its Task
-  // Playbook (only on an EU endpoint, ADR-0052), its text opened under SECRETS_MASTER_KEYS as the web app sealed it.
+  // Playbook (only on an EU endpoint, ADR-0052), its text opened under SECRETS_MASTER_KEYS as the web app sealed it,
+  // guarded by the « Contenu piégé dans un email » Guardrail and the fixed output rules (#446).
   emailReading: createEmailReading({
     readings: createEmailReadings(database, { cipher: () => secretCipher }),
     jobOffers,
     profiles,
     ai: worker.ai,
+    guardrails: workerGuardrails(database, worker.ai),
     taskPlaybooks,
   }),
   enqueue: async (name, data) => {

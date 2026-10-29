@@ -25,6 +25,8 @@ const TASK_STEPS = {
   coaching: "think_write",
   back_office_assistant: "think_write",
   guardrail: "think",
+  /** The email Guardrail's model check on a Received offer email (#446). */
+  email_guardrail: "think",
   eval: "think",
 } as const satisfies Record<AiTask, Activity>;
 

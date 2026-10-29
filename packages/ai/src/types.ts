@@ -44,6 +44,11 @@ export const TEXT_TASKS = {
    * Redaction does not take out, so it runs only on an EU endpoint, whatever the Candidate's EU AI Consent.
    */
   offer_email_reading: { personalData: true, euOnly: true },
+  /**
+   * The « Contenu piégé dans un email » Guardrail's model check (#446, ADR-0052): it reads the same email as
+   * offer_email_reading, recruiters' and contacts' names included, so it too runs only on an EU endpoint.
+   */
+  email_guardrail: { personalData: true, euOnly: true },
 } as const satisfies Record<string, { personalData: boolean; euOnly?: true }>;
 export type TextTask = keyof typeof TEXT_TASKS;
 

@@ -242,6 +242,12 @@ test.describe("Guest Capture and Match Score", () => {
     await new Promise((resolve) => careerSite?.close(resolve));
   });
 
+  // The browser is shared: an analysis page an earlier test left open reloads when the session it watches changes
+  // (another Candidate signing in) and scores the session's Job Offer, which a test counting Match Scores would see.
+  test.beforeEach(async () => {
+    for (const page of context.pages()) await page.close();
+  });
+
   const extensionId = () => unpackedExtensionId(e2eExtensionDir);
   type SessionStorage = { get(key: string): Promise<Record<string, { cv: { fullName: string }; jobOffer: { id: string }; expiresAt: number }>> };
   const guestSession = (page: Page) =>

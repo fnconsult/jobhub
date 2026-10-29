@@ -45,7 +45,7 @@ function webApp() {
   let answer: (reply: Awaited<ReturnType<JobbboxApi["capture"]>>) => void = () => {};
   const calls: string[] = [];
   const api = {
-    capture: (jobOffer: CapturedJobOffer) => {
+    capture: () => {
       calls.push("capture");
       return new Promise<Awaited<ReturnType<JobbboxApi["capture"]>>>((resolve) => {
         answer = resolve;

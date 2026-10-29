@@ -194,6 +194,8 @@ export interface ExportedEmailIntake {
   }[];
   /** The Recognised senders they added for themselves (#450), oldest first. */
   recognisedSenders: { match: "domain" | "address"; value: string; label: string; addedAt: Date }[];
+  /** The platform's Recognised senders they switched off for themselves (#450), oldest first. */
+  switchedOffSenders: { value: string; switchedOffAt: Date }[];
 }
 
 /**
@@ -212,7 +214,7 @@ export interface ExportedEmailOffer {
 
 /** The Candidate's Email intake for their Data export (ADR-0051). */
 export async function emailIntakeOf(database: Pool, candidateId: string): Promise<ExportedEmailIntake> {
-  const [forwardingAddresses, sendingAddresses, receivedOfferEmails, recognisedSenders] = await Promise.all([
+  const [forwardingAddresses, sendingAddresses, receivedOfferEmails, recognisedSenders, switchedOffSenders] = await Promise.all([
     database.query<ExportedEmailIntake["forwardingAddresses"][number]>(
       `SELECT address, state, activated_at AS "activatedAt", ended_at AS "endedAt" FROM forwarding_address WHERE candidate_id = $1 ORDER BY activated_at DESC, address`,
       [candidateId],
@@ -230,6 +232,10 @@ export async function emailIntakeOf(database: Pool, candidateId: string): Promis
       `SELECT match, value, label, added_at AS "addedAt" FROM candidate_recognised_sender WHERE candidate_id = $1 ORDER BY added_at, value`,
       [candidateId],
     ),
+    database.query<ExportedEmailIntake["switchedOffSenders"][number]>(
+      `SELECT value, switched_off_at AS "switchedOffAt" FROM candidate_switched_off_sender WHERE candidate_id = $1 ORDER BY switched_off_at, value`,
+      [candidateId],
+    ),
   ]);
   const offers = await offersOf(database, candidateId);
   return {
@@ -237,6 +243,7 @@ export async function emailIntakeOf(database: Pool, candidateId: string): Promis
     sendingAddresses: sendingAddresses.rows,
     receivedOfferEmails: receivedOfferEmails.rows.map((email) => ({ ...email, offers: offers.get(email.id) ?? [] })),
     recognisedSenders: recognisedSenders.rows,
+    switchedOffSenders: switchedOffSenders.rows,
   };
 }
 
@@ -316,6 +323,13 @@ export async function migrateEmailIntake(database: Pool): Promise<void> {
       value text NOT NULL,
       label text NOT NULL,
       added_at timestamptz NOT NULL,
+      PRIMARY KEY (candidate_id, value)
+    );
+    -- The platform's Recognised senders a Candidate switched off for themselves alone (#450); gone with the sender.
+    CREATE TABLE IF NOT EXISTS candidate_switched_off_sender (
+      candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
+      value text NOT NULL REFERENCES recognised_sender (value) ON DELETE CASCADE,
+      switched_off_at timestamptz NOT NULL,
       PRIMARY KEY (candidate_id, value)
     );
   `);

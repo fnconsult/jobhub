@@ -93,6 +93,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate",
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "candidate_recognised_sender", // issue #448: the Recognised senders a Candidate added for themselves (#450), proposed with no name
+        "candidate_switched_off_sender", // issue #450: the platform's Recognised senders a Candidate switched off for themselves
         "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
         "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
@@ -199,6 +200,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "candidate_plan", from_column: "plan", to_table: "plan_quota" },
         // Email intake (issue #448): the Recognised senders a Candidate added go with them.
         { from_table: "candidate_recognised_sender", from_column: "candidate_id", to_table: "candidate" },
+        // Email intake (issue #450): a platform sender a Candidate switched off goes with them, and with the sender.
+        { from_table: "candidate_switched_off_sender", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "candidate_switched_off_sender", from_column: "value", to_table: "recognised_sender" },
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },

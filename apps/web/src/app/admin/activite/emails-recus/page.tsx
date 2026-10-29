@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ActivityTabId } from "@/admin/activity";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
 import { ACTIVITY_RETENTION_MONTHS, LIST_LIMIT, RECEIVED_EMAIL_KINDS, RECEIVED_EMAIL_OUTCOMES, RECEIVED_EMAIL_PERIODS, receivedEmailsFilter } from "@/email-intake/activity";
 import { getEmailIntakeActivity } from "@/email-intake/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -37,9 +38,9 @@ export default async function ReceivedEmailsPage({ searchParams }: { searchParam
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Paris" });
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.activity.title")}>
+    <BackOfficeLayout access={access} title={t("admin.activity.title")} inDesignSystem>
       <ActivityTabs access={access} shown={TAB} />
-      <p className="lead">{t("admin.receivedEmails.intro", { months: String(ACTIVITY_RETENTION_MONTHS) })}</p>
+      <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.receivedEmails")} values={{ months: String(ACTIVITY_RETENTION_MONTHS) }} />
 
       <form method="get" action={routes.adminReceivedEmails()} className="activity-filter" aria-label={t("admin.receivedEmails.filter")}>
         <div className="field">

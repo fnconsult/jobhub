@@ -61,7 +61,7 @@ export function SettingsTable({ ctx, caption, names, settings, envOnly }: { ctx:
 
   return (
     <ScrollFrame label={caption}>
-      <table className="application-table">
+      <table className="application-table settings-table">
         <caption className="visually-hidden">{caption}</caption>
         <thead>
           <tr>
@@ -128,8 +128,8 @@ function SettingForm({ ctx, setting, accepted }: { ctx: Ctx; setting: ResolvedPl
   const { t } = ctx;
   const model = isModelSetting(setting);
   return (
-    <div className="stack">
-      <form className="stack" action={saveSetting}>
+    <div className="setting-change">
+      <form className="setting-form" action={saveSetting}>
         <Here ctx={ctx} />
         <input type="hidden" name="name" value={setting.name} />
         <label className="visually-hidden" htmlFor={`value-${setting.name}`}>
@@ -166,16 +166,21 @@ function SettingForm({ ctx, setting, accepted }: { ctx: Ctx; setting: ResolvedPl
             ))}
           </datalist>
         ) : null}
-        <p id={`rule-${setting.name}`}>{t("admin.platformSettings.accepted", { rule: accepted })}</p>
-        <button className="button button-primary" type="submit">
+        <p id={`rule-${setting.name}`} className="setting-hint">
+          {t("admin.platformSettings.accepted", { rule: accepted })}
+        </p>
+        {/* One per row: a secondary button, so the page's one primary action stays « + Ajouter ». */}
+        <button className="button" type="submit">
           {t("admin.platformSettings.save")}
         </button>
       </form>
       {setting.source === "back_office" ? (
-        <form className="stack" action={restoreSetting}>
+        <form className="setting-form" action={restoreSetting}>
           <Here ctx={ctx} />
           <input type="hidden" name="name" value={setting.name} />
-          <p id={`restore-${setting.name}`}>{t("admin.platformSettings.restoreHelp")}</p>
+          <p id={`restore-${setting.name}`} className="setting-hint">
+            {t("admin.platformSettings.restoreHelp")}
+          </p>
           <button className="button" type="submit" aria-describedby={`restore-${setting.name}`}>
             {t("admin.platformSettings.restore")}
           </button>

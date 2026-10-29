@@ -7,6 +7,7 @@ import { MESSAGE_LOG_RETENTION_DAYS } from "@/ai-usage";
 import { AI_TASKS, aiMessageLogFilter, LIST_LIMIT } from "@/ai-usage/message-log";
 import { getAiMessageLogs } from "@/ai-usage/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
 import type { ActivityTabId } from "@/admin/activity";
 import { ActivityTabs } from "../ActivityTabs";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -41,16 +42,16 @@ export default async function AiMessagesPage({ searchParams }: { searchParams: P
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "medium", timeZone: "Europe/Paris" });
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.activity.title")}>
+    <BackOfficeLayout access={access} title={t("admin.activity.title")} inDesignSystem>
       <ActivityTabs access={access} shown={TAB} />
-      <p className="lead">{t("admin.aiMessages.intro", { days: String(MESSAGE_LOG_RETENTION_DAYS) })}</p>
+      <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.aiMessages")} values={{ days: String(MESSAGE_LOG_RETENTION_DAYS) }} />
 
       {filter.candidate ? (
         <p className="notice" role="status">
           {t("admin.aiMessages.ofRun")}
         </p>
       ) : null}
-      <form method="get" action={routes.adminAiMessages()} className="stack" aria-label={t("admin.aiMessages.filter")}>
+      <form method="get" action={routes.adminAiMessages()} className="activity-filter" aria-label={t("admin.aiMessages.filter")}>
         {/* A run's calls (#404): its Candidate and time window stay while the other filters change. */}
         {RUN_FIELDS.map((name) => (filter[name] ? <input key={name} type="hidden" name={name} value={filter[name]} /> : null))}
         <div className="field">

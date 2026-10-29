@@ -1,5 +1,6 @@
 import type { AiTask } from "@jobhub/ai";
 import Link from "next/link";
+import { Status, type StatusTone } from "@/design/Pill";
 import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
 import type { EnvOnlyRow } from "@/platform-settings/env-only";
 import { parametresHref, type KeyState, type PossibleProvider } from "@/platform-settings/parametres";
@@ -31,14 +32,15 @@ function WhyMissingKey({ ctx, warning, warningId, rows }: { ctx: Ctx; warning: s
 }
 
 const KEY_TONE: Record<NonNullable<KeyState["source"]>, "success" | "accent" | "danger"> = { database: "success", env: "accent", missing: "danger", unreadable: "danger" };
-const STATUS_TONE: Record<PossibleProvider["status"], "success" | "accent" | "danger" | undefined> = {
+/** A provider's state as its status dot says it, beside its words (ADR-0009: the dot never stands alone). */
+export const STATUS_TONE: Record<PossibleProvider["status"], StatusTone> = {
   configured: "success",
   no_key_needed: "success",
-  disabled: undefined,
-  key_missing: "danger",
-  setting_missing: "danger",
+  disabled: "neutral",
+  key_missing: "warn",
+  setting_missing: "warn",
   awaiting_access: "danger",
-  not_configured: "accent",
+  not_configured: "neutral",
 };
 
 /** What a possible provider serves, in words: an AI task by its AI Usage name, the identity route, or a feature. */
@@ -73,14 +75,20 @@ export function KeyCell({ ctx, keyState }: { ctx: Ctx; keyState: KeyState }) {
 export function LastTest({ ctx, keyState }: { ctx: Ctx; keyState: KeyState }) {
   const { t } = ctx;
   if (!keyState.secret || keyState.lastTest === undefined) return null;
-  if (keyState.lastTest === null) return <p>{t("admin.platformSettings.providers.neverTested")}</p>;
+  if (keyState.lastTest === null) {
+    return (
+      <p>
+        <Status>{t("admin.platformSettings.providers.neverTested")}</Status>
+      </p>
+    );
+  }
   const { at, passed } = keyState.lastTest;
   return (
     <p>
       <code>{keyState.name}</code>{" "}
-      <time dateTime={at.toISOString()} data-tone={passed ? "success" : "danger"} className="pill">
-        {t(passed ? "admin.platformSettings.providers.testPassed" : "admin.platformSettings.providers.testFailed", { at: ctx.at.format(at) })}
-      </time>
+      <Status tone={passed ? "success" : "danger"}>
+        <time dateTime={at.toISOString()}>{t(passed ? "admin.platformSettings.providers.testPassed" : "admin.platformSettings.providers.testFailed", { at: ctx.at.format(at) })}</time>
+      </Status>
     </p>
   );
 }
@@ -111,8 +119,12 @@ export function ProvidersSection({
       <section className="card stack" aria-labelledby="active-provider">
         <h2 id="active-provider">{t(tab.toolCategories.length > 0 ? "admin.platformSettings.active.title" : "admin.platformSettings.active.settingsTitle")}</h2>
         {tab.toolCategories.length === 0 ? null : tab.activeSetting ? (
-          <p className="lead" data-active-provider>
-            {active.length > 0 ? active.map((row) => row.tool.name).join(", ") : t("admin.platformSettings.active.none")}
+          <p className="active-provider" data-active-provider>
+            {active.length > 0 ? (
+              <Status tone={STATUS_TONE[active[0]!.status]}>{active.map((row) => row.tool.name).join(", ")}</Status>
+            ) : (
+              t("admin.platformSettings.active.none")
+            )}
           </p>
         ) : (
           <p data-active-provider>{t("admin.platformSettings.active.inUse", { names: active.length > 0 ? active.map((row) => row.tool.name).join(", ") : t("admin.platformSettings.active.none") })}</p>
@@ -163,9 +175,7 @@ export function ProvidersSection({
                     <td>{row.keys.length > 0 ? row.keys.map((key) => <KeyCell key={key.name} ctx={ctx} keyState={key} />) : t("admin.platformSettings.providers.noKeys")}</td>
                     <td>{row.keys.some((key) => key.lastTest !== undefined) ? row.keys.map((key) => <LastTest key={key.name} ctx={ctx} keyState={key} />) : t("admin.platformSettings.providers.none")}</td>
                     <td>
-                      <span className="pill" data-tone={STATUS_TONE[row.status]}>
-                        {t(`admin.tools.statuses.${row.status}`)}
-                      </span>
+                      <Status tone={STATUS_TONE[row.status]}>{t(`admin.tools.statuses.${row.status}`)}</Status>
                     </td>
                     <td>
                       {row.settings.length > 0

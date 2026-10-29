@@ -33,6 +33,7 @@ import { getBilling } from "@/billing/server";
 import { EVAL_IN_VIEW_KINDS, type EvalInView } from "@/evals/cases";
 import { GUARDRAIL_LANGUAGES, GUARDRAIL_SETTINGS, isGuardrailId, type GuardrailLanguage, type GuardrailSetting } from "@/guardrails";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
 import type { ActivityTabId } from "@/admin/activity";
 import { ActivityTabs } from "../ActivityTabs";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -187,9 +188,9 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
   };
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.activity.title")}>
+    <BackOfficeLayout access={access} title={t("admin.activity.title")} inDesignSystem>
       <ActivityTabs access={access} shown={TAB} />
-      <p className="lead">{t("admin.journal.intro", { years: String(RETENTION_YEARS) })}</p>
+      <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.audit")} values={{ years: String(RETENTION_YEARS) }} />
       <nav aria-label={t("admin.journal.filter")}>
         <ul className="journal-filter">
           {[undefined, ...BACK_OFFICE_SECTIONS].map((option) => (

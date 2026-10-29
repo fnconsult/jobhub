@@ -2,6 +2,7 @@ import { PRICE_SETTINGS } from "@jobhub/ai";
 import { isFranceTravailApi } from "@jobhub/shared";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Status } from "@/design/Pill";
 import { parametresHref, pricesOfTool, settingHref, sheetSettingsOf, type PossibleProvider } from "@/platform-settings/parametres";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import type { ApiAccess, ProviderApiAccess, ProviderSecretStatus } from "@/provider-secrets/index";
@@ -9,7 +10,7 @@ import { routes } from "@/routes";
 import { clearSecret, replaceSecret, testSecret } from "./actions";
 import { Here, type Ctx } from "./context";
 import { EmailIntakeSections, type EmailIntakeLists } from "./EmailIntakeSections";
-import { KeyCell, LastTest, usedByLabel } from "./ProvidersSection";
+import { KeyCell, LastTest, STATUS_TONE, usedByLabel } from "./ProvidersSection";
 import { SettingsTable } from "./SettingsTable";
 
 /**
@@ -61,7 +62,7 @@ export function ProviderSheet({
       <p>{purpose}</p>
       {notices}
       <p>
-        <span className="pill">{t(`admin.tools.statuses.${row.status}`)}</span>
+        <Status tone={STATUS_TONE[row.status]}>{t(`admin.tools.statuses.${row.status}`)}</Status>
         {row.usedBy.length > 0 ? <> {t("admin.platformSettings.providers.usedBy")} : {row.usedBy.map((used) => usedByLabel(ctx, used)).join(", ")}</> : null}
       </p>
       {row.status === "awaiting_access" ? <p>{t("admin.tools.accessRefused", { provider: tool.name })}</p> : null}

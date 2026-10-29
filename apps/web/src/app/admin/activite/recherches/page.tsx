@@ -5,6 +5,7 @@ import type { BackOfficeResource, Permission } from "@/admin/access";
 import type { ActivityTabId } from "@/admin/activity";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
 import {
   DISCOVERY_RUN_PERIODS,
   DISCOVERY_RUN_TRIGGERS,
@@ -71,9 +72,9 @@ export default async function DiscoveryRunsPage({ searchParams }: { searchParams
   const opensJobSearches = access.can(JOB_SEARCHES, READ);
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.activity.title")}>
+    <BackOfficeLayout access={access} title={t("admin.activity.title")} inDesignSystem>
       <ActivityTabs access={access} shown={TAB} />
-      <p className="lead">{t("admin.discoveryRuns.intro", { days: String(QUERY_RETENTION_DAYS), months: String(RETENTION_MONTHS) })}</p>
+      <PageIntro t={t} page={TAB} subject={t("admin.activity.tabs.discoveryRuns")} values={{ days: String(QUERY_RETENTION_DAYS), months: String(RETENTION_MONTHS) }} />
       {readsSettings ? (
         <p>
           <Link prefetch={false} href={WEB_SEARCH_SETTINGS}>

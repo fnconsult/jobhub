@@ -3,12 +3,14 @@ import { DEFAULT_JOB_DISCOVERY_SETTINGS, isFailureReason } from "@jobhub/shared"
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { IntroPage } from "@/admin/page-intro";
 import { requireBackOffice } from "@/admin/server";
 import { dashboardBlocks } from "@/back-office-dashboard/blocks";
 import { getAi } from "@/ai/server";
 import { aiUsageReportOf } from "@/ai-usage/server";
 import { applyLatestSignIn } from "@/auth/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { aiTaskRoutes, keyMissing, playbookAgentRows, searchTaskRows, type PlaybookWithVersions } from "@/platform-settings/ai-tasks";
@@ -63,6 +65,9 @@ const one = (value: string | string[] | undefined): string | undefined => (typeo
 const TAB_STATE = { shown: "active", hidden: "inactive" } as const;
 const CURRENT = "page";
 const WEB_SEARCH_TAB = parametresTab("recherche-web");
+
+/** Its intro (#465): one line, the rest behind « En savoir plus ». */
+const INTRO: IntroPage = "platformSettings";
 
 /** Every source on, as Job discovery reads them when the Back Office cannot be. */
 const ALL_SOURCES = DEFAULT_JOB_DISCOVERY_SETTINGS.sources;
@@ -302,16 +307,17 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const notices = <Notices ctx={ctx} search={search} signInProviders={signInProviders} requireSso={signInSettings?.requireSsoForAdministrators ?? false} />;
 
   return (
-    <BackOfficeLayout access={access} title={t("admin.platformSettings.title")}>
+    <BackOfficeLayout access={access} title={t("admin.platformSettings.title")} inDesignSystem>
       <div className="parametres-head">
-        <p className="lead">{t("admin.platformSettings.intro")}</p>
+        <PageIntro t={t} page={INTRO} subject={t("admin.platformSettings.title")}>
+          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+        </PageIntro>
         {allowed.length > 0 ? (
           <Link prefetch={false} className="button button-primary" href={parametresHref(tab.id, { ajouter: addTypeFor(tab, undefined, allowed) })}>
             {t("admin.platformSettings.add.button")}
           </Link>
         ) : null}
       </div>
-      <p>{canWrite ? t("admin.platformSettings.editIntro") : t("admin.readOnly")}</p>
 
       <nav aria-label={t("admin.platformSettings.tabsLabel")}>
         <ul className="tablist parametres-tabs">

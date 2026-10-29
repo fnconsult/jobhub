@@ -19,6 +19,18 @@ const seriesOf = (provider: string) => {
   return `chart-series-${slot < 0 ? SEARCH_PROVIDER_IDS.length + 1 : slot + 1}`;
 };
 
+/** The gradient under the month's cumulative line: one per page, the Dashboard has one such chart. */
+const CUMULATIVE_FILL = "dashboard-cumulative-fill";
+
+/** A Stat card's progress bar towards its limit (a threshold, a budget), in the danger colour once past it; its figure is in words beside it. */
+function KpiBar({ share }: { share: number }) {
+  return (
+    <dd className="kpi-bar" aria-hidden="true">
+      <span className={share >= 1 ? "kpi-bar-crossed" : undefined} style={{ width: `${Math.min(100, share * 100)}%` }} />
+    </dd>
+  );
+}
+
 /** A chart's scale top: `max` rounded up to a readable step, never 0. */
 function scaleTop(max: number): number {
   if (max <= 0) return 1;
@@ -84,8 +96,11 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
   const cumulativeTop = scaleTop(Math.max(webSearch.thresholdEur, webSearch.monthEndEstimateEur, webSearch.spendEur) * 1.1);
   const y = (eurValue: number) => 100 - (eurValue / cumulativeTop) * 100;
   const points = webSearch.days.map((day, index) => `${index + 0.5},${y(day.cumulativeEur)}`).join(" ");
+  // The area under the month's line, down to the axis: filled with the series' gradient.
+  const area = webSearch.days.length > 0 ? `0.5,100 ${points} ${webSearch.days.length - 0.5},100` : "";
   const last = webSearch.days.at(-1);
   const thresholdShare = webSearch.thresholdEur > 0 ? webSearch.spendEur / webSearch.thresholdEur : null;
+  const budgetShare = runs.averageCostEur !== null && runs.budgetEur > 0 ? runs.averageCostEur / runs.budgetEur : null;
   const stopTotal = runs.stopReasons.reduce((sum, row) => sum + row.runs, 0);
   const itemsTotal = runs.averageCostByItem.reduce((sum, row) => sum + row.eur, 0);
   const axis = (top: number, format: (value: number) => string) => (
@@ -116,11 +131,7 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
           <dt>{t("admin.dashboard.jobDiscovery.webSpend")}</dt>
           <dd className="kpi-value">{fine.format(webSearch.spendEur)}</dd>
           <dd className="kpi-sub">{thresholdShare === null ? t("admin.dashboard.jobDiscovery.noThreshold") : t("admin.dashboard.jobDiscovery.ofThreshold", { percent: percent.format(thresholdShare), threshold: eur.format(webSearch.thresholdEur) })}</dd>
-          {thresholdShare === null ? null : (
-            <dd className="kpi-bar" aria-hidden="true">
-              <span className={thresholdShare >= 1 ? "kpi-bar-crossed" : undefined} style={{ width: `${Math.min(100, thresholdShare * 100)}%` }} />
-            </dd>
-          )}
+          {thresholdShare === null ? null : <KpiBar share={thresholdShare} />}
         </div>
         <div className="kpi">
           <dt>{t("admin.dashboard.jobDiscovery.averageRun")}</dt>
@@ -130,6 +141,7 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
               ? t("admin.dashboard.jobDiscovery.budgetOnly", { budget: fine.format(runs.budgetEur) })
               : t("admin.dashboard.jobDiscovery.ofBudget", { budget: fine.format(runs.budgetEur), percent: share(runs.averageCostEur, runs.budgetEur) })}
           </dd>
+          {budgetShare === null ? null : <KpiBar share={budgetShare} />}
         </div>
         <div className="kpi">
           <dt>{t("admin.dashboard.jobDiscovery.costPerNewOffer")}</dt>
@@ -242,6 +254,13 @@ export async function JobDiscoveryBlock({ figures, locale }: { figures: JobDisco
               <svg className="chart-lines" viewBox={`0 0 ${figures.daysInMonth} 100`} preserveAspectRatio="none" aria-hidden="true">
                 {webSearch.thresholdEur > 0 ? <line className="chart-threshold" x1={0} x2={figures.daysInMonth} y1={y(webSearch.thresholdEur)} y2={y(webSearch.thresholdEur)} /> : null}
                 {last ? <line className="chart-estimate" x1={webSearch.days.length - 0.5} y1={y(last.cumulativeEur)} x2={figures.daysInMonth - 0.5} y2={y(webSearch.monthEndEstimateEur)} /> : null}
+                <defs>
+                  <linearGradient id={CUMULATIVE_FILL} x1={0} x2={0} y1={0} y2={1}>
+                    <stop offset={0} className="chart-fill-top" />
+                    <stop offset={1} className="chart-fill-bottom" />
+                  </linearGradient>
+                </defs>
+                {area ? <polygon className="chart-area" points={area} fill={`url(#${CUMULATIVE_FILL})`} /> : null}
                 <polyline className="chart-line chart-series-1" points={points} />
               </svg>
               {webSearch.thresholdEur > 0 ? (

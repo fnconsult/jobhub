@@ -1,7 +1,10 @@
 import type { TFunction } from "i18next";
 import type { ReactNode } from "react";
 import { pageIntro, type IntroPage } from "@/admin/page-intro";
-import { ExplainableLabel } from "@/components/ExplainableLabel";
+import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
+
+/** What « En savoir plus » explains: the page, by its intro (#407). */
+const INTRO: ExplainedContext["kind"] = "intro";
 
 /**
  * A Back Office page's intro in the Compact Density (#465): one muted line under the title, then « En savoir plus »,
@@ -14,7 +17,7 @@ export function PageIntro({ t, page, subject, values = {}, children }: { t: TFun
     <div className="page-intro">
       <p>
         {intro.line}{" "}
-        <ExplainableLabel subject={subject} item={{ kind: "intro", id: page, state: intro.explanation }}>
+        <ExplainableLabel subject={subject} item={{ kind: INTRO, id: page, state: intro.explanation }}>
           {intro.more}
         </ExplainableLabel>
       </p>

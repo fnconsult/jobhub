@@ -35,6 +35,10 @@ const METADATA_SIZE_SELECTORS = [
   ".chart-axis span", // chart axis labels
   ".chart-x",
   ".chart-threshold-label",
+  // A Back Office page in the Design System (#465): table column headers, a setting's hint, a Stat's metadata line.
+  ".in-design-system .application-table thead th",
+  ".in-design-system .setting-hint",
+  ".in-design-system .kpi-sub",
 ];
 
 describe("the web app's stylesheet", () => {

@@ -312,7 +312,37 @@
       "invalid": "Saisissez une adresse e-mail valide.",
       "too_many": "Vous avez déjà ajouté 10 adresses : retirez-en une d'abord."
     },
-    "wizardLink": "Configurer le transfert pas à pas"
+    "wizardLink": "Configurer le transfert pas à pas",
+    "recognised": {
+      "title": "Vos expéditeurs d'alertes",
+      "explanation": "Jobbbox ne lit que les emails des expéditeurs qu'il reconnaît. Si une de vos alertes est ignorée comme « expéditeur non reconnu », ajoutez son expéditeur : il sera reconnu pour vous seul, à partir de son prochain email. L'email déjà ignoré n'est pas récupéré.",
+      "fromHint": "Collez l'adresse d'expédition, celle de la ligne « De : » de l'email : c'est elle qui compte, pas le site carrière ni le site du job board.",
+      "senderLabel": "Adresse d'expédition (« De : »)",
+      "labelLabel": "Nom à afficher (facultatif)",
+      "add": "C'est une alerte d'offres",
+      "added": "Expéditeur ajouté : il est reconnu pour vous à partir de son prochain email.",
+      "ownTitle": "Ajoutés par vous",
+      "ownNone": "Vous n'avez ajouté aucun expéditeur.",
+      "ownListLabel": "Expéditeurs ajoutés par vous",
+      "item": "{{label}} ({{value}})",
+      "remove": "Retirer",
+      "removeLabel": "Retirer {{value}}",
+      "platformTitle": "Reconnus par Jobbbox",
+      "platformIntro": "Vous pouvez en désactiver un pour vous seul : ses emails seront alors ignorés.",
+      "platformListLabel": "Expéditeurs reconnus par Jobbbox",
+      "switchedOff": "désactivé pour vous",
+      "switchOff": "Désactiver pour moi",
+      "switchOn": "Réactiver",
+      "switchOffLabel": "Désactiver {{label}} pour moi",
+      "switchOnLabel": "Réactiver {{label}} pour moi",
+      "errors": {
+        "invalid": "Saisissez l'adresse d'expédition de l'email (« De : »), ou son domaine.",
+        "address_needed": "Ce domaine envoie pour de nombreuses entreprises : collez l'adresse d'expédition complète (« De : »).",
+        "already_recognised": "Cet expéditeur est déjà reconnu par Jobbbox. Si vous l'avez désactivé pour vous, réactivez-le.",
+        "too_many": "Vous avez déjà ajouté 50 expéditeurs : retirez-en un d'abord.",
+        "error": "Une erreur est survenue. Réessayez."
+      }
+    }
   },
   "forwardingWizard": {
     "title": "Configurer le transfert pas à pas",
@@ -3941,7 +3971,13 @@
         "unrecognised_sender": "Expéditeur non reconnu",
         "guardrail": "Écarté par un garde-fou",
         "failed": "Échec"
-      }
+      },
+      "recognise": "C'est une alerte d'offres",
+      "recogniseLabel": "{{domain}} : c'est une alerte d'offres",
+      "recognised": "Reconnu pour vous à partir de son prochain email.",
+      "recognisedAlready": "Reconnu pour vous désormais.",
+      "pasteAddress": "Ajouter son adresse « De : »",
+      "pasteAddressHint": "Ce domaine envoie pour de nombreuses entreprises : il faut l'adresse d'expédition complète."
     },
     "tooBroad": {
       "title": "Filtre trop large",

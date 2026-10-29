@@ -9,6 +9,7 @@ import { getSecretResolver } from "@/provider-secrets/server";
 import { getSearchSites } from "@/search-sites/server";
 import { emailIntakeDomain, emailIntakeLimits } from "./domain";
 import { createEmailIntakeActivity, type EmailIntakeActivity } from "./activity";
+import { createCandidateSenders, type CandidateSenders } from "./candidate-senders";
 import { forwardingSetupOf, type ForwardingSetup } from "./forwarding-setup";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 import { createEmailIntake, type EmailIntake } from "./index";
@@ -31,6 +32,14 @@ export function getReceivedOffers(): ReceivedOffers {
 export function getRecognisedSenderList(): RecognisedSenderList {
   senders ??= createRecognisedSenderList(sharedPool());
   return senders;
+}
+
+let candidateSenders: CandidateSenders | undefined;
+
+/** The Recognised senders each Candidate adds or switches off for themselves alone (#450). */
+export function getCandidateSenders(): CandidateSenders {
+  candidateSenders ??= createCandidateSenders(sharedPool());
+  return candidateSenders;
 }
 
 /** The app's Email intake, on the database named by DATABASE_URL, giving addresses on the EMAIL_INTAKE_DOMAIN in use. */

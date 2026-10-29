@@ -2,6 +2,7 @@ import type { TFunction } from "i18next";
 import Link from "next/link";
 import type { ReceivedOffer, ReceivedOffersOverview } from "@/email-intake/received-offers";
 import { JobOfferResults } from "@/components/JobOfferResults";
+import { RecogniseSenderButton } from "@/components/RecogniseSenderButton";
 import { routes } from "@/routes";
 
 /** The ids of a « Reçues par email » list's titles: apart from the Job Search results of the same Profile. */
@@ -63,20 +64,25 @@ export function ReceivedByEmail({
  * What Email intake did for the Candidate as a whole (#447): « Filtre trop large » past the daily threshold (leading
  * to the forwarding setup wizard), the « Non classées » Job Offers, and the emails ignored this week with their reason,
  * sender's domain and date, never their content. With Email intake off and nothing received: an invitation to set it up.
+ * An email ignored as from an unrecognised sender offers « C'est une alerte d'offres » (#450), unless the Candidate
+ * already added its domain (`ownSenders`: the domains they added).
  */
 export function EmailIntakeStanding({
   overview,
   switchedOn,
+  ownSenders = [],
   t,
   locale,
   headingLevel,
 }: {
   overview: ReceivedOffersOverview;
   switchedOn: boolean;
+  ownSenders?: readonly string[];
   t: TFunction;
   locale: string;
   headingLevel: 2 | 3;
 }) {
+  const addedByThem = (domain: string) => ownSenders.some((own) => domain === own || domain.endsWith(`.${own}`));
   const Heading = headingLevel === 2 ? "h2" : "h3";
   const RowHeading = headingLevel === 2 ? "h3" : "h4";
   const day = dayFormat(locale);
@@ -158,6 +164,12 @@ export function EmailIntakeStanding({
                     domain: email.senderDomain,
                     date: day.format(email.receivedAt),
                   })}
+                  {email.reason === "unrecognised_sender" ? (
+                    <>
+                      {" "}
+                      <RecogniseSenderButton domain={email.senderDomain} recognised={addedByThem(email.senderDomain)} />
+                    </>
+                  ) : null}
                 </li>
               ))}
             </ul>

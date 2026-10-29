@@ -49,7 +49,7 @@ export function JobOfferResults({
   idScope?: string;
 }) {
   return (
-    <ol className="job-offer-cards" aria-label={label ?? t("jobSearch.resultsLabel")}>
+    <ol className="job-offer-results" aria-label={label ?? t("jobSearch.resultsLabel")}>
       {results.map((result) => (
         <JobOfferCard key={result.jobOffer.id} result={result} profileId={profileId} t={t} locale={locale} headingLevel={headingLevel} idScope={idScope} />
       ))}
@@ -94,41 +94,41 @@ function JobOfferCard({
   ].filter((pill): pill is string => Boolean(pill));
   const figure = matchScoreFigure(matchScore);
   return (
-    <li className="job-offer-card">
-      <div className="job-offer-card__main">
-        <Heading className="job-offer-card__title" id={titleId}>
+    <li className="job-offer-result">
+      <div className="job-offer-result__main">
+        <Heading className="job-offer-result__title" id={titleId}>
           <Link href={routes.jobOffer(jobOffer.id, profileId)}>{jobOffer.title}</Link>
         </Heading>
-        <p className="job-offer-card__meta">
+        <p className="job-offer-result__meta">
           {facts.map(([key, fact]) => (fact ? <span key={key}>{fact}</span> : null))}
         </p>
       </div>
-      <div className="job-offer-card__score">
+      <div className="job-offer-result__score">
         {/* Said once, in words: the ring and its caption only draw it (#94: partial or not computable in words too). */}
         <p className="visually-hidden">
           {t("jobSearch.scoreLabel")}
           {matchScoreInWords(figure, t)}
         </p>
         {figure.reliability === "not_computable" ? (
-          <span className="job-offer-card__none" aria-hidden>
+          <span className="job-offer-result__none" aria-hidden>
             {matchScoreInWords(figure, t)}
           </span>
         ) : (
           <Ring decorative value={figure.score} />
         )}
-        <span className="job-offer-card__caption" aria-hidden>
+        <span className="job-offer-result__caption" aria-hidden>
           {t(figure.reliability === "partial" ? "jobSearch.partialCaption" : "jobSearch.matchScoreCaption")}
         </span>
       </div>
       {pills.length > 0 || applicationId ? (
-        <p className="job-offer-card__pills">
+        <p className="job-offer-result__pills">
           {pills.map((pill) => (
             <Pill key={pill}>{pill}</Pill>
           ))}
           {applicationId ? <Pill tone="accent">{t("jobSearch.savedPill")}</Pill> : null}
         </p>
       ) : null}
-      <div className="job-offer-card__actions">
+      <div className="job-offer-result__actions">
         {applicationId ? (
           <Link className={buttonClass({ size: "sm" })} href={routes.application(applicationId)} aria-describedby={titleId}>
             {t("jobSearch.seeApplication")}

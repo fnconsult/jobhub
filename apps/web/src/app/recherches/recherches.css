@@ -95,7 +95,7 @@
 
 .job-searches-results,
 .job-searches-groups {
-  margin-top: var(--space-8);
+  margin: var(--space-8) 0;
 }
 
 .job-searches-section-head {

@@ -5,6 +5,7 @@ import { getCurrentCandidate } from "@/auth/server";
 import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { EmptyStateHelp } from "@/components/HelpTerm";
+import { EmailIntakeStanding, ReceivedByEmail } from "@/components/ReceivedByEmail";
 import { CoachInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { JobOfferResults } from "@/components/JobOfferResults";
@@ -12,9 +13,13 @@ import { RefreshWhileSearching, StartAllJobSearchesButton, StartJobSearchButton 
 import { JobSearchTabs } from "@/components/JobSearchTabs";
 import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
+import { emailIntakeLimits } from "@/email-intake/domain";
+import type { ReceivedOffersOverview } from "@/email-intake/received-offers";
+import { getEmailIntake, getReceivedOffers } from "@/email-intake/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import type { JobSearch } from "@/job-searches";
 import { getJobSearches } from "@/job-searches/server";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
 import { readIndustryReference } from "@/reference-data/server";
 import { routes } from "@/routes";
@@ -29,6 +34,13 @@ type T = Awaited<ReturnType<typeof getServerT>>;
 type Profile = { id: string; name: string };
 /** Where a Profile's Job Searches stand: the one still searching, and the latest done one. */
 type Standing = { profile: Profile; searching: JobSearch | null; latest: JobSearch | null };
+
+/** What Email intake gave the Candidate (#447), and whether it is on for them: the « Reçues par email » sections. */
+async function emailIntakeOf(candidateId: string): Promise<{ overview: ReceivedOffersOverview; switchedOn: boolean }> {
+  const { broadFilterThreshold } = emailIntakeLimits(getPlatformSettingsResolver().current());
+  const [overview, address] = await Promise.all([getReceivedOffers().overview(candidateId, { broadFilterThreshold }), getEmailIntake().forwardingAddress(candidateId)]);
+  return { overview, switchedOn: address !== null };
+}
 
 /** The Job Searches the page shows, for AI Activity: each Profile's search under way and its latest done one. */
 const searchesShown = (standings: readonly Standing[]): JobSearch[] =>
@@ -47,6 +59,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * (the page refreshes itself until it ends) and the results of its latest done Job Search.
  * For all: one button starting one Job Search per active Profile, and each Profile's latest
  * results, in tabs or, with `?vue=couloirs`, in swimlanes scrolled sideways.
+ * Below them, « Reçues par email » (#447): each Profile's Job Offers from Email intake, newest first, with how many
+ * arrived this week, then « Non classées », the emails ignored this week and « Filtre trop large » when it is.
  */
 export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profil?: string; vue?: string }> }) {
   const candidate = await getCurrentCandidate();
@@ -77,7 +91,7 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
   };
 
   if (chosen) {
-    const [standing, full] = await Promise.all([standingOf(chosen), getProfiles().get(candidate.id, chosen.id)]);
+    const [standing, full, emailIntake] = await Promise.all([standingOf(chosen), getProfiles().get(candidate.id, chosen.id), emailIntakeOf(candidate.id)]);
     if (!full) notFound();
     const { searching, latest } = standing;
     const aiActivity = await loadAiActivity.jobSearches(searchesShown([standing]));
@@ -111,11 +125,13 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
         </header>
         {searching ? <RefreshWhileSearching /> : null}
         <ProfileStanding standing={standing} t={t} locale={locale} date={date} />
+        <ReceivedByEmail profile={chosen} group={emailIntake.overview.byProfile[chosen.id]} t={t} locale={locale} headingLevel={2} />
+        <EmailIntakeStanding overview={emailIntake.overview} switchedOn={emailIntake.switchedOn} t={t} locale={locale} headingLevel={2} />
       </CandidateLayout>
     );
   }
 
-  const standings = await Promise.all(active.map(standingOf));
+  const [standings, emailIntake] = await Promise.all([Promise.all(active.map(standingOf)), emailIntakeOf(candidate.id)]);
   const aiActivity = await loadAiActivity.jobSearches(searchesShown(standings));
   return (
     <CandidateLayout candidateId={candidate.id} title={t("sidebar.jobSearches")} wide={lanes} aiActivity={aiActivity}>
@@ -141,18 +157,21 @@ export default async function JobSearchesPage({ searchParams }: { searchParams: 
           </nav>
         </div>
         {lanes ? (
-          standings.map((standing) => <ProfileGroup key={standing.profile.id} standing={standing} lanes t={t} locale={locale} date={date} />)
+          standings.map((standing) => (
+            <ProfileGroup key={standing.profile.id} standing={standing} received={emailIntake.overview.byProfile[standing.profile.id]} lanes t={t} locale={locale} date={date} />
+          ))
         ) : (
           <JobSearchTabs
             label={t("jobSearchesPage.groupsLabel")}
             tabs={standings.map((standing) => ({
               value: standing.profile.id,
               label: standing.profile.name,
-              panel: <ProfileGroup standing={standing} lanes={false} t={t} locale={locale} date={date} />,
+              panel: <ProfileGroup standing={standing} received={emailIntake.overview.byProfile[standing.profile.id]} lanes={false} t={t} locale={locale} date={date} />,
             }))}
           />
         )}
       </section>
+      <EmailIntakeStanding overview={emailIntake.overview} switchedOn={emailIntake.switchedOn} t={t} locale={locale} headingLevel={2} />
     </CandidateLayout>
   );
 }
@@ -242,9 +261,23 @@ function ProfileStanding({ standing: { profile, searching, latest }, t, locale, 
  * One Profile's group in the all-Profiles view: its name, where its Job Searches stand
  * and a link to its Job Search's page (or to its own view, before any). In a swimlane
  * its Job Offers sit side by side in a strip that scrolls sideways (alone, never the page),
- * reachable from the keyboard.
+ * reachable from the keyboard. Then its « Reçues par email » (#447).
  */
-function ProfileGroup({ standing, lanes, t, locale, date }: { standing: Standing; lanes: boolean; t: T; locale: string; date: Intl.DateTimeFormat }) {
+function ProfileGroup({
+  standing,
+  received,
+  lanes,
+  t,
+  locale,
+  date,
+}: {
+  standing: Standing;
+  received: ReceivedOffersOverview["byProfile"][string] | undefined;
+  lanes: boolean;
+  t: T;
+  locale: string;
+  date: Intl.DateTimeFormat;
+}) {
   const { profile, searching, latest } = standing;
   const titleId = `job-searches-group-${profile.id}`;
   const shown = latest ?? searching;
@@ -292,6 +325,7 @@ function ProfileGroup({ standing, lanes, t, locale, date }: { standing: Standing
           {t("jobSearchesPage.never")} <EmptyStateHelp of="jobSearches" />
         </p>
       )}
+      <ReceivedByEmail profile={profile} group={received} t={t} locale={locale} headingLevel={4} />
     </section>
   );
 }

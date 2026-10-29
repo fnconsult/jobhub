@@ -44,9 +44,18 @@ const DAY_TIME_ZONE = "Europe/Paris";
 /**
  * What became of a Received offer email (CONTEXT.md): set aside on arrival, or awaiting reading until the worker's
  * reading (#445, reading.ts) finds offers (new or already there), « autre » (no precise offer), or fails after its
- * last try (« échec »). Set aside by a Guardrail comes with #446.
+ * last try (« échec »). Set aside by a Guardrail (`guardrail`) is recorded by #446; the Recherches d'offres page already
+ * names it among the ignored emails (#447).
  */
-export type ReceivedOfferEmailOutcome = "awaiting_reading" | "unrecognised_sender" | "over_daily_cap" | "forwarding_confirmation" | "offers_found" | "other" | "failed";
+export type ReceivedOfferEmailOutcome =
+  | "awaiting_reading"
+  | "unrecognised_sender"
+  | "over_daily_cap"
+  | "forwarding_confirmation"
+  | "offers_found"
+  | "other"
+  | "failed"
+  | "guardrail";
 
 /** What the inbound route reads at each delivery: Provider Secrets and Platform Settings in use. */
 export interface InboundSettings {

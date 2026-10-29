@@ -876,6 +876,10 @@ _Avoid_: Admin bot, admin copilot
 One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile).
 _Avoid_: Help page, KB article, doc
 
+**Legal Document**:
+A text on the public Légal page (conditions of use, privacy, cookies, subprocessors and AI, legal notice), written by the team in French and English. Versioned with an effective date and an optional « En bref »; every version is kept and an earlier one stays readable. One the team has not written shows « Ce texte n'est pas encore publié ». Offered as a PDF.
+_Avoid_: Policy, terms page
+
 **Article card**:
 A Help Article shown in the Coach panel's conversation, from the box's suggestions « Dans l'aide, sans IA », the page in view or « Souvent demandé ». Kept only in the browser: gone after a reload, never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.
 

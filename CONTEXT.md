@@ -630,6 +630,16 @@ _Avoid_: Alert, snackbar, banner
 The page at `/design-system/composants` that shows every component of the Design System in Confort, or in Compact with `?densite=compact`, for the tests. Only e2e and development builds serve it; the Design System page of the Back Office replaces it for readers.
 _Avoid_: Storybook, Design System page
 
+**Design System page**:
+The Back Office page at `/admin/design-system`, under Plateforme and open to every Back Office Role, that shows every token and every component with its states. Its theme and Density toggles apply to the page only, through an OverlayScope.
+_Avoid_: Components page, Storybook
+
+**OverlayScope**:
+A part of a page that sets its own theme and Density, inside which the Drawers and Dialogs it opens keep that theme and Density instead of the page's.
+
+**Screenshot baseline**:
+A reference image of a screen, drawn in the pinned Playwright image and compared with the screen in CI. A difference fails the check until someone redraws the baseline on purpose.
+
 **Side Panel**:
 The extension's pane docked to the right of the browser's page, beside the job posting the person is reading, where Capture, the Match Score and the extension's other functions live. It replaces the popup and is opened by the toolbar icon or a Job Site's badge.
 _Avoid_: Popup, sidebar (that is the web app's Sidebar)

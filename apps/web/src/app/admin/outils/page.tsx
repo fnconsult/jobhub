@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { IntroPage } from "@/admin/page-intro";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
@@ -14,6 +15,9 @@ import { toolsOverviewNow } from "@/tools/server";
 import { EnvBadge } from "./EnvBadge";
 import { STATUS_TONE } from "./tone";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "tools";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -51,7 +55,7 @@ export default async function ToolsPage() {
   return (
     <BackOfficeLayout access={access} title={t("admin.tools.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="tools" subject={t("admin.tools.title")} />
+        <PageIntro t={t} page={INTRO} subject={t("admin.tools.title")} />
         {overview.map(({ category, rows }) => (
           <section key={category} className="section-block" aria-labelledby={`tools-${category}`}>
             <h2 id={`tools-${category}`}>{t(`admin.tools.categories.${category}`)}</h2>
@@ -59,7 +63,6 @@ export default async function ToolsPage() {
               label={t(`admin.tools.categories.${category}`)}
               columns={[
                 {
-                  key: "tool",
                   header: t("admin.tools.tool"),
                   rowHeader: true,
                   cell: ({ tool }) => (
@@ -69,9 +72,8 @@ export default async function ToolsPage() {
                     </>
                   ),
                 },
-                { key: "purpose", header: t("admin.tools.purpose"), cell: ({ tool }) => tool.purpose[locale] },
+                { header: t("admin.tools.purpose"), cell: ({ tool }) => tool.purpose[locale] },
                 {
-                  key: "status",
                   header: t("admin.tools.status"),
                   cell: ({ tool, status, missingKeys, missingSettings, settingsFromEnv }) => (
                     <>
@@ -86,7 +88,6 @@ export default async function ToolsPage() {
                   ),
                 },
                 {
-                  key: "keys",
                   header: t("admin.tools.keys"),
                   cell: ({ tool }) =>
                     tool.keys.length === 0
@@ -98,11 +99,10 @@ export default async function ToolsPage() {
                           </span>
                         )),
                 },
-                { key: "residency", header: t("admin.tools.residency"), cell: ({ tool }) => t(`admin.tools.residencies.${tool.residency}`) },
-                { key: "calls", header: t("admin.tools.calls"), numeric: true, cell: ({ figures }) => figure(figures, ({ calls }) => number.format(calls)) },
-                { key: "failures", header: t("admin.tools.failures"), numeric: true, cell: ({ figures }) => figure(figures, ({ failures }) => number.format(failures)) },
+                { header: t("admin.tools.residency"), cell: ({ tool }) => t(`admin.tools.residencies.${tool.residency}`) },
+                { header: t("admin.tools.calls"), numeric: true, cell: ({ figures }) => figure(figures, ({ calls }) => number.format(calls)) },
+                { header: t("admin.tools.failures"), numeric: true, cell: ({ figures }) => figure(figures, ({ failures }) => number.format(failures)) },
                 {
-                  key: "cost",
                   header: t("admin.tools.cost"),
                   numeric: true,
                   cell: ({ figures }) => figure(figures, ({ costEur }) => (costEur === null ? t("admin.tools.unknownCost") : eur.format(costEur))),

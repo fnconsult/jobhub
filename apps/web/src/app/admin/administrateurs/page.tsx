@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { BACK_OFFICE_ROLES, isBackOfficeRole } from "@/admin/access";
 import { getAdministrators, requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
@@ -12,6 +13,9 @@ import { Table } from "@/design/Table";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "administrators";
 
 const ERRORS = ["unknown_account", "unverified_account", "no_role", "own_super_admin", "permanent", "last_super_admin", "forbidden"] as const;
 type ErrorCode = (typeof ERRORS)[number];
@@ -55,7 +59,7 @@ export default async function AdministratorsPage({ searchParams }: { searchParam
   return (
     <BackOfficeLayout access={access} title={t("admin.administrators.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="administrators" subject={t("admin.administrators.title")} />
+        <PageIntro t={t} page={INTRO} subject={t("admin.administrators.title")} />
         {grantedRoles.length > 0 ? (
           <Note tone="success" role="status">
             {t("admin.administrators.granted", { roles: grantedRoles.map(roleName).join(", ") })}
@@ -75,9 +79,8 @@ export default async function AdministratorsPage({ searchParams }: { searchParam
         <Table
           label={t("admin.administrators.caption")}
           columns={[
-            { key: "email", header: t("admin.administrators.email"), rowHeader: true, cell: (administrator) => administrator.email },
+            { header: t("admin.administrators.email"), rowHeader: true, cell: (administrator) => administrator.email },
             {
-              key: "roles",
               header: t("admin.administrators.roles"),
               cell: (administrator) => (
                 <ul className="section-list">

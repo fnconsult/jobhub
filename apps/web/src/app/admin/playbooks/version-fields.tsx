@@ -5,6 +5,12 @@ import { agentModelValue, defaultModelLabel, effortOf, outsideEu } from "@/admin
 import { Field, Select, Textarea } from "@/design/Field";
 import { getServerT } from "@/i18n/server";
 
+/** The language Jobbbox's team writes Playbooks, Eval Cases and their rules in. */
+const FRENCH = "fr";
+/** A Coaching Playbook's Playbook Agent starts on a medium effort; a task's on none, the model's own. */
+const DEFAULT_EFFORT = "medium";
+const NO_EFFORT = "";
+
 /**
  * The fields of a Playbook Version (#225): its rules, and for a Coaching Playbook its Playbook Agent's
  * model (those `models` offers: every text provider configured, an outside-EU one marked so), effort and
@@ -48,7 +54,7 @@ export async function PlaybookVersionFields({
   return (
     <>
       <Field label={t(contentLabel)} hint={t(contentHelp)}>
-        <Textarea name="content" rows={18} required lang="fr" defaultValue={version?.content} aria-describedby={task?.sections || slots.length > 0 ? sectionsId : undefined} />
+        <Textarea name="content" rows={18} required lang={FRENCH} defaultValue={version?.content} aria-describedby={task?.sections || slots.length > 0 ? sectionsId : undefined} />
       </Field>
       {task?.sections || slots.length > 0 ? (
         <div id={sectionsId} className="section-meta">
@@ -96,7 +102,7 @@ export async function PlaybookVersionFields({
               </>
             }
           >
-            <Select name="effort" required={!isTask} defaultValue={agent ? (agent.effort ?? "") : isTask ? "" : "medium"}>
+            <Select name="effort" required={!isTask} defaultValue={agent ? (agent.effort ?? "") : isTask ? NO_EFFORT : DEFAULT_EFFORT}>
               {isTask ? <option value="">{t("admin.coachingPlaybooks.fields.effortNone")}</option> : null}
               {EFFORTS.map((effort) => (
                 <option key={effort} value={effort}>
@@ -107,7 +113,7 @@ export async function PlaybookVersionFields({
           </Field>
           {isTask ? null : (
             <Field label={t("admin.coachingPlaybooks.fields.consultWhen")} hint={t("admin.coachingPlaybooks.fields.consultWhenHelp")}>
-              <Textarea name="consultWhen" required lang="fr" defaultValue={agent?.consultWhen} />
+              <Textarea name="consultWhen" required lang={FRENCH} defaultValue={agent?.consultWhen} />
             </Field>
           )}
         </>

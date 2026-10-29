@@ -1,6 +1,7 @@
 import { pricesFromEnv, SEARCH_TASK, TEXT_TASKS } from "@jobhub/ai";
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { IntroPage } from "@/admin/page-intro";
 import { requireBackOffice } from "@/admin/server";
 import { aiUsageMonths, aiUsagePeriod, type AiUsageRow, type FailureReasonCount } from "@/ai-usage";
 import { aiUsageReportOf } from "@/ai-usage/server";
@@ -18,6 +19,12 @@ import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { routes } from "@/routes";
 import { currentWebSearchAlert } from "@/web-search-alert/server";
 import "../section.css";
+
+/** The web search spend alert's hook (#403). */
+const WEB_SEARCH_ALERT = "web-search";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "aiUsage";
 
 const DAY_PERIODS = ["7d", "30d", "90d", "12m"] as const;
 const TASKS = [...Object.keys(TEXT_TASKS), SEARCH_TASK];
@@ -70,20 +77,20 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
 
   /** The columns every breakdown shares. */
   const usageColumns: Column<AiUsageRow>[] = [
-    { key: "calls", header: t("admin.aiUsage.calls"), numeric: true, cell: (row) => number.format(row.calls) },
-    { key: "failures", header: t("admin.aiUsage.failures"), numeric: true, cell: (row) => `${number.format(row.failures)} (${rate(row.failures, row.calls)})` },
-    { key: "input", header: t("admin.aiUsage.inputTokens"), numeric: true, cell: (row) => number.format(row.inputTokens) },
-    { key: "cached", header: t("admin.aiUsage.cachedInputTokens"), numeric: true, cell: (row) => number.format(row.cachedInputTokens) },
-    { key: "output", header: t("admin.aiUsage.outputTokens"), numeric: true, cell: (row) => number.format(row.outputTokens) },
-    { key: "cost", header: t("admin.aiUsage.cost"), numeric: true, cell: (row) => eur.format(row.costEur) },
+    { header: t("admin.aiUsage.calls"), numeric: true, cell: (row) => number.format(row.calls) },
+    { header: t("admin.aiUsage.failures"), numeric: true, cell: (row) => `${number.format(row.failures)} (${rate(row.failures, row.calls)})` },
+    { header: t("admin.aiUsage.inputTokens"), numeric: true, cell: (row) => number.format(row.inputTokens) },
+    { header: t("admin.aiUsage.cachedInputTokens"), numeric: true, cell: (row) => number.format(row.cachedInputTokens) },
+    { header: t("admin.aiUsage.outputTokens"), numeric: true, cell: (row) => number.format(row.outputTokens) },
+    { header: t("admin.aiUsage.cost"), numeric: true, cell: (row) => eur.format(row.costEur) },
   ];
 
   /** The columns every count per Failure Reason shares: its code, wording and Outcome, and how many calls. */
   const reasonColumns: Column<FailureReasonCount>[] = [
-    { key: "code", header: t("admin.aiUsage.code"), cell: (row) => <code>{row.reason}</code> },
-    { key: "reason", header: t("admin.aiUsage.reason"), cell: (row) => t(`failureReasons.${row.reason}`) },
-    { key: "outcome", header: t("admin.aiUsage.outcome"), cell: (row) => t(`admin.aiMessages.outcomes.${row.outcome}`) },
-    { key: "reasonCalls", header: t("admin.aiUsage.calls"), numeric: true, cell: (row) => number.format(row.calls) },
+    { header: t("admin.aiUsage.code"), cell: (row) => <code>{row.reason}</code> },
+    { header: t("admin.aiUsage.reason"), cell: (row) => t(`failureReasons.${row.reason}`) },
+    { header: t("admin.aiUsage.outcome"), cell: (row) => t(`admin.aiMessages.outcomes.${row.outcome}`) },
+    { header: t("admin.aiUsage.calls"), numeric: true, cell: (row) => number.format(row.calls) },
   ];
   const { failureReasons } = report;
 
@@ -94,7 +101,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
           <Note
             tone="warn"
             role="status"
-            data-alert="web-search"
+            data-alert={WEB_SEARCH_ALERT}
             title={t("admin.aiUsage.alertBanner", { threshold: eur.format(alert.thresholdEur), spend: eur.format(alert.spendEur), month: month.format(new Date(`${alert.month}-01T00:00:00Z`)) })}
           >
             <p>
@@ -109,7 +116,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
             </p>
           </Note>
         ) : null}
-        <PageIntro t={t} page="aiUsage" subject={t("admin.aiUsage.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.aiUsage.title")}>
           {readsCoachCost ? (
             <p>
               <Link href={routes.adminCoachCost}>{t("admin.aiUsage.coachCostLink")}</Link>
@@ -176,9 +183,9 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
               <Table
                 label={t("admin.aiUsage.byModelCaption")}
                 columns={[
-                  { key: "provider", header: t("admin.aiUsage.provider"), rowHeader: true, cell: (row) => row.provider ?? t("admin.aiMessages.noProvider") },
-                  { key: "endpoint", header: t("admin.aiUsage.endpoint"), cell: (row) => row.endpoint ?? "—" },
-                  { key: "model", header: t("admin.aiUsage.model"), cell: (row) => row.model ?? "—" },
+                  { header: t("admin.aiUsage.provider"), rowHeader: true, cell: (row) => row.provider ?? t("admin.aiMessages.noProvider") },
+                  { header: t("admin.aiUsage.endpoint"), cell: (row) => row.endpoint ?? "—" },
+                  { header: t("admin.aiUsage.model"), cell: (row) => row.model ?? "—" },
                   ...usageColumns,
                 ]}
                 rows={report.byModel}
@@ -190,7 +197,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
               <h2 id="by-task-title">{t("admin.aiUsage.byTaskTitle")}</h2>
               <Table
                 label={t("admin.aiUsage.byTaskCaption")}
-                columns={[{ key: "task", header: t("admin.aiUsage.task"), rowHeader: true, cell: (row) => taskName(row.task) }, ...usageColumns]}
+                columns={[{ header: t("admin.aiUsage.task"), rowHeader: true, cell: (row) => taskName(row.task) }, ...usageColumns]}
                 rows={report.byTask}
                 rowKey={(row) => row.task}
               />
@@ -202,7 +209,6 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
                 label={t("admin.aiUsage.byTimeCaption")}
                 columns={[
                   {
-                    key: "bucket",
                     header: period.per === "month" ? t("admin.aiUsage.month") : t("admin.aiUsage.day"),
                     rowHeader: true,
                     cell: (row) => <time dateTime={row.bucket}>{bucketName(row.bucket)}</time>,
@@ -229,8 +235,8 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
               <Table
                 label={t("admin.aiUsage.reasonsByModelCaption")}
                 columns={[
-                  { key: "provider", header: t("admin.aiUsage.provider"), rowHeader: true, cell: (row) => row.provider ?? t("admin.aiMessages.noProvider") },
-                  { key: "model", header: t("admin.aiUsage.model"), cell: (row) => row.model ?? "—" },
+                  { header: t("admin.aiUsage.provider"), rowHeader: true, cell: (row) => row.provider ?? t("admin.aiMessages.noProvider") },
+                  { header: t("admin.aiUsage.model"), cell: (row) => row.model ?? "—" },
                   ...(reasonColumns as Column<(typeof failureReasons.byModel)[number]>[]),
                 ]}
                 rows={failureReasons.byModel}
@@ -241,7 +247,7 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
               <Table
                 label={t("admin.aiUsage.reasonsByTaskCaption")}
                 columns={[
-                  { key: "task", header: t("admin.aiUsage.task"), rowHeader: true, cell: (row) => taskName(row.task) },
+                  { header: t("admin.aiUsage.task"), rowHeader: true, cell: (row) => taskName(row.task) },
                   ...(reasonColumns as Column<(typeof failureReasons.byTask)[number]>[]),
                 ]}
                 rows={failureReasons.byTask}
@@ -259,11 +265,11 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
             <Table
               label={t("admin.aiUsage.toolsCaption")}
               columns={[
-                { key: "tool", header: t("admin.aiUsage.tool"), rowHeader: true, cell: (tool) => tool.name },
-                { key: "provider", header: t("admin.aiUsage.provider"), cell: (tool) => tool.provider },
-                { key: "uses", header: t("admin.aiUsage.uses"), numeric: true, cell: (tool) => number.format(tool.calls) },
-                { key: "failures", header: t("admin.aiUsage.failures"), numeric: true, cell: (tool) => number.format(tool.failures) },
-                { key: "cost", header: t("admin.aiUsage.cost"), numeric: true, cell: (tool) => toolCost(tool) },
+                { header: t("admin.aiUsage.tool"), rowHeader: true, cell: (tool) => tool.name },
+                { header: t("admin.aiUsage.provider"), cell: (tool) => tool.provider },
+                { header: t("admin.aiUsage.uses"), numeric: true, cell: (tool) => number.format(tool.calls) },
+                { header: t("admin.aiUsage.failures"), numeric: true, cell: (tool) => number.format(tool.failures) },
+                { header: t("admin.aiUsage.cost"), numeric: true, cell: (tool) => toolCost(tool) },
               ]}
               rows={report.tools}
               rowKey={(tool) => `${tool.provider} ${tool.name}`}
@@ -279,11 +285,11 @@ export default async function AiUsagePage({ searchParams }: { searchParams: Prom
             <Table
               label={t("admin.aiUsage.externalCaption")}
               columns={[
-                { key: "provider", header: t("admin.aiUsage.provider"), rowHeader: true, cell: (api) => api.provider },
-                { key: "operation", header: t("admin.aiUsage.operation"), cell: (api) => <code>{api.operation}</code> },
-                { key: "calls", header: t("admin.aiUsage.calls"), numeric: true, cell: (api) => number.format(api.calls) },
-                { key: "failures", header: t("admin.aiUsage.failures"), numeric: true, cell: (api) => `${number.format(api.failures)} (${rate(api.failures, api.calls)})` },
-                { key: "cost", header: t("admin.aiUsage.cost"), numeric: true, cell: (api) => cost(api.costEur) },
+                { header: t("admin.aiUsage.provider"), rowHeader: true, cell: (api) => api.provider },
+                { header: t("admin.aiUsage.operation"), cell: (api) => <code>{api.operation}</code> },
+                { header: t("admin.aiUsage.calls"), numeric: true, cell: (api) => number.format(api.calls) },
+                { header: t("admin.aiUsage.failures"), numeric: true, cell: (api) => `${number.format(api.failures)} (${rate(api.failures, api.calls)})` },
+                { header: t("admin.aiUsage.cost"), numeric: true, cell: (api) => cost(api.costEur) },
               ]}
               rows={report.externalApis}
               rowKey={(api) => `${api.provider} ${api.operation}`}

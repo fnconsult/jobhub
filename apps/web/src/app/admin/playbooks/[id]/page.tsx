@@ -27,6 +27,9 @@ import { EvalRunsTable, evalRunFormat } from "../../evaluations/run-views";
 import { PlaybookVersionFields } from "../version-fields";
 import "../../section.css";
 
+/** The language Jobbbox's team writes Playbooks, Eval Cases and their rules in. */
+const FRENCH = "fr";
+
 type Params = Promise<{ id: string }>;
 
 /** `aria-current` of the link to the version shown. */
@@ -151,13 +154,13 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
   const caseFields = (prefix: string, evalCase?: PlaybookEvalCase) => (
     <>
       <Field id={`${prefix}-title`} label={t("admin.evals.cases.fields.title")}>
-        <TextInput name="title" required maxLength={120} lang="fr" defaultValue={evalCase?.title} />
+        <TextInput name="title" required maxLength={120} lang={FRENCH} defaultValue={evalCase?.title} />
       </Field>
       <Field id={`${prefix}-context`} label={t("admin.evals.cases.fields.context")} hint={t("admin.evals.cases.fields.contextHelp")}>
-        <Textarea name="context" required lang="fr" defaultValue={evalCase?.context} />
+        <Textarea name="context" required lang={FRENCH} defaultValue={evalCase?.context} />
       </Field>
       <Field id={`${prefix}-message`} label={t("admin.evals.cases.fields.message")}>
-        <Textarea name="message" required lang="fr" defaultValue={evalCase?.message} />
+        <Textarea name="message" required lang={FRENCH} defaultValue={evalCase?.message} />
       </Field>
       <Field id={`${prefix}-in-view-kind`} label={t("admin.evals.cases.fields.inViewKind")}>
         <Select name="inViewKind" defaultValue={evalCase?.inView?.kind ?? ""}>
@@ -170,10 +173,10 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
         </Select>
       </Field>
       <Field id={`${prefix}-in-view-text`} label={t("admin.evals.cases.fields.inViewText")} hint={t("admin.evals.cases.fields.inViewTextHelp")}>
-        <Textarea name="inViewText" rows={4} lang="fr" defaultValue={evalCase?.inView?.text} />
+        <Textarea name="inViewText" rows={4} lang={FRENCH} defaultValue={evalCase?.inView?.text} />
       </Field>
       <Field id={`${prefix}-criteria`} label={t("admin.evals.cases.fields.criteria")} hint={t("admin.evals.cases.fields.criteriaHelp")}>
-        <Textarea name="criteria" required lang="fr" defaultValue={evalCase?.criteria} />
+        <Textarea name="criteria" required lang={FRENCH} defaultValue={evalCase?.criteria} />
       </Field>
     </>
   );
@@ -246,7 +249,7 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                           : ` (${t(`admin.coachingPlaybooks.effortHandling.${effortOf(models, selected.agent.provider, selected.agent.model)}`)})`}
                       </Property>
                       {playbook.kind === "task" ? null : (
-                        <Property term={t("admin.coachingPlaybooks.fields.consultWhen")} lang="fr">
+                        <Property term={t("admin.coachingPlaybooks.fields.consultWhen")} lang={FRENCH}>
                           {selected.agent.consultWhen}
                         </Property>
                       )}
@@ -342,18 +345,18 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
                   <div className="section-block">
                     <p className="section-meta">{t("admin.evals.cases.writtenBy", { author: evalCase.author, date: at.format(evalCase.updatedAt) })}</p>
                     <Properties>
-                      <Property term={t("admin.evals.run.context")} lang="fr">
+                      <Property term={t("admin.evals.run.context")} lang={FRENCH}>
                         {evalCase.context}
                       </Property>
-                      <Property term={t("admin.evals.run.message")} lang="fr">
+                      <Property term={t("admin.evals.run.message")} lang={FRENCH}>
                         {evalCase.message}
                       </Property>
                       {evalCase.inView ? (
-                        <Property term={t("admin.evals.run.inView")} lang="fr">
+                        <Property term={t("admin.evals.run.inView")} lang={FRENCH}>
                           {t(`admin.evals.cases.inViewKinds.${evalCase.inView.kind}`)} : {evalCase.inView.text}
                         </Property>
                       ) : null}
-                      <Property term={t("admin.evals.run.criteria")} lang="fr">
+                      <Property term={t("admin.evals.run.criteria")} lang={FRENCH}>
                         {evalCase.criteria}
                       </Property>
                     </Properties>

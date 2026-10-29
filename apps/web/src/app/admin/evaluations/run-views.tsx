@@ -39,23 +39,22 @@ export async function EvalRunsTable({ runs, caption }: { runs: EvalRun[]; captio
   if (runs.length === 0) return <p>{t("admin.evals.runs.none")}</p>;
   const playbookRuns = runs.some((run) => run.subject.kind === "coaching_playbook");
   const columns: Column<EvalRun>[] = [
-    { key: "startedAt", header: t("admin.evals.runs.startedAt"), rowHeader: true, cell: (run) => <time dateTime={run.startedAt.toISOString()}>{format.at(run.startedAt)}</time> },
+    { header: t("admin.evals.runs.startedAt"), rowHeader: true, cell: (run) => <time dateTime={run.startedAt.toISOString()}>{format.at(run.startedAt)}</time> },
     ...(playbookRuns
       ? [
-          { key: "version", header: t("admin.evals.runs.version"), cell: (run: EvalRun) => (run.subject.kind === "coaching_playbook" ? run.subject.version : null) },
+          { header: t("admin.evals.runs.version"), cell: (run: EvalRun) => (run.subject.kind === "coaching_playbook" ? run.subject.version : null) },
           {
-            key: "agent",
             header: t("admin.evals.runs.agent"),
             cell: (run: EvalRun) =>
               run.subject.kind === "coaching_playbook" ? `${agentText(t, run.subject.agent)} (${t(run.subject.asSaved ? "admin.evals.runs.asSaved" : "admin.evals.runs.tried")})` : null,
           },
         ]
       : []),
-    { key: "score", header: t("admin.evals.runs.score"), numeric: true, cell: (run) => format.score(run.score) },
-    { key: "cost", header: t("admin.evals.runs.cost"), numeric: true, cell: (run) => format.cost(run.costEur) },
-    { key: "time", header: t("admin.evals.runs.responseTime"), numeric: true, cell: (run) => format.time(run.responseMs) },
-    { key: "startedBy", header: t("admin.evals.runs.startedBy"), cell: (run) => run.startedBy },
-    { key: "details", header: t("admin.evals.runs.details"), cell: (run) => <Link href={routes.adminEvalRun(run.id)}>{t("admin.evals.runs.open")}</Link> },
+    { header: t("admin.evals.runs.score"), numeric: true, cell: (run) => format.score(run.score) },
+    { header: t("admin.evals.runs.cost"), numeric: true, cell: (run) => format.cost(run.costEur) },
+    { header: t("admin.evals.runs.responseTime"), numeric: true, cell: (run) => format.time(run.responseMs) },
+    { header: t("admin.evals.runs.startedBy"), cell: (run) => run.startedBy },
+    { header: t("admin.evals.runs.details"), cell: (run) => <Link href={routes.adminEvalRun(run.id)}>{t("admin.evals.runs.open")}</Link> },
   ];
   return <Table label={caption} columns={columns} rows={runs} rowKey={(run) => run.id} />;
 }

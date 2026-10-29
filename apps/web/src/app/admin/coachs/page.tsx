@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
@@ -13,6 +14,9 @@ import { getHumanCoaches } from "@/human-coaches/server";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "humanCoaches";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -52,7 +56,7 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
   return (
     <BackOfficeLayout access={access} title={t("admin.humanCoaches.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="humanCoaches" subject={t("admin.humanCoaches.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.humanCoaches.title")}>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
         {added ? (
@@ -79,10 +83,9 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
             <Table
               label={t("admin.humanCoaches.listTitle")}
               columns={[
-                { key: "name", header: t("admin.humanCoaches.name"), rowHeader: true, cell: (coach) => coach.name },
-                { key: "email", header: t("admin.humanCoaches.email"), cell: (coach) => coach.email },
+                { header: t("admin.humanCoaches.name"), rowHeader: true, cell: (coach) => coach.name },
+                { header: t("admin.humanCoaches.email"), cell: (coach) => coach.email },
                 {
-                  key: "booking",
                   header: t("admin.humanCoaches.bookingUrl"),
                   cell: (coach) => (
                     <a href={coach.bookingUrl} rel="noopener noreferrer" target="_blank">
@@ -90,9 +93,8 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
                     </a>
                   ),
                 },
-                { key: "bio", header: t("admin.humanCoaches.bio"), cell: (coach) => coach.bio || "—" },
+                { header: t("admin.humanCoaches.bio"), cell: (coach) => coach.bio || "—" },
                 {
-                  key: "retire",
                   header: <span className="visually-hidden">{t("admin.rowActions")}</span>,
                   cell: (coach) => (
                     <BackOfficeForm canWrite={canWrite} action={retireCoach}>

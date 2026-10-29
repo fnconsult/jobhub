@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { playbookVersionFromForm } from "@/admin/playbook-form";
 import { getCoachingPlaybooksBackOffice, requireBackOffice } from "@/admin/server";
 import { getAi } from "@/ai/server";
@@ -23,6 +24,9 @@ import { isNotice, NOTICES, noticeQuery } from "./notices";
 import { EvalRunsTable } from "../evaluations/run-views";
 import { PlaybookVersionFields } from "./version-fields";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "coachingPlaybooks";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -84,7 +88,6 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
       label={caption}
       columns={[
         {
-          key: "name",
           header: t("admin.coachingPlaybooks.name"),
           rowHeader: true,
           cell: (playbook) => (
@@ -93,14 +96,12 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
             </>
           ),
         },
-        { key: "latest", header: t("admin.coachingPlaybooks.latest"), cell: (playbook) => versionLine(playbook.latest) },
+        { header: t("admin.coachingPlaybooks.latest"), cell: (playbook) => versionLine(playbook.latest) },
         {
-          key: "served",
           header: t("admin.coachingPlaybooks.served"),
           cell: (playbook) => (playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")),
         },
         {
-          key: "agent",
           header: agentHeading,
           cell: (playbook) => {
             const agent = playbook.latest.agent;
@@ -123,7 +124,6 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
           },
         },
         {
-          key: "status",
           header: t("admin.coachingPlaybooks.status"),
           cell: (playbook) => <Pill tone={playbook.archived ? "neutral" : "success"}>{t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")}</Pill>,
         },
@@ -136,7 +136,7 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
   return (
     <BackOfficeLayout access={access} title={t("admin.coachingPlaybooks.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="coachingPlaybooks" subject={t("admin.coachingPlaybooks.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.coachingPlaybooks.title")}>
           <p>{t(playbookServing(process.env) === "validated" ? "admin.coachingPlaybooks.servingValidated" : "admin.coachingPlaybooks.servingLatest")}</p>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
@@ -160,11 +160,10 @@ export default async function CoachingPlaybooksPage({ searchParams }: { searchPa
           <Table
             label={t("admin.coachingPlaybooks.models.caption")}
             columns={[
-              { key: "provider", header: t("admin.coachingPlaybooks.models.provider"), rowHeader: true, cell: ({ choice }) => `${choice.provider} (${choice.endpoint})` },
-              { key: "model", header: t("admin.coachingPlaybooks.models.model"), cell: ({ each }) => each.model },
-              { key: "residency", header: t("admin.coachingPlaybooks.models.residency"), cell: ({ each }) => t(each.residency === "eu" ? "admin.coachingPlaybooks.models.inEu" : "admin.coachingPlaybooks.outsideEu") },
+              { header: t("admin.coachingPlaybooks.models.provider"), rowHeader: true, cell: ({ choice }) => `${choice.provider} (${choice.endpoint})` },
+              { header: t("admin.coachingPlaybooks.models.model"), cell: ({ each }) => each.model },
+              { header: t("admin.coachingPlaybooks.models.residency"), cell: ({ each }) => t(each.residency === "eu" ? "admin.coachingPlaybooks.models.inEu" : "admin.coachingPlaybooks.outsideEu") },
               {
-                key: "effort",
                 header: t("admin.coachingPlaybooks.models.effort"),
                 cell: ({ each }) => (each.effort === "native" ? t("admin.coachingPlaybooks.models.native") : t(`admin.coachingPlaybooks.effortHandling.${each.effort}`)),
               },

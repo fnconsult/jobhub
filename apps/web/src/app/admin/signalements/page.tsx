@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { IntroPage } from "@/admin/page-intro";
 import { getSignalementsBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
@@ -12,6 +13,9 @@ import { routes } from "@/routes";
 import { SIGNALEMENT_STATUSES, SIGNALEMENT_TYPES } from "@/signalements/values";
 import { ALL_STATUSES, signalementsFilter } from "./filters";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "signalements";
 
 /** The filters' ids for « Tous les types » and « À traiter », which the address leaves out. */
 const ALL = "all";
@@ -53,7 +57,7 @@ export default async function SignalementsPage({ searchParams }: { searchParams:
   return (
     <BackOfficeLayout access={access} title={t("admin.signalements.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="signalements" subject={t("admin.signalements.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.signalements.title")}>
           {canWrite ? null : <p>{t("admin.signalements.questionsOnly")}</p>}
         </PageIntro>
 
@@ -84,10 +88,9 @@ export default async function SignalementsPage({ searchParams }: { searchParams:
           <Table
             label={t("admin.signalements.caption")}
             columns={[
-              { key: "type", header: t("admin.signalements.type"), cell: (each) => <Pill tone={TYPE_TONE[each.type]}>{t(`admin.signalements.types.${each.type}`)}</Pill> },
-              { key: "date", header: t("admin.signalements.date"), cell: (each) => <time dateTime={each.createdAt.toISOString()}>{at.format(each.createdAt)}</time> },
+              { header: t("admin.signalements.type"), cell: (each) => <Pill tone={TYPE_TONE[each.type]}>{t(`admin.signalements.types.${each.type}`)}</Pill> },
+              { header: t("admin.signalements.date"), cell: (each) => <time dateTime={each.createdAt.toISOString()}>{at.format(each.createdAt)}</time> },
               {
-                key: "message",
                 header: t("admin.signalements.message"),
                 rowHeader: true,
                 cell: (each) => (
@@ -96,18 +99,18 @@ export default async function SignalementsPage({ searchParams }: { searchParams:
                   </Link>
                 ),
               },
-              { key: "page", header: t("admin.signalements.page"), cell: (each) => (each.context.path ? <code>{each.context.path}</code> : t("admin.signalements.unknownPage")) },
-              { key: "version", header: t("admin.signalements.version"), cell: (each) => <code>{each.context.version}</code> },
-              { key: "browser", header: t("admin.signalements.browser"), cell: (each) => each.context.browser ?? t("admin.signalements.unknownBrowser") },
-              { key: "language", header: t("admin.signalements.language"), cell: (each) => t(`languages.${each.context.interfaceLanguage}`) },
-              { key: "textSize", header: t("admin.signalements.textSize"), cell: (each) => t(`textSize.${each.context.textSize}`) },
+              { header: t("admin.signalements.page"), cell: (each) => (each.context.path ? <code>{each.context.path}</code> : t("admin.signalements.unknownPage")) },
+              { header: t("admin.signalements.version"), cell: (each) => <code>{each.context.version}</code> },
+              { header: t("admin.signalements.browser"), cell: (each) => each.context.browser ?? t("admin.signalements.unknownBrowser") },
+              { header: t("admin.signalements.language"), cell: (each) => t(`languages.${each.context.interfaceLanguage}`) },
+              { header: t("admin.signalements.textSize"), cell: (each) => t(`textSize.${each.context.textSize}`) },
               ...(canWrite
                 ? [
-                    { key: "candidate", header: t("admin.signalements.candidate"), cell: (each: Listed) => each.candidate?.email },
-                    { key: "plan", header: t("admin.signalements.plan"), cell: (each: Listed) => (each.candidate ? planName(each.candidate.plan) : null) },
+                    { header: t("admin.signalements.candidate"), cell: (each: Listed) => each.candidate?.email },
+                    { header: t("admin.signalements.plan"), cell: (each: Listed) => (each.candidate ? planName(each.candidate.plan) : null) },
                   ]
                 : []),
-              { key: "status", header: t("admin.signalements.status"), cell: (each) => <Status tone={STATUS_TONE[each.status]}>{t(`admin.signalements.statuses.${each.status}`)}</Status> },
+              { header: t("admin.signalements.status"), cell: (each) => <Status tone={STATUS_TONE[each.status]}>{t(`admin.signalements.statuses.${each.status}`)}</Status> },
             ]}
             rows={listed}
             rowKey={(each) => each.id}

@@ -68,7 +68,6 @@ export default async function RunJobSearchPage({ params }: Params) {
               label={t("admin.discoveryRuns.jobSearch.results", { count: jobSearch.results.length })}
               columns={[
                 {
-                  key: "offer",
                   header: t("admin.discoveryRuns.jobSearch.offer"),
                   rowHeader: true,
                   cell: ({ jobOffer }) =>
@@ -80,9 +79,9 @@ export default async function RunJobSearchPage({ params }: Params) {
                       jobOffer.title
                     ),
                 },
-                { key: "employer", header: t("admin.discoveryRuns.jobSearch.employer"), cell: ({ jobOffer }) => jobOffer.employer ?? "—" },
-                { key: "location", header: t("admin.discoveryRuns.jobSearch.location"), cell: ({ jobOffer }) => jobOffer.location ?? "—" },
-                { key: "matchScore", header: t("admin.discoveryRuns.jobSearch.matchScore"), numeric: true, cell: ({ matchScore }) => matchScore.score },
+                { header: t("admin.discoveryRuns.jobSearch.employer"), cell: ({ jobOffer }) => jobOffer.employer ?? "—" },
+                { header: t("admin.discoveryRuns.jobSearch.location"), cell: ({ jobOffer }) => jobOffer.location ?? "—" },
+                { header: t("admin.discoveryRuns.jobSearch.matchScore"), numeric: true, cell: ({ matchScore }) => matchScore.score },
               ]}
               rows={jobSearch.results}
               rowKey={({ jobOffer }) => jobOffer.id}

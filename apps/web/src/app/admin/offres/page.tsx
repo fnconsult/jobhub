@@ -1,6 +1,7 @@
 import { FREE_PLAN, PLAN_FEATURES } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { planFromForm } from "@/admin/plan-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import type { PlanDefinition, PlanError } from "@/billing";
@@ -18,6 +19,13 @@ import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import "../section.css";
+
+/** The languages of a Plan's two names. */
+const FRENCH = "fr";
+const ENGLISH = "en";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "plans";
 
 const ERRORS = [
   "unknown_plan",
@@ -100,7 +108,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   return (
     <BackOfficeLayout access={access} title={t("admin.plans.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="plans" subject={t("admin.plans.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.plans.title")}>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
         {savedPlan ? (
@@ -128,7 +136,6 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
           label={t("admin.plans.caption")}
           columns={[
             {
-              key: "rank",
               header: t("admin.plans.rank"),
               cell: ({ plan, index }) => {
                 // Free stays first: it has no buttons, and the Plan just above it cannot go down.
@@ -143,11 +150,11 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                 );
               },
             },
-            { key: "name", header: t("admin.plans.name"), rowHeader: true, cell: ({ plan }) => name(plan) },
-            { key: "key", header: t("admin.plans.key"), cell: ({ plan }) => <code>{plan.key}</code> },
-            { key: "status", header: t("admin.plans.statusLabel"), cell: ({ plan }) => <Pill tone={plan.status === "offered" ? "success" : "neutral"}>{t(`admin.plans.status.${plan.status}`)}</Pill> },
-            { key: "product", header: t("admin.plans.product"), cell: ({ plan }) => (plan.stripeProductId ? <code>{plan.stripeProductId}</code> : t("admin.plans.noProduct")) },
-            { key: "features", header: t("admin.plans.features"), cell: ({ plan }) => features(plan) },
+            { header: t("admin.plans.name"), rowHeader: true, cell: ({ plan }) => name(plan) },
+            { header: t("admin.plans.key"), cell: ({ plan }) => <code>{plan.key}</code> },
+            { header: t("admin.plans.statusLabel"), cell: ({ plan }) => <Pill tone={plan.status === "offered" ? "success" : "neutral"}>{t(`admin.plans.status.${plan.status}`)}</Pill> },
+            { header: t("admin.plans.product"), cell: ({ plan }) => (plan.stripeProductId ? <code>{plan.stripeProductId}</code> : t("admin.plans.noProduct")) },
+            { header: t("admin.plans.features"), cell: ({ plan }) => features(plan) },
           ]}
           rows={plans.map((plan, index) => ({ plan, index }))}
           rowKey={({ plan }) => plan.key}
@@ -236,10 +243,10 @@ function NameFields({ plan, labels }: { plan?: PlanDefinition; labels: { fr: str
   return (
     <>
       <Field label={labels.fr}>
-        <TextInput name="nameFr" lang="fr" required maxLength={60} defaultValue={plan?.name.fr} autoComplete="off" />
+        <TextInput name="nameFr" lang={FRENCH} required maxLength={60} defaultValue={plan?.name.fr} autoComplete="off" />
       </Field>
       <Field label={labels.en}>
-        <TextInput name="nameEn" lang="en" required maxLength={60} defaultValue={plan?.name.en} autoComplete="off" />
+        <TextInput name="nameEn" lang={ENGLISH} required maxLength={60} defaultValue={plan?.name.en} autoComplete="off" />
       </Field>
     </>
   );

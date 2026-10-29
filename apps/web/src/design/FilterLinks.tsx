@@ -2,6 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import "./FilterLinks.css";
 
+/** How the filter shown says so to assistive technologies. */
+const CURRENT = "page";
+
 export type FilterLink = { id: string; href: string; label: ReactNode };
 
 /**
@@ -15,7 +18,7 @@ export function FilterLinks({ label, links, shown }: { label: string; links: rea
       <ul className="ds-filters">
         {links.map((link) => (
           <li key={link.id}>
-            <Link prefetch={false} className="ds-filters__link" href={link.href} aria-current={link.id === shown ? "page" : undefined}>
+            <Link prefetch={false} className="ds-filters__link" href={link.href} aria-current={link.id === shown ? CURRENT : undefined}>
               {link.label}
             </Link>
           </li>

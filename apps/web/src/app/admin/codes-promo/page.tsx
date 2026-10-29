@@ -1,6 +1,7 @@
 import { FREE_PLAN } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { couponFromForm } from "@/admin/coupon-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import type { Coupon, CouponError, PlanDefinition } from "@/billing";
@@ -17,6 +18,9 @@ import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "coupons";
 
 const ERRORS = [
   "invalid_code",
@@ -86,7 +90,7 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
   return (
     <BackOfficeLayout access={access} title={t("admin.coupons.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="coupons" subject={t("admin.coupons.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.coupons.title")}>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
         {createdCoupon ? (
@@ -115,9 +119,8 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
           <Table
             label={t("admin.coupons.caption")}
             columns={[
-              { key: "code", header: t("admin.coupons.code"), rowHeader: true, cell: (coupon) => <code>{coupon.code}</code> },
+              { header: t("admin.coupons.code"), rowHeader: true, cell: (coupon) => <code>{coupon.code}</code> },
               {
-                key: "terms",
                 header: t("admin.coupons.terms"),
                 cell: (coupon) =>
                   "unreadable" in coupon ? (
@@ -129,14 +132,12 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
                     </>
                   ),
               },
-              { key: "plans", header: t("admin.coupons.plans"), cell: (coupon) => ("unreadable" in coupon ? null : planNames(coupon)) },
+              { header: t("admin.coupons.plans"), cell: (coupon) => ("unreadable" in coupon ? null : planNames(coupon)) },
               {
-                key: "expires",
                 header: t("admin.coupons.expiresAt"),
                 cell: (coupon) => ("unreadable" in coupon ? null : coupon.expiresAt ? date.format(coupon.expiresAt) : t("admin.coupons.noExpiry")),
               },
               {
-                key: "redemptions",
                 header: t("admin.coupons.redemptions"),
                 numeric: true,
                 cell: (coupon) =>
@@ -147,16 +148,14 @@ export default async function CouponsPage({ searchParams }: { searchParams: Prom
                       : t("admin.coupons.redemptionsOf", { used: coupon.timesRedeemed, max: coupon.maxRedemptions }),
               },
               {
-                key: "status",
                 header: t("admin.coupons.statusLabel"),
                 cell: (coupon) =>
                   "unreadable" in coupon ? null : <Pill tone={coupon.active ? "success" : "neutral"}>{t(`admin.coupons.status.${coupon.active ? "active" : "inactive"}`)}</Pill>,
               },
-              { key: "link", header: t("admin.coupons.link"), cell: (coupon) => ("unreadable" in coupon ? null : <code>{`${routes.subscription}?code=${encodeURIComponent(coupon.code)}`}</code>) },
+              { header: t("admin.coupons.link"), cell: (coupon) => ("unreadable" in coupon ? null : <code>{`${routes.subscription}?code=${encodeURIComponent(coupon.code)}`}</code>) },
               ...(canWrite
                 ? [
                     {
-                      key: "actions",
                       header: <span className="visually-hidden">{t("admin.rowActions")}</span>,
                       cell: (coupon: (typeof coupons)[number]) =>
                         "unreadable" in coupon || !coupon.active ? null : (

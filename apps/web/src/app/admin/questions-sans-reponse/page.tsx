@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { getUnansweredQuestionsBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
@@ -15,6 +16,9 @@ import { routes } from "@/routes";
 import { UNANSWERED_QUESTION_LANGUAGES, type UnansweredQuestionLanguage, type UnansweredQuestionMark } from "@/unanswered-questions";
 import { getUnansweredQuestions } from "@/unanswered-questions/server";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "unansweredQuestions";
 
 /** The filters' id for « Toutes », which the address leaves out. */
 const ALL = "all";
@@ -65,7 +69,7 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
   return (
     <BackOfficeLayout access={access} title={t("admin.unansweredQuestions.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="unansweredQuestions" subject={t("admin.unansweredQuestions.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.unansweredQuestions.title")}>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
         {marque === "written" || marque === "dismissed" ? (
@@ -105,13 +109,11 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
             label={t("admin.unansweredQuestions.caption")}
             columns={[
               {
-                key: "question",
                 header: t("admin.unansweredQuestions.question"),
                 rowHeader: true,
                 cell: (each) => <span lang={each.language}>{each.question}</span>,
               },
               {
-                key: "route",
                 header: t("admin.unansweredQuestions.route"),
                 cell: (each) => (
                   <>
@@ -119,11 +121,10 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
                   </>
                 ),
               },
-              { key: "count", header: t("admin.unansweredQuestions.count"), numeric: true, cell: (each) => number.format(each.count) },
-              { key: "first", header: t("admin.unansweredQuestions.firstAskedAt"), cell: (each) => when(each.firstAskedAt) },
-              { key: "last", header: t("admin.unansweredQuestions.lastAskedAt"), cell: (each) => when(each.lastAskedAt) },
+              { header: t("admin.unansweredQuestions.count"), numeric: true, cell: (each) => number.format(each.count) },
+              { header: t("admin.unansweredQuestions.firstAskedAt"), cell: (each) => when(each.firstAskedAt) },
+              { header: t("admin.unansweredQuestions.lastAskedAt"), cell: (each) => when(each.lastAskedAt) },
               {
-                key: "answer",
                 header: t("admin.unansweredQuestions.answer"),
                 // The AI Coach's answer on demand, in a Drawer: the table stays one line per question.
                 cell: (each) => (
@@ -143,7 +144,6 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
                 ),
               },
               {
-                key: "actions",
                 header: t("admin.unansweredQuestions.actions"),
                 cell: (each) => (
                   <BackOfficeForm canWrite={canWrite} action={mark} className="section-actions">

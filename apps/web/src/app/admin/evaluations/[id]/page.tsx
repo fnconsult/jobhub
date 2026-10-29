@@ -15,6 +15,9 @@ import { routes } from "@/routes";
 import { agentText, evalRunFormat } from "../run-views";
 import "../../section.css";
 
+/** The language Jobbbox's team writes Playbooks, Eval Cases and their rules in. */
+const FRENCH = "fr";
+
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -47,28 +50,28 @@ export default async function EvalRunPage({ params }: { params: Params }) {
 
   const judgedCase = (result: JudgedCaseResult, index: number) => (
     <CaseCard key={index} id={`case-${index}`} title={result.case.title}>
-      <Property term={t("admin.evals.run.context")} lang="fr">
+      <Property term={t("admin.evals.run.context")} lang={FRENCH}>
         {result.case.context}
       </Property>
-      <Property term={t("admin.evals.run.message")} lang="fr">
+      <Property term={t("admin.evals.run.message")} lang={FRENCH}>
         {result.case.message}
       </Property>
       {result.case.inView ? (
-        <Property term={t("admin.evals.run.inView")} lang="fr">
+        <Property term={t("admin.evals.run.inView")} lang={FRENCH}>
           {t(`admin.evals.cases.inViewKinds.${result.case.inView.kind}`)} : {result.case.inView.text}
         </Property>
       ) : null}
-      <Property term={t("admin.evals.run.criteria")} lang="fr">
+      <Property term={t("admin.evals.run.criteria")} lang={FRENCH}>
         {result.case.criteria}
       </Property>
       {result.case.consults ? <Property term={t("admin.evals.run.consults")}>{result.case.consults}</Property> : null}
       <Property term={t("admin.evals.run.consulted")}>{result.consulted.length > 0 ? result.consulted.join(", ") : t("admin.evals.run.noneConsulted")}</Property>
-      <Property term={t("admin.evals.run.reply")} lang="fr">
+      <Property term={t("admin.evals.run.reply")} lang={FRENCH}>
         <span className="section-text">{result.reply ?? t("admin.evals.run.noReply")}</span>
       </Property>
       <Property term={t("admin.evals.run.caseScore")}>{format.score(result.score === null ? null : Math.round(result.score * 100))}</Property>
       {result.reason ? (
-        <Property term={t("admin.evals.run.reason")} lang="fr">
+        <Property term={t("admin.evals.run.reason")} lang={FRENCH}>
           {result.reason}
         </Property>
       ) : null}
@@ -111,16 +114,16 @@ export default async function EvalRunPage({ params }: { params: Params }) {
           isGuardrailResult(result) ? (
             <CaseCard key={index} id={`case-${index}`} title={result.case.title}>
               <Property term={t("admin.evals.run.guardrail")}>{guardrailName(result.case.guardrail)}</Property>
-              <Property term={t(result.case.email ? "admin.evals.run.email" : "admin.evals.run.message")} lang="fr">
+              <Property term={t(result.case.email ? "admin.evals.run.email" : "admin.evals.run.message")} lang={FRENCH}>
                 {result.case.message}
               </Property>
               {result.case.email ? (
-                <Property term={t("admin.evals.run.emailReading")} lang="fr">
+                <Property term={t("admin.evals.run.emailReading")} lang={FRENCH}>
                   {JSON.stringify(result.case.email.reading)}
                 </Property>
               ) : null}
               {result.case.reply ? (
-                <Property term={t("admin.evals.run.reply")} lang="fr">
+                <Property term={t("admin.evals.run.reply")} lang={FRENCH}>
                   {result.case.reply}
                 </Property>
               ) : null}

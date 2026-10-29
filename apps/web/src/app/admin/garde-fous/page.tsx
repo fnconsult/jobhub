@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { getGuardrailsBackOffice, requireBackOffice } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { playbookServing } from "@/coaching-playbooks/serving";
@@ -23,6 +24,9 @@ import { routes } from "@/routes";
 import Link from "next/link";
 import { EvalRunsTable } from "../evaluations/run-views";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "guardrails";
 
 /** What the page says after an action: a key under admin.guardrails.notices, and whether it is an error. */
 const NOTICES = {
@@ -117,7 +121,7 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
   return (
     <BackOfficeLayout access={access} title={t("admin.guardrails.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="guardrails" subject={t("admin.guardrails.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.guardrails.title")}>
           <p>{t(playbookServing(process.env) === "validated" ? "admin.guardrails.servingValidated" : "admin.guardrails.servingLatest")}</p>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
@@ -135,10 +139,9 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
         <Table
           label={t("admin.guardrails.caption")}
           columns={[
-            { key: "name", header: t("admin.guardrails.name"), rowHeader: true, cell: (guardrail) => <a href={`#${guardrail.id}`}>{name(guardrail.id)}</a> },
-            { key: "against", header: t("admin.guardrails.guardsAgainst"), cell: (guardrail) => t(`admin.guardrails.descriptions.${guardrail.id}`) },
+            { header: t("admin.guardrails.name"), rowHeader: true, cell: (guardrail) => <a href={`#${guardrail.id}`}>{name(guardrail.id)}</a> },
+            { header: t("admin.guardrails.guardsAgainst"), cell: (guardrail) => t(`admin.guardrails.descriptions.${guardrail.id}`) },
             {
-              key: "setting",
               header: t("admin.guardrails.setting"),
               cell: (guardrail) => <Pill tone={guardrail.alwaysOn ? "accent" : SETTING_TONE[guardrail.setting]}>{guardrail.alwaysOn ? t("admin.guardrails.alwaysOn") : t(`admin.guardrails.settings.${guardrail.setting}`)}</Pill>,
             },
@@ -256,12 +259,11 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
             <Table
               label={t("admin.guardrails.triggers.caption")}
               columns={[
-                { key: "day", header: t("admin.guardrails.triggers.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{date.format(new Date(`${day.day}T12:00:00Z`))}</time> },
-                { key: "name", header: t("admin.guardrails.name"), cell: (day) => name(day.guardrail) },
-                { key: "blocked", header: t("admin.guardrails.triggers.blocked"), numeric: true, cell: (day) => number.format(day.blocked) },
-                { key: "flagged", header: t("admin.guardrails.triggers.flagged"), numeric: true, cell: (day) => number.format(day.flagged) },
+                { header: t("admin.guardrails.triggers.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{date.format(new Date(`${day.day}T12:00:00Z`))}</time> },
+                { header: t("admin.guardrails.name"), cell: (day) => name(day.guardrail) },
+                { header: t("admin.guardrails.triggers.blocked"), numeric: true, cell: (day) => number.format(day.blocked) },
+                { header: t("admin.guardrails.triggers.flagged"), numeric: true, cell: (day) => number.format(day.flagged) },
                 {
-                  key: "unavailable",
                   header: t("admin.guardrails.triggers.unavailable"),
                   numeric: true,
                   cell: (day) => (

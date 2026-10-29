@@ -116,7 +116,6 @@ export default async function ToolPage({ params }: Params) {
               label={t("admin.tools.settingsCaption", { name: tool.name })}
               columns={[
                 {
-                  key: "setting",
                   header: t("admin.platformSettings.setting"),
                   rowHeader: true,
                   cell: (setting) =>
@@ -129,7 +128,6 @@ export default async function ToolPage({ params }: Params) {
                     ),
                 },
                 {
-                  key: "value",
                   header: t("admin.platformSettings.value"),
                   cell: (setting) => (
                     <span className="section-actions">
@@ -138,7 +136,7 @@ export default async function ToolPage({ params }: Params) {
                     </span>
                   ),
                 },
-                { key: "source", header: t("admin.platformSettings.source"), cell: (setting) => <Pill tone={SOURCE_TONE[setting.source] ?? "neutral"}>{t(`admin.platformSettings.sources.${setting.source}`)}</Pill> },
+                { header: t("admin.platformSettings.source"), cell: (setting) => <Pill tone={SOURCE_TONE[setting.source] ?? "neutral"}>{t(`admin.platformSettings.sources.${setting.source}`)}</Pill> },
               ]}
               rows={row.settings}
               rowKey={(setting) => setting.name}
@@ -165,10 +163,10 @@ export default async function ToolPage({ params }: Params) {
                   <Table
                     label={t("admin.tools.reasonsCaption", { name: tool.name })}
                     columns={[
-                      { key: "code", header: t("admin.tools.code"), cell: (count) => <code>{count.reason}</code> },
-                      { key: "reason", header: t("admin.tools.reason"), cell: (count) => t(`failureReasons.${count.reason}`) },
-                      { key: "outcome", header: t("admin.tools.outcome"), cell: (count) => (count.outcome === "warning" ? t("admin.tools.warning") : t("admin.tools.failed")) },
-                      { key: "calls", header: t("admin.tools.calls"), numeric: true, cell: (count) => number.format(count.calls) },
+                      { header: t("admin.tools.code"), cell: (count) => <code>{count.reason}</code> },
+                      { header: t("admin.tools.reason"), cell: (count) => t(`failureReasons.${count.reason}`) },
+                      { header: t("admin.tools.outcome"), cell: (count) => (count.outcome === "warning" ? t("admin.tools.warning") : t("admin.tools.failed")) },
+                      { header: t("admin.tools.calls"), numeric: true, cell: (count) => number.format(count.calls) },
                     ]}
                     rows={row.figures.reasons}
                     rowKey={(count) => `${count.outcome} ${count.reason}`}
@@ -191,11 +189,11 @@ export default async function ToolPage({ params }: Params) {
               <Table
                 label={t("admin.tools.callsCaption", { name: tool.name })}
                 columns={[
-                  { key: "at", header: t("admin.tools.at"), cell: (call) => <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time> },
-                  { key: "operation", header: t("admin.tools.operation"), cell: (call) => <code>{call.operation}</code> },
-                  { key: "outcome", header: t("admin.tools.outcome"), cell: (call) => outcome(call) },
-                  { key: "duration", header: t("admin.tools.duration"), numeric: true, cell: (call) => milliseconds.format(call.durationMs) },
-                  { key: "cost", header: t("admin.tools.callCost"), numeric: true, cell: (call) => cost(call.costEur) },
+                  { header: t("admin.tools.at"), cell: (call) => <time dateTime={call.at.toISOString()}>{at.format(call.at)}</time> },
+                  { header: t("admin.tools.operation"), cell: (call) => <code>{call.operation}</code> },
+                  { header: t("admin.tools.outcome"), cell: (call) => outcome(call) },
+                  { header: t("admin.tools.duration"), numeric: true, cell: (call) => milliseconds.format(call.durationMs) },
+                  { header: t("admin.tools.callCost"), numeric: true, cell: (call) => cost(call.costEur) },
                 ]}
                 rows={calls.map((call, index) => ({ ...call, index }))}
                 rowKey={(call) => `${call.at.toISOString()}-${call.index}`}

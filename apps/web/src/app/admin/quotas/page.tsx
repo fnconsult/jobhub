@@ -1,6 +1,7 @@
 import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, WEEKLY_QUOTAS, type WeeklyQuota } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { planQuotasFromForm } from "@/admin/plan-quotas-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
@@ -14,6 +15,9 @@ import { Note } from "@/design/Note";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "planQuotas";
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -60,7 +64,7 @@ export default async function PlanQuotasPage({
   return (
     <BackOfficeLayout access={access} title={t("admin.planQuotas.title")}>
       <div className="section-page">
-        <PageIntro t={t} page="planQuotas" subject={t("admin.planQuotas.title")}>
+        <PageIntro t={t} page={INTRO} subject={t("admin.planQuotas.title")}>
           {canWrite ? null : <p>{t("admin.readOnly")}</p>}
         </PageIntro>
         {savedPlan ? (

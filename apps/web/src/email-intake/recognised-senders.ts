@@ -40,6 +40,17 @@ export const SEEDED_RECOGNISED_SENDERS: readonly RecognisedSender[] = [
   { match: "address", value: "canal+group-jobnotification@noreply2.jobs2web.com", label: "Canal+ – joinus.canalplus.com" },
 ];
 
+/**
+ * Shared sending platforms (#437): domains that send for many job boards and companies, so a sender on one is
+ * recognised by its full address, never by the domain. Client-safe.
+ */
+export const SHARED_SENDING_PLATFORMS: readonly string[] = ["jobs2web.com", "mjt.lu", "sendgrid.net"];
+
+/** Whether `domain` (in lower case) is a shared sending platform's, or under one. */
+export function isSharedSendingPlatform(domain: string): boolean {
+  return SHARED_SENDING_PLATFORMS.some((platform) => domain === platform || domain.endsWith(`.${platform}`));
+}
+
 /** Gmail's forwarding confirmation: read, so the setup wizard can show its code. */
 export const GMAIL_FORWARDING_CONFIRMATION = "forwarding-noreply@google.com";
 

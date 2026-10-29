@@ -862,7 +862,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   });
 
   it("the export holds the Candidate's Forwarding addresses, each with its activation date, and the sending addresses they added (#441)", async () => {
-    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [], recognisedSenders: [] });
+    expect((await candidateData.export(candidateId)).emailIntake).toEqual({ forwardingAddresses: [], sendingAddresses: [], receivedOfferEmails: [], recognisedSenders: [], switchedOffSenders: [] });
     let now = new Date("2026-10-01T08:00:00Z");
     const drawn = ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"];
     const emailIntake = createEmailIntake(database, { domain: () => "alertes.jobbbox.test", localPart: () => drawn.shift()!, now: () => now });
@@ -879,6 +879,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       sendingAddresses: [{ address: "marie@orange.fr", addedAt: new Date("2026-10-01T08:00:00Z") }],
       receivedOfferEmails: [],
       recognisedSenders: [],
+      switchedOffSenders: [],
     });
   });
 

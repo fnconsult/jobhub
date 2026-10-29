@@ -14,7 +14,7 @@ import { RELEASE_NOTES } from "./release-notes.generated";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import type { HelpArticle, HelpLocale } from "./types";
 
-export { isLegalDocumentId, LEGAL_DOCUMENTS, type LegalDocument, type LegalDocumentId } from "./legal";
+export { compareLegalVersions, isLegalDocumentId, LEGAL_DOCUMENTS, type LegalDocument, type LegalDocumentId } from "./legal";
 export {
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,

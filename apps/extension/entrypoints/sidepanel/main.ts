@@ -587,7 +587,9 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
       body.push(actions, ...parts);
     } else {
       const { form, submit } = cvForm();
-      body.push(element("h3", t(scoredProfileId ? "extension.analysis.profileTitle" : "extension.analysis.cvTitle"), "label"), form);
+      // The form's own label says « Votre CV »; a Candidate scored against a Profile is told which one first.
+      if (scoredProfileId) body.push(element("h3", t("extension.analysis.profileTitle"), "label"));
+      body.push(form);
       if (profiles.length > 0) body.push(button(t("extension.analysis.useProfile"), useProfile, "quiet", true));
       // A Guest's first step is the footer's: « Calculer mon Match Score ».
       if (candidate.signedIn) form.append(submit);

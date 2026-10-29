@@ -1057,7 +1057,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     <div className="coach-panel-context-more">
                       <p className="coach-panel-in-view">{contextText}</p>
                       {!panel.features.inView ? null : profileIdOf(inView) ? (
-                        <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
+                        <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
                       ) : (
                         <p className="hint">{t("coachPanel.searchHint")}</p>
                       )}

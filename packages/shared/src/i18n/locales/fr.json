@@ -3393,7 +3393,9 @@
       "seeResults": "Voir les offres",
       "seeSearch": "Voir la recherche",
       "dismiss": "Fermer"
-    }
+    },
+    "matchScoreCaption": "Match Score",
+    "partialCaption": "Partiel"
   },
   "companyDossier": {
     "title": "Dossier entreprise",
@@ -3946,7 +3948,9 @@
     "groupsLabel": "Résultats par profil",
     "groupTitle": "Offres pour « {{profile}} »",
     "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
-    "searchThisProfile": "Chercher pour ce profil seul"
+    "searchThisProfile": "Chercher pour ce profil seul",
+    "neverTitle": "Pas encore de recherche pour ce profil",
+    "noActiveProfileTitle": "Aucun profil actif"
   },
   "receivedByEmail": {
     "title": "Reçues par email",

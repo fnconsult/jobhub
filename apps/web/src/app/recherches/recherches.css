@@ -1,0 +1,141 @@
+/* Recherches d'offres (#467) in the Confort Density: its own layout only; the cards, buttons, fields and notes are the
+   Design System's components. */
+.job-searches-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.job-searches-head__intro {
+  flex: 1 1 24rem;
+  max-width: 40rem;
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+.job-searches-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+/* The Profile and its Search Criteria, key beside value, the search button at the end of the card. */
+.job-searches-criteria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.job-searches-criteria__list {
+  display: grid;
+  flex: 1 1 20rem;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.job-searches-criteria__list > div {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.job-searches-criteria__list dt {
+  color: var(--color-secondary);
+}
+
+.job-searches-criteria__list dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  margin: 0;
+}
+
+.job-searches-criteria__hint {
+  flex: 1 1 20rem;
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+/* A search under way: its Activity glyph moving, its step in words, the link to follow it. */
+.job-searches-status:not(:empty) {
+  margin-top: var(--space-6);
+}
+
+.job-searches-step {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-line);
+  border-radius: var(--radius-card);
+}
+
+.job-searches-step > .activity-glyph {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-accent);
+}
+
+.job-searches-step > span {
+  flex: 1 1 16rem;
+}
+
+.job-searches-results,
+.job-searches-groups {
+  margin-top: var(--space-8);
+}
+
+.job-searches-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.job-searches-section-head > h2,
+.job-searches-section-head > h3 {
+  margin: 0;
+}
+
+.job-searches-section-head__meta {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+}
+
+.job-searches-section-head .job-searches-section-head__meta {
+  margin: 0;
+}
+
+.job-searches-results__intro {
+  margin: 0 0 var(--space-3);
+  color: var(--color-secondary);
+}
+
+.job-searches-views {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.job-searches-group + .job-searches-group {
+  margin-top: var(--space-8);
+}
+
+.job-searches-group > .ds-note {
+  margin-bottom: var(--space-4);
+}

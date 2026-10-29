@@ -3276,14 +3276,6 @@ details.why[open] {
   flex-basis: 100%;
 }
 
-details.why summary {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  color: var(--color-accent);
-  cursor: pointer;
-}
-
 .breakdown .verdict {
   font-weight: 600;
 }

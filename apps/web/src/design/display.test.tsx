@@ -112,4 +112,12 @@ describe("Ring (#462)", () => {
     renderInFrench(<Ring label="ATS Score" value={104.4} />);
     expect(screen.getByRole("img", { name: "ATS Score : 100 sur 100" })).toBeTruthy();
   });
+
+  it("drawn beside the score in words (a Job Offer card, #467), it is decoration only", () => {
+    const { container } = renderInFrench(<Ring decorative value={92} />);
+    expect(screen.queryByRole("img")).toBeNull();
+    const ring = container.querySelector(".ds-ring") as HTMLElement;
+    expect(ring.getAttribute("aria-hidden")).toBe("true");
+    expect(ring.textContent).toBe("92");
+  });
 });

@@ -79,8 +79,9 @@ export const routes = {
   /** Légal (#470): a Legal Document (the first by default), at `version` when not the one in effect; public. */
   legal: (document: LegalDocumentId = "conditions-utilisation", version?: string) =>
     `/legal/${document}${version ? `?version=${encodeURIComponent(version)}` : ""}`,
-  /** A Legal Document's version as a PDF to download (« Télécharger en PDF »). */
-  legalPdf: (document: LegalDocumentId, version: string) => `/api/legal/${document}/pdf?version=${encodeURIComponent(version)}`,
+  /** A Legal Document's version as a PDF to download (« Télécharger en PDF »), in the page's language. */
+  legalPdf: (document: LegalDocumentId, version: string, lang: string) =>
+    `/api/legal/${document}/pdf?version=${encodeURIComponent(version)}&lang=${encodeURIComponent(lang)}`,
   admin: "/admin",
   /** The Plans (Offres): names, rank, offered or hidden, Stripe product, Plan Features. */
   adminPlans: "/admin/offres",

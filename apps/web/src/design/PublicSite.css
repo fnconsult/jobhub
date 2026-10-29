@@ -1,0 +1,114 @@
+@layer base, components;
+
+/* The public pages' frame (#470): prototype `.site`, variant A. Its header's height places what sticks under it. */
+@layer components {
+  .ds-site {
+    --site-head-height: 4rem;
+
+    min-height: 100vh;
+    background: var(--color-background);
+  }
+
+  .ds-site__head {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: var(--space-6);
+    align-items: center;
+    min-height: var(--site-head-height);
+    padding: var(--space-2) var(--space-6);
+    background: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-site__brand {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    font-weight: 600;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .ds-site__logo {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    font-weight: 700;
+    color: var(--color-on-accent);
+    background: var(--color-accent);
+    border-radius: var(--radius-md);
+  }
+
+  .ds-site__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-6);
+  }
+
+  .ds-site__nav > a {
+    color: var(--color-secondary);
+    text-decoration: none;
+  }
+
+  .ds-site__nav > a:hover {
+    color: var(--color-text);
+  }
+
+  .ds-site__nav > a[aria-current="page"] {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .ds-site__sign-in {
+    margin-left: auto;
+  }
+
+  /* A public page's own content: Légal and Nouveautés. */
+  .ds-site__page {
+    max-width: 80rem;
+    padding: var(--space-8) var(--space-6) var(--space-12);
+    margin: 0 auto;
+  }
+
+  .ds-site__intro {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 52rem;
+    padding-bottom: var(--space-6);
+  }
+
+  .ds-site__eyebrow {
+    margin: 0;
+    font-size: var(--font-size-meta);
+    font-weight: 500;
+    color: var(--color-meta);
+  }
+
+  .ds-site__title {
+    margin: 0;
+    font-size: var(--font-size-h1);
+    font-weight: 500;
+    line-height: var(--line-height-heading);
+    letter-spacing: -0.03em;
+  }
+
+  .ds-site__subtitle {
+    margin: 0;
+    color: var(--color-secondary);
+  }
+
+  @media (max-width: 40rem) {
+    .ds-site__head {
+      flex-wrap: wrap;
+      gap: var(--space-2) var(--space-4);
+      padding-inline: var(--space-4);
+    }
+
+    .ds-site__page {
+      padding-inline: var(--space-4);
+    }
+  }
+}

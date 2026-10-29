@@ -4,17 +4,13 @@ import { RELEASE_NOTE_TAGS, type Nouveautes, type ReleaseNote, type ReleaseNoteC
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
+import { writtenDay } from "@/public-pages/days";
 import { buttonClass } from "./button-class";
 import { EmptyState } from "./EmptyState";
 import { Pill, type Tone } from "./Pill";
 import "./ReleaseNotesView.css";
 
 const CHANGE_TONE: Record<ReleaseNoteChangeKind, Tone> = { new: "accent", improved: "success", fixed: "warn" };
-
-/** A Release Note's day (`YYYY-MM-DD`), written out in `locale`: « 7 décembre 2026 ». */
-export function releaseDay(date: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
-}
 
 /**
  * The Nouveautés page's Release Notes (#470, ADR-0063), in the page's language: the filter pills (the tags the notes
@@ -79,7 +75,7 @@ function Release({ note, headingLevel }: { note: ReleaseNote; headingLevel: 2 | 
   return (
     <article className="ds-release">
       <div className="ds-release__when">
-        <time dateTime={note.date}>{releaseDay(note.date, i18n.language)}</time>
+        <time dateTime={note.date}>{writtenDay(note.date, i18n.language)}</time>
         <span className="ds-release__version">{t("nouveautes.version", { version: note.version })}</span>
       </div>
       <div className="ds-release__body">

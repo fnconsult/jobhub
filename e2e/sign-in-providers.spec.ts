@@ -226,7 +226,10 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
     // Signed in by magic link: sent to sign in again, with no magic link offered there.
     await support.goto(`${server.origin}/admin`);
     await expect(support).toHaveURL(`${server.origin}/connexion/back-office`);
-    await expect(support.getByRole("status")).toHaveText(fr.backOfficeSignIn.ssoRequired);
+    // An information Note (#470), with the way back to their account in it.
+    const ssoNote = support.getByRole("status");
+    await expect(ssoNote).toContainText(fr.backOfficeSignIn.ssoRequired);
+    await expect(ssoNote.getByRole("link", { name: fr.backOfficeSignIn.backToAccount })).toHaveAttribute("href", "/compte");
     await expect(support.getByLabel(fr.signIn.emailLabel)).toHaveCount(0);
     // The Back Office's API routes (the Back Office Assistant's) are closed to them too.
     const assistant = `${server.origin}/api/admin/assistant/conversations`;

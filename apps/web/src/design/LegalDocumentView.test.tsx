@@ -48,7 +48,7 @@ describe("LegalDocumentView — a Legal Document on the Légal page (#470)", () 
       ["2.Ce que nous collectons", "section-2"],
     ]);
     expect(screen.getByText("FN Consult").tagName).toBe("STRONG");
-    expect(screen.getByRole("link", { name: "Télécharger en PDF" }).getAttribute("href")).toBe("/api/legal/confidentialite/pdf?version=3.2");
+    expect(screen.getByRole("link", { name: "Télécharger en PDF" }).getAttribute("href")).toBe("/api/legal/confidentialite/pdf?version=3.2&lang=fr");
   });
 
   it("has « Sur cette page » on the right, one link per section", () => {

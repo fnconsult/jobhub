@@ -6,12 +6,15 @@ import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { Icons } from "@/components/icons";
+import { writtenDay } from "@/public-pages/days";
 import { routes } from "@/routes";
 import { buttonClass } from "./button-class";
 import { EmptyState } from "./EmptyState";
 import { Note } from "./Note";
-import { releaseDay } from "./ReleaseNotesView";
 import "./LegalDocumentView.css";
+
+const CURRENT_PAGE = "page";
+const CURRENT_LOCATION = "location";
 
 /** What the Légal page shows of one Legal Document: `legalDocument(…)` from @jobhub/help, null while not written. */
 export type ShownLegalDocument = { document: LegalDocument; earlier: { version: string; effective: string }[] } | null;
@@ -34,7 +37,7 @@ export function LegalDocumentView({ id, shown }: { id: LegalDocumentId; shown: S
           {t("legal.eyebrow")}
         </span>
         {LEGAL_DOCUMENTS.map((entry) => (
-          <Link key={entry} href={routes.legal(entry)} aria-current={entry === id ? "page" : undefined}>
+          <Link key={entry} href={routes.legal(entry)} aria-current={entry === id ? CURRENT_PAGE : undefined}>
             {t(`legal.documents.${entry}`)}
           </Link>
         ))}
@@ -47,7 +50,7 @@ export function LegalDocumentView({ id, shown }: { id: LegalDocumentId; shown: S
         ) : (
           <>
             <div className="ds-legal__stamp">
-              <span>{t("legal.effective", { date: releaseDay(document.effective, i18n.language) })}</span>
+              <span>{t("legal.effective", { date: writtenDay(document.effective, i18n.language) })}</span>
               <span>{t("legal.version", { version: document.version })}</span>
               {shown.earlier.length > 0 ? (
                 <details className="ds-legal__versions">
@@ -56,7 +59,7 @@ export function LegalDocumentView({ id, shown }: { id: LegalDocumentId; shown: S
                     {shown.earlier.map((entry) => (
                       <li key={entry.version}>
                         <Link href={routes.legal(id, entry.version)}>
-                          {t("legal.earlierVersion", { version: entry.version, date: releaseDay(entry.effective, i18n.language) })}
+                          {t("legal.earlierVersion", { version: entry.version, date: writtenDay(entry.effective, i18n.language) })}
                         </Link>
                       </li>
                     ))}
@@ -92,7 +95,7 @@ export function LegalDocumentView({ id, shown }: { id: LegalDocumentId; shown: S
               </section>
             ))}
             <div className="ds-legal__foot">
-              <a className={buttonClass({ size: "sm" })} href={routes.legalPdf(id, document.version)} download>
+              <a className={buttonClass({ size: "sm" })} href={routes.legalPdf(id, document.version, i18n.language)} download>
                 <Icons.download />
                 {t("legal.pdf")}
               </a>
@@ -136,7 +139,7 @@ function OnThisPage({ sections }: { sections: LegalDocument["sections"] }) {
         {t("legal.toc")}
       </span>
       {sections.map((section) => (
-        <a key={section.id} href={`#${section.id}`} aria-current={section.id === current ? "location" : undefined}>
+        <a key={section.id} href={`#${section.id}`} aria-current={section.id === current ? CURRENT_LOCATION : undefined}>
           {section.title}
         </a>
       ))}

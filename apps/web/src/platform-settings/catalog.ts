@@ -268,6 +268,8 @@ export const ENV_ONLY_SETTINGS = {
   NEXT_RUNTIME: { kind: "deployment", shown: false },
   // The deployed commit (deploy/compose.yml): the Jobbbox version a Signalement keeps (#374).
   JOBHUB_REVISION: { kind: "deployment", shown: false },
+  // The Version the build serves (ADR-0063), set by next.config.ts from the root package.json: Nouveautés reads it (#470).
+  JOBHUB_VERSION: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   WXT_WEB_ORIGIN: { kind: "deployment", shown: false },

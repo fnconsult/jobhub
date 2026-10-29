@@ -1,0 +1,88 @@
+@layer base, components;
+
+/* The sign-in pages (#470): prototype `.login-stage`, variant A. */
+@layer components {
+  .ds-sign-in {
+    display: grid;
+    place-items: start center;
+    min-height: calc(100vh - var(--site-head-height, 4rem));
+    padding: var(--space-12) var(--space-4);
+    background: radial-gradient(ellipse 70% 60% at 50% 0%, var(--color-accent-soft), transparent 70%), var(--color-canvas);
+  }
+
+  .ds-sign-in__column {
+    display: grid;
+    gap: var(--space-4);
+    width: min(28rem, 100%);
+  }
+
+  .ds-sign-in__logo {
+    display: grid;
+    place-items: center;
+    justify-self: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    font-weight: 700;
+    color: var(--color-on-accent);
+    background: var(--color-accent);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-sign-in__title {
+    margin: 0;
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+    line-height: var(--line-height-heading);
+    text-align: center;
+    letter-spacing: -0.02em;
+  }
+
+  .ds-sign-in__intro {
+    margin: 0;
+    color: var(--color-secondary);
+    text-align: center;
+  }
+
+  .ds-sign-in__card {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .ds-sign-in__legal {
+    margin: 0;
+    color: var(--color-secondary);
+    text-align: center;
+  }
+
+  /* « ou », between the providers' buttons and the email field. */
+  .ds-sign-in__or {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    margin: 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-sign-in__or::before,
+  .ds-sign-in__or::after {
+    flex: 1;
+    height: 1px;
+    content: "";
+    background: var(--color-border);
+  }
+
+  .ds-sign-in__card .ds-button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .ds-sign-in__form {
+    display: grid;
+    gap: var(--space-3);
+  }
+}

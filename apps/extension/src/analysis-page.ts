@@ -1,6 +1,6 @@
 /**
- * Opening the analysis page. Back from signing up or in (or out) on the web app, in another tab,
- * the page starts again as the person now is, in their Interface Language; on sign-up, the Guest's
+ * Opening the analysis page: the Side Panel's page (ADR-0054), which stays in view beside the tabs.
+ * Back from signing up or in (or out) on the web app, in another tab, the page starts again as the person now is, in their Interface Language; on sign-up, the Guest's
  * work is kept at once (#11). The web app's session is watched before the page is first rendered,
  * so a render that never finishes (a Match Score waiting on another page's, say) or fails cannot
  * keep the page from noticing (#66).

@@ -4,6 +4,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { subscribe } from "./support/plan";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
 
 // Issue #467 (ADR-0053): the Candidate's pages in the Design System's Confort Density: Recherches d'offres (Job Offer
@@ -93,31 +94,18 @@ async function query<T = Record<string, unknown>>(sql: string, values: unknown[]
   }
 }
 
-type Seeded = { profileId: string; applicationId: string };
-
-/**
- * A Candidate with one Profile, its Job Search done on a fixed day with the first three Job Offers, and three
- * Applications: the first offer at « Entretien » with an Interview, the second « Postulée », the fourth « À postuler »
- * (the third stays unsaved, its card offering « Enregistrer en candidature »).
- */
-async function seed(page: Page, email: string): Promise<Seeded> {
-  const [candidate] = await query<{ id: string }>(`SELECT id FROM candidate WHERE email = $1`, [email]);
-  const created = await page.request.post("/api/profiles", {
-    headers: { origin },
-    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"], minSalary: 90_000, contractTypes: ["cdi"] } },
-  });
-  expect(created.status(), await created.text()).toBe(201);
-  const profileId: string = (await created.json()).id;
+/** Job Offers as a Job Search found them; `batch` keeps one set apart from another in the same run. */
+async function insertJobOffers(offers: readonly (typeof OFFERS)[number][], batch = ""): Promise<string[]> {
   const offerIds: string[] = [];
-  for (const [index, offer] of OFFERS.entries()) {
+  for (const [index, offer] of offers.entries()) {
     const [row] = await query<{ id: string }>(
       `INSERT INTO job_offer (url_key, content_fingerprint, source_url, source_name, title, content, employer, location, contract_type, remote_work,
          salary_min, salary_max, skills, required_experience_years, posted_at, summary, summary_read_at, sector, sector_read_at, text_read_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now(), 'Industrie', now(), now()) RETURNING id`,
       [
-        `${offer.site}/offres/${tag}-${index}`,
-        `candidate-pages-${tag}-${index}`,
-        `https://www.${offer.site}/offres/${tag}-${index}`,
+        `${offer.site}/offres/${tag}-${batch}${index}`,
+        `candidate-pages-${tag}-${batch}${index}`,
+        `https://www.${offer.site}/offres/${tag}-${batch}${index}`,
         offer.site,
         offer.title,
         `${offer.employer} recrute. Vos missions : piloter la clôture, encadrer l'équipe.`,
@@ -135,6 +123,25 @@ async function seed(page: Page, email: string): Promise<Seeded> {
     );
     offerIds.push(row!.id);
   }
+  return offerIds;
+}
+
+type Seeded = { profileId: string; applicationId: string };
+
+/**
+ * A Candidate with one Profile, its Job Search done on a fixed day with the first three Job Offers, and three
+ * Applications: the first offer at « Entretien » with an Interview, the second « Postulée », the fourth « À postuler »
+ * (the third stays unsaved, its card offering « Enregistrer en candidature »).
+ */
+async function seed(page: Page, email: string): Promise<Seeded> {
+  const [candidate] = await query<{ id: string }>(`SELECT id FROM candidate WHERE email = $1`, [email]);
+  const created = await page.request.post("/api/profiles", {
+    headers: { origin },
+    data: { masterCv, searchCriteria: { targetRole: "Directrice administrative et financière", locations: ["Lyon"], minSalary: 90_000, contractTypes: ["cdi"] } },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const profileId: string = (await created.json()).id;
+  const offerIds = await insertJobOffers(OFFERS);
   await query(
     `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, $4, $5)`,
     [candidate!.id, profileId, offerIds.slice(0, 3), "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z"],
@@ -255,6 +262,46 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
     await actions.getByRole("button", { name: fr.quickActions.askCoach }).click();
     await expect(page.getByLabel(fr.coachPanel.messageLabel)).toBeVisible();
     await page.close();
+  });
+
+  // ADR-0009 on a phone, in the all-Profiles view: only a swimlane scrolls sideways, never the page. The long « Chercher
+  // pour mes 2 profils (2 recherches) » wraps, a card's visually hidden label stays inside its swimlane, and the Profile
+  // select reaches the 44px target floor. Without the worker: on the Standard Plan, for two Profiles, each Profile's Job
+  // Search is seeded done.
+  test("Recherches d'offres for every Profile, in swimlanes, does not scroll the page sideways at 375px, and its targets are 44px high", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: origin, locale: "fr-FR", colorScheme: "light" });
+    const page = await context.newPage();
+    const email = newAddress("candidate-pages-all-profiles");
+    await signInWithMagicLink(page, email);
+    await subscribe(page, email, "standard");
+    const [candidate] = await query<{ id: string }>(`SELECT id FROM candidate WHERE email = $1`, [email]);
+    const roles = ["Directrice administrative et financière", "Responsable consolidation groupe"];
+    for (const [index, targetRole] of roles.entries()) {
+      const created = await page.request.post("/api/profiles", {
+        headers: { origin },
+        data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], minSalary: 90_000, contractTypes: ["cdi"] } },
+      });
+      expect(created.status(), await created.text()).toBe(201);
+      const offerIds = await insertJobOffers(OFFERS.slice(0, 3), `all-${index}-`);
+      await query(
+        `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at) VALUES ($1, $2, 'done', $3, $4, $5)`,
+        [candidate!.id, (await created.json()).id, offerIds, "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z"],
+      );
+    }
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/recherches?profil=tous&vue=couloirs");
+    const lane = page.getByRole("region", { name: fr.jobSearchesPage.laneLabel.replace("{{profile}}", roles[0]) });
+    await expect(lane.locator(".job-offer-result")).toHaveCount(3);
+    await expect(page.getByRole("button", { name: fr.jobSearchesPage.startAll_other.replaceAll("{{count}}", "2") })).toBeVisible();
+    await settled(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), "sideways scroll at 375px").toBe(0);
+    expect(await lane.evaluate((element) => element.scrollWidth > element.clientWidth), "the swimlane scrolls sideways").toBe(true);
+    for (const target of await page.getByRole("main").locator("a, button, summary, select").all()) {
+      if (!(await target.isVisible())) continue;
+      expect.soft((await target.boundingBox())!.height, `height of "${await target.innerText()}"`).toBeGreaterThanOrEqual(44);
+    }
+    await context.close();
   });
 
   test("an Application's Sections are tabs from 64rem, the one shown marked, and stay in the page beside a docked Coach Panel", async () => {

@@ -3128,7 +3128,8 @@
     "sortedDescending": "triée de Z à A",
     "noneMatch": "Aucune candidature ne correspond à ces filtres.",
     "archivedHidden_one": "{{count}} candidature archivée est masquée.",
-    "archivedHidden_other": "{{count}} candidatures archivées sont masquées."
+    "archivedHidden_other": "{{count}} candidatures archivées sont masquées.",
+    "emptyTitle": "Aucune candidature pour l'instant"
   },
   "agenda": {
     "title": "Entretiens et rendez-vous",

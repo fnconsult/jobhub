@@ -3128,7 +3128,8 @@
     "sortedDescending": "sorted Z to A",
     "noneMatch": "No application matches these filters.",
     "archivedHidden_one": "{{count}} archived application is hidden.",
-    "archivedHidden_other": "{{count}} archived applications are hidden."
+    "archivedHidden_other": "{{count}} archived applications are hidden.",
+    "emptyTitle": "No applications yet"
   },
   "agenda": {
     "title": "Interviews and appointments",

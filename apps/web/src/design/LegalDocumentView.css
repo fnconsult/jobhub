@@ -9,14 +9,18 @@
     align-items: start;
   }
 
-  /* The Legal Documents and « Sur cette page » stay in view, under the site's header, to the end of the text. */
+  /*
+   * The Legal Documents and « Sur cette page » stay in view, under the site's header, to the end of the text: never
+   * taller than the room between their place and the page's foot, so the end of the page never pushes them up. A
+   * long « Sur cette page » scrolls within itself.
+   */
   .ds-legal__documents,
   .ds-legal__toc {
     position: sticky;
     top: calc(var(--site-head-height, 4rem) + var(--space-6));
     display: grid;
     gap: var(--space-1);
-    max-height: calc(100vh - var(--site-head-height, 4rem) - var(--space-8));
+    max-height: calc(100vh - var(--site-head-height, 4rem) - var(--space-6) - var(--space-12));
     overflow-y: auto;
   }
 

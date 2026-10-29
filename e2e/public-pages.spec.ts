@@ -82,24 +82,25 @@ test.describe("Légal", () => {
     await expect(tocLinks).toHaveCount(12);
     await expect(tocLinks.first()).toHaveAttribute("aria-current", "location");
 
-    const inView = async () => {
-      const headerBottom = (await header.boundingBox())!.y + (await header.boundingBox())!.height;
-      for (const column of [documents, toc]) {
-        const box = (await column.boundingBox())!;
-        expect(box.y, "under the site's header").toBeGreaterThanOrEqual(headerBottom - 1);
-        expect(box.y + box.height, "inside the window").toBeLessThanOrEqual(720);
-      }
-    };
+    // Both columns under the site's header and inside the window, once the page has settled where it was scrolled to.
+    const inView = () =>
+      expect(async () => {
+        const head = (await header.boundingBox())!;
+        for (const column of [documents, toc]) {
+          const box = (await column.boundingBox())!;
+          expect(box.y, "under the site's header").toBeGreaterThanOrEqual(head.y + head.height - 1);
+          expect(box.y + box.height, "inside the window").toBeLessThanOrEqual(720);
+        }
+      }).toPass({ timeout: 5_000 });
     await inView();
     // Halfway through the text, then at its very end: both columns still in view.
-    await page.locator("#section-6").scrollIntoViewIfNeeded();
-    await page.mouse.wheel(0, 200);
-    await expect(toc.locator('[aria-current="location"]')).not.toHaveText("Section de démonstration 1");
+    await page.evaluate(() => window.scrollTo({ top: document.getElementById("section-6")!.getBoundingClientRect().top + window.scrollY - 100, behavior: "instant" }));
+    await expect(toc.locator('[aria-current="location"]')).toHaveText("Section de démonstration 6");
     await inView();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
     await expect(page.getByRole("link", { name: fr.legal.pdf })).toBeInViewport();
-    await inView();
     await expect(toc.locator('[aria-current="location"]')).toHaveText("Section de démonstration 12");
+    await inView();
 
     // A link of « Sur cette page » leads to its section, under the header.
     await tocLinks.nth(2).click();

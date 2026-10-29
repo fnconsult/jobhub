@@ -2,7 +2,7 @@
 
 import { compareLegalVersions, LEGAL_DOCUMENTS, type LegalDocument, type LegalDocumentId } from "@jobhub/help";
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { Icons } from "@/components/icons";
@@ -133,8 +133,17 @@ function OnThisPage({ sections }: { sections: LegalDocument["sections"] }) {
       window.removeEventListener("resize", follow);
     };
   }, [sections]);
+  const list = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // A « Sur cette page » taller than the window scrolls within itself: the section being read stays in it.
+    const nav = list.current;
+    const link = nav?.querySelector<HTMLElement>('[aria-current="location"]');
+    if (!nav || !link) return;
+    if (link.offsetTop < nav.scrollTop) nav.scrollTop = link.offsetTop;
+    else if (link.offsetTop + link.offsetHeight > nav.scrollTop + nav.clientHeight) nav.scrollTop = link.offsetTop + link.offsetHeight - nav.clientHeight;
+  }, [current]);
   return (
-    <nav className="ds-legal__toc" aria-label={t("legal.toc")}>
+    <nav ref={list} className="ds-legal__toc" aria-label={t("legal.toc")}>
       <span className="ds-legal__group" aria-hidden>
         {t("legal.toc")}
       </span>

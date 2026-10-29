@@ -113,6 +113,7 @@ export function ProvidersSection({
   const tabName = t(`admin.platformSettings.tabs.${tab.id}`);
   const active = tab.activeSetting ? rows.filter((row) => row.active) : rows.filter((row) => row.usedBy.length > 0);
   const missingKey = (row: PossibleProvider) => row.keys.some((key) => !key.set);
+  const ownSettings = (row: PossibleProvider) => row.settings.filter((setting) => !tab.settings.includes(setting.name));
 
   return (
     <>
@@ -178,8 +179,9 @@ export function ProvidersSection({
                       <Status tone={STATUS_TONE[row.status]}>{t(`admin.tools.statuses.${row.status}`)}</Status>
                     </td>
                     <td>
-                      {row.settings.length > 0
-                        ? row.settings.map((setting) => (
+                      {/* Its own settings: those of the tab are in the card above, and every one is on its sheet (#465). */}
+                      {ownSettings(row).length > 0
+                        ? ownSettings(row).map((setting) => (
                             <p key={setting.name}>
                               <code>{setting.name}</code> = {setting.value ? <code>{setting.value}</code> : t("admin.platformSettings.empty")}
                             </p>

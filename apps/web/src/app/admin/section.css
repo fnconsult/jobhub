@@ -57,6 +57,7 @@
   max-width: 40rem;
 }
 
+fieldset.section-form,
 .section-form fieldset {
   display: grid;
   gap: var(--space-3);

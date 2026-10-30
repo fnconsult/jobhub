@@ -36,3 +36,7 @@ The search refresh (#396–#409) shipped far from the finish of the Paramètres 
 - **Restyle tokens and CSS only**: the gap to the prototype is as much layout and text length as colour.
 - **shadcn/ui and Tailwind**: rejected again for ADR-0018's reasons (a second styling system, contrast audited only on our tokens). What is missing is components, not a framework.
 - **One density everywhere**: either the Back Office stays loose or the Candidate side loses ADR-0009's floor.
+
+## Amended by ADR-0070
+
+On the Candidate's pages the conversation is the page (ADR-0070): the Top Bar no longer carries « Aide et coach » but « Fiche », « Activité » and « Effacer » (« Aide » on pages without a conversation), and the Coach Panel remains only as the Back Office Assistant's side panel.

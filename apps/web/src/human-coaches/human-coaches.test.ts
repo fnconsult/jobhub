@@ -393,6 +393,46 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
         expect((await clocked.sessions(marie))[0]).toMatchObject({ scheduledAt: null });
       });
 
+      describe("a Withdrawal (#511)", () => {
+        it("cancels a session not held yet: its date cleared and kept in its history, then gone from the Candidate's and the coach's sessions", async () => {
+          const { marie, sophie, session } = await datedSession();
+          later(10);
+
+          const withdrawn = await clocked.withdrawSession(marie, session.id);
+
+          expect(withdrawn).toEqual({
+            checkoutSessionId: "cs_1",
+            amount: 9000,
+            currency: "eur",
+            paidAt: session.paidAt,
+            scheduledAt: new Date("2026-10-22T12:00:00.000Z"),
+            coach: { name: SOPHIE.name, email: SOPHIE.email },
+          });
+          expect(await clocked.sessions(marie)).toEqual([]);
+          expect(await clocked.coachSessions(sophie.id)).toEqual([]);
+          const { rows } = await database.query("SELECT new_at FROM coaching_session_reschedule WHERE coaching_session_id = $1", [session.id]);
+          expect(rows).toEqual([{ new_at: null }]);
+        });
+
+        it("withdraws an Unscheduled session, once", async () => {
+          const { marie, session } = await paidSession();
+
+          expect(await clocked.withdrawSession(marie, session.id)).toMatchObject({ checkoutSessionId: "cs_1", scheduledAt: null });
+          expect(await clocked.withdrawSession(marie, session.id)).toBeNull();
+        });
+
+        it("refuses a session already held, and anyone else's", async () => {
+          const { marie, session } = await datedSession();
+          const paul = await signUp("paul.martin@example.fr");
+
+          expect(await clocked.withdrawSession(paul, session.id)).toBeNull();
+          expect(await clocked.withdrawSession(paul, "not-a-session")).toBeNull();
+          later(3 * 24 * 60);
+          expect(await clocked.withdrawSession(marie, session.id)).toBeNull();
+          expect(await clocked.sessions(marie)).toHaveLength(1);
+        });
+      });
+
       it("a date entered again after a cancellation is no Reschedule; changing it later is one", async () => {
         const { marie, session } = await datedSession();
         later(240);

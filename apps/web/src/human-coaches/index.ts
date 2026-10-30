@@ -8,6 +8,7 @@
  *  - what do they read?                `candidates`, `candidateFile`, `application` (read only)
  *  - what did the Candidate pay for?  `recordPaidSession` (Stripe's webhook), `sessions`, `scheduleSession`, `cancelSession`
  *  - whom does the coach meet?         `coachSessions`, `scheduleCoachedSession`, `cancelCoachedSession` (the Coach space)
+ *  - what did the Candidate withdraw from?  `withdrawSession` (a Withdrawal, #511): a withdrawn session leaves every list
  * A date change more than an hour after the date was entered or last changed is a Reschedule, kept in the
  * session's Reschedule history; a cancellation clears the date (back to Unscheduled) and is kept there too.
  * and `migrateHumanCoaches(database)` creates its tables.
@@ -143,6 +144,18 @@ export interface PaidCoachingSession {
   currency: string;
 }
 
+/** A Coaching Session the Candidate withdrew from (#511), as it was: what refunds it and whom to tell. */
+export interface WithdrawnCoachingSession {
+  /** The Stripe Checkout Session it was paid through. */
+  checkoutSessionId: string;
+  amount: number;
+  currency: string;
+  paidAt: Date;
+  /** Its date before it was cancelled; null when it was Unscheduled. */
+  scheduledAt: Date | null;
+  coach: { name: string; email: string };
+}
+
 export type CoachReviewResult =
   | { ok: true; review: CoachReview }
   | { ok: false; errors: FieldError[] }
@@ -236,6 +249,14 @@ export interface HumanCoaches {
    * recorded as theirs. "not_found" for another coach's session, or for a Retired Human Coach.
    */
   cancelCoachedSession(coachId: string, sessionId: string): Promise<{ ok: true } | { ok: false; error: "not_found" }>;
+
+  /**
+   * The Candidate withdraws from one of their own Coaching Sessions not held yet (Unscheduled, or dated later than now):
+   * its date is cleared (the cancellation kept in its Reschedule history) and it leaves the Candidate's sessions, the
+   * Agenda and the Coach space. Returns it as it was, to refund it and tell its Human Coach; null for a session held
+   * already, withdrawn already, or anyone else's. The refund is the caller's.
+   */
+  withdrawSession(candidateId: string, sessionId: string): Promise<WithdrawnCoachingSession | null>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -399,7 +420,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       `SELECT s.id AS session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, s.duration_minutes, s.video_link, s.note, s.changed_by,
               h.id, h.name, h.email, h.booking_url, h.bio
        FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
-       WHERE s.candidate_id = $1 AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
+       WHERE s.candidate_id = $1 AND s.withdrawn_at IS NULL AND ($2::uuid IS NULL OR s.id = $2) ORDER BY s.paid_at DESC, s.id`,
       [candidateId, sessionId ?? null],
     );
     const histories = await rescheduleHistories(
@@ -430,7 +451,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
          FROM coaching_session s
          JOIN human_coach h ON h.id = s.coach_id AND h.retired_at IS NULL
          JOIN candidate c ON c.id = s.candidate_id
-        WHERE s.coach_id = $1 AND ($2::uuid IS NULL OR s.id = $2)
+        WHERE s.coach_id = $1 AND s.withdrawn_at IS NULL AND ($2::uuid IS NULL OR s.id = $2)
         ORDER BY s.scheduled_at DESC NULLS FIRST, s.paid_at, s.id`,
       [coachId, sessionId ?? null],
     );
@@ -457,7 +478,10 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     change: { to: Date | null; by: RescheduledBy; fields?: { durationMinutes: number | null; videoLink: string | null; note?: string | null } },
   ): Promise<boolean> {
     return inTransaction(database, async (client) => {
-      const { rows } = await client.query(`SELECT s.id FROM coaching_session s WHERE s.id = $1 AND ${owned.where} FOR UPDATE OF s`, [sessionId, ...owned.params]);
+      const { rows } = await client.query(`SELECT s.id FROM coaching_session s WHERE s.id = $1 AND s.withdrawn_at IS NULL AND ${owned.where} FOR UPDATE OF s`, [
+        sessionId,
+        ...owned.params,
+      ]);
       if (!rows[0]) return false;
       if (change.fields) {
         const { durationMinutes, videoLink, note } = change.fields;
@@ -649,6 +673,31 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       );
       return changed ? { ok: true } : { ok: false, error: "not_found" };
     },
+
+    async withdrawSession(candidateId, sessionId) {
+      if (!UUID.test(sessionId)) return null;
+      return inTransaction(database, async (client) => {
+        const { rows } = await client.query<{ stripe_checkout_session_id: string; amount: number; currency: string; paid_at: Date; scheduled_at: Date | null; coach_name: string; coach_email: string }>(
+          `SELECT s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email
+             FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
+            WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND (s.scheduled_at IS NULL OR s.scheduled_at > $3)
+            FOR UPDATE OF s`,
+          [sessionId, candidateId, now()],
+        );
+        const session = rows[0];
+        if (!session) return null;
+        await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: null, by: "candidate", now: now() });
+        await client.query("UPDATE coaching_session SET withdrawn_at = $2 WHERE id = $1", [sessionId, now()]);
+        return {
+          checkoutSessionId: session.stripe_checkout_session_id,
+          amount: session.amount,
+          currency: session.currency,
+          paidAt: session.paid_at,
+          scheduledAt: session.scheduled_at,
+          coach: { name: session.coach_name, email: session.coach_email },
+        };
+      });
+    },
   };
 }
 
@@ -700,6 +749,8 @@ export async function migrateHumanCoaches(database: Pool): Promise<void> {
     -- Who last entered or changed its date (#249): the Candidate or the Human Coach; null while never dated.
     ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS changed_by text CHECK (changed_by IN ('candidate', 'coach'));
     UPDATE coaching_session SET changed_by = 'candidate' WHERE changed_by IS NULL AND scheduled_at IS NOT NULL;
+    -- When the Candidate withdrew from it (#511): refunded, it leaves the Agenda and the Coach space.
+    ALTER TABLE coaching_session ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz;
   `);
   // Dates entered before Reschedules were kept are taken as entered when the session was paid.
   await migrateRescheduleHistory(database, "coaching_session", { enteredAt: "paid_at" });

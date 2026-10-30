@@ -21,7 +21,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -108,6 +108,12 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "CONTACT_ENRICHMENT_DPA_SIGNED", group: "enriched_contacts", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The browser extension's Chrome Web Store page; empty: "coming soon".
   { name: "EXTENSION_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
+  // Maintenance (#542): on, every page but the Back Office's answers 503 and the worker's jobs wait.
+  // Its message in each language (empty: the standard text) and how long it should last, from when it was switched on.
+  { name: "MAINTENANCE_MODE", group: "maintenance", type: { kind: "boolean" }, default: "false" },
+  { name: "MAINTENANCE_MESSAGE_FR", group: "maintenance", type: { kind: "text" }, default: "" },
+  { name: "MAINTENANCE_MESSAGE_EN", group: "maintenance", type: { kind: "text" }, default: "" },
+  { name: "MAINTENANCE_EXPECTED_MINUTES", group: "maintenance", type: whole(0, 1440), default: "30" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));
@@ -117,10 +123,10 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), the email sender (#300), Enriched Contacts (#302) and the extension's store page (#303).
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303) and maintenance (#542).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);

@@ -1700,7 +1700,8 @@
         "job_digest": "Job Digest",
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
-        "extension": "Browser extension"
+        "extension": "Browser extension",
+        "maintenance": "Maintenance"
       },
       "setting": "Setting",
       "value": "Value in use",
@@ -1929,6 +1930,10 @@
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
+        "MAINTENANCE_MODE": "Maintenance on (every page but the Back Office answers 503)",
+        "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
+        "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
+        "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
       },

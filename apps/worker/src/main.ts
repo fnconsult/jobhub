@@ -14,6 +14,7 @@ import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-diges
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { mailerFromEnv } from "@jobhub/web/mailers";
+import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
 import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
@@ -180,7 +181,8 @@ const jobs = createJobs({
   },
 });
 
-const runner = await startJobRunner({ connectionString, jobs });
+// During maintenance (#542, set on Paramètres), a job taken waits until it ends.
+const runner = await startJobRunner({ connectionString, jobs, paused: () => maintenanceOf(platformSettings.resolver.current()) !== null });
 started.runner = runner;
 await runner.enqueue("system.heartbeat");
 // A master key added to SECRETS_MASTER_KEYS is used for every row soon after the deployment that adds it.

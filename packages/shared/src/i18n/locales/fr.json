@@ -1700,7 +1700,8 @@
         "job_digest": "Job Digest",
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
-        "extension": "Extension du navigateur"
+        "extension": "Extension du navigateur",
+        "maintenance": "Maintenance"
       },
       "setting": "Réglage",
       "value": "Valeur en vigueur",
@@ -1929,6 +1930,10 @@
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
+        "MAINTENANCE_MODE": "Maintenance en cours (toutes les pages hors Back Office répondent 503)",
+        "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
+        "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
+        "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
       },

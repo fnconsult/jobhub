@@ -48,10 +48,13 @@ const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD
 /** Email intake's: the domain of the Candidates' Forwarding addresses (#441), its daily cap, « filtre trop large » threshold and Brevo's IP ranges (#442). */
 const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_BREVO_IP_RANGES"];
 
+/** Maintenance (#542): on or off, its message in each language and how long it should last. */
+const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_MESSAGE_EN", "MAINTENANCE_EXPECTED_MINUTES"];
+
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 

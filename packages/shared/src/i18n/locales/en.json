@@ -4662,5 +4662,8 @@
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
     "noneForTag": "No version has this topic yet."
+  },
+  "release": {
+    "line": "Jobbbox version: {{version}}"
   }
 }

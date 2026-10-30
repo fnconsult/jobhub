@@ -274,6 +274,8 @@ export const ENV_ONLY_SETTINGS = {
   NEXT_RUNTIME: { kind: "deployment", shown: false },
   // The deployed commit (deploy/compose.yml): the Jobbbox version a Signalement keeps (#374).
   JOBHUB_REVISION: { kind: "deployment", shown: false },
+  // The commit .github/workflows/deploy.yml bakes into the image (#559): the Version's « (main·sha) » on the Beta, /api/health.
+  JOBHUB_COMMIT: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
   WXT_WEB_ORIGIN: { kind: "deployment", shown: false },

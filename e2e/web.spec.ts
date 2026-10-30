@@ -8,7 +8,7 @@ test.describe("web app", () => {
   test("health endpoint reports ok", async ({ request }) => {
     const response = await request.get("/api/health");
     expect(response.status()).toBe(200);
-    expect(await response.json()).toEqual({ status: "ok" });
+    expect(await response.json()).toMatchObject({ status: "ok" });
   });
 
   test("speaks French by default, even to an English-speaking browser", async ({ page }) => {

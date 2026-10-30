@@ -12,7 +12,7 @@ Coaching platform for job seekers aged 40+ in France. Vocabulary: [`CONTEXT.md`]
 | `packages/shared` | Domain types, translations (`@jobhub/shared/i18n`) and design tokens (`@jobhub/shared/design`) |
 | `packages/ai` | Provider-agnostic AI layer (`@jobhub/ai`, server-side only): Anthropic, Mistral, OpenAI; web search (Search providers, ADR-0043): Perplexity's Search API, Brave, Tavily, with an optional fallback for the rest of a run; fake provider in `@jobhub/ai/testing` (`pending` waits for the request's `signal`); every result carries call facts, and a request's `signal` stops the call (Failure Reason `stopped`) |
 | `packages/coach-knowledge` | The coaching knowledge files the one-off import reads (`@jobhub/coach-knowledge`, server-side only): `readCoachKnowledgeFiles()`, and the `[Sn]` / Sources table Markdown helpers |
-| `packages/help` | The Help Articles (`@jobhub/help`, no AI call, browser and server): `articles/{fr,en}/<id>.md` (page, glossary and FAQ, with `kind`, `title`, `synonyms` and, for a page, `route`) bundled into `src/articles.generated.ts` by `npm run build -w @jobhub/help` (run it after editing an article; a test fails when it is stale). `articles`, `article`, `articleFor(route)` and `search(query, locale)`; `readHelpContent()` (Node only) checks the files. Also the public pages' texts (#470): Release Notes in `releases/{fr,en}/X.Y.Z.md` (`src/release-notes.generated.ts`) and Legal Documents in `legal/{fr,en}/<document>/<version>.md` (`src/legal-documents.generated.ts`), built and checked by the same command; `/nouveautes` and `/legal` (PDF at `/api/legal/<document>/pdf`) read them, and on the Beta `/nouveautes` shows the note of the Version in `JOBHUB_VERSION` (set from the root `package.json` by `next.config.ts`) apart, never later ones `apps/web/src/help/candidate-pages.test.ts` fails when a Candidate page has no page article |
+| `packages/help` | The Help Articles (`@jobhub/help`, no AI call, browser and server): `articles/{fr,en}/<id>.md` (page, glossary and FAQ, with `kind`, `title`, `synonyms` and, for a page, `route`) bundled into `src/articles.generated.ts` by `npm run build -w @jobhub/help` (run it after editing an article; a test fails when it is stale). `articles`, `article`, `articleFor(route)` and `search(query, locale)`; `readHelpContent()` (Node only) checks the files. Also the public pages' texts (#470): Release Notes in `releases/{fr,en}/X.Y.Z.md` (`src/release-notes.generated.ts`) and Legal Documents in `legal/{fr,en}/<document>/<version>.md` (`src/legal-documents.generated.ts`), built and checked by the same command; `/nouveautes` and `/legal` (PDF at `/api/legal/<document>/pdf`) read them, and on the Beta `/nouveautes` shows the note of the Version served (`apps/web/src/release`) apart, never later ones `apps/web/src/help/candidate-pages.test.ts` fails when a Candidate page has no page article |
 
 ## Getting started
 
@@ -46,6 +46,7 @@ npm run wf:record -- --issue 31 --workflow-id wf-dev --workflow-ref .claude/work
 
 ```sh
 npm run lint        # includes the "no hard-coded user-facing strings" rule
+npm run check:versions   # one Version: apps/web and apps/worker repeat the root package.json's X.Y.Z (#559)
 npm run typecheck
 npm test            # worker integration tests run when DATABASE_URL is set
 npm run build

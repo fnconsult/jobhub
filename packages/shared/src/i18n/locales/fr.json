@@ -4662,5 +4662,8 @@
     "emptyTitle": "Rien n'est encore publié",
     "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
     "noneForTag": "Aucune version ne porte ce thème pour le moment."
+  },
+  "release": {
+    "line": "Version de Jobbbox : {{version}}"
   }
 }

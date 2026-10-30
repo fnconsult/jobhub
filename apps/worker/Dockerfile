@@ -19,5 +19,8 @@ COPY packages/help packages/help
 # Job discovery stores Job Offers and reads Profiles through the web app's modules.
 COPY apps/web/src apps/web/src
 COPY apps/worker apps/worker
+# The commit and the target .github/workflows/deploy.yml builds for (#559); deploy/compose.yml names the target again.
+ARG JOBHUB_COMMIT="" JOBHUB_TARGET=""
+ENV JOBHUB_COMMIT=$JOBHUB_COMMIT JOBHUB_TARGET=$JOBHUB_TARGET
 USER node
 CMD ["npm", "run", "start", "--workspace", "@jobhub/worker"]

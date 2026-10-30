@@ -3155,7 +3155,8 @@
     "sortedDescending": "sorted Z to A",
     "noneMatch": "No application matches these filters.",
     "archivedHidden_one": "{{count}} archived application is hidden.",
-    "archivedHidden_other": "{{count}} archived applications are hidden."
+    "archivedHidden_other": "{{count}} archived applications are hidden.",
+    "emptyTitle": "No applications yet"
   },
   "agenda": {
     "title": "Interviews and appointments",
@@ -3421,7 +3422,9 @@
       "seeResults": "See the job offers",
       "seeSearch": "See the search",
       "dismiss": "Close"
-    }
+    },
+    "matchScoreCaption": "Match Score",
+    "partialCaption": "Partial"
   },
   "companyDossier": {
     "title": "Company dossier",
@@ -3974,7 +3977,9 @@
     "groupsLabel": "Results by profile",
     "groupTitle": "Job offers for \"{{profile}}\"",
     "laneLabel": "Job offers found for \"{{profile}}\", scroll sideways",
-    "searchThisProfile": "Search for this profile alone"
+    "searchThisProfile": "Search for this profile alone",
+    "neverTitle": "No job search for this Profile yet",
+    "noActiveProfileTitle": "No active Profile"
   },
   "receivedByEmail": {
     "title": "Received by email",
@@ -4504,6 +4509,13 @@
     "reasons": {
       "superAdmin": "You receive this email because you are a super-admin of Jobbbox."
     }
+  },
+  "quickActions": {
+    "label": "Quick actions",
+    "searchJobOffers": "Search for job offers",
+    "addApplication": "Add an application",
+    "scheduleInterview": "Schedule an interview",
+    "askCoach": "Ask the coach"
   },
   "publicSite": {
     "nav": "Public pages",

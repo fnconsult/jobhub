@@ -271,6 +271,14 @@ _Avoid_: URL import, scrape
 The card in an AI Coach reply to a Job Offer link: the Job Offer's title and employer and a link to its page. "À traiter" until the Candidate follows it (saves it as an Application), which gives it its Match Score and At a glance; then "Suivie". Not an Action Card: nothing is accepted or dismissed. Saved with the Coach Conversation; never given to the AI Coach.
 _Avoid_: Action Card, preview, link card
 
+**Job Offer result**:
+A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par email »): its title, employer, contract and remote work, its Match Score and the actions to save it as an Application or read it. Not the Job Offer card, which is the AI Coach's.
+_Avoid_: Job Offer card, result card
+
+**Quick actions**:
+The row of pills on the Candidate's home page that start the usual next steps: search for Job Offers, add an Application or ask the AI Coach (both open the Coach Panel), plan an Interview.
+_Avoid_: shortcuts
+
 **Job discovery**:
 The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing. Its web searches go through the active Search provider, or its fallback for the rest of a run when the active one fails; a run also visits the Profile's Target Companies.
 _Avoid_: Scraping, crawling (alone)

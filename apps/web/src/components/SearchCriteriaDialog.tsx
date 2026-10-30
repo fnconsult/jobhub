@@ -4,6 +4,7 @@ import type { SearchCriteria } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonClass } from "@/design/button-class";
 import { Drawer } from "@/design/Drawer";
 import { SearchCriteriaProperties } from "./ProfileInlineEdits";
 
@@ -25,7 +26,7 @@ export function SearchCriteriaDialog({ profileId, profileName, searchCriteria }:
         if (!next) router.refresh();
       }}
       trigger={
-        <button className="props-action link-action" type="button">
+        <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button">
           {t("jobSearch.editCriteria")}
         </button>
       }

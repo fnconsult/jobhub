@@ -1,0 +1,17 @@
+/* The home page's quick actions (#467): pills in a row, wrapping on a phone; all but the first on the surface. Beside
+   its component (ADR-0053). */
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-8);
+}
+
+.quick-actions > .ds-button--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.quick-actions > .ds-button--secondary:hover {
+  background: var(--color-hover);
+}

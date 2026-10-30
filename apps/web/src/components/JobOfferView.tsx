@@ -3,6 +3,7 @@ import { SkillTags } from "@/components/SkillTags";
 import type { getServerT } from "@/i18n/server";
 import { jobOfferSalary } from "@/job-offers/at-a-glance";
 import { contentBlocks } from "@/job-offers/content-blocks";
+import { Note } from "@/design/Note";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -133,10 +134,10 @@ export function ExpiredJobOfferNotice({ jobOffer, t, locale, children }: { jobOf
   if (!jobOffer.expiredAt) return null;
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobOffer.expiredAt);
   return (
-    <div className="notice notice-expired" role="status">
+    <Note tone="warn" role="status">
       <p>{t("jobOffer.expired", { date })}</p>
       {children ? <p>{children}</p> : null}
-    </div>
+    </Note>
   );
 }
 

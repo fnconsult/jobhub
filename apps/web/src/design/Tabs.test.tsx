@@ -49,4 +49,15 @@ describe("Tabs (#462)", () => {
     await user.click(screen.getByRole("tab", { name: "E-mail" }));
     expect(new Set(chosen)).toEqual(new Set(["email"]));
   });
+
+  it("keeps every panel mounted when asked (a draft being edited, #467), only the active one shown", async () => {
+    const user = userEvent.setup();
+    const { container } = renderInFrench(<Tabs label="Documents" tabs={tabs} keepMounted />);
+    const panels = [...container.querySelectorAll(".ds-tabs__panel")];
+    expect(panels.map((panel) => panel.textContent)).toEqual(["Perplexity est actif.", "Mistral sert les tâches.", "Brevo envoie les e-mails."]);
+    expect(panels.map((panel) => panel.getAttribute("data-state"))).toEqual(["active", "inactive", "inactive"]);
+    await user.click(screen.getByRole("tab", { name: "IA" }));
+    expect(panels.map((panel) => panel.getAttribute("data-state"))).toEqual(["inactive", "active", "inactive"]);
+    expect(container.querySelectorAll(".ds-tabs__panel")).toHaveLength(3);
+  });
 });

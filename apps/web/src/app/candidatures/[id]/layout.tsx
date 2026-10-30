@@ -13,10 +13,15 @@ import { JobOfferSummary } from "@/components/JobOfferSummary";
 import { ExpiredJobOfferNotice, JobOfferTiles, jobOfferSite } from "@/components/JobOfferView";
 import { matchScoreFigure, matchScoreInWords } from "@/components/job-search-words";
 import { SectionsLayout } from "@/components/SectionsLayout";
+import { Note } from "@/design/Note";
+import { Pill } from "@/design/Pill";
 import { routes, type ApplicationSection } from "@/routes";
+import "./application.css";
 import { loadApplicationPage, type Params } from "./sections";
 
 const MATCH_SCORE: ApplicationSection = "correspondance";
+/** Its Sections as tabs from 64rem (#467). */
+const SECTIONS_LOOK = "tabs";
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { application, t } = await loadApplicationPage((await params).id);
@@ -66,51 +71,53 @@ export default async function ApplicationLayout({ params, children }: Params & {
   const site = jobOfferSite(jobOffer);
   return (
     <CandidateLayout candidateId={candidateId} title={jobOffer.title} aiActivity={aiActivity}>
-      <div className="doc">
-        <header className="page-head">
-          <p className="eyebrow">
+      <div className="application-page">
+        <header className="application-head">
+          <p className="application-head__back">
             <Link href={routes.applications}>{t("application.backToApplications")}</Link>
           </p>
           <JobOfferTiles jobOffer={jobOffer} t={t} locale={locale} />
           <JobOfferSummary applicationId={application.id} summary={jobOffer.summary} needsReading={!jobOffer.summary || !jobOffer.sector} />
-          <dl className="props">
-            <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
-            <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />
-            <div className="prop">
-              <dt>{t("application.matchLabel")}</dt>
-              <dd>
-                <span className="score">{matchScoreInWords(matchScoreFigure(application.matchScore), t)}</span>
-                <Link href={routes.applicationSection(application.id, MATCH_SCORE)}>{t("application.matchDetail")}</Link>
-              </dd>
-            </div>
-            <div className="prop">
-              <dt>{t("application.savedOnLabel")}</dt>
-              <dd>{fullDate.format(application.createdAt)}</dd>
-            </div>
-            {jobOffer.source.url && site ? (
+          <div className="application-head__props">
+            <dl className="props">
+              <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
+              <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />
               <div className="prop">
-                <dt>{t("application.offerLabel")}</dt>
+                <dt>{t("application.matchLabel")}</dt>
                 <dd>
-                  <a href={jobOffer.source.url} rel="noopener noreferrer nofollow" target="_blank">
-                    {t("jobOffer.sourceLink", { site })}
-                  </a>
+                  <span className="score">{matchScoreInWords(matchScoreFigure(application.matchScore), t)}</span>
+                  <Link href={routes.applicationSection(application.id, MATCH_SCORE)}>{t("application.matchDetail")}</Link>
                 </dd>
               </div>
-            ) : null}
-          </dl>
+              <div className="prop">
+                <dt>{t("application.savedOnLabel")}</dt>
+                <dd>{fullDate.format(application.createdAt)}</dd>
+              </div>
+              {jobOffer.source.url && site ? (
+                <div className="prop">
+                  <dt>{t("application.offerLabel")}</dt>
+                  <dd>
+                    <a href={jobOffer.source.url} rel="noopener noreferrer nofollow" target="_blank">
+                      {t("jobOffer.sourceLink", { site })}
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
         </header>
 
         <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale}>
           {t("application.expiredNotice")}
         </ExpiredJobOfferNotice>
         {application.reportedUnavailableAt ? (
-          <div className="notice notice-expired" role="status">
-            <p>
-              <span className="expired-flag">{t("applications.expired")}</span>
-              <span className="reported-flag">{t("applications.reportedByYou")}</span>
+          <Note tone="warn" role="status">
+            <p className="application-flags">
+              <Pill tone="danger">{t("applications.expired")}</Pill>
+              <Pill>{t("applications.reportedByYou")}</Pill>
             </p>
             <p>{t("application.reportedNotice", { date: date.format(application.reportedUnavailableAt) })}</p>
-          </div>
+          </Note>
         ) : null}
         {/* Reported Unavailable: for an offer not (yet) found expired, or to undo a report. */}
         {!jobOffer.expiredAt || application.reportedUnavailableAt ? (
@@ -123,6 +130,7 @@ export default async function ApplicationLayout({ params, children }: Params & {
           label={t("application.sections.sectionsLabel")}
           backLabel={t("application.sections.backToSections")}
           sections={sections.map((section) => ({ href: routes.applicationSection(application.id, section), label: t(`application.sections.${section}`) }))}
+          look={SECTIONS_LOOK}
         >
           {children}
         </SectionsLayout>

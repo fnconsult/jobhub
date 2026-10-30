@@ -6,7 +6,8 @@
  *  - how do they change Plan?     `startCheckout`, `openCustomerPortal`, `handleStripeWebhook`
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
- *  - how do they stop paying?     `closeAccount`, when they delete their account
+ *  - how do they stop paying?     `cancellationTerms`, `scheduleCancellation` (« Résilier votre contrat », #513),
+ *                                 and `closeAccount` when they delete their account
  *  - how do they withdraw (#511)?  `subscription` (since when), `paidOnSubscription`, `endSubscriptionNow`,
  *    `coachingSessionPayment`, `refund`
  *    (the signed webhook reports each refund's fate through `onRefundChanged`)
@@ -35,6 +36,7 @@ import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import { recordingClient, type ExternalApiLog } from "@jobhub/shared";
 import Stripe from "stripe";
+import type { Mailer } from "../auth/index";
 import type { Queryable } from "../database/pool";
 import * as z from "zod";
 import { routes } from "../routes";
@@ -53,6 +55,7 @@ import {
   type PlanDefinition,
   type PlanName,
 } from "./plans";
+import { cancellationReceiptEmail } from "./cancellation-email";
 import { createCodeLookups } from "./code-lookups";
 import { type StripeWebhookEvent } from "./webhook-events";
 import { couponOf, couponParams, COUPON_CURRENCY, listedCouponOf, termsOf, type ActiveDiscount, type Coupon, type CouponResult, type ListedCoupon } from "./coupons";
@@ -84,6 +87,8 @@ export interface BillingConfig {
    * the webhook fails and Stripe retries the delivery.
    */
   onRefundChanged?: (change: RefundChange) => Promise<unknown>;
+  /** Sends the acknowledgement of a cancellation (Brevo). Without one, nothing is sent. */
+  mailer?: Pick<Mailer, "send">;
 }
 
 /** A payment Stripe took (a PaymentIntent, or a charge without one), in the currency's smallest unit (cents). */
@@ -113,6 +118,20 @@ export interface CurrentSubscription {
   planName: PlanName;
   startedAt: Date;
 }
+
+/** A paid Plan the Candidate may cancel from Jobbbox, as the confirmation page shows it. */
+export interface CancellationTerms {
+  plan: Plan;
+  planName: PlanName;
+  /** The end of the paid period: the Candidate keeps the Plan until then, and is not charged again. */
+  endsAt: Date;
+}
+
+/**
+ * What confirming a cancellation did: scheduled it in Stripe at `endsAt` (and `acknowledged` says whether its
+ * acknowledgement was emailed), or nothing, the Candidate having no paid Plan whose cancellation is not scheduled yet.
+ */
+export type CancellationResult = { ok: true; plan: Plan; requestedAt: Date; endsAt: Date; acknowledged: boolean } | { ok: false; error: "not_cancellable" };
 
 /** How a Candidate checks out. */
 export interface CheckoutOptions {
@@ -744,10 +763,10 @@ export function createBilling(config: BillingConfig) {
 
   async function stripeAccountOf(candidateId: string) {
     const { rows } = await database.query(
-      "SELECT plan, stripe_customer_id, stripe_status, ends_at FROM candidate_plan WHERE candidate_id = $1",
+      "SELECT plan, stripe_customer_id, stripe_subscription_id, stripe_status, ends_at FROM candidate_plan WHERE candidate_id = $1",
       [candidateId],
     );
-    return rows[0] as { plan: Plan; stripe_customer_id: string | null; stripe_status: string | null; ends_at: Date | null } | undefined;
+    return rows[0] as { plan: Plan; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_status: string | null; ends_at: Date | null } | undefined;
   }
 
   /** The Candidate's Stripe customer, created on their first checkout. */
@@ -781,10 +800,19 @@ export function createBilling(config: BillingConfig) {
   function scheduledEndOf(subscription: Stripe.Subscription): number | null {
     if (subscription.cancel_at) return subscription.cancel_at;
     if (!subscription.cancel_at_period_end) return null;
+    return periodEndOf(subscription);
+  }
+
+  /** When the subscription's paid period ends. */
+  function periodEndOf(subscription: Stripe.Subscription): number | null {
     // A webhook endpoint pinned to an older API version still has it on the subscription.
     const legacy = (subscription as { current_period_end?: number }).current_period_end;
     return subscription.items.data[0]?.current_period_end ?? legacy ?? null;
   }
+
+  /** The Candidate's subscription, when they are on a paid Plan whose cancellation is not scheduled. */
+  const cancellable = (account: { plan: Plan; stripe_subscription_id: string | null; ends_at: Date | null } | undefined) =>
+    account && account.plan !== FREE_PLAN && account.stripe_subscription_id && !account.ends_at ? account.stripe_subscription_id : null;
 
   function productOf(price: Stripe.Price): string {
     return typeof price.product === "string" ? price.product : price.product.id;
@@ -962,6 +990,66 @@ export function createBilling(config: BillingConfig) {
         if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return;
         throw error;
       }
+    },
+
+    /**
+     * What « Résilier votre contrat » would cancel (#513): the Candidate's paid Plan and the end of its paid period,
+     * read from Stripe. Null on Free, once a cancellation is scheduled (here or in the customer portal), and for a
+     * subscription Stripe gives no period end for. Throws when Stripe cannot be reached.
+     */
+    async cancellationTerms(candidateId: string): Promise<CancellationTerms | null> {
+      const account = await stripeAccountOf(candidateId);
+      const subscriptionId = cancellable(account);
+      if (!account || !subscriptionId) return null;
+      const subscription = await stripe().client.subscriptions.retrieve(subscriptionId);
+      const end = subscription.cancel_at || subscription.cancel_at_period_end ? null : periodEndOf(subscription);
+      return end === null ? null : { plan: account.plan, planName: await nameOf(account.plan), endsAt: new Date(end * 1000) };
+    },
+
+    /**
+     * « Confirmer la résiliation » (#513, C. conso. L215-1-1): schedules the cancellation of the Candidate's paid Plan
+     * in Stripe at the end of the paid period (`cancel_at_period_end`), keeps its end date at once (Stripe's webhook
+     * then reports the same), and emails the acknowledgement D215-2 asks for: when the request was received, when the
+     * contract ends. The Candidate's row is locked meanwhile, so a cancellation confirmed twice is scheduled and
+     * acknowledged once. Throws when Stripe could not schedule it; a failed email does not undo it.
+     */
+    async scheduleCancellation(candidate: { id: string; email: string }, locale: Locale = "fr"): Promise<CancellationResult> {
+      const requestedAt = now();
+      const client = await database.connect();
+      let scheduled: { plan: Plan; endsAt: Date };
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query("SELECT plan, stripe_subscription_id, ends_at FROM candidate_plan WHERE candidate_id = $1 FOR UPDATE", [candidate.id]);
+        const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null; ends_at: Date | null } | undefined;
+        const subscriptionId = cancellable(account);
+        if (!account || !subscriptionId) {
+          await client.query("ROLLBACK");
+          return { ok: false, error: "not_cancellable" };
+        }
+        const subscription = await stripe().client.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        const end = scheduledEndOf(subscription);
+        if (end === null) throw new Error(`Stripe gave no end date for the cancellation of ${subscriptionId}`);
+        await client.query("UPDATE candidate_plan SET ends_at = to_timestamp($2) WHERE candidate_id = $1", [candidate.id, end]);
+        await client.query("COMMIT");
+        scheduled = { plan: account.plan, endsAt: new Date(end * 1000) };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+      let acknowledged = false;
+      if (config.mailer) {
+        try {
+          const names = { plan: await nameOf(scheduled.plan), free: await nameOf(FREE_PLAN) };
+          const email = cancellationReceiptEmail({ planName: names.plan[locale], freePlanName: names.free[locale], requestedAt, endsAt: scheduled.endsAt, subscriptionUrl: pageURL() }, locale);
+          await config.mailer.send({ to: candidate.email, ...email });
+          acknowledged = true;
+        } catch (error) {
+          console.error("[billing] the acknowledgement of a cancellation could not be sent", error);
+        }
+      }
+      return { ok: true, ...scheduled, requestedAt, acknowledged };
     },
 
     /**

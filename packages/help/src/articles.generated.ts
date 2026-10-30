@@ -192,10 +192,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "premium",
         "standard",
         "gratuite",
-        "résilier"
+        "résilier",
+        "résiliation"
       ],
       "route": "/abonnement",
-      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou résiliez. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai."
+      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai."
     },
     {
       "id": "page-account",
@@ -248,6 +249,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/retractation",
       "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif et sans frais : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement et tant qu'elle n'a pas eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse en entier sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés.\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
+    },
+    {
+      "id": "page-subscription-cancellation",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Résilier votre contrat",
+      "synonyms": [
+        "résilier",
+        "résiliation",
+        "arrêter",
+        "annuler",
+        "abonnement",
+        "désabonner",
+        "fin du contrat",
+        "prélèvement"
+      ],
+      "route": "/abonnement/resiliation",
+      "body": "Cette page résilie votre abonnement à une offre payante. Elle indique votre offre et la date de fin du contrat, c'est-à-dire la fin de la période déjà payée : vous gardez votre offre jusqu'à cette date, aucun prélèvement ne suit, puis vous passez à l'offre Gratuite.\n\n« Confirmer la résiliation » enregistre votre demande. Vous recevez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat : conservez-le.\n\nVous changez d'avis ? Jusqu'à la date de fin, annulez la résiliation depuis Mon abonnement, avec « Gérer mon abonnement »."
     },
     {
       "id": "page-job-digest",
@@ -649,6 +668,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "It gathers everything about a job offer you follow, in sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving.\n\nUpdate the status as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up."
     },
     {
+      "id": "page-subscription-cancellation",
+      "locale": "en",
+      "kind": "page",
+      "title": "Cancel your contract",
+      "synonyms": [
+        "cancel",
+        "cancellation",
+        "stop",
+        "end",
+        "subscription",
+        "unsubscribe",
+        "end of the contract",
+        "charge"
+      ],
+      "route": "/abonnement/resiliation",
+      "body": "This page cancels your subscription to a paid plan. It shows your plan and the date the contract ends, which is the end of the period already paid for: you keep your plan until that date, you are not charged again, and you then move to the Free plan.\n\n« Confirm the cancellation » records your request. You at once receive an acknowledgement by email, with the date of your request and the date the contract ends: keep it.\n\nChanged your mind? Until the end date, undo the cancellation from My subscription, with « Manage my subscription »."
+    },
+    {
       "id": "page-conversation",
       "locale": "en",
       "kind": "page",
@@ -808,10 +845,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "premium",
         "standard",
         "free",
-        "cancel"
+        "cancel",
+        "cancellation"
       ],
       "route": "/abonnement",
-      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or cancel. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again."
+      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again."
     },
     {
       "id": "page-withdrawal",

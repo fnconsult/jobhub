@@ -121,7 +121,6 @@ export interface Withdrawals {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SESSION_REF = /^coaching-session:(.+)$/;
 
 const withdrawSchema = z
   .object({

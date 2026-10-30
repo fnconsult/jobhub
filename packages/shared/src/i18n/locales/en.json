@@ -4721,6 +4721,47 @@
       "refunded": "Jobbbox refunds the session to the Candidate.",
       "someone": "A Candidate",
       "reason": "You get this email because you are a Human Coach on Jobbbox."
+    },
+    "page": {
+      "title": "Withdraw from the contract here",
+      "intro": "You may withdraw from this contract without giving a reason and at no cost, until {{date}} included. Everything you paid for it is refunded.",
+      "contractTitle": "The contract",
+      "contract": "Contract",
+      "subscribedOn": "Subscribed on",
+      "paidOn": "Paid on",
+      "amount": "Amount paid",
+      "amountUnknown": "As on your invoice",
+      "name": "Your name",
+      "receipt": "Where should we send the acknowledgement?",
+      "receiptAccount": "To my account's address ({{email}})",
+      "receiptOther": "To another address",
+      "receiptEmail": "Other email address",
+      "receiptEmailHint": "Only if you chose another address.",
+      "whatHappensPlan": "Your subscription will be cancelled at once: you will be on the Free Plan, and what you paid will be refunded in full.",
+      "whatHappensSession": "The session will be cancelled and the coach told; what you paid will be refunded in full.",
+      "confirm": "Confirm the withdrawal",
+      "cancel": "Back",
+      "done": "Your withdrawal ({{contract}}) was recorded on {{at}}.",
+      "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
+      "receiptSent": "An acknowledgement was sent to {{email}}.",
+      "receiptNotSent": "The acknowledgement could not be sent: our team will send it to you.",
+      "nothing": "No contract can be withdrawn from here: the 14 days are over, the session took place, or you already withdrew.",
+      "back": "Back to my subscription",
+      "backToAgenda": "Back to the Agenda",
+      "errors": {
+        "name_required": "Enter your name.",
+        "name_too_long": "Your name is too long.",
+        "receiptEmail_required": "Enter the address to send the acknowledgement to.",
+        "receiptEmail_invalid": "This email address is not valid.",
+        "not_withdrawable": "This contract can no longer be withdrawn from: the period is over, or you already withdrew.",
+        "stripe_unavailable": "Online payment is not answering: nothing was changed. Try again in a moment."
+      }
+    },
+    "subscription": {
+      "offer": "You may withdraw from this subscription, without a reason and at no cost, until {{date}} included."
+    },
+    "agenda": {
+      "label": "Withdraw from the contract here: session with {{name}}"
     }
   }
 }

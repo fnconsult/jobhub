@@ -214,8 +214,8 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])) });
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
-    // The reading, live: on the page beside « Arrêter », and on the closed button with its stop icon.
-    await expect(page.locator(".streamed-action-step")).toContainText(fr.aiActivity.steps.read);
+    // The reading, live: on the file's row beside its Stop (#468), and on the closed button with its stop icon.
+    await expect(page.locator(".ds-upload__step")).toContainText(fr.aiActivity.steps.read);
     await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.read));
     await page.getByRole("banner").getByRole("button", { name: fr.aiActivity.live.stop.cv_reading, exact: true }).click();
 

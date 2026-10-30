@@ -28,6 +28,8 @@ const METADATA_SIZE_SELECTORS = [
   ".usage-meter-detail",
   ".signalement-tip", // a hint
   ".signalement-meta",
+  ".cv-card-meta", // a Master CV card's version line and the full editor's hint (#468)
+  ".cv-job-mark", // a job's employer initials, hidden from screen readers: a mark, not text (#468)
   ".ai-activity-summary",
   ".ai-activity-chips",
   ".ai-activity-meta, .ai-activity-measure",

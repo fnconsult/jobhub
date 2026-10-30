@@ -185,14 +185,17 @@ test.describe("creating the first Profile from a CV", () => {
 
   test("only PDF and Word (.docx) files are accepted, with a message the Candidate can act on", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("formats"));
-    await uploadCv(page, { name: "cv.doc", mimeType: "application/msword", buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3, 4]) });
-    await expect(page.locator(".notice[role=alert]")).toHaveText(fr.cvUpload.errors.unsupported_format);
+    // An old Word file is refused as soon as it is chosen (#468): nothing to send, a Note says why.
+    await page.goto("/profils/nouveau");
+    await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.doc", mimeType: "application/msword", buffer: Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3, 4]) });
+    await expect(page.locator(".ds-note[role=alert]")).toHaveText(fr.cvUpload.errors.unsupported_format);
+    await expect(page.getByRole("button", { name: fr.cvUpload.submit })).toHaveCount(0);
 
     await uploadCv(page, pdfFile([], "scan.pdf"));
-    await expect(page.locator(".notice[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
+    await expect(page.locator(".ds-note[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
 
     await uploadCv(page, { name: "blank.pdf", mimeType: PDF, buffer: Buffer.alloc(0) });
-    await expect(page.locator(".notice[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
+    await expect(page.locator(".ds-note[role=alert]")).toHaveText(fr.cvUpload.errors.empty);
     await expect(page.getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
   });
 

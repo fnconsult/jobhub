@@ -505,9 +505,10 @@
       "empty": "Nous n'avons trouvé aucun texte dans ce fichier. S'il s'agit d'un CV scanné, importez plutôt la version PDF ou Word d'origine.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
-    "fromScratchHint": "Pas de CV sous la main ? Remplissez vous-même votre CV de référence et vos critères de recherche.",
     "fromScratch": "Partir de zéro",
-    "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré."
+    "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré.",
+    "drop": "Glissez votre CV ici",
+    "noCv": "Pas de CV sous la main ?"
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
@@ -664,6 +665,24 @@
       "entreprises-cibles": "Entreprises cibles",
       "telecharger": "Télécharger",
       "gerer": "Gérer"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archivé"
+    },
+    "actions": {
+      "searchOffers": "Chercher des offres",
+      "download": "Télécharger"
+    },
+    "ats": {
+      "computed": "Lisible par les logiciels de recrutement : ses conseils sont dans Propositions.",
+      "none": "Pas encore calculé : il dit si les logiciels de recrutement lisent bien votre CV.",
+      "open": "Voir le détail",
+      "compute": "Le calculer"
+    },
+    "cards": {
+      "summary": "Résumé",
+      "skills": "Compétences"
     }
   },
   "profileSwitcher": {
@@ -3693,7 +3712,19 @@
     "drafted": "Brouillon prêt",
     "required": "Le texte ne peut pas être vide.",
     "unavailable": "Le coach n'a pas pu rédiger ce texte pour l'instant. Réessayez dans quelques minutes.",
-    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "aside": {
+      "label": "À propos : {{document}}",
+      "for": "Adapté à",
+      "matchScore": "Score de correspondance {{score}}",
+      "cvNote": "Ce qui change par rapport à votre CV de référence est listé dans la proposition, à accepter ou refuser. Rien n'est inventé.",
+      "preview": "Aperçu de l'export, mise en page identique au PDF et au fichier Word",
+      "cvFile": "CV adapté – {{title}}.pdf",
+      "letterFile": "Lettre de motivation – {{title}}.pdf",
+      "downloadPdf": "Télécharger en PDF",
+      "downloadWord": "Télécharger en Word",
+      "savedOn": "Enregistré le {{date}}"
+    }
   },
   "tailoredCv": {
     "title": "CV adapté à l'offre",
@@ -4500,6 +4531,24 @@
       "dialogText": "Ses recherches et ses offres sont supprimées avec lui.",
       "dialogConfirm": "Supprimer",
       "confirmed": "Profil supprimé."
+    },
+    "upload": {
+      "or": "ou",
+      "choose": "Choisir un fichier",
+      "remove": "Retirer {{name}}"
+    },
+    "viewer": {
+      "toolbar": "Outils du document",
+      "pageOf": "Page {{page}} sur {{pages}}",
+      "zoomOut": "Réduire",
+      "zoomIn": "Agrandir",
+      "fit": "Ajuster",
+      "download": "Télécharger",
+      "pages": "Pages du document",
+      "page": "Page {{page}}",
+      "loading": "Ouverture du document…",
+      "failed": "Ce document n'a pas pu s'afficher. Téléchargez-le pour l'ouvrir.",
+      "title": "Visionneuse"
     }
   },
   "emails": {

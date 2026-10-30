@@ -602,7 +602,9 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   margin-top: 0.2em;
 }
 
-.coach-panel .chat-coach:has(> .activity-glyph) > :not(.activity-glyph, .visually-hidden) {
+.coach-panel
+  .chat-coach:has(> .activity-glyph)
+  > :not(.activity-glyph, .visually-hidden) {
   grid-column: 2;
 }
 
@@ -1463,7 +1465,6 @@ blockquote.signalement-text {
   align-items: center;
 }
 
-
 .ats-checks li {
   margin-bottom: var(--space-1);
 }
@@ -2222,7 +2223,8 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 /* The Signalement's Drawer (#462) draws its own head: its own padding, and it scrolls. */
 .signalement-dialog {
   gap: var(--space-4);
-  padding: calc(var(--space-6) + env(safe-area-inset-top, 0px)) var(--space-6) calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  padding: calc(var(--space-6) + env(safe-area-inset-top, 0px)) var(--space-6)
+    calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
 }
 
@@ -2431,9 +2433,16 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
    and the Section starts level with the top of the list beside it. */
 .sections-content > h2:first-child,
 .sections-content > section:first-child > h2:first-child,
-.sections-content > section:first-child > .section-head:first-child > h2:first-child,
+.sections-content
+  > section:first-child
+  > .section-head:first-child
+  > h2:first-child,
 .sections-content > * > section:first-child > h2:first-child,
-.sections-content > * > section:first-child > .section-head:first-child > h2:first-child {
+.sections-content
+  > *
+  > section:first-child
+  > .section-head:first-child
+  > h2:first-child {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -2468,6 +2477,52 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   .sections-nav ul {
     flex-flow: row wrap;
     gap: var(--space-1);
+  }
+}
+
+/* An `aside` beside the Sections (the Profile's Search Criteria and ATS Score, #468). The tabs' look is in
+   SectionsTabs.css (#467); with an aside, the tabs span the row above the Section shown and the aside, which sits
+   beside the Section when the column has room, under it otherwise. */
+@media (width >= 64rem) {
+  .sections[data-look="tabs"][data-aside] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  /* The grid's gap spaces the tabs from the Section, in place of their own margin. */
+  .sections[data-look="tabs"][data-aside] > .sections-nav {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+
+  @container (width >= 60rem) {
+    .sections[data-look="tabs"][data-aside] {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+
+    .sections-aside {
+      position: sticky;
+      top: calc(var(--topbar-height, 3.5rem) + var(--space-6));
+    }
+  }
+}
+
+.sections-aside {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (width < 64rem) {
+  /* On a phone the aside goes under the list of Sections, and makes way for a Section shown alone. */
+  .sections[data-at-list] .sections-aside {
+    margin-top: var(--space-6);
+  }
+
+  .sections:not([data-at-list]) .sections-aside {
+    display: none;
   }
 }
 
@@ -2543,7 +2598,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   .sections:not([data-at-list]) .sections-content {
     background: var(--color-background);
   }
-
 }
 
 @media (width < 64rem) and (prefers-reduced-motion: no-preference) {
@@ -3349,6 +3403,121 @@ textarea.title-edit {
   flex-basis: 100%;
 }
 
+/* The Profile's page in the Design System (#468): its eyebrow, status and actions on one line. */
+.profile-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.profile-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.profile-ats {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.profile-ats-text {
+  color: var(--color-text-secondary);
+}
+
+/* The Master CV in cards: its summary, its skills, its jobs. */
+.cv-cards {
+  gap: var(--space-4);
+}
+
+.cv-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.cv-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cv-card-head h3 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.cv-card-meta {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-meta);
+}
+
+.cv-card .skill-list {
+  margin: 0;
+}
+
+/* A job: its employer's mark, its title and period, its missions under them. */
+.cv-job {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--color-border);
+  border-left: 0;
+}
+
+.cv-job > .inline-edit {
+  grid-column: 1 / -1;
+}
+
+.cv-job-mark {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  color: var(--color-text-meta);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* The Master CV's edits wait in a bar stuck to the bottom of the page: what is not saved, then its buttons. */
+.profile-page .savebar {
+  bottom: 0;
+  padding: var(--space-3) var(--space-6);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-page .savebar > p:first-child {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.profile-page .savebar > p:first-child:not(.field-error)::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  content: "";
+  background: var(--color-warn);
+  border-radius: 50%;
+}
+
 /* Rows of the Profile page: the latest Job Digests, to open. */
 .document .rows {
   display: flex;
@@ -4039,7 +4208,9 @@ textarea.title-edit {
     position: sticky;
     top: calc(var(--topbar-height, 3.5rem) + var(--space-2));
     align-self: start;
-    max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-2));
+    max-height: calc(
+      100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-2)
+    );
     margin: var(--space-2) var(--space-2) var(--space-2) 0;
   }
 
@@ -4451,8 +4622,11 @@ textarea.title-edit {
   height: 10rem;
   margin-left: 4.5rem;
   border-bottom: 1px solid var(--color-chart-grid);
-  background: linear-gradient(var(--color-chart-grid), var(--color-chart-grid)) 0 0 / 100% 1px no-repeat,
-    linear-gradient(var(--color-chart-grid), var(--color-chart-grid)) 0 50% / 100% 1px no-repeat;
+  background:
+    linear-gradient(var(--color-chart-grid), var(--color-chart-grid)) 0 0 / 100%
+      1px no-repeat,
+    linear-gradient(var(--color-chart-grid), var(--color-chart-grid)) 0 50% /
+      100% 1px no-repeat;
 }
 
 .chart-axis span {

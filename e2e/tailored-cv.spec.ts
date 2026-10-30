@@ -145,12 +145,20 @@ test.describe("Tailored CV with change review", () => {
     await expect(cut.getByRole("button", { name: tc.accept })).toHaveAttribute("aria-pressed", "false");
     await reordered.getByRole("button", { name: tc.reject }).click();
 
+    const viewer = section(page).getByRole("toolbar", { name: fr.designSystem.viewer.toolbar });
+    await expect(viewer).toHaveCount(0);
     await review.getByRole("button", { name: tc.save }).click();
 
     await expect(section(page).getByRole("status")).toHaveText(tc.saved);
+    // Saved, it shows in the Viewer as its export draws it, its downloads in the page's aside (#468).
+    await expect(viewer).toContainText(/Page 1 sur [12]/);
+    const aside = section(page).getByRole("complementary", { name: fr.tailoredDocuments.aside.label.replace("{{document}}", tc.tailored) });
+    await expect(aside).toContainText(fr.tailoredDocuments.aside.for);
+    await expect(aside.getByRole("link", { name: fr.tailoredDocuments.aside.downloadWord })).toHaveAttribute("href", /\/tailored-cv\/export\?format=docx/);
     await page.reload();
     const saved = section(page).getByRole("group", { name: tc.savedTitle });
     await expect(saved.getByText("Directrice financière (adapté, fr)")).toBeVisible();
+    await expect(viewer).toContainText(/Page 1 sur [12]/);
     // Its skills as tags, one per skill.
     await expect(saved.getByRole("list", { name: fr.cvReview.skills }).getByRole("listitem")).toHaveText(["Consolidation", "IFRS", "SAP", "Power BI"]);
     // The rejected cut and the unaccepted wording from the Job Offer keep the Master CV's.

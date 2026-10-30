@@ -149,6 +149,7 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
           drafts={drafts}
           recipients={recipients}
           locale={locale}
+          target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }}
         />
       );
     }

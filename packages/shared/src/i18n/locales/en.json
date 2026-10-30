@@ -505,9 +505,10 @@
       "empty": "We found no text in this file. If it is a scanned CV, upload the original PDF or Word version instead.",
       "unknown": "Something went wrong. Please try again."
     },
-    "fromScratchHint": "No CV at hand? Fill in your master CV and search criteria yourself.",
     "fromScratch": "Start from scratch",
-    "stopped": "Reading stopped at {{time}}: nothing was read or saved."
+    "stopped": "Reading stopped at {{time}}: nothing was read or saved.",
+    "drop": "Drop your CV here",
+    "noCv": "No CV at hand?"
   },
   "cvReview": {
     "title": "Check your CV and your search criteria",
@@ -664,6 +665,24 @@
       "entreprises-cibles": "Target companies",
       "telecharger": "Download",
       "gerer": "Manage"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "actions": {
+      "searchOffers": "Search for offers",
+      "download": "Download"
+    },
+    "ats": {
+      "computed": "How well recruiting software reads your CV: its advice is in Proposals.",
+      "none": "Not computed yet: it tells whether recruiting software reads your CV well.",
+      "open": "See the detail",
+      "compute": "Compute it"
+    },
+    "cards": {
+      "summary": "Summary",
+      "skills": "Skills"
     }
   },
   "profileSwitcher": {
@@ -3693,7 +3712,19 @@
     "drafted": "Draft ready",
     "required": "The text cannot be empty.",
     "unavailable": "The coach could not draft this text right now. Try again in a few minutes.",
-    "error": "Saving failed. Check your connection and try again."
+    "error": "Saving failed. Check your connection and try again.",
+    "aside": {
+      "label": "About: {{document}}",
+      "for": "Tailored to",
+      "matchScore": "Match Score {{score}}",
+      "cvNote": "What changes from your Master CV is listed in the proposal, to accept or reject. Nothing is made up.",
+      "preview": "Preview of the export, laid out as the PDF and the Word file",
+      "cvFile": "Tailored CV – {{title}}.pdf",
+      "letterFile": "Cover letter – {{title}}.pdf",
+      "downloadPdf": "Download as PDF",
+      "downloadWord": "Download as Word",
+      "savedOn": "Saved on {{date}}"
+    }
   },
   "tailoredCv": {
     "title": "CV tailored to the offer",
@@ -4500,6 +4531,24 @@
       "dialogText": "Its searches and offers are deleted with it.",
       "dialogConfirm": "Delete",
       "confirmed": "Profile deleted."
+    },
+    "upload": {
+      "or": "or",
+      "choose": "Choose a file",
+      "remove": "Remove {{name}}"
+    },
+    "viewer": {
+      "toolbar": "Document tools",
+      "pageOf": "Page {{page}} of {{pages}}",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "fit": "Fit",
+      "download": "Download",
+      "pages": "Document pages",
+      "page": "Page {{page}}",
+      "loading": "Opening the document…",
+      "failed": "This document could not be shown. Download it to open it.",
+      "title": "Viewer"
     }
   },
   "emails": {

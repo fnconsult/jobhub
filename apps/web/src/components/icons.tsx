@@ -17,6 +17,7 @@ import {
   ClipboardList,
   CreditCard,
   Download,
+  Upload,
   FileSearch,
   Flag,
   Globe,
@@ -29,6 +30,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Minus,
   Palette,
   MessageCircleQuestion,
   MessageSquare,
@@ -131,6 +133,8 @@ const LUCIDE = {
   trendUp: ArrowUpRight,
   trendDown: ArrowDownRight,
   download: Download,
+  upload: Upload,
+  minus: Minus,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

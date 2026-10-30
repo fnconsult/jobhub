@@ -1,0 +1,55 @@
+@layer base, components;
+
+@layer components {
+  .ds-document-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .ds-document-layout__main {
+    display: grid;
+    gap: var(--space-6);
+    min-width: 0;
+  }
+
+  .ds-document-layout__aside {
+    position: sticky;
+    top: var(--space-4);
+    display: grid;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-document-layout__block {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .ds-document-layout__block > p {
+    margin: 0;
+  }
+
+  .ds-document-layout__label {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  .ds-document-layout__block .ds-button {
+    width: 100%;
+  }
+
+  @media (width < 56rem) {
+    .ds-document-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ds-document-layout__aside {
+      position: static;
+    }
+  }
+}

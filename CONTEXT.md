@@ -654,6 +654,18 @@ _Avoid_: Modal, popup, confirmation page
 The Design System's short message that appears briefly at the screen's edge to say an action worked or failed, without moving focus. Not a place for text the person must act on.
 _Avoid_: Alert, snackbar, banner
 
+**File upload**:
+The Design System's component for sending a file: a drop zone, the chosen file's row (name, size, remove), the steps while it is read with « Arrêter », and its errors. A file over 10 MB or of another format is refused as soon as it is chosen; the server still decides.
+_Avoid_: Dropzone, uploader
+
+**Viewer** (PDF / DOCX Viewer):
+The Design System's component that shows a document's pages as paper, with page thumbnails, « Page x sur y », zoom, « Ajuster » and « Télécharger ». A Word document is shown through the PDF drawn from the same content.
+_Avoid_: Preview, reader
+
+**Document aside**:
+The column beside a Tailored Document on « Documents adaptés »: its Job Offer, the Match Score of a Tailored CV, the note of what changed from the Master CV, the PDF and Word downloads and the saved date.
+_Avoid_: Side Panel (the extension's pane)
+
 **Components page**:
 The page at `/design-system/composants` that shows every component of the Design System in Confort, or in Compact with `?densite=compact`, for the tests. Only e2e and development builds serve it; the Design System page of the Back Office replaces it for readers.
 _Avoid_: Storybook, Design System page

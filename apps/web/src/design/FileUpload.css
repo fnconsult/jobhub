@@ -1,0 +1,228 @@
+@layer base, components;
+
+@layer components {
+  .ds-upload {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+  }
+
+  /* The input stays in the form and takes the focus; its label, drawn as the primary button, shows where it is. */
+  .ds-upload__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ds-upload__input:focus-visible + .ds-upload__zone label,
+  .ds-upload__input:focus-visible + .ds-upload__file {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .ds-upload__zone {
+    display: grid;
+    gap: var(--space-2);
+    justify-items: center;
+    padding: var(--space-8) var(--space-6);
+    text-align: center;
+    background: var(--color-background);
+    border: 1.5px dashed var(--color-border-strong);
+    border-radius: var(--radius-card);
+    transition:
+      background var(--motion-fast) var(--motion-easing),
+      border-color var(--motion-fast) var(--motion-easing);
+  }
+
+  .ds-upload__zone[data-over] {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent);
+  }
+
+  .ds-upload__zone label {
+    cursor: pointer;
+  }
+
+  .ds-upload__art {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    color: var(--color-accent);
+    background: var(--color-accent-soft);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-upload__art .icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .ds-upload__meta {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  .ds-upload__hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The chosen file: its badge, its name over its size (or the reading step), « Retirer » or Stop at the end. */
+  .ds-upload__file {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    gap: var(--space-1) var(--space-4);
+    align-items: center;
+    padding: var(--space-4);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-upload__name {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .ds-upload__name strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ds-upload__step {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+    color: var(--color-secondary);
+  }
+
+  .ds-upload__remove,
+  .ds-upload__stop {
+    display: grid;
+    place-items: center;
+    width: var(--size-control);
+    height: var(--size-control);
+    padding: 0;
+    color: var(--color-secondary);
+    cursor: pointer;
+    background: var(--color-background);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-upload__remove {
+    border-color: transparent;
+  }
+
+  .ds-upload__remove:hover {
+    background: var(--color-hover);
+  }
+
+  .ds-upload__stop span {
+    width: 0.625rem;
+    height: 0.625rem;
+    background: var(--color-danger);
+    border-radius: 2px;
+  }
+
+  .ds-upload__remove:focus-visible,
+  .ds-upload__stop:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* How long a reading takes is not known: a bar that sweeps, still under prefers-reduced-motion. */
+  .ds-upload__progress {
+    grid-column: 2 / -1;
+    height: 0.3125rem;
+    overflow: hidden;
+    background: var(--color-surface);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-upload__progress span {
+    display: block;
+    width: 40%;
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-control);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ds-upload__progress span {
+      animation: ds-upload-sweep 1.6s var(--motion-easing) infinite;
+    }
+  }
+
+  @keyframes ds-upload-sweep {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(250%);
+    }
+  }
+
+  /* A file's badge: a page, its top corner turned down, PDF in the danger colour and DOCX in the accent. */
+  .ds-file-badge {
+    position: relative;
+    display: grid;
+    flex: none;
+    place-items: end center;
+    width: 2.5rem;
+    height: 3rem;
+    padding-bottom: var(--space-1);
+    font-size: var(--font-size-meta);
+    font-weight: 700;
+    color: var(--color-on-accent);
+    background: var(--color-meta);
+    border-radius: var(--radius-md);
+  }
+
+  /* Its letters are drawn, not text: the badge is decoration, the file's name says its format. */
+  .ds-file-badge::after {
+    text-transform: uppercase;
+    content: attr(data-kind);
+  }
+
+  .ds-file-badge[data-kind="other"]::after {
+    content: none;
+  }
+
+  .ds-file-badge[data-kind="pdf"] {
+    background: var(--color-danger);
+  }
+
+  .ds-file-badge[data-kind="docx"] {
+    background: var(--color-accent);
+  }
+
+  .ds-file-badge::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0.75rem;
+    height: 0.75rem;
+    content: "";
+    background: linear-gradient(225deg, var(--color-background) 50%, var(--color-border) 50%);
+    border-bottom-left-radius: 3px;
+  }
+
+  .ds-file-badge[data-small] {
+    width: 1.75rem;
+    height: 2.125rem;
+    padding-bottom: 2px;
+    letter-spacing: -0.02em;
+  }
+}

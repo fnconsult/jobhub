@@ -122,10 +122,10 @@ function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArt
   };
 }
 
-type Frontmatter = Record<string, string | string[]>;
+export type Frontmatter = Record<string, string | string[]>;
 
 /** Splits `---`-delimited front matter (flat `key: value` and `key: [a, b]` lines) from the body. */
-function parseFrontmatter(markdown: string): { frontmatter: Frontmatter; body: string } {
+export function parseFrontmatter(markdown: string): { frontmatter: Frontmatter; body: string } {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(markdown);
   if (!match) return { frontmatter: {}, body: markdown };
   const frontmatter: Frontmatter = {};

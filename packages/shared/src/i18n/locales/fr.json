@@ -197,7 +197,14 @@
     "failedWithoutProviders": "La connexion n'a pas abouti. Réessayez ci-dessous en recevant un lien par e-mail.",
     "accountNotLinked": "Un compte Jobbbox utilise déjà cette adresse e-mail. Connectez-vous d'abord en recevant un lien par e-mail, puis associez ce moyen de connexion à votre compte depuis « Mon compte ».",
     "providerNotAllowed": "Ce moyen de connexion est réservé à l'équipe Jobbbox. Connectez-vous ci-dessous en recevant un lien par e-mail.",
-    "providerDisabled": "Ce moyen de connexion n'est pas disponible pour le moment. Connectez-vous ci-dessous en recevant un lien par e-mail."
+    "providerDisabled": "Ce moyen de connexion n'est pas disponible pour le moment. Connectez-vous ci-dessous en recevant un lien par e-mail.",
+    "legalLine": {
+      "before": "En continuant, vous acceptez les",
+      "terms": "conditions d'utilisation",
+      "between": "et la",
+      "privacy": "politique de confidentialité",
+      "after": "."
+    }
   },
   "backOfficeSignIn": {
     "title": "Se connecter au back office",
@@ -4492,5 +4499,58 @@
     "reasons": {
       "superAdmin": "Vous recevez cet e-mail parce que vous êtes super-admin de Jobbbox."
     }
+  },
+  "publicSite": {
+    "nav": "Pages publiques",
+    "nouveautes": "Nouveautés",
+    "legal": "Légal"
+  },
+  "legal": {
+    "eyebrow": "Légal",
+    "documentsNav": "Documents légaux",
+    "documents": {
+      "conditions-utilisation": "Conditions d'utilisation",
+      "confidentialite": "Politique de confidentialité",
+      "cookies": "Cookies",
+      "sous-traitants-et-ia": "Sous-traitants et IA",
+      "mentions-legales": "Mentions légales"
+    },
+    "effective": "En vigueur depuis le {{date}}",
+    "version": "Version {{version}}",
+    "earlierVersions": "Versions précédentes",
+    "earlierVersion": "Version {{version}}, en vigueur depuis le {{date}}",
+    "readingEarlier": "Vous lisez une version précédente de ce texte.",
+    "backToCurrent": "Lire la version en vigueur",
+    "summary": "En bref",
+    "toc": "Sur cette page",
+    "pdf": "Télécharger en PDF",
+    "notPublishedTitle": "Ce texte n'est pas encore publié",
+    "notPublished": "L'équipe Jobbbox le rédige. Il paraîtra ici dès qu'il sera publié."
+  },
+  "nouveautes": {
+    "eyebrow": "Nouveautés",
+    "title": "Ce qui change dans Jobbbox",
+    "subtitle": "Chaque version, ce qu'elle apporte aux candidats.",
+    "filters": "Filtrer par thème",
+    "all": "Tout",
+    "tags": {
+      "candidature": "Candidature",
+      "extension": "Extension",
+      "coach-ia": "Coach IA",
+      "confidentialite": "Confidentialité",
+      "accessibilite": "Accessibilité"
+    },
+    "changes": {
+      "new": "Nouveau",
+      "improved": "Amélioré",
+      "fixed": "Corrigé"
+    },
+    "version": "Version {{version}}",
+    "beta": "Version bêta, pas encore publiée",
+    "betaIntro": "Ce que la prochaine version apportera. Vous le voyez ici parce que vous êtes sur la version bêta de Jobbbox.",
+    "published": "Versions publiées",
+    "emptyTitle": "Rien n'est encore publié",
+    "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
+    "noneForTag": "Aucune version ne porte ce thème pour le moment."
   }
 }

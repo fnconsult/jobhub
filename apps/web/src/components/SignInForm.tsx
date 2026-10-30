@@ -1,15 +1,18 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { authClient } from "@/auth/client";
+import { Button } from "@/design/Button";
+import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { SignInButton } from "@/sign-in-providers/policy";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
 /**
- * Passwordless sign-up / sign-in (ADR-0008): a magic link by email, or one of the Sign-in
- * Providers the page offers. `callbackURL` is where a signed-in person lands, `errorURL`
+ * Passwordless sign-up / sign-in (ADR-0008): one of the Sign-in Providers the page offers, « ou », or a magic link
+ * by email (#470: the Design System's buttons and field, its sent and failed states as Notes). `callbackURL` is where a signed-in person lands, `errorURL`
  * where a failed sign-in comes back (with `?error=`).
  */
 export function SignInForm({
@@ -25,7 +28,6 @@ export function SignInForm({
   magicLink?: boolean;
 }) {
   const { t } = useTranslation();
-  const emailId = useId();
   const [status, setStatus] = useState<Status>("idle");
 
   async function requestLink(event: FormEvent<HTMLFormElement>) {
@@ -43,38 +45,35 @@ export function SignInForm({
 
   if (status === "sent") {
     return (
-      <p className="notice" role="status">
+      <Note tone="success" role="status">
         {t("signIn.sent")}
-      </p>
+      </Note>
     );
   }
 
   return (
-    <div className="stack">
+    <>
+      {providers.map((provider) => (
+        <Button key={provider.id} onClick={() => void continueWith(provider.id)}>
+          {t("signIn.continueWith", { provider: provider.displayName })}
+        </Button>
+      ))}
+      {magicLink && providers.length > 0 ? <p className="ds-sign-in__or">{t("signIn.or")}</p> : null}
       {magicLink ? (
-        <form className="stack" onSubmit={requestLink}>
-          <label htmlFor={emailId}>{t("signIn.emailLabel")}</label>
-          <input id={emailId} className="input" name="email" type="email" autoComplete="email" required />
-          <button className="button button-primary" type="submit" disabled={status === "sending"}>
+        <form className="ds-sign-in__form" onSubmit={requestLink}>
+          <Field label={t("signIn.emailLabel")}>
+            <TextInput name="email" type="email" autoComplete="email" required />
+          </Field>
+          <Button variant="primary" type="submit" busy={status === "sending"}>
             {status === "sending" ? t("signIn.sending") : t("signIn.submit")}
-          </button>
+          </Button>
         </form>
       ) : null}
       {status === "error" ? (
-        <p className="notice" role="alert">
+        <Note tone="danger" role="alert">
           {t("signIn.error")}
-        </p>
+        </Note>
       ) : null}
-      {providers.length > 0 ? (
-        <>
-          {magicLink ? <p className="separator">{t("signIn.or")}</p> : null}
-          {providers.map((provider) => (
-            <button key={provider.id} className="button" type="button" onClick={() => void continueWith(provider.id)}>
-              {t("signIn.continueWith", { provider: provider.displayName })}
-            </button>
-          ))}
-        </>
-      ) : null}
-    </div>
+    </>
   );
 }

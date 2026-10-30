@@ -16,6 +16,7 @@ import {
   CircleUser,
   ClipboardList,
   CreditCard,
+  Download,
   FileSearch,
   Flag,
   Globe,
@@ -129,6 +130,7 @@ const LUCIDE = {
   success: CircleCheck,
   trendUp: ArrowUpRight,
   trendDown: ArrowDownRight,
+  download: Download,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

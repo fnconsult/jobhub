@@ -226,7 +226,7 @@ test.describe("sign-in page text and Google sign-in", () => {
   test("with Google sign-in configured, the text and the button still mention Google", async ({ page }) => {
     await page.goto("/connexion");
     await expect(page.getByText("ou utilisez votre compte Google")).toBeVisible();
-    await expect(page.locator("p.lead")).toHaveText(introWithGoogle);
+    await expect(page.locator(".ds-sign-in__intro")).toHaveText(introWithGoogle);
     await expect(page.getByRole("button", { name: continueWithGoogle })).toBeVisible();
 
     await page.goto("/connexion?error=access_denied");
@@ -247,7 +247,7 @@ test.describe("sign-in page text and Google sign-in", () => {
     test("the text does not mention Google", async ({ page }) => {
       await page.goto(`${server.origin}/connexion`);
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.signIn.title);
-      await expect(page.locator("p.lead")).toHaveText(fr.signIn.introWithoutProviders);
+      await expect(page.locator(".ds-sign-in__intro")).toHaveText(fr.signIn.introWithoutProviders);
       await expect(page.getByRole("button", { name: continueWithGoogle })).toHaveCount(0);
       expect(await page.locator("main").innerText()).not.toMatch(/google/i);
     });

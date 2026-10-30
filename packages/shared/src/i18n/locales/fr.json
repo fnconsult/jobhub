@@ -4694,5 +4694,33 @@
     "emptyTitle": "Rien n'est encore publié",
     "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
     "noneForTag": "Aucune version ne porte ce thème pour le moment."
+  },
+  "withdrawals": {
+    "email": {
+      "subject": "Accusé de réception de votre rétractation",
+      "title": "Votre rétractation est enregistrée",
+      "intro": "Nous avons bien reçu votre rétractation le {{at}}. Elle porte sur le contrat suivant :",
+      "plan": "Offre {{plan}}",
+      "coachingSession": "Séance de coaching avec {{coach}}",
+      "concludedAt": "Conclu le {{date}}",
+      "paid": "Montant payé : {{amount}}",
+      "declaredBy": "Rétractation déclarée par : {{name}}.",
+      "planEnded": "Votre abonnement est annulé dès maintenant : vous êtes passé à l'offre Gratuite.",
+      "sessionCancelled": "La séance est annulée, et {{coach}} en est informé.",
+      "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
+      "nothingToRefund": "Rien à rembourser : aucun montant n'a été payé pour ce contrat.",
+      "keep": "Conservez cet e-mail : il atteste de votre rétractation.",
+      "reason": "Vous recevez cet e-mail parce que vous vous êtes rétracté d'un contrat conclu sur Jobbbox."
+    },
+    "coachEmail": {
+      "subject": "Séance annulée : {{candidate}} s'est rétracté",
+      "title": "Une séance de coaching est annulée",
+      "intro": "{{candidate}} s'est rétracté de la séance de coaching payée le {{paidAt}}.",
+      "scheduled": "Elle était prévue le {{at}} : ne la tenez pas, et libérez le créneau sur votre page Cal.com.",
+      "unscheduled": "Elle n'était pas encore datée : si un créneau est réservé sur votre page Cal.com, libérez-le.",
+      "refunded": "Jobbbox rembourse la séance au Candidat.",
+      "someone": "Un Candidat",
+      "reason": "Vous recevez cet e-mail parce que vous êtes Human Coach sur Jobbbox."
+    }
   }
 }

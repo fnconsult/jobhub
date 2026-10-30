@@ -7,7 +7,8 @@
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
  *  - how do they stop paying?     `closeAccount`, when they delete their account
- *  - how do they withdraw (#511)?  `subscription` (since when), `endSubscriptionNow`, `coachingSessionPayment`, `refund`
+ *  - how do they withdraw (#511)?  `subscription` (since when), `paidOnSubscription`, `endSubscriptionNow`,
+ *    `coachingSessionPayment`, `refund`
  *    (the signed webhook reports each refund's fate through `onRefundChanged`)
  *  - which Plans are there?       `plans`, and in the Back Office `createPlan`, `updatePlan`, `movePlan`
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
@@ -850,14 +851,15 @@ export function createBilling(config: BillingConfig) {
   }
 
   /** Each payment taken on a subscription's paid invoices; an invoice a 100 % code left at 0 took none. */
-  async function paymentsOn(subscriptionId: string): Promise<Payment[]> {
+  async function paymentsOn(subscriptionId: string, options: Stripe.RequestOptions = STRIPE_WRITE): Promise<Payment[]> {
     const invoices = await stripe()
-      .client.invoices.list({ subscription: subscriptionId, status: "paid", limit: 100, expand: ["data.payments"] }, STRIPE_WRITE)
+      .client.invoices.list({ subscription: subscriptionId, status: "paid", limit: 100, expand: ["data.payments"] }, options)
       .autoPagingToArray({ limit: 1_000 });
     return invoices.flatMap((invoice) =>
       (invoice.payments?.data ?? []).flatMap((paid) => {
         const id = idOf(paid.payment.payment_intent) ?? idOf(paid.payment.charge);
-        return paid.status === "paid" && id && paid.amount_paid > 0 ? [{ id, amount: paid.amount_paid, currency: paid.currency }] : [];
+        const amount = paid.amount_paid ?? 0;
+        return paid.status === "paid" && id && amount > 0 ? [{ id, amount, currency: paid.currency }] : [];
       }),
     );
   }
@@ -1200,6 +1202,22 @@ export function createBilling(config: BillingConfig) {
       }
       if (!startedAt) return null;
       return { id: account.stripe_subscription_id, plan: account.plan, planName: await nameOf(account.plan), startedAt };
+    },
+
+    /**
+     * What was paid so far on the Candidate's subscription (each payment), for the Withdrawal form; null on Free, or when
+     * Stripe does not answer quickly.
+     */
+    async paidOnSubscription(candidateId: string): Promise<Payment[] | null> {
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN || !config.stripe) return null;
+      try {
+        return await paymentsOn(account.stripe_subscription_id, QUICK);
+      } catch (error) {
+        console.error("[billing] could not read what was paid on a subscription", error);
+        return null;
+      }
     },
 
     /**

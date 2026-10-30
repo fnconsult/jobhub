@@ -4694,5 +4694,33 @@
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
     "noneForTag": "No version has this topic yet."
+  },
+  "withdrawals": {
+    "email": {
+      "subject": "Acknowledgement of your withdrawal",
+      "title": "Your withdrawal is recorded",
+      "intro": "We received your withdrawal on {{at}}. It concerns the following contract:",
+      "plan": "{{plan}} Plan",
+      "coachingSession": "Coaching Session with {{coach}}",
+      "concludedAt": "Concluded on {{date}}",
+      "paid": "Amount paid: {{amount}}",
+      "declaredBy": "Withdrawal declared by: {{name}}.",
+      "planEnded": "Your subscription is cancelled now: you are on the Free Plan.",
+      "sessionCancelled": "The session is cancelled, and {{coach}} has been told.",
+      "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
+      "nothingToRefund": "Nothing to refund: nothing was paid for this contract.",
+      "keep": "Keep this email: it records your withdrawal.",
+      "reason": "You get this email because you withdrew from a contract made on Jobbbox."
+    },
+    "coachEmail": {
+      "subject": "Session cancelled: {{candidate}} withdrew",
+      "title": "A Coaching Session is cancelled",
+      "intro": "{{candidate}} withdrew from the Coaching Session paid on {{paidAt}}.",
+      "scheduled": "It was planned for {{at}}: do not hold it, and free the slot on your Cal.com page.",
+      "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
+      "refunded": "Jobbbox refunds the session to the Candidate.",
+      "someone": "A Candidate",
+      "reason": "You get this email because you are a Human Coach on Jobbbox."
+    }
   }
 }

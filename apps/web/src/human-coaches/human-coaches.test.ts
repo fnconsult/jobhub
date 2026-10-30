@@ -407,6 +407,7 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
             paidAt: session.paidAt,
             scheduledAt: new Date("2026-10-22T12:00:00.000Z"),
             coach: { name: SOPHIE.name, email: SOPHIE.email },
+            candidateName: "",
           });
           expect(await clocked.sessions(marie)).toEqual([]);
           expect(await clocked.coachSessions(sophie.id)).toEqual([]);

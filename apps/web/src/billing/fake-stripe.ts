@@ -452,6 +452,13 @@ export async function startFakeStripe(port = 0) {
     refuseRefunds: (code: string | null) => void (refundRefusal = code),
     /** Every refund made, oldest first. */
     refunds: () => [...refunds],
+    /** Makes a refund fail, as a bank does days later; returns the `refund.failed` event Stripe then sends. */
+    failRefund: (refundId: string, failureReason: string) => {
+      const refund = refunds.find((each) => each.id === refundId);
+      if (!refund) throw new Error(`fake Stripe has no refund ${refundId}`);
+      refund.status = "failed";
+      return refundEvent("refund.failed", { id: refund.id, paymentIntent: refund.payment_intent, amount: refund.amount, status: "failed", failureReason });
+    },
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () =>

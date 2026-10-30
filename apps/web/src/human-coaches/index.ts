@@ -154,6 +154,8 @@ export interface WithdrawnCoachingSession {
   /** Its date before it was cancelled; null when it was Unscheduled. */
   scheduledAt: Date | null;
   coach: { name: string; email: string };
+  /** "Marie D.": how the Candidate is named to the Human Coach; empty when they gave no name. */
+  candidateName: string;
 }
 
 export type CoachReviewResult =
@@ -677,9 +679,18 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     async withdrawSession(candidateId, sessionId) {
       if (!UUID.test(sessionId)) return null;
       return inTransaction(database, async (client) => {
-        const { rows } = await client.query<{ stripe_checkout_session_id: string; amount: number; currency: string; paid_at: Date; scheduled_at: Date | null; coach_name: string; coach_email: string }>(
-          `SELECT s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email
-             FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id
+        const { rows } = await client.query<{
+          stripe_checkout_session_id: string;
+          amount: number;
+          currency: string;
+          paid_at: Date;
+          scheduled_at: Date | null;
+          coach_name: string;
+          coach_email: string;
+          candidate_name: string | null;
+        }>(
+          `SELECT s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, c.name AS candidate_name
+             FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id JOIN candidate c ON c.id = s.candidate_id
             WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND (s.scheduled_at IS NULL OR s.scheduled_at > $3)
             FOR UPDATE OF s`,
           [sessionId, candidateId, now()],
@@ -695,6 +706,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
           paidAt: session.paid_at,
           scheduledAt: session.scheduled_at,
           coach: { name: session.coach_name, email: session.coach_email },
+          candidateName: firstNameAndLastInitial(session.candidate_name ?? ""),
         };
       });
     },

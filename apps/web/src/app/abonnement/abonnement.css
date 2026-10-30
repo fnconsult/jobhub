@@ -132,6 +132,7 @@
 
 .plan-cards > li {
   display: flex;
+  min-width: 0;
 }
 
 .plan-card > .ds-card {
@@ -169,11 +170,15 @@
   list-style: none;
 }
 
+/* Each line: its mark, then the quota, and what the Plan gives of it under the quota's name. */
 .plan-card-quotas li {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-2);
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
   align-items: baseline;
+}
+
+.plan-card-value {
+  grid-column: 2;
 }
 
 .plan-card-mark {
@@ -183,6 +188,10 @@
 
 .plan-card-value {
   font-weight: 600;
+}
+
+.plan-card-quota {
+  color: var(--color-secondary);
 }
 
 .plan-card-quotas [data-included="false"] {
@@ -201,6 +210,8 @@
 
 .plan-card .ds-button {
   width: 100%;
+  padding-block: var(--space-2);
+  white-space: normal;
 }
 
 /* The promotion code: its Field, then « Appliquer » on its line. */

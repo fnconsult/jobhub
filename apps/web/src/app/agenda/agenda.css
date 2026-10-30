@@ -250,11 +250,6 @@
   font-weight: 600;
 }
 
-.agenda-item-title::before {
-  content: "· ";
-  color: var(--color-meta);
-}
-
 .agenda-item-employer {
   color: var(--color-secondary);
 }
@@ -265,10 +260,23 @@
   color: var(--color-secondary);
 }
 
-/* A dated Coaching Session's « Modifier la date » and « Annuler » sit side by side under it. */
-.agenda-item-with-action > .ds-button,
-.agenda-item-with-action > button {
+/* An item's buttons start where its words do: « Modifier la date », « Annuler », the quiet ones aligned like links. */
+.agenda-item > .ds-button,
+.agenda-item > button {
   justify-self: start;
+}
+
+.agenda-item .ds-button--quiet {
+  justify-content: flex-start;
+  padding-inline: 0;
+  text-align: left;
+}
+
+@media (width < 40rem) {
+  .agenda-item {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    padding-inline: 0;
+  }
 }
 
 /* Past: dimmed, in every view. */
@@ -411,8 +419,13 @@
   gap: 0;
 }
 
-.agenda-week .agenda-item-title::before {
-  content: none;
+/* In a narrow column, the Calendar file's hint stays its link's description, unshown; a long Pill keeps a card's corners. */
+.agenda-week .agenda-calendar-file-hint {
+  display: none;
+}
+
+.agenda-week .ds-pill {
+  border-radius: var(--radius-md);
 }
 
 /* A block's buttons (« Ajouter à mon calendrier », « Modifier la date ») wrap inside its narrow column. */

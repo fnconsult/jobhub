@@ -16,6 +16,13 @@
     "xlarge": "Grand",
     "hint": "Mémorisée sur cet appareil."
   },
+  "theme": {
+    "label": "Thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "hint": "Mémorisé sur cet appareil. Système suit le réglage de votre appareil."
+  },
   "notFound": {
     "backHome": "Retour à l'accueil"
   },

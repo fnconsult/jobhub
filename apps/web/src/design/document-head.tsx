@@ -1,4 +1,4 @@
-import { designTokens, renderDesignCss, TEXT_SIZE_SETTINGS, TEXT_SIZE_STORAGE_KEY } from "@jobhub/shared/design";
+import { designTokens, renderDesignCss, TEXT_SIZE_SETTINGS, TEXT_SIZE_STORAGE_KEY, themeScript } from "@jobhub/shared/design";
 import { applySidebarState } from "./sidebar-state";
 
 const designCss = renderDesignCss(designTokens);
@@ -9,15 +9,17 @@ const applyTextSize = `try{var s=localStorage.getItem(${JSON.stringify(TEXT_SIZE
 )}.indexOf(s)>-1)document.documentElement.dataset.textSize=s}catch(e){}`;
 
 /**
- * Design tokens, the remembered text size (ADR-0009) and whether the sidebar
- * was hidden. Every document the app renders, including the root error
- * boundary that replaces the root layout, puts this in its <head>.
+ * Design tokens, the theme (Clair, Sombre or Système, #473), the remembered
+ * text size (ADR-0009) and whether the sidebar was hidden, all set before
+ * first paint, so a dark page never flashes light. Every document the app
+ * renders, including the root error boundary that replaces the root layout,
+ * puts this in its <head>.
  */
 export function DocumentHead() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: designCss }} />
-      <script dangerouslySetInnerHTML={{ __html: applyTextSize + applySidebarState }} />
+      <script dangerouslySetInnerHTML={{ __html: themeScript() + applyTextSize + applySidebarState }} />
     </>
   );
 }

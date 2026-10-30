@@ -39,21 +39,11 @@ body {
   margin-left: auto;
 }
 
-/* The extension's mark: its initial on the accent. */
-.logo {
-  display: grid;
+/* The « Jobbbox » wordmark, in text: the logo's stand-in (#542). */
+.wordmark {
   flex: none;
-  place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
   font-weight: 700;
-  color: var(--color-on-accent);
-  background: var(--color-accent);
-  border-radius: var(--radius-sm);
-}
-
-.logo::before {
-  content: "J";
+  letter-spacing: -0.02em;
 }
 
 .panel-body {

@@ -16,7 +16,7 @@ export type PublicPage = (typeof PAGES)[number]["page"];
 const CURRENT_PAGE = "page";
 
 /**
- * A public page (#470): no Sidebar, the site's header (the logo, Nouveautés, Légal and « Se connecter », or « Mon
+ * A public page (#470): no Sidebar, the site's header (the « Jobbbox » wordmark, Nouveautés, Légal and « Se connecter », or « Mon
  * compte » for a signed-in Candidate) sticky at the top, then the page. A sign-in page leaves out the sign-in link.
  * The canvas is `canvas` on a sign-in page: accent-tinted, its card centred.
  */
@@ -27,7 +27,6 @@ export async function PublicSite({ current, signInLink = true, children }: { cur
     <div className="ds-site">
       <header className="ds-site__head">
         <Link className="ds-site__brand" href={routes.home}>
-          <span className="ds-site__logo" data-initial={t("app.name").charAt(0)} aria-hidden />
           {t("app.name")}
         </Link>
         <nav className="ds-site__nav" aria-label={t("publicSite.nav")}>

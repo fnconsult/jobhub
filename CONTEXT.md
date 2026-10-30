@@ -619,7 +619,7 @@ How tightly a surface of the Design System is set. Confort on the Candidate's pa
 _Avoid_: Compact mode, zoom
 
 **Email layout**:
-The one frame every email Jobbbox sends is written in (« Mise en page des emails »): a header (the « J » square and « Jobbbox »), a title, text, Job Offer cards and at most one primary button, the signature, and a footer giving the reason the person got the email, an unsubscribe or settings link where there is one, and the sender address. It follows the Confort Density and carries no image and no web font. The plain-text part and the HTML part say the same thing.
+The one frame every email Jobbbox sends is written in (« Mise en page des emails »): a header (the « Jobbbox » wordmark), a title, text, Job Offer cards and at most one primary button, the signature, and a footer giving the reason the person got the email, an unsubscribe or settings link where there is one, and the sender address. It follows the Confort Density and carries no image and no web font. The plain-text part and the HTML part say the same thing.
 _Avoid_: Email template, newsletter design
 
 **Design System page**:

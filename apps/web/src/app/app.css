@@ -1651,7 +1651,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   flex-shrink: 0;
 }
 
-/* The workspace at the top: Jobbbox's « J » square in the accent (the logo's stand-in, #460) and its name. */
+/* The workspace at the top: the « Jobbbox » wordmark, in text (the logo's stand-in, #542). */
 .sidebar-head {
   display: flex;
   flex-wrap: wrap;
@@ -1679,28 +1679,14 @@ html[data-sidebar="closed"] .sidebar-docked {
   min-height: var(--size-control);
   padding: var(--space-1) var(--space-2);
   font-size: var(--font-size-body);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text);
+  letter-spacing: -0.02em;
   border-radius: var(--radius-md);
 }
 
 .sidebar .brand:hover {
   background: var(--color-hover);
-}
-
-/* Drawn, not written: no word for screen readers, the link's name stays « Jobbbox ». */
-.sidebar .brand::before {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  font-size: var(--font-size-meta);
-  font-weight: 700;
-  color: var(--color-on-accent);
-  content: "J" / "";
-  background: var(--color-accent);
-  border-radius: var(--radius-md);
 }
 
 .sidebar-head .button {

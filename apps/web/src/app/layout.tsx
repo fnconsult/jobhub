@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateCoachPanel } from "@/components/CoachPanel";
+import { ResponseWatcher } from "@/components/ResponseWatcher";
 import { DocumentHead } from "@/design/document-head";
 import { ScrollbarActivity } from "@/design/ScrollbarActivity";
+import { ToastProvider } from "@/design/Toast";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { jobbboxVersion } from "@/signalements/server";
@@ -30,7 +32,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <ScrollbarActivity />
         <I18nProvider locale={locale}>
-          {candidate ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
+          {/* A session that expired, or too many requests, said in a Toast wherever the page calls our API (#542). */}
+          <ToastProvider>
+            <ResponseWatcher signedIn={candidate !== null} />
+            {candidate ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
+          </ToastProvider>
         </I18nProvider>
       </body>
     </html>

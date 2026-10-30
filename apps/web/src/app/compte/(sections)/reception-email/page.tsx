@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { EmailIntakeForm } from "@/components/EmailIntakeForm";
 import { getCandidateSenders, getEmailIntake } from "@/email-intake/server";
 import { getRequestLocale } from "@/i18n/server";
-import { routes } from "@/routes";
 
 /**
  * Mon compte's « Réception par email » Section (#441): switch Email intake on or off, the Forwarding address, the
@@ -11,7 +9,7 @@ import { routes } from "@/routes";
  */
 export default async function AccountEmailIntakePage() {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const emailIntake = getEmailIntake();
   const [forwardingAddress, sendingAddresses, recognisedSenders, locale] = await Promise.all([
     emailIntake.forwardingAddress(candidate.id),

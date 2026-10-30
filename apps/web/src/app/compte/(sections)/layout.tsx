@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { AccountSections } from "@/components/AccountSections";
 import { getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
 import "./account.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Mon compte, split into its Sections (ADR-0024): each a page of its own under /compte. */
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   return (
     <AccountSections candidateId={candidate.id}>
       <div className="account-section">{children}</div>

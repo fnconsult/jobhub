@@ -17,14 +17,45 @@
     "hint": "Remembered on this device."
   },
   "notFound": {
-    "title": "Page not found",
-    "message": "This page does not exist or has been moved.",
     "backHome": "Back to the home page"
   },
-  "error": {
-    "title": "Something went wrong",
-    "message": "We could not display this page. Please try again.",
-    "retry": "Try again"
+  "errorPage": {
+    "notFound": {
+      "title": "Page not found",
+      "message": "This page does not exist or has been moved. Your data is not affected."
+    },
+    "forbidden": {
+      "title": "Restricted page",
+      "message": "This page is for another type of account. If you think this is a mistake, let us know."
+    },
+    "error": {
+      "title": "Something went wrong",
+      "message": "We could not display this page. Your data is safe. Please try again in a moment."
+    },
+    "actions": {
+      "retry": "Try again",
+      "back": "Previous page",
+      "home": "Back to the home page",
+      "backOfficeHome": "Back to the Back Office",
+      "coachSpaceHome": "Back to the coach space",
+      "report": "Report a problem"
+    },
+    "digest": {
+      "label": "Error reference:",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "report": {
+      "subject": "Jobbbox: error {{code}}",
+      "text": "An error {{code}} was shown on the page {{path}}.",
+      "digest": "Error reference: {{digest}}"
+    },
+    "toast": {
+      "sessionExpired": "Your session has expired. Copy what you were writing, then sign in again.",
+      "signInAgain": "Sign in again",
+      "tooManyRequests": "Too many requests in a short time. Please try again in {{seconds}} s.",
+      "tooManyRequestsSoon": "Too many requests in a short time. Please try again in a moment."
+    }
   },
   "extension": {
     "title": "Jobbbox",
@@ -182,6 +213,7 @@
     "profiles": "How do I create a profile?"
   },
   "signIn": {
+    "sessionExpired": "Your session has expired. Sign in again to go back to the page you were on.",
     "title": "Sign in to Jobbbox",
     "intro": "No password to remember: get a sign-in link by email, or use your {{providers}} account. If you don't have an account yet, one will be created.",
     "introWithoutProviders": "No password to remember: get a sign-in link by email. If you don't have an account yet, one will be created.",

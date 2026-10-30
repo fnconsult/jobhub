@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { ProfileOnboarding } from "@/components/ProfileOnboarding";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
@@ -17,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 /** Creating a Profile from an uploaded CV, the Onboarding Questionnaire or from scratch (no LinkedIn import of any kind, ADR-0001). */
 export default async function NewProfilePage() {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const t = await getServerT();
   const upgradePrompt = await profileUpgradePromptFor(candidate);
   return (

@@ -9,6 +9,8 @@ loadRootEnv();
 const nextConfig: NextConfig = {
   // Self-contained server bundle, deployable as a container in an EU region (ADR-0007).
   output: "standalone",
+  // forbidden() and its forbidden.tsx (#542): the only way a page answers a real 403 (still experimental in Next 16).
+  experimental: { authInterrupts: true },
   transpilePackages: ["@jobhub/shared", "@jobhub/ai", "@jobhub/coach-knowledge", "@jobhub/help"],
   // The Unicode fonts a PDF export embeds are read from node_modules at run time (src/export/fonts.ts).
   // `npm run build` checks they all made it into the standalone output (scripts/check-standalone-fonts.ts).

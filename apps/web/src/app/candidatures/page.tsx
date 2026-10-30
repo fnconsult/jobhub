@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { INTERVIEW_TIME_ZONE, type ApplicationSummary } from "@/applications";
 import { getApplications } from "@/applications/server";
 import { applicationListHref, applicationListView, isArchivedApplication, viewApplications, type ApplicationListParams, type ApplicationListView, type ApplicationSort } from "@/applications/list-view";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { ApplicationStatusSelect } from "@/components/ApplicationControls";
@@ -50,7 +50,7 @@ const SORT_LABELS = { offre: "applications.jobOffer", profil: "applications.prof
  */
 export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ vue?: string } & ApplicationListParams> }) {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const [t, locale, applications, notices, profiles, params] = await Promise.all([
     getServerT(),
     getRequestLocale(),

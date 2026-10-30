@@ -1,12 +1,11 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { getJobOffers } from "@/job-offers/server";
 import { getJobQueue } from "@/job-queue/server";
 import { getProfiles } from "@/profiles/server";
-import { routes } from "@/routes";
 import { createJobSearches, type JobSearch, type JobSearches } from "./index";
 
 let instance: JobSearches | undefined;
@@ -29,7 +28,7 @@ export function getJobSearches(): JobSearches {
  */
 export async function requireOwnJobSearch(id: string): Promise<{ candidateId: string; jobSearch: JobSearch }> {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const jobSearch = await getJobSearches().get(candidate.id, id);
   if (!jobSearch) notFound();
   return { candidateId: candidate.id, jobSearch };

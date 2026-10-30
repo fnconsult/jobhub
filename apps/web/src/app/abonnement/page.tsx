@@ -1,7 +1,6 @@
 import { FREE_PLAN, WEEKLY_QUOTAS } from "@jobhub/shared";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { PROMOTION_CODE_REFUSALS, type PromotionCodeRefusal } from "@/billing";
 import { codeNotice } from "@/billing/code-notice";
 import { activeDiscountLabel } from "@/billing/coupon-label";
@@ -48,7 +47,7 @@ const MAX_CODE_LENGTH = 40;
  */
 export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string }> }) {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
   const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan } = await searchParams;

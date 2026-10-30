@@ -2,7 +2,7 @@ import type { Activity } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { EmptyStateHelp } from "@/components/HelpTerm";
@@ -82,7 +82,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profil?: string; vue?: string }> }) {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const [t, locale, profiles, params, industries] = await Promise.all([getServerT(), getRequestLocale(), getProfiles().list(candidate.id), searchParams, readIndustryReference()]);
   const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const first = active[0];

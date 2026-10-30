@@ -1,9 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getProfiles } from "@/profiles/server";
-import { routes } from "@/routes";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
 import { createHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
@@ -33,7 +32,7 @@ export async function currentHumanCoach(): Promise<HumanCoach | null> {
  */
 export async function requireHumanCoach(): Promise<HumanCoach> {
   const person = await getCurrentCandidate();
-  if (!person) redirect(routes.signIn);
+  if (!person) return signInRedirect();
   const coach = await getHumanCoaches().coachSignedIn(person);
   if (!coach) notFound();
   return coach;

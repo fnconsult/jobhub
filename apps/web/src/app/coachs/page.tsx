@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { agendaPeriod } from "@/agenda";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
 import { CandidateLayout } from "@/components/CandidateLayout";
@@ -24,7 +24,7 @@ const ACCESS = { grant: "grant", revoke: "revoke" } as const;
 async function changeCoachAccess(form: FormData) {
   "use server";
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const coachId = String(form.get("coachId"));
   if (form.get("access") === ACCESS.grant) await getHumanCoaches().grantAccess(candidate.id, coachId);
   else await getHumanCoaches().revokeAccess(candidate.id, coachId);
@@ -39,7 +39,7 @@ async function changeCoachAccess(form: FormData) {
  */
 export default async function HumanCoachesPage({ searchParams }: { searchParams: Promise<{ session?: string; error?: string }> }) {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   const { session, error } = await searchParams;
   const coaching = getHumanCoaches();

@@ -62,3 +62,7 @@ The Back Office is read by Administrators, not by Candidates. It uses the Compac
 - these are tokens of the Compact Density, checked by the token audit like the Confort ones
 
 The Candidate's pages, the extension and the emails keep the Confort Density and the floor above. The look is no longer "Notion-like": the visual direction is Mercury's (ADR-0053). "Don't grey text" still holds.
+
+## Amendment: Candidate buttons keep the 44 px target (issue #467, 2026-10-30)
+
+Confort's control height is 40px, which at the standard text size left Design System buttons at 42.5px, under the floor. On Candidate pages, Design System buttons take `--control-height` of 2.75rem (44px) in `app.css`; the Back Office and the Design System page previews keep their density's height. Job Offer title links get the same target. Settling 40px against 44px at token level is left open.

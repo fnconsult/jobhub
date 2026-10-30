@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { currentIsAdministrator } from "@/admin/server";
 import { getCurrentCandidate, linkedSignInProviders } from "@/auth/server";
 import { SignInMethods } from "@/components/SignInMethods";
+import { Card } from "@/design/Card";
+import { Properties, Property } from "@/design/Properties";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import { linkableProviders } from "@/sign-in-providers/policy";
@@ -15,10 +17,11 @@ export default async function AccountSignInPage({ searchParams }: { searchParams
   const usable = linkableProviders(currentSignInConfiguration(), { isAdministrator });
   return (
     <>
-      <dl>
-        <dt>{t("account.email")}</dt>
-        <dd>{candidate.email}</dd>
-      </dl>
+      <Card>
+        <Properties>
+          <Property term={t("account.email")}>{candidate.email}</Property>
+        </Properties>
+      </Card>
       <SignInMethods
         linked={usable.filter((provider) => linkedIds.includes(provider.id))}
         linkable={usable.filter((provider) => !linkedIds.includes(provider.id))}

@@ -2,6 +2,9 @@
 
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Card } from "@/design/Card";
+import { Checkbox } from "@/design/Field";
+import { Note } from "@/design/Note";
 
 /**
  * The Candidate's Appointment Reminders: the email the day before their Agenda Items, at 18:00
@@ -38,28 +41,24 @@ export function AppointmentRemindersForm({ enabled: initial }: { enabled: boolea
   }
 
   return (
-    <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("appointmentReminder.settings.title")}</h2>
-      <div className="checkbox-field">
-        <input
-          id={`${id}-enabled`}
-          type="checkbox"
+    <Card title={t("appointmentReminder.settings.title")} headingId={`${id}-title`}>
+      <div className="stack">
+        <Checkbox
+          label={t("appointmentReminder.settings.label")}
+          hint={t("appointmentReminder.settings.explanation")}
           checked={enabled}
           disabled={working}
-          aria-describedby={`${id}-explanation`}
           onChange={(event) => void change(event.target.checked)}
         />
-        <label htmlFor={`${id}-enabled`}>{t("appointmentReminder.settings.label")}</label>
-        <p id={`${id}-explanation`} className="hint">
-          {t("appointmentReminder.settings.explanation")}
+        <p role="status" className="account-status">
+          {saved ? t(enabled ? "appointmentReminder.settings.on" : "appointmentReminder.settings.off") : ""}
         </p>
+        {failed ? (
+          <Note tone="danger" role="alert">
+            {t("appointmentReminder.settings.error")}
+          </Note>
+        ) : null}
       </div>
-      <p role="status">{saved ? t(enabled ? "appointmentReminder.settings.on" : "appointmentReminder.settings.off") : ""}</p>
-      {failed ? (
-        <p className="field-error" role="alert">
-          {t("appointmentReminder.settings.error")}
-        </p>
-      ) : null}
-    </section>
+    </Card>
   );
 }

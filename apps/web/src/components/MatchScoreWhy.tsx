@@ -2,6 +2,7 @@ import type { CriterionStatus } from "@jobhub/shared";
 import type { TFunction } from "i18next";
 import { HelpText } from "@/components/HelpTerm";
 import { matchScoreInWords, matchScoreReliabilityHint, matchScoreWhyInWords, type MatchScoreFigure, type MatchScoreReason } from "@/components/job-search-words";
+import { buttonClass } from "@/design/button-class";
 
 /** A verdict is said in words; the colour only reinforces a clear match or mismatch. */
 const VERDICT_TONE: Partial<Record<CriterionStatus, string>> = { match: "success", mismatch: "danger" };
@@ -9,12 +10,12 @@ const VERDICT_TONE: Partial<Record<CriterionStatus, string>> = { match: "success
 /**
  * "Pourquoi 86 ?" (`summary`), opening the reasons of a Match Score: one line
  * per criterion with its verdict (see `matchScoreReasons`). Holds no state, so
- * server and client pages alike can show it.
+ * server and client pages alike can show it. « Pourquoi 86 ? » is drawn as the Design System's quiet button (#467).
  */
 export function MatchScoreWhy({ summary, reasons }: { summary: string; reasons: readonly MatchScoreReason[] }) {
   return (
     <details className="why">
-      <summary>{summary}</summary>
+      <summary className={buttonClass({ variant: "quiet", size: "sm" })}>{summary}</summary>
       <ul className="breakdown">
         {reasons.map((reason) => (
           <li key={reason.text}>

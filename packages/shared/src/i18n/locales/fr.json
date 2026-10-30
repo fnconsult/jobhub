@@ -1013,7 +1013,11 @@
         "unchecked": "Ce code promo n'a pas pu être vérifié pour le moment.",
         "too_many_tries": "Vous avez essayé beaucoup de codes promo : réessayez dans quelques minutes."
       },
-      "continueWithoutCode": "Continuer vers l'offre {{plan}} sans le code"
+      "continueWithoutCode": "Continuer vers l'offre {{plan}} sans le code",
+      "recommended": "Conseillée",
+      "codeLabel": "Code promo",
+      "codeHint": "Il s'applique à un nouvel abonnement, au paiement.",
+      "applyCode": "Appliquer"
     },
     "quotas": {
       "profiles": "Profils",
@@ -3151,7 +3155,8 @@
     "sortedDescending": "triée de Z à A",
     "noneMatch": "Aucune candidature ne correspond à ces filtres.",
     "archivedHidden_one": "{{count}} candidature archivée est masquée.",
-    "archivedHidden_other": "{{count}} candidatures archivées sont masquées."
+    "archivedHidden_other": "{{count}} candidatures archivées sont masquées.",
+    "emptyTitle": "Aucune candidature pour l'instant"
   },
   "agenda": {
     "title": "Entretiens et rendez-vous",
@@ -3195,6 +3200,7 @@
     "dayItems_one": "{{date}} : {{count}} rendez-vous",
     "dayItems_other": "{{date}} : {{count}} rendez-vous",
     "legendLabel": "Légende",
+    "pastDimmed": "Les rendez-vous passés sont estompés.",
     "changedByCoach": "modifié par le coach",
     "calendarFile": {
       "add": "Ajouter à mon calendrier",
@@ -3416,7 +3422,9 @@
       "seeResults": "Voir les offres",
       "seeSearch": "Voir la recherche",
       "dismiss": "Fermer"
-    }
+    },
+    "matchScoreCaption": "Match Score",
+    "partialCaption": "Partiel"
   },
   "companyDossier": {
     "title": "Dossier entreprise",
@@ -3969,7 +3977,9 @@
     "groupsLabel": "Résultats par profil",
     "groupTitle": "Offres pour « {{profile}} »",
     "laneLabel": "Offres trouvées pour « {{profile}} », à faire défiler de côté",
-    "searchThisProfile": "Chercher pour ce profil seul"
+    "searchThisProfile": "Chercher pour ce profil seul",
+    "neverTitle": "Pas encore de recherche pour ce profil",
+    "noActiveProfileTitle": "Aucun profil actif"
   },
   "receivedByEmail": {
     "title": "Reçues par email",
@@ -4499,6 +4509,13 @@
     "reasons": {
       "superAdmin": "Vous recevez cet e-mail parce que vous êtes super-admin de Jobbbox."
     }
+  },
+  "quickActions": {
+    "label": "Actions rapides",
+    "searchJobOffers": "Chercher des offres",
+    "addApplication": "Ajouter une candidature",
+    "scheduleInterview": "Planifier un entretien",
+    "askCoach": "Demander au coach"
   },
   "publicSite": {
     "nav": "Pages publiques",

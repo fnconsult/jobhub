@@ -47,6 +47,17 @@ describe("Card and Stat (#462)", () => {
     expect(screen.getByRole("heading", { name: "Dépense quotidienne" })).toBeTruthy();
   });
 
+  it("a Card can be an article named by its title (an Action Card, #467)", () => {
+    renderInFrench(
+      <Card as="article" headingId="relance-1" headingLevel={3} title="Relancer l'employeur pour « DAF »" actions={<span>Relance suggérée</span>}>
+        Bonjour, je reviens vers vous…
+      </Card>,
+    );
+    const article = screen.getByRole("article", { name: "Relancer l'employeur pour « DAF »" });
+    expect(within(article).getByRole("heading", { level: 3 }).id).toBe("relance-1");
+    expect(article.textContent).toContain("Relance suggérée");
+  });
+
   it("a Stat gives its label, value, metadata, progress towards a threshold and trend", () => {
     renderInFrench(
       <Stats>
@@ -111,5 +122,13 @@ describe("Ring (#462)", () => {
   it("rounds the score and keeps it between 0 and 100", () => {
     renderInFrench(<Ring label="ATS Score" value={104.4} />);
     expect(screen.getByRole("img", { name: "ATS Score : 100 sur 100" })).toBeTruthy();
+  });
+
+  it("drawn beside the score in words (a Job Offer card, #467), it is decoration only", () => {
+    const { container } = renderInFrench(<Ring decorative value={92} />);
+    expect(screen.queryByRole("img")).toBeNull();
+    const ring = container.querySelector(".ds-ring") as HTMLElement;
+    expect(ring.getAttribute("aria-hidden")).toBe("true");
+    expect(ring.textContent).toBe("92");
   });
 });

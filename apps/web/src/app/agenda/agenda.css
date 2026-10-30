@@ -1,0 +1,601 @@
+/* The Agenda's own layout (#469, ADR-0053): what is not a Design System component's. Its views are a SegmentedLinks,
+   its buttons and links drawn as one are Buttons, a rescheduled item's « Reporté » a warn Pill and an empty list a
+   Note; this file places them, and draws the list's days, the week's columns and the month's grid. */
+
+.agenda-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* On the Candidate's pages, the segmented control's options and the buttons reach the 44px target floor (ADR-0009). */
+.agenda-page .ds-segmented__option,
+.agenda-page .ds-button {
+  min-height: var(--control-height);
+}
+
+/* A button or a Pill naming a Human Coach or a date (« Choisir mon créneau avec … », « Reporté · initialement prévu
+   le … ») wraps on a phone rather than run off the side. */
+.agenda-page .ds-button,
+.agenda-page .ds-pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.agenda-page .ds-button {
+  padding-block: var(--space-2);
+  text-align: center;
+}
+
+/* The views, then « Ajouter un entretien » at the row's far end; everything wraps on a phone. */
+.agenda-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agenda-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.agenda-added {
+  margin: 0;
+  color: var(--color-success);
+}
+
+.agenda-added:empty {
+  display: none;
+}
+
+/* A view: its period (« À venir », « Semaine du … », « octobre 2026 ») and how to move from it, then its days. */
+.agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.agenda-period-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agenda-period-title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+}
+
+.agenda-period-title::first-letter {
+  text-transform: uppercase;
+}
+
+.agenda-period-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.agenda-nothing {
+  margin: 0;
+  color: var(--color-meta);
+}
+
+/* « À planifier » (#248): the Unscheduled Coaching Sessions at the top, each in a dashed frame, its hollow diamond
+   first and its booking link and « saisir la date » at the end. */
+.agenda-to-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.agenda-to-schedule h2 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.agenda-to-schedule > p {
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+.agenda-unscheduled-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.agenda-unscheduled {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-background);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-card);
+}
+
+.agenda-unscheduled-what {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agenda-unscheduled-what p {
+  margin: 0;
+}
+
+.agenda-unscheduled-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The list: one row per day, the day in a column of its own beside its items (above them on a phone), a hairline
+   between days. */
+.agenda-days {
+  display: flex;
+  flex-direction: column;
+}
+
+.agenda-days > .agenda-day {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.agenda-days > .agenda-day:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.agenda-days > .agenda-day h3 {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.agenda-day-weekday {
+  display: block;
+  text-transform: capitalize;
+}
+
+.agenda-day-date {
+  display: block;
+  font-weight: 400;
+  color: var(--color-meta);
+}
+
+@media (width < 40rem) {
+  .agenda-days > .agenda-day {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+}
+
+.agenda-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* One Agenda Item: its time, then what it is (its shape, kind, title and company), the link to its Application or
+   Human Coach; under them, in the second column, its format and place, its Calendar file, its history and buttons. */
+.agenda-item {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.agenda-item:hover {
+  background: var(--color-surface);
+}
+
+.agenda-item > * {
+  grid-column: 2;
+  margin: 0;
+}
+
+.agenda-item > .agenda-item-link {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.agenda-item-link:hover .agenda-item-title {
+  text-decoration: underline;
+}
+
+.agenda-item-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-secondary);
+}
+
+.agenda-item-time time {
+  white-space: nowrap;
+}
+
+.agenda-item-what {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.agenda-item-kind {
+  font-weight: 600;
+}
+
+.agenda-item-employer {
+  color: var(--color-secondary);
+}
+
+/* « modifié par le coach » (#249): the Human Coach last changed the Coaching Session's date. */
+.agenda-item-changed {
+  font-style: italic;
+  color: var(--color-secondary);
+}
+
+/* An item's buttons start where its words do: « Modifier la date », « Annuler », the quiet ones aligned like links. */
+.agenda-item > .ds-button,
+.agenda-item > button {
+  justify-self: start;
+}
+
+.agenda-item .ds-button--quiet {
+  justify-content: flex-start;
+  padding-inline: 0;
+  text-align: left;
+}
+
+@media (width < 40rem) {
+  .agenda-item {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    padding-inline: 0;
+  }
+}
+
+/* Past: dimmed, in every view. */
+.agenda-item-past {
+  opacity: 0.6;
+}
+
+/* Cancelled (#250): struck through, with « Annulé le … » in words (a strike-through alone is not read out). */
+.agenda-item-cancelled .agenda-item-time,
+.agenda-item-cancelled .agenda-item-title,
+.agenda-item-cancelled .agenda-item-employer {
+  text-decoration: line-through;
+}
+
+.agenda-item-cancelled .agenda-item-link {
+  color: var(--color-secondary);
+}
+
+/* « Ajouter à mon calendrier » (#252, ADR-0029): the Calendar file's link, and why a later change needs a new download. */
+.agenda-calendar-file {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+
+.agenda-calendar-file-hint {
+  color: var(--color-meta);
+}
+
+/* An item's kind, told apart by shape as well as colour: a disc for an Interview, a hollow diamond for a Coaching
+   Session. The same shapes sit in the week's blocks, the month's grid and the legend. */
+.agenda-marker {
+  display: inline-block;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: var(--space-2);
+  vertical-align: middle;
+}
+
+.agenda-marker-interview {
+  background: var(--color-accent);
+  border-radius: 50%;
+}
+
+.agenda-marker-coachingSession {
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border: 2px solid var(--color-chart-2);
+  transform: rotate(45deg);
+}
+
+.agenda-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  padding: 0;
+  margin: 0;
+  color: var(--color-secondary);
+  list-style: none;
+}
+
+.agenda-legend li {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The week: seven columns in one bordered grid, each day's name at its head and its items as blocks (an Interview in
+   the accent, a Coaching Session in the second series colour), when the page's column has room for them; the days
+   stacked otherwise. The room is the page's own width (a container query on `.workspace > .page`), not the window's:
+   the Sidebar and a docked Coach Panel take their share. 54rem leaves each column about 6.25rem, which holds a
+   semibold « administratif » and each of an item's two times. It is in rem, so a larger Text Size needs a wider page. */
+.agenda-week {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  list-style: none;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.agenda-week-day {
+  min-width: 0;
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.agenda-week-day:first-child {
+  border-top: 0;
+}
+
+.agenda-week-day h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.agenda-week-day.agenda-today h3 {
+  color: var(--color-accent);
+}
+
+.agenda-week .agenda-items {
+  gap: var(--space-2);
+}
+
+.agenda-week .agenda-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--color-accent-soft);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+}
+
+.agenda-week .agenda-item[data-kind="coachingSession"] {
+  background: var(--color-surface);
+  border-left-color: var(--color-chart-2);
+}
+
+.agenda-week .agenda-item > .agenda-item-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-wrap: break-word;
+}
+
+.agenda-week .agenda-item-time {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.agenda-week .agenda-item-what {
+  flex-direction: column;
+  gap: 0;
+}
+
+/* In a narrow column, the Calendar file's hint stays its link's description, unshown; a long Pill keeps a card's corners. */
+.agenda-week .agenda-calendar-file-hint {
+  display: none;
+}
+
+.agenda-week .ds-pill {
+  border-radius: var(--radius-md);
+}
+
+/* A block's buttons (« Ajouter à mon calendrier », « Modifier la date ») wrap inside its narrow column. */
+.agenda-week .ds-button {
+  justify-content: flex-start;
+  max-width: 100%;
+  padding-inline: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+@container (width >= 54rem) {
+  .agenda-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .agenda-week-day {
+    min-height: 10rem;
+    border-top: 0;
+    border-left: 1px solid var(--color-border);
+  }
+
+  .agenda-week-day:first-child {
+    border-left: 0;
+  }
+
+  .agenda-week-day h3 {
+    padding-bottom: var(--space-2);
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+  }
+}
+
+/* The month: a grid of day buttons in one bordered frame, as wide as the page and never wider (375 px included).
+   Before today the number is dimmed; today's sits in a filled disc; the day chosen is ringed in the accent, its items
+   listed below the grid. */
+.agenda-month {
+  width: 100%;
+  table-layout: fixed;
+  border-spacing: 0;
+  border-collapse: separate;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.agenda-month th {
+  padding: var(--space-2) 0;
+  font-weight: 600;
+  color: var(--color-secondary);
+  text-align: center;
+}
+
+.agenda-month abbr {
+  text-decoration: none;
+}
+
+.agenda-month td {
+  padding: 0;
+  vertical-align: top;
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+
+.agenda-month td:first-child {
+  border-left: 0;
+}
+
+.agenda-month-outside {
+  background: var(--color-surface);
+}
+
+.agenda-month-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.agenda-month-day:hover {
+  background: var(--color-surface);
+}
+
+.agenda-month-day-past .agenda-month-number {
+  color: var(--color-meta);
+}
+
+.agenda-month-day-past .agenda-marker {
+  opacity: 0.5;
+}
+
+.agenda-month-number {
+  display: grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-month-day.agenda-today .agenda-month-number {
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-radius: 999px;
+}
+
+.agenda-month-day[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.agenda-markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+  line-height: 1;
+}
+
+.agenda-markers .agenda-marker {
+  margin: 0;
+}
+
+.agenda-markers-more {
+  color: var(--color-secondary);
+}
+
+@media (width < 40rem) {
+  .agenda-month-day {
+    align-items: center;
+    min-height: var(--control-height);
+    padding: 2px 0;
+    gap: 2px;
+  }
+
+  .agenda-markers {
+    justify-content: center;
+    gap: 2px;
+  }
+
+  .agenda-markers-more {
+    display: none;
+  }
+}
+
+/* The day chosen in the month, on a card under the grid. */
+.agenda-chosen-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.agenda-chosen-day h3 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.agenda-chosen-day h3::first-letter {
+  text-transform: uppercase;
+}

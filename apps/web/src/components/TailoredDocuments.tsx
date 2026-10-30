@@ -1,12 +1,15 @@
 "use client";
 
 import { DOCUMENT_LANGUAGES, type DocumentLanguage, type Provenance } from "@jobhub/shared";
-import * as Tabs from "@radix-ui/react-tabs";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationDrafts } from "@/tailored-documents";
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "@/tailored-documents/kinds";
 import { mailLink } from "@/tailored-documents/mail-link";
+import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
+import { Tabs, type Tab as DocumentTab } from "@/design/Tabs";
+import "@/design/Field.css";
 import { ApplicationExportForm } from "./ApplicationExportForm";
 import { LiveActionStatus, useLiveAction } from "./LiveAction";
 import { ProvenanceLine } from "./ProvenanceLine";
@@ -96,7 +99,7 @@ export function TailoredDocuments({
         </p>
         <select
           id={`${id}-language`}
-          className="input"
+          className="ds-input ds-select"
           value={language}
           aria-describedby={`${id}-language-hint`}
           onChange={(event) => setLanguage(event.target.value as DocumentLanguage)}
@@ -108,32 +111,42 @@ export function TailoredDocuments({
           ))}
         </select>
       </div>
-      <Tabs.Root value={tab} onValueChange={setTab}>
-        <Tabs.List className="tablist" aria-label={t("application.documentsTitle")}>
-          {tabs.map((value) => (
-            <Tabs.Trigger key={value} className="tab" value={value}>
-              {label[value]}
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
-        {tailoredCv ? (
-          <Tabs.Content className="tabpanel" value={TAILORED_CV} forceMount>
-            <TailoredCvReview applicationId={applicationId} initial={tailoredCv} language={language} locale={locale} />
-          </Tabs.Content>
-        ) : null}
-        {drafts ? (
-          <>
-            <Tabs.Content className="tabpanel" value={COVER_LETTER} forceMount>
-              <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
-              <DraftEditor applicationId={applicationId} document={COVER_LETTER} language={language} initial={drafts.coverLetter} />
-            </Tabs.Content>
-            <Tabs.Content className="tabpanel" value={OUTREACH_MESSAGE} forceMount>
-              <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
-              <DraftEditor applicationId={applicationId} document={OUTREACH_MESSAGE} language={language} initial={drafts.outreachMessage} recipients={recipients} />
-            </Tabs.Content>
-          </>
-        ) : null}
-      </Tabs.Root>
+      {/* The Design System's Tabs (#467); every tab stays mounted, so switching keeps unsaved edits. */}
+      <Tabs
+        label={t("application.documentsTitle")}
+        value={tab}
+        onValueChange={setTab}
+        keepMounted
+        tabs={[
+          ...(tailoredCv
+            ? [{ value: TAILORED_CV, label: label[TAILORED_CV], content: <TailoredCvReview applicationId={applicationId} initial={tailoredCv} language={language} locale={locale} /> }]
+            : []),
+          ...(drafts
+            ? [
+                {
+                  value: COVER_LETTER,
+                  label: label[COVER_LETTER],
+                  content: (
+                    <>
+                      <Note>{t("tailoredDocuments.draftsOnly")}</Note>
+                      <DraftEditor applicationId={applicationId} document={COVER_LETTER} language={language} initial={drafts.coverLetter} />
+                    </>
+                  ),
+                },
+                {
+                  value: OUTREACH_MESSAGE,
+                  label: label[OUTREACH_MESSAGE],
+                  content: (
+                    <>
+                      <Note>{t("tailoredDocuments.draftsOnly")}</Note>
+                      <DraftEditor applicationId={applicationId} document={OUTREACH_MESSAGE} language={language} initial={drafts.outreachMessage} recipients={recipients} />
+                    </>
+                  ),
+                },
+              ]
+            : []),
+        ] satisfies DocumentTab<string>[]}
+      />
     </section>
   );
 }
@@ -204,7 +217,7 @@ function DraftEditor({
       {recipients.length > 0 ? (
         <div className="field">
           <label htmlFor={`${id}-recipient`}>{t("tailoredDocuments.outreachMessage.recipientLabel")}</label>
-          <select id={`${id}-recipient`} className="input" value={recipientId} onChange={(event) => setRecipientId(event.target.value)}>
+          <select id={`${id}-recipient`} className="ds-input ds-select" value={recipientId} onChange={(event) => setRecipientId(event.target.value)}>
             <option value="">{t("tailoredDocuments.outreachMessage.recipientNone")}</option>
             {recipients.map((recipient) => (
               <option key={recipient.id} value={recipient.id}>
@@ -216,7 +229,7 @@ function DraftEditor({
       ) : null}
       <div className="field">
         <label htmlFor={`${id}-channel`}>{t("tailoredDocuments.outreachMessage.channelLabel")}</label>
-        <select id={`${id}-channel`} className="input" value={channel} onChange={(event) => setChannel(event.target.value as OutreachChannel)}>
+        <select id={`${id}-channel`} className="ds-input ds-select" value={channel} onChange={(event) => setChannel(event.target.value as OutreachChannel)}>
           {OUTREACH_CHANNELS.map((option) => (
             <option key={option} value={option}>
               {t(`tailoredDocuments.outreachMessage.channels.${option}`)}
@@ -233,7 +246,7 @@ function DraftEditor({
         <>
           <p>{t(`${keys}.none`)}</p>
           {channelSelect}
-          <button className="button button-primary" type="button" onClick={write} disabled={status === "drafting"}>
+          <button className={buttonClass({ variant: "primary" })} type="button" onClick={write} disabled={status === "drafting"}>
             {status === "drafting" ? t("tailoredDocuments.drafting") : t(`${keys}.draft`)}
           </button>
           <LiveActionStatus action={action} />
@@ -258,14 +271,14 @@ function DraftEditor({
           {isOutreach ? (
             <div className="field">
               <label htmlFor={`${id}-subject`}>{t("tailoredDocuments.outreachMessage.subjectLabel")}</label>
-              <input id={`${id}-subject`} className="input" maxLength={300} value={subject} onChange={(event) => setSubject(event.target.value)} />
+              <input id={`${id}-subject`} className="ds-input" maxLength={300} value={subject} onChange={(event) => setSubject(event.target.value)} />
             </div>
           ) : null}
           <div className="field">
             <label htmlFor={`${id}-text`}>{t(`${keys}.textLabel`)}</label>
             <textarea
               id={`${id}-text`}
-              className="input"
+              className="ds-input ds-textarea"
               rows={isOutreach ? 8 : 16}
               maxLength={10_000}
               value={text}
@@ -274,14 +287,14 @@ function DraftEditor({
             />
           </div>
           <div className="actions">
-            <button className="button button-primary" type="button" onClick={save}>
+            <button className={buttonClass({ variant: "primary" })} type="button" onClick={save}>
               {t("tailoredDocuments.save")}
             </button>
-            <button className="button" type="button" onClick={copy}>
+            <button className={buttonClass()} type="button" onClick={copy}>
               {t("tailoredDocuments.copy")}
             </button>
             {drafted?.channel === "email" ? (
-              <a className="button" href={mailLink({ to: drafted.contact?.email, subject, text })}>
+              <a className={buttonClass()} href={mailLink({ to: drafted.contact?.email, subject, text })}>
                 {t("tailoredDocuments.outreachMessage.openInMail")}
               </a>
             ) : null}
@@ -291,7 +304,7 @@ function DraftEditor({
           <p id={`${id}-redraft-hint`} className="hint">
             {t("tailoredDocuments.redraftHint")}
           </p>
-          <button className="button" type="button" onClick={write} disabled={status === "drafting"} aria-describedby={`${id}-redraft-hint`}>
+          <button className={buttonClass()} type="button" onClick={write} disabled={status === "drafting"} aria-describedby={`${id}-redraft-hint`}>
             {status === "drafting" ? t("tailoredDocuments.drafting") : t("tailoredDocuments.redraft")}
           </button>
           <LiveActionStatus action={action} />

@@ -94,6 +94,18 @@ export function useAskAssistant(): ((question: string, explained: ExplainedItem)
   return useContext(CoachPanelControl)?.ask ?? null;
 }
 
+/**
+ * Opens the Coach Panel, as « Aide et coach » does (the home page's quick actions, #467); does nothing while it is
+ * open. Null outside a Coach Panel (signed-out pages).
+ */
+export function useOpenCoachPanel(): (() => void) | null {
+  const control = useContext(CoachPanelControl);
+  if (!control) return null;
+  return () => {
+    if (!control.open) control.toggle();
+  };
+}
+
 /** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
 export function useCoachRepliesInView(): readonly ReplyInView[] {
   return useContext(CoachPanelControl)?.repliesInView ?? NO_REPLIES;
@@ -1057,7 +1069,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                     <div className="coach-panel-context-more">
                       <p className="coach-panel-in-view">{contextText}</p>
                       {!panel.features.inView ? null : profileIdOf(inView) ? (
-                        <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} className="button" />
+                        <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
                       ) : (
                         <p className="hint">{t("coachPanel.searchHint")}</p>
                       )}

@@ -2,6 +2,10 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { routes } from "@/routes";
 
 /** What the export holds, one line each (GDPR art. 15 / 20, #171). */
@@ -41,48 +45,49 @@ export function AccountDataSection() {
     setWorking(false);
   }
 
-  const inputId = `${id}-confirm`;
   return (
-    <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("accountData.title")}</h2>
-      <p>{t("accountData.exportHint")}</p>
-      <ul>
-        {EXPORT_CONTENTS.map((part) => (
-          <li key={part}>{t(`accountData.exportContents.${part}`)}</li>
-        ))}
-      </ul>
-      <p>{t("accountData.exportLeftOut")}</p>
-      <a className="button" href="/api/account/export" download>
-        {t("accountData.export")}
-      </a>
-      <div className="danger-zone stack">
-        <h3>{t("accountData.deleteTitle")}</h3>
-        <p id={`${id}-warning`}>{t("accountData.deleteWarning")}</p>
-        <form className="stack" onSubmit={deleteAccount} noValidate>
-          <div className="field">
-            <label htmlFor={inputId}>{t("accountData.confirmLabel")}</label>
-            <input
-              id={inputId}
-              className="input"
-              type="email"
-              autoComplete="off"
-              required
-              value={email}
-              aria-invalid={problem === "confirmMismatch" ? true : undefined}
-              aria-describedby={`${id}-warning`}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </div>
-          <button className="button button-danger" type="submit" disabled={working}>
-            {t("accountData.delete")}
-          </button>
-          {problem ? (
-            <p className="field-error" role="alert">
-              {t(`accountData.${problem}`)}
-            </p>
-          ) : null}
-        </form>
+    <Card title={t("accountData.title")} headingId={`${id}-title`}>
+      <div className="stack">
+        <p>{t("accountData.exportHint")}</p>
+        <ul>
+          {EXPORT_CONTENTS.map((part) => (
+            <li key={part}>{t(`accountData.exportContents.${part}`)}</li>
+          ))}
+        </ul>
+        <p>{t("accountData.exportLeftOut")}</p>
+        <div className="actions">
+          <a className={buttonClass()} href="/api/account/export" download>
+            {t("accountData.export")}
+          </a>
+        </div>
+        <section className="danger-zone stack" aria-labelledby={`${id}-delete-title`}>
+          <h3 id={`${id}-delete-title`}>{t("accountData.deleteTitle")}</h3>
+          <p id={`${id}-warning`}>{t("accountData.deleteWarning")}</p>
+          <form className="stack" onSubmit={deleteAccount} noValidate>
+            <Field id={`${id}-confirm`} label={t("accountData.confirmLabel")}>
+              <TextInput
+                type="email"
+                autoComplete="off"
+                required
+                value={email}
+                aria-invalid={problem === "confirmMismatch" ? true : undefined}
+                aria-describedby={`${id}-warning`}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </Field>
+            <div className="actions">
+              <button className={buttonClass({ variant: "danger" })} type="submit" disabled={working}>
+                {t("accountData.delete")}
+              </button>
+            </div>
+            {problem ? (
+              <Note tone="danger" role="alert">
+                {t(`accountData.${problem}`)}
+              </Note>
+            ) : null}
+          </form>
+        </section>
       </div>
-    </section>
+    </Card>
   );
 }

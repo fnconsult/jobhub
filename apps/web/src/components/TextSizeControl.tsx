@@ -83,7 +83,7 @@ export function TextSizeSlider() {
           </li>
         ))}
       </ol>
-      <p id={`${id}-hint`} className="hint">
+      <p id={`${id}-hint`} className="text-size-hint">
         {t("textSize.hint")}
       </p>
     </div>

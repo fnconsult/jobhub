@@ -986,20 +986,6 @@ p.reply-feedback {
   border: none;
 }
 
-/* Action Cards: the AI Coach's proposals inside a page. */
-.action-card {
-  width: 100%;
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-accent);
-  border-radius: var(--radius-md);
-}
-
-.action-card h3 {
-  margin-top: 0;
-}
-
 /* Above the Applications: the filters, then the List and Board switch at the row's far end;
    everything sits on one line, aligned at the bottom, and wraps on narrow screens. */
 .list-toolbar {
@@ -1093,13 +1079,12 @@ th[aria-sort] .sort-mark {
   margin-top: 0;
 }
 
-.danger-zone .button-danger {
+.danger-zone .ds-button {
   background: var(--color-background);
 }
 
 /* Framed tiles, side by side: this month's usage on the Subscription, one per quota;
    a Job Offer's facts in the Application's header, one per fact. */
-.usage-tiles,
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
@@ -1107,7 +1092,6 @@ th[aria-sort] .sort-mark {
   margin: 0;
 }
 
-.usage-tiles > div,
 .tiles > div {
   display: flex;
   flex-direction: column;
@@ -1118,20 +1102,17 @@ th[aria-sort] .sort-mark {
   border-radius: var(--radius-md);
 }
 
-.usage-tiles dt,
 .tiles dt {
   font-weight: 600;
 }
 
-.usage-tiles dd,
 .tiles dd {
   margin: 0;
   font-size: var(--font-size-lead);
 }
 
 /* Every tile of the row's grid as wide and as tall as the others, whatever its words. */
-.tiles-even,
-.usage-tiles {
+.tiles-even {
   grid-auto-rows: 1fr;
 }
 
@@ -1173,18 +1154,9 @@ th[aria-sort] .sort-mark {
   max-width: 80rem;
 }
 
-.plan-table,
 .application-table {
   width: 100%;
   border-collapse: collapse;
-}
-
-.plan-table th,
-.plan-table td {
-  padding: var(--space-2) var(--space-3);
-  text-align: left;
-  vertical-align: top;
-  border-bottom: 1px solid var(--color-border);
 }
 
 .application-table th,
@@ -1193,15 +1165,6 @@ th[aria-sort] .sort-mark {
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid var(--color-border);
-}
-
-.plan-table th[aria-current="true"] {
-  text-decoration: underline;
-}
-
-.upgrade-prompt h2 {
-  margin: 0;
-  font-size: var(--font-size-h3);
 }
 
 .application-table tbody th {
@@ -1317,17 +1280,29 @@ blockquote.signalement-text {
   color: var(--color-text-secondary);
 }
 
-/* « Ajouter un entretien » above the Agenda's list (#247). */
-.agenda-actions {
+/* Espace coach (#249): the Human Coach's Coaching Sessions, one framed item each, the Candidate's name first.
+   Its own classes: the Agenda's live in agenda.css, which only the Agenda loads (#469). */
+.coach-sessions {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  align-items: center;
-  margin-bottom: var(--space-4);
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
-.agenda-actions p {
-  margin: 0;
+.coach-session {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.coach-session-name {
+  font-weight: 600;
 }
 
 .match-score-value {
@@ -1488,15 +1463,6 @@ blockquote.signalement-text {
   align-items: center;
 }
 
-/* A category shown above an Action Card's title, e.g. Senior Advice. */
-.action-card-label {
-  display: inline-block;
-  margin: 0 0 var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  font-weight: 600;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
 
 .ats-checks li {
   margin-bottom: var(--space-1);
@@ -1556,18 +1522,18 @@ blockquote.signalement-text {
 }
 
 /* The last payment of the subscription failed (past_due): non-blocking, with the way to fix it. */
-.notice-payment-failed {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  align-items: center;
-  justify-content: space-between;
-  border-left: 4px solid var(--color-danger);
+/* The failed-payment Note: its words, then the button to Stripe's page under them. */
+.payment-failed .ds-note p {
+  margin: 0 0 var(--space-3);
 }
 
-.notice-payment-failed p {
-  flex: 1 1 20rem;
+.payment-failed .ds-note form {
   margin: 0;
+}
+
+/* The quota-reached card (#469): its words, then the way to Mon abonnement. */
+.upgrade-prompt .ds-card p {
+  margin: 0 0 var(--space-4);
 }
 
 /* Aligned with the page's content column (.page), at every width. */
@@ -2602,6 +2568,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 auto;
 }
 
+/* On the Candidate's pages (Confort, no Density scope set), the Design System's buttons, links drawn as one and « Pourquoi
+   92 ? » included, reach the 44px target floor (ADR-0009) at every Text Size; the Back Office and the Design System
+   page's previews, each in a Density scope, keep the Density's control height (#467). */
+.workspace > .page .ds-button:not([data-density] .ds-button) {
+  min-height: var(--control-height);
+}
+
 /* Its buttons reach the 44px floor (ADR-0009), links as well as buttons. */
 .job-search-notification .button,
 .signalement-notification .button {
@@ -2897,23 +2870,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-}
-
-.action-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.action-card h3,
-.action-card p,
-.action-card .actions {
-  margin: 0;
-}
-
-.action-card-label {
-  align-self: flex-start;
-  color: var(--color-accent);
 }
 
 @media (max-width: 40rem) {
@@ -3214,14 +3170,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 details.why[open] {
   flex-basis: 100%;
-}
-
-details.why summary {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  color: var(--color-accent);
-  cursor: pointer;
 }
 
 .breakdown .verdict {
@@ -3615,426 +3563,11 @@ textarea.title-edit {
   overflow-wrap: anywhere;
 }
 
-/* The Agenda (#246): upcoming Agenda Items by day; the past ones dimmed. */
-.agenda {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
-
-.agenda-day h3 {
-  margin: 0 0 var(--space-3);
-  font-size: var(--font-size-h3);
-}
-
-.agenda-items {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-/* One Agenda Item: the link to its Application, then its format and place (#247), whose own link sits outside it. */
-.agenda-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.agenda-item-link {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  align-items: baseline;
-  color: var(--color-text);
-  text-decoration: none;
-}
-
-.agenda-item-link:hover .agenda-item-title {
-  text-decoration: underline;
-}
-
-.agenda-item-time {
-  min-width: 4rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.agenda-item-what {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-  align-items: baseline;
-}
-
-.agenda-item-kind {
-  color: var(--color-text-secondary);
-}
-
-.agenda-item-title {
-  font-weight: 600;
-}
-
-/* « modifié par le coach » (#249): the Human Coach last changed the Coaching Session's date. */
-.agenda-item-changed {
-  font-style: italic;
-  color: var(--color-text-secondary);
-}
-
-.agenda-past .agenda-item {
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border-style: dashed;
-}
-
-.agenda-past .agenda-item-link {
-  color: var(--color-text-secondary);
-}
-
-.agenda-past .agenda-item-time,
-.agenda-past .agenda-item-title {
-  font-weight: 400;
-}
-
-/* « À planifier » (#248): the Unscheduled Coaching Sessions at the top of the Agenda, each with its
-   Human Coach's booking link and the button to enter the date booked. */
-.agenda-to-schedule {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-6);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.agenda-to-schedule h2,
-.agenda-to-schedule p {
-  margin: 0;
-}
-
-.agenda-unscheduled {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-/* A dated Coaching Session: its link, then the button to edit its date beside it (below on a phone). */
-.agenda-item-with-action {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.agenda-item-with-action .agenda-item-link {
-  flex: 1 1 18rem;
-}
-
-/* The Agenda's views (#251, ADR-0028): « Liste », « Semaine », « Mois » as links styled as a
-   segmented control; the view shown is bold and shaded, not marked by colour alone. */
-.agenda-views {
-  display: inline-flex;
-  align-self: flex-start;
-  max-width: 100%;
-  margin-bottom: var(--space-6);
-  overflow: hidden;
-  border: 1px solid var(--color-text-secondary);
-  border-radius: var(--radius-sm);
-}
-
-.agenda-views a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-4);
-  color: var(--color-text);
-  text-decoration: none;
-  background: var(--color-background);
-}
-
-.agenda-views a + a {
-  border-left: 1px solid var(--color-text-secondary);
-}
-
-.agenda-views a:hover {
-  background: var(--color-surface-hover);
-}
-
-.agenda-views a[aria-current="page"] {
-  font-weight: 600;
-  background: var(--color-surface-hover);
-  box-shadow: inset 0 -3px 0 var(--color-text);
-}
-
-.agenda-period-title::first-letter {
-  text-transform: uppercase;
-}
-
-.agenda-period-nav {
-  gap: var(--space-2);
-}
-
-.agenda-period-nav .button {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-}
-
-.agenda-nothing {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-/* A past Agenda Item in a week or month view: dimmed like the past ones of the list. */
-.agenda-item-past {
-  background: var(--color-surface);
-  border-style: dashed;
-}
-
-.agenda-item-past .agenda-item-link {
-  color: var(--color-text-secondary);
-}
-
-.agenda-item-past .agenda-item-time,
-.agenda-item-past .agenda-item-title {
-  font-weight: 400;
-}
-
-/* An item's kind, told apart by shape as well as colour: a disc for an Interview, a hollow
-   diamond for a Coaching Session. The same markers sit in the month grid and its key. */
-.agenda-marker {
-  display: inline-block;
-  flex: none;
-  width: 0.625rem;
-  height: 0.625rem;
-  margin-right: var(--space-1);
-  vertical-align: middle;
-}
-
-.agenda-marker-interview {
-  background: var(--color-accent);
-  border-radius: 50%;
-}
-
-.agenda-marker-coachingSession {
-  border: 2px solid var(--color-text);
-  transform: rotate(45deg) scale(0.85);
-}
-
-/* The week: seven day columns when the page's column has room for them, the days stacked
-   otherwise. The room is the page's own width (a container query on `.workspace > .page`), not
-   the window's: the Sidebar (17rem) and a docked Coach Panel take their share of the window,
-   and at a 64rem window the seven columns were 88 px wide, their times hidden under the next.
-   54rem leaves each column (less the 0.5rem gaps, and its card's padding and border) about
-   6.25rem, which holds a semibold « administratif » (6rem) and each of an item's two times;
-   the range wraps after its dash. It is in rem, so a larger Text Size needs a wider page. */
-.agenda-week {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.agenda-week-day h3 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-body);
-}
-
-.agenda-today h3 {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-}
-
-@container (width >= 54rem) {
-  .agenda-week {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: var(--space-2);
-  }
-
-  /* A rule above each day, not a box around it: a box's padding would take its items' room. */
-  .agenda-week-day {
-    min-width: 0;
-    padding-top: var(--space-2);
-    border-top: 2px solid var(--color-border);
-  }
-
-  .agenda-week .agenda-item {
-    padding: var(--space-2);
-  }
-
-  .agenda-week .agenda-item-link {
-    flex-direction: column;
-    gap: var(--space-1);
-    overflow-wrap: break-word;
-  }
-
-  .agenda-week .agenda-item-time {
-    min-width: 0;
-    white-space: normal;
-  }
-
-  .agenda-week .agenda-item-time time {
-    white-space: nowrap;
-  }
-
-  .agenda-week .agenda-item-what {
-    flex-direction: column;
-  }
-
-  .agenda-week .agenda-item-with-action .agenda-item-link {
-    flex-basis: 100%;
-  }
-}
-
-/* The month: a table of day buttons, as wide as the page and never wider (375 px included). */
-.agenda-month {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-}
-
-.agenda-month th {
-  padding: var(--space-1) 0;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-align: center;
-}
-
-.agenda-month abbr {
-  text-decoration: none;
-}
-
-.agenda-month td {
-  padding: 2px;
-  vertical-align: top;
-}
-
-.agenda-month-day {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  align-items: center;
-  width: 100%;
-  min-height: 4.5rem;
-  padding: var(--space-1);
-  font: inherit;
-  color: var(--color-text);
-  cursor: pointer;
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
-
-.agenda-month-day:hover {
-  background: var(--color-surface-hover);
-}
-
-.agenda-month-day-past {
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-}
-
-.agenda-month-number {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Today: its number ringed and bold. */
-.agenda-month-day.agenda-today .agenda-month-number {
-  padding: 0 var(--space-1);
-  font-weight: 600;
-  border: 2px solid var(--color-text);
-  border-radius: var(--radius-sm);
-}
-
-/* The day chosen: filled, bold and framed, its items listed below the grid. */
-.agenda-month-day[aria-pressed="true"] {
-  font-weight: 600;
-  color: var(--color-on-accent);
-  background: var(--color-text);
-  border-color: var(--color-text);
-}
-
-.agenda-month-day[aria-pressed="true"] .agenda-marker-interview {
-  background: var(--color-on-accent);
-}
-
-.agenda-month-day[aria-pressed="true"] .agenda-marker-coachingSession,
-.agenda-month-day[aria-pressed="true"].agenda-today .agenda-month-number {
-  border-color: var(--color-on-accent);
-}
-
-.agenda-markers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.agenda-markers .agenda-marker {
-  margin: 0;
-}
-
-.agenda-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
-  padding: 0;
-  margin: 0;
-  color: var(--color-text-secondary);
-  list-style: none;
-}
-
-@media (width < 40rem) {
-  .agenda-month td {
-    padding: 1px;
-  }
-
-  .agenda-month-day {
-    min-height: var(--control-height);
-    padding: 2px 0;
-    gap: 2px;
-  }
-
-  .agenda-markers-more {
-    display: none;
-  }
-}
-
 /* Reschedules and cancellations (#250). A Cancelled Interview stays, struck through, with « Annulé le … »
    in words (a strike-through alone is not read out); a Rescheduled item says when it was first planned,
    with its « Historique » as a disclosure. */
-.agenda-item-cancelled .agenda-item-time,
-.agenda-item-cancelled .agenda-item-title,
-.agenda-item-cancelled .agenda-item-employer,
 .interview-cancelled .interview-date {
   text-decoration: line-through;
-}
-
-.agenda-item-cancelled {
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-}
-
-.agenda-item-cancelled .agenda-item-link {
-  color: var(--color-text-secondary);
 }
 
 .cancelled-on,
@@ -4057,26 +3590,6 @@ textarea.title-edit {
 .reschedule-history ol {
   padding-left: var(--space-4);
   margin: var(--space-1) 0 0;
-}
-
-/* Beside a dated Coaching Session's link and buttons, its history, its Calendar file and the question before cancelling take a row each. */
-.agenda-item-with-action .reschedules,
-.agenda-item-with-action .agenda-calendar-file,
-.agenda-item-with-action .cancel-confirm {
-  flex-basis: 100%;
-}
-
-/* « Ajouter à mon calendrier » (#252, ADR-0029): the Calendar file's link, and why a later change needs a new download. */
-.agenda-calendar-file {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-  align-items: baseline;
-  margin: 0;
-}
-
-.agenda-calendar-file-hint {
-  color: var(--color-text-secondary);
 }
 
 .cancel-confirm {
@@ -4767,11 +4280,9 @@ textarea.title-edit {
   list-style: none;
 }
 
-.my-signalement {
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+/* Each a Design System Card (#469). */
+.my-signalement .ds-card__head {
+  flex-wrap: wrap;
 }
 
 .my-signalement h3,

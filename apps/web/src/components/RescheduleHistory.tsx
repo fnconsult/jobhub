@@ -1,3 +1,4 @@
+import { Pill } from "@/design/Pill";
 import type { getServerT } from "@/i18n/server";
 import { firstPlannedAt, type Reschedule } from "@/reschedules";
 
@@ -5,7 +6,7 @@ type T = Awaited<ReturnType<typeof getServerT>>;
 
 /**
  * What changed an Agenda Item's date, for the Candidate: « Reporté · initialement prévu le … » once it was
- * Rescheduled, then an « Historique » disclosure listing every Reschedule and cancellation, oldest first, with
+ * Rescheduled, a warn Pill (#469), then an « Historique » disclosure listing every Reschedule and cancellation, oldest first, with
  * who made it (« vous », or the Human Coach by name). Nothing for an item never Rescheduled nor cancelled.
  * `dateTime` formats dates and times in French time.
  */
@@ -15,7 +16,11 @@ export function RescheduleHistory({ reschedules, coachName, dateTime, t }: { res
   const format = (date: Date) => dateTime.format(date);
   return (
     <div className="reschedules">
-      {firstPlanned ? <p className="rescheduled">{t("agendaChanges.rescheduled", { date: format(firstPlanned) })}</p> : null}
+      {firstPlanned ? (
+        <p className="rescheduled">
+          <Pill tone="warn">{t("agendaChanges.rescheduled", { date: format(firstPlanned) })}</Pill>
+        </p>
+      ) : null}
       <details className="reschedule-history">
         <summary>{t("agendaChanges.history")}</summary>
         <ol>

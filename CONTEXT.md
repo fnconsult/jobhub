@@ -275,6 +275,14 @@ _Avoid_: URL import, scrape
 The card in an AI Coach reply to a Job Offer link: the Job Offer's title and employer and a link to its page. "À traiter" until the Candidate follows it (saves it as an Application), which gives it its Match Score and At a glance; then "Suivie". Not an Action Card: nothing is accepted or dismissed. Saved with the Coach Conversation; never given to the AI Coach.
 _Avoid_: Action Card, preview, link card
 
+**Job Offer result**:
+A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par email »): its title, employer, contract and remote work, its Match Score and the actions to save it as an Application or read it. Not the Job Offer card, which is the AI Coach's.
+_Avoid_: Job Offer card, result card
+
+**Quick actions**:
+The row of pills on the Candidate's home page that start the usual next steps: search for Job Offers, add an Application or ask the AI Coach (both open the Coach Panel), plan an Interview.
+_Avoid_: shortcuts
+
 **Job discovery**:
 The AI Coach's search of the web for Job Offers matching a Profile's Search Criteria. Contrast with Capture, which starts from a page the person is viewing. Its web searches go through the active Search provider, or its fallback for the rest of a run when the active one fails; a run also visits the Profile's Target Companies.
 _Avoid_: Scraping, crawling (alone)
@@ -708,11 +716,12 @@ The bar at the foot of the Sidebar showing how much of the week's Plan Quotas th
 _Avoid_: Credits bar, usage gauge
 
 **Coupon**:
-A code a Candidate types at Plan checkout, or brings in a shared link (`/abonnement?code=…`), for a discount on a Plan: a percentage, or a fixed amount in euros, off once, for N months or for as long as the subscription lasts, on the Plans it names, with an optional expiry, maximum redemptions and an optional first-payment-only restriction (Stripe's: refused to anyone who has already paid anything, a Coaching Session included; not "first subscription"). A Stripe coupon and its promotion code, created by Plans managers in the Back Office's Codes promo section; Stripe counts its redemptions. Its terms never change; deactivated, it can no longer be redeemed, while discounts already given run their course. A code brought to checkout that does not apply (another Plan, expired, refused by Stripe, not checkable) is refused with the reason, never dropped silently: the Candidate may go on without it. A 100 % Coupon subscribes without a card; when its free period ends with no card, the Candidate is back on Free at once. A fixed amount for as long as the subscription lasts must stay below the Plans' prices. The subscription page shows the discount a subscription is getting. Coaching Sessions take no Coupon.
+A code a Candidate types at Plan checkout, or brings in a shared link (`/abonnement?code=…`), for a discount on a Plan: a percentage, or a fixed amount in euros, off once, for N months or for as long as the subscription lasts, on the Plans it names, with an optional expiry, maximum redemptions and an optional first-payment-only restriction (Stripe's: refused to anyone who has already paid anything, a Coaching Session included; not "first subscription"). A Stripe coupon and its promotion code, created by Plans managers in the Back Office's Codes promo section; Stripe counts its redemptions. Its terms never change; deactivated, it can no longer be redeemed, while discounts already given run their course. A code brought to checkout that does not apply (another Plan, expired, refused by Stripe, not checkable) is refused with the reason, never dropped silently: the Candidate may go on without it. A 100 % Coupon subscribes without a card; when its free period ends with no card, the Candidate is back on Free at once. A fixed amount for as long as the subscription lasts must stay below the Plans' prices. The subscription page shows the discount a subscription is getting. A Candidate on Free can type and check a code on that page before choosing a Plan. Coaching Sessions take no Coupon.
 _Avoid_: Promo code, voucher, discount code
 
 **Upgrade Prompt**:
 What a Candidate is shown when a Plan Quota stops them: what they reached and the lowest-ranked offered Plan above theirs that would let them go on, or when the quota renews if no Plan offers more.
+The plan comparison marks that same Plan « Conseillée » (recommended Plan) beside the Candidate's own, « Votre offre ».
 _Avoid_: Paywall, upsell, upgrade popup
 
 **Payment Failed Notice**:

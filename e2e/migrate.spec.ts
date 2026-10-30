@@ -206,8 +206,12 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
-        // Coach Conversations (issue #124) go with their Candidate, and the Profile they started on; their messages with them.
+        // Coach Conversations (issue #124) go with their Candidate, and the Profile they are attached to; their messages with them.
+        // Their Subject (issue #600, ADR-0070): an Application, a Job Search or a Job Digest takes its conversation along.
+        { from_table: "coach_conversation", from_column: "application_id", to_table: "application" },
         { from_table: "coach_conversation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_conversation", from_column: "job_digest_id", to_table: "job_digest" },
+        { from_table: "coach_conversation", from_column: "job_search_id", to_table: "job_search" },
         { from_table: "coach_conversation", from_column: "profile_id", to_table: "profile" },
         // Coach Memory (issue #125) goes with its Candidate.
         { from_table: "coach_memory_item", from_column: "candidate_id", to_table: "candidate" },

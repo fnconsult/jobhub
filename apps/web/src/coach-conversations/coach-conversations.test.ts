@@ -517,16 +517,30 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     });
 
     it.each([
-      ["profile", "11111111-1111-4111-8111-111111111111", "profile"],
-      ["job_offer", "22222222-2222-4222-8222-222222222222", "job_offer"],
-      ["job_search", "44444444-4444-4444-8444-444444444444", null],
-      ["agenda", "agenda", null],
-      ["application", "not-a-uuid", null],
-    ] as const)("keeps a %s in view as the reply's focus only when it is an Application, a Job Offer or a Profile", async (kind, id, kept) => {
+      ["profile", "11111111-1111-4111-8111-111111111111", "profile", "11111111-1111-4111-8111-111111111111"],
+      ["job_offer", "22222222-2222-4222-8222-222222222222", "job_offer", "22222222-2222-4222-8222-222222222222"],
+      ["job_search", "44444444-4444-4444-8444-444444444444", "job_search", "44444444-4444-4444-8444-444444444444"],
+      ["job_digest", "55555555-5555-4555-8555-555555555555", "job_digest", "55555555-5555-4555-8555-555555555555"],
+      ["agenda", "agenda", "agenda", null],
+      ["application", "not-a-uuid", null, null],
+    ] as const)("keeps a %s In view as the reply's Focus: any of the six kinds, an object by its id (#600)", async (kind, id, keptKind, keptId) => {
       await conversations.send(marie, { message: "Bonjour", focus: { kind, id } });
 
       const { rows } = await database.query(`SELECT focus_kind, focus_id FROM coach_message WHERE author = 'coach'`);
-      expect(rows).toEqual([{ focus_kind: kept, focus_id: kept ? id : null }]);
+      expect(rows).toEqual([{ focus_kind: keptKind, focus_id: keptId }]);
+    });
+
+    it("gives AI Activity the replies about a Job Search, a Job Digest or the Agenda too (#600)", async () => {
+      const jobSearchId = "44444444-4444-4444-8444-444444444444";
+      const jobDigestId = "55555555-5555-4555-8555-555555555555";
+      await conversations.send(marie, { message: "Ces offres ?", focus: { kind: "job_search", id: jobSearchId } });
+      await conversations.send(marie, { message: "Ce digest ?", focus: { kind: "job_digest", id: jobDigestId } });
+      await conversations.send(marie, { message: "Mon agenda ?", focus: { kind: "agenda", id: "agenda" } });
+      await conversations.send(jean, { message: "Mon agenda ?", focus: { kind: "agenda", id: "agenda" } });
+
+      expect(await conversations.repliesAbout(marie, { kind: "job_search", id: jobSearchId })).toHaveLength(1);
+      expect(await conversations.repliesAbout(marie, { kind: "job_digest", id: jobDigestId })).toHaveLength(1);
+      expect(await conversations.repliesAbout(marie, { kind: "agenda", id: "agenda" })).toEqual([{ at: expect.any(String), provenance: PROVENANCE }]);
     });
 
     it("reads a partial Provenance on the fly for a reply saved before, from its provider, model and tokens; none for one that saved nothing", async () => {
@@ -709,6 +723,22 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       expect(await conversations.ofSubject(marie, subject)).toEqual({ ok: true, conversation: null });
       const again = await conversations.send(marie, { subject, message: "Bonjour" });
       expect(again.ok && again.conversation.id).not.toBe(sent.conversation.id);
+    });
+
+    it("takes the Subject's object as each reply's Focus, the Agenda for its menu, else what is In view; the AI Coach is told of it", async () => {
+      await conversations.send(marie, { subject: { kind: "job_digest", id: jobDigestId }, message: "Ces offres ?" });
+      await conversations.send(marie, { subject: { kind: "menu", id: "agenda" }, message: "Mon agenda ?" });
+      await conversations.send(marie, { subject: { kind: "menu", id: "applications" }, message: "Celle-ci ?", focus: { kind: "application", id: applicationId } });
+      await conversations.send(marie, { subject: { kind: "menu", id: "humanCoaches" }, message: "Un coach ?" });
+
+      const { rows } = await database.query(`SELECT focus_kind, focus_id FROM coach_message WHERE author = 'coach' ORDER BY seq`);
+      expect(rows).toEqual([
+        { focus_kind: "job_digest", focus_id: jobDigestId },
+        { focus_kind: "agenda", focus_id: null },
+        { focus_kind: "application", focus_id: applicationId },
+        { focus_kind: null, focus_id: null },
+      ]);
+      expect(asked.map(({ input }) => input.focus)).toEqual([{ kind: "job_digest", id: jobDigestId }, { kind: "agenda", id: "agenda" }, { kind: "application", id: applicationId }, undefined]);
     });
 
     it("deletes, once, every conversation saved before conversations had a Subject (ADR-0070), keeping the Coach Memory", async () => {

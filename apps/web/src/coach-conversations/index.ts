@@ -29,7 +29,7 @@
  * reply replaced by its Guardrail message is marked as blocked too; a distress answer never is. `language`
  * is the Candidate's, for the Guardrail message.
  * Each AI Coach reply is saved with its Provenance (ADR-0034, #327), given back with it and when the conversation reopens, and
- * with its focus: the page's object in view when it was asked (an Application, a Job Offer or a Profile), for AI Activity.
+ * with its Focus: the Subject's object, or what was In view when it was asked (any of the six kinds, #600), for AI Activity.
  * A reply saved before Provenance was kept gets a partial one, read on the fly from its provider, model and tokens.
  * A reply to a Job Offer link is saved with its Job Offer card, which reopens with the conversation, `followed`
  * once the Candidate has saved that Job Offer as an Application; the AI Coach is only ever given the reply's text.
@@ -142,11 +142,11 @@ export interface CoachConversations {
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
   delete(candidateId: string, conversationId: string): Promise<boolean>;
   /**
-   * The Candidate's AI Coach replies whose focus is `focus` (an Application, a Job Offer or a Profile), from any of their
+   * The Candidate's AI Coach replies whose Focus is `focus` (one of the six kinds In view; the Agenda whatever its id), from any of their
    * conversations, oldest first: when each was saved and its Provenance (a partial one for a reply saved before, null when
    * none was kept), never its text. What AI Activity counts with that object's page.
    */
-  repliesAbout(candidateId: string, focus: { kind: FocusKind; id: string }): Promise<ReplyAbout[]>;
+  repliesAbout(candidateId: string, focus: Focus): Promise<ReplyAbout[]>;
 }
 
 /** An AI Coach reply as AI Activity counts it with its focus's page: when it was saved, an ISO date, and what served it. */
@@ -191,14 +191,26 @@ const sendSchema = z.object({
 
 type FocusInput = z.infer<typeof sendSchema>["focus"];
 
-/** The page objects a reply's focus can be (#327): what AI Activity counts the reply with. */
-export const FOCUS_KINDS = ["application", "job_offer", "profile"] as const;
+/** What a reply's Focus can be (#327, #600): the six kinds In view, what AI Activity counts the reply with. */
+export const FOCUS_KINDS = ["application", "job_offer", "profile", "job_search", "job_digest", "agenda"] as const;
 export type FocusKind = (typeof FOCUS_KINDS)[number];
+export type Focus = { kind: FocusKind; id: string };
 
-/** The reply's focus: the page's object in view, when it is an Application, a Job Offer or a Profile, by its id. */
-function focusOf(focus: FocusInput): { kind: FocusKind; id: string } | null {
-  if (!focus || !(FOCUS_KINDS as readonly string[]).includes(focus.kind) || !UUID.test(focus.id)) return null;
-  return { kind: focus.kind as FocusKind, id: focus.id };
+/** The Agenda as a Focus: it has no id of its own, so it is kept without one. */
+const AGENDA_FOCUS: Focus = { kind: "agenda", id: "agenda" };
+
+/** What is In view as a Focus: the Agenda, or an object by its id. */
+function focusOf(focus: FocusInput | Focus): Focus | null {
+  if (!focus || !(FOCUS_KINDS as readonly string[]).includes(focus.kind)) return null;
+  if (focus.kind === "agenda") return AGENDA_FOCUS;
+  return UUID.test(focus.id) ? { kind: focus.kind as FocusKind, id: focus.id } : null;
+}
+
+/** A reply's Focus (CONTEXT.md): the Subject's object, the Agenda for its menu, else what is In view when it was asked. */
+function focusFor(subject: Subject | null, inView: FocusInput): Focus | null {
+  if (subject && subject.kind !== "menu") return { kind: subject.kind, id: subject.id };
+  if (subject?.kind === "menu" && subject.id === "agenda") return AGENDA_FOCUS;
+  return focusOf(inView);
 }
 
 /** What a saved AI Coach reply kept of what served it, as `SAVED_REPLY_COLUMNS` reads it from `coach_message` (aliased `m`). */
@@ -443,12 +455,13 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const profile = existing ? null : owned ? owned.profile : await profileInView(candidateId, focus);
         const conversation: CoachConversationSummary = existing ?? { id, title: titleFrom(message), subject: owned?.subject ?? null, profile, lastMessageAt: now() };
         emit({ type: "conversation", conversation });
+        const replyFocus = focusFor(conversation.subject, focus);
 
         const answer = await deps.coach.reply(
           candidateId,
           {
             messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
-            ...(focus ? { focus: { kind: focus.kind, id: focus.id } } : {}),
+            ...(replyFocus ? { focus: replyFocus } : {}),
             ...(helpArticle ? { helpArticle: { id: helpArticle.id } } : {}),
           },
           { ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
@@ -465,7 +478,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
 
         const sentAt = now();
         const blocked = { message: answer.outcome === "blocked_message", reply: answer.outcome === "blocked_message" || answer.outcome === "blocked_reply" };
-        await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: focusOf(focus) }, sentAt);
+        await save(candidateId, conversation, !existing, { message, blocked: blocked.message }, { answer, blocked: blocked.reply, focus: replyFocus }, sentAt);
         const saved = await find(candidateId, conversation.id);
         if (!saved) return { ok: false, error: "not_found" }; // deleted meanwhile
         await deps.unansweredQuestions
@@ -524,14 +537,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       return conversation ? { ok: true, conversation } : { ok: false, error: "not_found" };
     },
 
-    async repliesAbout(candidateId, focus) {
-      if (!(FOCUS_KINDS as readonly string[]).includes(focus.kind) || !UUID.test(focus.id)) return [];
+    async repliesAbout(candidateId, about) {
+      const focus = focusOf(about);
+      if (!focus) return [];
       const { rows } = await database.query<SavedReply>(
         `SELECT ${SAVED_REPLY_COLUMNS}
            FROM coach_message m JOIN coach_conversation c ON c.id = m.conversation_id
-          WHERE c.candidate_id = $1 AND m.author = 'coach' AND m.focus_kind = $2 AND m.focus_id = $3
+          WHERE c.candidate_id = $1 AND m.author = 'coach' AND m.focus_kind = $2 AND m.focus_id IS NOT DISTINCT FROM $3::uuid
           ORDER BY m.created_at, m.seq`,
-        [candidateId, focus.kind, focus.id],
+        [candidateId, focus.kind, focus.kind === "agenda" ? null : focus.id],
       );
       return rows.map((row) => ({ at: row.at.toISOString(), provenance: savedReplyProvenance(row) }));
     },
@@ -552,7 +566,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     conversation: CoachConversationSummary,
     isNew: boolean,
     asked: { message: string; blocked: boolean; unchecked?: boolean },
-    reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: { kind: FocusKind; id: string } | null } | null,
+    reply: { answer: Extract<CoachReply, { ok: true }>; blocked: boolean; focus: Focus | null } | null,
     sentAt: Date,
   ): Promise<void> {
     const client = await database.connect();
@@ -597,7 +611,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             answer.jobOffer?.id ?? null,
             JSON.stringify(answer.provenance),
             reply.focus?.kind ?? null,
-            reply.focus?.id ?? null,
+            reply.focus && reply.focus.kind !== "agenda" ? reply.focus.id : null,
           ],
         );
       }
@@ -776,8 +790,10 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS job_offer_id uuid REFERENCES job_offer (id) ON DELETE SET NULL;
     -- What served each AI Coach reply (ADR-0034, #327): its Provenance, null before (a partial one is read from provider, model and tokens).
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS provenance jsonb;
-    -- The page's object in view when a reply was asked (#327): an Application, a Job Offer or a Profile; null otherwise and before.
-    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_kind text CHECK (focus_kind IN ('application', 'job_offer', 'profile'));
+    -- A reply's Focus (#327; six kinds since #600): the Subject's object, or what was In view when it was asked; the Agenda has no id.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_kind text;
+    ALTER TABLE coach_message DROP CONSTRAINT IF EXISTS coach_message_focus_kind_check;
+    ALTER TABLE coach_message ADD CONSTRAINT coach_message_focus_kind_check CHECK (focus_kind IN (${FOCUS_KINDS.map((kind) => `'${kind}'`).join(", ")}));
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS focus_id uuid;
     CREATE INDEX IF NOT EXISTS coach_message_focus_idx ON coach_message (focus_kind, focus_id) WHERE focus_id IS NOT NULL;
     -- A question the Candidate stopped before the input Guardrails let it through (#328): shown, never sent to the AI Coach.

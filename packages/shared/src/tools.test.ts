@@ -6,7 +6,7 @@ describe("the Tools", () => {
     expect(toolsByCategory().map(({ category, tools }) => [category, tools.map((tool) => tool.id)])).toEqual([
       ["ai_model", ["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]],
       ["web_search", ["perplexity", "brave", "tavily"]],
-      ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec", "job-site", "brevo-inbound"]],
+      ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec", "job-site", "email-intake"]],
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
       ["billing", ["stripe"]],
@@ -39,7 +39,7 @@ describe("the Tools", () => {
     expect(toolById("stripe")?.residency).toBe("outside_eu");
     expect(toolById("brevo-api")?.residency).toBe("unknown");
     // Email intake's reading of an email runs in the EU (ADR-0052): Brevo receives it on its EU servers.
-    expect(toolById("brevo-inbound")?.residency).toBe("eu");
+    expect(toolById("email-intake")?.residency).toBe("eu");
     expect(toolById("oidc")?.residency).toBe("unknown");
   });
 
@@ -52,7 +52,7 @@ describe("the Tools", () => {
     expect(toolById("insee-naf")?.keys).toEqual([]);
     expect(toolById("rome-open-data")?.keys).toEqual([]);
     // Brevo's inbound webhook is taken only with the secret it sends (#442).
-    expect(toolById("brevo-inbound")?.keys).toEqual(["BREVO_INBOUND_SECRET"]);
+    expect(toolById("email-intake")?.keys).toEqual(["EMAIL_INTAKE_INBOUND_SECRET"]);
   });
 
   it("name the Platform Settings they depend on, none for most", () => {
@@ -71,7 +71,7 @@ describe("the Tools", () => {
     expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", ...filters]);
     expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     // Brevo Inbound Parsing receives the emails sent to the Forwarding addresses (ADR-0050), within Email intake's limits (#442).
-    expect(names("brevo-inbound")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_BREVO_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD"]);
+    expect(names("email-intake")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_MTA_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD"]);
     expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);

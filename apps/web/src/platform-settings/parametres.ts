@@ -125,7 +125,7 @@ export const pricesOfTool = (tool: Tool): readonly string[] => PRICE_SETTINGS.fi
 export const sheetSettingsOf = (tool: Tool): readonly string[] => (tool.id === EMAIL_INTAKE_TOOL ? namesOf(["email_intake"]) : []);
 
 /** Email intake's Tool (#442, #448): Brevo Inbound Parsing, whose sheet is the Email intake sheet. */
-export const EMAIL_INTAKE_TOOL = "brevo-inbound";
+export const EMAIL_INTAKE_TOOL = "email-intake";
 
 /** A setting's row on the tab that shows it: a Tool's price or own setting on its sheet, Environnement for one only env holds. */
 export function settingHref(name: string): string {

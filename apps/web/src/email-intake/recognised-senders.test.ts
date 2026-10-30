@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authenticationResults } from "./fixtures/brevo-inbound";
+import { authenticationResults } from "./fixtures/inbound-emails";
 import { SEEDED_RECOGNISED_SENDERS, senderStanding, type RecognisedSender } from "./recognised-senders";
 
 const platform: RecognisedSender[] = [
@@ -23,17 +23,17 @@ describe("whose emails Email intake reads", () => {
   });
 
   it("not one whose DMARC passed for another domain than its From", () => {
-    expect(standing("offres@alertes.cadremploi.fr", "mx.brevo.test; dmarc=pass header.from=pirate.test")).toBe("unrecognised");
+    expect(standing("offres@alertes.cadremploi.fr", "mx.jobbbox.test; dmarc=pass header.from=pirate.test")).toBe("unrecognised");
   });
 
   it("aligned SPF or DKIM only for a sender listed so (diffusion.apec.fr)", () => {
-    const apecDkim = "mx.brevo.test; dkim=pass header.d=apec.fr; spf=none; dmarc=none header.from=diffusion.apec.fr";
-    const apecSpf = "mx.brevo.test; dkim=none; spf=pass smtp.mailfrom=retour@bounce.apec.fr; dmarc=none header.from=diffusion.apec.fr";
-    const unaligned = "mx.brevo.test; dkim=pass header.d=sendgrid.net; dmarc=none header.from=diffusion.apec.fr";
+    const apecDkim = "mx.jobbbox.test; dkim=pass header.d=apec.fr; spf=none; dmarc=none header.from=diffusion.apec.fr";
+    const apecSpf = "mx.jobbbox.test; dkim=none; spf=pass smtp.mailfrom=retour@bounce.apec.fr; dmarc=none header.from=diffusion.apec.fr";
+    const unaligned = "mx.jobbbox.test; dkim=pass header.d=sendgrid.net; dmarc=none header.from=diffusion.apec.fr";
     expect(standing("noreply@diffusion.apec.fr", apecDkim)).toBe("recognised_sender");
     expect(standing("noreply@diffusion.apec.fr", apecSpf)).toBe("recognised_sender");
     expect(standing("noreply@diffusion.apec.fr", unaligned)).toBe("unrecognised");
-    expect(standing("offres@alertes.cadremploi.fr", "mx.brevo.test; dkim=pass header.d=cadremploi.fr; dmarc=none header.from=alertes.cadremploi.fr")).toBe("unrecognised");
+    expect(standing("offres@alertes.cadremploi.fr", "mx.jobbbox.test; dkim=pass header.d=cadremploi.fr; dmarc=none header.from=alertes.cadremploi.fr")).toBe("unrecognised");
   });
 
   it("a shared sending platform only by its full address", () => {
@@ -43,7 +43,7 @@ describe("whose emails Email intake reads", () => {
 
   it("a manual forward from one of the Candidate's own sending addresses, authenticated", () => {
     expect(standing("marie.dupont@example.fr", authenticationResults("example.fr"))).toBe("own_address");
-    expect(standing("marie.dupont@example.fr", "mx.brevo.test; dkim=pass header.d=example.fr; dmarc=none header.from=example.fr")).toBe("own_address");
+    expect(standing("marie.dupont@example.fr", "mx.jobbbox.test; dkim=pass header.d=example.fr; dmarc=none header.from=example.fr")).toBe("own_address");
     expect(standing("marie.dupont@example.fr", authenticationResults("example.fr", { dmarc: "fail", dkim: null }))).toBe("unrecognised");
     expect(standing("jean.martin@example.fr", authenticationResults("example.fr"))).toBe("unrecognised");
   });
@@ -54,7 +54,7 @@ describe("whose emails Email intake reads", () => {
   });
 
   it("reads the methods whatever their case or spacing", () => {
-    expect(standing("offres@alertes.cadremploi.fr", "mx.brevo.test;\r\n\tDMARC=Pass (p=REJECT sp=REJECT dis=NONE) Header.From=Alertes.Cadremploi.fr")).toBe("recognised_sender");
+    expect(standing("offres@alertes.cadremploi.fr", "mx.jobbbox.test;\r\n\tDMARC=Pass (p=REJECT sp=REJECT dis=NONE) Header.From=Alertes.Cadremploi.fr")).toBe("recognised_sender");
   });
 });
 

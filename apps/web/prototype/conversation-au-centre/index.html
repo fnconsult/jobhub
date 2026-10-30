@@ -375,7 +375,10 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .col-pane .cbody { flex: 1; overflow: auto; padding: .85rem; font-size: .875rem; }
 .fiche { width: 20rem; }
 .fiche .obj .props { grid-template-columns: 1fr 1fr; }
-.seclist.res button { flex-wrap: wrap; }
+/* 5e retour : chaque Résultat est sa propre carte arrondie, sans trait entre eux. */
+.seclist.res { border: 0; border-radius: 0; overflow: visible; gap: .5rem; }
+.seclist.res button { flex-wrap: wrap; border: 1px solid var(--color-border); border-radius: 10px; }
+.seclist.res button:first-child { border-top: 1px solid var(--color-border); }
 .seclist.res button small { margin-left: 1.2rem; width: 100%; }
 .docp { flex: 1 1 30rem; min-width: 18rem; background: var(--color-surface); }
 .docp .cbody [contenteditable] { outline: none; }

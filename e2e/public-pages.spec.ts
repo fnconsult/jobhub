@@ -93,11 +93,11 @@ test.describe("Légal", () => {
         }
       }).toPass({ timeout: 5_000 });
     await inView();
-    // Halfway through the text, then at its very end: both columns still in view.
+    // Halfway through the text, then at its very end (the public footer under it, #544): both columns still in view.
     await page.evaluate(() => window.scrollTo({ top: document.getElementById("section-6")!.getBoundingClientRect().top + window.scrollY - 100, behavior: "instant" }));
     await expect(toc.locator('[aria-current="location"]')).toHaveText("Section de démonstration 6");
     await inView();
-    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    await page.evaluate(() => window.scrollTo({ top: document.getElementById("main")!.getBoundingClientRect().bottom + window.scrollY - window.innerHeight, behavior: "instant" }));
     await expect(page.getByRole("link", { name: fr.legal.pdf })).toBeInViewport();
     await expect(toc.locator('[aria-current="location"]')).toHaveText("Section de démonstration 12");
     await inView();

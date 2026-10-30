@@ -1,4 +1,5 @@
 import { extractImages, extractText, getDocumentProxy } from "unpdf";
+import { MAX_CV_FILE_BYTES } from "./limits";
 
 /** Why an uploaded file could not be read as a CV. Each code has a translated message (`cvUpload.errors.<code>`). */
 export type CvFileErrorCode = "unsupported_format" | "too_large" | "unreadable" | "empty";
@@ -16,8 +17,7 @@ export interface CvFile {
   bytes: Uint8Array;
 }
 
-/** Largest CV file accepted, in bytes. */
-export const MAX_CV_FILE_BYTES = 10 * 1024 * 1024;
+export { MAX_CV_FILE_BYTES };
 
 const startsWith = (bytes: Uint8Array, signature: number[]) => signature.every((byte, i) => bytes[i] === byte);
 const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46]; // %PDF

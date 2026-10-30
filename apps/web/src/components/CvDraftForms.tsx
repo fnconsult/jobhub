@@ -1,15 +1,17 @@
 "use client";
 
-import { formatTimeOfDay, type MasterCvContent } from "@jobhub/shared";
+import { formatTimeOfDay, type Activity, type MasterCvContent } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
+import { MAX_CV_FILE_BYTES } from "@/cv/limits";
+import { FileUpload } from "@/design/FileUpload";
 import type { ProfileFieldError } from "@/profiles";
 import { routes } from "@/routes";
 import { MasterCvFields } from "./MasterCvFields";
-import { StreamedActionStatus, useStreamedAction } from "./StreamedAction";
+import { useStreamedAction } from "./StreamedAction";
 import { criteriaFieldsOf, SearchCriteriaFields, searchCriteriaInput, useSearchCriteriaLabels, type CriteriaFields } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 
@@ -31,16 +33,25 @@ export const BLANK_DRAFT: CvDraft = { masterCv: BLANK_MASTER_CV, searchCriteria:
 
 const FILE_ERRORS = new Set<string>(["unsupported_format", "too_large", "unreadable", "empty"]);
 
+/** What a CV file may be (#468): a PDF or a Word file, as the server reads them, up to its limit. */
+const CV_FILE_RULES = { maxBytes: MAX_CV_FILE_BYTES, extensions: ["pdf", "docx"] } as const;
+/** The glyph on the file's row until the reading's first step names its own. */
+const READING: Activity = "read";
+const CV_FILE_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 /**
- * Uploading a PDF or Word CV and reading it into a draft. Saves nothing. The AI Coach's reading shows live, here and in AI
- * Activity, and the Candidate can stop it (#335): nothing is then drafted.
+ * Uploading a PDF or Word CV and reading it into a draft, in the Design System's File upload (#468): dropped or
+ * chosen, refused at once when the File upload's rules say so. Saves nothing. The AI Coach's reading shows live, on
+ * the file's row and in AI Activity, and the Candidate can stop it (#335): nothing is then drafted. Without a CV, the
+ * Candidate starts from scratch (`onFromScratch`).
  */
-export function CvUpload({ onDraft }: { onDraft: (draft: CvDraft) => void }) {
+export function CvUpload({ onDraft, onFromScratch }: { onDraft: (draft: CvDraft) => void; onFromScratch?: () => void }) {
   const { t, i18n } = useTranslation();
-  const fileId = useId();
   const action = useStreamedAction("cv_reading");
+  const [chosen, setChosen] = useState(false);
   const [state, setState] = useState<{ error?: CvFileErrorCode | "unknown"; stoppedAt?: Date }>({});
   const reading = action.running;
+  const errors = t("cvUpload.errors", { returnObjects: true }) as Record<CvFileErrorCode | "unknown", string>;
 
   async function readCv(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,38 +65,51 @@ export function CvUpload({ onDraft }: { onDraft: (draft: CvDraft) => void }) {
 
   return (
     <form className="stack" onSubmit={readCv}>
-      <label htmlFor={fileId}>{t("cvUpload.fileLabel")}</label>
-      <p id={`${fileId}-hint`} className="hint">
-        {t("cvUpload.fileHint")}
-      </p>
-      <input
-        id={fileId}
-        className="input"
+      <FileUpload
         name="cv"
-        type="file"
-        required
-        aria-describedby={`${fileId}-hint`}
-        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      />
-      <button className="button button-primary" type="submit" disabled={reading}>
-        {reading ? t("cvUpload.reading") : t("cvUpload.submit")}
-      </button>
-      {reading ? (
-        <p className="notice" role="status">
-          {t("cvUpload.reading")}
-        </p>
-      ) : null}
-      <StreamedActionStatus action={action} stopLabel={t("aiActivity.live.stop.cv_reading")} />
-      {state.stoppedAt ? (
-        <p className="notice notice-stopped" role="status">
-          {t("cvUpload.stopped", { time: formatTimeOfDay(state.stoppedAt, new Date(), i18n.language === "en" ? "en" : "fr") })}
-        </p>
-      ) : null}
-      {state.error ? (
-        <p className="notice" role="alert">
-          {t(`cvUpload.errors.${state.error}`)}
-        </p>
-      ) : null}
+        label={t("cvUpload.fileLabel")}
+        prompt={t("cvUpload.drop")}
+        hint={t("cvUpload.fileHint")}
+        accept={CV_FILE_ACCEPT}
+        rules={CV_FILE_RULES}
+        problems={{ too_large: errors.too_large, unsupported_format: errors.unsupported_format }}
+        reading={
+          reading
+            ? {
+                label: action.step ? t(`aiActivity.steps.${action.step.label}`) : t("cvUpload.reading"),
+                activity: action.step?.activity ?? READING,
+                stopLabel: t("aiActivity.live.stop.cv_reading"),
+                onStop: action.stop,
+              }
+            : null
+        }
+        error={state.error ? errors[state.error] : null}
+        onChange={(file) => {
+          setChosen(Boolean(file));
+          setState({});
+        }}
+      >
+        {chosen && !reading ? (
+          <div className="actions">
+            <button className="button button-primary" type="submit">
+              {t("cvUpload.submit")}
+            </button>
+          </div>
+        ) : null}
+        {state.stoppedAt ? (
+          <p className="notice notice-stopped" role="status">
+            {t("cvUpload.stopped", { time: formatTimeOfDay(state.stoppedAt, new Date(), i18n.language === "en" ? "en" : "fr") })}
+          </p>
+        ) : null}
+        {onFromScratch ? (
+          <p className="ds-upload__meta">
+            {t("cvUpload.noCv")}{" "}
+            <button className="link-button" type="button" onClick={onFromScratch}>
+              {t("cvUpload.fromScratch")}
+            </button>
+          </p>
+        ) : null}
+      </FileUpload>
     </form>
   );
 }

@@ -505,9 +505,10 @@
       "empty": "Nous n'avons trouvé aucun texte dans ce fichier. S'il s'agit d'un CV scanné, importez plutôt la version PDF ou Word d'origine.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
-    "fromScratchHint": "Pas de CV sous la main ? Remplissez vous-même votre CV de référence et vos critères de recherche.",
     "fromScratch": "Partir de zéro",
-    "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré."
+    "stopped": "Lecture arrêtée à {{time}} : rien n'a été lu ni enregistré.",
+    "drop": "Glissez votre CV ici",
+    "noCv": "Pas de CV sous la main ?"
   },
   "cvReview": {
     "title": "Vérifiez votre CV et vos critères de recherche",
@@ -4490,6 +4491,11 @@
       "dialogText": "Ses recherches et ses offres sont supprimées avec lui.",
       "dialogConfirm": "Supprimer",
       "confirmed": "Profil supprimé."
+    },
+    "upload": {
+      "or": "ou",
+      "choose": "Choisir un fichier",
+      "remove": "Retirer {{name}}"
     }
   },
   "emails": {

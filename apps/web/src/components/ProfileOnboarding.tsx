@@ -12,7 +12,7 @@ type Step = { kind: "choose" } | { kind: "questionnaire" } | { kind: "review"; d
  * Creating a Profile, by either of two paths: uploading a CV, or answering the
  * AI Coach's Onboarding Questionnaire. Both give the same draft Master CV and
  * Search Criteria, which the Candidate reviews before anything is saved. A
- * Candidate without a CV can also start from scratch, on the review form left blank.
+ * Candidate without a CV can also start from scratch, on the review form left blank (offered under the drop zone, #468).
  */
 export function ProfileOnboarding() {
   const { t } = useTranslation();
@@ -41,17 +41,13 @@ export function ProfileOnboarding() {
       <section className="onboarding-path">
         <h2>{t("newProfile.withCv")}</h2>
         <p>{t("cvUpload.intro")}</p>
-        <CvUpload onDraft={reviewCv} />
+        <CvUpload onDraft={reviewCv} onFromScratch={startFromScratch} />
       </section>
       <section className="onboarding-path">
         <h2>{t("newProfile.withoutCv")}</h2>
         <p>{t("newProfile.withoutCvIntro")}</p>
         <button className="button button-primary" type="button" onClick={() => setStep({ kind: "questionnaire" })}>
           {t("newProfile.startQuestionnaire")}
-        </button>
-        <p>{t("cvUpload.fromScratchHint")}</p>
-        <button className="button" type="button" onClick={startFromScratch}>
-          {t("cvUpload.fromScratch")}
         </button>
       </section>
     </>

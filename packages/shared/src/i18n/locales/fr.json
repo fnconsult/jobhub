@@ -1013,7 +1013,11 @@
         "unchecked": "Ce code promo n'a pas pu être vérifié pour le moment.",
         "too_many_tries": "Vous avez essayé beaucoup de codes promo : réessayez dans quelques minutes."
       },
-      "continueWithoutCode": "Continuer vers l'offre {{plan}} sans le code"
+      "continueWithoutCode": "Continuer vers l'offre {{plan}} sans le code",
+      "recommended": "Conseillée",
+      "codeLabel": "Code promo",
+      "codeHint": "Il s'applique à un nouvel abonnement, au paiement.",
+      "applyCode": "Appliquer"
     },
     "quotas": {
       "profiles": "Profils",

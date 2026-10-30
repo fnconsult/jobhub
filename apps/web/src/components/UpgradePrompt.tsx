@@ -1,18 +1,24 @@
 import Link from "next/link";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
 
-/** Shown where a Plan Quota stops the Candidate: what they reached, and the Plan that lets them go on. */
+/**
+ * Shown where a Plan Quota stops the Candidate: what they reached, and the Plan that lets them go on. The quota-reached
+ * card (#469): the Design System's Card, announced as an alert, its way to Mon abonnement the primary button.
+ */
 export function UpgradePrompt({ prompt }: { prompt: Prompt }) {
   return (
-    <section className="notice stack upgrade-prompt" role="alert">
-      <h2>{prompt.title}</h2>
-      <p>{prompt.message}</p>
-      {prompt.action ? (
-        <Link className="button button-primary" href={prompt.href}>
-          {prompt.action}
-        </Link>
-      ) : null}
-    </section>
+    <div className="upgrade-prompt" role="alert">
+      <Card title={prompt.title}>
+        <p>{prompt.message}</p>
+        {prompt.action ? (
+          <Link className={buttonClass({ variant: "primary" })} href={prompt.href}>
+            {prompt.action}
+          </Link>
+        ) : null}
+      </Card>
+    </div>
   );
 }
 

@@ -314,4 +314,37 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       await db.end();
     }
   });
+
+  // Issue #600 / ADR-0070: Coach Conversations gain a Subject. The ones saved before are deleted, once, with their messages;
+  // the Coach Memory is kept.
+  test("deletes the Coach Conversations saved before Subjects, once, and keeps the Coach Memory (#600)", async () => {
+    const db = new pg.Client({ connectionString: databaseUrl.toString() });
+    await db.connect();
+    try {
+      const candidate = "migrate-subject";
+      await db.query(`INSERT INTO candidate (id, name, email, "emailVerified", "interfaceLanguage") VALUES ($1, 'Marie', 'migrate-subject@example.fr', true, 'fr')`, [candidate]);
+      await db.query(`INSERT INTO coach_memory_item (candidate_id, kind, text) VALUES ($1, 'goal', 'Devenir DAF à Lyon')`, [candidate]);
+      const talk = async (title: string) => {
+        const { rows } = await db.query(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, $2) RETURNING id`, [candidate, title]);
+        await db.query(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'candidate', 'Bonjour')`, [rows[0].id]);
+      };
+      await talk("Avant");
+      // The table as it was before: no Subject.
+      await db.query("ALTER TABLE coach_conversation DROP COLUMN subject_kind CASCADE");
+
+      const migrated = migrate();
+      expect(migrated.status, migrated.stderr).toBe(0);
+      expect((await db.query("SELECT count(*)::int AS n FROM coach_conversation")).rows).toEqual([{ n: 0 }]);
+      expect((await db.query("SELECT count(*)::int AS n FROM coach_message")).rows).toEqual([{ n: 0 }]);
+      expect((await db.query("SELECT text FROM coach_memory_item WHERE candidate_id = $1", [candidate])).rows).toEqual([{ text: "Devenir DAF à Lyon" }]);
+
+      // Once: what is said afterwards stays, however often the migration runs again.
+      await talk("Après");
+      const again = migrate();
+      expect(again.status, again.stderr).toBe(0);
+      expect((await db.query("SELECT title FROM coach_conversation")).rows).toEqual([{ title: "Après" }]);
+    } finally {
+      await db.end();
+    }
+  });
 });

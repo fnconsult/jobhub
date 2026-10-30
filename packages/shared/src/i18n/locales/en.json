@@ -665,6 +665,24 @@
       "entreprises-cibles": "Target companies",
       "telecharger": "Download",
       "gerer": "Manage"
+    },
+    "status": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "actions": {
+      "searchOffers": "Search for offers",
+      "download": "Download"
+    },
+    "ats": {
+      "computed": "How well recruiting software reads your CV: its advice is in Proposals.",
+      "none": "Not computed yet: it tells whether recruiting software reads your CV well.",
+      "open": "See the detail",
+      "compute": "Compute it"
+    },
+    "cards": {
+      "summary": "Summary",
+      "skills": "Skills"
     }
   },
   "profileSwitcher": {

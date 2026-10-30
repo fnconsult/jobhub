@@ -408,6 +408,8 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
       const own = new Set(
         [
           masterCv.fullName,
+          // The Master CV's skills, as tags over their field (#468).
+          ...masterCv.skills,
           ...masterCv.experience.flatMap((job) => [`${job.title} · ${job.employer}`, `${job.period} · ${job.location}`]),
           "Directrice administrative et financière",
           fr.profileSwitcher.current.replace("{{name}}", "Directrice administrative et financière"),

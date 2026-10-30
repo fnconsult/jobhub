@@ -18,18 +18,28 @@ export type SectionLink = { href: string; label: string };
  * is shown alone, sliding in like a sheet, with the Top Bar's title turned into
  * a way back to the list behind an arrow (iOS style): a page styled as a
  * drawer, so the back button, links and screen readers work as on any page.
+ * With `look="tabs"` the Sections are tabs above the one shown, and an `aside` stays beside it.
  */
 export function SectionsLayout({
   base,
   label,
   backLabel,
   sections,
+  look = "list",
+  aside,
   children,
 }: {
   base: string;
   label: string;
   backLabel: string;
   sections: ReadonlyArray<SectionLink>;
+  /**
+   * From 64rem, the Sections listed beside the one shown (`list`), or as tabs above it (`tabs`, the Profile's page in
+   * the Design System, #468). Below 64rem both are the phone's list.
+   */
+  look?: "list" | "tabs";
+  /** What stays beside every Section from 64rem (the Profile's Search Criteria and ATS Score); under the list on a phone. */
+  aside?: ReactNode;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -62,7 +72,7 @@ export function SectionsLayout({
     return () => setSidebarSections(null);
   }, [setSidebarSections, backLabel, label, items]);
   return (
-    <div className="sections" data-at-list={atBase || undefined}>
+    <div className="sections" data-at-list={atBase || undefined} data-look={look} data-aside={aside ? true : undefined}>
       <nav className="sections-nav" aria-label={label}>
         <ul>
           {sections.map((section) => (
@@ -76,6 +86,7 @@ export function SectionsLayout({
         </ul>
       </nav>
       <div className="sections-content">{children}</div>
+      {aside ? <div className="sections-aside">{aside}</div> : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
@@ -6,14 +7,23 @@ import { getAtsScoring } from "@/ats-score/server";
 import { getProfiles } from "@/profiles/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
+import { Icons } from "@/components/icons";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Pill } from "@/design/Pill";
+import { Ring } from "@/design/Ring";
 import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
 import { SectionsLayout } from "@/components/SectionsLayout";
 import { getServerT } from "@/i18n/server";
 import { readIndustryReference } from "@/reference-data/server";
-import { routes } from "@/routes";
+import { routes, type ProfileSection } from "@/routes";
 import { ArchivedCriteria, loadProfilePage } from "./profile-page";
 
 type Params = { params: Promise<{ id: string }> };
+
+/** The Sections the page's head and aside lead to. */
+const DOWNLOAD: ProfileSection = "telecharger";
+const ATS_SCORE: ProfileSection = "ats-score";
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
@@ -22,7 +32,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * One Profile, as a document (prototype #132), split into Sections (ADR-0024):
+ * One Profile, as a document (prototype #132), split into Sections (ADR-0024), in the Design System (#468): its
+ * eyebrow, status and actions (« Chercher des offres », « Télécharger ») and its Search Criteria's card head the page,
+ * its Sections are tabs, and its ATS Score stays in a card beside every Section.
  * its name as the title (in the Top Bar) and its Search Criteria as properties,
  * both edited in place and saved on change (read-only while archived), head
  * every Section; then the AI Coach's Action Cards about it (ATS Fixes among
@@ -54,15 +66,32 @@ export default async function ProfileLayout({ params, children }: Params & { chi
       aiActivity={aiActivity}
       title={<ProfileTitle key={`title-${profile.id}`} profileId={profile.id} name={profile.name} />}
     >
-      <article className="document">
-        <header className="page-head">
-          <p className="eyebrow">{t("profilePage.eyebrow")}</p>
+      <article className="document profile-page">
+        <header className="page-head profile-head">
+          <div className="profile-head-row">
+            <p className="eyebrow">{t("profilePage.eyebrow")}</p>
+            <Pill tone={profile.archived ? "neutral" : "success"}>{t(profile.archived ? "profilePage.status.archived" : "profilePage.status.active")}</Pill>
+            <div className="profile-head-actions">
+              {profile.archived ? null : (
+                <Link className={buttonClass({ size: "sm" })} href={routes.jobSearches(profile.id)}>
+                  <Icons.jobSearches />
+                  {t("profilePage.actions.searchOffers")}
+                </Link>
+              )}
+              <Link className={buttonClass({ size: "sm" })} href={routes.profileSection(profile.id, DOWNLOAD)}>
+                <Icons.download />
+                {t("profilePage.actions.download")}
+              </Link>
+            </div>
+          </div>
           {profile.archived ? <p className="notice">{t("profileActions.archivedNotice")}</p> : null}
-          {profile.archived ? (
-            <ArchivedCriteria criteria={criteria} locale={locale} t={t} industries={industries ?? { sectors: [], subsectors: [], domains: [] }} />
-          ) : (
-            <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
-          )}
+          <Card title={t("cvReview.searchCriteria")}>
+            {profile.archived ? (
+              <ArchivedCriteria criteria={criteria} locale={locale} t={t} industries={industries ?? { sectors: [], subsectors: [], domains: [] }} />
+            ) : (
+              <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={criteria} />
+            )}
+          </Card>
         </header>
 
         <CoachInView {...inView} />
@@ -71,6 +100,16 @@ export default async function ProfileLayout({ params, children }: Params & { chi
           label={t("profilePage.sections.sectionsLabel")}
           backLabel={t("profilePage.sections.backToSections")}
           sections={sections.map((section) => ({ href: routes.profileSection(profile.id, section), label: t(`profilePage.sections.${section}`) }))}
+          look="tabs"
+          aside={
+            <Card title={t("atsScore.title")}>
+                <div className="profile-ats">
+                  {atsScore ? <Ring label={t("atsScore.title")} value={atsScore.score.score} /> : null}
+                  <p className="profile-ats-text">{t(atsScore ? "profilePage.ats.computed" : "profilePage.ats.none")}</p>
+                </div>
+                <Link href={routes.profileSection(profile.id, ATS_SCORE)}>{t(atsScore ? "profilePage.ats.open" : "profilePage.ats.compute")}</Link>
+            </Card>
+          }
         >
           {children}
         </SectionsLayout>

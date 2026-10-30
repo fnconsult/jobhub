@@ -665,6 +665,24 @@
       "entreprises-cibles": "Entreprises cibles",
       "telecharger": "Télécharger",
       "gerer": "Gérer"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archivé"
+    },
+    "actions": {
+      "searchOffers": "Chercher des offres",
+      "download": "Télécharger"
+    },
+    "ats": {
+      "computed": "Lisible par les logiciels de recrutement : ses conseils sont dans Propositions.",
+      "none": "Pas encore calculé : il dit si les logiciels de recrutement lisent bien votre CV.",
+      "open": "Voir le détail",
+      "compute": "Le calculer"
+    },
+    "cards": {
+      "summary": "Résumé",
+      "skills": "Compétences"
     }
   },
   "profileSwitcher": {

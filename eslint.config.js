@@ -38,7 +38,8 @@ export default tseslint.config(
           mode: "jsx-only",
           // The plugin's own exclusions, plus the names help in pages is given (#343): `<HelpTerm term="matchScore">`,
           // `<EmptyStateHelp of="proposals">` name a glossary term or an empty state, never text the Candidate reads.
-          // The Design System's props that pick a look or a role, never text (#462): `variant="quiet"`, `tone="danger"`.
+          // The Design System's props that pick a look or a role, never text (#462): `variant="quiet"`, `tone="danger"`,
+          // `<SectionsLayout look="tabs">` (#468).
           // Its form controls take a form field's own attributes, which name and wire it, never text (#465):
           // `<TextInput name="value" autoComplete="new-password" aria-describedby="…-help">`; an AddressDrawer's
           // `opener` is the selector of the link that opened it. A public page names itself to its site header (#470):
@@ -57,6 +58,7 @@ export default tseslint.config(
               "term",
               "of",
               "variant",
+              "look",
               "size",
               "tone",
               "side",

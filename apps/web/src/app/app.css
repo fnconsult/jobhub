@@ -2505,6 +2505,83 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   }
 }
 
+/* The Profile's page in the Design System (#468): its Sections as tabs above the one shown, the
+   tabs over a hairline and the shown one underlined (the Tabs' look); its aside (the ATS Score)
+   beside the Section when the column has room, under it otherwise. */
+@media (width >= 64rem) {
+  .sections[data-look="tabs"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  .sections[data-look="tabs"] .sections-nav {
+    position: static;
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sections[data-look="tabs"] .sections-nav ul {
+    flex-flow: row nowrap;
+    gap: var(--space-6);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .sections[data-look="tabs"] .sections-nav .sidebar-link {
+    flex: none;
+    padding: var(--space-2) 0;
+    margin-bottom: -1px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+  }
+
+  .sections[data-look="tabs"] .sections-nav .sidebar-link:hover {
+    color: var(--color-text);
+    background: none;
+  }
+
+  .sections[data-look="tabs"] .sections-nav .sidebar-link[aria-current="page"] {
+    font-weight: 600;
+    color: var(--color-text);
+    background: none;
+    border-bottom-color: var(--color-text);
+    box-shadow: none;
+  }
+
+  @container (width >= 60rem) {
+    .sections[data-look="tabs"][data-aside] {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+
+    .sections-aside {
+      position: sticky;
+      top: calc(var(--topbar-height, 3.5rem) + var(--space-6));
+    }
+  }
+}
+
+.sections-aside {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+}
+
+@media (width < 64rem) {
+  /* On a phone the aside goes under the list of Sections, and makes way for a Section shown alone. */
+  .sections[data-at-list] .sections-aside {
+    margin-top: var(--space-6);
+  }
+
+  .sections:not([data-at-list]) .sections-aside {
+    display: none;
+  }
+}
+
 /* With the sidebar showing, it lists the Sections instead (SidebarShell), the
    main menu one arrow away: the page keeps its whole column. */
 @media (width >= 64rem) {
@@ -3399,6 +3476,121 @@ textarea.title-edit {
 
 .savebar .field-error {
   flex-basis: 100%;
+}
+
+/* The Profile's page in the Design System (#468): its eyebrow, status and actions on one line. */
+.profile-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.profile-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.profile-ats {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.profile-ats-text {
+  color: var(--color-text-secondary);
+}
+
+/* The Master CV in cards: its summary, its skills, its jobs. */
+.cv-cards {
+  gap: var(--space-4);
+}
+
+.cv-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.cv-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cv-card-head h3 {
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.cv-card-meta {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-meta);
+}
+
+.cv-card .skill-list {
+  margin: 0;
+}
+
+/* A job: its employer's mark, its title and period, its missions under them. */
+.cv-job {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--color-border);
+  border-left: 0;
+}
+
+.cv-job > .inline-edit {
+  grid-column: 1 / -1;
+}
+
+.cv-job-mark {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: var(--font-size-meta);
+  font-weight: 600;
+  color: var(--color-text-meta);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* The Master CV's edits wait in a bar stuck to the bottom of the page: what is not saved, then its buttons. */
+.profile-page .savebar {
+  bottom: 0;
+  padding: var(--space-3) var(--space-6);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-page .savebar > p:first-child {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.profile-page .savebar > p:first-child:not(.field-error)::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  content: "";
+  background: var(--color-warn);
+  border-radius: 50%;
 }
 
 /* Rows of the Profile page: the latest Job Digests, to open. */

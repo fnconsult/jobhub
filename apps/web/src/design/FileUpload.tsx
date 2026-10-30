@@ -183,11 +183,11 @@ export function FileUpload({
   );
 }
 
+const OTHER = "other";
+
 /** A file's badge: PDF or DOCX on a page with its corner turned down; a plain page for any other file. */
 export function FileBadge({ kind, small = false }: { kind: "pdf" | "docx" | null; small?: boolean }) {
   return (
-    <span className="ds-file-badge" data-kind={kind ?? "other"} data-small={small || undefined} aria-hidden>
-      {kind ? kind.toUpperCase() : null}
-    </span>
+    <span className="ds-file-badge" data-kind={kind ?? OTHER} data-small={small || undefined} aria-hidden />
   );
 }

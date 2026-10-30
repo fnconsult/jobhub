@@ -7,7 +7,13 @@ import { useTranslation } from "react-i18next";
 import type { ApplicationDrafts } from "@/tailored-documents";
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "@/tailored-documents/kinds";
 import { mailLink } from "@/tailored-documents/mail-link";
+import { buttonClass } from "@/design/button-class";
+import { DocumentLayout, AsideBlock } from "@/design/DocumentLayout";
+import { DocumentViewer } from "@/design/DocumentViewer";
+import { Note } from "@/design/Note";
+import { CV_TEMPLATES } from "@/export/kinds";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { Icons } from "./icons";
 import { LiveActionStatus, useLiveAction } from "./LiveAction";
 import { ProvenanceLine } from "./ProvenanceLine";
 import { TailoredCvReview, type TailoredCv } from "./TailoredCvReview";
@@ -50,6 +56,61 @@ async function send(url: string, method: "POST" | "PATCH", body: object): Promis
 }
 
 const TAILORED_CV = "tailored_cv" as const;
+
+const longDate = (date: string | Date, locale: string) => new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(new Date(date));
+
+/** The Job Offer the Tailored Documents are for. */
+export type Target = { title: string; employer?: string };
+
+/** The CV Template the Viewer and the aside's downloads use: the default one (the export form offers the others). */
+const DEFAULT_TEMPLATE = CV_TEMPLATES[0];
+const EXPORT_PATHS = { tailored_cv: "tailored-cv", cover_letter: "cover-letter" } as const;
+const exportPath = (applicationId: string, document: keyof typeof EXPORT_PATHS) => `/api/applications/${applicationId}/${EXPORT_PATHS[document]}/export`;
+
+/**
+ * A Tailored Document's aside (#468): the Job Offer it is for (with the Tailored CV's Match Score), what to know about
+ * it, and its downloads in PDF and Word once there is a file, with the day it was saved.
+ */
+function DocumentAside({
+  target,
+  matchScore = null,
+  note,
+  exportPath: path,
+  savedOn = null,
+}: {
+  target: Target;
+  matchScore?: number | null;
+  note: string;
+  exportPath: string | null;
+  savedOn?: string | null;
+}) {
+  const { t } = useTranslation();
+  const meta = [target.employer, matchScore === null ? null : t("tailoredDocuments.aside.matchScore", { score: matchScore })].filter(Boolean).join(" · ");
+  return (
+    <>
+      <AsideBlock label={t("tailoredDocuments.aside.for")}>
+        <p>
+          <strong>{target.title}</strong>
+        </p>
+        {meta ? <p className="ds-document-layout__label">{meta}</p> : null}
+      </AsideBlock>
+      <Note tone="info">{note}</Note>
+      {path ? (
+        <AsideBlock>
+          <a className={buttonClass({ variant: "primary" })} href={`${path}?format=pdf&template=${DEFAULT_TEMPLATE}`} download>
+            <Icons.download />
+            {t("tailoredDocuments.aside.downloadPdf")}
+          </a>
+          <a className={buttonClass()} href={`${path}?format=docx&template=${DEFAULT_TEMPLATE}`} download>
+            <Icons.download />
+            {t("tailoredDocuments.aside.downloadWord")}
+          </a>
+        </AsideBlock>
+      ) : null}
+      {savedOn ? <p className="ds-document-layout__label">{t("tailoredDocuments.aside.savedOn", { date: savedOn })}</p> : null}
+    </>
+  );
+}
 const [COVER_LETTER, OUTREACH_MESSAGE] = TAILORED_DOCUMENTS;
 type Tab = typeof TAILORED_CV | TailoredDocumentKind;
 
@@ -70,6 +131,7 @@ export function TailoredDocuments({
   drafts,
   recipients = [],
   locale,
+  target,
 }: {
   applicationId: string;
   documentLanguage: DocumentLanguage;
@@ -77,10 +139,15 @@ export function TailoredDocuments({
   drafts: Drafts | null;
   recipients?: Recipient[];
   locale: string;
+  /** The Job Offer the documents are tailored to, named in each tab's aside. */
+  target: Target;
 }) {
   const { t } = useTranslation();
   const id = useId();
   const [language, setLanguage] = useState(documentLanguage);
+  // What each tab's Viewer shows: the saved Tailored CV and the Cover Letter, drawn afresh once saved again.
+  const [savedCv, setSavedCv] = useState(tailoredCv?.saved ?? null);
+  const [letter, setLetter] = useState({ exists: Boolean(drafts?.coverLetter), version: 0 });
   const tabs: Tab[] = [...(tailoredCv ? [TAILORED_CV] : []), ...(drafts ? TAILORED_DOCUMENTS : [])];
   const [tab, setTab] = useState<string>(tabs[0] ?? TAILORED_CV);
   const label = { tailored_cv: t("tailoredCv.tailored"), cover_letter: t("tailoredDocuments.coverLetter.title"), outreach_message: t("tailoredDocuments.outreachMessage.title") };
@@ -118,18 +185,61 @@ export function TailoredDocuments({
         </Tabs.List>
         {tailoredCv ? (
           <Tabs.Content className="tabpanel" value={TAILORED_CV} forceMount>
-            <TailoredCvReview applicationId={applicationId} initial={tailoredCv} language={language} locale={locale} />
+            <DocumentLayout
+              asideLabel={t("tailoredDocuments.aside.label", { document: label.tailored_cv })}
+              aside={
+                <DocumentAside
+                  target={target}
+                  matchScore={savedCv?.matchScore.tailored ?? null}
+                  note={t("tailoredDocuments.aside.cvNote")}
+                  exportPath={savedCv ? exportPath(applicationId, TAILORED_CV) : null}
+                  savedOn={savedCv ? longDate(savedCv.savedAt, locale) : null}
+                />
+              }
+            >
+              {savedCv ? (
+                <DocumentViewer
+                  key={String(savedCv.savedAt)}
+                  src={`${exportPath(applicationId, TAILORED_CV)}?format=pdf&template=${DEFAULT_TEMPLATE}`}
+                  fileName={t("tailoredDocuments.aside.cvFile", { title: target.title })}
+                  aside={t("tailoredDocuments.aside.preview")}
+                />
+              ) : null}
+              <TailoredCvReview applicationId={applicationId} initial={tailoredCv} language={language} locale={locale} onSaved={setSavedCv} />
+            </DocumentLayout>
           </Tabs.Content>
         ) : null}
         {drafts ? (
           <>
             <Tabs.Content className="tabpanel" value={COVER_LETTER} forceMount>
-              <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
-              <DraftEditor applicationId={applicationId} document={COVER_LETTER} language={language} initial={drafts.coverLetter} />
+              <DocumentLayout
+                asideLabel={t("tailoredDocuments.aside.label", { document: label.cover_letter })}
+                aside={<DocumentAside target={target} note={t("tailoredDocuments.draftsOnly")} exportPath={letter.exists ? exportPath(applicationId, COVER_LETTER) : null} />}
+              >
+                {letter.exists ? (
+                  <DocumentViewer
+                    key={letter.version}
+                    src={`${exportPath(applicationId, COVER_LETTER)}?format=pdf&template=${DEFAULT_TEMPLATE}`}
+                    fileName={t("tailoredDocuments.aside.letterFile", { title: target.title })}
+                    aside={t("tailoredDocuments.aside.preview")}
+                  />
+                ) : null}
+                <DraftEditor
+                  applicationId={applicationId}
+                  document={COVER_LETTER}
+                  language={language}
+                  initial={drafts.coverLetter}
+                  onSaved={() => setLetter((current) => ({ exists: true, version: current.version + 1 }))}
+                />
+              </DocumentLayout>
             </Tabs.Content>
             <Tabs.Content className="tabpanel" value={OUTREACH_MESSAGE} forceMount>
-              <p className="notice">{t("tailoredDocuments.draftsOnly")}</p>
-              <DraftEditor applicationId={applicationId} document={OUTREACH_MESSAGE} language={language} initial={drafts.outreachMessage} recipients={recipients} />
+              <DocumentLayout
+                asideLabel={t("tailoredDocuments.aside.label", { document: label.outreach_message })}
+                aside={<DocumentAside target={target} note={t("tailoredDocuments.draftsOnly")} exportPath={null} />}
+              >
+                <DraftEditor applicationId={applicationId} document={OUTREACH_MESSAGE} language={language} initial={drafts.outreachMessage} recipients={recipients} />
+              </DocumentLayout>
             </Tabs.Content>
           </>
         ) : null}
@@ -146,12 +256,15 @@ function DraftEditor({
   language,
   initial,
   recipients = [],
+  onSaved,
 }: {
   applicationId: string;
   document: TailoredDocumentKind;
   language: DocumentLanguage;
   initial: Initial;
   recipients?: Recipient[];
+  /** The draft was kept, drafted or edited: the page shows it afresh (#468). */
+  onSaved?: () => void;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -182,12 +295,14 @@ function DraftEditor({
     setText(next.text);
     if ("subject" in next) setSubject(next.subject);
     setStatus("drafted");
+    onSaved?.();
   }
 
   async function save() {
     setStatus(null);
     const result = await send(url, "PATCH", isOutreach ? { document, text, subject } : { document, text });
     setStatus(result.drafts ? "saved" : (result.status ?? "error"));
+    if (result.drafts) onSaved?.();
   }
 
   async function copy() {

@@ -190,6 +190,16 @@
     border-radius: var(--radius-md);
   }
 
+  /* Its letters are drawn, not text: the badge is decoration, the file's name says its format. */
+  .ds-file-badge::after {
+    text-transform: uppercase;
+    content: attr(data-kind);
+  }
+
+  .ds-file-badge[data-kind="other"]::after {
+    content: none;
+  }
+
   .ds-file-badge[data-kind="pdf"] {
     background: var(--color-danger);
   }

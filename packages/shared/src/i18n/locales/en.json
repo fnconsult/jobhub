@@ -3686,7 +3686,19 @@
     "drafted": "Draft ready",
     "required": "The text cannot be empty.",
     "unavailable": "The coach could not draft this text right now. Try again in a few minutes.",
-    "error": "Saving failed. Check your connection and try again."
+    "error": "Saving failed. Check your connection and try again.",
+    "aside": {
+      "label": "About: {{document}}",
+      "for": "Tailored to",
+      "matchScore": "Match Score {{score}}",
+      "cvNote": "What changes from your Master CV is listed in the proposal, to accept or reject. Nothing is made up.",
+      "preview": "Preview of the export, laid out as the PDF and the Word file",
+      "cvFile": "Tailored CV – {{title}}.pdf",
+      "letterFile": "Cover letter – {{title}}.pdf",
+      "downloadPdf": "Download as PDF",
+      "downloadWord": "Download as Word",
+      "savedOn": "Saved on {{date}}"
+    }
   },
   "tailoredCv": {
     "title": "CV tailored to the offer",

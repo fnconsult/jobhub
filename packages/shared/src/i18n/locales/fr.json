@@ -3686,7 +3686,19 @@
     "drafted": "Brouillon prêt",
     "required": "Le texte ne peut pas être vide.",
     "unavailable": "Le coach n'a pas pu rédiger ce texte pour l'instant. Réessayez dans quelques minutes.",
-    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez."
+    "error": "L'enregistrement a échoué. Vérifiez votre connexion et réessayez.",
+    "aside": {
+      "label": "À propos : {{document}}",
+      "for": "Adapté à",
+      "matchScore": "Score de correspondance {{score}}",
+      "cvNote": "Ce qui change par rapport à votre CV de référence est listé dans la proposition, à accepter ou refuser. Rien n'est inventé.",
+      "preview": "Aperçu de l'export, mise en page identique au PDF et au fichier Word",
+      "cvFile": "CV adapté – {{title}}.pdf",
+      "letterFile": "Lettre de motivation – {{title}}.pdf",
+      "downloadPdf": "Télécharger en PDF",
+      "downloadWord": "Télécharger en Word",
+      "savedOn": "Enregistré le {{date}}"
+    }
   },
   "tailoredCv": {
     "title": "CV adapté à l'offre",

@@ -64,7 +64,20 @@ const decisionOf = (change: CvChange, decisions: Record<string, boolean>): boole
  * Match Scores, then saved on the Application with only the changes they
  * accepted (#161). The tab of the Application's Tailored Documents that holds it names it.
  */
-export function TailoredCvReview({ applicationId, initial, language, locale }: { applicationId: string; initial: TailoredCv; language: DocumentLanguage; locale: string }) {
+export function TailoredCvReview({
+  applicationId,
+  initial,
+  language,
+  locale,
+  onSaved,
+}: {
+  applicationId: string;
+  initial: TailoredCv;
+  language: DocumentLanguage;
+  locale: string;
+  /** A Tailored CV saved here: the page shows it afresh (#468). */
+  onSaved?: (saved: NonNullable<TailoredCv["saved"]>) => void;
+}) {
   const { t } = useTranslation();
   const id = useId();
   const url = `/api/applications/${applicationId}/tailored-cv`;
@@ -114,6 +127,7 @@ export function TailoredCvReview({ applicationId, initial, language, locale }: {
     if (!result.tailoredCv) return setStatus(result.status ?? "error");
     setState(result.tailoredCv);
     setStatus("saved");
+    if (result.tailoredCv.saved) onSaved?.(result.tailoredCv.saved);
   };
 
   return (

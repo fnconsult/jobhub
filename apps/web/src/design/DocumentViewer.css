@@ -85,7 +85,7 @@
     min-width: 3.25rem;
     font-size: var(--font-size-meta);
     font-variant-numeric: tabular-nums;
-    color: var(--color-text);
+    color: var(--color-meta);
     text-align: center;
   }
 
@@ -129,7 +129,7 @@
   }
 
   .ds-viewer__thumbs button[aria-current] {
-    color: var(--color-text);
+    font-weight: 600;
   }
 
   .ds-viewer__thumbs button:focus-visible {

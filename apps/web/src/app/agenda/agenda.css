@@ -14,6 +14,19 @@
   min-height: var(--control-height);
 }
 
+/* A button or a Pill naming a Human Coach or a date (« Choisir mon créneau avec … », « Reporté · initialement prévu
+   le … ») wraps on a phone rather than run off the side. */
+.agenda-page .ds-button,
+.agenda-page .ds-pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.agenda-page .ds-button {
+  padding-block: var(--space-2);
+  text-align: center;
+}
+
 /* The views, then « Ajouter un entretien » at the row's far end; everything wraps on a phone. */
 .agenda-toolbar {
   display: flex;
@@ -356,10 +369,6 @@
   font-size: var(--font-size-body);
   font-weight: 600;
   color: var(--color-secondary);
-}
-
-.agenda-week-day h3::first-letter {
-  text-transform: uppercase;
 }
 
 .agenda-week-day.agenda-today h3 {

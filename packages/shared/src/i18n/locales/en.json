@@ -197,7 +197,14 @@
     "failedWithoutProviders": "Sign-in didn't go through. Try again below with a link by email.",
     "accountNotLinked": "A Jobbbox account already uses this email address. Sign in with a link by email first, then link this sign-in method to your account from \"My account\".",
     "providerNotAllowed": "This sign-in method is for the Jobbbox team. Sign in below with a link by email.",
-    "providerDisabled": "This sign-in method isn't available at the moment. Sign in below with a link sent by email."
+    "providerDisabled": "This sign-in method isn't available at the moment. Sign in below with a link sent by email.",
+    "legalLine": {
+      "before": "By continuing, you accept the",
+      "terms": "terms of use",
+      "between": "and the",
+      "privacy": "privacy policy",
+      "after": "."
+    }
   },
   "backOfficeSignIn": {
     "title": "Sign in to the back office",
@@ -4504,5 +4511,58 @@
     "addApplication": "Add an application",
     "scheduleInterview": "Schedule an interview",
     "askCoach": "Ask the coach"
+  },
+  "publicSite": {
+    "nav": "Public pages",
+    "nouveautes": "What's new",
+    "legal": "Legal"
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "documentsNav": "Legal documents",
+    "documents": {
+      "conditions-utilisation": "Terms of use",
+      "confidentialite": "Privacy policy",
+      "cookies": "Cookies",
+      "sous-traitants-et-ia": "Subprocessors and AI",
+      "mentions-legales": "Legal notice"
+    },
+    "effective": "In effect since {{date}}",
+    "version": "Version {{version}}",
+    "earlierVersions": "Previous versions",
+    "earlierVersion": "Version {{version}}, in effect since {{date}}",
+    "readingEarlier": "You are reading a previous version of this text.",
+    "backToCurrent": "Read the version in effect",
+    "summary": "In short",
+    "toc": "On this page",
+    "pdf": "Download as PDF",
+    "notPublishedTitle": "This text is not published yet",
+    "notPublished": "The Jobbbox team is writing it. It will appear here once it is published."
+  },
+  "nouveautes": {
+    "eyebrow": "What's new",
+    "title": "What's changing in Jobbbox",
+    "subtitle": "Each version, and what it brings to candidates.",
+    "filters": "Filter by topic",
+    "all": "All",
+    "tags": {
+      "candidature": "Applications",
+      "extension": "Extension",
+      "coach-ia": "AI Coach",
+      "confidentialite": "Privacy",
+      "accessibilite": "Accessibility"
+    },
+    "changes": {
+      "new": "New",
+      "improved": "Improved",
+      "fixed": "Fixed"
+    },
+    "version": "Version {{version}}",
+    "beta": "Beta version, not published yet",
+    "betaIntro": "What the next version will bring. You see it here because you are on Jobbbox's beta.",
+    "published": "Published versions",
+    "emptyTitle": "Nothing published yet",
+    "empty": "Jobbbox's first version and what it brings will appear here.",
+    "noneForTag": "No version has this topic yet."
   }
 }

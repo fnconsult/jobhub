@@ -41,7 +41,8 @@ export default tseslint.config(
           // The Design System's props that pick a look or a role, never text (#462): `variant="quiet"`, `tone="danger"`.
           // Its form controls take a form field's own attributes, which name and wire it, never text (#465):
           // `<TextInput name="value" autoComplete="new-password" aria-describedby="…-help">`; an AddressDrawer's
-          // `opener` is the selector of the link that opened it.
+          // `opener` is the selector of the link that opened it. A public page names itself to its site header (#470):
+          // `<PublicSite current="legal">`.
           "jsx-attributes": {
             include: [],
             exclude: [
@@ -67,6 +68,7 @@ export default tseslint.config(
               "list",
               "aria-describedby",
               "opener",
+              "current",
             ],
           },
         },

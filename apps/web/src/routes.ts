@@ -1,3 +1,4 @@
+import type { LegalDocumentId } from "@jobhub/help";
 import type { CalendarView } from "./agenda/calendar";
 
 /** The Sections of a Profile's page, in order (ADR-0024). */
@@ -73,6 +74,14 @@ export const routes = {
   accountDeleted: "/compte/supprime",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
+  /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
+  nouveautes: "/nouveautes",
+  /** Légal (#470): a Legal Document (the first by default), at `version` when not the one in effect; public. */
+  legal: (document: LegalDocumentId = "conditions-utilisation", version?: string) =>
+    `/legal/${document}${version ? `?version=${encodeURIComponent(version)}` : ""}`,
+  /** A Legal Document's version as a PDF to download (« Télécharger en PDF »), in the page's language. */
+  legalPdf: (document: LegalDocumentId, version: string, lang: string) =>
+    `/api/legal/${document}/pdf?version=${encodeURIComponent(version)}&lang=${encodeURIComponent(lang)}`,
   admin: "/admin",
   /** The Plans (Offres): names, rank, offered or hidden, Stripe product, Plan Features. */
   adminPlans: "/admin/offres",

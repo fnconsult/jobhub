@@ -7,10 +7,20 @@ import { describe, expect, it } from "vitest";
 const appDir = fileURLToPath(new URL("../app", import.meta.url));
 
 /**
- * The pages that are not a Candidate's: the Back Office, the Coach space, signing in, pages read signed out, and the
- * Design System components' test page (#462), served to the e2e suite only.
+ * The pages that are not a Candidate's: the Back Office, the Coach space, signing in, pages read signed out (the public
+ * pages Nouveautés and Légal among them, #470), and the Design System components' test page (#462), served to the e2e
+ * suite only.
  */
-const NOT_CANDIDATE_PAGES = [/^\/admin(\/|$)/, /^\/espace-coach(\/|$)/, /^\/connexion(\/|$)/, /^\/desabonnement$/, /^\/compte\/supprime$/, /^\/design-system(\/|$)/];
+const NOT_CANDIDATE_PAGES = [
+  /^\/admin(\/|$)/,
+  /^\/espace-coach(\/|$)/,
+  /^\/connexion(\/|$)/,
+  /^\/desabonnement$/,
+  /^\/compte\/supprime$/,
+  /^\/design-system(\/|$)/,
+  /^\/nouveautes$/,
+  /^\/legal(\/|$)/,
+];
 
 /** Every page's route pattern (`/candidatures/[id]/documents`), route groups such as `(sections)` left out. */
 function pageRoutes(dir: string, route = ""): string[] {

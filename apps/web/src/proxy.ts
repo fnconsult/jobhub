@@ -4,7 +4,7 @@ import { LOCALE_HEADER } from "@/i18n/locale-header";
 
 /**
  * Pages whose language is chosen by their URL's `lang` (the Job Digest
- * unsubscribe page): passes it on as LOCALE_HEADER, so the root layout's
+ * unsubscribe page, and the public pages Nouveautés and Légal, #470): passes it on as LOCALE_HEADER, so the root layout's
  * <html lang> matches the page's text, not only the page itself.
  */
 export function proxy(request: NextRequest) {
@@ -16,6 +16,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // routes.jobDigestUnsubscribe (the matcher must be a literal).
-  matcher: "/desabonnement",
+  // routes.jobDigestUnsubscribe, routes.nouveautes and routes.legal (the matcher must be a literal).
+  matcher: ["/desabonnement", "/nouveautes", "/legal/:path*"],
 };

@@ -81,6 +81,15 @@
     accent-color: var(--color-accent);
   }
 
+  /* A checkbox or radio button with its hint, the hint under its words. */
+  .ds-choice-field {
+    display: grid;
+  }
+
+  .ds-choice__hint {
+    padding-left: calc(1.1em + var(--space-2));
+  }
+
   .ds-switch-row {
     display: inline-flex;
     gap: var(--space-3);

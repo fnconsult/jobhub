@@ -11,6 +11,13 @@ import { IMPORT_AUTHOR, type PlaybookVersion } from "@/coaching-playbooks";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { Button } from "@/design/Button";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Drawer } from "@/design/Drawer";
+import { Field, Select, Textarea, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Properties, Property } from "@/design/Properties";
 import { EVAL_IN_VIEW_KINDS, type EvalRun, type PlaybookEvalCase } from "@/evals";
 import { getEvals } from "@/evals/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -18,6 +25,10 @@ import { routes } from "@/routes";
 import { isNotice, NOTICES, noticeQuery } from "../notices";
 import { EvalRunsTable, evalRunFormat } from "../../evaluations/run-views";
 import { PlaybookVersionFields } from "../version-fields";
+import "../../section.css";
+
+/** The language Jobbbox's team writes Playbooks, Eval Cases and their rules in. */
+const FRENCH = "fr";
 
 type Params = Promise<{ id: string }>;
 
@@ -142,325 +153,320 @@ export default async function CoachingPlaybookPage({ params, searchParams }: { p
     );
   const caseFields = (prefix: string, evalCase?: PlaybookEvalCase) => (
     <>
-      <div className="stack">
-        <label htmlFor={`${prefix}-title`}>{t("admin.evals.cases.fields.title")}</label>
-        <input id={`${prefix}-title`} className="input" name="title" required maxLength={120} lang="fr" defaultValue={evalCase?.title} />
-      </div>
-      <div className="stack">
-        <label htmlFor={`${prefix}-context`}>{t("admin.evals.cases.fields.context")}</label>
-        <textarea id={`${prefix}-context`} className="input" name="context" rows={3} required lang="fr" defaultValue={evalCase?.context} aria-describedby={`${prefix}-context-help`} />
-        <p id={`${prefix}-context-help`}>{t("admin.evals.cases.fields.contextHelp")}</p>
-      </div>
-      <div className="stack">
-        <label htmlFor={`${prefix}-message`}>{t("admin.evals.cases.fields.message")}</label>
-        <textarea id={`${prefix}-message`} className="input" name="message" rows={3} required lang="fr" defaultValue={evalCase?.message} />
-      </div>
-      <div className="stack">
-        <label htmlFor={`${prefix}-in-view-kind`}>{t("admin.evals.cases.fields.inViewKind")}</label>
-        <select id={`${prefix}-in-view-kind`} className="input" name="inViewKind" defaultValue={evalCase?.inView?.kind ?? ""}>
+      <Field id={`${prefix}-title`} label={t("admin.evals.cases.fields.title")}>
+        <TextInput name="title" required maxLength={120} lang={FRENCH} defaultValue={evalCase?.title} />
+      </Field>
+      <Field id={`${prefix}-context`} label={t("admin.evals.cases.fields.context")} hint={t("admin.evals.cases.fields.contextHelp")}>
+        <Textarea name="context" required lang={FRENCH} defaultValue={evalCase?.context} />
+      </Field>
+      <Field id={`${prefix}-message`} label={t("admin.evals.cases.fields.message")}>
+        <Textarea name="message" required lang={FRENCH} defaultValue={evalCase?.message} />
+      </Field>
+      <Field id={`${prefix}-in-view-kind`} label={t("admin.evals.cases.fields.inViewKind")}>
+        <Select name="inViewKind" defaultValue={evalCase?.inView?.kind ?? ""}>
           <option value="">{t("admin.evals.cases.fields.inViewNone")}</option>
           {EVAL_IN_VIEW_KINDS.map((kind) => (
             <option key={kind} value={kind}>
               {t(`admin.evals.cases.inViewKinds.${kind}`)}
             </option>
           ))}
-        </select>
-      </div>
-      <div className="stack">
-        <label htmlFor={`${prefix}-in-view-text`}>{t("admin.evals.cases.fields.inViewText")}</label>
-        <textarea id={`${prefix}-in-view-text`} className="input" name="inViewText" rows={4} lang="fr" defaultValue={evalCase?.inView?.text} aria-describedby={`${prefix}-in-view-text-help`} />
-        <p id={`${prefix}-in-view-text-help`}>{t("admin.evals.cases.fields.inViewTextHelp")}</p>
-      </div>
-      <div className="stack">
-        <label htmlFor={`${prefix}-criteria`}>{t("admin.evals.cases.fields.criteria")}</label>
-        <textarea id={`${prefix}-criteria`} className="input" name="criteria" rows={3} required lang="fr" defaultValue={evalCase?.criteria} aria-describedby={`${prefix}-criteria-help`} />
-        <p id={`${prefix}-criteria-help`}>{t("admin.evals.cases.fields.criteriaHelp")}</p>
-      </div>
+        </Select>
+      </Field>
+      <Field id={`${prefix}-in-view-text`} label={t("admin.evals.cases.fields.inViewText")} hint={t("admin.evals.cases.fields.inViewTextHelp")}>
+        <Textarea name="inViewText" rows={4} lang={FRENCH} defaultValue={evalCase?.inView?.text} />
+      </Field>
+      <Field id={`${prefix}-criteria`} label={t("admin.evals.cases.fields.criteria")} hint={t("admin.evals.cases.fields.criteriaHelp")}>
+        <Textarea name="criteria" required lang={FRENCH} defaultValue={evalCase?.criteria} />
+      </Field>
     </>
   );
 
   return (
     <BackOfficeLayout access={access} title={title}>
-      <p>
-        <Link href={routes.adminCoachingPlaybooks}>{t("admin.coachingPlaybooks.detail.back")}</Link>
-      </p>
-      <p className="lead">
-        <code>{playbook.id}</code> · {t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")} · {t("admin.coachingPlaybooks.served")} :{" "}
-        {playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")}
-      </p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {shown ? (
-        <p className="notice" role={NOTICES[shown] ? "alert" : "status"}>
-          {t(`admin.coachingPlaybooks.notices.${shown}`, { version: requested ?? "", sources: detail ?? "", list: detail ?? "" })}
+      <div className="section-page">
+        <p>
+          <Link href={routes.adminCoachingPlaybooks}>{t("admin.coachingPlaybooks.detail.back")}</Link>
         </p>
-      ) : null}
-
-      <nav aria-labelledby="versions-title">
-        <h2 id="versions-title">{t("admin.coachingPlaybooks.detail.versions")}</h2>
-        <ul>
-          {versions.map((version) => {
-            const tags = [
-              version.version === latest.version ? t("admin.coachingPlaybooks.detail.latestTag") : null,
-              version.version === playbook.served?.version ? t("admin.coachingPlaybooks.detail.servedTag") : null,
-              version.validation
-                ? t("admin.coachingPlaybooks.validatedBy", { name: version.validation.name, date: at.format(version.validation.at) })
-                : t("admin.coachingPlaybooks.notValidated"),
-            ].filter(Boolean);
-            return (
-              <li key={version.version}>
-                <Link href={routes.adminCoachingPlaybook(playbook.id, version.version)} aria-current={version.version === selected?.version ? CURRENT : undefined}>
-                  {versionName(version.version)}
-                </Link>{" "}
-                ({tags.join(", ")})
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      {selected ? (
-        <section className="stack" aria-labelledby="version-title">
-          <h2 id="version-title">{t("admin.coachingPlaybooks.detail.versionTitle", { version: String(selected.version) })}</h2>
-          <dl>
-            <dt>{t("admin.coachingPlaybooks.detail.authors")}</dt>
-            <dd>{selected.authors.map((author) => (author === IMPORT_AUTHOR ? t("admin.coachingPlaybooks.detail.importAuthor") : author)).join(", ")}</dd>
-            <dt>{t("admin.coachingPlaybooks.detail.createdAt")}</dt>
-            <dd>{at.format(selected.createdAt)}</dd>
-            <dt>{t("admin.coachingPlaybooks.detail.updatedAt")}</dt>
-            <dd>{at.format(selected.updatedAt)}</dd>
-            <dt>{t("admin.coachingPlaybooks.detail.validation")}</dt>
-            <dd>
-              {selected.validation
-                ? t("admin.coachingPlaybooks.validatedBy", { name: `${selected.validation.name} (${selected.validation.email})`, date: at.format(selected.validation.at) })
-                : t("admin.coachingPlaybooks.notValidated")}
-            </dd>
-            {selected.agent ? (
-              <>
-                <dt>{t("admin.coachingPlaybooks.agent")}</dt>
-                <dd>
-                  {t("admin.coachingPlaybooks.agentSummary", {
-                    provider: selected.agent.provider,
-                    model: selected.agent.model ?? t("admin.coachingPlaybooks.providerDefault"),
-                    effort: selected.agent.effort ? t(`admin.coachingPlaybooks.efforts.${selected.agent.effort}`) : t("admin.coachingPlaybooks.effortDefault"),
-                  })}
-                  {effortOf(models, selected.agent.provider, selected.agent.model) === "native"
-                    ? null
-                    : ` (${t(`admin.coachingPlaybooks.effortHandling.${effortOf(models, selected.agent.provider, selected.agent.model)}`)})`}
-                </dd>
-                {playbook.kind === "task" ? null : (
-                  <>
-                    <dt>{t("admin.coachingPlaybooks.fields.consultWhen")}</dt>
-                    <dd lang="fr">{selected.agent.consultWhen}</dd>
-                  </>
-                )}
-              </>
-            ) : playbook.kind === "task" ? (
-              <>
-                <dt>{t("admin.coachingPlaybooks.tasks.runBy")}</dt>
-                <dd>{t("admin.coachingPlaybooks.detail.taskWebSearch")}</dd>
-              </>
-            ) : null}
-            {task?.search ? (
-              <>
-                <dt>{t("admin.coachingPlaybooks.detail.search")}</dt>
-                <dd>
-                  {selected.search
-                    ? `${selected.search.provider} · ${selected.search.model ?? t("admin.coachingPlaybooks.providerDefault")}`
-                    : t("admin.coachingPlaybooks.fields.searchConfigured")}
-                </dd>
-              </>
-            ) : null}
-          </dl>
-          <h3>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.instructions" : "admin.coachingPlaybooks.detail.rules")}</h3>
-          <pre className="playbook-rules" lang="fr">
-            {selected.content}
-          </pre>
-        </section>
-      ) : (
-        <p className="notice" role="alert">
-          {t("admin.coachingPlaybooks.detail.noVersion")}
+        <p className="section-lead">
+          <code>{playbook.id}</code> · {t(playbook.archived ? "admin.coachingPlaybooks.archived" : "admin.coachingPlaybooks.active")} · {t("admin.coachingPlaybooks.served")} :{" "}
+          {playbook.served ? t("admin.coachingPlaybooks.version", { version: String(playbook.served.version) }) : t("admin.coachingPlaybooks.none")}
         </p>
-      )}
+        {canWrite ? null : <Note>{t("admin.readOnly")}</Note>}
+        {shown ? (
+          <Note tone={NOTICES[shown] ? "danger" : "success"} role={NOTICES[shown] ? "alert" : "status"}>
+            {t(`admin.coachingPlaybooks.notices.${shown}`, { version: requested ?? "", sources: detail ?? "", list: detail ?? "" })}
+          </Note>
+        ) : null}
 
-      {latest.validation ? null : (
-        <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={validatePlaybook}>
-          <fieldset disabled={!canWrite}>
-            <legend>
-              <h2>{t("admin.coachingPlaybooks.detail.validateTitle", { version: String(latest.version) })}</h2>
-            </legend>
-            <p>{t("admin.coachingPlaybooks.detail.validateHelp")}</p>
-            {isPlaybook ? (
-              <dl>
-                <dt>{t("admin.evals.validation.onLatest", { version: String(latest.version) })}</dt>
-                <dd>{runLine(runOnLatest, t("admin.evals.validation.noRunOnLatest"))}</dd>
-                <dt>{playbook.served ? t("admin.evals.validation.onServed", { version: String(playbook.served.version) }) : t("admin.evals.validation.noneServed")}</dt>
-                {playbook.served ? <dd>{runLine(runOnServed, t("admin.evals.validation.noRunOnServed"))}</dd> : null}
-                <dd>{t("admin.evals.validation.noScoreBlocks")}</dd>
-              </dl>
-            ) : null}
-            <input type="hidden" name="playbookId" value={playbook.id} />
-            <input type="hidden" name="version" value={latest.version} />
-            <div className="stack">
-              <label htmlFor="validator-name">{t("admin.coachingPlaybooks.detail.validatorName")}</label>
-              <input id="validator-name" className="input" name="name" required autoComplete="name" defaultValue={accountName} />
-            </div>
-            <button className="button button-primary" type="submit">
-              {t("admin.coachingPlaybooks.detail.validate", { version: String(latest.version) })}
-            </button>
-          </fieldset>
-        </BackOfficeForm>
-      )}
+        <nav className="section-block" aria-labelledby="versions-title">
+          <h2 id="versions-title">{t("admin.coachingPlaybooks.detail.versions")}</h2>
+          <ul className="section-list">
+            {versions.map((version) => {
+              const tags = [
+                version.version === latest.version ? t("admin.coachingPlaybooks.detail.latestTag") : null,
+                version.version === playbook.served?.version ? t("admin.coachingPlaybooks.detail.servedTag") : null,
+                version.validation
+                  ? t("admin.coachingPlaybooks.validatedBy", { name: version.validation.name, date: at.format(version.validation.at) })
+                  : t("admin.coachingPlaybooks.notValidated"),
+              ].filter(Boolean);
+              return (
+                <li key={version.version}>
+                  <Link href={routes.adminCoachingPlaybook(playbook.id, version.version)} aria-current={version.version === selected?.version ? CURRENT : undefined}>
+                    {versionName(version.version)}
+                  </Link>{" "}
+                  <span className="section-meta">({tags.join(", ")})</span>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-      {isPlaybook ? (
-        <section className="stack" id="eval-cases" aria-labelledby="eval-cases-title">
-          <h2 id="eval-cases-title">{t("admin.evals.cases.title")}</h2>
-          <p>{t("admin.evals.cases.intro")}</p>
-          {evalCases.length === 0 ? <p>{t("admin.evals.cases.none")}</p> : null}
-          {evalCases.map((evalCase) => (
-            <article key={evalCase.id} className="stack" aria-labelledby={`case-${evalCase.id}-title`}>
-              <h3 id={`case-${evalCase.id}-title`}>{evalCase.title}</h3>
-              <p>{t("admin.evals.cases.writtenBy", { author: evalCase.author, date: at.format(evalCase.updatedAt) })}</p>
-              <dl>
-                <dt>{t("admin.evals.run.context")}</dt>
-                <dd lang="fr">{evalCase.context}</dd>
-                <dt>{t("admin.evals.run.message")}</dt>
-                <dd lang="fr">{evalCase.message}</dd>
-                {evalCase.inView ? (
+        {selected ? (
+          <section aria-labelledby="version-title">
+            <Card title={<span id="version-title">{t("admin.coachingPlaybooks.detail.versionTitle", { version: String(selected.version) })}</span>}>
+              <div className="section-block">
+                <Properties>
+                  <Property term={t("admin.coachingPlaybooks.detail.authors")}>
+                    {selected.authors.map((author) => (author === IMPORT_AUTHOR ? t("admin.coachingPlaybooks.detail.importAuthor") : author)).join(", ")}
+                  </Property>
+                  <Property term={t("admin.coachingPlaybooks.detail.createdAt")}>{at.format(selected.createdAt)}</Property>
+                  <Property term={t("admin.coachingPlaybooks.detail.updatedAt")}>{at.format(selected.updatedAt)}</Property>
+                  <Property term={t("admin.coachingPlaybooks.detail.validation")}>
+                    {selected.validation
+                      ? t("admin.coachingPlaybooks.validatedBy", { name: `${selected.validation.name} (${selected.validation.email})`, date: at.format(selected.validation.at) })
+                      : t("admin.coachingPlaybooks.notValidated")}
+                  </Property>
+                  {selected.agent ? (
+                    <>
+                      <Property term={t("admin.coachingPlaybooks.agent")}>
+                        {t("admin.coachingPlaybooks.agentSummary", {
+                          provider: selected.agent.provider,
+                          model: selected.agent.model ?? t("admin.coachingPlaybooks.providerDefault"),
+                          effort: selected.agent.effort ? t(`admin.coachingPlaybooks.efforts.${selected.agent.effort}`) : t("admin.coachingPlaybooks.effortDefault"),
+                        })}
+                        {effortOf(models, selected.agent.provider, selected.agent.model) === "native"
+                          ? null
+                          : ` (${t(`admin.coachingPlaybooks.effortHandling.${effortOf(models, selected.agent.provider, selected.agent.model)}`)})`}
+                      </Property>
+                      {playbook.kind === "task" ? null : (
+                        <Property term={t("admin.coachingPlaybooks.fields.consultWhen")} lang={FRENCH}>
+                          {selected.agent.consultWhen}
+                        </Property>
+                      )}
+                    </>
+                  ) : playbook.kind === "task" ? (
+                    <Property term={t("admin.coachingPlaybooks.tasks.runBy")}>{t("admin.coachingPlaybooks.detail.taskWebSearch")}</Property>
+                  ) : null}
+                  {task?.search ? (
+                    <Property term={t("admin.coachingPlaybooks.detail.search")}>
+                      {selected.search ? `${selected.search.provider} · ${selected.search.model ?? t("admin.coachingPlaybooks.providerDefault")}` : t("admin.coachingPlaybooks.fields.searchConfigured")}
+                    </Property>
+                  ) : null}
+                </Properties>
+                <h3>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.instructions" : "admin.coachingPlaybooks.detail.rules")}</h3>
+                <pre className="section-text" data-boxed data-playbook-rules lang="fr">
+                  {selected.content}
+                </pre>
+              </div>
+            </Card>
+          </section>
+        ) : (
+          <Note tone="danger" role="alert">
+            {t("admin.coachingPlaybooks.detail.noVersion")}
+          </Note>
+        )}
+
+        {latest.validation ? null : (
+          <BackOfficeForm canWrite={canWrite} action={validatePlaybook}>
+            <Card title={t("admin.coachingPlaybooks.detail.validateTitle", { version: String(latest.version) })}>
+              <fieldset className="section-form" disabled={!canWrite}>
+                <p>{t("admin.coachingPlaybooks.detail.validateHelp")}</p>
+                {isPlaybook ? (
                   <>
-                    <dt>{t("admin.evals.run.inView")}</dt>
-                    <dd lang="fr">
-                      {t(`admin.evals.cases.inViewKinds.${evalCase.inView.kind}`)} : {evalCase.inView.text}
-                    </dd>
+                    <Properties>
+                      <Property term={t("admin.evals.validation.onLatest", { version: String(latest.version) })}>{runLine(runOnLatest, t("admin.evals.validation.noRunOnLatest"))}</Property>
+                      {playbook.served ? (
+                        <Property term={t("admin.evals.validation.onServed", { version: String(playbook.served.version) })}>{runLine(runOnServed, t("admin.evals.validation.noRunOnServed"))}</Property>
+                      ) : (
+                        <Property term={t("admin.evals.validation.noneServed")}>—</Property>
+                      )}
+                    </Properties>
+                    <p className="section-meta">{t("admin.evals.validation.noScoreBlocks")}</p>
                   </>
                 ) : null}
-                <dt>{t("admin.evals.run.criteria")}</dt>
-                <dd lang="fr">{evalCase.criteria}</dd>
-              </dl>
-              {canWrite ? (
-                <details>
-                  <summary>{t("admin.evals.cases.edit")}</summary>
-                  <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={saveEvalCase}>
-                    <input type="hidden" name="playbookId" value={playbook.id} />
-                    <input type="hidden" name="caseId" value={evalCase.id} />
-                    {caseFields(`edit-case-${evalCase.id}`, evalCase)}
-                    <button className="button button-primary" type="submit">
-                      {t("admin.evals.cases.save")}
-                    </button>
-                  </BackOfficeForm>
-                  <BackOfficeForm canWrite={canWrite} className="stack" action={removeEvalCase}>
-                    <input type="hidden" name="playbookId" value={playbook.id} />
-                    <input type="hidden" name="caseId" value={evalCase.id} />
-                    <button className="button" type="submit">
-                      {t("admin.evals.cases.remove")}
-                    </button>
-                  </BackOfficeForm>
-                </details>
-              ) : null}
-            </article>
-          ))}
-          <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={addEvalCase}>
-            <fieldset disabled={!canWrite}>
-              <legend>
-                <h3>{t("admin.evals.cases.add")}</h3>
-              </legend>
-              <input type="hidden" name="playbookId" value={playbook.id} />
-              {caseFields(NEW_CASE_FORM)}
-              <button className="button button-primary" type="submit">
-                {t("admin.evals.cases.addButton")}
-              </button>
-            </fieldset>
+                <input type="hidden" name="playbookId" value={playbook.id} />
+                <input type="hidden" name="version" value={latest.version} />
+                <Field label={t("admin.coachingPlaybooks.detail.validatorName")}>
+                  <TextInput name="name" required autoComplete="name" defaultValue={accountName} />
+                </Field>
+                <button className={buttonClass({ variant: "primary" })} type="submit">
+                  {t("admin.coachingPlaybooks.detail.validate", { version: String(latest.version) })}
+                </button>
+              </fieldset>
+            </Card>
           </BackOfficeForm>
-        </section>
-      ) : null}
+        )}
 
-      {isPlaybook ? (
-        <section className="stack" id="eval-runs" aria-labelledby="eval-runs-title">
-          <h2 id="eval-runs-title">{t("admin.evals.runs.title")}</h2>
-          <p>{t("admin.evals.runs.intro")}</p>
-          <BackOfficeForm canWrite={canRun} className="stack quota-form" action={startEvalRun}>
-            <fieldset disabled={!canRun}>
-              <legend>
-                <h3>{t("admin.evals.runs.start", { version: String(latest.version) })}</h3>
-              </legend>
-              <p id="eval-run-help">{t("admin.evals.runs.startHelp")}</p>
-              <input type="hidden" name="playbookId" value={playbook.id} />
-              <div className="stack">
-                <label htmlFor="eval-run-version">{t("admin.evals.runs.version")}</label>
-                <select id="eval-run-version" className="input" name="version" defaultValue={String(latest.version)}>
-                  {[latest, ...(playbook.served && playbook.served.version !== latest.version ? [playbook.served] : [])].map((version) => (
-                    <option key={version.version} value={version.version}>
-                      {versionName(version.version)}
-                      {version.version === playbook.served?.version ? ` (${t("admin.coachingPlaybooks.detail.servedTag")})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="stack">
-                <label htmlFor="eval-run-model">{t("admin.evals.runs.model")}</label>
-                <select id="eval-run-model" className="input" name="agentModel" defaultValue="" aria-describedby="eval-run-help">
-                  <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
-                  {models.map((choice) => (
-                    <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
-                      <option value={agentModelValue(choice.provider, null)}>{`${choice.provider} · ${defaultModelLabel(t, choice)}`}</option>
-                      {choice.models.map((each) => (
-                        <option key={each.model} value={agentModelValue(choice.provider, each.model)}>
-                          {`${choice.provider} · ${each.model}`}
+        {isPlaybook ? (
+          <section className="section-block" id="eval-cases" aria-labelledby="eval-cases-title">
+            <h2 id="eval-cases-title">{t("admin.evals.cases.title")}</h2>
+            <p>{t("admin.evals.cases.intro")}</p>
+            {evalCases.length === 0 ? <p>{t("admin.evals.cases.none")}</p> : null}
+            {evalCases.map((evalCase) => (
+              <article key={evalCase.id} aria-labelledby={`case-${evalCase.id}-title`}>
+                <Card
+                  title={<span id={`case-${evalCase.id}-title`}>{evalCase.title}</span>}
+                  headingLevel={3}
+                  actions={
+                    canWrite ? (
+                      // Its edit form in a Drawer drawn inside the case, so the form stays the case's.
+                      <Drawer inPlace title={evalCase.title} trigger={<Button size="sm">{t("admin.evals.cases.edit")}</Button>}>
+                        <div className="section-block">
+                          <BackOfficeForm canWrite={canWrite} action={saveEvalCase} className="section-form">
+                            <input type="hidden" name="playbookId" value={playbook.id} />
+                            <input type="hidden" name="caseId" value={evalCase.id} />
+                            {caseFields(`edit-case-${evalCase.id}`, evalCase)}
+                            <button className={buttonClass({ variant: "primary" })} type="submit">
+                              {t("admin.evals.cases.save")}
+                            </button>
+                          </BackOfficeForm>
+                          <BackOfficeForm canWrite={canWrite} action={removeEvalCase}>
+                            <input type="hidden" name="playbookId" value={playbook.id} />
+                            <input type="hidden" name="caseId" value={evalCase.id} />
+                            <button className={buttonClass({ variant: "danger" })} type="submit">
+                              {t("admin.evals.cases.remove")}
+                            </button>
+                          </BackOfficeForm>
+                        </div>
+                      </Drawer>
+                    ) : null
+                  }
+                >
+                  <div className="section-block">
+                    <p className="section-meta">{t("admin.evals.cases.writtenBy", { author: evalCase.author, date: at.format(evalCase.updatedAt) })}</p>
+                    <Properties>
+                      <Property term={t("admin.evals.run.context")} lang={FRENCH}>
+                        {evalCase.context}
+                      </Property>
+                      <Property term={t("admin.evals.run.message")} lang={FRENCH}>
+                        {evalCase.message}
+                      </Property>
+                      {evalCase.inView ? (
+                        <Property term={t("admin.evals.run.inView")} lang={FRENCH}>
+                          {t(`admin.evals.cases.inViewKinds.${evalCase.inView.kind}`)} : {evalCase.inView.text}
+                        </Property>
+                      ) : null}
+                      <Property term={t("admin.evals.run.criteria")} lang={FRENCH}>
+                        {evalCase.criteria}
+                      </Property>
+                    </Properties>
+                  </div>
+                </Card>
+              </article>
+            ))}
+            <BackOfficeForm canWrite={canWrite} action={addEvalCase}>
+              <Card title={t("admin.evals.cases.add")} headingLevel={3}>
+                <fieldset className="section-form" disabled={!canWrite}>
+                  <input type="hidden" name="playbookId" value={playbook.id} />
+                  {caseFields(NEW_CASE_FORM)}
+                  <button className={buttonClass({ variant: "primary" })} type="submit">
+                    {t("admin.evals.cases.addButton")}
+                  </button>
+                </fieldset>
+              </Card>
+            </BackOfficeForm>
+          </section>
+        ) : null}
+
+        {isPlaybook ? (
+          <section className="section-block" id="eval-runs" aria-labelledby="eval-runs-title">
+            <h2 id="eval-runs-title">{t("admin.evals.runs.title")}</h2>
+            <p>{t("admin.evals.runs.intro")}</p>
+            <BackOfficeForm canWrite={canRun} action={startEvalRun}>
+              <Card title={t("admin.evals.runs.start", { version: String(latest.version) })} headingLevel={3}>
+                <fieldset className="section-form" disabled={!canRun}>
+                  <p id="eval-run-help" className="section-meta">
+                    {t("admin.evals.runs.startHelp")}
+                  </p>
+                  <input type="hidden" name="playbookId" value={playbook.id} />
+                  <Field label={t("admin.evals.runs.version")}>
+                    <Select name="version" defaultValue={String(latest.version)}>
+                      {[latest, ...(playbook.served && playbook.served.version !== latest.version ? [playbook.served] : [])].map((version) => (
+                        <option key={version.version} value={version.version}>
+                          {versionName(version.version)}
+                          {version.version === playbook.served?.version ? ` (${t("admin.coachingPlaybooks.detail.servedTag")})` : ""}
                         </option>
                       ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-              <div className="stack">
-                <label htmlFor="eval-run-effort">{t("admin.evals.runs.effort")}</label>
-                <select id="eval-run-effort" className="input" name="effort" defaultValue="">
-                  <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
-                  {EFFORTS.map((effort) => (
-                    <option key={effort} value={effort}>
-                      {t(`admin.coachingPlaybooks.efforts.${effort}`)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <p>{t("admin.evals.runs.running")}</p>
-              <button className="button button-primary" type="submit" disabled={evalCases.length === 0}>
-                {t("admin.evals.runs.startButton")}
+                    </Select>
+                  </Field>
+                  <Field label={t("admin.evals.runs.model")}>
+                    <Select name="agentModel" defaultValue="" aria-describedby="eval-run-help">
+                      <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
+                      {models.map((choice) => (
+                        <optgroup key={choice.provider} label={`${choice.provider} (${choice.endpoint})`}>
+                          <option value={agentModelValue(choice.provider, null)}>{`${choice.provider} · ${defaultModelLabel(t, choice)}`}</option>
+                          {choice.models.map((each) => (
+                            <option key={each.model} value={agentModelValue(choice.provider, each.model)}>
+                              {`${choice.provider} · ${each.model}`}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label={t("admin.evals.runs.effort")}>
+                    <Select name="effort" defaultValue="">
+                      <option value="">{t("admin.evals.runs.agentAsSaved")}</option>
+                      {EFFORTS.map((effort) => (
+                        <option key={effort} value={effort}>
+                          {t(`admin.coachingPlaybooks.efforts.${effort}`)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <p className="section-meta">{t("admin.evals.runs.running")}</p>
+                  <button className={buttonClass({ variant: "primary" })} type="submit" disabled={evalCases.length === 0}>
+                    {t("admin.evals.runs.startButton")}
+                  </button>
+                </fieldset>
+              </Card>
+            </BackOfficeForm>
+            <EvalRunsTable runs={runs} caption={t("admin.evals.runs.caption")} />
+          </section>
+        ) : null}
+
+        <BackOfficeForm canWrite={canWrite} action={savePlaybook}>
+          <Card title={t("admin.coachingPlaybooks.detail.editTitle")}>
+            <fieldset className="section-form" disabled={!canWrite}>
+              <p>
+                {latest.validation
+                  ? t("admin.coachingPlaybooks.detail.editValidated", { version: String(latest.version), next: String(latest.version + 1) })
+                  : t("admin.coachingPlaybooks.detail.editDraft", { version: String(latest.version) })}
+              </p>
+              <input type="hidden" name="playbookId" value={playbook.id} />
+              <PlaybookVersionFields idPrefix={EDIT_FORM} kind={playbook.kind} version={latest} models={models} searchModels={searchModels} task={task} />
+              <button className={buttonClass({ variant: "primary" })} type="submit">
+                {t("admin.coachingPlaybooks.detail.save")}
               </button>
             </fieldset>
-          </BackOfficeForm>
-          <EvalRunsTable runs={runs} caption={t("admin.evals.runs.caption")} />
-        </section>
-      ) : null}
-
-      <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={savePlaybook}>
-        <fieldset disabled={!canWrite}>
-          <legend>
-            <h2>{t("admin.coachingPlaybooks.detail.editTitle")}</h2>
-          </legend>
-          <p>
-            {latest.validation
-              ? t("admin.coachingPlaybooks.detail.editValidated", { version: String(latest.version), next: String(latest.version + 1) })
-              : t("admin.coachingPlaybooks.detail.editDraft", { version: String(latest.version) })}
-          </p>
-          <input type="hidden" name="playbookId" value={playbook.id} />
-          <PlaybookVersionFields idPrefix={EDIT_FORM} kind={playbook.kind} version={latest} models={models} searchModels={searchModels} task={task} />
-          <button className="button button-primary" type="submit">
-            {t("admin.coachingPlaybooks.detail.save")}
-          </button>
-        </fieldset>
-      </BackOfficeForm>
-
-      {playbook.kind === "playbook" || playbook.kind === "task" ? (
-        <BackOfficeForm canWrite={canWrite} className="stack" action={archivePlaybook}>
-          <h2>{t("admin.coachingPlaybooks.detail.archiveTitle")}</h2>
-          <p>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.taskArchiveHelp" : "admin.coachingPlaybooks.detail.archiveHelp")}</p>
-          <input type="hidden" name="playbookId" value={playbook.id} />
-          <input type="hidden" name="archived" value={String(!playbook.archived)} />
-          <button className="button" type="submit" disabled={!canWrite}>
-            {t(playbook.archived ? "admin.coachingPlaybooks.detail.restore" : "admin.coachingPlaybooks.detail.archive")}
-          </button>
+          </Card>
         </BackOfficeForm>
-      ) : null}
+
+        {playbook.kind === "playbook" || playbook.kind === "task" ? (
+          <BackOfficeForm canWrite={canWrite} action={archivePlaybook}>
+            <Card title={t("admin.coachingPlaybooks.detail.archiveTitle")}>
+              <div className="section-form">
+                <p>{t(playbook.kind === "task" ? "admin.coachingPlaybooks.detail.taskArchiveHelp" : "admin.coachingPlaybooks.detail.archiveHelp")}</p>
+                <input type="hidden" name="playbookId" value={playbook.id} />
+                <input type="hidden" name="archived" value={String(!playbook.archived)} />
+                <button className={buttonClass({ variant: playbook.archived ? "secondary" : "danger" })} type="submit" disabled={!canWrite}>
+                  {t(playbook.archived ? "admin.coachingPlaybooks.detail.restore" : "admin.coachingPlaybooks.detail.archive")}
+                </button>
+              </div>
+            </Card>
+          </BackOfficeForm>
+        ) : null}
+      </div>
     </BackOfficeLayout>
   );
 }

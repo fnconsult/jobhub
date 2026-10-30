@@ -30,27 +30,33 @@ describe("sign-in page copy", () => {
 
   it("asks for a new link when a sign-in link is no longer valid", () => {
     for (const error of ["INVALID_TOKEN", "EXPIRED_TOKEN", "ATTEMPTS_EXCEEDED"]) {
-      expect(signInCopy({ providers: ["Google"], error }, "fr").notice).toBe("Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.");
+      expect(signInCopy({ providers: ["Google"], error }, "fr").notice?.text).toBe("Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.");
     }
   });
 
   it("after a failed sign-in, suggests the providers only when there are some", () => {
-    expect(signInCopy({ providers: ["Google"], error: "access_denied" }, "fr").notice).toBe(
+    expect(signInCopy({ providers: ["Google"], error: "access_denied" }, "fr").notice?.text).toBe(
       "La connexion n'a pas abouti. Réessayez ci-dessous, avec Google ou en recevant un lien par e-mail.",
     );
-    expect(signInCopy({ providers: [], error: "access_denied" }, "fr").notice).toBe("La connexion n'a pas abouti. Réessayez ci-dessous en recevant un lien par e-mail.");
-    expect(signInCopy({ providers: [], error: "access_denied" }, "en").notice).toBe("Sign-in didn't go through. Try again below with a link by email.");
+    expect(signInCopy({ providers: [], error: "access_denied" }, "fr").notice?.text).toBe("La connexion n'a pas abouti. Réessayez ci-dessous en recevant un lien par e-mail.");
+    expect(signInCopy({ providers: [], error: "access_denied" }, "en").notice?.text).toBe("Sign-in didn't go through. Try again below with a link by email.");
   });
 
   it("asks a person with an account to sign in by magic link first, then link the provider from Mon compte", () => {
-    expect(signInCopy({ providers: ["Jobbbox SSO"], error: "account_not_linked" }, "fr").notice).toBe(
+    expect(signInCopy({ providers: ["Jobbbox SSO"], error: "account_not_linked" }, "fr").notice?.text).toBe(
       "Un compte Jobbbox utilise déjà cette adresse e-mail. Connectez-vous d'abord en recevant un lien par e-mail, puis associez ce moyen de connexion à votre compte depuis « Mon compte ».",
     );
   });
 
   it("says a provider for the Jobbbox team is not for Candidates", () => {
-    expect(signInCopy({ providers: [], error: "provider_not_allowed" }, "fr").notice).toBe(
+    expect(signInCopy({ providers: [], error: "provider_not_allowed" }, "fr").notice?.text).toBe(
       "Ce moyen de connexion est réservé à l'équipe Jobbbox. Connectez-vous ci-dessous en recevant un lien par e-mail.",
     );
+  });
+
+  it("shows a dead link as a warning Note, any other failed sign-in as a danger Note", () => {
+    expect(signInCopy({ providers: ["Google"], error: "EXPIRED_TOKEN" }, "fr").notice?.tone).toBe("warn");
+    for (const error of ["access_denied", "account_not_linked", "provider_not_allowed", "provider_disabled"])
+      expect(signInCopy({ providers: ["Google"], error }, "fr").notice?.tone).toBe("danger");
   });
 });

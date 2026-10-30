@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { IntroPage } from "@/admin/page-intro";
 import { getGuardrailsBackOffice, requireBackOffice } from "@/admin/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { playbookServing } from "@/coaching-playbooks/serving";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { PageIntro } from "@/components/PageIntro";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, Select, Textarea, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
+import { Pill, type Tone } from "@/design/Pill";
+import { Properties, Property } from "@/design/Properties";
+import { Table } from "@/design/Table";
 import { getEvals } from "@/evals/server";
-import { GUARDRAIL_LANGUAGES, type GuardrailId, type GuardrailLanguage } from "@/guardrails";
+import { GUARDRAIL_LANGUAGES, type GuardrailId, type GuardrailLanguage, type GuardrailSetting } from "@/guardrails";
 import { GUARDRAIL_FAILURE_REASONS } from "@jobhub/shared";
 import { getGuardrailStore, guardrailTriggersOfLastDays } from "@/guardrails/server";
 import { TRIGGER_RETENTION_MONTHS, type GuardrailMessageVersion, type GuardrailTriggerDay } from "@/guardrails/store";
@@ -14,6 +23,10 @@ import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import Link from "next/link";
 import { EvalRunsTable } from "../evaluations/run-views";
+import "../section.css";
+
+/** This section's one-line intro (#466). */
+const INTRO: IntroPage = "guardrails";
 
 /** What the page says after an action: a key under admin.guardrails.notices, and whether it is an error. */
 const NOTICES = {
@@ -32,6 +45,8 @@ const NOTICES = {
   eval_refused: true,
 } as const;
 type Notice = keyof typeof NOTICES;
+/** A Guardrail's setting, its words saying it: blocking is on, flagging watches, off stands out. */
+const SETTING_TONE: Record<GuardrailSetting, Tone> = { block: "success", flag: "accent", off: "warn" };
 const isNotice = (value: unknown): value is Notice => typeof value === "string" && Object.hasOwn(NOTICES, value);
 
 /** How many days of Guardrail Triggers the page shows. */
@@ -104,176 +119,158 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
   const language = (each: GuardrailLanguage) => t(`admin.guardrails.languages.${each}`);
 
   return (
-    <BackOfficeLayout access={access}>
-      <h1>{t("admin.guardrails.title")}</h1>
-      <p className="lead">{t("admin.guardrails.intro")}</p>
-      <p>{t(playbookServing(process.env) === "validated" ? "admin.guardrails.servingValidated" : "admin.guardrails.servingLatest")}</p>
-      {canWrite ? null : <p className="notice">{t("admin.readOnly")}</p>}
-      {shown ? (
-        <p className="notice" role={NOTICES[shown] ? "alert" : "status"}>
-          {t(`admin.guardrails.notices.${shown}`, { cases: cases ?? "" })}
-        </p>
-      ) : null}
-      {shown && run && /^[0-9a-f-]{36}$/i.test(run) ? (
-        <p>
-          <Link href={routes.adminEvalRun(run)}>{t("admin.guardrails.runs.played")}</Link>
-        </p>
-      ) : null}
+    <BackOfficeLayout access={access} title={t("admin.guardrails.title")}>
+      <div className="section-page">
+        <PageIntro t={t} page={INTRO} subject={t("admin.guardrails.title")}>
+          <p>{t(playbookServing(process.env) === "validated" ? "admin.guardrails.servingValidated" : "admin.guardrails.servingLatest")}</p>
+          {canWrite ? null : <p>{t("admin.readOnly")}</p>}
+        </PageIntro>
+        {shown ? (
+          <Note tone={NOTICES[shown] ? "danger" : "success"} role={NOTICES[shown] ? "alert" : "status"}>
+            {t(`admin.guardrails.notices.${shown}`, { cases: cases ?? "" })}
+          </Note>
+        ) : null}
+        {shown && run && /^[0-9a-f-]{36}$/i.test(run) ? (
+          <p>
+            <Link href={routes.adminEvalRun(run)}>{t("admin.guardrails.runs.played")}</Link>
+          </p>
+        ) : null}
 
-      <div className="table-scroll">
-        <table className="application-table">
-          <caption>{t("admin.guardrails.caption")}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t("admin.guardrails.name")}</th>
-              <th scope="col">{t("admin.guardrails.guardsAgainst")}</th>
-              <th scope="col">{t("admin.guardrails.setting")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {guardrails.map((guardrail) => (
-              <tr key={guardrail.id}>
-                <th scope="row">
-                  <a href={`#${guardrail.id}`}>{name(guardrail.id)}</a>
-                </th>
-                <td>{t(`admin.guardrails.descriptions.${guardrail.id}`)}</td>
-                <td>{guardrail.alwaysOn ? t("admin.guardrails.alwaysOn") : t(`admin.guardrails.settings.${guardrail.setting}`)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <Table
+          label={t("admin.guardrails.caption")}
+          columns={[
+            { header: t("admin.guardrails.name"), rowHeader: true, cell: (guardrail) => <a href={`#${guardrail.id}`}>{name(guardrail.id)}</a> },
+            { header: t("admin.guardrails.guardsAgainst"), cell: (guardrail) => t(`admin.guardrails.descriptions.${guardrail.id}`) },
+            {
+              header: t("admin.guardrails.setting"),
+              cell: (guardrail) => <Pill tone={guardrail.alwaysOn ? "accent" : SETTING_TONE[guardrail.setting]}>{guardrail.alwaysOn ? t("admin.guardrails.alwaysOn") : t(`admin.guardrails.settings.${guardrail.setting}`)}</Pill>,
+            },
+          ]}
+          rows={guardrails}
+          rowKey={(guardrail) => guardrail.id}
+        />
 
-      {guardrails.map((guardrail) => (
-        <section key={guardrail.id} id={guardrail.id} className="stack" aria-labelledby={`${guardrail.id}-title`}>
-          <h2 id={`${guardrail.id}-title`}>{name(guardrail.id)}</h2>
-          <p>{t(`admin.guardrails.descriptions.${guardrail.id}`)}</p>
-          {guardrail.alwaysOn ? (
-            <p>{t("admin.guardrails.alwaysOnHelp")}</p>
-          ) : (
-            <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={saveSetting}>
-              <fieldset disabled={!canWrite}>
-                <legend>{t("admin.guardrails.setting")}</legend>
-                <input type="hidden" name="guardrail" value={guardrail.id} />
-                <label htmlFor={`${guardrail.id}-setting`}>{t("admin.guardrails.settingLabel")}</label>
-                <select id={`${guardrail.id}-setting`} className="input" name="setting" defaultValue={guardrail.setting} aria-describedby={`${guardrail.id}-setting-help`}>
-                  {guardrail.settings.map((setting) => (
-                    <option key={setting} value={setting}>
-                      {t(`admin.guardrails.settings.${setting}`)}
-                    </option>
-                  ))}
-                </select>
-                <p id={`${guardrail.id}-setting-help`}>
-                  {t(guardrail.messages ? "admin.guardrails.settingHelp" : "admin.guardrails.settingHelpEmail")} {t("admin.guardrails.settingHelpEvals")}
-                </p>
-                <button className="button button-primary" type="submit">
-                  {t("admin.guardrails.saveSetting")}
-                </button>
-              </fieldset>
-            </BackOfficeForm>
-          )}
-
-          {guardrail.messages ? null : <p>{t("admin.guardrails.noMessage")}</p>}
-          {GUARDRAIL_LANGUAGES.map((each) => {
-            if (!guardrail.messages) return null;
-            const { latest, served, default: fallback } = guardrail.messages[each];
-            const prefix = `${guardrail.id}-${each}`;
-            return (
-              <div key={each} className="stack">
-                <h3>{t("admin.guardrails.messageTitle", { language: language(each) })}</h3>
-                <dl>
-                  <dt>{t("admin.guardrails.served")}</dt>
-                  <dd lang={each}>{served ? served.text : fallback}</dd>
-                  <dd>{served ? `${t("admin.guardrails.version", { version: String(served.version) })}, ${validation(served)}` : t("admin.guardrails.defaultText")}</dd>
-                  {latest && latest.version !== served?.version ? (
-                    <>
-                      <dt>{t("admin.guardrails.latest")}</dt>
-                      <dd lang={each}>{latest.text}</dd>
-                      <dd>{`${t("admin.guardrails.version", { version: String(latest.version) })}, ${t("admin.guardrails.writtenBy", { author: latest.author })}, ${validation(latest)}`}</dd>
-                    </>
-                  ) : null}
-                </dl>
-                {latest && !latest.validation ? (
-                  <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={validateMessage}>
-                    <fieldset disabled={!canWrite}>
-                      <legend>{t("admin.guardrails.validateTitle", { language: language(each), version: String(latest.version) })}</legend>
-                      <p>{t("admin.guardrails.validateHelp")}</p>
-                      <input type="hidden" name="guardrail" value={guardrail.id} />
-                      <input type="hidden" name="language" value={each} />
-                      <input type="hidden" name="version" value={latest.version} />
-                      <label htmlFor={`${prefix}-validator`}>{t("admin.guardrails.validatorName")}</label>
-                      <input id={`${prefix}-validator`} className="input" name="name" required autoComplete="name" defaultValue={accountName} />
-                      <button className="button button-primary" type="submit">
-                        {t("admin.guardrails.validate")}
-                      </button>
-                    </fieldset>
-                  </BackOfficeForm>
-                ) : null}
-                <BackOfficeForm canWrite={canWrite} className="stack quota-form" action={saveMessage}>
-                  <fieldset disabled={!canWrite}>
-                    <legend>{t("admin.guardrails.editTitle", { language: language(each) })}</legend>
+        {guardrails.map((guardrail) => (
+          <section key={guardrail.id} id={guardrail.id} className="section-block" aria-labelledby={`${guardrail.id}-title`}>
+            <h2 id={`${guardrail.id}-title`}>{name(guardrail.id)}</h2>
+            <p>{t(`admin.guardrails.descriptions.${guardrail.id}`)}</p>
+            {guardrail.alwaysOn ? (
+              <p className="section-meta">{t("admin.guardrails.alwaysOnHelp")}</p>
+            ) : (
+              <BackOfficeForm canWrite={canWrite} action={saveSetting}>
+                <Card>
+                  <fieldset className="section-form" disabled={!canWrite}>
+                    <legend>{t("admin.guardrails.setting")}</legend>
                     <input type="hidden" name="guardrail" value={guardrail.id} />
-                    <input type="hidden" name="language" value={each} />
-                    <label htmlFor={`${prefix}-text`}>{t("admin.guardrails.text")}</label>
-                    <textarea
-                      id={`${prefix}-text`}
-                      className="input"
-                      name="text"
-                      rows={4}
-                      required
-                      lang={each}
-                      defaultValue={latest?.text ?? fallback}
-                      aria-describedby={`${prefix}-text-help`}
-                    />
-                    <p id={`${prefix}-text-help`}>{t(guardrail.id === "distress" ? "admin.guardrails.distressHelp" : "admin.guardrails.textHelp")}</p>
-                    <button className="button button-primary" type="submit">
-                      {t("admin.guardrails.saveMessage")}
+                    <Field
+                      label={t("admin.guardrails.settingLabel")}
+                      hint={`${t(guardrail.messages ? "admin.guardrails.settingHelp" : "admin.guardrails.settingHelpEmail")} ${t("admin.guardrails.settingHelpEvals")}`}
+                    >
+                      <Select name="setting" defaultValue={guardrail.setting}>
+                        {guardrail.settings.map((setting) => (
+                          <option key={setting} value={setting}>
+                            {t(`admin.guardrails.settings.${setting}`)}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <button className={buttonClass({ variant: "primary" })} type="submit">
+                      {t("admin.guardrails.saveSetting")}
                     </button>
                   </fieldset>
-                </BackOfficeForm>
-              </div>
-            );
-          })}
+                </Card>
+              </BackOfficeForm>
+            )}
+
+            {guardrail.messages ? null : <p className="section-meta">{t("admin.guardrails.noMessage")}</p>}
+            {GUARDRAIL_LANGUAGES.map((each) => {
+              if (!guardrail.messages) return null;
+              const { latest, served, default: fallback } = guardrail.messages[each];
+              return (
+                <Card key={each} title={t("admin.guardrails.messageTitle", { language: language(each) })} headingLevel={3}>
+                  <div className="section-block">
+                    <Properties>
+                      <Property
+                        term={t("admin.guardrails.served")}
+                        lang={each}
+                        meta={served ? `${t("admin.guardrails.version", { version: String(served.version) })}, ${validation(served)}` : t("admin.guardrails.defaultText")}
+                      >
+                        {served ? served.text : fallback}
+                      </Property>
+                      {latest && latest.version !== served?.version ? (
+                        <Property
+                          term={t("admin.guardrails.latest")}
+                          lang={each}
+                          meta={`${t("admin.guardrails.version", { version: String(latest.version) })}, ${t("admin.guardrails.writtenBy", { author: latest.author })}, ${validation(latest)}`}
+                        >
+                          {latest.text}
+                        </Property>
+                      ) : null}
+                    </Properties>
+                    {latest && !latest.validation ? (
+                      <BackOfficeForm canWrite={canWrite} action={validateMessage}>
+                        <fieldset className="section-form" disabled={!canWrite}>
+                          <legend>{t("admin.guardrails.validateTitle", { language: language(each), version: String(latest.version) })}</legend>
+                          <p className="section-meta">{t("admin.guardrails.validateHelp")}</p>
+                          <input type="hidden" name="guardrail" value={guardrail.id} />
+                          <input type="hidden" name="language" value={each} />
+                          <input type="hidden" name="version" value={latest.version} />
+                          <Field label={t("admin.guardrails.validatorName")}>
+                            <TextInput name="name" required autoComplete="name" defaultValue={accountName} />
+                          </Field>
+                          <button className={buttonClass({ variant: "primary" })} type="submit">
+                            {t("admin.guardrails.validate")}
+                          </button>
+                        </fieldset>
+                      </BackOfficeForm>
+                    ) : null}
+                    <BackOfficeForm canWrite={canWrite} action={saveMessage}>
+                      <fieldset className="section-form" disabled={!canWrite}>
+                        <legend>{t("admin.guardrails.editTitle", { language: language(each) })}</legend>
+                        <input type="hidden" name="guardrail" value={guardrail.id} />
+                        <input type="hidden" name="language" value={each} />
+                        <Field label={t("admin.guardrails.text")} hint={t(guardrail.id === "distress" ? "admin.guardrails.distressHelp" : "admin.guardrails.textHelp")}>
+                          <Textarea name="text" rows={4} required lang={each} defaultValue={latest?.text ?? fallback} />
+                        </Field>
+                        <button className={buttonClass({ variant: "primary" })} type="submit">
+                          {t("admin.guardrails.saveMessage")}
+                        </button>
+                      </fieldset>
+                    </BackOfficeForm>
+                  </div>
+                </Card>
+              );
+            })}
+          </section>
+        ))}
+
+        <section className="section-block" id="eval-runs" aria-labelledby="eval-runs-title">
+          <h2 id="eval-runs-title">{t("admin.guardrails.runs.title")}</h2>
+          <p>{t("admin.guardrails.runs.intro")}</p>
+          {readsRuns ? <EvalRunsTable runs={runs} caption={t("admin.evals.runs.caption")} /> : null}
         </section>
-      ))}
 
-      <section className="stack" id="eval-runs" aria-labelledby="eval-runs-title">
-        <h2 id="eval-runs-title">{t("admin.guardrails.runs.title")}</h2>
-        <p>{t("admin.guardrails.runs.intro")}</p>
-        {readsRuns ? <EvalRunsTable runs={runs} caption={t("admin.evals.runs.caption")} /> : null}
-      </section>
-
-      <section className="stack" aria-labelledby="triggers-title">
-        <h2 id="triggers-title">{t("admin.guardrails.triggers.title")}</h2>
-        <p>{t("admin.guardrails.triggers.intro", { days: String(TRIGGER_DAYS), months: String(TRIGGER_RETENTION_MONTHS) })}</p>
-        {triggers.length === 0 ? (
-          <p>{t("admin.guardrails.triggers.none")}</p>
-        ) : (
-          <div className="table-scroll">
-            <table className="application-table">
-              <caption>{t("admin.guardrails.triggers.caption")}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{t("admin.guardrails.triggers.day")}</th>
-                  <th scope="col">{t("admin.guardrails.name")}</th>
-                  <th scope="col">{t("admin.guardrails.triggers.blocked")}</th>
-                  <th scope="col">{t("admin.guardrails.triggers.flagged")}</th>
-                  <th scope="col">{t("admin.guardrails.triggers.unavailable")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {triggers.map((day) => (
-                  <tr key={`${day.day} ${day.guardrail}`}>
-                    <th scope="row">
-                      <time dateTime={day.day}>{date.format(new Date(`${day.day}T12:00:00Z`))}</time>
-                    </th>
-                    <td>{name(day.guardrail)}</td>
-                    <td>{number.format(day.blocked)}</td>
-                    <td>{number.format(day.flagged)}</td>
-                    <td>
+        <section className="section-block" aria-labelledby="triggers-title">
+          <h2 id="triggers-title">{t("admin.guardrails.triggers.title")}</h2>
+          <p>{t("admin.guardrails.triggers.intro", { days: String(TRIGGER_DAYS), months: String(TRIGGER_RETENTION_MONTHS) })}</p>
+          {triggers.length === 0 ? (
+            <p>{t("admin.guardrails.triggers.none")}</p>
+          ) : (
+            <Table
+              label={t("admin.guardrails.triggers.caption")}
+              columns={[
+                { header: t("admin.guardrails.triggers.day"), rowHeader: true, cell: (day) => <time dateTime={day.day}>{date.format(new Date(`${day.day}T12:00:00Z`))}</time> },
+                { header: t("admin.guardrails.name"), cell: (day) => name(day.guardrail) },
+                { header: t("admin.guardrails.triggers.blocked"), numeric: true, cell: (day) => number.format(day.blocked) },
+                { header: t("admin.guardrails.triggers.flagged"), numeric: true, cell: (day) => number.format(day.flagged) },
+                {
+                  header: t("admin.guardrails.triggers.unavailable"),
+                  numeric: true,
+                  cell: (day) => (
+                    <>
                       {number.format(day.unavailable)}
                       {day.unavailable > 0 ? (
-                        <ul className="trigger-reasons" aria-label={t("admin.guardrails.triggers.byReasonLabel")}>
+                        <ul className="section-list section-meta" aria-label={t("admin.guardrails.triggers.byReasonLabel")}>
                           {UNAVAILABLE_REASONS.filter((reason) => day.unavailableBy[reason] > 0).map((reason) => (
                             <li key={reason}>
                               {t("admin.guardrails.triggers.byReason", {
@@ -284,14 +281,16 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
                           ))}
                         </ul>
                       ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                    </>
+                  ),
+                },
+              ]}
+              rows={triggers}
+              rowKey={(day) => `${day.day} ${day.guardrail}`}
+            />
+          )}
+        </section>
+      </div>
     </BackOfficeLayout>
   );
 }

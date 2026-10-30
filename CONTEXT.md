@@ -623,8 +623,16 @@ The Back Office page, under Plateforme, that shows every component and colour of
 _Avoid_: Storybook, style guide
 
 **Back Office page in the Design System**:
-A Back Office section already drawn in the Compact Density look of the Design System (tabs, tables, status dots, cards, filters, side panels); sections move over one page at a time. Today: Paramètres, Dashboard and Activité.
+A Back Office section already drawn in the Compact Density look of the Design System (tabs, tables, status dots, cards, filters, side panels); every section now is, each row's own page included.
 _Avoid_: Redesigned page, new theme
+
+**Properties**:
+The Design System's read-only list of terms and values, for what a page shows without letting the person edit it.
+_Avoid_: Definition list, key-value table
+
+**FilterLinks**:
+The Design System's filters that live in the page's address, drawn as chips, so a filtered view can be shared and reloaded.
+_Avoid_: Filter bar, tabs
 
 **Drawer**:
 The Design System's panel that slides in from the side over the page, for anything the person fills in or reads in detail: a form, a Section on phones, the Sidebar's menu on phones. It holds focus while open and « Fermer » or Escape returns focus to what opened it.
@@ -883,6 +891,10 @@ _Avoid_: Help page, KB article, doc
 **Help Centre**:
 The public part of the site that lists every Help Article by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Coach panel shows the same articles in context.
 _Avoid_: KB, support site, help desk
+
+**Legal Document**:
+A text on the public Légal page (conditions of use, privacy, cookies, subprocessors and AI, legal notice), written by the team in French and English. Versioned with an effective date and an optional « En bref »; every version is kept and an earlier one stays readable. One the team has not written shows « Ce texte n'est pas encore publié ». Offered as a PDF.
+_Avoid_: Policy, terms page
 
 **Article card**:
 A Help Article shown in the Coach panel's conversation, from the box's suggestions « Dans l'aide, sans IA », the page in view or « Souvent demandé ». Kept only in the browser: gone after a reload, never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.

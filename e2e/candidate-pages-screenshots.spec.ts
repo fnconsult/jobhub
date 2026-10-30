@@ -356,10 +356,15 @@ async function settled(page: Page) {
  */
 async function fixDates(page: Page) {
   await page.evaluate((source) => {
-    const pattern = new RegExp(source, "g");
+    const pattern = new RegExp(
+      `((lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) )?${source}`,
+      "g",
+    );
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode())
-      node.textContent = node.textContent!.replace(pattern, "30 octobre 2026");
+      node.textContent = node.textContent!.replace(pattern, (_, weekday) =>
+        weekday ? "vendredi 30 octobre 2026" : "30 octobre 2026",
+      );
   }, MONTHS.source);
 }
 

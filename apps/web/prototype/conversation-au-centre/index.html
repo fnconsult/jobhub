@@ -373,6 +373,15 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .col-pane > header button { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .2rem .55rem; font-size: .78rem; font-weight: 400; }
 .col-pane > header button.x { border: 0; }
 .col-pane .cbody { flex: 1; overflow: auto; padding: .85rem; font-size: .875rem; }
+/* 7e retour : une seule gouttière de 1rem entre colonnes et au bord droit, comme entre le Sidebar et la conversation.
+   La conversation garde 1rem de chaque côté ; chaque colonne n'a que 1rem à droite (et 1rem en haut et en bas). */
+.col-pane > .cbody { padding: 1rem 1rem 1rem 0; }
+/* La barre de défilement ne doit pas épaissir la gouttière droite (prototype : masquée ; l'app suit sa règle des barres fines). */
+.col-pane > .cbody { scrollbar-width: none; }
+/* Une colonne ouverte : la conversation remplit sa place, pour garder 1rem jusqu'à la colonne voisine. */
+.body.has-pane .col { max-width: none; }
+.actcol > .cbody > p:first-child { margin-top: 0; }
+.col-pane > .cbody::-webkit-scrollbar { display: none; }
 .fiche { width: 20rem; }
 .fiche .obj .props { grid-template-columns: 1fr 1fr; }
 /* 5e retour : chaque Résultat est sa propre carte arrondie, sans trait entre eux. */
@@ -380,7 +389,7 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .seclist.res button { flex-wrap: wrap; border: 1px solid var(--color-border); border-radius: 10px; }
 .seclist.res button:first-child { border-top: 1px solid var(--color-border); }
 .seclist.res button small { margin-left: 1.2rem; width: 100%; }
-.docp { flex: 1 1 30rem; min-width: 18rem; padding: .85rem; }
+.docp { flex: 1 1 30rem; min-width: 18rem; padding: 1rem 1rem 1rem 0; }
 /* 6e retour : le panneau de travail est une carte arrondie, comme la Fiche et ses Sections. */
 .docp .rcard { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); box-shadow: var(--shadow-card); overflow: hidden; }
 .docp .rcard > header { display: flex; align-items: center; gap: .4rem; padding: .55rem .75rem; border-bottom: 1px solid var(--color-border); font-size: .875rem; font-weight: 500; }
@@ -410,6 +419,7 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); margin: 1rem 0 .35rem; }
 @media (max-width: 767px) {
   .col-pane { position: fixed; inset: 0; width: auto !important; z-index: 50; }
+  .col-pane > .cbody, .docp { padding: 1rem; }
   .actcol.tucked { display: none; }
 }
 
@@ -729,7 +739,8 @@ function VariantE() {
     + `<button class="iconbtn ${(isApp ? S.fiche && S.groups.activite : S.act === "open") ? "on" : ""}" data-act>⟳ <span class="hide-phone">Activité</span></button>`
     + (isApp ? `<button class="iconbtn ${S.doc ? "on" : ""}" data-open="${S.doc ?? "cv"}" ${S.doc ? "data-doc-close" : ""}>▯ <span class="hide-phone">Document</span></button>` : "");
   const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
-  return h`<div class="main">${topbar(btns)}<div class="body">
+  const hasPane = (isApp && (S.fiche || S.doc)) || (!isApp && S.act === "open");
+  return h`<div class="main">${topbar(btns)}<div class="body ${hasPane ? "has-pane" : ""}">
     <div class="convo" style="min-width:20rem;flex:1 1 24rem"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
     ${docPanel()}${fichePanel()}${actColumn()}</div></div>`;
 }

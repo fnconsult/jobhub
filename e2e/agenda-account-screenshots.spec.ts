@@ -87,7 +87,9 @@ async function seed(page: Page, email: string): Promise<void> {
   const cancelled = exported.applications.find((application) => application.id === seb.applicationId)!.interviews.find((interview) => interview.scheduledAt.startsWith("2030-03-18"))!;
   expect((await page.request.post(`/api/applications/${seb.applicationId}/interviews/${cancelled.id}/cancel`, { headers: { origin } })).ok()).toBe(true);
 
-  const [coach] = await query<{ id: string }>(`INSERT INTO human_coach (name, email, booking_url) VALUES ('Camille Martin', $1, 'https://cal.com/camille-martin') RETURNING id`, [
+  // Retired from the start: the Agenda still shows a Retired Human Coach's Coaching Sessions, and the Back Office's
+  // « Coachs », shot alongside (back-office-sections-screenshots.spec.ts), lists only the active ones.
+  const [coach] = await query<{ id: string }>(`INSERT INTO human_coach (name, email, booking_url, retired_at) VALUES ('Camille Martin', $1, 'https://cal.com/camille-martin', now()) RETURNING id`, [
     `camille.martin+${tag}@e2e.jobbbox.test`,
   ]);
   const [dated] = await query<{ id: string }>(

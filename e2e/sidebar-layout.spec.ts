@@ -153,7 +153,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    const stops = NAV_LABELS.length + 10;
+    const stops = NAV_LABELS.length + 13;
     for (let i = 0; i < stops; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
@@ -162,6 +162,10 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       fr.app.name,
       fr.profileSwitcher.choose,
       ...NAV_LABELS,
+      // « Aide et légal » (#544), at the top of the sidebar's foot.
+      fr.publicSite.help,
+      fr.publicSite.legal,
+      fr.publicSite.nouveautes,
       // The Usage Meter reads as its title and the week's percentage.
       `${fr.usageMeter.title} ${fr.usageMeter.percent.replace("{{percent}}", "0")}`,
       fr.nav.account,

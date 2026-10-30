@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Locale } from "@jobhub/shared/i18n";
 import { getCurrentCandidate } from "@/auth/server";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { getRequestLocale, getServerT, getUrlLocale } from "@/i18n/server";
@@ -58,19 +57,20 @@ export async function PublicSite({ current, signInLink = true, children }: { cur
   );
 }
 
-/** Each language's name, in itself: what the FR/EN switch reads out. */
-const LANGUAGE_NAMES: Record<Locale, string> = { fr: "Français", en: "English" };
-
-/** The FR/EN switch (#544): the page asked, in each language; the page's own marked as current. */
+/**
+ * The FR/EN switch (#544): the page asked, in each language; the page's own marked as current. Each reads out its
+ * language's name, in itself (the same in both catalogues).
+ */
 async function LanguageSwitch({ label }: { label: string }) {
+  const t = await getServerT();
   const locale = await getRequestLocale();
   const path = (await headers()).get(REQUEST_PATH_HEADER) ?? routes.home;
   return (
     <nav className="ds-site__languages" aria-label={label}>
       {languageLinks(path).map(({ locale: language, href }) => (
         <a key={language} href={href} lang={language} hrefLang={language} aria-current={language === locale ? "true" : undefined}>
-          <span aria-hidden="true">{language.toUpperCase()}</span>
-          <span className="visually-hidden">{LANGUAGE_NAMES[language]}</span>
+          <span aria-hidden="true">{t(`publicSite.languages.${language}.short`)}</span>
+          <span className="visually-hidden">{t(`publicSite.languages.${language}.name`)}</span>
         </a>
       ))}
     </nav>

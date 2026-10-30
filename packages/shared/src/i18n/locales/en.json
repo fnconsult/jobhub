@@ -4618,7 +4618,17 @@
     "legal": "Legal",
     "help": "Help",
     "menu": "Menu",
-    "language": "Language"
+    "language": "Language",
+    "languages": {
+      "fr": {
+        "short": "FR",
+        "name": "Français"
+      },
+      "en": {
+        "short": "EN",
+        "name": "English"
+      }
+    }
   },
   "legal": {
     "eyebrow": "Legal",

@@ -736,16 +736,27 @@ function actColumn() {
   return h`<aside class="col-pane actcol"><div class="cbody">${paneBody("activite").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div></aside>`;
 }
 
+// #588 Q6 : effacer la conversation de la page, après confirmation (Dialog de confirmation, ADR-0057).
+function clearDialog() {
+  return h`<div style="position:fixed;inset:0;background:var(--color-scrim);z-index:60;display:grid;place-items:center">
+    <div role="alertdialog" style="background:var(--color-background);border-radius:12px;box-shadow:var(--shadow-pop);padding:1.25rem;max-width:26rem">
+      <h3 style="margin-top:0">Effacer cette conversation ?</h3>
+      <p>Tous les messages de cette conversation seront supprimés. ${S.screen === "application" ? `La candidature ${app().co}, ses documents et la Mémoire du coach restent.` : "La Mémoire du coach reste."}</p>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end"><button class="iconbtn" data-clear-cancel autofocus>Annuler</button><button class="iconbtn" style="background:var(--color-danger);color:#fff;border-color:transparent" data-clear-ok>Effacer</button></div>
+    </div></div>`;
+}
+
 function VariantE() {
   const isApp = S.screen === "application";
   const btns = (isApp ? `<button class="iconbtn ${S.fiche ? "on" : ""}" data-fiche>▤ Fiche</button>` : "")
     + `<button class="iconbtn ${(isApp ? S.fiche && S.groups.activite : S.act === "open") ? "on" : ""}" data-act>⟳ <span class="hide-phone">Activité</span></button>`
+    + `<button class="iconbtn" data-clear title="Effacer la conversation">⌫ <span class="hide-phone">Effacer</span></button>` // #588 Q6
     + ""; // #590 Q11 : plus de bouton Document ; le panneau de travail s'ouvre depuis un Résultat, une Section ou un lien.
-  const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
+  const thread = S.cleared?.[convKey()] ? ai("<p>Conversation effacée. Que voulez-vous faire ?</p>", "Introduction · aucun appel IA") + (S.sent[convKey()] ?? []).join("") : messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
   const hasPane = S.doc || (isApp && S.fiche) || (!isApp && S.act === "open");
   return h`<div class="main">${topbar(btns)}<div class="body ${hasPane ? "has-pane" : ""}">
     <div class="convo" style="min-width:20rem;flex:1 1 24rem"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
-    ${docPanel()}${fichePanel()}${actColumn()}</div></div>`;
+    ${docPanel()}${fichePanel()}${actColumn()}</div></div>${S.confirmClear ? clearDialog() : ""}`;
 }
 
 const RENDER = { E: VariantE, B: VariantB, P: VariantP, C: VariantC, D: VariantD };
@@ -792,6 +803,9 @@ document.addEventListener("click", (e) => {
   if (d.docClose !== undefined && !d.open) return set({ doc: null });
   if (d.open) return set({ doc: S.doc === d.open && d.docClose !== undefined ? null : d.open });
   if (d.fiche !== undefined) return set({ fiche: !S.fiche });
+  if (d.clear !== undefined) return set({ confirmClear: true });
+  if (d.clearCancel !== undefined) return set({ confirmClear: false });
+  if (d.clearOk !== undefined) { S.cleared = { ...(S.cleared ?? {}), [convKey()]: true }; S.sent[convKey()] = []; return set({ confirmClear: false }); }
   if (d.group) { S.groups[d.group] = !S.groups[d.group]; return render(); }
   if (d.act !== undefined) {
     if (S.screen !== "application") return set({ act: S.act === "open" ? "closed" : "open" });

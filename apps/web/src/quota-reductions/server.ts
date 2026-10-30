@@ -10,6 +10,8 @@ let instance: QuotaReductions | undefined;
  * the Candidate cancels over one on /abonnement; the worker (apps/worker) applies them and e-mails the notices.
  */
 export function getQuotaReductions(): QuotaReductions {
-  instance ??= createQuotaReductions(sharedPool(), { billing: getBilling(), mailer: getMailer(), baseURL: String(getAuth().options.baseURL) });
+  // The Back Office is built while sign-in is (Sign-in Providers record to it): the base URL is asked of auth only when
+  // an e-mail goes, never while building.
+  instance ??= createQuotaReductions(sharedPool(), { billing: getBilling(), mailer: getMailer(), baseURL: () => String(getAuth().options.baseURL) });
   return instance;
 }

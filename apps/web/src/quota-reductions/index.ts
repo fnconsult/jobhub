@@ -83,8 +83,8 @@ export interface QuotaReductionsDeps {
     "lockPlanQuotas" | "setPlanQuotas" | "removePlanFeatures" | "subscribersOf" | "plans" | "entitlements" | "endSubscriptionWithProrataRefund" | "retryProrataRefund"
   >;
   mailer: Mailer;
-  /** The web app's public origin, which the e-mail links to. */
-  baseURL: string;
+  /** The web app's public origin, which the e-mail links to; asked only when an e-mail is sent. */
+  baseURL: string | (() => string);
   now?: () => Date;
 }
 
@@ -140,15 +140,6 @@ type ReductionRow = {
 
 const REDUCTION_COLUMNS =
   "r.id::text AS id, r.plan, r.quotas, r.removed_features, r.reason, to_char(r.effective_on, 'YYYY-MM-DD') AS effective_on, r.effective_at, (SELECT id FROM candidate WHERE id = r.scheduled_by) AS scheduled_by, r.scheduled_by_email";
-
-/** A Quota Reduction as the Back Office Audit records it. */
-export const recordedReduction = (reduction: Pick<QuotaReduction, "quotas" | "removedFeatures" | "reason" | "effectiveOn" | "subscribers">) => ({
-  quotas: JSON.parse(JSON.stringify(reduction.quotas)) as { [key: string]: { before: string | number | null; after: string | number | null } },
-  removedFeatures: [...reduction.removedFeatures],
-  reason: reduction.reason,
-  effectiveOn: reduction.effectiveOn,
-  subscribers: reduction.subscribers,
-});
 
 export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps) {
   const now = deps.now ?? (() => new Date());
@@ -399,7 +390,7 @@ async function openFor(candidateId: string): Promise<OpenReduction | null> {
               reason: notice.reason,
               effectiveOn: notice.effective_on,
               resolvableUntil: addDays(notice.effective_on, RESOLUTION_DAYS_AFTER),
-              resolveUrl: new URL(routes.subscriptionQuotaReduction, deps.baseURL).toString(),
+              resolveUrl: new URL(routes.subscriptionQuotaReduction, typeof deps.baseURL === "string" ? deps.baseURL : deps.baseURL()).toString(),
             },
             language,
           );

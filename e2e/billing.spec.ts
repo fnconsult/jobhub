@@ -518,21 +518,23 @@ test.describe("back office", () => {
     expect(await values("Standard")).toEqual({ profiles: "3", matchScores: "", atsScores: "", enrichedContacts: "0", jobDigest: "weekly" });
     expect(await values("Premium")).toEqual({ profiles: "", matchScores: "", atsScores: "", enrichedContacts: "5", jobDigest: "daily" });
 
-    await plan("Standard").getByLabel("Profils").fill("");
-    await plan("Standard").getByLabel("Job Digest").selectOption("daily");
-    await plan("Standard").getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Standard enregistrés.");
+    // On Free: a change there applies at once, a reduction too, so the test can put it back. Lowering Standard, which
+    // Candidates of other tests pay for, would be a Quota Reduction, scheduled 30 days ahead (#514, quota-reduction.spec.ts).
+    await plan("Gratuite").getByLabel("Profils").fill("");
+    await plan("Gratuite").getByLabel("Job Digest").selectOption("daily");
+    await plan("Gratuite").getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
     await page.goto("/abonnement");
-    expect(await planRow(page, "Profils")).toEqual(["1", "Illimité", "Illimité"]);
-    expect(await planRow(page, "Job Digest")).toEqual(["Non compris", "Chaque jour", "Chaque jour"]);
+    expect(await planRow(page, "Profils")).toEqual(["Illimité", "3", "Illimité"]);
+    expect(await planRow(page, "Job Digest")).toEqual(["Chaque jour", "Chaque semaine", "Chaque jour"]);
 
     // Put the starting quotas back for the other tests.
     await page.goto("/admin/quotas");
-    await plan("Standard").getByLabel("Profils").fill("3");
-    await plan("Standard").getByLabel("Job Digest").selectOption("weekly");
-    await plan("Standard").getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
+    await plan("Gratuite").getByLabel("Profils").fill("1");
+    await plan("Gratuite").getByLabel("Job Digest").selectOption("none");
+    await plan("Gratuite").getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
     await expect(page.getByRole("status")).toBeVisible();
-    expect(await values("Standard")).toEqual({ profiles: "3", matchScores: "", atsScores: "", enrichedContacts: "0", jobDigest: "weekly" });
+    expect(await values("Gratuite")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
   });
 
   test("refuses invalid quotas", async ({ page }) => {

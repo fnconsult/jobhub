@@ -134,21 +134,25 @@ test.describe("the Back Office Journal", () => {
   test("records a Plan Quota edit with its before and after, and who made it", async ({ page }) => {
     await signInWithMagicLink(page, ADMINISTRATOR);
     await page.goto("/admin/quotas");
-    const standard = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Standard" }) });
-    await standard.getByLabel("Profils").fill("5");
-    await standard.getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Standard enregistrés.");
+    // On Free, where putting it back applies at once: on Standard, which Candidates of other tests pay for, lowering it
+    // back would be a Quota Reduction, scheduled 30 days ahead (#514).
+    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuite" }) });
+    await free.getByLabel("Profils").fill("5");
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
     // Put the starting quota back for the other tests.
     await page.goto("/admin/quotas");
-    await standard.getByLabel("Profils").fill("3");
-    await standard.getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
+    await free.getByLabel("Profils").fill("1");
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
     await expect(page.getByRole("status")).toBeVisible();
 
     await page.goto("/admin/journal?section=plan_quotas");
-    const rows = page.getByRole("row").filter({ hasText: ADMINISTRATOR }).filter({ hasText: fr.billing.plans.standard });
-    await expect(rows.nth(0)).toContainText(tr(journal.changed, { field: fr.billing.quotas.profiles, before: "5", after: "3" }));
-    await expect(rows.nth(1)).toContainText(tr(journal.changed, { field: fr.billing.quotas.profiles, before: "3", after: "5" }));
-    await expect(rows.nth(0)).toContainText(journal.actions.updated);
+    const rows = page.getByRole("row").filter({ hasText: ADMINISTRATOR }).filter({ hasText: fr.billing.plans.free });
+    // Free is edited by other tests too: each change is found by what it says.
+    const back = rows.filter({ hasText: tr(journal.changed, { field: fr.billing.quotas.profiles, before: "5", after: "1" }) }).first();
+    await expect(back).toBeVisible();
+    await expect(rows.filter({ hasText: tr(journal.changed, { field: fr.billing.quotas.profiles, before: "1", after: "5" }) }).first()).toBeVisible();
+    await expect(back).toContainText(journal.actions.updated);
   });
 
   test("a failed write leaves no entry in the Journal", async ({ page }) => {

@@ -33,7 +33,7 @@ import type {
 } from "../billing";
 import type { Queryable } from "../database/pool";
 import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
-import { recordedReduction, type QuotaReduction, type QuotaReductions, type ReductionError, type ReductionNotice } from "../quota-reductions";
+import type { QuotaReduction, QuotaReductions, ReductionError, ReductionNotice } from "../quota-reductions";
 import { routes } from "../routes";
 import type { BackOfficeResource, Permission } from "./access";
 import { BACK_OFFICE_PAGES } from "./back-office-nav";
@@ -491,6 +491,15 @@ const featuresOf = (input: unknown): PlanFeature[] => {
   const features = typeof input === "object" && input !== null ? (input as { features?: unknown }).features : undefined;
   return Array.isArray(features) ? features.filter((feature): feature is PlanFeature => PLAN_FEATURES.includes(feature as PlanFeature)) : [];
 };
+
+/** A Quota Reduction as recorded: what it lowers (each quota's before and after), the Plan Features it takes off, why, from when, how many subscribers were told. */
+const recordedReduction = (reduction: QuotaReduction): { [key: string]: Recorded } => ({
+  quotas: JSON.parse(JSON.stringify(reduction.quotas)) as Recorded,
+  removedFeatures: [...reduction.removedFeatures],
+  reason: reduction.reason,
+  effectiveOn: reduction.effectiveOn,
+  subscribers: reduction.subscribers,
+});
 
 /** A Quota Reduction scheduled, as recorded: what it lowers, why, from when, and how many subscribers were told. */
 const scheduledChange = (section: "plans" | "plan_quotas", reduction: QuotaReduction): BackOfficeChange => ({

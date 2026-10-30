@@ -24,8 +24,8 @@ test.describe("the Back Office Journal", () => {
     for (const path of ["/admin/journal", "/admin/journal?section=plan_quotas"]) {
       const response = await page.goto(path);
       expect(response?.status()).toBe(404);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.notFound.title);
-      await expect(page).toHaveTitle(`${fr.notFound.title} · ${fr.app.name}`);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.notFound.title);
+      await expect(page).toHaveTitle(`${fr.errorPage.notFound.title} · ${fr.app.name}`);
     }
   });
 

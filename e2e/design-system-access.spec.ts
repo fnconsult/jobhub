@@ -42,7 +42,7 @@ test.describe("Design System page access (#463)", () => {
 
     const candidate = await personPage(browser, newAddress("design-system-access-candidate"));
     expect((await candidate.goto(PAGE))?.status()).toBe(404);
-    await expect(candidate.getByRole("heading", { level: 1 })).toHaveText(fr.notFound.title);
+    await expect(candidate.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.notFound.title);
   });
 
   test("an anonymous visitor does not read it", async ({ browser }) => {

@@ -474,7 +474,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await signInWithMagicLink(page, newAddress("not-an-admin"));
     const response = await page.goto("/admin/coachs");
     expect(response?.status()).toBe(404);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.notFound.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.notFound.title);
     await expect(page.getByLabel(fr.admin.humanCoaches.bookingUrl)).toHaveCount(0);
   });
 

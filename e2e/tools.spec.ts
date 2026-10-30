@@ -11,7 +11,7 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const admin = fr.admin;
 const tools = admin.tools;
 const assistantTexts = fr.backOfficeAssistant;
-const page404 = fr.notFound.title;
+const page404 = fr.errorPage.notFound.title;
 // Its own permanent super-admin: two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "tools-office@e2e.jobbbox.test";
 /** The Provider Secret the e2e server runs with (playwright.config.ts): never shown. */

@@ -576,7 +576,7 @@ function listCard() {
   </section>`;
 }
 
-const ai = (body, prov = "Claude Opus 5 · UE · 1,2 k tokens · 4 s") =>
+const ai = (body, prov = "Claude Opus 5 · UE · 1,2 k jetons · 4 s") =>
   `<div class="msg ai"><span class="who">✦ Coach IA</span>${body}<div class="prov">${prov}</div></div>`;
 const me = (t) => `<div class="msg me">${t}</div>`;
 const docChip = (name, sub) => `<button class="chip" data-doc="${name}"><span class="ic"></span><span>${name}<small>${sub}</small></span></button>`;
@@ -624,7 +624,7 @@ function composer() {
 }
 
 // Retour PO (2026-10-30) : la barre d'utilisation du contexte de la conversation, dans Activité.
-// Deux limites : la fenêtre de 40 messages et le plafond de 12 000 tokens du contexte envoyé au coach.
+// Deux limites : la fenêtre de 40 messages et le plafond de 12 000 jetons du contexte envoyé au coach.
 function contextBar() {
   const k = convKey();
   const msgs = S.cleared?.[k] ? (S.sent[k]?.length ?? 0) : 34 + (S.sent[k]?.length ?? 0);
@@ -633,7 +633,7 @@ function contextBar() {
   const warn = pct >= 80;
   return h`<div class="act ctxbar"><b>Contexte de la conversation</b>
     <div class="bar"><span style="width:${pct}%;background:${warn ? "var(--color-warn)" : "var(--color-accent)"}"></span></div>
-    <small>${msgs} / 40 messages · ${String(tokens).replace(".", ",")} k / 12 k tokens</small>
+    <small>${msgs} / 40 messages · ${String(tokens).replace(".", ",")} k / 12 k jetons</small>
     ${warn ? `<small style="color:var(--color-warn)">Au-delà de 40 messages, le coach ne lit que les plus récents. <button class="linkish" data-clear>Effacer la conversation</button></small>` : ""}
   </div>`;
 }
@@ -643,7 +643,7 @@ function paneBody(tab) {
     <p style="color:var(--color-meta)">Cette page · ${app().co}</p>
     ${contextBar()}
     <div class="act"><b>Préparation d'entretien</b><small>Dossier entreprise · étape 2/4 · Mistral Large · UE</small><div class="runbar"><span></span></div></div>
-    <div class="act"><b>CV adapté</b><small>Terminé le 12 oct. · Claude Opus 5 · 3,4 k tokens</small>${docChip("CV adapté — " + app().co, "Ouvrir dans le visualiseur")}</div>
+    <div class="act"><b>CV adapté</b><small>Terminé le 12 oct. · Claude Opus 5 · 3,4 k jetons</small>${docChip("CV adapté — " + app().co, "Ouvrir dans le visualiseur")}</div>
     <div class="act"><b>Match Score ${app().score}</b><small>Calculé le 10 oct.</small></div>`;
   if (tab === "fiche") return S.screen === "candidatures" ? listCard() : objectCard();
   return h`<div class="page-doc"><h4>Marie Laurent</h4><div>Directrice des opérations · 25 ans d'expérience</div>

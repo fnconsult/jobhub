@@ -1,0 +1,692 @@
+<!doctype html>
+<!--
+  PROTOTYPE — jetable. HTML statique, données fictives, rien n'est enregistré. Pas du code de production.
+  Ticket : #586 (carte #585). Question : à quoi ressemble une page du Candidate quand la conversation avec le Coach IA
+  en est la surface principale (accueil, « Mes candidatures », une Application) ?
+  Variantes via ?variant=B|P|C|D (barre en haut, ou ← →) ; écran via ?screen=accueil|candidatures|application ;
+  thème via ?theme=dark. Tokens : ceux de Mercury, copiés en tête du fichier.
+  Ouvrir le fichier directement dans un navigateur ; réduire la fenêtre sous 768 px pour le téléphone.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversation au centre · Jobbbox (prototype)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Tokens Mercury, rendus depuis packages/shared/src/design (renderDesignCss) le 2026-10-30. */
+@layer base, components;
+
+:root {
+  color-scheme: light;
+  --color-background: #ffffff;
+  --color-canvas: #ffffff;
+  --color-nav: #f6f6f8;
+  --color-surface: #f8f8fa;
+  --color-hover: #efeff3;
+  --color-border: #e6e6ec;
+  --color-border-strong: #d6d6de;
+  --color-text: #1b1b26;
+  --color-secondary: #575866;
+  --color-meta: #686978;
+  --color-accent: #4f5fe0;
+  --color-accent-hover: #4352cc;
+  --color-accent-soft: #eef0fd;
+  --color-accent-line: #c9cff7;
+  --color-on-accent: #ffffff;
+  --color-success: #1c7445;
+  --color-success-soft: #eaf6ef;
+  --color-warn: #855700;
+  --color-warn-soft: #fdf5e3;
+  --color-danger: #bb3030;
+  --color-danger-soft: #fdeeee;
+  --color-chart-1: #6a78ee;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(106 120 238 / 18%);
+  --color-inverse: #1b1b26;
+  --color-on-inverse: #ffffff;
+  --color-scrim: rgb(20 20 40 / 28%);
+  --color-text-secondary: #575866;
+  --color-text-meta: #686978;
+  --color-surface-hover: #efeff3;
+  --color-danger-surface: #fdeeee;
+  --color-focus-ring: #4f5fe0;
+  --shadow-card: 0 1px 2px rgb(20 20 40 / 4%);
+  --shadow-pop: 0 12px 32px rgb(20 20 40 / 14%);
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+  --line-height-heading: 1.25;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-card: 10px;
+  --radius-control: 999px;
+  --radius-lg: var(--radius-card);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --motion-fast: 150ms;
+  --motion-base: 180ms;
+  --motion-slow: 220ms;
+  --motion-easing: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #121219;
+  --color-canvas: #121219;
+  --color-nav: #17171f;
+  --color-surface: #1b1b24;
+  --color-hover: #24242f;
+  --color-border: #2a2a36;
+  --color-border-strong: #383846;
+  --color-text: #ececf3;
+  --color-secondary: #a9aab8;
+  --color-meta: #9a9bab;
+  --color-accent: #8d9bff;
+  --color-accent-hover: #a3aeff;
+  --color-accent-soft: #242845;
+  --color-accent-line: #3b4277;
+  --color-on-accent: #10101a;
+  --color-success: #6fd29b;
+  --color-success-soft: #16301f;
+  --color-warn: #f2c25c;
+  --color-warn-soft: #33290f;
+  --color-danger: #ff8a8a;
+  --color-danger-soft: #3a1b1b;
+  --color-chart-1: #8d9bff;
+  --color-chart-2: #e46f8a;
+  --color-chart-fill: rgb(141 155 255 / 22%);
+  --color-inverse: #ececf3;
+  --color-on-inverse: #121219;
+  --color-scrim: rgb(0 0 0 / 50%);
+  --color-text-secondary: #a9aab8;
+  --color-text-meta: #9a9bab;
+  --color-surface-hover: #24242f;
+  --color-danger-surface: #3a1b1b;
+  --color-focus-ring: #8d9bff;
+  --shadow-card: none;
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 50%);
+}
+
+[data-density="confort"] {
+  --font-size-body: 1rem;
+  --font-size-lead: 1.125rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h1: 2rem;
+  --font-size-meta: 0.8125rem;
+  --line-height-body: 1.6;
+  --size-control: 2.5rem;
+  --space-row: 0.75rem;
+}
+
+[data-density="compact"] {
+  --font-size-body: 0.875rem;
+  --font-size-lead: 0.9375rem;
+  --font-size-h3: 1rem;
+  --font-size-h2: 1.125rem;
+  --font-size-h1: 1.5rem;
+  --font-size-meta: 0.78125rem;
+  --line-height-body: 1.45;
+  --size-control: 2rem;
+  --space-row: 0.4375rem;
+}
+
+[data-density]:not(:root) {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+html {
+  font-size: 16px;
+}
+
+html[data-text-size="small"] {
+  font-size: 16px;
+}
+
+html[data-text-size="standard"] {
+  font-size: 17px;
+}
+
+html[data-text-size="large"] {
+  font-size: 18px;
+}
+
+html[data-text-size="xlarge"] {
+  font-size: 20px;
+}
+
+@layer base {
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+h1, h2, h3 {
+  line-height: var(--line-height-heading);
+  color: var(--color-text);
+}
+
+h1 { font-size: var(--font-size-h1); }
+h2 { font-size: var(--font-size-h2); }
+h3 { font-size: var(--font-size-h3); }
+
+a {
+  color: var(--color-accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+table, time, data, .num {
+  font-variant-numeric: tabular-nums;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.is-scrolling {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+
+.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+}
+
+@media (prefers-reduced-motion: reduce) {
+:root {
+  --motion-fast: 0ms;
+  --motion-base: 0ms;
+  --motion-slow: 0ms;
+}
+}
+
+</style>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-canvas); color: var(--color-text); height: 100vh; overflow: hidden; }
+button { cursor: pointer; font: inherit; color: inherit; }
+.app { display: flex; height: 100vh; }
+
+/* ── Sidebar ── */
+.sb { width: 16rem; flex: none; background: var(--color-nav); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; padding: .75rem .5rem; gap: 2px; overflow: auto; }
+.sb .brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; padding: .25rem .5rem .75rem; }
+.sb .brand i { width: 1.5rem; height: 1.5rem; border-radius: 6px; background: var(--color-accent); color: var(--color-on-accent); display: grid; place-items: center; font-style: normal; font-size: .8rem; }
+.sb .profile { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 8px; padding: .45rem .6rem; margin-bottom: .5rem; display: flex; justify-content: space-between; font-weight: 500; }
+.sb .new { display: flex; gap: .5rem; align-items: center; border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .45rem .75rem; margin-bottom: .5rem; font-weight: 500; }
+.nav { border: 0; background: none; text-align: left; padding: .4rem .6rem; border-radius: 6px; display: flex; gap: .55rem; align-items: center; width: 100%; color: var(--color-text); }
+.nav:hover { background: var(--color-hover); }
+.nav.on { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 500; }
+.nav .chev { margin-left: auto; color: var(--color-meta); font-size: .75rem; }
+.sub { margin: 0 0 .25rem 1.35rem; border-left: 1px solid var(--color-border); padding-left: .35rem; }
+.sub .nav { font-size: .875rem; padding: .3rem .5rem; color: var(--color-text-secondary); }
+.sub .nav.on { color: var(--color-accent); }
+.sub .nav .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-warn-dot, var(--color-warn)); margin-left: auto; }
+.sub .all { color: var(--color-meta); font-size: .8rem; }
+.sb .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); padding: .75rem .6rem .25rem; }
+.sb .foot { margin-top: auto; border-top: 1px solid var(--color-border); padding-top: .5rem; }
+.meter { padding: .4rem .6rem .6rem; font-size: .85rem; }
+.meter .bar { height: 4px; background: var(--color-border); border-radius: 2px; margin: .35rem 0 .2rem; }
+.meter .bar span { display: block; height: 100%; width: 40%; background: var(--color-accent); border-radius: 2px; }
+.meter small { color: var(--color-meta); }
+
+/* ── Main ── */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.top { height: 3.25rem; flex: none; display: flex; align-items: center; gap: .5rem; padding: 0 1rem; border-bottom: 1px solid var(--color-border); }
+.top h1 { font-size: 1rem; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top .crumb { color: var(--color-meta); font-weight: 400; }
+.top .sp { flex: 1; }
+.iconbtn { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .35rem .7rem; display: inline-flex; gap: .4rem; align-items: center; font-size: .875rem; }
+.iconbtn.on { background: var(--color-accent-soft); border-color: var(--color-accent-line); color: var(--color-accent); }
+.menu-btn { display: none; }
+.body { flex: 1; min-height: 0; display: flex; }
+.convo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.thread { flex: 1; overflow: auto; padding: 1.5rem 1rem 1rem; }
+.col { max-width: 46rem; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+
+/* messages */
+.msg { line-height: 1.55; }
+.msg.me { align-self: flex-end; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px 14px 4px 14px; padding: .55rem .85rem; max-width: 80%; }
+.msg.ai .who { display: inline-flex; gap: .35rem; align-items: center; font-size: .75rem; color: var(--color-accent); background: var(--color-accent-soft); border-radius: 999px; padding: .1rem .5rem; margin-bottom: .35rem; font-weight: 500; }
+.msg.ai p { margin: .25rem 0; }
+.prov { font-size: .72rem; color: var(--color-meta); margin-top: .35rem; }
+.day { text-align: center; font-size: .75rem; color: var(--color-meta); }
+.chip { display: inline-flex; gap: .45rem; align-items: center; border: 1px solid var(--color-border); background: var(--color-background); border-radius: 8px; padding: .45rem .65rem; margin: .35rem .35rem 0 0; font-size: .875rem; }
+.chip:hover { border-color: var(--color-accent-line); }
+.chip .ic { width: 1.6rem; height: 2rem; border: 1px solid var(--color-border-strong); border-radius: 3px; background: var(--color-surface); flex: none; }
+.chip small { display: block; color: var(--color-meta); font-size: .72rem; }
+.note { border: 1px solid var(--color-accent-line); background: var(--color-accent-soft); border-radius: 8px; padding: .55rem .8rem; font-size: .875rem; }
+
+/* object card (the page, in the thread) */
+.obj { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); box-shadow: var(--shadow-card); }
+.obj header { display: flex; align-items: center; gap: .75rem; padding: .85rem 1rem; border-bottom: 1px solid var(--color-border); }
+.obj .logo { width: 2.25rem; height: 2.25rem; border-radius: 8px; background: var(--color-surface); border: 1px solid var(--color-border); display: grid; place-items: center; font-weight: 600; }
+.obj h2 { font-size: 1rem; margin: 0; }
+.obj header small { color: var(--color-meta); }
+.obj .props { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem 1rem; padding: .85rem 1rem; font-size: .875rem; }
+.obj .props dt { color: var(--color-meta); font-size: .75rem; }
+.obj .props dd { margin: 0; font-weight: 500; }
+.obj details { border-top: 1px solid var(--color-border); }
+.obj summary { padding: .6rem 1rem; cursor: pointer; font-size: .875rem; color: var(--color-text-secondary); }
+.obj .more { padding: 0 1rem 1rem; font-size: .875rem; color: var(--color-text-secondary); }
+.pill { display: inline-block; font-size: .72rem; border-radius: 999px; padding: .1rem .5rem; background: var(--color-surface); border: 1px solid var(--color-border); }
+.pill.ok { background: var(--color-success-soft); color: var(--color-success); border-color: transparent; }
+.pill.warn { background: var(--color-warn-soft); color: var(--color-warn); border-color: transparent; }
+.pill.acc { background: var(--color-accent-soft); color: var(--color-accent); border-color: transparent; }
+.score { margin-left: auto; text-align: right; }
+.score b { font-size: 1.25rem; color: var(--color-accent); }
+
+table.list { width: 100%; border-collapse: collapse; font-size: .875rem; }
+table.list td, table.list th { padding: .55rem 1rem; border-top: 1px solid var(--color-border); text-align: left; }
+table.list th { font-weight: 500; color: var(--color-meta); font-size: .75rem; border-top: 0; }
+table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
+
+/* composer */
+.composer { flex: none; padding: .5rem 1rem 1rem; }
+.composer .col { gap: .5rem; }
+.sugg { display: flex; flex-wrap: wrap; gap: .4rem; }
+.sugg button { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .35rem .75rem; font-size: .85rem; }
+.sugg button.primary { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-accent); }
+.box { border: 1px solid var(--color-border-strong); border-radius: 16px; background: var(--color-background); box-shadow: var(--shadow-card); padding: .6rem .6rem .5rem .9rem; }
+.box textarea { width: 100%; border: 0; outline: 0; resize: none; background: none; min-height: 2.6rem; font-size: 1rem; }
+.box .row { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--color-meta); }
+.box .row .ctx { border: 1px solid var(--color-border); border-radius: 999px; padding: .1rem .5rem; }
+.box .row .send { margin-left: auto; width: 2rem; height: 2rem; border-radius: 50%; border: 0; background: var(--color-accent); color: var(--color-on-accent); }
+.foot-links { font-size: .72rem; color: var(--color-meta); text-align: center; }
+
+/* side pane (B floating, P docked) */
+.pane { width: 26rem; flex: none; border-left: 1px solid var(--color-border); background: var(--color-background); display: flex; flex-direction: column; min-height: 0; }
+.pane.float { position: fixed; right: 1rem; top: 4rem; bottom: 1rem; border: 1px solid var(--color-border); border-radius: 12px; box-shadow: var(--shadow-pop); z-index: 20; }
+.pane .tabs { display: flex; gap: .25rem; padding: .5rem; border-bottom: 1px solid var(--color-border); align-items: center; }
+.pane .tabs button { border: 0; background: none; padding: .35rem .6rem; border-radius: 6px; font-size: .875rem; color: var(--color-text-secondary); }
+.pane .tabs button.on { background: var(--color-surface); color: var(--color-text); font-weight: 500; }
+.pane .tabs .x { margin-left: auto; }
+.pane .pbody { flex: 1; overflow: auto; padding: 1rem; font-size: .875rem; }
+.act { border: 1px solid var(--color-border); border-radius: 8px; padding: .6rem .75rem; margin-bottom: .6rem; }
+.act b { font-weight: 500; }
+.act small { display: block; color: var(--color-meta); }
+.act .runbar { height: 3px; background: var(--color-border); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
+.act .runbar span { display: block; height: 100%; width: 60%; background: var(--color-accent); animation: run 1.6s ease-in-out infinite alternate; }
+@keyframes run { from { width: 15% } to { width: 85% } }
+.page-doc { background: #fff; color: #222; border: 1px solid var(--color-border); box-shadow: var(--shadow-card); padding: 1.5rem; aspect-ratio: 1 / 1.414; font-size: .7rem; }
+.page-doc h4 { margin: 0 0 .2rem; font-size: .95rem; }
+.page-doc .l { height: 5px; background: #e4e4ea; border-radius: 2px; margin: .45rem 0; }
+.page-doc .hl { background: #fff1b8; }
+
+/* C: split */
+.split-page { overflow: auto; padding: 1.25rem; min-width: 18rem; }
+.split-page .col { max-width: none; }
+.divider { width: 6px; cursor: col-resize; background: var(--color-border); flex: none; }
+.divider:hover { background: var(--color-accent-line); }
+.split-convo { flex: none; display: flex; flex-direction: column; min-width: 20rem; border-left: 0; background: var(--color-nav); }
+
+/* D: tabs */
+.dtabs { display: flex; gap: .25rem; padding: 0 1rem; border-bottom: 1px solid var(--color-border); }
+.dtabs button { border: 0; background: none; padding: .6rem .75rem; border-bottom: 2px solid transparent; color: var(--color-text-secondary); font-size: .9rem; }
+.dtabs button.on { border-bottom-color: var(--color-accent); color: var(--color-text); font-weight: 500; }
+.dtabs .count { font-size: .72rem; color: var(--color-meta); }
+
+/* prototype switcher (bottom right, clear of the composer and the title) */
+.proto { position: fixed; bottom: .5rem; right: .5rem; z-index: 100; display: flex; align-items: center; gap: .4rem; background: #111; color: #fff; border-radius: 999px; padding: .3rem .4rem; font-size: .78rem; box-shadow: 0 6px 20px rgb(0 0 0 / 35%); font-family: ui-monospace, monospace; }
+.proto button { background: #2a2a2a; border: 0; color: #fff; border-radius: 999px; padding: .2rem .55rem; }
+.proto button.on { background: #fff; color: #111; }
+.proto .lbl { padding: 0 .4rem; white-space: nowrap; }
+.proto .sep { width: 1px; height: 1rem; background: #444; }
+
+/* phone */
+.scrim { display: none; }
+@media (max-width: 767px) {
+  .sb { position: fixed; inset: 0 auto 0 0; z-index: 40; transform: translateX(-100%); transition: transform .2s; width: 85vw; }
+  .app.drawer .sb { transform: none; }
+  .app.drawer .scrim { display: block; position: fixed; inset: 0; background: var(--color-scrim); z-index: 30; }
+  .menu-btn { display: inline-flex; }
+  .pane, .pane.float { position: fixed; inset: 0; width: auto; border-radius: 0; z-index: 50; }
+  .split-page, .divider { display: none; }
+  .split-convo { width: auto !important; flex: 1; min-width: 0; }
+  .thread { padding: 1rem .75rem; }
+  .composer { padding: .4rem .5rem .6rem; }
+  .top .hide-phone, .proto .hide-phone { display: none; }
+  .obj .props { grid-template-columns: 1fr 1fr; }
+  table.list .hide-phone { display: none; }
+  .msg.me { max-width: 90%; }
+  .proto { bottom: auto; top: 3.6rem; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ───────────────────────────── Données fictives ─────────────────────────────
+const APPS = [
+  { id: "a1", co: "Decathlon", role: "Directrice des opérations", status: "Entretien", tone: "acc", score: 82, next: "Mar. 4 nov. · 10:00", applied: "12 oct.", flag: true },
+  { id: "a2", co: "Ledger", role: "Head of Finance", status: "Relance à faire", tone: "warn", score: 74, next: "—", applied: "3 oct.", flag: true },
+  { id: "a3", co: "Groupe Bel", role: "DAF adjointe", status: "Candidature envoyée", tone: "", score: 69, next: "—", applied: "28 oct.", flag: false },
+  { id: "a4", co: "Doctolib", role: "Responsable RH", status: "À postuler", tone: "", score: 77, next: "—", applied: "—", flag: false },
+  { id: "a5", co: "SNCF Connect", role: "Cheffe de projet SI", status: "Offre reçue", tone: "ok", score: 88, next: "Réponse avant le 7 nov.", applied: "20 sept.", flag: true },
+];
+const MORE_APPS = 7;
+const FREE = ["Préparer mon pitch de 2 minutes", "Négocier un salaire après 50 ans"];
+const SEARCHES = ["DAF · Lyon · CDI", "Opérations · Remote"];
+const DIGESTS = ["Hebdo du lundi"];
+
+const S = {
+  variant: "B", screen: "accueil", app: "a1", theme: "light",
+  openMenus: { candidatures: true, recherches: false, coach: true },
+  pane: null,        // null | "activite" | "document" | "fiche"
+  dtab: "conversation",
+  splitW: 420,
+  drawer: false,
+  sent: {},          // per-conversation extra messages typed in this prototype
+};
+
+const VARIANTS = {
+  B: "Conversation d'abord",
+  P: "Conversation + volets",
+  C: "Côte à côte",
+  D: "Onglets sur l'objet",
+};
+const KEYS = Object.keys(VARIANTS);
+
+// ───────────────────────────── URL ↔ état ─────────────────────────────
+function readUrl() {
+  const q = new URLSearchParams(location.search);
+  if (KEYS.includes(q.get("variant"))) S.variant = q.get("variant");
+  if (["accueil", "candidatures", "application"].includes(q.get("screen"))) S.screen = q.get("screen");
+  if (q.get("app")) S.app = q.get("app");
+  S.theme = q.get("theme") === "dark" ? "dark" : "light";
+}
+function writeUrl() {
+  const q = new URLSearchParams({ variant: S.variant, screen: S.screen });
+  if (S.screen === "application") q.set("app", S.app);
+  if (S.theme === "dark") q.set("theme", "dark");
+  try { history.replaceState(null, "", "?" + q); } catch {}
+}
+const set = (patch) => { Object.assign(S, patch); writeUrl(); render(); };
+const app = () => APPS.find((a) => a.id === S.app) ?? APPS[0];
+const convKey = () => S.screen === "application" ? "app:" + S.app : S.screen;
+
+// ───────────────────────────── Morceaux partagés ─────────────────────────────
+const h = String.raw;
+
+function sidebar() {
+  const sub = (on, items) => on ? `<div class="sub">${items}</div>` : "";
+  const isApp = (id) => S.screen === "application" && S.app === id;
+  return h`<nav class="sb">
+    <div class="brand"><i>J</i>Jobbbox</div>
+    <div class="profile">Directrice des opérations <span>⌄</span></div>
+    <button class="new" data-go="accueil">✎ Nouvelle conversation</button>
+    <button class="nav ${S.screen === "accueil" ? "on" : ""}" data-go="accueil">◎ Coach <span class="chev" data-toggle="coach">${S.openMenus.coach ? "▾" : "▸"}</span></button>
+    ${sub(S.openMenus.coach, FREE.map((t) => `<button class="nav">${t}</button>`).join(""))}
+    <button class="nav ${S.screen === "candidatures" ? "on" : ""}" data-go="candidatures">▤ Mes candidatures <span class="chev" data-toggle="candidatures">${S.openMenus.candidatures ? "▾" : "▸"}</span></button>
+    ${sub(S.openMenus.candidatures, APPS.map((a) => `<button class="nav ${isApp(a.id) ? "on" : ""}" data-app="${a.id}">${a.co}${a.flag ? '<span class="dot" title="À faire"></span>' : ""}</button>`).join("") + `<button class="nav all" data-go="candidatures">Tout voir (${APPS.length + MORE_APPS})</button>`)}
+    <button class="nav">▦ Agenda</button>
+    <button class="nav">⌕ Recherches d'offres <span class="chev" data-toggle="recherches">${S.openMenus.recherches ? "▾" : "▸"}</span></button>
+    ${sub(S.openMenus.recherches, SEARCHES.map((t) => `<button class="nav">${t}</button>`).join(""))}
+    <button class="nav">✉ Job Digests</button>
+    <button class="nav">☺ Mes coachs humains</button>
+    <div class="foot">
+      <div class="meter"><b>Hebdomadaire</b> <span style="float:right">40 %</span><div class="bar"><span></span></div><small>Votre quota se renouvelle lundi minuit</small></div>
+      <button class="nav">⚙ Mon compte</button>
+      <button class="nav">⇥ Se déconnecter</button>
+    </div>
+  </nav>`;
+}
+
+function title() {
+  if (S.screen === "accueil") return "Nouvelle conversation";
+  if (S.screen === "candidatures") return "Mes candidatures";
+  return `<span class="crumb hide-phone">Mes candidatures › </span>${app().co} · ${app().role}`;
+}
+
+function topbar(extra = "") {
+  return h`<div class="top">
+    <button class="iconbtn menu-btn" data-drawer>☰</button>
+    <h1>${title()}</h1><span class="sp"></span>${extra}
+  </div>`;
+}
+
+function objectCard(compact = false) {
+  const a = app();
+  return h`<section class="obj">
+    <header><div class="logo">${a.co[0]}</div><div><h2>${a.role}</h2><small>${a.co} · Lyon · CDI</small></div>
+      <div class="score"><b>${a.score}</b><br><small>Match Score</small></div></header>
+    <dl class="props">
+      <div><dt>Statut</dt><dd><span class="pill ${a.tone}">${a.status}</span></dd></div>
+      <div><dt>Prochaine étape</dt><dd>${a.next}</dd></div>
+      <div><dt>Envoyée le</dt><dd>${a.applied}</dd></div>
+      <div><dt>Documents</dt><dd>CV adapté · Lettre</dd></div>
+    </dl>
+    ${compact ? "" : h`<details><summary>Offre, entretiens, contacts, dossier entreprise…</summary>
+      <div class="more">Les Sections de la page Application (Offre, Documents, Entretiens, Relances, Contacts, Dossier entreprise) se déplient ici, en lecture. Les modifier passe par un Drawer, comme aujourd'hui.</div></details>`}
+  </section>`;
+}
+
+function listCard() {
+  return h`<section class="obj">
+    <header><h2>${APPS.length + MORE_APPS} candidatures</h2><span class="sp" style="flex:1"></span><span class="pill warn">3 à traiter</span></header>
+    <table class="list"><tr><th>Poste</th><th class="hide-phone">Statut</th><th>Score</th></tr>
+    ${APPS.map((a) => `<tr class="row" data-app="${a.id}"><td><b>${a.co}</b><br><small>${a.role}</small></td><td class="hide-phone"><span class="pill ${a.tone}">${a.status}</span></td><td>${a.score}</td></tr>`).join("")}
+    </table>
+  </section>`;
+}
+
+const ai = (body, prov = "Claude Opus 5 · UE · 1,2 k tokens · 4 s") =>
+  `<div class="msg ai"><span class="who">✦ Coach IA</span>${body}<div class="prov">${prov}</div></div>`;
+const me = (t) => `<div class="msg me">${t}</div>`;
+const docChip = (name, sub) => `<button class="chip" data-doc="${name}"><span class="ic"></span><span>${name}<small>${sub}</small></span></button>`;
+const runChip = () => `<button class="chip" data-pane="activite">⟳ <span>Préparation d'entretien en cours<small>Dossier entreprise · étape 2/4</small></span></button>`;
+
+function messages(inlineObject) {
+  const extra = (S.sent[convKey()] ?? []).join("");
+  if (S.screen === "accueil") return h`
+    ${ai(`<p>Bonjour Marie. Je suis le Coach IA de Jobbbox, une intelligence artificielle et non une personne ; un Human Coach peut être réservé à tout moment.</p>
+      <p>Je vous aide à décrocher votre prochain poste : construire votre positionnement, trouver les offres qui vous correspondent et préparer vos candidatures.</p>`, "Introduction · aucun appel IA")}
+    <div class="note">ⓘ L'application est en cours de construction.</div>
+    ${ai(`<p>Depuis votre dernière visite : <b>SNCF Connect</b> vous a fait une offre (réponse avant le 7 nov.), et <b>Ledger</b> attend une relance.</p>`)}
+    ${extra}`;
+  if (S.screen === "candidatures") return h`
+    ${inlineObject ? listCard() : ""}
+    ${ai(`<p>Trois candidatures demandent votre attention : l'offre de <b>SNCF Connect</b> à laquelle répondre, une relance chez <b>Ledger</b> (envoyée il y a 27 jours), et l'entretien <b>Decathlon</b> mardi.</p><p>Par laquelle voulez-vous commencer ?</p>`)}
+    ${extra}`;
+  const a = app();
+  return h`
+    ${inlineObject ? objectCard() : ""}
+    <div class="day">12 octobre</div>
+    ${me("Peux-tu adapter mon CV à cette offre ?")}
+    ${ai(`<p>Voici un CV adapté : j'ai remonté la conduite du changement logistique et chiffré vos résultats chez Carrefour Supply.</p>${docChip("CV adapté — " + a.co, "PDF · 2 pages · Tailored CV")}`)}
+    <div class="day">Aujourd'hui</div>
+    ${me("J'ai un entretien mardi, aide-moi à le préparer.")}
+    ${ai(`<p>Je prépare le dossier entreprise et une liste de questions probables. Vous pouvez suivre l'avancement dans AI Activity.</p>${runChip()}`, "Claude Opus 5 · UE · en cours…")}
+    ${extra}`;
+}
+
+function suggestions() {
+  if (S.screen === "accueil") return ["<b>⌕ Chercher des offres</b>", "＋ Ajouter une candidature", "▦ Planifier un entretien", "? Comment marche le Match Score"]
+    .map((t, i) => `<button class="${i === 0 ? "primary" : ""}" data-say="${t.replace(/<[^>]+>/g, "").slice(2)}">${t}</button>`).join("");
+  if (S.screen === "candidatures") return ["Répondre à SNCF Connect", "Rédiger la relance Ledger", "＋ Ajouter une candidature"].map((t) => `<button data-say="${t}">${t}</button>`).join("");
+  return ["Préparer l'entretien", "Rédiger une relance", "Lettre de motivation", "Pourquoi ce score ?"].map((t) => `<button data-say="${t}">${t}</button>`).join("");
+}
+
+function composer() {
+  const ctx = S.screen === "application" ? `Contexte : ${app().co}` : S.screen === "candidatures" ? "Contexte : Mes candidatures" : "Contexte : Profil Directrice des opérations";
+  return h`<div class="composer"><div class="col">
+    <div class="sugg">${suggestions()}</div>
+    <form class="box" data-form><textarea placeholder="Demandez au Coach IA…" rows="1"></textarea>
+      <div class="row"><span class="ctx">${ctx}</span><span>Coach IA</span><button class="send" type="submit">↑</button></div></form>
+    <div class="foot-links">Signaler un problème · Proposer une idée</div>
+  </div></div>`;
+}
+
+function paneBody(tab) {
+  if (tab === "activite") return h`
+    <p style="color:var(--color-meta)">Cette page · ${app().co}</p>
+    <div class="act"><b>Préparation d'entretien</b><small>Dossier entreprise · étape 2/4 · Mistral Large · UE</small><div class="runbar"><span></span></div></div>
+    <div class="act"><b>CV adapté</b><small>Terminé le 12 oct. · Claude Opus 5 · 3,4 k tokens</small>${docChip("CV adapté — " + app().co, "Ouvrir dans le visualiseur")}</div>
+    <div class="act"><b>Match Score ${app().score}</b><small>Calculé le 10 oct.</small></div>`;
+  if (tab === "fiche") return S.screen === "candidatures" ? listCard() : objectCard();
+  return h`<div class="page-doc"><h4>Marie Laurent</h4><div>Directrice des opérations · 25 ans d'expérience</div>
+    <div class="l" style="width:90%"></div><div class="l hl" style="width:75%"></div><div class="l" style="width:85%"></div>
+    <div class="l" style="width:60%"></div><br><b>Expériences</b><div class="l" style="width:92%"></div><div class="l hl" style="width:70%"></div>
+    <div class="l" style="width:88%"></div><div class="l" style="width:50%"></div><div class="l" style="width:80%"></div></div>
+    <p style="color:var(--color-meta)">Surligné : ce que le Coach a changé pour ${app().co}.</p>`;
+}
+
+function pane(cls, tabs) {
+  if (!S.pane) return "";
+  return h`<aside class="pane ${cls}"><div class="tabs">
+    ${tabs.map(([k, l]) => `<button class="${S.pane === k ? "on" : ""}" data-pane="${k}">${l}</button>`).join("")}
+    <button class="x" data-pane-close>✕</button></div><div class="pbody">${paneBody(S.pane)}</div></aside>`;
+}
+
+// ───────────────────────────── Variantes ─────────────────────────────
+// B — la conversation est la page ; l'objet est la 1re carte du fil ; AI Activity et le visualiseur flottent par-dessus.
+function VariantB() {
+  const btn = `<button class="iconbtn ${S.pane ? "on" : ""}" data-pane="activite">⟳ <span class="hide-phone">Activité</span></button>`;
+  return h`<div class="main">${topbar(btn)}<div class="body"><div class="convo">
+    <div class="thread"><div class="col">${messages(true)}</div></div>${composer()}</div></div></div>
+    ${pane("float", [["activite", "Activité"], ["document", "Document"]])}`;
+}
+
+// P — la conversation au centre, un volet ancré à droite : Fiche (l'objet), Activité, Document. Le fil ne contient que l'échange.
+function VariantP() {
+  if (S.pane === null && S.screen !== "accueil") S.pane = "fiche";
+  const btns = S.screen === "accueil" ? "" : ["fiche", "activite", "document"].map((k) =>
+    `<button class="iconbtn ${S.pane === k ? "on" : ""}" data-pane="${k}">${{ fiche: "▤ Fiche", activite: "⟳ Activité", document: "▯ Document" }[k]}</button>`).join("");
+  return h`<div class="main">${topbar(btns)}<div class="body"><div class="convo">
+    <div class="thread"><div class="col">${messages(false)}</div></div>${composer()}</div>
+    ${pane("", [["fiche", "Fiche"], ["activite", "Activité"], ["document", "Document"]])}</div></div>`;
+}
+
+// C — la page à gauche telle qu'aujourd'hui, la conversation à droite, séparateur réglable.
+function VariantC() {
+  const page = S.screen === "accueil" ? h`<div class="col"><h2>Bienvenue sur Jobbbox</h2><p>Votre coach pour décrocher votre prochain poste après 40 ans.</p><div class="note">ⓘ L'application est en cours de construction.</div></div>`
+    : S.screen === "candidatures" ? `<div class="col">${listCard()}</div>` : `<div class="col">${objectCard()}${paneBody("activite")}</div>`;
+  return h`<div class="main">${topbar()}<div class="body">
+    <div class="split-page" style="flex:1">${page}</div><div class="divider" data-divider></div>
+    <div class="split-convo" style="width:${S.splitW}px"><div class="thread"><div class="col">${messages(false)}</div></div>${composer()}</div>
+    </div></div>${pane("float", [["document", "Document"], ["activite", "Activité"]])}`;
+}
+
+// D — l'objet a des onglets ; « Conversation » est l'onglet par défaut ; la boîte reste en bas sur tous les onglets.
+function VariantD() {
+  const tabs = S.screen === "application" ? [["conversation", "Conversation"], ["fiche", "Fiche"], ["documents", "Documents <span class='count'>2</span>"], ["activite", "Activité <span class='count'>1</span>"]]
+    : S.screen === "candidatures" ? [["conversation", "Conversation"], ["fiche", "Liste <span class='count'>12</span>"]] : [];
+  if (!tabs.some(([k]) => k === S.dtab)) S.dtab = "conversation";
+  const content = S.dtab === "conversation" ? messages(false) : S.dtab === "fiche" ? (S.screen === "candidatures" ? listCard() : objectCard())
+    : S.dtab === "documents" ? docChip("CV adapté — " + app().co, "PDF · 12 oct.") + docChip("Lettre — " + app().co, "DOCX · 12 oct.") + paneBody("document") : paneBody("activite");
+  return h`<div class="main">${topbar()}
+    ${tabs.length ? `<div class="dtabs">${tabs.map(([k, l]) => `<button class="${S.dtab === k ? "on" : ""}" data-dtab="${k}">${l}</button>`).join("")}</div>` : ""}
+    <div class="body"><div class="convo"><div class="thread"><div class="col">${content}</div></div>${composer()}</div></div></div>`;
+}
+
+const RENDER = { B: VariantB, P: VariantP, C: VariantC, D: VariantD };
+
+// ───────────────────────────── Rendu + barre prototype ─────────────────────────────
+function proto() {
+  const i = KEYS.indexOf(S.variant);
+  return h`<div class="proto">
+    <button data-cycle="-1">←</button><span class="lbl">${S.variant} · ${VARIANTS[S.variant]}</span><button data-cycle="1">→</button>
+    <span class="sep hide-phone"></span>
+    ${["accueil", "candidatures", "application"].map((s) => `<button class="hide-phone ${S.screen === s ? "on" : ""}" data-go="${s}">${s}</button>`).join("")}
+    <span class="sep"></span><button data-theme>${S.theme === "dark" ? "☾" : "☀"}</button>
+  </div>`;
+}
+
+function render() {
+  document.documentElement.dataset.theme = S.theme;
+  const scroll = document.querySelector(".thread")?.scrollTop;
+  document.getElementById("root").innerHTML =
+    `<div class="app ${S.drawer ? "drawer" : ""}">${sidebar()}<div class="scrim" data-drawer></div>${RENDER[S.variant]()}</div>${proto()}`;
+  const t = document.querySelector(".thread");
+  if (t) t.scrollTop = scroll ?? t.scrollHeight;
+  document.title = `${S.variant} · ${VARIANTS[S.variant]} — ${S.screen} (prototype)`;
+}
+
+function say(text) {
+  const k = convKey();
+  const reply = S.screen === "application" ? `Pour <b>${app().co}</b>, voici ce que je propose… (réponse fictive du prototype)` : "Réponse fictive du prototype.";
+  S.sent[k] = [...(S.sent[k] ?? []), me(text), ai(`<p>${reply}</p>`, "prototype · aucun appel IA")];
+  render();
+  document.querySelector(".thread").scrollTop = 1e9;
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("button, tr, [data-divider]");
+  if (!el) return;
+  const d = el.dataset;
+  if (d.toggle) { e.stopPropagation(); S.openMenus[d.toggle] = !S.openMenus[d.toggle]; return render(); }
+  if (d.cycle) { const i = KEYS.indexOf(S.variant); return set({ variant: KEYS[(i + +d.cycle + KEYS.length) % KEYS.length], pane: null }); }
+  if (d.theme !== undefined) return set({ theme: S.theme === "dark" ? "light" : "dark" });
+  if (d.drawer !== undefined) return set({ drawer: !S.drawer });
+  if (d.go) return set({ screen: d.go, pane: null, drawer: false, dtab: "conversation" });
+  if (d.app) return set({ screen: "application", app: d.app, pane: null, drawer: false, dtab: "conversation" });
+  if (d.doc) return S.variant === "D" ? set({ dtab: "documents" }) : set({ pane: "document" });
+  if (d.pane) return set({ pane: S.pane === d.pane && S.variant !== "P" ? null : d.pane });
+  if (d.paneClose !== undefined) return set({ pane: null });
+  if (d.dtab) return set({ dtab: d.dtab });
+  if (d.say) return say(d.say);
+});
+document.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = e.target.querySelector("textarea").value.trim();
+  if (v) say(v);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest("input, textarea, [contenteditable]")) {
+    if (e.key === "Enter" && !e.shiftKey && e.target.tagName === "TEXTAREA") { e.preventDefault(); e.target.form.requestSubmit(); }
+    return;
+  }
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    const i = KEYS.indexOf(S.variant);
+    set({ variant: KEYS[(i + (e.key === "ArrowRight" ? 1 : -1) + KEYS.length) % KEYS.length], pane: null });
+  }
+});
+document.addEventListener("pointerdown", (e) => {
+  if (!e.target.matches("[data-divider]")) return;
+  const move = (ev) => { const w = Math.min(Math.max(window.innerWidth - ev.clientX, 320), window.innerWidth - 16 * 16 - 300); document.querySelector(".split-convo").style.width = w + "px"; S.splitW = w; };
+  const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+  addEventListener("pointermove", move); addEventListener("pointerup", up);
+});
+
+readUrl(); writeUrl(); render();
+</script>
+</body>
+</html>

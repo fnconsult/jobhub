@@ -159,3 +159,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | Until the account is deleted (ON DELETE CASCADE, ADR-0010). Whether to keep withdrawals longer, as evidence or for accounting, is a question for the Juriste (see the « Légal : » issue). |
 | Rights | In the Candidate's Data export (`withdrawals`, with their refunds, without Stripe's identifiers); deleted with their account. |
 | Security | The form and its API check the signed-in Candidate and the request's origin; one Withdrawal per contract (a double click records one); each refund is sent to Stripe with an idempotency key, a retry with a new one. |
+
+## Quota Reduction notices (#514)
+
+| | |
+| --- | --- |
+| Purpose | Tell each Candidate paying for a Plan, in advance and on a durable medium, that what their Plan includes goes down (what, why, from when), and let them end their subscription at no cost with a prorata refund (C. conso. L224-25-26); keep the proof that they were told and how their cancellation was refunded. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)): L224-25-26 of the French Consumer Code; and the performance of the subscription contract (art. 6(1)(b)). |
+| People concerned | Candidates paying for a paid Plan when an Administrator schedules a Quota Reduction on it. |
+| Data | The Candidate's id, the Quota Reduction they were told of (Plan, what it lowers, reason, effective date), when the e-mail was sent; if they cancelled over it: when, the Stripe subscription ended, the refund's Stripe id and amount, or why Stripe did not make it. The e-mail goes to their account's address, in their Interface Language. The Quota Reduction itself names the Administrator who scheduled it (their id and the email they had then). |
+| Source | Written by the web app when an Administrator schedules a Quota Reduction (one row per paying subscriber) and when the Candidate cancels over it; the worker's job `quota-reductions.run` sends the e-mails and records them. |
+| Recipients | Brevo (e-mail delivery, existing sub-processor, EU); Stripe (cancellation and refund, existing sub-processor). No new sub-processor, no transfer outside the EU beyond the existing ones. |
+| Who can read it | The Candidate, on `/abonnement` and `/abonnement/baisse` while the reduction is open to them. Plans managers and super-admins on Offres, as counts only (subscribers told, e-mails sent, cancellations, refunds to handle): never who. |
+| Storage | The `plan_quota_reduction` and `plan_quota_reduction_notice` tables in the app's Postgres database (EU). |
+| Retention | As long as the Candidate's account: deleted with it (`ON DELETE CASCADE`). A Quota Reduction (no personal data but the Administrator's id and email) is kept with the Plan's history. |
+| Rights | In the Candidate's data export (`quotaReductionNotices`, without Stripe identifiers); erased with the account. |
+| Security | Scheduling and cancelling a Quota Reduction check the Administrator's Back Office Roles and are written to the Back Office Audit; cancelling over one checks the signed-in Candidate. |

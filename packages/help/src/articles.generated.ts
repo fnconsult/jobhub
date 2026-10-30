@@ -196,7 +196,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "résiliation"
       ],
       "route": "/abonnement",
-      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai."
+      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
     },
     {
       "id": "page-account",
@@ -249,6 +249,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/retractation",
       "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif et sans frais : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement et tant qu'elle n'a pas eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse en entier sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés.\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
+    },
+    {
+      "id": "page-subscription-reduction",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Résilier sans frais",
+      "synonyms": [
+        "baisse",
+        "offre réduite",
+        "changement d'offre",
+        "remboursement",
+        "prorata",
+        "résilier",
+        "résiliation"
+      ],
+      "route": "/abonnement/baisse",
+      "body": "Quand nous baissons ce que comprend votre offre payante, vous recevez un e-mail au moins 30 jours avant la date du changement : ce qui change, pourquoi et à quelle date. Si ce changement ne vous convient pas, vous pouvez résilier sans frais.\n\nCette page, ouverte depuis l'e-mail ou depuis Mon abonnement, rappelle ce qui change, la raison et la date. « Confirmer la résiliation » arrête votre abonnement tout de suite : vous repassez à l'offre Gratuite, et nous vous remboursons au prorata la part de la période payée qui n'aura pas servi. Le remboursement apparaît sur votre relevé sous 5 à 10 jours.\n\nVous pouvez résilier ainsi avant la date du changement, ou jusqu'à 30 jours après. Si vous gardez votre abonnement, vous n'avez rien à faire."
     },
     {
       "id": "page-subscription-cancellation",
@@ -383,7 +400,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "utilisation cette semaine"
       ],
       "route": null,
-      "body": "Ce que votre offre comprend : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest.\n\nLa barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris).\n\nParler à votre coach ne compte pas dans le quota."
+      "body": "Ce que votre offre comprend : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest.\n\nLa barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris).\n\nParler à votre coach ne compte pas dans le quota.\n\nUne hausse de votre offre s'applique tout de suite. Une baisse vous est annoncée par e-mail au moins 30 jours avant, et vous pouvez alors résilier sans frais, avec un remboursement au prorata."
     },
     {
       "id": "glossary-job-search",
@@ -668,6 +685,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "It gathers everything about a job offer you follow, in sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving.\n\nUpdate the status as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up."
     },
     {
+      "id": "page-subscription-reduction",
+      "locale": "en",
+      "kind": "page",
+      "title": "Cancel at no cost",
+      "synonyms": [
+        "reduction",
+        "reduced plan",
+        "plan change",
+        "refund",
+        "prorata",
+        "cancel",
+        "cancellation"
+      ],
+      "route": "/abonnement/baisse",
+      "body": "When we reduce what your paid plan includes, you get an email at least 30 days before the date of the change: what changes, why and on which date. If the change does not suit you, you can cancel at no cost.\n\nThis page, opened from the email or from My subscription, sets out what changes, the reason and the date. « Confirm the cancellation » stops your subscription at once: you are back on the Free plan, and we refund prorata the part of the paid period that will not have been used. The refund shows on your statement within 5 to 10 days.\n\nYou can cancel this way before the date of the change, or up to 30 days after it. If you keep your subscription, there is nothing to do."
+    },
+    {
       "id": "page-subscription-cancellation",
       "locale": "en",
       "kind": "page",
@@ -849,7 +883,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "cancellation"
       ],
       "route": "/abonnement",
-      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again."
+      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
       "id": "page-withdrawal",
@@ -983,7 +1017,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "usage this week"
       ],
       "route": null,
-      "body": "What your plan includes: the number of profiles you can have, and each week the number of Match Scores, ATS Scores, job searches and enriched contacts, as well as the Job Digest frequency.\n\nThe « Usage this week » bar, at the foot of the menu, shows where you stand. The count starts again from zero every Monday at midnight (Paris time).\n\nTalking to your coach does not count against the quota."
+      "body": "What your plan includes: the number of profiles you can have, and each week the number of Match Scores, ATS Scores, job searches and enriched contacts, as well as the Job Digest frequency.\n\nThe « Usage this week » bar, at the foot of the menu, shows where you stand. The count starts again from zero every Monday at midnight (Paris time).\n\nTalking to your coach does not count against the quota.\n\nAn increase in your plan applies at once. A reduction is announced to you by email at least 30 days ahead, and you can then cancel at no cost, with a prorata refund."
     },
     {
       "id": "glossary-tailored-cv",

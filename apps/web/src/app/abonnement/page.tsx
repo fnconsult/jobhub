@@ -12,6 +12,7 @@ import { getBilling } from "@/billing/server";
 import { quotaBar } from "@/billing/usage-meter";
 import { AccountSections } from "@/components/AccountSections";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
+import { QuotaReductionNotice } from "@/components/QuotaReductionNotice";
 import { RefreshUntilPlanConfirmed } from "@/components/RefreshUntilPlanConfirmed";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
@@ -19,6 +20,7 @@ import { Field, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getQuotaReductions } from "@/quota-reductions/server";
 import { routes } from "@/routes";
 import { getWithdrawals } from "@/withdrawals/server";
 import "./abonnement.css";
@@ -42,7 +44,7 @@ const MAX_CODE_LENGTH = 40;
 /**
  * Mon compte's Subscription Section (ADR-0024), at its own address, in the Design System (#469): the Candidate's Plan
  * (and the discount their subscription gets) with the way to Stripe (and their invoices there), this week's usage as
- * bars, red once used up, the failed-payment Note, the offered Plans as comparison cards in rank order with their
+ * bars, red once used up, the failed-payment Note, a Quota Reduction they may cancel over (#514), the offered Plans as comparison cards in rank order with their
  * prices (« Votre offre », « Conseillée »), and, on Free, a promotion code to check. A paid Plan whose cancellation is
  * not scheduled has « Résilier votre contrat » beside the way to Stripe (#513); back from confirming it, a Note says it
  * is recorded until when, and whether its acknowledgement was emailed.
@@ -57,7 +59,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan, resiliation } = await searchParams;
   const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable, reduction] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
@@ -65,6 +67,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
     billing.hasInvoices(candidate.id),
     billing.activeDiscount(candidate.id),
     getWithdrawals().contracts(candidate.id),
+    getQuotaReductions().openFor(candidate.id),
   ]);
   // « Renoncer au contrat ici » (#511): for 14 days after the subscription started.
   const planWithdrawal = withdrawable.find((contract) => contract.kind === "plan");
@@ -124,6 +127,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           </Note>
         ) : null}
         {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
+        {/* A Quota Reduction they were told of (#514): they may cancel at no cost over it, refunded prorata. */}
+        {reduction ? (
+          <QuotaReductionNotice reduction={reduction} locale={locale} t={t}>
+            <a className={buttonClass()} href={routes.subscriptionQuotaReduction}>
+              {t("quotaReduction.resolve")}
+            </a>
+          </QuotaReductionNotice>
+        ) : null}
 
         <div className="subscription-summary">
           <Card>

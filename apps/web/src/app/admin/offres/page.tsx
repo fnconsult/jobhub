@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { IntroPage } from "@/admin/page-intro";
 import { planFromForm } from "@/admin/plan-form";
+import { reductionNoticeFromForm } from "@/admin/plan-quotas-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import type { PlanDefinition, PlanError } from "@/billing";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
+import { ReductionNoticeFields } from "@/components/ReductionNoticeFields";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Checkbox, Field, TextInput } from "@/design/Field";
@@ -17,6 +19,9 @@ import { Pill } from "@/design/Pill";
 import { Properties, Property } from "@/design/Properties";
 import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { earliestEffectiveOn, type QuotaReduction, type ReductionError } from "@/quota-reductions";
+import { longDay, reductionLines } from "@/quota-reductions/describe";
+import { getQuotaReductions } from "@/quota-reductions/server";
 import { routes } from "@/routes";
 import "../section.css";
 
@@ -45,7 +50,15 @@ const ERRORS = [
   "conflict",
   "free_plan_built_in",
   "cannot_move",
-] as const satisfies readonly PlanError[];
+  // Plan Features taken off a Plan Candidates pay for (#514).
+  "notice_required",
+  "invalid_effective_date",
+  "too_soon",
+  "reduction_pending",
+] as const satisfies readonly (PlanError | ReductionError)[];
+
+/** Where the scheduled Quota Reductions are listed on the page. */
+const REDUCTIONS_ANCHOR = "baisses";
 
 /** The value a ticked checkbox sends. */
 const TICKED = "on";
@@ -60,7 +73,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("admin.plans.title")} · ${t("admin.title")}`, robots: { index: false } };
 }
 
-const failed = (error: PlanError) => redirect(`${routes.adminPlans}?error=${error}`);
+const failed = (error: PlanError | ReductionError) => redirect(`${routes.adminPlans}?error=${error}`);
 
 async function createPlan(form: FormData) {
   "use server";
@@ -74,8 +87,9 @@ async function savePlan(form: FormData) {
   "use server";
   const { administrator } = await requireBackOffice("plans", "write");
   const plan = String(form.get("plan") ?? "");
-  const saved = await getBackOffice().updatePlan(administrator, plan, planFromForm(form));
+  const saved = await getBackOffice().updatePlan(administrator, plan, planFromForm(form), reductionNoticeFromForm(form));
   if (!saved.ok) failed(saved.error);
+  else if (saved.scheduled) redirect(`${routes.adminPlans}?saved=${plan}&scheduled=1#${REDUCTIONS_ANCHOR}`);
   else redirect(`${routes.adminPlans}?saved=${plan}`);
 }
 
@@ -87,22 +101,32 @@ async function movePlan(form: FormData) {
   else redirect(`${routes.adminPlans}?moved=1`);
 }
 
+async function cancelReduction(form: FormData) {
+  "use server";
+  const { administrator } = await requireBackOffice("plans", "write");
+  const cancelled = await getBackOffice().cancelQuotaReduction(administrator, String(form.get("reduction") ?? ""));
+  redirect(`${routes.adminPlans}?${cancelled ? "cancelled" : "notCancelled"}=1#${REDUCTIONS_ANCHOR}`);
+}
+
 /**
  * Administrators define the Plans: names, rank (the order of the comparison and of Upgrade
  * Prompts), offered or hidden, Stripe product and Plan Features. A new Plan starts hidden.
- * Plans are never deleted; Free is built in.
+ * Plans are never deleted; Free is built in. Below, the Quota Reductions waiting for their effective date (#514), with
+ * what they lower, why and how many subscribers were told; each can be cancelled before its date.
  */
-export default async function PlansPage({ searchParams }: { searchParams: Promise<{ saved?: string; created?: string; moved?: string; error?: string }> }) {
+export default async function PlansPage({ searchParams }: { searchParams: Promise<{ saved?: string; created?: string; moved?: string; error?: string; cancelled?: string; notCancelled?: string }> }) {
   const { access, canWrite } = await requireBackOffice("plans");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { saved, created, moved, error } = await searchParams;
-  const plans = await getBilling().plans();
+  const { saved, created, moved, error, cancelled, notCancelled } = await searchParams;
+  const [plans, reductions] = await Promise.all([getBilling().plans(), getQuotaReductions().pending()]);
+  const earliest = earliestEffectiveOn(new Date());
   // Notices name a Plan from the database only: nothing typed in the address bar is shown.
   const savedPlan = plans.find((plan) => plan.key === saved);
   const createdPlan = plans.find((plan) => plan.key === created);
   const isError = (value: string | undefined): value is (typeof ERRORS)[number] => ERRORS.includes(value as (typeof ERRORS)[number]);
   const name = (plan: PlanDefinition) => plan.name[locale];
+  const planName = (key: string) => plans.find((plan) => plan.key === key)?.name[locale] ?? key;
   const features = (plan: PlanDefinition) => (plan.features.length ? plan.features.map((feature) => t(`admin.plans.featureNames.${feature}`)).join(", ") : t("admin.plans.noFeatures"));
 
   return (
@@ -191,6 +215,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                     </>
                   )}
                   <FeatureFields checked={plan.features} t={t} />
+                  {!free && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} longEarliest={longDay(earliest, locale)} /> : null}
                   {canWrite ? (
                     <button className={buttonClass({ variant: "primary" })} type="submit">
                       {t("admin.plans.save", { plan: name(plan) })}
@@ -201,6 +226,61 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
             </BackOfficeForm>
           );
         })}
+
+        <Card title={<span id={REDUCTIONS_ANCHOR}>{t("admin.quotaReductions.title")}</span>}>
+          <div className="section-form">
+            <p>{t("admin.quotaReductions.intro")}</p>
+            {cancelled ? (
+              <Note tone="success" role="status">
+                {t("admin.quotaReductions.cancelled")}
+              </Note>
+            ) : null}
+            {notCancelled ? (
+              <Note tone="danger" role="alert">
+                {t("admin.quotaReductions.notCancelled")}
+              </Note>
+            ) : null}
+            {reductions.length === 0 ? (
+              <p>{t("admin.quotaReductions.none")}</p>
+            ) : (
+              <Table
+                label={t("admin.quotaReductions.caption")}
+                columns={[
+                  { header: t("admin.quotaReductions.plan"), rowHeader: true, cell: (reduction: QuotaReduction) => planName(reduction.plan) },
+                  {
+                    header: t("admin.quotaReductions.changes"),
+                    cell: (reduction: QuotaReduction) => (
+                      <ul>
+                        {reductionLines(reduction, locale).map((line) => (
+                          <li key={line.label}>{t("admin.quotaReductions.change", { label: line.label, before: line.before, after: line.after })}</li>
+                        ))}
+                      </ul>
+                    ),
+                  },
+                  { header: t("admin.quotaReductions.effectiveOn"), cell: (reduction: QuotaReduction) => longDay(reduction.effectiveOn, locale) },
+                  { header: t("admin.quotaReductions.reason"), cell: (reduction: QuotaReduction) => reduction.reason },
+                  { header: t("admin.quotaReductions.subscribers"), cell: (reduction: QuotaReduction) => t("admin.quotaReductions.notified", { notified: reduction.notified, count: reduction.subscribers }) },
+                  { header: t("admin.quotaReductions.resolved"), numeric: true, cell: (reduction: QuotaReduction) => reduction.resolved },
+                  { header: t("admin.quotaReductions.refundsPending"), numeric: true, cell: (reduction: QuotaReduction) => reduction.refundsPending },
+                  {
+                    header: t("admin.quotaReductions.cancelHeader"),
+                    cell: (reduction: QuotaReduction) =>
+                      canWrite ? (
+                        <form action={cancelReduction}>
+                          <input type="hidden" name="reduction" value={reduction.id} />
+                          <button className={buttonClass({ size: "sm", variant: "danger" })} type="submit">
+                            {t("admin.quotaReductions.cancel", { plan: planName(reduction.plan) })}
+                          </button>
+                        </form>
+                      ) : null,
+                  },
+                ]}
+                rows={reductions}
+                rowKey={(reduction) => reduction.id}
+              />
+            )}
+          </div>
+        </Card>
 
         {canWrite ? (
           <form action={createPlan}>

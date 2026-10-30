@@ -6,6 +6,7 @@
   "exports": {
     "./root-env": "./src/env/root-env.ts",
     "./billing": "./src/billing/index.ts",
+    "./billing/config": "./src/billing/config.ts",
     "./back-office": "./src/admin/back-office.ts",
     "./back-office-assistant": "./src/back-office-assistant/conversations.ts",
     "./job-offers": "./src/job-offers/index.ts",
@@ -18,6 +19,7 @@
     "./applications": "./src/applications/index.ts",
     "./appointment-reminders": "./src/appointment-reminders/index.ts",
     "./legal-text-notices": "./src/legal-text-notices/index.ts",
+    "./quota-reductions": "./src/quota-reductions/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./unanswered-questions": "./src/unanswered-questions/index.ts",
     "./signalements": "./src/signalements/index.ts",

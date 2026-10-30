@@ -123,6 +123,9 @@ export type FakeRefund = {
   metadata: Record<string, string>;
 };
 
+/** A subscription's latest paid invoice as the fake keeps it: what it took, with which PaymentIntent (none at 0), for which period. */
+type FakePaidPeriod = { invoice: string; amount: number; paymentIntent: string | null; start: number; end: number };
+
 /** Starts the fake on `port` (any free port by default). */
 export async function startFakeStripe(port = 0) {
   const calls: StripeCall[] = [];
@@ -180,6 +183,8 @@ export async function startFakeStripe(port = 0) {
   const checkoutPayments = new Map<string, { paymentIntent: string; amount: number }>();
   /** Every PaymentIntent the fake took, and how much. */
   const paymentAmounts = new Map<string, number>();
+  /** Each subscription's latest paid period (a Quota Reduction's prorata refund, #514), by subscription id. */
+  const paidPeriods = new Map<string, FakePaidPeriod>();
   const refunds: FakeRefund[] = [];
   /** Refund answers by idempotency key: a request sent again with its key gets the same answer, as from Stripe. */
   const refundAnswers = new Map<string, { status: number; json: unknown }>();
@@ -206,6 +211,27 @@ export async function startFakeStripe(port = 0) {
       cancel_at_period_end: cancellingSubscriptions.has(subscription),
       items: { object: "list", data: [{ id: `si_fake_${subscription}`, object: "subscription_item", current_period_end: subscriptionPeriodEnds.get(subscription) }] },
       discounts,
+      latest_invoice: latestInvoiceOf(subscription),
+    };
+  }
+  /** A subscription's latest paid invoice (#514), whole, as with `expand[]=latest_invoice.payments`; null when none. */
+  function latestInvoiceOf(subscription: string) {
+    const paid = paidPeriods.get(subscription);
+    if (!paid) return null;
+    return {
+      id: paid.invoice,
+      object: "invoice",
+      status: "paid",
+      amount_paid: paid.amount,
+      currency: "eur",
+      lines: { object: "list", has_more: false, data: [{ id: `il_${paid.invoice}`, object: "line_item", period: { start: paid.start, end: paid.end } }] },
+      payments: {
+        object: "list",
+        has_more: false,
+        data: paid.paymentIntent
+          ? [{ id: `inpay_${paid.invoice}`, object: "invoice_payment", amount_paid: paid.amount, currency: "eur", status: "paid", payment: { type: "payment_intent", payment_intent: paid.paymentIntent } }]
+          : [],
+      },
     };
   }
   let sequence = 0;
@@ -222,12 +248,19 @@ export async function startFakeStripe(port = 0) {
     checkoutPayments.set(checkoutSessionId, { paymentIntent, amount });
     return paymentIntent;
   }
+  /** Records a subscription's paid period (`amount` 0: a 100 % code, nothing taken), as its latest invoice. */
+  function payPeriod(subscriptionId: string, paid: { amount: number; start: Date; end: Date }) {
+    const id = ++sequence;
+    const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
+    paidPeriods.set(subscriptionId, { invoice: `in_fake${id}`, amount: paid.amount, paymentIntent: paid.amount > 0 ? `pi_fake${id}` : null, start: seconds(paid.start), end: seconds(paid.end) });
+    if (paid.amount > 0) paymentAmounts.set(`pi_fake${id}`, paid.amount);
+  }
   /** Refunds a PaymentIntent as Stripe does: in full unless `amount` says less, never more than is left. */
   function createRefund(params: URLSearchParams): { status: number; json: unknown } {
     const refusal = (code: string, message: string, status = 400) => ({ status, json: { error: { type: "invalid_request_error", code, message } } });
     const paymentIntent = params.get("payment_intent") ?? "";
     const refused = refundRefusal ?? refundRefusals.get(paymentIntent);
-    if (refused) return refusal(refused, `Refund refused: ${refused}`);
+    if (refused) return refusal(refused, `Refund refused: ${refused}`, refused === "rate_limit" ? 429 : 400);
     const paid = paymentAmounts.get(paymentIntent);
     if (paid === undefined) return refusal("resource_missing", `No such payment_intent: '${paymentIntent}'`, 404);
     const refunded = refunds.filter((refund) => refund.payment_intent === paymentIntent && refund.status !== "failed").reduce((sum, refund) => sum + refund.amount, 0);
@@ -371,7 +404,8 @@ export async function startFakeStripe(port = 0) {
       if (request.method === "POST" && path === "/v1/refunds") {
         const key = request.headers["idempotency-key"];
         const answer = (typeof key === "string" && refundAnswers.get(key)) || createRefund(params);
-        if (typeof key === "string") refundAnswers.set(key, answer);
+        // As Stripe: an answer is kept for its key once the request ran; a rate limit never ran it.
+        if (typeof key === "string" && answer.status !== 429) refundAnswers.set(key, answer);
         return reply(answer.status, answer.json);
       }
       const subscription = request.method === "GET" && path.match(/^\/v1\/subscriptions\/([^/]+)$/)?.[1];
@@ -437,11 +471,16 @@ export async function startFakeStripe(port = 0) {
         paidCustomers.add(decodeURIComponent(paidPath));
         return reply(200, {});
       }
-      // For e2e specs in another process: `payInvoice`, `payCheckoutSession`, `refuseRefunds` and `refunds` over HTTP.
+      // For e2e specs in another process: `payInvoice`, `payCheckoutSession`, `payPeriod`, `refuseRefunds` and `refunds` over HTTP.
       const invoicePath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/invoices$/)?.[1];
       if (invoicePath) return reply(200, { payment_intent: payInvoice(decodeURIComponent(invoicePath), Number(params.get("amount") ?? 0)) });
       const checkoutPaymentPath = request.method === "POST" && path.match(/^\/__checkout_sessions\/([^/]+)\/payment$/)?.[1];
       if (checkoutPaymentPath) return reply(200, { payment_intent: payCheckoutSession(decodeURIComponent(checkoutPaymentPath), Number(params.get("amount") ?? 0)) });
+      const periodPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/period$/)?.[1];
+      if (periodPath) {
+        payPeriod(decodeURIComponent(periodPath), { amount: Number(params.get("amount") ?? 0), start: new Date(Number(params.get("start")) * 1000), end: new Date(Number(params.get("end")) * 1000) });
+        return reply(200, {});
+      }
       // Scoped to one PaymentIntent (`payment_intent`, required): the e2e specs share this fake and run side by side.
       if (request.method === "POST" && path === "/__refunds/refuse") {
         const paymentIntent = params.get("payment_intent");
@@ -490,6 +529,8 @@ export async function startFakeStripe(port = 0) {
     payInvoice,
     /** Records a paid Checkout Session (a Coaching Session's); returns the PaymentIntent it was paid with. */
     payCheckoutSession,
+    /** Records a subscription's paid period, as its latest invoice (`amount` 0: a 100 % code, nothing taken). */
+    payPeriod,
     /** Makes Stripe refuse every refund with this error code from now on (null: refunds go through again). */
     refuseRefunds: (code: string | null) => void (refundRefusal = code),
     /** Every refund made, oldest first. */

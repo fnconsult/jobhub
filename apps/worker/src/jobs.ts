@@ -4,6 +4,7 @@ import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { REMINDER_HOUR, REMINDER_TIME_ZONE, type AppointmentReminders } from "@jobhub/web/appointment-reminders";
 import type { LegalTextNotices } from "@jobhub/web/legal-text-notices";
+import type { QuotaReductions } from "@jobhub/web/quota-reductions";
 import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI_USAGE_RETENTION_MONTHS } from "@jobhub/web/ai-usage";
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
@@ -86,6 +87,12 @@ export const LEGAL_TEXT_NOTICES = "legal-text-notices.send";
 
 /** How a run of LEGAL_TEXT_NOTICES with emails that failed is tried again: 5 more times, from 15 minutes apart, doubling. */
 const LEGAL_TEXT_NOTICES_RETRY = { limit: 5, delaySeconds: 900, backoff: true };
+
+/**
+ * Queue name, every 5 minutes: apply the Quota Reductions whose effective date came (#514), e-mail each subscriber the
+ * notice of a Quota Reduction not sent yet (once), and ask Stripe again for the prorata refunds it did not answer about.
+ */
+export const QUOTA_REDUCTIONS = "quota-reductions.run";
 
 /** Queue name: re-check the sources of the Job Offers due (those Candidates are applying to), to find Expired Job Offers. Runs daily. */
 export const SOURCE_RECHECK = "job-offers.recheck-sources";
@@ -205,6 +212,11 @@ export interface JobsDeps {
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
   /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
   legalTextNotices?: Pick<LegalTextNotices, "sendDue">;
+        }),
+    },
+
+  /** Quota Reductions (#514). Without them, none is applied nor announced. */
+  quotaReductions?: Pick<QuotaReductions, "run">;
   /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
   referenceData?: Pick<ReferenceData, "refresh">;
   /** The monthly web search alert (#403). Without it, nothing is checked. */
@@ -485,6 +497,17 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           log(`[legal-text-notices] ${sent.emails} notice email(s) sent` + (sent.failed ? `; ${sent.failed} could not be sent, left to the next try` : ""));
           // Thrown for the runner to try again: the notices sent are not sent twice.
           if (sent.failed) throw new Error(`${sent.failed} Legal Text notice(s) could not be sent`);
+    // Every 5 minutes: a Quota Reduction applies within minutes of its effective date (midnight in Paris). Safe to run again.
+    [QUOTA_REDUCTIONS]: {
+      cron: "*/5 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const done = await deps.quotaReductions?.run();
+          if (!done || done.applied + done.sent + done.failed + done.refunds === 0) return;
+          log(
+            `[quota-reductions] ${done.applied} Quota Reduction(s) applied, ${done.sent} notice(s) sent, ${done.refunds} refund(s) made` +
+              (done.failed ? `; ${done.failed} notice(s) could not be sent, left to the next run` : ""),
+          );
         }),
     },
 

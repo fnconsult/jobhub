@@ -1,23 +1,30 @@
-import { LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, WEEKLY_QUOTAS, type WeeklyQuota } from "@jobhub/shared";
+import { FREE_PLAN, LIMITED_QUOTAS, JOB_DIGEST_FREQUENCIES, WEEKLY_QUOTAS, type WeeklyQuota } from "@jobhub/shared";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { IntroPage } from "@/admin/page-intro";
-import { planQuotasFromForm } from "@/admin/plan-quotas-form";
+import { planQuotasFromForm, reductionNoticeFromForm } from "@/admin/plan-quotas-form";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
+import { ReductionNoticeFields } from "@/components/ReductionNoticeFields";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Checkbox, Field, Select, Textarea, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { earliestEffectiveOn, type ReductionError } from "@/quota-reductions";
+import { longDay } from "@/quota-reductions/describe";
 import { routes } from "@/routes";
 import "../section.css";
 
 /** This section's one-line intro (#466). */
 const INTRO: IntroPage = "planQuotas";
+
+/** Why a change of quotas may be refused (#514): each has its message. */
+const REDUCTION_ERRORS = ["notice_required", "invalid_effective_date", "too_soon", "reduction_pending", "unknown_plan"] as const satisfies readonly ReductionError[];
+const isReductionError = (value: string | undefined): value is ReductionError => REDUCTION_ERRORS.includes(value as ReductionError);
 
 export async function generateMetadata(): Promise<Metadata> {
   // Metadata renders apart from the page: without this, the 404 shown to
@@ -32,8 +39,10 @@ async function savePlanQuotas(form: FormData) {
   const { administrator } = await requireBackOffice("planQuotas", "write");
   const submitted = planQuotasFromForm(form);
   if (!submitted) redirect(`${routes.adminPlanQuotas}?invalid=${encodeURIComponent(String(form.get("plan")))}`);
-  await getBackOffice().setPlanQuotas(administrator, submitted.plan, submitted.quotas);
-  redirect(`${routes.adminPlanQuotas}?saved=${submitted.plan}`);
+  const changed = await getBackOffice().setPlanQuotas(administrator, submitted.plan, submitted.quotas, reductionNoticeFromForm(form));
+  if (!changed.ok) redirect(`${routes.adminPlanQuotas}?error=${changed.error}&plan=${encodeURIComponent(submitted.plan)}`);
+  const scheduled = changed.scheduled ? `&effectiveOn=${changed.scheduled.effectiveOn}&subscribers=${changed.scheduled.subscribers}` : "";
+  redirect(`${routes.adminPlanQuotas}?saved=${submitted.plan}${scheduled}`);
 }
 
 async function resetWeeklyUsage(form: FormData) {
@@ -52,12 +61,15 @@ async function resetWeeklyUsage(form: FormData) {
 export default async function PlanQuotasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; invalid?: string; reset?: string; resetRefused?: string }>;
+  searchParams: Promise<{ saved?: string; invalid?: string; reset?: string; resetRefused?: string; error?: string; effectiveOn?: string; subscribers?: string }>;
 }) {
   const { access, canWrite } = await requireBackOffice("planQuotas");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { saved, invalid, reset, resetRefused } = await searchParams;
+  const { saved, invalid, reset, resetRefused, error, effectiveOn, subscribers } = await searchParams;
+  const earliest = earliestEffectiveOn(new Date());
+  // A scheduled reduction is named from the database and a date that parses: nothing typed in the address bar is shown.
+  const scheduledOn = effectiveOn && /^\d{4}-\d{2}-\d{2}$/.test(effectiveOn) ? effectiveOn : null;
   const [plans, quotas] = await Promise.all([getBilling().plans(), getBilling().planQuotas()]);
   const savedPlan = plans.find((plan) => plan.key === saved);
 
@@ -69,7 +81,19 @@ export default async function PlanQuotasPage({
         </PageIntro>
         {savedPlan ? (
           <Note tone="success" role="status">
-            {t("admin.planQuotas.saved", { plan: savedPlan.name[locale] })}
+            {scheduledOn ? (
+              <>
+                {t("admin.quotaReductions.scheduled", { plan: savedPlan.name[locale], date: longDay(scheduledOn, locale), count: Number(subscribers) || 0 })}{" "}
+                <a href={`${routes.adminPlans}#baisses`}>{t("admin.quotaReductions.seePending")}</a>
+              </>
+            ) : (
+              t("admin.planQuotas.saved", { plan: savedPlan.name[locale] })
+            )}
+          </Note>
+        ) : null}
+        {isReductionError(error) ? (
+          <Note tone="danger" role="alert">
+            {t(`admin.quotaReductions.errors.${error}`)}
           </Note>
         ) : null}
         {invalid ? (
@@ -104,6 +128,7 @@ export default async function PlanQuotasPage({
                     ))}
                   </Select>
                 </Field>
+                {plan !== FREE_PLAN && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} longEarliest={longDay(earliest, locale)} /> : null}
                 {canWrite ? (
                   <button className={buttonClass({ variant: "primary" })} type="submit">
                     {t("admin.planQuotas.save", { plan: name[locale] })}

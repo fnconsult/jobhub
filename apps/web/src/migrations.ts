@@ -35,6 +35,7 @@ import { migrateLegalTextNotices } from "./legal-text-notices/index";
 import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
+import { migrateQuotaReductions } from "./quota-reductions/index";
 import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
@@ -83,6 +84,7 @@ export async function migrateDatabase(
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
+    ["Quota Reductions are up to date", () => migrateQuotaReductions(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],

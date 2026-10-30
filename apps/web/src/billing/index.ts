@@ -7,10 +7,13 @@
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
  *  - how do they stop paying?     `cancellationTerms`, `scheduleCancellation` (« Résilier votre contrat », #513),
- *                                 and `closeAccount` when they delete their account
+ *                                 and `closeAccount` when they delete their account;
+ *                                 `endSubscriptionWithProrataRefund` (`retryProrataRefund`) when they cancel over a
+ *                                 Quota Reduction (#514)
  *  - how do they withdraw (#511)?  `subscription` (since when), `paidOnSubscription`, `endSubscriptionNow`,
  *    `coachingSessionPayment`, `refund`
  *    (the signed webhook reports each refund's fate through `onRefundChanged`)
+ *  - who pays for a Plan?         `subscribersOf`
  *  - which Plans are there?       `plans`, and in the Back Office `createPlan`, `updatePlan`, `movePlan`
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
  *  - what do the Plans cost?      `planPrices`
@@ -132,6 +135,15 @@ export interface CancellationTerms {
  * acknowledgement was emailed), or nothing, the Candidate having no paid Plan whose cancellation is not scheduled yet.
  */
 export type CancellationResult = { ok: true; plan: Plan; requestedAt: Date; endsAt: Date; acknowledged: boolean } | { ok: false; error: "not_cancellable" };
+
+/**
+ * How a subscription ended over a Quota Reduction (#514) was refunded: the refund Stripe made (null when nothing was
+ * left to refund, or nothing was paid), or why it was not: Stripe's error code, or `stripe_unavailable`. The
+ * subscription is ended either way; a refund that was not made can be asked again with `retryProrataRefund`.
+ */
+export type ProrataRefundResult =
+  | { ok: true; refund: { id: string; amount: number; currency: string } | null }
+  | { ok: false; reason: string; subscription: string };
 
 /** How a Candidate checks out. */
 export interface CheckoutOptions {
@@ -911,6 +923,35 @@ export function createBilling(config: BillingConfig) {
     );
   }
 
+  /**
+   * Refunds the part of a subscription's latest paid period still to run at `at`, prorata of its length, on the
+   * payment that paid it. `key` makes Stripe refund once however often it is asked.
+   */
+  async function prorataRefund(subscriptionId: string, key: string, at: Date): Promise<ProrataRefundResult> {
+    try {
+      const { client } = stripe();
+      const subscription = await client.subscriptions.retrieve(subscriptionId, { expand: ["latest_invoice.payments"] }, STRIPE_WRITE);
+      const invoice = subscription.latest_invoice;
+      if (!invoice || typeof invoice === "string") return { ok: true, refund: null };
+      const period = invoice.lines.data[0]?.period;
+      const payment = invoice.payments?.data.find((each) => each.status === "paid")?.payment.payment_intent;
+      const paymentIntent = typeof payment === "string" ? payment : payment?.id;
+      if (!period || !paymentIntent || invoice.amount_paid <= 0 || period.end <= period.start) return { ok: true, refund: null };
+      const unused = Math.min(1, Math.max(0, (period.end * 1000 - at.getTime()) / ((period.end - period.start) * 1000)));
+      const amount = Math.round(invoice.amount_paid * unused);
+      if (amount <= 0) return { ok: true, refund: null };
+      const refund = await client.refunds.create(
+        { payment_intent: paymentIntent, amount, metadata: { purpose: "plan_quota_reduction", subscription: subscriptionId } },
+        { ...STRIPE_WRITE, idempotencyKey: key },
+      );
+      return { ok: true, refund: { id: refund.id, amount: refund.amount, currency: refund.currency } };
+    } catch (error) {
+      console.error("[billing] could not refund a subscription prorata", error);
+      const reason = error instanceof Stripe.errors.StripeInvalidRequestError ? (error.code ?? "stripe_refused") : "stripe_unavailable";
+      return { ok: false, reason, subscription: subscriptionId };
+    }
+  }
+
   async function planOf(candidateId: string): Promise<Plan> {
     const { rows } = await database.query("SELECT plan FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
     return (rows[0]?.plan as Plan | undefined) ?? FREE_PLAN;
@@ -1059,6 +1100,48 @@ export function createBilling(config: BillingConfig) {
         }
       }
       return { ok: true, ...scheduled, requestedAt, acknowledged };
+    },
+
+    /**
+     * Ends the Candidate's subscription at once, over a Quota Reduction they were told of (#514, L224-25-26): cancelled
+     * in Stripe now, the Candidate on Free here without waiting for the webhook, and the part of the paid period not used
+     * refunded (see ProrataRefundResult). `key` makes Stripe refund once. Null when they have no subscription to end.
+     * Throws when Stripe could not cancel it: nothing has changed then.
+     */
+    async endSubscriptionWithProrataRefund(candidateId: string, key: string): Promise<ProrataRefundResult | null> {
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      const subscriptionId = account.stripe_subscription_id;
+      const at = now();
+      try {
+        await stripe().client.subscriptions.cancel(subscriptionId, { cancellation_details: { comment: "plan_quota_reduction" } }, STRIPE_WRITE);
+      } catch (error) {
+        // Already cancelled (a second click, Stripe's own cancellation): what was to be done is done.
+        if (!(error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing")) throw error;
+      }
+      // Stamped now, so a report of the subscription Stripe sent before does not bring the Plan back.
+      await database.query(
+        `UPDATE candidate_plan SET plan = $3, stripe_status = 'canceled', ends_at = NULL, stripe_event_at = GREATEST(stripe_event_at, $4)
+         WHERE candidate_id = $1 AND stripe_subscription_id = $2`,
+        [candidateId, subscriptionId, FREE_PLAN, at],
+      );
+      return prorataRefund(subscriptionId, key, at);
+    },
+
+    /** Asks again for the prorata refund of a subscription ended at `at` whose refund was not made; same `key`, same refund. */
+    retryProrataRefund(subscriptionId: string, key: string, at: Date): Promise<ProrataRefundResult> {
+      return prorataRefund(subscriptionId, key, at);
+    },
+
+    /** The Candidates paying for `plan` now (Stripe reports their subscription active, trialing or past due); none on Free. */
+    async subscribersOf(plan: Plan, within: Queryable = database): Promise<string[]> {
+      if (plan === FREE_PLAN) return [];
+      const { rows } = await within.query<{ candidate_id: string }>(
+        `SELECT candidate_id FROM candidate_plan WHERE plan = $1 AND stripe_status IN (${[...PAYING_STATUSES].map((status) => `'${status}'`).join(", ")}) ORDER BY candidate_id`,
+        [plan],
+      );
+      return rows.map((row) => row.candidate_id);
     },
 
     /**
@@ -1619,7 +1702,8 @@ export function createBilling(config: BillingConfig) {
 
     /**
      * Replaces one Plan's quotas (Back Office) and returns the ones it replaced; null for an unknown
-     * Plan. Applies at once to every Candidate on that Plan. `within` runs it in the caller's transaction.
+     * Plan. Applies at once to every Candidate on that Plan: a reduction on a paid Plan is scheduled
+     * first, by the Quota Reductions module (#514), which calls this on its effective date. `within` runs it in the caller's transaction.
      */
     async setPlanQuotas(plan: Plan, quotas: PlanQuotas, within: Queryable = database): Promise<PlanQuotas | null> {
       const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];
@@ -1631,6 +1715,21 @@ export function createBilling(config: BillingConfig) {
         [plan, ...keys.map((key) => quotas[key])],
       );
       return rows[0] ? quotasFromRow(rows[0]) : null;
+    },
+
+    /** One Plan's quotas, its row locked until `within`'s transaction ends (a Quota Reduction is weighed against them); null for an unknown Plan. */
+    async lockPlanQuotas(plan: Plan, within: Queryable): Promise<PlanQuotas | null> {
+      const { rows } = await within.query("SELECT * FROM plan_quota WHERE plan = $1 FOR UPDATE", [plan]);
+      return rows[0] ? quotasFromRow(rows[0]) : null;
+    },
+
+    /** Takes Plan Features off a Plan (a Quota Reduction, #514, on its effective date); returns its Plan Features before and after, or null for an unknown Plan. */
+    async removePlanFeatures(plan: Plan, features: readonly PlanFeature[], within: Queryable = database): Promise<{ before: PlanFeature[]; after: PlanFeature[] } | null> {
+      const current = await lockedPlan(within, plan);
+      if (!current) return null;
+      const after = current.features.filter((feature) => !features.includes(feature));
+      await savePlan(within, { ...current, features: after });
+      return { before: current.features, after };
     },
 
     /**

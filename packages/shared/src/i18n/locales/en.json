@@ -4617,20 +4617,27 @@
   },
   "legal": {
     "eyebrow": "Legal",
-    "documentsNav": "Legal documents",
-    "documents": {
-      "conditions-utilisation": "Terms of use",
+    "documentsNav": "Legal texts",
+    "texts": {
+      "cgu": "Terms of use",
+      "cgv": "Terms of sale",
       "confidentialite": "Privacy policy",
-      "cookies": "Cookies",
-      "sous-traitants-et-ia": "Subprocessors and AI",
       "mentions-legales": "Legal notice"
     },
     "effective": "In effect since {{date}}",
-    "version": "Version {{version}}",
     "earlierVersions": "Previous versions",
-    "earlierVersion": "Version {{version}}, in effect since {{date}}",
-    "readingEarlier": "You are reading a previous version of this text.",
-    "backToCurrent": "Read the version in effect",
+    "archived": "Archived version:",
+    "seeCurrent": "see the version in effect",
+    "translation": "Translation: the French text prevails.",
+    "readFrench": "Read the French text",
+    "approvedBy": "Approved by {{name}}, publication director, on {{date}}",
+    "history": "Version history",
+    "historyIntro": "Every version of this text, newest first. A version is never changed: a correction is a new version.",
+    "historyVersion": "Version of {{date}}",
+    "change": {
+      "substantielle": "Substantial",
+      "mineure": "Minor"
+    },
     "summary": "In short",
     "toc": "On this page",
     "pdf": "Download as PDF",

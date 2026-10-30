@@ -12,20 +12,18 @@ import "./app.css";
 // (authoritative), English under it (#542). No shell, no Signalement: the digest is what support asks for.
 const fr = createI18n("fr").t;
 const en = createI18n("en").t;
-/** Each line in French, then « · » and English, for the buttons and the digest. */
-const both = (key: Parameters<typeof fr>[0]) => `${fr(key)} · ${en(key)}`;
 const COPY = {
-  documentTitle: `${fr("errorPage.error.title")} · ${COPY.wordmark}`,
+  documentTitle: `${fr("errorPage.error.title")} · ${fr("app.name")}`,
   wordmark: fr("app.name"),
   title: fr("errorPage.error.title"),
   message: fr("errorPage.error.message"),
   titleEn: `${en("errorPage.error.title")}.`,
   messageEn: en("errorPage.error.message"),
-  retry: both("errorPage.actions.retry"),
-  home: both("errorPage.actions.home"),
-  digest: both("errorPage.digest.label"),
-  copy: both("errorPage.digest.copy"),
-  copied: both("errorPage.digest.copied"),
+  retry: `${fr("errorPage.actions.retry")} · ${en("errorPage.actions.retry")}`,
+  home: `${fr("errorPage.actions.home")} · ${en("errorPage.actions.home")}`,
+  digest: `${fr("errorPage.digest.label")} · ${en("errorPage.digest.label")}`,
+  copy: `${fr("errorPage.digest.copy")} · ${en("errorPage.digest.copy")}`,
+  copied: `${fr("errorPage.digest.copied")} · ${en("errorPage.digest.copied")}`,
 };
 
 export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {

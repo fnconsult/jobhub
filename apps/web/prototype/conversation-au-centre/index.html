@@ -331,6 +331,7 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .box .row .ctx { border: 1px solid var(--color-border); border-radius: 999px; padding: .1rem .5rem; }
 .box .row .send { margin-left: auto; width: 2rem; height: 2rem; border-radius: 50%; border: 0; background: var(--color-accent); color: var(--color-on-accent); }
 .foot-links { font-size: .72rem; color: var(--color-meta); text-align: center; }
+.linkish { border: 0; background: none; padding: 0; font-size: inherit; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* side pane (B floating, P docked) */
 .pane { width: 26rem; flex: none; border-left: 1px solid var(--color-border); background: var(--color-background); display: flex; flex-direction: column; min-height: 0; }
@@ -616,7 +617,7 @@ function composer() {
     <div class="sugg">${suggestions()}</div>
     <form class="box" data-form><textarea placeholder="Demandez au Coach IA…" rows="1"></textarea>
       <div class="row"><span class="ctx">${ctx}</span><span>Coach IA</span><button class="send" type="submit">↑</button></div></form>
-    <div class="foot-links">Signaler un problème · Proposer une idée</div>
+    <div class="foot-links"><button class="linkish" data-open="bug">Signaler un problème</button> · <button class="linkish" data-open="idee">Proposer une idée</button></div>
   </div></div>`;
 }
 
@@ -698,7 +699,7 @@ const SECTIONS = [
   { k: "offre", t: "Offre" }, { k: "entretiens", t: "Entretiens", n: "1" }, { k: "relances", t: "Relances" },
   { k: "contacts", t: "Contacts", n: "3" }, { k: "dossier", t: "Dossier entreprise" },
 ];
-const ALL_OPEN = [...RESULTS, ...SECTIONS];
+const ALL_OPEN = [...RESULTS, ...SECTIONS, { k: "bug", t: "Signaler un problème", ic: "⚠" }, { k: "idee", t: "Proposer une idée", ic: "✦" }];
 
 function docPanel() {
   if (!S.doc) return "";
@@ -710,6 +711,7 @@ function docPanel() {
   else if (S.doc === "email") { tools = `<button disabled title="Prototype">➤ Envoyer</button>` + ask; body = `<div class="mail"><div><small>À</small> recrutement@${a.co.toLowerCase().replace(/\s/g, "")}.com</div><div><small>Objet</small> Suivi de ma candidature, ${a.role}</div><div class="b" contenteditable>Bonjour,<br><br>Je me permets de revenir vers vous au sujet de ma candidature envoyée le ${a.applied}…</div></div><p class="hint">Rien ne part sans votre clic sur « Envoyer ».</p>`; }
   else if (S.doc === "questions") { tools = `<button>■ Arrêter</button>`; body = `<div class="act"><b>Préparation d'entretien</b><small>Étape 2/4 · Dossier entreprise</small><div class="runbar"><span></span></div></div><p class="hint">Le résultat s'affichera ici à la fin ; vous pouvez continuer à écrire au coach.</p>`; }
   else if (S.doc === "entretiens") { tools = `<button>＋ Ajouter</button>` + ask; body = `<div class="act"><b>Mar. 4 nov. · 10:00</b><small>Visio · avec la DRH · 45 min</small></div><p class="hint">Ajouter, déplacer ou annuler un entretien se fait ici, sans quitter la conversation.</p>`; }
+  else if (S.doc === "bug" || S.doc === "idee") { tools = ""; body = `<p>${S.doc === "bug" ? "Décrivez le problème rencontré." : "Quelle idée voulez-vous proposer ?"}</p><textarea style="width:100%;min-height:9rem;border:1px solid var(--color-border-strong);border-radius:8px;padding:.6rem;background:var(--color-background);color:var(--color-text)" placeholder="10 à 2 000 caractères"></textarea><p><button class="iconbtn" disabled title="Prototype">Envoyer</button></p><p class="hint">#590 Q10 : le formulaire s'ouvre dans le panneau de travail, ni Drawer ni Dialog.</p>`; }
   else { tools = `<button>✎ Modifier</button>` + ask; body = `<p>Contenu de la Section « ${it.t} » de l'Application ${a.co}, avec ses actions.</p>`; }
   return h`<aside class="col-pane docp"><div class="rcard"><header>${it.ic ?? "▤"} ${it.t}<span class="sp"></span>${tools}<button class="x" data-doc-close>✕</button></header><div class="cbody">${body}</div></div></aside>`;
 }
@@ -738,9 +740,9 @@ function VariantE() {
   const isApp = S.screen === "application";
   const btns = (isApp ? `<button class="iconbtn ${S.fiche ? "on" : ""}" data-fiche>▤ Fiche</button>` : "")
     + `<button class="iconbtn ${(isApp ? S.fiche && S.groups.activite : S.act === "open") ? "on" : ""}" data-act>⟳ <span class="hide-phone">Activité</span></button>`
-    + (isApp ? `<button class="iconbtn ${S.doc ? "on" : ""}" data-open="${S.doc ?? "cv"}" ${S.doc ? "data-doc-close" : ""}>▯ <span class="hide-phone">Document</span></button>` : "");
+    + ""; // #590 Q11 : plus de bouton Document ; le panneau de travail s'ouvre depuis un Résultat, une Section ou un lien.
   const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
-  const hasPane = (isApp && (S.fiche || S.doc)) || (!isApp && S.act === "open");
+  const hasPane = S.doc || (isApp && S.fiche) || (!isApp && S.act === "open");
   return h`<div class="main">${topbar(btns)}<div class="body ${hasPane ? "has-pane" : ""}">
     <div class="convo" style="min-width:20rem;flex:1 1 24rem"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
     ${docPanel()}${fichePanel()}${actColumn()}</div></div>`;

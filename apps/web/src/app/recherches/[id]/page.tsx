@@ -82,7 +82,7 @@ export default async function JobSearchPage({ params }: Params) {
       <div className="btn-row">
         {status === "searching" ? <StopJobSearchButton jobSearchId={jobSearch.id} /> : null}
         {status !== "searching" ? (
-          <StartJobSearchButton profileId={profile.id} label={t("jobSearch.searchAgain")} className="button" icon={<Icons.searchAgain />} />
+          <StartJobSearchButton profileId={profile.id} label={t("jobSearch.searchAgain")} variant="secondary" icon={<Icons.searchAgain />} />
         ) : null}
         <Link className="button button-quiet" href={routes.profile(profile.id)}>
           {t("jobSearch.backToProfile")}

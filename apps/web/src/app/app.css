@@ -986,20 +986,6 @@ p.reply-feedback {
   border: none;
 }
 
-/* Action Cards: the AI Coach's proposals inside a page. */
-.action-card {
-  width: 100%;
-  padding: var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-left: 4px solid var(--color-accent);
-  border-radius: var(--radius-md);
-}
-
-.action-card h3 {
-  margin-top: 0;
-}
-
 /* Above the Applications: the filters, then the List and Board switch at the row's far end;
    everything sits on one line, aligned at the bottom, and wraps on narrow screens. */
 .list-toolbar {
@@ -1488,15 +1474,6 @@ blockquote.signalement-text {
   align-items: center;
 }
 
-/* A category shown above an Action Card's title, e.g. Senior Advice. */
-.action-card-label {
-  display: inline-block;
-  margin: 0 0 var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  font-weight: 600;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
 
 .ats-checks li {
   margin-bottom: var(--space-1);
@@ -2602,6 +2579,13 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 auto;
 }
 
+/* On the Candidate's pages (Confort, no Density scope set), the Design System's buttons, links drawn as one and « Pourquoi
+   92 ? » included, reach the 44px target floor (ADR-0009) at every Text Size; the Back Office and the Design System
+   page's previews, each in a Density scope, keep the Density's control height (#467). */
+.workspace > .page .ds-button:not([data-density] .ds-button) {
+  min-height: var(--control-height);
+}
+
 /* Its buttons reach the 44px floor (ADR-0009), links as well as buttons. */
 .job-search-notification .button,
 .signalement-notification .button {
@@ -2897,23 +2881,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-}
-
-.action-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.action-card h3,
-.action-card p,
-.action-card .actions {
-  margin: 0;
-}
-
-.action-card-label {
-  align-self: flex-start;
-  color: var(--color-accent);
 }
 
 @media (max-width: 40rem) {
@@ -3214,14 +3181,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 details.why[open] {
   flex-basis: 100%;
-}
-
-details.why summary {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  color: var(--color-accent);
-  cursor: pointer;
 }
 
 .breakdown .verdict {

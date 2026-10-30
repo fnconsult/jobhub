@@ -1,0 +1,21 @@
+/* Action Cards (#467): each the Design System's Card, an article; its text, its hint and its actions under the title,
+   a draft set apart on the surface. Beside its component (ADR-0053). */
+.action-cards > .ds-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.action-cards > .ds-card > .ds-card__head {
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.action-cards > .ds-card p,
+.action-cards > .ds-card .actions {
+  margin: 0;
+}
+
+.action-cards > .ds-card .draft {
+  background: var(--color-surface);
+}

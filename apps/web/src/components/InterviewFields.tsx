@@ -3,6 +3,7 @@
 import { INTERVIEW_FORMATS, type InterviewFormat } from "@jobhub/shared";
 import { useTranslation } from "react-i18next";
 import type { ApplicationFieldError } from "@/applications";
+import "@/design/Field.css";
 
 /** An Interview as its form holds it, every value as typed: `scheduledAt` in French time ("2026-11-12T14:30"), "" for nothing said. */
 export interface InterviewDraft {
@@ -50,7 +51,7 @@ export function InterviewFields({ id, draft, onChange, errors }: { id: string; d
     <>
       <div className="field">
         <label htmlFor={`${id}-date`}>{t("application.interviewDate")}</label>
-        <input id={`${id}-date`} className="input" type="datetime-local" required value={draft.scheduledAt} {...date.props} onChange={change("scheduledAt")} />
+        <input id={`${id}-date`} className="ds-input" type="datetime-local" required value={draft.scheduledAt} {...date.props} onChange={change("scheduledAt")} />
         {date.message}
       </div>
       <div className="field">
@@ -60,7 +61,7 @@ export function InterviewFields({ id, draft, onChange, errors }: { id: string; d
         </p>
         <input
           id={`${id}-duration`}
-          className="input"
+          className="ds-input"
           type="number"
           inputMode="numeric"
           min={1}
@@ -74,7 +75,7 @@ export function InterviewFields({ id, draft, onChange, errors }: { id: string; d
       </div>
       <div className="field">
         <label htmlFor={`${id}-format`}>{t("application.interviewFormat")}</label>
-        <select id={`${id}-format`} className="input" value={draft.format} {...format.props} onChange={change("format")}>
+        <select id={`${id}-format`} className="ds-input ds-select" value={draft.format} {...format.props} onChange={change("format")}>
           <option value="">{t("application.interviewFormatNone")}</option>
           {INTERVIEW_FORMATS.map((option) => (
             <option key={option} value={option}>
@@ -89,7 +90,7 @@ export function InterviewFields({ id, draft, onChange, errors }: { id: string; d
         <p id={`${id}-place-hint`} className="hint">
           {t("application.interviewPlaceHint")}
         </p>
-        <input id={`${id}-place`} className="input" maxLength={500} value={draft.place} {...place.props} onChange={change("place")} />
+        <input id={`${id}-place`} className="ds-input" maxLength={500} value={draft.place} {...place.props} onChange={change("place")} />
         {place.message}
       </div>
       <div className="field">
@@ -97,7 +98,7 @@ export function InterviewFields({ id, draft, onChange, errors }: { id: string; d
         <p id={`${id}-note-hint`} className="hint">
           {t("application.interviewNoteHint")}
         </p>
-        <input id={`${id}-note`} className="input" maxLength={500} value={draft.note} aria-describedby={`${id}-note-hint`} onChange={change("note")} />
+        <input id={`${id}-note`} className="ds-input" maxLength={500} value={draft.note} aria-describedby={`${id}-note-hint`} onChange={change("note")} />
       </div>
     </>
   );

@@ -49,6 +49,13 @@ describe("Table (#462)", () => {
     expect(within(table).getAllByRole("row")).toHaveLength(1 + 2 + 3);
   });
 
+  it("says which column the rows are sorted by, and in which order (the Candidatures list, #467)", () => {
+    const sorted: Column<Provider>[] = [{ ...columns[0]!, sort: "descending" }, columns[1]!];
+    renderInFrench(<Table label="Fournisseurs" columns={sorted} groups={groups} rowKey={(row) => row.id} />);
+    const headers = within(screen.getByRole("table", { name: "Fournisseurs" })).getAllByRole("columnheader");
+    expect(headers.map((header) => header.getAttribute("aria-sort"))).toEqual(["descending", null]);
+  });
+
   it("leaves rows alone without an action: they take no Tab stop", async () => {
     const user = userEvent.setup();
     renderInFrench(

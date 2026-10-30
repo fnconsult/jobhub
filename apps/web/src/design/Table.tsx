@@ -12,6 +12,8 @@ export type Column<Row> = {
   numeric?: boolean;
   /** The cell that names its row (a setting's name, a provider's): a row header, which screen readers announce with each cell. */
   rowHeader?: boolean;
+  /** The rows are sorted by this column, in this order (`aria-sort` on its header): a sortable list (#467). */
+  sort?: "ascending" | "descending";
 };
 
 export type RowGroup<Row> = { label: ReactNode; rows: Row[] };
@@ -87,7 +89,7 @@ export function Table<Row>({
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.key} scope="col" data-numeric={column.numeric || undefined}>
+              <th key={column.key} scope="col" data-numeric={column.numeric || undefined} aria-sort={column.sort}>
                 {column.header}
               </th>
             ))}

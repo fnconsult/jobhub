@@ -223,7 +223,10 @@ test.describe("Applications", () => {
             widest = Math.max(widest, probe.getBoundingClientRect().width);
           }
           probe.remove();
-          const room = select.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 20;
+          // A native arrow takes about 20px inside the padding box; the Design System's select (#467) draws its own in its
+          // right padding instead.
+          const arrow = style.appearance === "none" ? 0 : 20;
+          const room = select.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - arrow;
           return { room: Math.round(room), widest: Math.round(widest) };
         }),
       );

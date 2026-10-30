@@ -1,0 +1,142 @@
+/* Job Offer cards (#467): the Design System's prototype `#candidat` in the Confort Density. One card holding the Job
+   Offers, a hairline between them; each the title and its facts, the Match Score's ring in its own column, the pills,
+   then the actions. Beside its component, as the Design System's own CSS is (ADR-0053). */
+.job-offer-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.job-offer-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-6);
+  padding: var(--space-4) var(--space-6);
+}
+
+.job-offer-result + .job-offer-result {
+  border-top: 1px solid var(--color-border);
+}
+
+.job-offer-result__main {
+  min-width: 0;
+}
+
+.job-offer-result__title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  line-height: var(--line-height-heading);
+}
+
+/* A 2.75rem target (ADR-0009) that keeps the title close to its facts: the padding is taken back by the margin. */
+.job-offer-result__title a {
+  display: inline-block;
+  padding: calc((2.75rem - 1lh) / 2) 0;
+  margin: calc((2.75rem - 1lh) / -2) 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.job-offer-result__title a:hover {
+  text-decoration: underline;
+}
+
+.job-offer-result__meta {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+}
+
+.job-offer-result__meta > span + span::before {
+  content: " · ";
+}
+
+/* The Match Score in its own column, beside the title and the pills. */
+.job-offer-result__score {
+  display: flex;
+  flex-direction: column;
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.job-offer-result__caption {
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+  white-space: nowrap;
+}
+
+.job-offer-result__none {
+  max-width: 6rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.job-offer-result__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+}
+
+.job-offer-result__actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+/* « Pourquoi 92 ? » opened: its reasons under the actions, the whole card wide. */
+.job-offer-result__actions > details[open] {
+  flex-basis: 100%;
+}
+
+.job-offer-result__actions > details > ul {
+  margin: var(--space-3) 0 0;
+}
+
+/* In a swimlane, the cards stand side by side, each its own card, the strip scrolling sideways. */
+.lane-track .job-offer-results {
+  display: flex;
+  gap: var(--space-3);
+  width: max-content;
+  padding-bottom: var(--space-2);
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.lane-track .job-offer-result {
+  align-content: start;
+  width: min(20rem, 80vw);
+  padding: var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.lane-track .job-offer-result + .job-offer-result {
+  border-top: 1px solid var(--color-border);
+}
+
+/* A card is as wide as its list: the page's reading measure (70ch) is for its lines of text, not its cards. */
+/* Above `.workspace > .page :is(p, li, dd, .lead)` in app.css. */
+.workspace ol.job-offer-results > li.job-offer-result {
+  max-width: none;
+}
+
+/* On a phone the card keeps its column for the text: a narrower padding. */
+@media (width < 40rem) {
+  .job-offer-result {
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-4);
+  }
+}

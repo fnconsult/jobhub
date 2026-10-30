@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { ApplicationFieldError } from "@/applications";
+import { buttonClass } from "@/design/button-class";
 import { Drawer } from "@/design/Drawer";
+import { Checkbox, Field, Select } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { send } from "./ApplicationControls";
 import { EMPTY_INTERVIEW_DRAFT, InterviewFields, interviewBody, type InterviewDraft } from "./InterviewFields";
 
@@ -40,7 +43,7 @@ export function AddInterviewDialog({ applications }: { applications: Interviewab
           if (next) setAdded(false);
         }}
         trigger={
-          <button className="button button-primary" type="button">
+          <button className={buttonClass({ variant: "primary" })} type="button">
             {t("agenda.add")}
           </button>
         }
@@ -52,7 +55,7 @@ export function AddInterviewDialog({ applications }: { applications: Interviewab
         }}
       >
         {applications.length === 0 ? (
-          <p className="notice">{t("agenda.addDialog.none")}</p>
+          <Note>{t("agenda.addDialog.none")}</Note>
         ) : (
           <AgendaInterviewForm
             applications={applications}
@@ -65,7 +68,7 @@ export function AddInterviewDialog({ applications }: { applications: Interviewab
           />
         )}
       </Drawer>
-      <p role="status" className="hint">
+      <p role="status" className="agenda-added">
         {added ? t("agenda.addDialog.added") : null}
       </p>
     </>
@@ -120,16 +123,11 @@ function AgendaInterviewForm({
 
   return (
     <form className="stack" onSubmit={submit} noValidate>
-      <div className="field">
-        <label htmlFor={`${id}-application`}>{t("agenda.addDialog.application")}</label>
-        <select
-          id={`${id}-application`}
+      <Field id={`${id}-application`} label={t("agenda.addDialog.application")} error={applicationError ? t("cvReview.required") : undefined}>
+        <Select
           ref={firstField}
-          className="input"
           required
           value={applicationId}
-          aria-invalid={applicationError ? true : undefined}
-          aria-describedby={applicationError ? `${id}-application-error` : undefined}
           onChange={(event) => {
             setApplicationId(event.target.value);
             setMoveToInterview(true);
@@ -143,46 +141,34 @@ function AgendaInterviewForm({
               {[application.jobTitle, application.employer, t(`applicationStatuses.${application.status}`)].filter(Boolean).join(" · ")}
             </option>
           ))}
-        </select>
-        {applicationError ? (
-          <p id={`${id}-application-error`} className="field-error">
-            {t("cvReview.required")}
-          </p>
-        ) : null}
-      </div>
+        </Select>
+      </Field>
       {needsMove ? (
-        <div className="checkbox-field">
-          <input
-            id={`${id}-move`}
-            type="checkbox"
-            checked={moveToInterview}
-            aria-describedby={`${id}-move-hint`}
-            onChange={(event) => {
-              setMoveToInterview(event.target.checked);
-              setNotMoved(false);
-            }}
-          />
-          <label htmlFor={`${id}-move`}>{t("agenda.addDialog.moveToInterview")}</label>
-          <p id={`${id}-move-hint`} className="hint">
-            {t("agenda.addDialog.moveToInterviewHint", { status: t(`applicationStatuses.${chosen.status}`) })}
-          </p>
-        </div>
+        <Checkbox
+          label={t("agenda.addDialog.moveToInterview")}
+          hint={t("agenda.addDialog.moveToInterviewHint", { status: t(`applicationStatuses.${chosen.status}`) })}
+          checked={moveToInterview}
+          onChange={(event) => {
+            setMoveToInterview(event.target.checked);
+            setNotMoved(false);
+          }}
+        />
       ) : null}
       <InterviewFields id={id} draft={draft} onChange={setDraft} errors={errors} />
       <div className="actions">
-        <button className="button button-primary" type="submit" disabled={working}>
+        <button className={buttonClass({ variant: "primary" })} type="submit" disabled={working}>
           {working ? t("application.working") : t("agenda.addDialog.submit")}
         </button>
       </div>
       {notMoved ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t("agenda.addDialog.notMoved")}
-        </p>
+        </Note>
       ) : null}
       {failed ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t("application.error")}
-        </p>
+        </Note>
       ) : null}
     </form>
   );

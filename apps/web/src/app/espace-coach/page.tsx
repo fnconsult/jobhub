@@ -41,7 +41,7 @@ export default async function CoachSpacePage() {
         {sessions.length === 0 ? (
           <p>{t("coachSpace.sessionsNone")}</p>
         ) : (
-          <ul className="agenda-items">
+          <ul className="coach-sessions">
             {sessions.map((session) => (
               <CoachedSessionItem key={session.id} session={session} formats={formats} t={t} />
             ))}
@@ -74,8 +74,8 @@ export default async function CoachSpacePage() {
 function CoachedSessionItem({ session, formats, t }: { session: CoachedSession; formats: { dateTime: Intl.DateTimeFormat; date: Intl.DateTimeFormat }; t: T }) {
   const name = session.candidateName || t("coachSpace.unnamedCandidate");
   return (
-    <li id={`seance-${session.id}`} className="agenda-unscheduled">
-      <p className="agenda-item-title">{name}</p>
+    <li id={`seance-${session.id}`} className="coach-session">
+      <p className="coach-session-name">{name}</p>
       {session.scheduledAt ? (
         <p>
           <time dateTime={session.scheduledAt.toISOString()}>{t("coachSpace.sessionOn", { date: formats.dateTime.format(session.scheduledAt) })}</time>

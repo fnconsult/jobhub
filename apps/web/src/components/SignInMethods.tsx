@@ -3,8 +3,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { authClient } from "@/auth/client";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
 import { routes } from "@/routes";
 import type { SignInButton } from "@/sign-in-providers/policy";
+
+/** The Section's title's id, which names its Card. */
+const TITLE_ID = "sign-in-methods-title";
 
 /**
  * How the Candidate signs in: the magic link to their account's address (shown above it), the Sign-in Providers
@@ -22,8 +28,8 @@ export function SignInMethods({ linked, linkable, failed }: { linked: SignInButt
   }
 
   return (
-    <section className="stack" aria-labelledby="sign-in-methods-title">
-      <h2 id="sign-in-methods-title">{t("signInMethods.title")}</h2>
+    <Card title={t("signInMethods.title")} headingId={TITLE_ID}>
+      <div className="stack">
       <ul>
         <li>{t("signInMethods.magicLink")}</li>
         {linked.map((provider) => (
@@ -34,17 +40,18 @@ export function SignInMethods({ linked, linkable, failed }: { linked: SignInButt
         <div className="stack">
           <p>{t("signInMethods.linkHelp")}</p>
           {linkable.map((provider) => (
-            <button key={provider.id} className="button" type="button" onClick={() => void link(provider.id)}>
+            <button key={provider.id} className={buttonClass()} type="button" onClick={() => void link(provider.id)}>
               {t("signInMethods.link", { provider: provider.displayName })}
             </button>
           ))}
         </div>
       ) : null}
       {error ? (
-        <p className="notice" role="alert">
+        <Note tone="danger" role="alert">
           {t("signInMethods.failed")}
-        </p>
+        </Note>
       ) : null}
-    </section>
+      </div>
+    </Card>
   );
 }

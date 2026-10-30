@@ -11,6 +11,16 @@ import {
 } from "@/components/Signalement";
 import { signalementGlyph } from "@/components/signalement-glyphs";
 import type { SignalementStatus, SignalementType } from "@/signalements/values";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
+import { Pill, type Tone } from "@/design/Pill";
+
+/** Each Signalement is an article, one of a list. */
+const ITEM_ELEMENT = "article";
+
+/** A Signalement's status as a Pill's tint: the words carry it. */
+const STATUS_TONES: Record<SignalementStatus, Tone> = { nouveau: "neutral", vu: "accent", traite: "success" };
 
 /** One of the Candidate's Signalements as « Mes signalements » shows it, its dates already worded by the server. */
 export interface MySignalement {
@@ -112,25 +122,32 @@ function Item({
   const id = useId();
   return (
     <li className="my-signalement">
-      <article className="stack" aria-labelledby={`${id}-heading`}>
-        <h3 id={`${id}-heading`} className="my-signalement-heading">
-          <svg
-            className="icon signalement-glyph"
-            viewBox="0 0 24 24"
-            aria-hidden
-            focusable={false}
-          >
-            <path d={signalementGlyph(signalement.type)} />
-          </svg>
-          {signalement.heading}
-        </h3>
-        <p
-          className={`my-signalement-status my-signalement-status-${signalement.status}`}
-        >
-          {t("mySignalements.status", {
-            status: t(`mySignalements.statuses.${signalement.status}`),
-          })}
-        </p>
+      <Card
+        as={ITEM_ELEMENT}
+        headingLevel={3}
+        headingId={`${id}-heading`}
+        title={
+          <span className="my-signalement-heading">
+            <svg
+              className="icon signalement-glyph"
+              viewBox="0 0 24 24"
+              aria-hidden
+              focusable={false}
+            >
+              <path d={signalementGlyph(signalement.type)} />
+            </svg>
+            {signalement.heading}
+          </span>
+        }
+        actions={
+          <Pill tone={STATUS_TONES[signalement.status]}>
+            {t("mySignalements.status", {
+              status: t(`mySignalements.statuses.${signalement.status}`),
+            })}
+          </Pill>
+        }
+      >
+        <div className="stack">
         <p className="signalement-text">{signalement.message}</p>
         {signalement.attached ? (
           <details className="my-signalement-attached">
@@ -169,7 +186,8 @@ function Item({
           heading={signalement.heading}
           onDeleted={onDeleted}
         />
-      </article>
+        </div>
+      </Card>
     </li>
   );
 }
@@ -223,7 +241,7 @@ function DeleteButton({
       <div className="actions">
         <button
           ref={button}
-          className="button"
+          className={buttonClass()}
           type="button"
           aria-label={t("mySignalements.deleteLabel", { heading })}
           onClick={() => setAsking(true)}
@@ -238,7 +256,7 @@ function DeleteButton({
       <div className="actions">
         {/* The question replaces the button the Candidate just pressed: focus goes to its first answer. */}
         <button
-          className="button button-danger"
+          className={buttonClass({ variant: "dangerSolid" })}
           type="button"
           onClick={remove}
           disabled={working}
@@ -247,7 +265,7 @@ function DeleteButton({
           {working ? t("mySignalements.deleting") : t("mySignalements.confirm")}
         </button>
         <button
-          className="button"
+          className={buttonClass()}
           type="button"
           onClick={keep}
           disabled={working}
@@ -256,9 +274,9 @@ function DeleteButton({
         </button>
       </div>
       {failed ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t("mySignalements.deleteFailed")}
-        </p>
+        </Note>
       ) : null}
     </div>
   );

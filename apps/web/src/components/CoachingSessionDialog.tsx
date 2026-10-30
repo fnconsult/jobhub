@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonClass } from "@/design/button-class";
 import { Drawer } from "@/design/Drawer";
+import { Field, Textarea, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { SessionEditor } from "@/human-coaches";
 import type { FieldError } from "@/validation";
 
@@ -43,7 +46,7 @@ export function CoachingSessionDialog({
   session,
   withName,
   editor = "candidate",
-  className = "button",
+  className = buttonClass(),
 }: {
   session: CoachingSessionFields;
   withName: string;
@@ -77,7 +80,7 @@ const ERROR_MESSAGES = {
   videoLink: "coachingSession.invalidVideoLink",
   note: "coachingSession.invalidNote",
 } as const;
-type Field = keyof typeof ERROR_MESSAGES;
+type SessionField = keyof typeof ERROR_MESSAGES;
 
 function CoachingSessionForm({
   session,
@@ -129,10 +132,10 @@ function CoachingSessionForm({
   }
 
   /** The error under `field`, if the app refused it. */
-  function errorOf(field: Field) {
+  function errorOf(field: SessionField) {
     const error = errors.find((candidate) => candidate.field === field);
     if (!error) return null;
-    return { id: `${id}-${field}-error`, text: t(field === "scheduledAt" && error.code === "required" ? "coachingSession.requiredDate" : ERROR_MESSAGES[field]) };
+    return { text: t(field === "scheduledAt" && error.code === "required" ? "coachingSession.requiredDate" : ERROR_MESSAGES[field]) };
   }
 
   const dateError = errorOf("scheduledAt");
@@ -141,99 +144,32 @@ function CoachingSessionForm({
   const noteError = errorOf("note");
   return (
     <form className="stack" onSubmit={submit} noValidate>
-      <div className="field">
-        <label htmlFor={`${id}-date`}>{t("coachingSession.date")}</label>
-        <input
-          id={`${id}-date`}
-          className="input"
-          type="datetime-local"
-          required
-          value={scheduledAt}
-          aria-invalid={dateError ? true : undefined}
-          aria-describedby={dateError?.id}
-          onChange={(event) => setScheduledAt(event.target.value)}
-        />
-        {dateError ? (
-          <p id={dateError.id} className="field-error">
-            {dateError.text}
-          </p>
-        ) : null}
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-duration`}>{t("coachingSession.duration")}</label>
-        <input
-          id={`${id}-duration`}
-          className="input"
-          type="number"
-          inputMode="numeric"
-          min={5}
-          max={600}
-          step={5}
-          value={durationMinutes}
-          aria-invalid={durationError ? true : undefined}
-          aria-describedby={durationError?.id}
-          onChange={(event) => setDurationMinutes(event.target.value)}
-        />
-        {durationError ? (
-          <p id={durationError.id} className="field-error">
-            {durationError.text}
-          </p>
-        ) : null}
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-video`}>{t("coachingSession.videoLink")}</label>
-        <p id={`${id}-video-hint`} className="hint">
-          {t("coachingSession.videoLinkHint")}
-        </p>
-        <input
-          id={`${id}-video`}
-          className="input"
-          type="url"
-          inputMode="url"
-          maxLength={500}
-          value={videoLink}
-          aria-invalid={videoLinkError ? true : undefined}
-          aria-describedby={[`${id}-video-hint`, videoLinkError?.id].filter(Boolean).join(" ")}
-          onChange={(event) => setVideoLink(event.target.value)}
-        />
-        {videoLinkError ? (
-          <p id={videoLinkError.id} className="field-error">
-            {videoLinkError.text}
-          </p>
-        ) : null}
-      </div>
+      <Field id={`${id}-date`} label={t("coachingSession.date")} error={dateError?.text}>
+        <TextInput type="datetime-local" required value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} />
+      </Field>
+      <Field id={`${id}-duration`} label={t("coachingSession.duration")} error={durationError?.text}>
+        <TextInput type="number" inputMode="numeric" min={5} max={600} step={5} value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} />
+      </Field>
+      <Field id={`${id}-video`} label={t("coachingSession.videoLink")} hint={t("coachingSession.videoLinkHint")} error={videoLinkError?.text}>
+        <TextInput type="url" inputMode="url" maxLength={500} value={videoLink} onChange={(event) => setVideoLink(event.target.value)} />
+      </Field>
       {editor === "candidate" ? (
-        <div className="field">
-          <label htmlFor={`${id}-note`}>{t("coachingSession.note")}</label>
-          <textarea
-            id={`${id}-note`}
-            className="input"
-            rows={3}
-            maxLength={500}
-            value={note}
-            aria-invalid={noteError ? true : undefined}
-            aria-describedby={noteError?.id}
-            onChange={(event) => setNote(event.target.value)}
-          />
-          {noteError ? (
-            <p id={noteError.id} className="field-error">
-              {noteError.text}
-            </p>
-          ) : null}
-        </div>
+        <Field id={`${id}-note`} label={t("coachingSession.note")} error={noteError?.text}>
+          <Textarea maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />
+        </Field>
       ) : null}
       <div className="actions">
-        <button className="button button-primary" type="submit" disabled={working}>
+        <button className={buttonClass({ variant: "primary" })} type="submit" disabled={working}>
           {working ? t("coachingSession.working") : t("coachingSession.save")}
         </button>
-        <button className="button" type="button" disabled={working} onClick={onCancel}>
+        <button className={buttonClass()} type="button" disabled={working} onClick={onCancel}>
           {t("coachingSession.cancel")}
         </button>
       </div>
       {failed ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t("coachingSession.error")}
-        </p>
+        </Note>
       ) : null}
     </form>
   );

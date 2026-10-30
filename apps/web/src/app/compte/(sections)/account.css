@@ -1,0 +1,89 @@
+/* Mon compte's Sections' own layout (#469, ADR-0053): what is not a Design System component's. Each Section is one or
+   more Cards, its settings Fields, Checkboxes and Buttons, its messages Notes; this file spaces them and draws the few
+   lists and hints they share. */
+
+.account-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.account-section .ds-card .stack > p,
+.account-section .ds-card ul {
+  margin: 0;
+}
+
+/* On the Candidate's pages, buttons and links drawn as one reach the 44px target floor (ADR-0009). */
+.account-section .ds-button {
+  min-height: var(--control-height);
+}
+
+/* A Card's introduction, and the hint several Fields share (the Follow-up delays'). */
+.account-intro {
+  margin: 0 0 var(--space-4);
+}
+
+.account-hint,
+.text-size-hint {
+  margin: 0;
+  color: var(--color-secondary);
+}
+
+/* What a change did, said in words: empty until then. */
+.account-status {
+  margin: 0;
+}
+
+.account-status:empty {
+  display: none;
+}
+
+/* The Profiles' links, one per line. */
+.account-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-6);
+}
+
+/* Addresses and senders, each with its button at the end of its line. */
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0;
+  list-style: none;
+}
+
+.account-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* A Field and its button on one line, wrapping on a phone. */
+.account-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: flex-end;
+}
+
+.account-inline-form .ds-field {
+  flex: 1 1 16rem;
+}
+
+/* The question before a change that cannot be undone (replacing or switching off the Forwarding address). */
+.account-confirm {
+  padding: var(--space-4);
+  background: var(--color-warn-soft);
+  border-radius: var(--radius-md);
+}
+
+.account-confirm p {
+  margin: 0;
+}

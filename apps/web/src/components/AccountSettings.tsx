@@ -6,6 +6,8 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { authClient } from "@/auth/client";
 import { useHydrated } from "@/design/hydrated";
+import { Field, Select } from "@/design/Field";
+import { Note } from "@/design/Note";
 
 /** The Candidate's Interface Language. (Signing out is in the Sidebar's foot.) */
 export function AccountSettings({ interfaceLanguage }: { interfaceLanguage: string }) {
@@ -28,11 +30,8 @@ export function AccountSettings({ interfaceLanguage }: { interfaceLanguage: stri
 
   return (
     <div className="stack">
-      <div className="stack">
-        <label htmlFor={id}>{t("account.interfaceLanguage")}</label>
-        <select
-          id={id}
-          className="input"
+      <Field id={id} label={t("account.interfaceLanguage")}>
+        <Select
           defaultValue={interfaceLanguage}
           disabled={!hydrated}
           onChange={(event) => void changeLanguage(event.target.value)}
@@ -42,9 +41,13 @@ export function AccountSettings({ interfaceLanguage }: { interfaceLanguage: stri
               {t(`languages.${locale}`)}
             </option>
           ))}
-        </select>
-        {saved ? <p role="status">{t("account.saved")}</p> : null}
-      </div>
+        </Select>
+      </Field>
+      {saved ? (
+        <Note tone="success" role="status">
+          {t("account.saved")}
+        </Note>
+      ) : null}
     </div>
   );
 }

@@ -1229,7 +1229,8 @@
       "activity": "Activité",
       "discoveryRuns": "Recherches",
       "designSystem": "Design System",
-      "receivedEmails": "Emails reçus"
+      "receivedEmails": "Emails reçus",
+      "withdrawals": "Rétractations"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -2148,7 +2149,8 @@
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
         "discovery_runs": "Activité › Recherches",
-        "received_emails": "Activité › Emails reçus"
+        "received_emails": "Activité › Emails reçus",
+        "withdrawals": "Rétractations"
       },
       "actions": {
         "added": "Ajout",
@@ -3159,6 +3161,42 @@
     },
     "pageIntro": {
       "more": "En savoir plus"
+    },
+    "withdrawals": {
+      "title": "Rétractations",
+      "subtitle": "Les rétractations des candidats, et le remboursement de chacune dans Stripe.",
+      "intro": "Chaque rétractation reçue par « Renoncer au contrat ici » : un abonnement à une offre ou une séance de coaching, dans les 14 jours qui suivent sa conclusion. L'abonnement est annulé tout de suite, la séance annulée et le coach prévenu, et tout ce qui a été payé est remboursé en entier dans Stripe. Un remboursement que Stripe refuse, ou qui échoue plus tard (carte expirée, banque), reste « Échoué » ici : il peut être relancé. Si la carte n'existe plus, remboursez par virement, hors Stripe.",
+      "caption": "Rétractations, de la plus récente à la plus ancienne",
+      "none": "Aucune rétractation pour l'instant.",
+      "withdrawnAt": "Reçue le",
+      "candidate": "Candidat",
+      "contract": "Contrat",
+      "concludedAt": "conclu le {{date}}",
+      "receipt": "Accusé de réception",
+      "receiptSent": "Envoyé à {{email}} le {{at}}",
+      "receiptNotSent": "Non envoyé ({{email}}) : à envoyer à la main",
+      "refunds": "Remboursement",
+      "nothingToRefund": "Rien à rembourser",
+      "states": {
+        "pending": "En cours",
+        "succeeded": "Remboursé",
+        "failed": "Échoué"
+      },
+      "failureReason": "Raison Stripe : {{reason}}",
+      "attempts_one": "{{count}} tentative",
+      "attempts_other": "{{count}} tentatives",
+      "retry": "Relancer le remboursement",
+      "failedCount_one": "{{count}} remboursement a échoué : relancez-le, ou remboursez par virement.",
+      "failedCount_other": "{{count}} remboursements ont échoué : relancez-les, ou remboursez par virement.",
+      "retried": {
+        "succeeded": "Le remboursement est fait.",
+        "pending": "Le remboursement est demandé à Stripe, qui le traite.",
+        "failed": "Stripe a refusé le remboursement encore une fois : voyez sa raison, ou remboursez par virement."
+      },
+      "errors": {
+        "not_found": "Ce remboursement n'existe pas.",
+        "not_failed": "Ce remboursement n'a pas échoué : il n'y a rien à relancer."
+      }
     }
   },
   "backOfficeAssistant": {

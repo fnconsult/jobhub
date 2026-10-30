@@ -173,6 +173,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   unansweredQuestions: { name: "Questions sans réponse (Unanswered Questions) : ce que l'aide n'a pas couvert", page: routes.adminUnansweredQuestions() },
   // Read by people only (#283): no Signalement is ever given to the assistant, only where they are.
   signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe seulement, jamais par une IA", page: routes.adminSignalements() },
+  withdrawals: { name: "Rétractations (Withdrawals) des Candidats et leurs remboursements Stripe, un remboursement échoué relancé", page: routes.adminWithdrawals },
 };
 
 /** Where the Stripe webhook's signing secret is entered: the Stripe provider's sheet, on Paramètres' Paiement tab (#396). */
@@ -414,6 +415,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   guardrails: "garde-fous",
   unanswered_questions: "questions sans réponse",
   signalements: "signalements",
+  withdrawals: "rétractations",
   eval_runs: "Eval Runs",
   coach_message_cost: "coût coach",
   ai_usage: "consommation IA",

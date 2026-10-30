@@ -1229,7 +1229,8 @@
       "activity": "Activity",
       "discoveryRuns": "Searches",
       "designSystem": "Design System",
-      "receivedEmails": "Received emails"
+      "receivedEmails": "Received emails",
+      "withdrawals": "Withdrawals"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -2148,7 +2149,8 @@
         "unanswered_questions": "Unanswered questions",
         "signalements": "Feedback",
         "discovery_runs": "Activity › Searches",
-        "received_emails": "Activity › Received emails"
+        "received_emails": "Activity › Received emails",
+        "withdrawals": "Withdrawals"
       },
       "actions": {
         "added": "Added",
@@ -3159,6 +3161,42 @@
     },
     "pageIntro": {
       "more": "Learn more"
+    },
+    "withdrawals": {
+      "title": "Withdrawals",
+      "subtitle": "Candidates' withdrawals, and the refund of each in Stripe.",
+      "intro": "Every withdrawal received through « Renoncer au contrat ici »: a Plan's subscription or a Coaching Session, within 14 days of its conclusion. The subscription is cancelled at once, the session cancelled and its coach told, and everything paid is refunded in full in Stripe. A refund Stripe refuses, or that fails later (expired card, bank), stays « Failed » here: it can be tried again. If the card no longer exists, refund by bank transfer, outside Stripe.",
+      "caption": "Withdrawals, newest first",
+      "none": "No withdrawal yet.",
+      "withdrawnAt": "Received on",
+      "candidate": "Candidate",
+      "contract": "Contract",
+      "concludedAt": "concluded on {{date}}",
+      "receipt": "Acknowledgement",
+      "receiptSent": "Sent to {{email}} on {{at}}",
+      "receiptNotSent": "Not sent ({{email}}): send it by hand",
+      "refunds": "Refund",
+      "nothingToRefund": "Nothing to refund",
+      "states": {
+        "pending": "Pending",
+        "succeeded": "Refunded",
+        "failed": "Failed"
+      },
+      "failureReason": "Stripe's reason: {{reason}}",
+      "attempts_one": "{{count}} attempt",
+      "attempts_other": "{{count}} attempts",
+      "retry": "Try the refund again",
+      "failedCount_one": "{{count}} refund failed: try it again, or refund by bank transfer.",
+      "failedCount_other": "{{count}} refunds failed: try them again, or refund by bank transfer.",
+      "retried": {
+        "succeeded": "The refund is done.",
+        "pending": "The refund is asked of Stripe, which is processing it.",
+        "failed": "Stripe refused the refund again: see its reason, or refund by bank transfer."
+      },
+      "errors": {
+        "not_found": "This refund does not exist.",
+        "not_failed": "This refund did not fail: there is nothing to try again."
+      }
     }
   },
   "backOfficeAssistant": {

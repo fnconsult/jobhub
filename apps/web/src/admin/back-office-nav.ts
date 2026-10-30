@@ -7,6 +7,7 @@ import type { BackOfficeAccess, BackOfficeResource } from "./access";
  */
 export const BACK_OFFICE_PAGES = {
   signalements: { href: routes.adminSignalements(), resource: "signalements" },
+  withdrawals: { href: routes.adminWithdrawals, resource: "withdrawals" },
   plans: { href: routes.adminPlans, resource: "plans" },
   planQuotas: { href: routes.adminPlanQuotas, resource: "planQuotas" },
   coupons: { href: routes.adminCoupons, resource: "coupons" },
@@ -47,7 +48,7 @@ export function readsPage(access: BackOfficeAccess, page: BackOfficePage): boole
  * The sidebar's groups, in order (map #123).
  */
 const GROUPS = [
-  { key: "candidates", sections: ["signalements"] },
+  { key: "candidates", sections: ["signalements", "withdrawals"] },
   { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost", "coachingPlaybooks", "guardrails"] },
   { key: "content", sections: ["unansweredQuestions"] },

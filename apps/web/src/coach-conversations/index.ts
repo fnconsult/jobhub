@@ -1,15 +1,19 @@
 /**
- * Coach Conversations: the Candidate's conversations with the AI Coach in the
- * Coach Panel, saved so they survive a reload and can be reopened later.
+ * Coach Conversations: the Candidate's conversations with the AI Coach, saved so they survive a reload and can be
+ * reopened later. Each has a Subject (ADR-0070, #600): one of the Candidate's objects (an Application, a Profile, a Job
+ * Search, a Job Digest) or Sidebar menus (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains),
+ * which has at most one conversation, created at its first message, never empty; or none, for a Free conversation.
  *
  * One deep module in front of Postgres. Callers get
  * `createCoachConversations(database, { coach, profiles })`:
  *  - `send` the Candidate's next message, untrusted input from the browser
- *    `{ conversationId?, message, focus?, helpArticle? }`: the AI Coach answers the saved
- *    conversation (a new one without `conversationId`, attached to the Profile
- *    in view when it starts, or to the Profile the page in view shows: `focus.profileId`) and both messages are saved together. Nothing is
- *    saved when the AI Coach cannot answer, so the Candidate can send again. `helpArticle`, the Help Article the
+ *    `{ conversationId? | subject?, message, focus?, helpArticle? }`: the AI Coach answers the saved
+ *    conversation (`subject`'s, started by this message if it has none, attached to the Subject's Profile; a new Free
+ *    conversation with neither, attached to the Profile in view when it starts, or to the Profile the page in view
+ *    shows: `focus.profileId`) and both messages are saved together. A Subject that is not the Candidate's is "not
+ *    found". Nothing is saved when the AI Coach cannot answer, so the Candidate can send again. `helpArticle`, the Help Article the
  *    Candidate read just before asking (#342), goes to the AI Coach by its id and is never saved (ADR-0035);
+ *  - `ofSubject` the conversation of a Subject with its messages, or null before its first message;
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it;
  *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
@@ -36,6 +40,7 @@
  * Each reply is told to Unanswered Questions (#344, ADR-0035) with its question, the page it was asked from (`route`, the
  * address of the page in view) and the Candidate's language: they keep, unlinked to the Candidate, the questions the help
  * missed. A reply is never held back by it.
+ * An archived object keeps its conversation (it is found again once restored); a deleted object takes it along.
  * Kept RETENTION_MONTHS after their last message (`purgeStaleCoachConversations`,
  * run daily by the worker) and deleted with the account (ADR-0010). Human
  * Coaches never read them: Coach Access covers Profiles and Applications only.

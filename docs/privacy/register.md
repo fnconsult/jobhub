@@ -111,3 +111,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | The last 30 days' runs are in the Candidate's Data export (`profiles[].jobDiscoveryRuns`: when, trigger, Search Criteria and each search's query texts) and are deleted with their account. The figures kept afterwards name no one. |
 | Security | Back Office pages check the Administrator's Back Office Roles on every request. Runs cannot be edited from the app; they are only added, read and purged. |
 
+
+## Coach Conversations (#124, #600)
+
+| | |
+| --- | --- |
+| Purpose | Let a Candidate talk with the AI Coach about their job search and find each conversation again: each Coach Conversation is attached to the object or the menu it is about (its Subject: an Application, a Profile, a Job Search, a Job Digest, or one of the Sidebar menus Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), or to the active Profile for a Free conversation (ADR-0070). |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)): the AI Coach is part of the service the Candidate signed up for. |
+| People concerned | Candidates. Third parties only as far as the Candidate names them in what they write, or a Job Offer read from a link names its employer. |
+| Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
+| Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory). |
+| Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Candidate's EU AI consent, what carries identity goes to Mistral (#121). |
+| Who can read it | The Candidate, in their conversations. Never Human Coaches (Coach Access covers Profiles and Applications only). Administrators see only each day's cost figures, never a conversation; the text of a call, if needed, is in the AI Message Log. |
+| Storage | The `coach_conversation` and `coach_message` tables in the app's Postgres database (EU). |
+| Retention | 12 months after the conversation's last message (the worker's nightly job `coach-conversations.purge`); deleted at once with the Candidate's account, when they delete it, or with its object if the object itself is deleted. An archived object keeps its conversation. The conversations saved before Subjects existed (only on staging) were deleted when #600 shipped; the Coach Memory was kept. |
+| Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs). |
+| Security | Every read and change is scoped to the Candidate: another Candidate's conversation, or a Subject that is not theirs, is « not found ». |

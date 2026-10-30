@@ -3256,7 +3256,7 @@
       "cancelled": "Reduction cancelled: the plan keeps what it includes.",
       "notCancelled": "This reduction can no longer be cancelled: its effective date has passed, or it was cancelled already.",
       "noticeTitle": "If you reduce this plan",
-      "noticeHelp": "On a plan Candidates pay for, a reduction (a smaller number, a number instead of “unlimited”, a less frequent Job Digest, a feature removed) applies on its effective date, on {{date}} at the earliest. An increase applies at once.",
+      "noticeHelp": "On a plan Candidates pay for, a reduction (a smaller number, a number instead of “unlimited”, a less frequent Job Digest, a feature removed) applies on its effective date, at least 30 days ahead. An increase applies at once.",
       "reasonLabel": "Reason for the reduction",
       "reasonHelp": "It appears in the email sent to each subscriber.",
       "effectiveOnLabel": "Effective date",

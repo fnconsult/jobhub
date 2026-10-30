@@ -128,7 +128,7 @@ export default async function PlanQuotasPage({
                     ))}
                   </Select>
                 </Field>
-                {plan !== FREE_PLAN && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} longEarliest={longDay(earliest, locale)} /> : null}
+                {plan !== FREE_PLAN && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} /> : null}
                 {canWrite ? (
                   <button className={buttonClass({ variant: "primary" })} type="submit">
                     {t("admin.planQuotas.save", { plan: name[locale] })}

@@ -3256,7 +3256,7 @@
       "cancelled": "Baisse annulée : l'offre garde ce qu'elle comprend.",
       "notCancelled": "Cette baisse ne peut plus être annulée : sa date d'effet est passée, ou elle a déjà été annulée.",
       "noticeTitle": "Si vous baissez cette offre",
-      "noticeHelp": "Sur une offre que des candidats paient, une baisse (un nombre plus petit, un nombre à la place d'« illimité », un Job Digest moins fréquent, une fonctionnalité retirée) s'applique à sa date d'effet, au plus tôt le {{date}}. Une hausse s'applique tout de suite.",
+      "noticeHelp": "Sur une offre que des candidats paient, une baisse (un nombre plus petit, un nombre à la place d'« illimité », un Job Digest moins fréquent, une fonctionnalité retirée) s'applique à sa date d'effet, au moins 30 jours plus tard. Une hausse s'applique tout de suite.",
       "reasonLabel": "Raison de la baisse",
       "reasonHelp": "Elle figure dans l'e-mail envoyé à chaque abonné.",
       "effectiveOnLabel": "Date d'effet",

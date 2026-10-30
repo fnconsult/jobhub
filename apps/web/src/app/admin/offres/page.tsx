@@ -215,7 +215,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                     </>
                   )}
                   <FeatureFields checked={plan.features} t={t} />
-                  {!free && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} longEarliest={longDay(earliest, locale)} /> : null}
+                  {!free && canWrite ? <ReductionNoticeFields t={t} earliest={earliest} /> : null}
                   {canWrite ? (
                     <button className={buttonClass({ variant: "primary" })} type="submit">
                       {t("admin.plans.save", { plan: name(plan) })}

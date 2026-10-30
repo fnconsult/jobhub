@@ -385,6 +385,8 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .docp .letter { background: #fff; color: #222; padding: 1.5rem; border: 1px solid var(--color-border); line-height: 1.6; }
 .docp .hint { color: var(--color-meta); font-size: .75rem; margin-top: .6rem; }
 .actcol { width: 18rem; }
+.ghead { display: flex; gap: .4rem; align-items: center; width: 100%; border: 0; background: none; padding: .9rem 0 .35rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); text-align: left; }
+.ghead .pill { text-transform: none; letter-spacing: 0; }
 .actcol.tucked { width: 2.75rem; align-items: center; padding-top: .5rem; gap: .5rem; cursor: pointer; }
 .actcol.tucked .rail { writing-mode: vertical-rl; font-size: .78rem; color: var(--color-text-secondary); }
 .actcol.tucked .badge { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--color-accent-soft); color: var(--color-accent); display: grid; place-items: center; font-size: .75rem; animation: spin 2s linear infinite; }
@@ -452,7 +454,8 @@ const S = {
   drawer: false,
   fiche: true,       // E : colonne Fiche ouverte
   doc: null,         // E : ce qui est ouvert dans le panneau de travail
-  act: "tucked",     // E : Activité « open » (ancrée) ou « tucked » (rangée en rail)
+  act: "closed",     // E : Activité hors Application, colonne « open » ou « closed »
+  groups: { sections: true, activite: true, resultats: true }, // E : groupes repliables de la Fiche
   sent: {},          // per-conversation extra messages typed in this prototype
 };
 
@@ -660,8 +663,8 @@ function VariantD() {
 
 // E — retour du PO sur P (2026-10-30) : P pour l'Application, B pour l'accueil et Mes candidatures.
 // Pas d'onglets dans les volets : les boutons du Top Bar les ouvrent. Fiche = l'objet + ses Sections + ses résultats.
-// Un résultat ou une Section s'ouvre dans un panneau de travail à part, où l'on peut agir. Activité est une colonne
-// ancrée qui ne recouvre jamais la conversation, ou rangée en rail.
+// Un résultat ou une Section s'ouvre dans un panneau de travail à part, où l'on peut agir. Activité (2e retour) : sur une Application, un groupe repliable
+// de la Fiche, entre Sections et Résultats ; ailleurs, une colonne ancrée qui se ferme. Plus de rail.
 const RESULTS = [
   { k: "cv", t: "CV adapté", sub: "PDF · 2 pages · 12 oct.", ic: "▯" },
   { k: "lettre", t: "Lettre de motivation", sub: "DOCX · 12 oct.", ic: "▯" },
@@ -688,26 +691,30 @@ function docPanel() {
   return h`<aside class="col-pane docp"><header>${it.ic ?? "▤"} ${it.t}<span class="sp"></span>${tools}<button class="x" data-doc-close>✕</button></header><div class="cbody">${body}</div></aside>`;
 }
 
+function group(k, title, inner) {
+  const on = S.groups[k];
+  return `<button class="ghead" data-group="${k}" aria-expanded="${on}">${on ? "▾" : "▸"} ${title}</button>${on ? inner : ""}`;
+}
+
 function fichePanel() {
   if (!S.fiche || S.screen !== "application") return "";
   return h`<aside class="col-pane fiche"><header>▤ Fiche<span class="sp"></span><button class="x" data-fiche>✕</button></header><div class="cbody">
     ${objectCard(true)}
-    <div class="h3">Sections</div>
-    <div class="seclist">${SECTIONS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.t}${x.n ? `<small>${x.n}</small>` : "<small>›</small>"}</button>`).join("")}</div>
-    <div class="h3">Résultats</div>
-    <div class="seclist res">${RESULTS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.ic} ${x.t}<small>${x.sub}</small></button>`).join("")}</div>
+    ${group("sections", "Sections", `<div class="seclist">${SECTIONS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.t}${x.n ? `<small>${x.n}</small>` : "<small>›</small>"}</button>`).join("")}</div>`)}
+    ${group("activite", "Activité <span class='pill acc'>1 en cours</span>", `<div id="g-activite">${paneBody("activite").replace(/<p[^>]*>Cette page[^<]*<\/p>/, "").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div>`)}
+    ${group("resultats", "Résultats", `<div class="seclist res">${RESULTS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.ic} ${x.t}<small>${x.sub}</small></button>`).join("")}</div>`)}
   </div></aside>`;
 }
 
 function actColumn() {
-  if (S.act === "tucked") return `<aside class="col-pane actcol tucked" data-act title="Ouvrir Activité"><span class="badge">⟳</span><span class="rail">Activité · 1 en cours</span></aside>`;
-  return h`<aside class="col-pane actcol"><header>⟳ Activité<span class="sp"></span><button data-act title="Ranger">⇥ Ranger</button></header><div class="cbody">${paneBody("activite").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div></aside>`;
+  if (S.screen === "application" || S.act !== "open") return "";
+  return h`<aside class="col-pane actcol"><header>⟳ Activité<span class="sp"></span><button class="x" data-act title="Fermer">✕</button></header><div class="cbody">${paneBody("activite").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div></aside>`;
 }
 
 function VariantE() {
   const isApp = S.screen === "application";
   const btns = (isApp ? `<button class="iconbtn ${S.fiche ? "on" : ""}" data-fiche>▤ Fiche</button>` : "")
-    + `<button class="iconbtn ${S.act === "open" ? "on" : ""}" data-act>⟳ <span class="hide-phone">Activité</span></button>`
+    + `<button class="iconbtn ${(isApp ? S.fiche && S.groups.activite : S.act === "open") ? "on" : ""}" data-act>⟳ <span class="hide-phone">Activité</span></button>`
     + (isApp ? `<button class="iconbtn ${S.doc ? "on" : ""}" data-open="${S.doc ?? "cv"}" ${S.doc ? "data-doc-close" : ""}>▯ <span class="hide-phone">Document</span></button>` : "");
   const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
   return h`<div class="main">${topbar(btns)}<div class="body">
@@ -747,7 +754,7 @@ function say(text) {
 }
 
 document.addEventListener("click", (e) => {
-  const el = e.target.closest("button, tr, [data-divider], [data-act]");
+  const el = e.target.closest("button, tr, [data-divider]");
   if (!el) return;
   const d = el.dataset;
   if (d.toggle) { e.stopPropagation(); S.openMenus[d.toggle] = !S.openMenus[d.toggle]; return render(); }
@@ -759,7 +766,13 @@ document.addEventListener("click", (e) => {
   if (d.docClose !== undefined && !d.open) return set({ doc: null });
   if (d.open) return set({ doc: S.doc === d.open && d.docClose !== undefined ? null : d.open });
   if (d.fiche !== undefined) return set({ fiche: !S.fiche });
-  if (d.act !== undefined) return set({ act: S.act === "open" ? "tucked" : "open" });
+  if (d.group) { S.groups[d.group] = !S.groups[d.group]; return render(); }
+  if (d.act !== undefined) {
+    if (S.screen !== "application") return set({ act: S.act === "open" ? "closed" : "open" });
+    const on = S.fiche && S.groups.activite;
+    S.groups.activite = !on; S.fiche = S.fiche || !on; render();
+    return document.getElementById("g-activite")?.scrollIntoView({ block: "center" });
+  }
   if (d.doc) return S.variant === "D" ? set({ dtab: "documents" }) : set({ pane: "document" });
   if (d.pane) return set({ pane: S.pane === d.pane && S.variant !== "P" ? null : d.pane });
   if (d.paneClose !== undefined) return set({ pane: null });

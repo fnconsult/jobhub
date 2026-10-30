@@ -380,7 +380,14 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .seclist.res button { flex-wrap: wrap; border: 1px solid var(--color-border); border-radius: 10px; }
 .seclist.res button:first-child { border-top: 1px solid var(--color-border); }
 .seclist.res button small { margin-left: 1.2rem; width: 100%; }
-.docp { flex: 1 1 30rem; min-width: 18rem; background: var(--color-surface); }
+.docp { flex: 1 1 30rem; min-width: 18rem; padding: .85rem; }
+/* 6e retour : le panneau de travail est une carte arrondie, comme la Fiche et ses Sections. */
+.docp .rcard { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-background); box-shadow: var(--shadow-card); overflow: hidden; }
+.docp .rcard > header { display: flex; align-items: center; gap: .4rem; padding: .55rem .75rem; border-bottom: 1px solid var(--color-border); font-size: .875rem; font-weight: 500; }
+.docp .rcard > header .sp { flex: 1; }
+.docp .rcard > header button { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .2rem .55rem; font-size: .78rem; font-weight: 400; }
+.docp .rcard > header button.x { border: 0; }
+.docp .page-doc, .docp .letter { border-radius: 8px; }
 .docp .cbody [contenteditable] { outline: none; }
 .docp .cbody [contenteditable]:focus { box-shadow: 0 0 0 2px var(--color-focus-ring); }
 .docp .mail { background: var(--color-background); border: 1px solid var(--color-border); border-radius: 8px; padding: .75rem; }
@@ -693,7 +700,7 @@ function docPanel() {
   else if (S.doc === "questions") { tools = `<button>■ Arrêter</button>`; body = `<div class="act"><b>Préparation d'entretien</b><small>Étape 2/4 · Dossier entreprise</small><div class="runbar"><span></span></div></div><p class="hint">Le résultat s'affichera ici à la fin ; vous pouvez continuer à écrire au coach.</p>`; }
   else if (S.doc === "entretiens") { tools = `<button>＋ Ajouter</button>` + ask; body = `<div class="act"><b>Mar. 4 nov. · 10:00</b><small>Visio · avec la DRH · 45 min</small></div><p class="hint">Ajouter, déplacer ou annuler un entretien se fait ici, sans quitter la conversation.</p>`; }
   else { tools = `<button>✎ Modifier</button>` + ask; body = `<p>Contenu de la Section « ${it.t} » de l'Application ${a.co}, avec ses actions.</p>`; }
-  return h`<aside class="col-pane docp"><header>${it.ic ?? "▤"} ${it.t}<span class="sp"></span>${tools}<button class="x" data-doc-close>✕</button></header><div class="cbody">${body}</div></aside>`;
+  return h`<aside class="col-pane docp"><div class="rcard"><header>${it.ic ?? "▤"} ${it.t}<span class="sp"></span>${tools}<button class="x" data-doc-close>✕</button></header><div class="cbody">${body}</div></div></aside>`;
 }
 
 function group(k, title, inner) {

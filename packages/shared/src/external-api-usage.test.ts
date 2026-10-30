@@ -184,7 +184,7 @@ describe("an external API's calls, named by the caller", () => {
     const calls: ExternalApiCall[] = [];
     const fetch = recordingFetch(answering(200), { record: (call) => void calls.push(call) }, { provider: "mistral", operation: () => "connection_test" });
 
-    await fetch("https://api.mistral.ai/v1/models", { method: "GET", headers: {} });
+    await fetch("https://api.eu.mistral.ai/v1/models", { method: "GET", headers: {} });
 
     expect(calls).toEqual([expect.objectContaining({ provider: "mistral", operation: "connection_test", ok: true, httpStatus: 200 })]);
   });

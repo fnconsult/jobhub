@@ -49,7 +49,7 @@ describe("AI layer configured from the environment", () => {
     await ai.generate({ task: "writing", candidateId: "c", prompt: "Lettre" });
     await ai.generate({ task: "coaching", candidateId: "c", prompt: "Bonjour" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
+    expect(hosts).toEqual(["api.eu.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => [e.task, e.provider])).toEqual([
       ["writing", "mistral"],
       ["coaching", "anthropic"],
@@ -82,7 +82,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
     await createAiLayerFromEnv({ ...env, AI_JOB_TITLES_PROVIDER: "anthropic" }, { fetch, usage }).planJobSearch({ candidateId: "c", criteria });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
+    expect(hosts).toEqual(["api.eu.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["job_titles", "job_titles"]);
   });
 
@@ -94,7 +94,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "back_office_assistant", candidateId: "a", prompt: "Combien ?" });
     await createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "anthropic" }, { fetch, usage }).generate({ task: "back_office_assistant", candidateId: "a", prompt: "Combien ?" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
+    expect(hosts).toEqual(["api.eu.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["back_office_assistant", "back_office_assistant"]);
     // Outside the EU too, once configured: every call is redacted (ADR-0007 amendment, 2026-10-20).
     expect(() => createAiLayerFromEnv({ ...env, AI_BACK_OFFICE_ASSISTANT_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
@@ -108,7 +108,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "guardrail", candidateId: "c", prompt: "Bonjour" });
     await createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "anthropic" }, { fetch, usage }).generate({ task: "guardrail", candidateId: "c", prompt: "Bonjour" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
+    expect(hosts).toEqual(["api.eu.mistral.ai", "bedrock-mantle.eu-north-1.api.aws"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["guardrail", "guardrail"]);
     // Outside the EU too, once configured: every call is redacted (ADR-0007 amendment, 2026-10-20).
     expect(() => createAiLayerFromEnv({ ...env, AI_GUARDRAIL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" })).not.toThrow();
@@ -122,7 +122,7 @@ describe("AI layer configured from the environment", () => {
     await createAiLayerFromEnv(env, { fetch, usage }).generate({ task: "eval", candidateId: null, prompt: "Note" });
     await createAiLayerFromEnv({ ...env, AI_EVAL_PROVIDER: "openai", OPENAI_API_KEY: "sk", OPENAI_DATA_RESIDENCY: "us" }, { fetch, usage }).generate({ task: "eval", candidateId: null, prompt: "Note" });
 
-    expect(hosts).toEqual(["api.mistral.ai", "api.openai.com"]);
+    expect(hosts).toEqual(["api.eu.mistral.ai", "api.openai.com"]);
     expect(usage.entries.map((e) => e.task)).toEqual(["eval", "eval"]);
   });
 
@@ -204,7 +204,7 @@ describe("AI layer configured from the environment", () => {
     await read({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk" });
     await expect(read({ ...base, ANTHROPIC_ENDPOINT: "direct", ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", AI_OFFER_EMAIL_READING_PROVIDER: "anthropic" })).rejects.toThrow(/only on an EU-resident endpoint/);
 
-    expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.mistral.ai"]);
+    expect(hosts).toEqual(["bedrock-mantle.eu-north-1.api.aws", "api.eu.mistral.ai"]);
   });
 
   describe("Claude endpoint chosen by the keys entered (ANTHROPIC_ENDPOINT=auto)", () => {
@@ -381,7 +381,7 @@ describe("AI layer configured from the environment", () => {
       await ai.generate({ task: "coaching", candidateId: "consenting", prompt: "Bonjour" });
       await ai.generate({ task: "coaching", candidateId: "other", containsIdentity: true, prompt: "Je suis Jean Martin" });
 
-      expect(hosts).toEqual(["api.mistral.ai", "bedrock-mantle.eu-north-1.api.aws", "bedrock-mantle.eu-north-1.api.aws"]);
+      expect(hosts).toEqual(["api.eu.mistral.ai", "bedrock-mantle.eu-north-1.api.aws", "bedrock-mantle.eu-north-1.api.aws"]);
       expect(usage.entries[0]).toMatchObject({ provider: "mistral", model: "m" });
     });
 
@@ -413,7 +413,7 @@ describe("AI layer configured from the environment", () => {
       ]);
       expect(choices({ ANTHROPIC_API_KEY: "ak", MISTRAL_API_KEY: "mk", PERPLEXITY_API_KEY: "pk" }).map(({ provider, endpoint, residency }) => ({ provider, endpoint, residency }))).toEqual([
         { provider: "anthropic", endpoint: "api.anthropic.com", residency: "outside_eu" },
-        { provider: "mistral", endpoint: "api.mistral.ai", residency: "eu" },
+        { provider: "mistral", endpoint: "api.eu.mistral.ai", residency: "eu" },
       ]);
     });
 
@@ -452,7 +452,7 @@ describe("AI layer configured from the environment", () => {
         await ai.generate({ task: "coaching", candidateId: "c", route: direct, prompt: "Je suis Marie Dupont" });
         await ai.generate({ task: "coaching", candidateId: "consenting", containsIdentity: true, route: direct, prompt: "Je suis Marie Dupont" });
 
-        expect(bodies.map((each) => each.host)).toEqual(["api.anthropic.com", "api.mistral.ai"]);
+        expect(bodies.map((each) => each.host)).toEqual(["api.anthropic.com", "api.eu.mistral.ai"]);
         expect(bodies[0]!.body).not.toContain("Dupont");
       });
 

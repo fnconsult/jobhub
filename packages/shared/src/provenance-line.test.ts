@@ -25,7 +25,7 @@ describe("the Provenance line under an AI Coach reply (#327)", () => {
       provenance([
         ai({ activity: "think", tokens: { input: 300, output: 20 }, ms: 900 }),
         ai({ tokens: { input: 1500, output: 600 } }),
-        ai({ task: "guardrail", activity: "think", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-small-latest", tokens: { input: 200, output: 5 } }),
+        ai({ task: "guardrail", activity: "think", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-small-latest", tokens: { input: 200, output: 5 } }),
       ]),
     );
 
@@ -43,7 +43,7 @@ describe("the Provenance line under an AI Coach reply (#327)", () => {
   });
 
   it("shows Mistral with the « consentement IA UE » chip when the reply went to the EU AI Consent route", () => {
-    const line = provenanceLine(provenance([ai({ provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", euAiConsent: true })]));
+    const line = provenanceLine(provenance([ai({ provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", euAiConsent: true })]));
 
     expect(line.models).toEqual([{ name: "Mistral Large", where: { fr: "Mistral AI · UE", en: "Mistral AI · EU" }, euAiConsent: true, outsideEu: false }]);
   });

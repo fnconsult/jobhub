@@ -1,5 +1,5 @@
 // Preloaded into the e2e web server (NODE_OPTIONS=--import) to stand in for
-// Mistral's EU API (api.mistral.ai), the provider every AI task is routed to in
+// Mistral's EU API (api.eu.mistral.ai), the provider every AI task is routed to in
 // the suite. Nothing ever reaches a real provider.
 //
 // For a Cover Letter or an Outreach Message (task writing), it says which
@@ -102,7 +102,7 @@ const scriptedCalls = new Map();
 
 globalThis.fetch = async (input, init) => {
   const url = input instanceof Request ? input.url : String(input);
-  if (!url.startsWith("https://api.mistral.ai/")) return realFetch(input, init);
+  if (!url.startsWith("https://api.eu.mistral.ai/")) return realFetch(input, init);
   const body = JSON.parse(input instanceof Request ? await input.text() : String(init?.body ?? "{}"));
   const prompt = String(body.messages?.at(-1)?.content ?? "");
   if (prompt.includes("E2E_AI_DOWN")) return new Response("upstream unavailable", { status: 503 });

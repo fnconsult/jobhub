@@ -96,7 +96,7 @@ export interface AgentModelChoice {
  * A call that failed throws instead.
  */
 export interface CallFacts {
-  /** The endpoint that served it, with its region when it has one, e.g. "bedrock eu-north-1" or "api.mistral.ai". */
+  /** The endpoint that served it, with its region when it has one, e.g. "bedrock eu-north-1" or "api.eu.mistral.ai". */
   endpoint: string;
   /** How long the provider took to answer. */
   durationMs: number;

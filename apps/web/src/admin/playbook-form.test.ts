@@ -9,7 +9,7 @@ function form(fields: [string, string][]) {
 }
 
 const MODELS = [
-  { provider: "mistral" as const, endpoint: "api.mistral.ai", residency: "eu" as const, defaultModel: "mistral-large-latest", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high" as const, residency: "eu" as const }] },
+  { provider: "mistral" as const, endpoint: "api.eu.mistral.ai", residency: "eu" as const, defaultModel: "mistral-large-latest", models: [{ model: "mistral-medium-3-5", effort: "medium_as_high" as const, residency: "eu" as const }] },
   {
     provider: "anthropic" as const,
     endpoint: "api.anthropic.com, bedrock eu-west-3",

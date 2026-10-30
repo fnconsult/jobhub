@@ -48,7 +48,7 @@ test.describe("AI layer: offer_email_reading runs only on an EU endpoint", () =>
     const r = ai({ AI_OFFER_EMAIL_READING_PROVIDER: "mistral" });
 
     expect(r.outcomes[0]).toMatchObject({ ok: true });
-    expect(r.requests.map((req) => req.host)).toEqual(["api.mistral.ai"]);
+    expect(r.requests.map((req) => req.host)).toEqual(["api.eu.mistral.ai"]);
   });
 });
 

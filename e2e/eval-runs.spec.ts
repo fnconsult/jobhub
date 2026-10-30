@@ -255,7 +255,7 @@ test.describe("Eval Runs of a Coaching Playbook", () => {
     const models = page.getByLabel(evals.runs.model);
     const groups = await models.locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label") ?? ""));
     expect(groups.length).toBeGreaterThan(0);
-    for (const group of groups) expect(group, group).not.toMatch(/api\.openai\.com|api\.anthropic\.com|api\.mistral\.ai\/us|\.us-[a-z]+-\d/);
+    for (const group of groups) expect(group, group).not.toMatch(/api\.openai\.com|api\.anthropic\.com|api\.mistral\.ai|\.us-[a-z]+-\d/);
     // The same choices as the playbook's own model field: nothing the Back Office does not allow.
     const own = await page.getByLabel(playbooks.fields.model).first().locator("option").allTextContents();
     const offered = await models.locator("optgroup option").allTextContents();

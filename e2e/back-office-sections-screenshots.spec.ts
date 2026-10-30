@@ -40,7 +40,7 @@ const SECTIONS: Section[] = [
   { name: "codes-promo", path: "/admin/codes-promo", ready: (page) => page.getByRole("heading", { name: admin.coupons.createTitle }) },
   { name: "coachs", path: "/admin/coachs", ready: (page) => page.getByRole("heading", { name: admin.humanCoaches.addTitle }) },
   { name: "cout-coach", path: "/admin/cout-coach", ready: (page) => page.getByRole("heading", { name: admin.coachCost.agents.title }) },
-  { name: "playbooks", path: "/admin/playbooks", ready: (page) => page.getByRole("table", { name: admin.coachingPlaybooks.caption }) },
+  { name: "playbooks", path: "/admin/playbooks", ready: (page) => page.getByRole("table", { name: admin.coachingPlaybooks.caption }), mask: ["main tbody td:nth-child(2)"] },
   { name: "garde-fous", path: "/admin/garde-fous", ready: (page) => page.getByRole("table", { name: admin.guardrails.caption }) },
   {
     name: "questions-sans-reponse",

@@ -316,7 +316,7 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       const at = "2026-10-24T08:00:00.000Z";
       const reading: Provenance = {
         v: 1,
-        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-medium-3", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
+        steps: [{ kind: "ai", activity: "read", task: "cv_parsing", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-medium-3", tokens: { input: 1200, output: 600 }, ms: 4200, at, outcome: "ok", count: 1 }],
         sites: [{ kind: "candidate", links: [] }],
         startedAt: at,
         wallMs: 4300,

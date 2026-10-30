@@ -71,7 +71,7 @@ test.describe("AI consumption and AI message logs", () => {
     // Per provider, endpoint and model: the call went to Mistral's EU API, the endpoint it reached in its own column (#301).
     const byModel = page.getByRole("table", { name: admin.aiUsage.byModelCaption });
     await expect(byModel.getByRole("columnheader", { name: admin.aiUsage.endpoint })).toBeVisible();
-    await expect(byModel.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "mistral", exact: true }) }).getByRole("cell", { name: "api.mistral.ai", exact: true }).first()).toBeVisible();
+    await expect(byModel.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "mistral", exact: true }) }).getByRole("cell", { name: "api.eu.mistral.ai", exact: true }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: admin.aiUsage.coachCostLink })).toHaveAttribute("href", "/admin/cout-coach");
     // Another period, month by month.
     await page.getByLabel(admin.aiUsage.period).selectOption("12m");

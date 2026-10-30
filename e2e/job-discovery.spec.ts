@@ -56,8 +56,8 @@ const requests = (): LoggedRequest[] =>
   existsSync(requestLog) ? readFileSync(requestLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : [];
 const fetchesOf = (url: string) => requests().filter((r) => r.url === url);
 /** The LLM reading a page; the other Mistral call of a run is its job title step (#112). */
-const llmPageReads = () => requests().filter((r) => r.url.startsWith("https://api.mistral.ai/") && !r.body.includes("autres intitulés"));
-const jobTitleSteps = () => requests().filter((r) => r.url.startsWith("https://api.mistral.ai/") && r.body.includes("autres intitulés"));
+const llmPageReads = () => requests().filter((r) => r.url.startsWith("https://api.eu.mistral.ai/") && !r.body.includes("autres intitulés"));
+const jobTitleSteps = () => requests().filter((r) => r.url.startsWith("https://api.eu.mistral.ai/") && r.body.includes("autres intitulés"));
 
 let worker: ChildProcess | undefined;
 let workerOutput = "";
@@ -249,7 +249,7 @@ test.describe("Job discovery (worker job job-discovery.run)", () => {
     expect(hosts.filter((host) => /recaptcha|hcaptcha|google\.com/.test(host))).toEqual([]);
     // The login page is never requested, let alone filled in.
     expect(requests().filter((r) => r.url.includes("membres-e2e.example/connexion"))).toHaveLength(0);
-    expect(requests().filter((r) => r.method !== "GET" && !/api\.(perplexity|mistral)\.ai/.test(r.url))).toEqual([]);
+    expect(requests().filter((r) => r.method !== "GET" && !/api\.perplexity\.ai|api\.eu\.mistral\.ai/.test(r.url))).toEqual([]);
 
     expect(firstReport).toMatch(/bot_protection: 2/);
     expect(firstReport).toMatch(/login_wall: 1/);

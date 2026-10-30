@@ -138,7 +138,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   it("the export holds the Administrator's Back Office Assistant conversations with every message and each reply's Provenance (#327), not what the replies cost", async () => {
     const provenance: Provenance = {
       v: 1,
-      steps: [{ kind: "ai", activity: "think_write", task: "back_office_assistant", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 1, output: 1 }, ms: 700, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
+      steps: [{ kind: "ai", activity: "think_write", task: "back_office_assistant", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", tokens: { input: 1, output: 1 }, ms: 700, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
       sites: [],
       startedAt: "2026-10-13T08:00:00.000Z",
       wallMs: 800,
@@ -559,7 +559,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
     const provenance: Provenance = {
       v: 1,
-      steps: [{ kind: "ai", activity: "think_write", task: "coaching", provider: "mistral", endpoint: "api.mistral.ai", model: "mistral-large-latest", tokens: { input: 10, output: 5 }, ms: 900, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
+      steps: [{ kind: "ai", activity: "think_write", task: "coaching", provider: "mistral", endpoint: "api.eu.mistral.ai", model: "mistral-large-latest", tokens: { input: 10, output: 5 }, ms: 900, at: "2026-10-13T08:00:00.000Z", outcome: "ok", count: 1 }],
       sites: [],
       startedAt: "2026-10-13T08:00:00.000Z",
       wallMs: 1000,

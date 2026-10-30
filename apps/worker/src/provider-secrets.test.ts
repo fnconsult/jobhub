@@ -29,7 +29,7 @@ function fakeProviders() {
   const keysSent: string[] = [];
   const fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const request = new Request(input, init);
-    if (request.url.startsWith("https://api.mistral.ai/")) {
+    if (request.url.startsWith("https://api.eu.mistral.ai/")) {
       const key = request.headers.get("authorization")!.replace("Bearer ", "");
       keysSent.push(key);
       if (key.includes("revoked")) return new Response(JSON.stringify({ message: `Invalid key ${key}` }), { status: 401 });

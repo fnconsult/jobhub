@@ -19,7 +19,7 @@ const PROVENANCE: Provenance = {
       activity: "think_write",
       task: "back_office_assistant",
       provider: "mistral",
-      endpoint: "api.mistral.ai",
+      endpoint: "api.eu.mistral.ai",
       model: "mistral-large-latest",
       tokens: { input: 1000, output: 100 },
       ms: 2100,

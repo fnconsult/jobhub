@@ -144,7 +144,7 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
 
       expect(await checkAiRoutingChange({ ...base, AI_COACHING_MODEL: "anthropic.claude-sonnet-5" }, after, { fetch })).toBeNull();
       // Coaching's model was already in use (and the back-office assistant, guardrail and eval tasks inherit it): not tested again.
-      expect(calls).toEqual([{ host: "api.mistral.ai", model: "mistral-medium-3-5", maxTokens: 1 }]);
+      expect(calls).toEqual([{ host: "api.eu.mistral.ai", model: "mistral-medium-3-5", maxTokens: 1 }]);
     });
 
     it("tests the web search's model with one search", async () => {
@@ -162,7 +162,7 @@ describe("checkAiRoutingChange: an AI routing change checked as the AI layer wou
 
       expect(refusal?.reason).toBe("test_failed");
       expect(refusal?.technical.message).toMatch(/AI_IDENTITY_MODEL/);
-      expect(calls).toEqual([{ host: "api.mistral.ai", model: "mistral-nope", maxTokens: 1 }]);
+      expect(calls).toEqual([{ host: "api.eu.mistral.ai", model: "mistral-nope", maxTokens: 1 }]);
     });
 
     it("records each test call in AI Usage, for no Candidate, on the task whose route it tests", async () => {

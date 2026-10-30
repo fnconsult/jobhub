@@ -292,7 +292,7 @@ test.describe("the Back Office's Coaching Playbooks", () => {
     const groups = await page.getByLabel(playbooks.fields.model).locator("optgroup").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("label") ?? ""));
     expect(groups.length).toBeGreaterThan(0);
     // No endpoint outside the European Union is offered.
-    for (const group of groups) expect(group, group).not.toMatch(/api\.openai\.com|api\.anthropic\.com|api\.mistral\.ai\/us|\.us-[a-z]+-\d/);
+    for (const group of groups) expect(group, group).not.toMatch(/api\.openai\.com|api\.anthropic\.com|api\.mistral\.ai|\.us-[a-z]+-\d/);
     await expect(page.getByText(playbooks.fields.effortHelp)).toBeVisible();
   });
 

@@ -19,8 +19,12 @@ import { CoachInView } from "@/components/CoachPanel";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { RescheduleHistory } from "@/components/RescheduleHistory";
+import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
+import { SegmentedLinks } from "@/design/SegmentedLinks";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes, type ApplicationSection } from "@/routes";
+import "./agenda.css";
 
 /** Where an Interview leads: its Application's Interviews Section. */
 const INTERVIEWS: ApplicationSection = "entretiens";
@@ -28,8 +32,6 @@ const INTERVIEWS: ApplicationSection = "entretiens";
 const AGENDA_IN_VIEW = { kind: "agenda", id: "agenda" } as const;
 /** The address's value for the past Agenda Items (see routes.agenda). */
 const PAST = "passes";
-/** `aria-current` of the link to the view shown. */
-const CURRENT = "page";
 /** How many markers a day of the month grid shows before « +n ». */
 const MARKERS = 3;
 /** The address's values for the week and month views. */
@@ -153,32 +155,46 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     <CandidateLayout candidateId={candidate.id} title={t("agenda.title")} wide={address.view === "semaine"}>
       {/* An address naming no view (the Sidebar's link) brings back the one last picked. */}
       <AgendaViewMemory view={address.view} restore={!address.chosen && params.periode === undefined} />
-      <div className="agenda-actions">
-        <AddInterviewDialog applications={ongoing} />
+      <div className="agenda-page">
+        <div className="agenda-toolbar">
+          <ViewSwitch view={address.view} date={address.date} t={t} />
+          <div className="agenda-actions">
+            <AddInterviewDialog applications={ongoing} />
+          </div>
+        </div>
+        <CoachInView {...AGENDA_IN_VIEW} name={t("agenda.title")} />
+        {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formats={formats} t={t} /> : null}
+        {content}
+        <Legend t={t} />
       </div>
-      <ViewSwitch view={address.view} date={address.date} t={t} />
-      <CoachInView {...AGENDA_IN_VIEW} name={t("agenda.title")} />
-      {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formats={formats} t={t} /> : null}
-      {content}
     </CandidateLayout>
   );
 }
 
-/** « Liste », « Semaine », « Mois »: links styled as a segmented control, the view shown `aria-current`. Week and month keep the day shown. */
+/** « Liste », « Semaine », « Mois »: the Design System's segmented control, each view a link, the one shown `aria-current`. Week and month keep the day shown. */
 function ViewSwitch({ view, date, t }: { view: AgendaView; date: string; t: T }) {
-  const views: { view: AgendaView; href: string; label: string }[] = [
-    { view: "liste", href: routes.agendaList(), label: t("agenda.listView") },
-    { view: "semaine", href: routes.agendaCalendar("semaine", date), label: t("agenda.weekView") },
-    { view: "mois", href: routes.agendaCalendar("mois", date), label: t("agenda.monthView") },
+  const views: { id: AgendaView; href: string; label: string }[] = [
+    { id: "liste", href: routes.agendaList(), label: t("agenda.listView") },
+    { id: "semaine", href: routes.agendaCalendar("semaine", date), label: t("agenda.weekView") },
+    { id: "mois", href: routes.agendaCalendar("mois", date), label: t("agenda.monthView") },
   ];
+  return <SegmentedLinks label={t("agenda.viewsLabel")} links={views} shown={view} />;
+}
+
+/** What the shapes say, in every view: a disc for an Interview, a hollow diamond for a Coaching Session; and that the past is dimmed. */
+function Legend({ t }: { t: T }) {
   return (
-    <nav className="agenda-views" aria-label={t("agenda.viewsLabel")}>
-      {views.map((option) => (
-        <Link key={option.view} href={option.href} aria-current={option.view === view ? CURRENT : undefined}>
-          {option.label}
-        </Link>
-      ))}
-    </nav>
+    <ul className="agenda-legend" aria-label={t("agenda.legendLabel")}>
+      <li>
+        <span className="agenda-marker agenda-marker-interview" aria-hidden="true" />
+        {t("agenda.interview")}
+      </li>
+      <li>
+        <span className="agenda-marker agenda-marker-coachingSession" aria-hidden="true" />
+        {t("agenda.coachingSession")}
+      </li>
+      <li>{t("agenda.pastDimmed")}</li>
+    </ul>
   );
 }
 
@@ -186,12 +202,16 @@ function ViewSwitch({ view, date, t }: { view: AgendaView; date: string; t: T })
 function AgendaList({ days, past, formats, t }: { days: AgendaDay[]; past: boolean; formats: Formats; t: T }) {
   return (
     <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby="agenda-period-title">
-      <div className="section-head">
-        <h2 id="agenda-period-title">{t(past ? "agenda.pastTitle" : "agenda.upcomingTitle")}</h2>
-        <Link href={routes.agendaList(!past)}>{t(past ? "agenda.showUpcoming" : "agenda.showPast")}</Link>
+      <div className="agenda-period-head">
+        <h2 id="agenda-period-title" className="agenda-period-title">
+          {t(past ? "agenda.pastTitle" : "agenda.upcomingTitle")}
+        </h2>
+        <Link className={buttonClass({ variant: "quiet" })} href={routes.agendaList(!past)}>
+          {t(past ? "agenda.showUpcoming" : "agenda.showPast")}
+        </Link>
       </div>
       {days.length === 0 ? (
-        <p className="notice">
+        <Note>
           {t(past ? "agenda.nonePast" : "agenda.none")}
           {past ? null : (
             <>
@@ -199,19 +219,23 @@ function AgendaList({ days, past, formats, t }: { days: AgendaDay[]; past: boole
               <EmptyStateHelp of="agenda" />
             </>
           )}
-        </p>
+        </Note>
       ) : (
-        days.map((day) => {
-          const titleId = `agenda-day-${day.day}`;
-          return (
-            <section key={day.day} className="agenda-day" aria-labelledby={titleId}>
-              <h3 id={titleId}>
-                <time dateTime={day.day}>{formats.fullDay(day.day)}</time>
-              </h3>
-              <Items items={day.items} formats={formats} t={t} />
-            </section>
-          );
-        })
+        <div className="agenda-days">
+          {days.map((day) => {
+            const titleId = `agenda-day-${day.day}`;
+            return (
+              <section key={day.day} className="agenda-day" aria-labelledby={titleId}>
+                <h3 id={titleId}>
+                  <time dateTime={day.day}>
+                    <span className="agenda-day-weekday">{formats.weekdayName(day.day)}</span> <span className="agenda-day-date">{formats.day.format(noonOf(day.day))}</span>
+                  </time>
+                </h3>
+                <Items items={day.items} formats={formats} t={t} />
+              </section>
+            );
+          })}
+        </div>
       )}
     </section>
   );
@@ -220,15 +244,15 @@ function AgendaList({ days, past, formats, t }: { days: AgendaDay[]; past: boole
 /** « Précédent », « Aujourd'hui », « Suivant » for a week or a month. */
 function PeriodNav({ view, period, today, t }: { view: CalendarView; period: CalendarPeriod; today: string; t: T }) {
   return (
-    <nav className="actions agenda-period-nav" aria-label={t(view === "semaine" ? "agenda.weekNavLabel" : "agenda.monthNavLabel")}>
-      <Link className="button" href={routes.agendaCalendar(view, period.previous)}>
-        {t("agenda.previous")}
+    <nav className="agenda-period-nav" aria-label={t(view === "semaine" ? "agenda.weekNavLabel" : "agenda.monthNavLabel")}>
+      <Link className={buttonClass()} href={routes.agendaCalendar(view, period.previous)}>
+        <span aria-hidden="true">←</span> {t("agenda.previous")}
       </Link>
-      <Link className="button" href={routes.agendaCalendar(view, today)}>
+      <Link className={buttonClass()} href={routes.agendaCalendar(view, today)}>
         {t("agenda.today")}
       </Link>
-      <Link className="button" href={routes.agendaCalendar(view, period.next)}>
-        {t("agenda.next")}
+      <Link className={buttonClass()} href={routes.agendaCalendar(view, period.next)}>
+        {t("agenda.next")} <span aria-hidden="true">→</span>
       </Link>
     </nav>
   );
@@ -238,7 +262,7 @@ function PeriodNav({ view, period, today, t }: { view: CalendarView; period: Cal
 function AgendaWeek({ period, byDay, today, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; today: string; formats: Formats; t: T }) {
   return (
     <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
-      <div className="section-head">
+      <div className="agenda-period-head">
         <h2 id="agenda-period-title" className="agenda-period-title">
           {t("agenda.weekTitle", { range: formats.range(period.first, period.last) })}
         </h2>
@@ -277,7 +301,7 @@ function AgendaMonth({ period, byDay, selected, today, formats, t }: { period: C
   const chosen = byDay.get(selected) ?? [];
   return (
     <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
-      <div className="section-head">
+      <div className="agenda-period-head">
         <h2 id="agenda-period-title" className="agenda-period-title">
           {formats.month(period.first)}
         </h2>
@@ -329,17 +353,7 @@ function AgendaMonth({ period, byDay, selected, today, formats, t }: { period: C
           </tbody>
         </table>
       </form>
-      <ul className="agenda-legend" aria-label={t("agenda.legendLabel")}>
-        <li>
-          <span className="agenda-marker agenda-marker-interview" aria-hidden="true" />
-          {t("agenda.interview")}
-        </li>
-        <li>
-          <span className="agenda-marker agenda-marker-coachingSession" aria-hidden="true" />
-          {t("agenda.coachingSession")}
-        </li>
-      </ul>
-      <section className="agenda-day" aria-labelledby="agenda-chosen-day-title" aria-live="polite">
+      <section className="agenda-day agenda-chosen-day" aria-labelledby="agenda-chosen-day-title" aria-live="polite">
         <h3 id="agenda-chosen-day-title">
           <time dateTime={selected}>{formats.fullDay(selected)}</time>
         </h3>
@@ -364,13 +378,16 @@ function ToSchedule({ sessions, formats, t }: { sessions: UnscheduledCoachingSes
     <section className="agenda-to-schedule" aria-labelledby="agenda-to-schedule-title">
       <h2 id="agenda-to-schedule-title">{t("agenda.toSchedule")}</h2>
       <p>{t("agenda.toScheduleIntro")}</p>
-      <ul className="agenda-items">
+      <ul className="agenda-unscheduled-list">
         {sessions.map((session) => (
           <li key={session.id} className="agenda-unscheduled">
-            <p className="agenda-item-title">{t("humanCoaches.sessionPaidOn", { name: session.coach.name, date: formats.day.format(session.paidAt) })}</p>
-            <RescheduleHistory reschedules={session.reschedules} coachName={session.coach.name} dateTime={formats.changedAt} t={t} />
-            <div className="actions">
-              <a className="button button-primary" href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
+            <span className="agenda-marker agenda-marker-coachingSession" aria-hidden="true" />
+            <div className="agenda-unscheduled-what">
+              <p className="agenda-item-title">{t("humanCoaches.sessionPaidOn", { name: session.coach.name, date: formats.day.format(session.paidAt) })}</p>
+              <RescheduleHistory reschedules={session.reschedules} coachName={session.coach.name} dateTime={formats.changedAt} t={t} />
+            </div>
+            <div className="agenda-unscheduled-actions">
+              <a className={buttonClass({ variant: "primary" })} href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </a>
               <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
@@ -404,7 +421,7 @@ function Items({ items, formats, t }: { items: AgendaItem[]; formats: Formats; t
  */
 function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSessionAgendaItem; past: boolean; formats: Formats; t: T }) {
   return (
-    <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"}>
+    <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
         <time className="agenda-item-time" dateTime={item.scheduledAt.toISOString()}>
           {formats.time(item.scheduledAt)}
@@ -422,7 +439,7 @@ function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSession
       <CoachingSessionDialog
         session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
         withName={item.coach.name}
-        className="button button-quiet"
+        className={buttonClass({ variant: "quiet" })}
       />
       {past ? null : <CalendarFileLink item={item} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />}
       <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
@@ -444,7 +461,7 @@ function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSession
 function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; past: boolean; formats: Formats; t: T }) {
   const className = ["agenda-item", past ? "agenda-item-past" : "", item.cancelledAt ? "agenda-item-cancelled" : ""].filter(Boolean).join(" ");
   return (
-    <li className={className}>
+    <li className={className} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.applicationSection(item.applicationId, INTERVIEWS)}>
         <span className="agenda-item-time">
           <InterviewTimes interview={item} time={formats.timeFormat} />
@@ -477,6 +494,7 @@ function CalendarFileLink({ item, what, formats, t }: { item: AgendaItem; what: 
   return (
     <p className="agenda-calendar-file">
       <a
+        className={buttonClass({ variant: "quiet" })}
         href={calendarFileUrl(item)}
         download
         aria-label={t("agenda.calendarFile.addFor", { what, date: formats.changedAt.format(item.scheduledAt) })}

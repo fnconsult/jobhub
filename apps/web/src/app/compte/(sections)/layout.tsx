@@ -5,6 +5,7 @@ import { getCurrentCandidate } from "@/auth/server";
 import { AccountSections } from "@/components/AccountSections";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import "./account.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -15,5 +16,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) redirect(routes.signIn);
-  return <AccountSections candidateId={candidate.id}>{children}</AccountSections>;
+  return (
+    <AccountSections candidateId={candidate.id}>
+      <div className="account-section">{children}</div>
+    </AccountSections>
+  );
 }

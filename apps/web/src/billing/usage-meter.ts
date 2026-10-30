@@ -36,3 +36,13 @@ export function usageMeter(quotas: PlanQuotas, usedThisWeek: Record<WeeklyQuota,
     jobDigest: quotas.jobDigest,
   };
 }
+
+/**
+ * One weekly quota's bar on Mon abonnement (#469): what was used of what is allowed, in percent, full and used up once
+ * the limit is reached (drawn in the danger colour). No bar for an unlimited quota.
+ */
+export function quotaBar({ used, limit }: { used: number; limit: number | null }): { percent: number | null; usedUp: boolean } {
+  if (limit === null) return { percent: null, usedUp: false };
+  const usedUp = used >= limit;
+  return { percent: usedUp ? 100 : Math.round((100 * used) / limit), usedUp };
+}

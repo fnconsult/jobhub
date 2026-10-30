@@ -58,11 +58,12 @@ export async function expectComparisonWithoutPrices(page: Page, server: PlanPric
   expect(Date.now() - started, "/abonnement waits on Stripe for the Plan prices only a few seconds").toBeLessThan(10_000);
   expect(response?.status(), server.output()).toBe(200);
   await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
-  // A Plan offered by plans.spec.ts while this runs is ranked after these three.
-  await expect(page.getByRole("table").getByRole("columnheader").first()).toHaveText(fr.billing.page.quota);
-  expect((await page.getByRole("table").getByRole("columnheader").allInnerTexts()).slice(1, 4)).toEqual(["Gratuite", "Standard", "Premium"]);
-  await expect(page.getByRole("row", { name: /Match Scores/ })).toBeVisible();
-  await expect(page.getByRole("row", { name: new RegExp(`^${fr.billing.page.price}`) })).toHaveCount(0);
+  // The Plan comparison cards (#469). A Plan offered by plans.spec.ts while this runs is ranked after these three.
+  const plans = page.getByRole("region", { name: fr.billing.page.comparisonTitle });
+  await expect(plans.getByRole("article").first()).toBeVisible();
+  expect((await plans.getByRole("article").getByRole("heading").allInnerTexts()).slice(0, 3)).toEqual(["Gratuite", "Standard", "Premium"]);
+  await expect(plans.getByRole("article").first()).toContainText("Match Scores");
+  await expect(page.locator(".plan-card-price")).toHaveCount(0);
   await expect(page.getByText("€")).toHaveCount(0);
 }
 

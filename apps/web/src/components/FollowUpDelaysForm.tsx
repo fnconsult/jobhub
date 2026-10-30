@@ -4,6 +4,10 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { HelpText } from "@/components/HelpTerm";
 import type { FollowUpDelays } from "@/follow-ups";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 
 /** The Candidate's Follow-up Delays: how many working days before the AI Coach proposes a Follow-up. */
 export function FollowUpDelaysForm({ initial, max }: { initial: FollowUpDelays; /** Longest delay allowed. */ max: number }) {
@@ -36,11 +40,8 @@ export function FollowUpDelaysForm({ initial, max }: { initial: FollowUpDelays; 
   const appliedId = `${id}-after-applied`;
   const followUpId = `${id}-after-follow-up`;
   const field = (inputId: string, label: string, value: string, change: (value: string) => void) => (
-    <div className="field">
-      <label htmlFor={inputId}>{label}</label>
-      <input
-        id={inputId}
-        className="input"
+    <Field id={inputId} label={label}>
+      <TextInput
         type="number"
         inputMode="numeric"
         min={1}
@@ -52,31 +53,34 @@ export function FollowUpDelaysForm({ initial, max }: { initial: FollowUpDelays; 
         aria-describedby={`${id}-hint`}
         onChange={(event) => change(event.target.value)}
       />
-    </div>
+    </Field>
   );
 
   return (
-    <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("followUps.delaysTitle")}</h2>
-      <p>
+    <Card title={t("followUps.delaysTitle")} headingId={`${id}-title`}>
+      <p className="account-intro">
         <HelpText terms={{ followUp: t("helpTerms.words.followUp") }}>{t("followUps.delaysIntro")}</HelpText>
       </p>
       <form className="stack" onSubmit={save} noValidate>
-        <p id={`${id}-hint`} className="hint">
+        <p id={`${id}-hint`} className="account-hint">
           {t("followUps.delaysHint", { max })}
         </p>
         {field(appliedId, t("followUps.afterApplied"), afterApplied, setAfterApplied)}
         {field(followUpId, t("followUps.afterFollowUp"), afterFollowUp, setAfterFollowUp)}
-        <button className="button button-primary" type="submit" disabled={working}>
+        <button className={buttonClass({ variant: "primary" })} type="submit" disabled={working}>
           {t("followUps.saveDelays")}
         </button>
-        {outcome === "saved" ? <p role="status">{t("followUps.delaysSaved")}</p> : null}
+        {outcome === "saved" ? (
+          <Note tone="success" role="status">
+            {t("followUps.delaysSaved")}
+          </Note>
+        ) : null}
         {outcome === "invalid" || outcome === "error" ? (
-          <p className="field-error" role="alert">
+          <Note tone="danger" role="alert">
             {outcome === "invalid" ? t("followUps.delaysInvalid", { max }) : t("followUps.delaysError")}
-          </p>
+          </Note>
         ) : null}
       </form>
-    </section>
+    </Card>
   );
 }

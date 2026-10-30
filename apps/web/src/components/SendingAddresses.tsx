@@ -2,6 +2,10 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 
 /**
  * The Candidate's own sending addresses (#437): their account's, always, and those they add, from which an email they
@@ -45,40 +49,53 @@ export function SendingAddresses({ initial, nested = false }: { initial: string[
     if (await call("POST", newSending)) setNewSending("");
   }
 
-  // Under a step of the setup wizard, whose title is itself an h3.
-  const Heading = nested ? "h4" : "h3";
   const [accountAddress, ...added] = sending;
-  return (
-    <section className="stack" aria-labelledby={`${id}-sending`}>
-      <Heading id={`${id}-sending`}>{t("emailIntake.sending.title")}</Heading>
+  const content = (
+    <div className="stack">
       <p>{t("emailIntake.sending.explanation")}</p>
-      <ul>
+      <ul className="account-list">
         {accountAddress ? <li>{t("emailIntake.sending.account", { address: accountAddress })}</li> : null}
         {added.map((address) => (
           <li key={address}>
-            {address}{" "}
-            <button className="button" type="button" disabled={working} aria-label={t("emailIntake.sending.removeLabel", { address })} onClick={() => void call("DELETE", address)}>
+            <span>{address}</span>{" "}
+            <button
+              className={buttonClass({ variant: "quiet", size: "sm" })}
+              type="button"
+              disabled={working}
+              aria-label={t("emailIntake.sending.removeLabel", { address })}
+              onClick={() => void call("DELETE", address)}
+            >
               {t("emailIntake.sending.remove")}
             </button>
           </li>
         ))}
       </ul>
-      <form className="stack" onSubmit={(event) => void add(event)}>
-        <div className="field">
-          <label htmlFor={`${id}-new-sending`}>{t("emailIntake.sending.addLabel")}</label>
-          <input id={`${id}-new-sending`} className="input" type="email" inputMode="email" autoComplete="email" value={newSending} onChange={(event) => setNewSending(event.target.value)} required />
-        </div>
-        <div>
-          <button className="button" type="submit" disabled={working}>
-            {t("emailIntake.sending.add")}
-          </button>
-        </div>
+      <form className="account-inline-form" onSubmit={(event) => void add(event)}>
+        <Field id={`${id}-new-sending`} label={t("emailIntake.sending.addLabel")}>
+          <TextInput type="email" inputMode="email" autoComplete="email" value={newSending} onChange={(event) => setNewSending(event.target.value)} required />
+        </Field>
+        <button className={buttonClass()} type="submit" disabled={working}>
+          {t("emailIntake.sending.add")}
+        </button>
       </form>
       {error ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t(`emailIntake.errors.${error}`)}
-        </p>
+        </Note>
       ) : null}
+    </div>
+  );
+  // Under a step of the setup wizard, whose title is itself an h3; on Mon compte, a Card of its own.
+  if (!nested)
+    return (
+      <Card title={t("emailIntake.sending.title")} headingLevel={3} headingId={`${id}-sending`}>
+        {content}
+      </Card>
+    );
+  return (
+    <section className="stack" aria-labelledby={`${id}-sending`}>
+      <h4 id={`${id}-sending`}>{t("emailIntake.sending.title")}</h4>
+      {content}
     </section>
   );
 }

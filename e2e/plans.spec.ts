@@ -21,7 +21,11 @@ async function checkoutCalls(customer: string): Promise<{ params: Record<string,
 }
 
 const planForm = (page: Page, name: string) => page.locator("form").filter({ has: page.getByRole("heading", { name: tr(plans.edit, { plan: name }) }) });
-const comparedPlans = async (page: Page) => (await page.getByRole("table").getByRole("columnheader").allInnerTexts()).slice(1);
+/** The Plans compared on Mon abonnement, by their cards' names (#469). */
+const comparedPlans = async (page: Page) => {
+  await expect(page.locator(".plan-card").first()).toBeVisible();
+  return page.locator(".plan-card h3").allInnerTexts();
+};
 
 test.describe("Plans in the Back Office", () => {
   test.describe.configure({ mode: "serial" });
@@ -72,7 +76,7 @@ test.describe("Plans in the Back Office", () => {
       await expect(page.getByRole("status")).toHaveText(tr(plans.saved, { plan: "Essentiel" }));
       await candidatePage.goto("/abonnement");
       expect(await comparedPlans(candidatePage)).toEqual(["Gratuite", "Standard", "Premium", "Essentiel"]);
-      const prices = (await candidatePage.getByRole("row", { name: new RegExp(`^${fr.billing.page.price}`) }).getByRole("cell").allInnerTexts()).map((cell) => cell.replace(/\s/g, " "));
+      const prices = (await candidatePage.locator(".plan-card-price").allInnerTexts()).map((price) => price.replace(/\s/g, " "));
       expect(prices[3]).toBe("29 € / mois");
       const checkout = await candidatePage.request.post("/api/billing/checkout", { form: { plan: "essentiel" }, headers: { origin: process.env.E2E_WEB_ORIGIN! }, maxRedirects: 0 });
       expect(checkout.status()).toBe(303);

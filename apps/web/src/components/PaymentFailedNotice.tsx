@@ -2,23 +2,28 @@
 
 import { usePathname } from "next/navigation";
 import type { PaymentFailedNotice as Notice } from "@/billing/payment-failed-notice";
+import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
 import { routes } from "@/routes";
 
 /**
  * Tells the Candidate their last payment failed (past_due), with the button to
- * the Stripe customer portal where they update their payment method. A status,
- * not an alert: it never stops them from working.
+ * the Stripe customer portal where they update their payment method: the
+ * failed-payment Note, a warning (#469). A status, not an alert: it never stops
+ * them from working.
  */
 export function PaymentFailedNotice({ notice, className }: { notice: Notice; className?: string }) {
   return (
-    <section className={`notice notice-payment-failed${className ? ` ${className}` : ""}`} role="status">
-      <p>{notice.message}</p>
-      <form method="post" action={notice.portal}>
-        <button className="button button-primary" type="submit">
-          {notice.action}
-        </button>
-      </form>
-    </section>
+    <div className={["payment-failed", className].filter(Boolean).join(" ")}>
+      <Note tone="warn" role="status">
+        <p>{notice.message}</p>
+        <form method="post" action={notice.portal}>
+          <button className={buttonClass({ variant: "primary" })} type="submit">
+            {notice.action}
+          </button>
+        </form>
+      </Note>
+    </div>
   );
 }
 

@@ -31,10 +31,25 @@ async function deliverWebhook(page: Page, event: unknown) {
   return page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } });
 }
 
-/** The comparison table's row for one quota: its label, then the Free, Standard and Premium values. */
+/** What the Plan comparison cards (#469) give of one quota, by its label: the Free, Standard and Premium values. */
 async function planRow(page: Page, label: string) {
+  await expect(page.locator(".plan-card").first()).toBeVisible();
+  const values = await page.locator(".plan-card").evaluateAll(
+    (cards, quota) =>
+      cards.map((card) => {
+        const line = [...card.querySelectorAll(".plan-card-quotas li")].find((item) => item.querySelector(".plan-card-quota")?.textContent === quota);
+        return line?.querySelector(".plan-card-value")?.textContent ?? "";
+      }),
+    label,
+  );
   // A Plan offered by plans.spec.ts while this runs is ranked after these three.
-  return (await page.getByRole("row", { name: new RegExp(`^${label}`) }).getByRole("cell").allInnerTexts()).slice(0, 3);
+  return values.slice(0, 3);
+}
+
+/** The compared Plans' prices, on their cards: Free, Standard and Premium. */
+async function planPrices(page: Page) {
+  await expect(page.locator(".plan-card").first()).toBeVisible();
+  return (await page.locator(".plan-card-price").allInnerTexts()).slice(0, 3).map((price) => price.replace(/\s/g, " "));
 }
 
 async function currentPlanIs(page: Page, plan: string) {
@@ -51,7 +66,7 @@ test.describe("Plans and Stripe billing", () => {
     // A Section of Mon compte (ADR-0024), at its own address.
     await expect(page.getByRole("heading", { level: 2, name: fr.billing.page.title })).toBeVisible();
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
-    await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("1 par semaine");
+    expect((await planRow(page, "Match Scores"))[0]).toBe("1 par semaine");
 
     expect(await formRedirect(page, "/api/billing/checkout", "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = (await stripeCalls("/v1/checkout/sessions")).filter((call) => call.params.customer === fakeCustomerId(email));
@@ -117,14 +132,13 @@ test.describe("Plans and Stripe billing", () => {
     const email = newAddress("plan-prices");
     await signInWithMagicLink(page, email);
     await page.goto("/abonnement");
-    const prices = async (label: string) => (await planRow(page, label)).map((cell) => cell.replace(/\s/g, " "));
-    expect(await prices(fr.billing.page.price)).toEqual(["0 € / mois", "19 € / mois", "39 € / mois"]);
+    expect(await planPrices(page)).toEqual(["0 € / mois", "19 € / mois", "39 € / mois"]);
 
     await page.goto("/compte/preferences");
     await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.account.title);
     await page.goto("/abonnement");
-    expect(await prices(en.billing.page.price)).toEqual(["€0 / month", "€19 / month", "€39 / month"]);
+    expect(await planPrices(page)).toEqual(["€0 / month", "€19 / month", "€39 / month"]);
   });
 
   test("the webhook refuses deliveries Stripe did not sign", async ({ page }) => {
@@ -138,8 +152,8 @@ test.describe("Plans and Stripe billing", () => {
     await signInWithMagicLink(page, newAddress("quotas"));
     await page.goto("/abonnement");
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
-    const header = await page.getByRole("table").getByRole("columnheader").allInnerTexts();
-    expect(header.slice(1, 4)).toEqual(["Gratuite", "Standard", "Premium"]);
+    const header = await page.locator(".plan-card h3").allInnerTexts();
+    expect(header.slice(0, 3)).toEqual(["Gratuite", "Standard", "Premium"]);
     expect(await planRow(page, "Profils")).toEqual(["1", "3", "Illimité"]);
     expect(await planRow(page, "Match Scores")).toEqual(["1 par semaine", "Illimité", "Illimité"]);
     expect(await planRow(page, "ATS Scores")).toEqual(["1 par semaine", "Illimité", "Illimité"]);
@@ -434,7 +448,7 @@ test.describe("back office", () => {
     await expect(free.getByLabel("Match Scores (par semaine)")).toHaveValue("5");
 
     await page.goto("/abonnement");
-    await expect(page.getByRole("row", { name: /Match Scores/ })).toContainText("5 par semaine");
+    expect((await planRow(page, "Match Scores"))[0]).toBe("5 par semaine");
 
     // Put the starting quota back for the other tests.
     await page.goto("/admin/quotas");

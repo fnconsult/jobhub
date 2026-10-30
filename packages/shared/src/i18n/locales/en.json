@@ -1032,7 +1032,11 @@
         "unchecked": "This coupon code could not be checked just now.",
         "too_many_tries": "You have tried many coupon codes: try again in a few minutes."
       },
-      "continueWithoutCode": "Continue to the {{plan}} Plan without the code"
+      "continueWithoutCode": "Continue to the {{plan}} Plan without the code",
+      "recommended": "Recommended",
+      "codeLabel": "Promotion code",
+      "codeHint": "It applies to a new subscription, at checkout.",
+      "applyCode": "Apply"
     },
     "quotas": {
       "profiles": "Profiles",
@@ -3215,6 +3219,7 @@
     "dayItems_one": "{{date}}: {{count}} appointment",
     "dayItems_other": "{{date}}: {{count}} appointments",
     "legendLabel": "Key",
+    "pastDimmed": "Past appointments are dimmed.",
     "changedByCoach": "changed by the coach",
     "calendarFile": {
       "add": "Add to my calendar",

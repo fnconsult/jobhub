@@ -92,6 +92,22 @@ test.describe("browser extension", () => {
     await page.evaluate(() => (document.documentElement.dataset.textSize = "xlarge"));
     expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("20px");
   });
+
+  test("the Side Panel follows the device's dark theme (#473), at AA, and switches with it", async () => {
+    const page = await context.newPage();
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(18, 18, 25)");
+    for (const t of await renderedTexts(page)) {
+      expect.soft(t.contrast, `contrast of "${t.text}" (${t.color} on ${t.background})`).toBeGreaterThanOrEqual(4.5);
+    }
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(255, 255, 255)");
+  });
 });
 
 // Issue #2: the extension shares the Candidate's web-app session (needed by

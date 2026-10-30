@@ -32,7 +32,7 @@ function densityVars(tokens: DesignTokens, density: Density): string[] {
 
 /**
  * Renders the design tokens as one stylesheet shared by the web app and the extension: CSS custom properties in
- * the light theme on the root and the dark ones under `[data-theme="dark"]`, the Confort Density on the root and
+ * the light theme on the root and under `[data-theme="light"]`, the dark ones under `[data-theme="dark"]`, the Confort Density on the root and
  * each Density under `[data-density]`, the text-size setting (via `html[data-text-size]`), motion tokens, thin
  * scrollbars and accessible base styles. Type sizes are in rem so the Candidate's text-size setting scales the
  * whole interface, in both Densities.
@@ -90,6 +90,9 @@ export function renderDesignCss(tokens: DesignTokens): string {
       // The order of the layers, stated first: every component stylesheet states it again, whichever loads first.
       "@layer base, components;",
       root,
+      // The chosen theme, on <html> (#473) or on a part of a page that sets its own (an OverlayScope): light again
+      // inside a dark page, or dark.
+      rule('[data-theme="light"]', themeVars(tokens, "light")),
       rule('[data-theme="dark"]', themeVars(tokens, "dark")),
       ...(Object.keys(tokens.density) as Density[]).map((density) => rule(`[data-density="${density}"]`, densityVars(tokens, density))),
       // An element that sets a Density sets its own text to it; the root's size stays the Text Size's.

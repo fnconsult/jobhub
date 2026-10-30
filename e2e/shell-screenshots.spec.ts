@@ -3,11 +3,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { expectTextContrast, themedName, THEMES } from "./support/theme";
 
 // Issue #464: the shell in the Design System (ADR-0053), shared by both sides (SidebarShell): the Sidebar on the nav
 // surface with the Usage Meter at its foot and the Signalement icon on « Mon compte »'s row, the Top Bar with AI
 // Activity and « Aide et coach ». Screenshot baselines of the shell on a Candidate page (Confort) and a Back Office
-// page (Compact), light, at three widths, and on a phone its drawer too. Only the shell is compared: the page in
+// page (Compact), light and dark (#473), at three widths, and on a phone its drawer too. Only the shell is compared: the page in
 // `<main>` is masked, each page's ticket brings its own baseline (#465 to #469).
 //
 // Baselines are Linux renders, as CI makes them (`{arg}.png`, no platform suffix, see playwright.config.ts). To make
@@ -75,13 +76,14 @@ async function axeOnShell(page: Page) {
   expect(results.violations.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);
 }
 
-for (const viewport of WIDTHS) {
-  test.describe(`the shell in the Design System (${viewport.name})`, () => {
-    test.use({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: "light" });
+for (const theme of THEMES) for (const viewport of WIDTHS) {
+  // Dark is the device's preference, which the default choice, Système, follows (#473).
+  test.describe(`the shell in the Design System (${viewport.name}${theme === "dark" ? ", dark" : ""})`, () => {
+    test.use({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: theme });
     test.skip(!LINUX_RENDER, "the baselines are Linux renders: run in CI, or through the Playwright container (see above)");
 
     test("on a Candidate page: the Sidebar with the Profile switcher and the Usage Meter, the Top Bar", async ({ page }) => {
-      await signInWithMagicLink(page, newAddress(`shell-${viewport.name}`));
+      await signInWithMagicLink(page, newAddress(`shell-${viewport.name}-${theme}`));
       const response = await page.request.post("/api/profiles", {
         headers: { origin },
         data: { masterCv, searchCriteria: { targetRole: masterCv.headline, locations: ["Lyon"], contractTypes: ["cdi"] } },
@@ -91,7 +93,9 @@ for (const viewport of WIDTHS) {
       await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
       await expect(page.getByRole("progressbar", { name: fr.usageMeter.title })).toHaveCount(viewport.name === "phone" ? 0 : 1);
 
-      await shellScreenshot(page, `candidate-${viewport.name}`, viewport.name === "phone");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      if (theme === "dark") await expectTextContrast(page, `candidate-${viewport.name}`);
+      await shellScreenshot(page, themedName(`candidate-${viewport.name}`, theme), viewport.name === "phone");
       await axeOnShell(page);
     });
 
@@ -101,7 +105,9 @@ for (const viewport of WIDTHS) {
       await page.goto("/admin/quotas");
       await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
 
-      await shellScreenshot(page, `back-office-${viewport.name}`, viewport.name === "phone");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      if (theme === "dark") await expectTextContrast(page, `back-office-${viewport.name}`);
+      await shellScreenshot(page, themedName(`back-office-${viewport.name}`, theme), viewport.name === "phone");
       await axeOnShell(page);
     });
   });

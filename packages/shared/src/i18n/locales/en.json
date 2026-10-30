@@ -16,6 +16,13 @@
     "xlarge": "Large",
     "hint": "Remembered on this device."
   },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "hint": "Remembered on this device. System follows your device's setting."
+  },
   "notFound": {
     "backHome": "Back to the home page"
   },

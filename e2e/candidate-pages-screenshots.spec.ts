@@ -13,7 +13,8 @@ import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
 // shell has its own baselines. Dates are masked. How to update a baseline on purpose: docs/agents/screenshot-baselines.md.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
-const MONTHS = /janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre/;
+/** A date written out (« 30 octobre 2026 »), with its day of the week or not. */
+const MONTHS = /\d{1,2} (janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre) \d{4}/;
 
 const masterCv = {
   fullName: "Catherine Morel",

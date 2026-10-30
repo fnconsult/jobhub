@@ -85,6 +85,10 @@ export function DocumentViewer({
         if (cancelled) return;
         setRead({ src, pdf: document, widths: sizes, file });
         dispatch({ type: "loaded", pages: document.numPages });
+        // A column narrower than the page at 100 %: the page opens fitted to it, never wider than the space.
+        const room = pages.current ? pages.current.clientWidth - 2 * PAGES_PADDING : Infinity;
+        const fitted = fitZoom({ pageWidth: Math.max(...sizes), available: room });
+        if (fitted < 100) dispatch({ type: "fit", zoom: fitted });
       })
       .catch(() => {
         if (!cancelled) setRead({ src, failed: true });

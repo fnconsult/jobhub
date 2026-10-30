@@ -77,9 +77,7 @@ export function MasterCvDocument(props: { profileId: string; version: number; sa
 
   return (
     <section className="section" aria-labelledby="master-cv-title">
-      <div className="section-head">
-        <h2 id="master-cv-title">{t("profile.masterCv")}</h2>
-      </div>
+      <h2 id="master-cv-title">{t("profile.masterCv")}</h2>
       <form className="cv-doc cv-cards" onSubmit={save} noValidate>
         <div className="cv-card">
           <div className="cv-card-head">

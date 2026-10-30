@@ -6,7 +6,7 @@ The Candidate forwards offer emails to their Forwarding address (ADR-0050). Each
 - **Third parties**: nothing of a person named in an email is kept (the AI's output excludes it and the email Guardrail checks it, #438), so recruiters are not informed one by one (art. 14.5.b); the privacy policy says so (art. 6.1.f for the moment the email is read).
 - **What follows the Candidate**: their Forwarding address, the date it was switched on, their Received offer emails (outcome, sender's domain, date) and their private Job Offers (ADR-0049) are in the Data export and deleted with the account.
 - **What the Back Office keeps**: the « Emails reçus » rows of Activité name no Candidate and are kept 24 months, like the run figures (ADR-0047).
-- **Before launch**: a DPIA (correspondence processed by AI), the record of processing and the privacy policy updated, Brevo's data-processing agreement checked to cover inbound email.
+- **Before launch**: a DPIA (correspondence processed by AI), the record of processing and the privacy policy updated, no data-processing agreement for inbound email needed, as no processor receives the emails (Jobbbox's own MTA, ADR-0069).
 
 ## Considered Options
 

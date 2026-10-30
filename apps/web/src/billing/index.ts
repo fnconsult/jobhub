@@ -7,6 +7,8 @@
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
  *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
  *  - how do they stop paying?     `closeAccount`, when they delete their account
+ *  - how do they withdraw (#511)?  `subscription` (since when), `endSubscriptionNow`, `coachingSessionPayment`, `refund`
+ *    (the signed webhook reports each refund's fate through `onRefundChanged`)
  *  - which Plans are there?       `plans`, and in the Back Office `createPlan`, `updatePlan`, `movePlan`
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
  *  - what do the Plans cost?      `planPrices`
@@ -74,6 +76,40 @@ export interface BillingConfig {
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
   /** Where each Stripe call, webhooks received included, is recorded (#234): its API method, never its parameters. Default: nowhere. */
   externalApis?: ExternalApiLog;
+  /**
+   * Told of each refund whose status Stripe reports from its signed webhook (`refund.updated`, `refund.failed`): a refund
+   * can fail days after it was made (#511). Stripe may report one more than once: it must be idempotent. If it throws,
+   * the webhook fails and Stripe retries the delivery.
+   */
+  onRefundChanged?: (change: RefundChange) => Promise<unknown>;
+}
+
+/** A payment Stripe took (a PaymentIntent, or a charge without one), in the currency's smallest unit (cents). */
+export interface Payment {
+  id: string;
+  amount: number;
+  currency: string;
+}
+
+/** Where a refund stands, as Stripe says. */
+export type RefundStatus = "pending" | "requires_action" | "succeeded" | "failed" | "canceled";
+
+/** A refund Stripe took (with its status), or why it refused it: Stripe's error code, or `stripe_unavailable`. */
+export type RefundResult = { ok: true; id: string; status: RefundStatus } | { ok: false; reason: string };
+
+/** A refund's status as Stripe reported it later, with why it failed (Stripe's `failure_reason`). */
+export interface RefundChange {
+  id: string;
+  status: RefundStatus;
+  failureReason: string | null;
+}
+
+/** The Candidate's paid subscription: its Plan, and since when it runs (when the contract was concluded). */
+export interface CurrentSubscription {
+  id: string;
+  plan: Plan;
+  planName: PlanName;
+  startedAt: Date;
 }
 
 /** How a Candidate checks out. */
@@ -222,6 +258,8 @@ export async function migrateBilling(database: Pool): Promise<void> {
   }
   // Databases from before scheduled cancellations were kept (#169): Stripe tells again on the next change.
   await database.query("ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS ends_at timestamptz");
+  // When the current subscription started (#511): its Withdrawal period runs from then. Before, it is asked of Stripe once.
+  await database.query("ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS subscription_started_at timestamptz");
   // Databases from before Plans lived in the database (#206): a CHECK named the three Plans; now a Plan is a row of `plan`.
   // Candidates' Plans are untouched: `candidate_plan` still references `plan_quota`.
   await database.query("ALTER TABLE plan_quota DROP CONSTRAINT IF EXISTS plan_quota_plan_check");
@@ -783,7 +821,9 @@ export function createBilling(config: BillingConfig) {
     }
     await database.query(
       `UPDATE candidate_plan
-       SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5), ends_at = to_timestamp($8)
+       SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5), ends_at = to_timestamp($8),
+           -- a report without its start keeps the one known for the same subscription
+           subscription_started_at = COALESCE(to_timestamp($9::double precision), CASE WHEN stripe_subscription_id IS NOT DISTINCT FROM $3 THEN subscription_started_at END)
        WHERE stripe_customer_id = $1
          AND (
            stripe_event_at IS NULL
@@ -803,7 +843,22 @@ export function createBilling(config: BillingConfig) {
         ended,
         event.type === "customer.subscription.deleted" ? STATUS_STAGES.canceled : stageOf(subscription.status),
         ended ? null : scheduledEndOf(subscription),
+        // A webhook endpoint pinned to an older API version may leave it out.
+        (subscription as { start_date?: number }).start_date ?? null,
       ],
+    );
+  }
+
+  /** Each payment taken on a subscription's paid invoices; an invoice a 100 % code left at 0 took none. */
+  async function paymentsOn(subscriptionId: string): Promise<Payment[]> {
+    const invoices = await stripe()
+      .client.invoices.list({ subscription: subscriptionId, status: "paid", limit: 100, expand: ["data.payments"] }, STRIPE_WRITE)
+      .autoPagingToArray({ limit: 1_000 });
+    return invoices.flatMap((invoice) =>
+      (invoice.payments?.data ?? []).flatMap((paid) => {
+        const id = idOf(paid.payment.payment_intent) ?? idOf(paid.payment.charge);
+        return paid.status === "paid" && id && paid.amount_paid > 0 ? [{ id, amount: paid.amount_paid, currency: paid.currency }] : [];
+      }),
     );
   }
 
@@ -1108,6 +1163,93 @@ export function createBilling(config: BillingConfig) {
       }
       if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
         await applyCheckout(event.data.object);
+      }
+      if (event.type === "refund.updated" || event.type === "refund.failed") {
+        const refund = event.data.object;
+        await config.onRefundChanged?.({ id: refund.id, status: refund.status as RefundStatus, failureReason: refund.failure_reason ?? null });
+      }
+    },
+
+    /**
+     * The Candidate's paid subscription, with when Stripe started it: a Plan changed in the customer portal keeps
+     * it (no new contract). Null on Free. A subscription reported before its start was kept is asked of Stripe once;
+     * null when Stripe cannot tell.
+     */
+    async subscription(candidateId: string): Promise<CurrentSubscription | null> {
+      const { rows } = await database.query(
+        "SELECT plan, stripe_subscription_id, stripe_status, subscription_started_at FROM candidate_plan WHERE candidate_id = $1",
+        [candidateId],
+      );
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null; stripe_status: string | null; subscription_started_at: Date | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      let startedAt = account.subscription_started_at;
+      if (!startedAt && config.stripe) {
+        try {
+          const started = (await stripe().client.subscriptions.retrieve(account.stripe_subscription_id, {}, QUICK)).start_date;
+          if (started) {
+            startedAt = new Date(started * 1000);
+            await database.query("UPDATE candidate_plan SET subscription_started_at = $3 WHERE candidate_id = $1 AND stripe_subscription_id = $2", [
+              candidateId,
+              account.stripe_subscription_id,
+              startedAt,
+            ]);
+          }
+        } catch (error) {
+          console.error("[billing] could not ask Stripe when a subscription started", error);
+        }
+      }
+      if (!startedAt) return null;
+      return { id: account.stripe_subscription_id, plan: account.plan, planName: await nameOf(account.plan), startedAt };
+    },
+
+    /**
+     * Ends the Candidate's subscription at once (a Withdrawal, #511): cancelled in Stripe now, not at the end of the
+     * period, without proration or final invoice, and the Candidate on Free here without waiting for the webhook.
+     * Returns each payment taken on it, for a full refund (none for a subscription a 100 % code made free); null when
+     * they have none to end. Throws when Stripe could not be reached: nothing has changed then.
+     */
+    async endSubscriptionNow(candidateId: string): Promise<Payment[] | null> {
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      const subscriptionId = account.stripe_subscription_id;
+      const payments = await paymentsOn(subscriptionId);
+      try {
+        await stripe().client.subscriptions.cancel(subscriptionId, { cancellation_details: { comment: "withdrawal" } }, STRIPE_WRITE);
+      } catch (error) {
+        // Already cancelled (a second click, Stripe's own cancellation): what was to be done is done.
+        if (!(error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing")) throw error;
+      }
+      // Stamped now, so a report of the subscription Stripe sent before does not bring the Plan back.
+      await database.query(
+        `UPDATE candidate_plan SET plan = $3, stripe_status = 'canceled', ends_at = NULL, stripe_event_at = GREATEST(stripe_event_at, $4)
+         WHERE candidate_id = $1 AND stripe_subscription_id = $2`,
+        [candidateId, subscriptionId, FREE_PLAN, now()],
+      );
+      return payments;
+    },
+
+    /** What a Coaching Session was paid with, from its Checkout Session; null when it took no payment. Throws when Stripe could not be reached. */
+    async coachingSessionPayment(checkoutSessionId: string): Promise<Payment | null> {
+      const session = await stripe().client.checkout.sessions.retrieve(checkoutSessionId, {}, STRIPE_WRITE);
+      const id = idOf(session.payment_intent);
+      return id && session.amount_total ? { id, amount: session.amount_total, currency: session.currency ?? "eur" } : null;
+    },
+
+    /**
+     * Refunds a payment in full (`requested_by_customer`), with `metadata` to find it again. `key` is the request's
+     * idempotency key: asked again with it (within Stripe's 24 hours), the same refund is answered, never a second one.
+     * Stripe's refusal, or no answer, is a result, not an error.
+     */
+    async refund(payment: Payment, key: string, metadata: Record<string, string>): Promise<RefundResult> {
+      try {
+        const target = payment.id.startsWith("ch_") ? { charge: payment.id } : { payment_intent: payment.id };
+        const refund = await stripe().client.refunds.create({ ...target, reason: "requested_by_customer", metadata }, { ...STRIPE_WRITE, idempotencyKey: key });
+        return { ok: true, id: refund.id, status: (refund.status ?? "pending") as RefundStatus };
+      } catch (error) {
+        console.error("[billing] Stripe refused or did not answer a refund", error);
+        const code = error instanceof Stripe.errors.StripeError && error.statusCode !== undefined && error.statusCode < 500 ? error.code : undefined;
+        return { ok: false, reason: code ?? "stripe_unavailable" };
       }
     },
 

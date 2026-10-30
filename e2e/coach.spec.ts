@@ -550,4 +550,32 @@ test.describe("Coach and Action Card endpoints", () => {
     expect((await page.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "accept" } })).status()).toBe(200);
     expect((await page.request.post(`/api/action-cards/${cardId}`, { headers: { origin }, data: { decision: "accept" } })).status()).toBe(409);
   });
+
+  test("give a Subject's one conversation, none until its first message, and only for the Candidate's own Subjects (#600, ADR-0070)", async ({ page, browser }) => {
+    const ofSubject = (on: Page, kind: string, id: string) => on.request.get(`/api/coach/conversations?kind=${kind}&id=${encodeURIComponent(id)}`);
+    expect((await ofSubject(page, "menu", "agenda")).status()).toBe(401);
+    await signInWithMagicLink(page, newAddress("subject-owner"));
+    const profileId = await createProfile(page, "Directrice financière");
+    const subject = { kind: "profile", id: profileId };
+
+    expect(await (await ofSubject(page, "profile", profileId)).json()).toEqual({ conversation: null });
+    const first = await page.request.post("/api/coach", { headers: { origin }, data: { subject, message: "Mon CV ?" } });
+    expect(first.status()).toBe(200);
+    const { conversation } = await first.json();
+    expect(conversation).toMatchObject({ subject: { kind: "profile", id: profileId, name: "Directrice financière" }, profile: { id: profileId } });
+    expect((await page.request.post("/api/coach", { headers: { origin }, data: { subject, message: "Et ensuite ?" } })).status()).toBe(200);
+    expect((await (await ofSubject(page, "profile", profileId)).json()).conversation).toMatchObject({ id: conversation.id, messages: { length: 4 } });
+    expect((await (await page.request.get("/api/coach/conversations")).json()).conversations).toHaveLength(1);
+    // A menu is one conversation per Candidate; a key that is no menu is refused, and so is a message to a conversation and a Subject at once.
+    expect(await (await ofSubject(page, "menu", "agenda")).json()).toEqual({ conversation: null });
+    expect((await ofSubject(page, "menu", "account")).status()).toBe(400);
+    expect((await page.request.post("/api/coach", { headers: { origin }, data: { subject, conversationId: conversation.id, message: "Les deux ?" } })).status()).toBe(400);
+
+    const other = await browser.newContext({ baseURL: origin });
+    const otherPage = await other.newPage();
+    await signInWithMagicLink(otherPage, newAddress("subject-other"));
+    expect((await ofSubject(otherPage, "profile", profileId)).status()).toBe(404);
+    expect((await otherPage.request.post("/api/coach", { headers: { origin }, data: { subject, message: "Je lis ?" } })).status()).toBe(404);
+    await other.close();
+  });
 });

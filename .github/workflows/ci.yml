@@ -106,6 +106,12 @@ jobs:
         run: for p in $(sed -n '31,40p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
       - if: failure()
         run: for p in $(sed -n '41,50p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '51,60p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '61,70p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '71,80p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
       # A failed comparison's expected, actual and diff images, and its trace.
       - uses: actions/upload-artifact@v4
         if: failure()

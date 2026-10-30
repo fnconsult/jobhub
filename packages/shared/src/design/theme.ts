@@ -49,12 +49,11 @@ export function followTheme(
 /**
  * The inline script a page's `<head>` runs before first paint (#473), so a dark page never flashes light: it sets
  * `<html data-theme>` from the stored choice, or from the device's preference under Système (the default, and when
- * storage cannot be read), and follows that preference while the page is open. It puts the theme back when the
- * attribute is cleared: React clears `<html>`'s attributes when it renders the whole page again on the client.
- * Plain ES5, no dependency.
+ * storage cannot be read), and follows that preference while the page is open. React keeps it there when it draws the
+ * whole document on the client: the web app's `<html>` renders it (ThemedHtml). Plain ES5, no dependency.
  */
 export function themeScript(): string {
   return `(function(){var m;try{m=matchMedia(${JSON.stringify(PREFERS_DARK)})}catch(e){}function a(){var v=null;try{v=localStorage.getItem(${JSON.stringify(
     THEME_STORAGE_KEY,
-  )})}catch(e){}if(${JSON.stringify(THEME_SETTINGS)}.indexOf(v)<0)v="system";document.documentElement.dataset.theme=v==="system"?(m&&m.matches?"dark":"light"):v}a();if(m&&m.addEventListener)m.addEventListener("change",a);var r=document.documentElement;try{new MutationObserver(function(){if(!r.dataset.theme)a()}).observe(r,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}})();`;
+  )})}catch(e){}if(${JSON.stringify(THEME_SETTINGS)}.indexOf(v)<0)v="system";document.documentElement.dataset.theme=v==="system"?(m&&m.matches?"dark":"light"):v}a();if(m&&m.addEventListener)m.addEventListener("change",a)})();`;
 }

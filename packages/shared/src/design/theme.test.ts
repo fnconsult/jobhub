@@ -63,17 +63,7 @@ describe("followTheme (#473)", () => {
 
 describe("themeScript (#473)", () => {
   /** Runs the inline script as a page's <head> would, on a fake document, storage and device. */
-  /** The observers the script set up, called back on each change to what they watch. */
-  let observers: (() => void)[] = [];
-  class FakeMutationObserver {
-    constructor(private readonly callback: () => void) {}
-    observe() {
-      observers.push(this.callback);
-    }
-  }
-
   function run(stored: string | null, media: ReturnType<typeof fakeMedia>, { storageThrows = false } = {}) {
-    observers = [];
     const documentElement = { dataset: {} as Record<string, string | undefined> };
     const localStorage = {
       getItem(key: string) {
@@ -85,12 +75,7 @@ describe("themeScript (#473)", () => {
       expect(query).toBe("(prefers-color-scheme: dark)");
       return media;
     };
-    new Function("document", "localStorage", "matchMedia", "MutationObserver", themeScript())(
-      { documentElement },
-      localStorage,
-      matchMedia,
-      FakeMutationObserver,
-    );
+    new Function("document", "localStorage", "matchMedia", themeScript())({ documentElement }, localStorage, matchMedia);
     return documentElement;
   }
 
@@ -105,13 +90,6 @@ describe("themeScript (#473)", () => {
     expect(root.dataset.theme).toBe("dark");
     media.prefer(false);
     expect(root.dataset.theme).toBe("light");
-  });
-
-  it("puts the theme back when a re-render clears <html>'s attributes (React does, when it renders the page again)", () => {
-    const root = run("dark", fakeMedia(false));
-    delete root.dataset.theme;
-    observers.forEach((observer) => observer());
-    expect(root.dataset.theme).toBe("dark");
   });
 
   it("still follows the device when storage cannot be read", () => {

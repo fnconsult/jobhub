@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { DocumentHead } from "@/design/document-head";
 import "@/design/Button.css";
 import { ErrorView } from "@/design/ErrorView";
+import { ThemedHtml } from "@/design/ThemedHtml";
 import "./app.css";
 
 // Replaces the root layout when it fails, so it renders its own document. Without it Next shows its built-in English
@@ -32,7 +33,7 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
     console.error(error);
   }, [error]);
   return (
-    <html lang="fr" data-text-size="standard" suppressHydrationWarning>
+    <ThemedHtml lang="fr" suppressHydrationWarning>
       <head>
         <DocumentHead />
         <meta name="robots" content="noindex" />
@@ -79,6 +80,6 @@ export default function GlobalError({ error, retry }: { error: Error & { digest?
           </ErrorView>
         </main>
       </body>
-    </html>
+    </ThemedHtml>
   );
 }

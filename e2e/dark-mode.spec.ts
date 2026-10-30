@@ -77,6 +77,26 @@ test.describe("dark mode (#473)", () => {
     await expectTextContrast(page, "Candidatures");
   });
 
+  // A page that calls notFound() gets Next's bare error shell, its content drawn on the client, where the head's inline
+  // script never runs (ErrorShellHead): every such 404 is checked here, unlike /nope-404, which no page answers.
+  test("a page not found is dark too: the sidebar's 404 on a dark device, and with Sombre chosen on a light one", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await signInWithMagicLink(page, newAddress("dark-not-found"));
+    await recordFirstPaint(page);
+    await page.goto("/candidatures/00000000-0000-0000-0000-000000000000");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.notFound.title);
+    expect(await firstPaint(page)).toEqual({ theme: "dark", canvas: DARK_CANVAS, colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expectTextContrast(page, "the signed-in 404");
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await rememberTheme(page, "dark");
+    await page.goto("/offres/00000000-0000-0000-0000-000000000000");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.notFound.title);
+    expect(await firstPaint(page)).toEqual({ theme: "dark", canvas: DARK_CANVAS, colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
+
   test("Clair holds on a dark device; Système follows the device, even as it changes", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" });
     await signInWithMagicLink(page, newAddress("dark-system"));

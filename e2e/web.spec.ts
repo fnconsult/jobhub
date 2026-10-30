@@ -106,7 +106,10 @@ test.describe("unknown page (404)", () => {
         expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
         expect.soft(t.contrast, `contrast of "${t.text}" (${t.color} on ${t.background})`).toBeGreaterThanOrEqual(4.5);
       }
-      expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(255, 255, 255)");
+      // The device's theme (#473): Système, the default, follows it; the dark canvas is #121219.
+      expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
+        colorScheme === "dark" ? "rgb(18, 18, 25)" : "rgb(255, 255, 255)",
+      );
     });
   }
 });

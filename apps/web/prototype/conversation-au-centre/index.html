@@ -3,7 +3,7 @@
   PROTOTYPE — jetable. HTML statique, données fictives, rien n'est enregistré. Pas du code de production.
   Ticket : #586 (carte #585). Question : à quoi ressemble une page du Candidate quand la conversation avec le Coach IA
   en est la surface principale (accueil, « Mes candidatures », une Application) ?
-  Variantes via ?variant=B|P|C|D (barre en haut, ou ← →) ; écran via ?screen=accueil|candidatures|application ;
+  Variantes via ?variant=E|B|P|C|D (E = P retravaillée après le retour du PO) (barre en haut, ou ← →) ; écran via ?screen=accueil|candidatures|application ;
   thème via ?theme=dark. Tokens : ceux de Mercury, copiés en tête du fichier.
   Ouvrir le fichier directement dans un navigateur ; réduire la fenêtre sous 768 px pour le téléphone.
 -->
@@ -364,6 +364,42 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .dtabs button.on { border-bottom-color: var(--color-accent); color: var(--color-text); font-weight: 500; }
 .dtabs .count { font-size: .72rem; color: var(--color-meta); }
 
+
+/* E: P retravaillée — colonnes ancrées, aucune ne recouvre la conversation */
+.col-pane { flex: none; border-left: 1px solid var(--color-border); background: var(--color-background); display: flex; flex-direction: column; min-height: 0; }
+.col-pane > header { display: flex; align-items: center; gap: .4rem; padding: .55rem .75rem; border-bottom: 1px solid var(--color-border); font-size: .875rem; font-weight: 500; }
+.col-pane > header .sp { flex: 1; }
+.col-pane > header button { border: 1px solid var(--color-border); background: var(--color-background); border-radius: 999px; padding: .2rem .55rem; font-size: .78rem; font-weight: 400; }
+.col-pane > header button.x { border: 0; }
+.col-pane .cbody { flex: 1; overflow: auto; padding: .85rem; font-size: .875rem; }
+.fiche { width: 20rem; }
+.fiche .obj .props { grid-template-columns: 1fr 1fr; }
+.seclist.res button { flex-wrap: wrap; }
+.seclist.res button small { margin-left: 1.2rem; width: 100%; }
+.docp { flex: 1 1 30rem; min-width: 18rem; background: var(--color-surface); }
+.docp .cbody [contenteditable] { outline: none; }
+.docp .cbody [contenteditable]:focus { box-shadow: 0 0 0 2px var(--color-focus-ring); }
+.docp .mail { background: var(--color-background); border: 1px solid var(--color-border); border-radius: 8px; padding: .75rem; }
+.docp .mail div { padding: .3rem 0; border-bottom: 1px solid var(--color-border); }
+.docp .mail .b { border: 0; min-height: 10rem; line-height: 1.55; }
+.docp .letter { background: #fff; color: #222; padding: 1.5rem; border: 1px solid var(--color-border); line-height: 1.6; }
+.docp .hint { color: var(--color-meta); font-size: .75rem; margin-top: .6rem; }
+.actcol { width: 18rem; }
+.actcol.tucked { width: 2.75rem; align-items: center; padding-top: .5rem; gap: .5rem; cursor: pointer; }
+.actcol.tucked .rail { writing-mode: vertical-rl; font-size: .78rem; color: var(--color-text-secondary); }
+.actcol.tucked .badge { width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--color-accent-soft); color: var(--color-accent); display: grid; place-items: center; font-size: .75rem; animation: spin 2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg) } }
+.seclist { display: flex; flex-direction: column; margin: .75rem 0; border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+.seclist button { border: 0; border-top: 1px solid var(--color-border); background: var(--color-background); text-align: left; padding: .55rem .75rem; display: flex; gap: .5rem; align-items: center; }
+.seclist button:first-child { border-top: 0; }
+.seclist button:hover, .seclist button.on { background: var(--color-accent-soft); }
+.seclist button small { margin-left: auto; color: var(--color-meta); }
+.h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); margin: 1rem 0 .35rem; }
+@media (max-width: 767px) {
+  .col-pane { position: fixed; inset: 0; width: auto !important; z-index: 50; }
+  .actcol.tucked { display: none; }
+}
+
 /* prototype switcher (bottom right, clear of the composer and the title) */
 .proto { position: fixed; bottom: .5rem; right: .5rem; z-index: 100; display: flex; align-items: center; gap: .4rem; background: #111; color: #fff; border-radius: 999px; padding: .3rem .4rem; font-size: .78rem; box-shadow: 0 6px 20px rgb(0 0 0 / 35%); font-family: ui-monospace, monospace; }
 .proto button { background: #2a2a2a; border: 0; color: #fff; border-radius: 999px; padding: .2rem .55rem; }
@@ -408,16 +444,20 @@ const SEARCHES = ["DAF · Lyon · CDI", "Opérations · Remote"];
 const DIGESTS = ["Hebdo du lundi"];
 
 const S = {
-  variant: "B", screen: "accueil", app: "a1", theme: "light",
+  variant: "E", screen: "accueil", app: "a1", theme: "light",
   openMenus: { candidatures: true, recherches: false, coach: true },
   pane: null,        // null | "activite" | "document" | "fiche"
   dtab: "conversation",
   splitW: 420,
   drawer: false,
+  fiche: true,       // E : colonne Fiche ouverte
+  doc: null,         // E : ce qui est ouvert dans le panneau de travail
+  act: "tucked",     // E : Activité « open » (ancrée) ou « tucked » (rangée en rail)
   sent: {},          // per-conversation extra messages typed in this prototype
 };
 
 const VARIANTS = {
+  E: "P retravaillée (retour PO)",
   B: "Conversation d'abord",
   P: "Conversation + volets",
   C: "Côte à côte",
@@ -617,7 +657,65 @@ function VariantD() {
     <div class="body"><div class="convo"><div class="thread"><div class="col">${content}</div></div>${composer()}</div></div></div>`;
 }
 
-const RENDER = { B: VariantB, P: VariantP, C: VariantC, D: VariantD };
+
+// E — retour du PO sur P (2026-10-30) : P pour l'Application, B pour l'accueil et Mes candidatures.
+// Pas d'onglets dans les volets : les boutons du Top Bar les ouvrent. Fiche = l'objet + ses Sections + ses résultats.
+// Un résultat ou une Section s'ouvre dans un panneau de travail à part, où l'on peut agir. Activité est une colonne
+// ancrée qui ne recouvre jamais la conversation, ou rangée en rail.
+const RESULTS = [
+  { k: "cv", t: "CV adapté", sub: "PDF · 2 pages · 12 oct.", ic: "▯" },
+  { k: "lettre", t: "Lettre de motivation", sub: "DOCX · 12 oct.", ic: "▯" },
+  { k: "email", t: "Email de relance", sub: "Brouillon · à envoyer", ic: "✉" },
+  { k: "questions", t: "Questions d'entretien", sub: "En cours de préparation…", ic: "⟳" },
+];
+const SECTIONS = [
+  { k: "offre", t: "Offre" }, { k: "entretiens", t: "Entretiens", n: "1" }, { k: "relances", t: "Relances" },
+  { k: "contacts", t: "Contacts", n: "3" }, { k: "dossier", t: "Dossier entreprise" },
+];
+const ALL_OPEN = [...RESULTS, ...SECTIONS];
+
+function docPanel() {
+  if (!S.doc) return "";
+  const a = app(), it = ALL_OPEN.find((x) => x.k === S.doc) ?? RESULTS[0];
+  const ask = `<button data-say="À propos de « ${it.t} » : ">✦ Demander au coach</button>`;
+  let tools = ask, body = "";
+  if (S.doc === "cv") { tools = `<button>✎ Modifier</button><button>⤓ PDF</button>` + ask; body = paneBody("document").replace('<div class="page-doc">', '<div class="page-doc" contenteditable>'); }
+  else if (S.doc === "lettre") { tools = `<button>⤓ DOCX</button>` + ask; body = `<div class="letter" contenteditable>Madame, Monsieur,<br><br>Après vingt-cinq ans à conduire des transformations d'opérations, je souhaite mettre cette expérience au service de ${a.co}…<br><br>(Le texte se modifie ici, comme dans un document.)</div><p class="hint">Les modifications sont enregistrées comme une nouvelle version.</p>`; }
+  else if (S.doc === "email") { tools = `<button disabled title="Prototype">➤ Envoyer</button>` + ask; body = `<div class="mail"><div><small>À</small> recrutement@${a.co.toLowerCase().replace(/\s/g, "")}.com</div><div><small>Objet</small> Suivi de ma candidature, ${a.role}</div><div class="b" contenteditable>Bonjour,<br><br>Je me permets de revenir vers vous au sujet de ma candidature envoyée le ${a.applied}…</div></div><p class="hint">Rien ne part sans votre clic sur « Envoyer ».</p>`; }
+  else if (S.doc === "questions") { tools = `<button>■ Arrêter</button>`; body = `<div class="act"><b>Préparation d'entretien</b><small>Étape 2/4 · Dossier entreprise</small><div class="runbar"><span></span></div></div><p class="hint">Le résultat s'affichera ici à la fin ; vous pouvez continuer à écrire au coach.</p>`; }
+  else if (S.doc === "entretiens") { tools = `<button>＋ Ajouter</button>` + ask; body = `<div class="act"><b>Mar. 4 nov. · 10:00</b><small>Visio · avec la DRH · 45 min</small></div><p class="hint">Ajouter, déplacer ou annuler un entretien se fait ici, sans quitter la conversation.</p>`; }
+  else { tools = `<button>✎ Modifier</button>` + ask; body = `<p>Contenu de la Section « ${it.t} » de l'Application ${a.co}, avec ses actions.</p>`; }
+  return h`<aside class="col-pane docp"><header>${it.ic ?? "▤"} ${it.t}<span class="sp"></span>${tools}<button class="x" data-doc-close>✕</button></header><div class="cbody">${body}</div></aside>`;
+}
+
+function fichePanel() {
+  if (!S.fiche || S.screen !== "application") return "";
+  return h`<aside class="col-pane fiche"><header>▤ Fiche<span class="sp"></span><button class="x" data-fiche>✕</button></header><div class="cbody">
+    ${objectCard(true)}
+    <div class="h3">Sections</div>
+    <div class="seclist">${SECTIONS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.t}${x.n ? `<small>${x.n}</small>` : "<small>›</small>"}</button>`).join("")}</div>
+    <div class="h3">Résultats</div>
+    <div class="seclist res">${RESULTS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.ic} ${x.t}<small>${x.sub}</small></button>`).join("")}</div>
+  </div></aside>`;
+}
+
+function actColumn() {
+  if (S.act === "tucked") return `<aside class="col-pane actcol tucked" data-act title="Ouvrir Activité"><span class="badge">⟳</span><span class="rail">Activité · 1 en cours</span></aside>`;
+  return h`<aside class="col-pane actcol"><header>⟳ Activité<span class="sp"></span><button data-act title="Ranger">⇥ Ranger</button></header><div class="cbody">${paneBody("activite").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div></aside>`;
+}
+
+function VariantE() {
+  const isApp = S.screen === "application";
+  const btns = (isApp ? `<button class="iconbtn ${S.fiche ? "on" : ""}" data-fiche>▤ Fiche</button>` : "")
+    + `<button class="iconbtn ${S.act === "open" ? "on" : ""}" data-act>⟳ <span class="hide-phone">Activité</span></button>`
+    + (isApp ? `<button class="iconbtn ${S.doc ? "on" : ""}" data-open="${S.doc ?? "cv"}" ${S.doc ? "data-doc-close" : ""}>▯ <span class="hide-phone">Document</span></button>` : "");
+  const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
+  return h`<div class="main">${topbar(btns)}<div class="body">
+    <div class="convo" style="min-width:20rem;flex:1 1 24rem"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
+    ${docPanel()}${fichePanel()}${actColumn()}</div></div>`;
+}
+
+const RENDER = { E: VariantE, B: VariantB, P: VariantP, C: VariantC, D: VariantD };
 
 // ───────────────────────────── Rendu + barre prototype ─────────────────────────────
 function proto() {
@@ -649,7 +747,7 @@ function say(text) {
 }
 
 document.addEventListener("click", (e) => {
-  const el = e.target.closest("button, tr, [data-divider]");
+  const el = e.target.closest("button, tr, [data-divider], [data-act]");
   if (!el) return;
   const d = el.dataset;
   if (d.toggle) { e.stopPropagation(); S.openMenus[d.toggle] = !S.openMenus[d.toggle]; return render(); }
@@ -657,7 +755,11 @@ document.addEventListener("click", (e) => {
   if (d.theme !== undefined) return set({ theme: S.theme === "dark" ? "light" : "dark" });
   if (d.drawer !== undefined) return set({ drawer: !S.drawer });
   if (d.go) return set({ screen: d.go, pane: null, drawer: false, dtab: "conversation" });
-  if (d.app) return set({ screen: "application", app: d.app, pane: null, drawer: false, dtab: "conversation" });
+  if (d.app) return set({ screen: "application", app: d.app, pane: null, doc: null, drawer: false, dtab: "conversation" });
+  if (d.docClose !== undefined && !d.open) return set({ doc: null });
+  if (d.open) return set({ doc: S.doc === d.open && d.docClose !== undefined ? null : d.open });
+  if (d.fiche !== undefined) return set({ fiche: !S.fiche });
+  if (d.act !== undefined) return set({ act: S.act === "open" ? "tucked" : "open" });
   if (d.doc) return S.variant === "D" ? set({ dtab: "documents" }) : set({ pane: "document" });
   if (d.pane) return set({ pane: S.pane === d.pane && S.variant !== "P" ? null : d.pane });
   if (d.paneClose !== undefined) return set({ pane: null });

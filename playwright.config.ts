@@ -65,6 +65,8 @@ export default defineConfig({
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
+    // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
+    { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|help-content-package)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.

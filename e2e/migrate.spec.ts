@@ -57,6 +57,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Coach Memory is up to date");
     expect(first.stdout).toContain("Job Sites, Job discovery sources and Job discovery sites are up to date");
     expect(first.stdout).toContain("Back Office Audit is up to date");
+    expect(first.stdout).toContain("Quota Reductions are up to date");
     expect(first.stdout).toContain("Back Office Roles are up to date");
     expect(first.stdout).toContain("Sign-in Providers are up to date");
     expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
@@ -132,6 +133,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
+        "plan_quota_reduction", // issue #514: Quota Reductions, and the notice each paying subscriber is sent
+        "plan_quota_reduction_notice",
         "platform_setting", // issue #298: Platform Settings set in the Back Office, over env
         "playbook_version", // issue #225: every Playbook Version, kept forever
         "privacy_change_seen", // issue #547: the Candidates who closed the one-time privacy policy notice
@@ -264,6 +267,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
+        { from_table: "plan_quota_reduction", from_column: "plan", to_table: "plan" },
+        { from_table: "plan_quota_reduction_notice", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "plan_quota_reduction_notice", from_column: "reduction_id", to_table: "plan_quota_reduction" },
         // Playbook Versions (issue #225) belong to their Coaching Playbook, neither ever deleted; no Candidate is named.
         { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
         // The one-time privacy policy notice (issue #547) follows its Candidate.

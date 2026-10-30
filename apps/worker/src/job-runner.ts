@@ -1,5 +1,8 @@
 import { PgBoss } from "pg-boss";
 
+/** How often a job held by maintenance checks whether it ended. */
+const PAUSE_CHECK_MS = 15_000;
+
 export type JobDefinition = {
   handler: (data: unknown) => Promise<void>;
   /** Optional cron expression to run the job on a schedule, in UTC unless `tz` says otherwise. */
@@ -30,6 +33,10 @@ export async function startJobRunner(options: {
   jobs: Record<string, JobDefinition>;
   pollingIntervalSeconds?: number;
   onError?: (error: Error) => void;
+  /** Whether jobs wait: during maintenance (#542), a job taken waits until it ends, then runs. */
+  paused?: () => boolean;
+  /** How often a waiting job checks whether maintenance ended. */
+  pauseCheckMs?: number;
 }): Promise<JobRunner> {
   const boss = new PgBoss({ connectionString: options.connectionString });
   boss.on("error", options.onError ?? ((error) => console.error("[job-runner]", error)));
@@ -40,7 +47,10 @@ export async function startJobRunner(options: {
     // Set on the queue even when it exists already: the web app creates one with the defaults when it sends to it first.
     if (job.retry) await boss.updateQueue(name, { retryLimit: job.retry.limit, retryDelay: job.retry.delaySeconds, retryBackoff: job.retry.backoff ?? false });
     await boss.work(name, { pollingIntervalSeconds: options.pollingIntervalSeconds ?? 2 }, async (batch) => {
-      for (const { data } of batch) await job.handler(data);
+      for (const { data } of batch) {
+        while (options.paused?.()) await new Promise((resolve) => setTimeout(resolve, options.pauseCheckMs ?? PAUSE_CHECK_MS));
+        await job.handler(data);
+      }
     });
     if (job.cron) await boss.schedule(name, job.cron, null, job.tz ? { tz: job.tz } : {});
   }

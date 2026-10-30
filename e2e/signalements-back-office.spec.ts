@@ -12,7 +12,7 @@ import { newAddress } from "./support/mailbox";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.signalements;
-const page404 = fr.notFound.title;
+const page404 = fr.errorPage.notFound.title;
 const SUPER_ADMIN = "signalements-office@e2e.jobbbox.test";
 const PATH = "/admin/signalements";
 const origin = process.env.E2E_WEB_ORIGIN!;

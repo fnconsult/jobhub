@@ -1,9 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getJobOffers } from "@/job-offers/server";
 import { getProfiles } from "@/profiles/server";
-import { routes } from "@/routes";
 import { createApplications, type Application, type Applications } from "./index";
 
 let instance: Applications | undefined;
@@ -20,7 +19,7 @@ export function getApplications(): Applications {
  */
 export async function requireOwnApplication(id: string): Promise<{ candidateId: string; application: Application }> {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const application = await getApplications().get(candidate.id, id);
   if (!application) notFound();
   return { candidateId: candidate.id, application };

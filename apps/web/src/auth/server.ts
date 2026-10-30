@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { permanentSuperAdminsFromEnv } from "@/admin/access";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
@@ -7,10 +8,12 @@ import { getSecretResolver } from "@/provider-secrets/server";
 import type { SignInConfiguration } from "@/sign-in-providers/catalog";
 import { APPLE_ORIGIN } from "@/sign-in-providers/policy";
 import { currentSignInConfiguration, getSignInProviders, refreshSignInConfiguration } from "@/sign-in-providers/server";
+import { REQUEST_PATH_HEADER } from "@/request-path";
 import { authConfigFromEnv } from "./config";
 import { createAuth, type Auth, type Mailer, type SignInSetup } from "./index";
 import { swapWhenReady } from "./instances";
 import { liveMailer } from "./mailers";
+import { signInHref } from "./sign-in-return";
 
 let mailer: Mailer | undefined;
 /** How long a change made in this process waits for the rebuilt sign-in to have started. */
@@ -98,6 +101,15 @@ export async function linkedSignInProviders(): Promise<string[]> {
 /** The Candidate signed in on this request, or null. Never touches the database for anonymous visitors. */
 export async function getCurrentCandidate() {
   return (await getCurrentSession())?.user ?? null;
+}
+
+/**
+ * Sends a signed-out visitor to sign in, to come back to the page they asked for (#542). A session cookie with no
+ * session behind it is a session that expired (or was revoked): sign-in then says so.
+ */
+export async function signInRedirect(): Promise<never> {
+  const requestHeaders = await headers();
+  redirect(signInHref(requestHeaders.get(REQUEST_PATH_HEADER), Boolean(getSessionCookie(requestHeaders))));
 }
 
 /**

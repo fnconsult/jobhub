@@ -1,0 +1,83 @@
+@layer base, components;
+
+/* An error page's content (#542): the code large and discreet, its icon, a title, a short text and the actions. */
+@layer components {
+  .ds-error {
+    display: grid;
+    gap: var(--space-4);
+    justify-items: center;
+    max-width: 36rem;
+    padding: var(--space-12) var(--space-4);
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .ds-error__code {
+    display: inline-flex;
+    gap: var(--space-3);
+    align-items: center;
+    margin: 0;
+    font-size: var(--font-size-h1);
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-secondary);
+  }
+
+  .ds-error__code .icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .ds-error__title {
+    margin: 0;
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+    line-height: var(--line-height-heading);
+    letter-spacing: -0.02em;
+  }
+
+  .ds-error__text {
+    color: var(--color-secondary);
+  }
+
+  .ds-error__text > p {
+    margin: 0;
+  }
+
+  .ds-error__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+    margin-top: var(--space-2);
+  }
+
+  .ds-error__digest {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    justify-content: center;
+    color: var(--color-meta);
+  }
+
+  .ds-error__digest code {
+    font-variant-numeric: tabular-nums;
+    user-select: all;
+  }
+
+  /* A page with no shell (an error the page could not draw): the wordmark above it, alone on the canvas. */
+  .ds-error-page {
+    min-height: 100vh;
+    padding: var(--space-6);
+    background: var(--color-background);
+  }
+
+  .ds-error-page__wordmark {
+    font-size: var(--font-size-h3);
+    font-weight: 700;
+    color: var(--color-text);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
+}

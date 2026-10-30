@@ -5,9 +5,9 @@
  * The HTML is what mail clients read: table-based, every style inline (Gmail drops a `<style>` in the body, Outlook
  * ignores most CSS), its colours and sizes taken from the tokens, never copied by hand. A `<style>` in the head only
  * adds the dark theme's token values for clients that follow `prefers-color-scheme`; the light palette stays legible
- * when a client inverts it. No image, no external stylesheet, no web font: the logo square is a table cell.
+ * when a client inverts it. No image, no external stylesheet, no web font: the « Jobbbox » wordmark is bold text.
  *
- * Every email: a header (the logo square and « Jobbbox »), a body (its title, greeting, text, cards and at most one
+ * Every email: a header (the « Jobbbox » wordmark), a body (its title, greeting, text, cards and at most one
  * primary button, then the signature), a footer (why the email came, its unsubscribe or settings link, and the
  * sender's address, which the mailer writes in with `withSenderAddress`).
  */
@@ -167,7 +167,6 @@ function htmlBody(email: Email, words: Words): string {
 function htmlPart(email: Email, words: Words): string {
   const { reason, link } = email.footer;
   const footerLink = link ? `<br><a href="${escape(link.url)}" class="jb-meta" style="${css({ ...metaText, textDecoration: "underline" })}">${escape(link.label)}</a>` : "";
-  const logoSize = 24;
   return `<!doctype html>
 <html lang="${email.language}">
 <head>
@@ -185,8 +184,7 @@ ${darkStyle()}
 <table ${TABLE} width="600" class="jb-card" style="${css({ width: "100%", maxWidth: 600, borderCollapse: "separate", backgroundColor: light("background"), border: `1px solid ${light("border")}`, borderRadius: radius.card })}">
 <tr><td class="jb-line" style="${css({ padding: "20px 24px", borderBottom: `1px solid ${light("border")}` })}">
 <table ${TABLE}><tr>
-<td width="${logoSize}" height="${logoSize}" align="center" class="jb-accent" style="${css({ width: logoSize, height: logoSize, backgroundColor: light("accent"), color: light("onAccent"), borderRadius: radius.md, ...font, fontSize: 12, fontWeight: "700", lineHeight: `${logoSize}px`, textAlign: "center" })}">J</td>
-<td class="jb-text" style="${css({ paddingLeft: 8, ...font, fontSize: confort.fontSize.body, fontWeight: "600", color: light("text") })}">Jobbbox</td>
+<td class="jb-text" style="${css({ ...font, fontSize: 18, fontWeight: "700", letterSpacing: "-0.02em", color: light("text") })}">Jobbbox</td>
 </tr></table>
 </td></tr>
 <tr><td style="padding:24px">

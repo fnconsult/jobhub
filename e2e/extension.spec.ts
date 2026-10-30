@@ -168,7 +168,7 @@ test.describe("browser extension shares the web app session", () => {
     }, origin);
     expect(status).toBe(200);
     await web.goto("/compte");
-    await expect(web).toHaveURL(/\/connexion$/);
+    await expect(web).toHaveURL(/\/connexion(\?|$)/);
     panel = await openPanel();
     await expect(panel.getByText(frCatalogue.extension.guest, { exact: true })).toBeVisible();
   });

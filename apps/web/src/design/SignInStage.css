@@ -16,21 +16,13 @@
     width: min(28rem, 100%);
   }
 
-  .ds-sign-in__logo {
-    display: grid;
-    place-items: center;
-    justify-self: center;
-    width: 2.5rem;
-    height: 2.5rem;
+  /* The « Jobbbox » wordmark, in text: the logo's stand-in (#542). */
+  .ds-sign-in__wordmark {
+    margin: 0;
+    font-size: var(--font-size-h3);
     font-weight: 700;
-    color: var(--color-on-accent);
-    background: var(--color-accent);
-    border-radius: var(--radius-card);
-  }
-
-  /* The logo's letter, drawn by the stylesheet: decoration, not text a reader meets. */
-  .ds-sign-in__logo::before {
-    content: attr(data-initial);
+    text-align: center;
+    letter-spacing: -0.02em;
   }
 
   .ds-sign-in__title {

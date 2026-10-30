@@ -476,12 +476,10 @@ function eraseTime(expiresAt: number): HTMLElement {
   return node;
 }
 
-/** The panel's header: the extension's mark, its title, and « Invité » for a Guest. */
+/** The panel's header: the « Jobbbox » wordmark, its title, and « Invité » for a Guest. */
 function header(): HTMLElement {
   const head = element("header", "", "panel-head");
-  const mark = element("span", "", "logo");
-  mark.setAttribute("aria-hidden", "true");
-  head.append(mark, element("h1", t("extension.analysis.title")));
+  head.append(element("span", t("app.name"), "wordmark"), element("h1", t("extension.analysis.title")));
   if (!candidate.signedIn) {
     const pill = element("span", t("extension.guest"), "ds-pill");
     pill.dataset.tone = "accent";

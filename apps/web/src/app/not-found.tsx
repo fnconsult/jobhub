@@ -1,26 +1,10 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { getServerT } from "@/i18n/server";
+import { errorPageMetadata, ShellErrorPage } from "@/components/ErrorPage";
 
 // Without this file Next serves its built-in English 404 with inline styles,
 // bypassing the French catalogue and the design tokens.
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getServerT();
-  return { title: `${t("notFound.title")} · ${t("app.name")}` };
-}
+export const generateMetadata = () => errorPageMetadata(404);
 
-export default async function NotFound() {
-  const t = await getServerT();
-  return (
-    <main className="page">
-      <header className="page-header">
-        <span className="brand">{t("app.name")}</span>
-      </header>
-      <h1>{t("notFound.title")}</h1>
-      <p>{t("notFound.message")}</p>
-      <p>
-        <Link href="/">{t("notFound.backHome")}</Link>
-      </p>
-    </main>
-  );
+/** A page not found (#542): in the sidebar for a signed-in Candidate, under the public site's header otherwise. */
+export default function NotFound() {
+  return <ShellErrorPage code={404} />;
 }

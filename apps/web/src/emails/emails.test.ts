@@ -55,9 +55,9 @@ describe("renderEmail: the HTML part", () => {
     expect(html).not.toMatch(/<div|display:\s*(flex|grid)/i);
   });
 
-  it("draws the header: the logo square in the accent colour and « Jobbbox »", () => {
-    expect(html).toMatch(new RegExp(`background-color:${designTokens.color.accent.light}[^>]*>J<`));
-    expect(html).toContain(">Jobbbox<");
+  it("draws the header: the « Jobbbox » wordmark in bold text, no « J » square", () => {
+    expect(html).toMatch(/font-weight:700[^>]*>Jobbbox</);
+    expect(html).not.toContain(">J<");
   });
 
   it("draws the title, the text, each offer card and one primary button to its link", () => {

@@ -68,7 +68,7 @@ test.describe("Design System page (#463)", () => {
   test("a Candidate gets a 404; a Help editor, whose role covers no platform section, reads it from Plateforme", async ({ page, browser }) => {
     const candidate = await personPage(browser, newAddress("design-system-candidate"));
     expect((await candidate.goto(PAGE))?.status()).toBe(404);
-    await expect(candidate.getByRole("heading", { level: 1 })).toHaveText(fr.notFound.title);
+    await expect(candidate.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.notFound.title);
 
     await signInWithMagicLink(page, SUPER_ADMIN);
     const email = newAddress("design-system-help-editor");

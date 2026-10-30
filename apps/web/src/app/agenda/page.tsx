@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import type { AgendaDay, AgendaItem, CoachingSessionAgendaItem, InterviewAgendaItem, UnscheduledCoachingSession } from "@/agenda";
 import { agendaPeriod } from "@/agenda";
 import { calendarFileUrl, hasCalendarFile } from "@/agenda/calendar-file";
@@ -9,7 +8,7 @@ import { getAgenda } from "@/agenda/server";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { isArchivedApplication } from "@/applications/list-view";
 import { getApplications } from "@/applications/server";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { AgendaDayButton, AgendaViewMemory } from "@/components/AgendaControls";
 import { AddInterviewDialog, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
@@ -122,7 +121,7 @@ function formatsFor(locale: string, now: Date): Formats {
  */
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const params = await searchParams;
   const now = new Date();
   const address = readAgendaAddress(params, now);

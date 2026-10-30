@@ -24,7 +24,7 @@ import { newAddress } from "./support/mailbox";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.platformSettings;
-const page404 = fr.notFound.title;
+const page404 = fr.errorPage.notFound.title;
 // Its own permanent super-admin: two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "settings-office@e2e.jobbbox.test";
 const PATH = "/admin/parametres";

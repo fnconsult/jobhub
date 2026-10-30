@@ -1,10 +1,9 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import type { UpgradePrompt } from "@/billing/upgrade-prompt";
 import { localeOf } from "@/i18n/server";
-import { routes } from "@/routes";
 import { createProfiles, type Profile, type Profiles } from "./index";
 import { profilePlanQuota, profileUpgradePrompt } from "./plan-quota";
 
@@ -27,7 +26,7 @@ export function profileUpgradePromptFor(candidate: { id: string; interfaceLangua
  */
 export async function requireOwnProfile(id: string): Promise<{ candidateId: string; profile: Profile }> {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const profile = await getProfiles().get(candidate.id, id);
   if (!profile) notFound();
   return { candidateId: candidate.id, profile };

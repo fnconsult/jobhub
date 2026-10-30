@@ -1,9 +1,7 @@
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { MySignalements, type MySignalement } from "@/components/MySignalements";
 import { sharedPool } from "@/database/pool";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
 import { signalementsOf, type Signalement } from "@/signalements";
 import { signalementDay } from "@/signalements/day";
 import { getSignalements, jobbboxVersion } from "@/signalements/server";
@@ -14,7 +12,7 @@ import { getSignalements, jobbboxVersion } from "@/signalements/server";
  */
 export default async function AccountSignalementsPage() {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   await getSignalements().closeNotifications(candidate.id);
   const [signalements, locale, t] = await Promise.all([signalementsOf(sharedPool(), candidate.id), getRequestLocale(), getServerT()]);
   const now = new Date();

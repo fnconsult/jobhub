@@ -86,11 +86,12 @@ test.describe("unknown page (404)", () => {
     const response = await page.goto(missing);
     expect(response?.status()).toBe(404);
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-    await expect(page).toHaveTitle(`${frCatalogue.notFound.title} · ${frCatalogue.app.name}`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(frCatalogue.notFound.title);
-    await expect(page.getByRole("link", { name: frCatalogue.notFound.backHome })).toHaveAttribute("href", "/");
+    await expect(page).toHaveTitle(`${frCatalogue.errorPage.notFound.title} · ${frCatalogue.app.name}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(frCatalogue.errorPage.notFound.title);
+    await expect(page.getByRole("link", { name: frCatalogue.errorPage.actions.home })).toHaveAttribute("href", "/");
 
-    const allowed = new Set(catalogueStrings(frCatalogue));
+    // The code itself, large and discreet above the title (#542), is a number, not a sentence of the catalogue.
+    const allowed = new Set([...catalogueStrings(frCatalogue), "404"]);
     const stray = (await renderedTexts(page)).map((t) => t.text).filter((text) => !allowed.has(text));
     expect(stray).toEqual([]);
   });

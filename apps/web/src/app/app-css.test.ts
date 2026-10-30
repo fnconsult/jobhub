@@ -22,7 +22,6 @@ function metadataSizeSelectors(source: string): string[] {
 const METADATA_SIZE_SELECTORS = [
   ".live-action-spent, .chat-stopped-spent", // the spend line under a finished action
   ".provenance-line", // where a value came from
-  ".sidebar .brand::before", // the brand mark's drawn « J », hidden from screen readers: not text
   ".sidebar-count", // a count beside a sidebar link
   ".usage-meter-renews", // when the usage meter renews
   ".usage-meter-detail",

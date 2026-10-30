@@ -17,14 +17,45 @@
     "hint": "Mémorisée sur cet appareil."
   },
   "notFound": {
-    "title": "Page introuvable",
-    "message": "Cette page n'existe pas ou a été déplacée.",
     "backHome": "Retour à l'accueil"
   },
-  "error": {
-    "title": "Une erreur est survenue",
-    "message": "Nous n'avons pas pu afficher cette page. Veuillez réessayer.",
-    "retry": "Réessayer"
+  "errorPage": {
+    "notFound": {
+      "title": "Page introuvable",
+      "message": "Cette page n'existe pas ou a été déplacée. Vos données ne sont pas concernées."
+    },
+    "forbidden": {
+      "title": "Accès réservé",
+      "message": "Cette page est réservée à un autre type de compte. Si vous pensez qu'il s'agit d'une erreur, signalez-le-nous."
+    },
+    "error": {
+      "title": "Un problème est survenu",
+      "message": "Nous n'avons pas pu afficher cette page. Vos données sont en sécurité. Réessayez dans un instant."
+    },
+    "actions": {
+      "retry": "Réessayer",
+      "back": "Page précédente",
+      "home": "Retour à l'accueil",
+      "backOfficeHome": "Retour au Back Office",
+      "coachSpaceHome": "Retour à l'espace coach",
+      "report": "Signaler un problème"
+    },
+    "digest": {
+      "label": "Référence de l'erreur :",
+      "copy": "Copier",
+      "copied": "Copiée"
+    },
+    "report": {
+      "subject": "Jobbbox : erreur {{code}}",
+      "text": "Une erreur {{code}} s'est affichée sur la page {{path}}.",
+      "digest": "Référence de l'erreur : {{digest}}"
+    },
+    "toast": {
+      "sessionExpired": "Votre session a expiré. Copiez ce que vous étiez en train d'écrire, puis reconnectez-vous.",
+      "signInAgain": "Se reconnecter",
+      "tooManyRequests": "Trop de demandes en peu de temps. Réessayez dans {{seconds}} s.",
+      "tooManyRequestsSoon": "Trop de demandes en peu de temps. Réessayez dans un instant."
+    }
   },
   "extension": {
     "title": "Jobbbox",
@@ -182,6 +213,7 @@
     "profiles": "Comment créer un profil ?"
   },
   "signIn": {
+    "sessionExpired": "Votre session a expiré. Reconnectez-vous pour revenir à la page que vous consultiez.",
     "title": "Se connecter à Jobbbox",
     "intro": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail, ou utilisez votre compte {{providers}}. Si vous n'avez pas encore de compte, il sera créé.",
     "introWithoutProviders": "Pas de mot de passe à retenir : recevez un lien de connexion par e-mail. Si vous n'avez pas encore de compte, il sera créé.",
@@ -1719,7 +1751,8 @@
         "job_digest": "Job Digest",
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
-        "extension": "Extension du navigateur"
+        "extension": "Extension du navigateur",
+        "maintenance": "Maintenance"
       },
       "setting": "Réglage",
       "value": "Valeur en vigueur",
@@ -1948,6 +1981,10 @@
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
+        "MAINTENANCE_MODE": "Maintenance en cours (toutes les pages hors Back Office répondent 503)",
+        "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
+        "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
+        "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
       },

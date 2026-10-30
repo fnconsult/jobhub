@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { EmptyStateHelp } from "@/components/HelpTerm";
 import { JobDigestSettings } from "@/components/JobDigestSettings";
@@ -22,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function JobDigestsPage() {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const [t, locale, profiles] = await Promise.all([getServerT(), getRequestLocale(), getProfiles().list(candidate.id)]);
   const active = profiles.filter((profile) => !profile.archived);
   const digests = await Promise.all(active.map(async (profile) => ({ profile, jobDigest: await getJobDigests().settings(candidate.id, profile.id) })));

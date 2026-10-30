@@ -1,13 +1,12 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getApplications } from "@/applications/server";
-import { getAuth, getCurrentCandidate, getMailer } from "@/auth/server";
+import { getAuth, getCurrentCandidate, getMailer, signInRedirect } from "@/auth/server";
 import { getBilling } from "@/billing/server";
 import { sharedPool } from "@/database/pool";
 import { getReceivedOffers } from "@/email-intake/server";
 import { getJobOffers } from "@/job-offers/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
-import { routes } from "@/routes";
 import { createJobDigests, jobDigestsConfigFromEnv, type JobDigest, type JobDigests } from "./index";
 
 let instance: JobDigests | undefined;
@@ -38,7 +37,7 @@ export function getJobDigests(): JobDigests {
  */
 export async function requireOwnJobDigest(id: string): Promise<{ candidateId: string; jobDigest: JobDigest }> {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const jobDigest = await getJobDigests().get(candidate.id, id);
   if (!jobDigest) notFound();
   return { candidateId: candidate.id, jobDigest };

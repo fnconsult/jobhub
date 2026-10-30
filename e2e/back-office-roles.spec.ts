@@ -9,7 +9,7 @@ import { newAddress } from "./support/mailbox";
 // 404), the Design System page (#463) among them for every role, Support reads without saving, and every grant and revoke is in Activité › Actions des administrateurs.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
-const page404 = fr.notFound.title;
+const page404 = fr.errorPage.notFound.title;
 // Its own permanent super-admin: two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "roles-office@e2e.jobbbox.test";
 const origin = process.env.E2E_WEB_ORIGIN!;

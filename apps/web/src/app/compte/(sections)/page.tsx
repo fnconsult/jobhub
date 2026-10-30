@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentCandidate } from "@/auth/server";
+import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { EmptyStateHelp } from "@/components/HelpTerm";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
@@ -16,7 +15,7 @@ const ARCHIVED_TITLE_ID = "archived-profiles-title";
 /** Mon compte's Profiles Section, also shown at /compte itself (the first Section): the active Profiles, then the archived ones, each on a Card (#469). */
 export default async function AccountProfilesPage() {
   const candidate = await getCurrentCandidate();
-  if (!candidate) redirect(routes.signIn);
+  if (!candidate) return signInRedirect();
   const t = await getServerT();
   const [profiles, canAdd] = await Promise.all([getProfiles().list(candidate.id), getProfiles().canAddProfile(candidate.id)]);
   const active = profiles.filter((profile) => !profile.archived);

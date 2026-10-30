@@ -664,7 +664,8 @@ function VariantD() {
 // E — retour du PO sur P (2026-10-30) : P pour l'Application, B pour l'accueil et Mes candidatures.
 // Pas d'onglets dans les volets : les boutons du Top Bar les ouvrent. Fiche = l'objet + ses Sections + ses résultats.
 // Un résultat ou une Section s'ouvre dans un panneau de travail à part, où l'on peut agir. Activité (2e retour) : sur une Application, un groupe repliable
-// de la Fiche, entre Sections et Résultats ; ailleurs, une colonne ancrée qui se ferme. Plus de rail.
+// de la Fiche, entre Sections et Résultats ; ailleurs, une colonne ancrée. Plus de rail.
+// 3e retour : Fiche et Activité n'ont ni titre ni ✕ ; le bouton du Top Bar seul les ouvre et les ferme.
 const RESULTS = [
   { k: "cv", t: "CV adapté", sub: "PDF · 2 pages · 12 oct.", ic: "▯" },
   { k: "lettre", t: "Lettre de motivation", sub: "DOCX · 12 oct.", ic: "▯" },
@@ -698,7 +699,7 @@ function group(k, title, inner) {
 
 function fichePanel() {
   if (!S.fiche || S.screen !== "application") return "";
-  return h`<aside class="col-pane fiche"><header>▤ Fiche<span class="sp"></span><button class="x" data-fiche>✕</button></header><div class="cbody">
+  return h`<aside class="col-pane fiche"><div class="cbody">
     ${objectCard(true)}
     ${group("sections", "Sections", `<div class="seclist">${SECTIONS.map((x) => `<button class="${S.doc === x.k ? "on" : ""}" data-open="${x.k}">${x.t}${x.n ? `<small>${x.n}</small>` : "<small>›</small>"}</button>`).join("")}</div>`)}
     ${group("activite", "Activité <span class='pill acc'>1 en cours</span>", `<div id="g-activite">${paneBody("activite").replace(/<p[^>]*>Cette page[^<]*<\/p>/, "").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div>`)}
@@ -708,7 +709,7 @@ function fichePanel() {
 
 function actColumn() {
   if (S.screen === "application" || S.act !== "open") return "";
-  return h`<aside class="col-pane actcol"><header>⟳ Activité<span class="sp"></span><button class="x" data-act title="Fermer">✕</button></header><div class="cbody">${paneBody("activite").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div></aside>`;
+  return h`<aside class="col-pane actcol"><div class="cbody">${paneBody("activite").replace(/data-doc="[^"]*"/, 'data-open="cv"')}</div></aside>`;
 }
 
 function VariantE() {

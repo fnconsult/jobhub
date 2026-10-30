@@ -1,6 +1,6 @@
 import { rulesProvenance, type Provenance } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
+import { agendaPage, applicationPage, tailoredDocumentsMade, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type PageSources } from "./index";
 import { aiActivityPane, byRulesOnly } from "./pane";
 
 /** The Job Offer: found by a web search, its page read, then read by Claude Haiku. */
@@ -31,6 +31,8 @@ const OFFER = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
 const OTHER_OFFER = "8d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
 const APPLICATION = "9e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b";
 const PROFILE = "0f4a5b6c-7d8e-4f9a-8b1c-2d3e4f5a6b7c";
+const JOB_SEARCH = "1a5b6c7d-8e9f-4a0b-9c2d-3e4f5a6b7c8d";
+const JOB_DIGEST = "2b6c7d8e-9f0a-4b1c-8d3e-4f5a6b7c8d9e";
 const CANDIDATE = "cand_7Hq2LmX";
 
 /** The app's Job Offers and Coach Conversations, faked: the offer read above, the Candidate's one reply about each object. */
@@ -38,7 +40,7 @@ function sources({ offers = { [OFFER]: read } as Record<string, Provenance | nul
   return {
     jobOffers: { provenances: async (ids) => new Map(ids.map((id) => [id, offers[id] ?? null])) },
     coachReplies: {
-      repliesAbout: async (candidateId, focus) => (candidateId === CANDIDATE && [OFFER, APPLICATION, PROFILE].includes(focus.id) ? replies : []),
+      repliesAbout: async (candidateId, focus) => (candidateId === CANDIDATE && ([OFFER, APPLICATION, PROFILE, JOB_SEARCH, JOB_DIGEST].includes(focus.id) || focus.kind === "agenda") ? replies : []),
     },
   };
 }
@@ -128,18 +130,31 @@ describe("AI Activity's page loaders (#332)", () => {
   });
 
   it("shows `/job-digests/[id]`'s Job Digest, « non enregistré », and the Job Offers it brought", async () => {
-    const elements = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] });
+    const elements = await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), results: [{ jobOffer: { id: OFFER, title: "DAF Lyon" } }] });
 
     expect(elements.map(({ kind, served }) => ({ kind, recorded: served !== null }))).toEqual([
       { kind: "job_digest", recorded: false },
       { kind: "job_offer", recorded: true },
+      { kind: "coach_reply", recorded: true },
     ]);
+  });
+
+  it("counts with `/recherches/[id]` the Coach replies about its Job Search, never on the list of Job Searches (#600)", async () => {
+    const search = { startedAt: new Date("2026-10-20T08:00:00Z"), results: [] };
+
+    expect((await jobSearchPage(sources(), [search], { candidateId: CANDIDATE, jobSearchId: JOB_SEARCH })).map(({ kind }) => kind)).toEqual(["job_search", "coach_reply"]);
+    expect((await jobSearchPage(sources(), [search])).map(({ kind }) => kind)).toEqual(["job_search"]);
+  });
+
+  it("counts with `/agenda` the Coach replies given with the Agenda In view (#600)", async () => {
+    expect(await agendaPage(sources(), CANDIDATE)).toMatchObject([{ kind: "coach_reply", at: "2026-10-23T10:40:00.000Z" }]);
+    expect(await agendaPage(sources(), "someone-else")).toEqual([]);
   });
 
   it("shows a new Job Digest from its Provenance (#336): its Match Scores, « Calcul » with no model, then its top-up run", async () => {
     const scoring = rulesProvenance("match_score", { at: new Date("2026-10-21T06:00:00Z"), ms: 8 });
-    const [alone] = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), provenance: scoring, results: [] });
-    const [toppedUp] = await jobDigestPage(sources(), { sentAt: new Date("2026-10-21T06:00:00Z"), provenance: { ...read, steps: [...scoring.steps, ...read.steps] }, results: [] });
+    const [alone] = await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), provenance: scoring, results: [] });
+    const [toppedUp] = await jobDigestPage(sources(), CANDIDATE, { id: JOB_DIGEST, sentAt: new Date("2026-10-21T06:00:00Z"), provenance: { ...read, steps: [...scoring.steps, ...read.steps] }, results: [] });
 
     expect(alone).toMatchObject({ kind: "job_digest", at: "2026-10-21T06:00:00.000Z", served: { models: [], tools: [{ name: null, ms: 8 }] } });
     expect(byRulesOnly(alone!.served!)).toBe(true);

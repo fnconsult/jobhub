@@ -58,13 +58,13 @@ type Control = {
 const CoachPanelControl = createContext<Control | null>(null);
 
 /**
- * An AI Coach reply given in this browser while a page's object (an Application, a Job Offer or a Profile) was in view:
+ * An AI Coach reply given in this browser while a page's object (an Application, a Job Offer, a Profile, a Job Search, a Job Digest or the Agenda) was In view:
  * AI Activity counts it with that page at once (#332), before the page is next loaded with it.
  */
 export type ReplyInView = { provenance: Provenance | null; at: string };
 const NO_REPLIES: readonly ReplyInView[] = [];
-/** The page objects a reply is kept with as its focus (coach-conversations), so counted with their page. */
-const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile"]);
+/** What a reply is kept with as its Focus (coach-conversations, the six kinds In view since #600), so counted with their page. */
+const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile", "job_search", "job_digest", "agenda"]);
 const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
 
 /**

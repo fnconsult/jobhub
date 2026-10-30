@@ -30,6 +30,7 @@ describe.skipIf(!connectionString)("Coach Memory (needs Postgres: DATABASE_URL)"
     return {
       id: CONVERSATION_ID,
       title: "Ma recherche",
+      subject: null,
       profile: null,
       lastMessageAt: new Date(),
       aiDisclosure: true,

@@ -62,3 +62,10 @@ The Back Office is read by Administrators, not by Candidates. It uses the Compac
 - these are tokens of the Compact Density, checked by the token audit like the Confort ones
 
 The Candidate's pages, the extension and the emails keep the Confort Density and the floor above. The look is no longer "Notion-like": the visual direction is Mercury's (ADR-0053). "Don't grey text" still holds.
+
+## Amendment: WCAG 2.2 AA (ADR-0066, 2026-10-30)
+
+The floor now targets **WCAG 2.2 AA** instead of 2.1 AA (#506, on the research of #499). 2.2 keeps every 2.1 criterion but 4.1.1 Parsing, and adds criteria that the help and its motions touch:
+- **2.5.8 Target Size (Minimum)**: every target is at least 24 × 24 px. The controls above that are 44 px or more already meet it.
+- **3.2.6 Consistent Help**: help stays at the same place on every page (« Aide et coach » in the Top Bar). Explainer Videos and Micro-animations live inside Help Articles and add no second way in.
+- **2.4.11 Focus Not Obscured (Minimum)**: a focused control is never hidden by a sticky bar or a panel.

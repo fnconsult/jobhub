@@ -881,15 +881,35 @@ One time a Guardrail blocked, flagged or could not check a message or reply: whi
 _Avoid_: Guardrail log, incident, alert
 
 **Back Office Assistant**:
-The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles, including from an Explainable label, which asks it to explain that item in context; read-only, never sees Provider Secrets nor email addresses. Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
+The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles, including from an Explainable label, which asks it to explain that item in context; read-only, never sees Provider Secrets nor email addresses. Its box suggests the Administrators' Help Articles first, found without AI, and it answers from the matching ones, citing them; with none, it says no tutorial covers the point and offers « Demander un tutoriel ». Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
 _Avoid_: Admin bot, admin copilot
 
 **Help Article**:
-One short text in French and in English that explains the product without an AI call: a page article (one per Candidate page), a glossary entry or a FAQ answer, with synonyms the Candidate's words are matched against. Written as Markdown, reviewed by a person, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile). Each article is meant for one audience (Visitor, Guest, Candidate or Human Coach), is public, and reads the same in the Coach panel and in the Help Centre. Nothing written for Administrators is a Help Article.
+One short text in French and in English that explains the product without an AI call: a page article (one per page), a glossary entry, a FAQ answer or a tutorial, with synonyms the reader's words are matched against. Written as Markdown, possibly drafted by an agent but published only once a person has reviewed it, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile). Each article is meant for one audience (Visitor, Guest, Candidate, Human Coach or Administrator). The first four are public and read the same in the Coach panel and in the Help Centre; the Administrators' are read only in the Back Office, never public nor indexed.
 _Avoid_: Help page, KB article, doc
 
+**Tutorial**:
+A Help Article that walks through one task step by step, across one or more pages, in numbered steps that quote the interface's labels word for word. Text first: it reads complete without any image or motion.
+_Avoid_: Guide, walkthrough, tour
+
+**Motion**:
+An Explainer Video or a Micro-animation. Always attached to a Tutorial (or to a page's empty state), which reads complete without it, and played only when asked for. A motion that is out of date never makes its Tutorial wrong.
+_Avoid_: GIF, tour, demo
+
+**Explainer Video**:
+A narrated video of 30 to 90 s showing one task of a Tutorial in the real interface, in French and in English, with captions and a descriptive transcript. Read in the Help Centre only, and never played on its own. The voice is synthetic, and the transcript says so.
+_Avoid_: Screencast, demo video, tutorial video
+
+**Micro-animation**:
+A movement of 2 to 5 s, played once when the reader clicks « Voir comment » beside a Tutorial's step or in an empty state, that shows a gesture hard to find by reading. Decorative beside the written step, and a still image for those who ask for reduced motion.
+_Avoid_: GIF, hint, coach mark
+
+**Motion Script**:
+The reviewed text of an Explainer Video, one per language, kept with its Tutorial: the narration, which says everything shown on screen, and the one source of its captions and transcript. Declares the pages it films, so a change to them flags the video to regenerate.
+_Avoid_: Storyboard, voice-over text
+
 **Help Centre**:
-The public part of the site that lists every Help Article by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Coach panel shows the same articles in context.
+The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Coach panel shows the same articles in context.
 _Avoid_: KB, support site, help desk
 
 **Legal Document**:
@@ -914,7 +934,7 @@ The AI Coach's own hidden mark on a reply (a last line removed before anyone see
 _Avoid_: unanswered flag
 
 **Unanswered Question**:
-A question about using Jobbbox that a Candidate asked the AI Coach, that no Help Article answered, kept so the team can write the missing article. The AI Coach itself says whether a question is about using Jobbbox (not about the Candidate's job search). Question and answer are kept with identity removed, with the page's route pattern (never its address) and the Interface Language, and no link to the Candidate or the Coach Conversation. Asked again, the same question (same search words, page and language) counts once more; asked again after it was marked, it opens a new one. Help editors mark it written (« Article écrit ») or dismissed (« Écarter »). Purged 12 months after it was last asked, 30 days after it was marked; not in the Data export.
+A question about using Jobbbox that a Candidate asked the AI Coach, or an Administrator asked the Back Office Assistant, that no Help Article answered, kept so the team can write the missing article. The AI Coach itself says whether a question is about using Jobbbox (not about the Candidate's job search); an Administrator's is kept only when they click « Demander un tutoriel », never automatically, and names its audience and Back Office section, never the Administrator. Question and answer are kept with identity removed, with the page's route pattern (never its address) and the Interface Language, and no link to the Candidate or the Coach Conversation. Asked again, the same question (same search words, page and language) counts once more; asked again after it was marked, it opens a new one. Help editors mark it written (« Article écrit ») or dismissed (« Écarter »). Purged 12 months after it was last asked, 30 days after it was marked; not in the Data export.
 _Avoid_: FAQ gap, feedback, ticket
 
 **Signalement**:

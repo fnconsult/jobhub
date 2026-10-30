@@ -1294,6 +1294,31 @@ blockquote.signalement-text {
   color: var(--color-text-secondary);
 }
 
+/* Espace coach (#249): the Human Coach's Coaching Sessions, one framed item each, the Candidate's name first.
+   Its own classes: the Agenda's live in agenda.css, which only the Agenda loads (#469). */
+.coach-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.coach-session {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.coach-session-name {
+  font-weight: 600;
+}
+
 .match-score-value {
   margin: 0;
   font-size: var(--font-size-h2);

@@ -52,7 +52,7 @@ export function planCards({
   locale: Locale;
 }): PlanCard[] {
   const { t } = createI18n(locale);
-  const offered = plans.filter((each) => each.status === "offered").toSorted((a, b) => a.rank - b.rank);
+  const offered = [...plans].filter((each) => each.status === "offered").sort((a, b) => a.rank - b.rank);
   const rank = plans.find((each) => each.key === current)?.rank ?? 0;
   const recommended = offered.find((each) => each.rank > rank)?.key;
   return offered.map((each) => {

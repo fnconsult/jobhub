@@ -3195,6 +3195,7 @@
     "dayItems_one": "{{date}}: {{count}} appointment",
     "dayItems_other": "{{date}}: {{count}} appointments",
     "legendLabel": "Key",
+    "pastDimmed": "Past appointments are dimmed.",
     "changedByCoach": "changed by the coach",
     "calendarFile": {
       "add": "Add to my calendar",

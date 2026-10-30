@@ -3195,6 +3195,7 @@
     "dayItems_one": "{{date}} : {{count}} rendez-vous",
     "dayItems_other": "{{date}} : {{count}} rendez-vous",
     "legendLabel": "Légende",
+    "pastDimmed": "Les rendez-vous passés sont estompés.",
     "changedByCoach": "modifié par le coach",
     "calendarFile": {
       "add": "Ajouter à mon calendrier",

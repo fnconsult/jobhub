@@ -9,7 +9,7 @@ export const meta = {
     { title: 'Implement', detail: 'tdd + codebase-design + domain-modeling, pushed to the PR' },
     { title: 'Verify', detail: 'E2E ∥ QA ∥ code-review on the PR (review posted to the PR)' },
     { title: 'Fix', detail: 'diagnosing-bugs on every failure and blocking review finding' },
-    { title: 'Docs', detail: 'CONTEXT.md, ADRs, README on Sonnet (domain-modeling, writing-for-agents)' },
+    { title: 'Docs', detail: 'CONTEXT.md, ADRs, README, Help Articles, Release Note fragment on Sonnet (domain-modeling, writing-for-agents)' },
     { title: 'Ship', detail: 'rebase, wizard for human-only steps, ready, merge (serialized)' },
   ],
 }
@@ -266,7 +266,8 @@ ${impl.summary}
 
 1. Use the Skill tool to load \`mattpocock-skills:domain-modeling\` and follow it: add new terms to CONTEXT.md and record any new decision as an ADR in docs/adr/. Number a new ADR after the highest number on \`origin/main\` AND in every open PR (\`gh pr list --state open\`, then \`gh pr diff <n> --name-only | grep docs/adr\`), so parallel branches don't claim the same number.
 2. Update README.md (setup, env vars, scripts, conventions) and .env.example comments if this change affects them.
-3. If you edit AGENTS.md, CLAUDE.md or anything under docs/agents/, load \`mattpocock-skills:writing-for-agents\` first.
+3. Write the public documentation by following docs/agents/documentation.md, from the issue's \`## Documentation\` section or, when it has none, from the diff: Help Articles FR/EN, the Release Note fragment, the privacy register, a « Légal : » issue, « Motion à régénérer » lines in the PR body.
+4. If you edit AGENTS.md, CLAUDE.md or anything under docs/agents/, load \`mattpocock-skills:writing-for-agents\` first.
 Keep docs short and in the existing style. Commit ("Docs for #${n}") and push to the PR branch. If nothing needs documenting, change nothing. Return a one-line summary.`,
     { phase: 'Docs', model: DOC_MODEL },
   )

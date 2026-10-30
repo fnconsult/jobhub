@@ -13,6 +13,18 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Documentation
+
+Every `ready-for-agent` ticket a skill creates carries a **Documentation** section, after its acceptance criteria and before **Effort**: one line per impact, from the rules in `documentation.md` (Help Article, Release Note fragment, privacy register, « Légal : » issue, motion), or « Aucune » when the ticket changes nothing a user sees and nothing in the privacy register.
+
+```
+## Documentation
+
+- Help Article `page-account` : rubrique « Rappels ».
+- Fragment de Release Note.
+- Registre : nouveau sous-traitant Brevo → issue « Légal : politique de confidentialité, Brevo ».
+```
+
 ## Effort
 
 Every ticket a skill creates (`/to-tickets`, `/triage`, `/wayfinder`…) carries an **Effort** section, after its acceptance criteria and before **Blocked by**: a size and the work that drives it, in one line.

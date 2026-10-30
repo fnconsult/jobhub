@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { PublicFooter } from "@/design/PublicSite";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
@@ -16,5 +18,18 @@ export async function CoachSpaceHeader() {
         </Link>
       </div>
     </header>
+  );
+}
+
+/** A Human Coach's page: its header, the page, then the public site's footer (#544). */
+export function CoachSpaceShell({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <main className="page">
+        <CoachSpaceHeader />
+        {children}
+      </main>
+      <PublicFooter />
+    </>
   );
 }

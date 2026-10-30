@@ -8,7 +8,7 @@ const appDir = fileURLToPath(new URL("../app", import.meta.url));
 
 /**
  * The pages that are not a Candidate's: the Back Office, the Coach space, signing in, pages read signed out (the public
- * pages Nouveautés and Légal among them, #470), and the Design System components' test page (#462), served to the e2e
+ * pages Nouveautés and Légal among them, #470, and the Help Centre, #544), and the Design System components' test page (#462), served to the e2e
  * suite only.
  */
 const NOT_CANDIDATE_PAGES = [
@@ -20,6 +20,7 @@ const NOT_CANDIDATE_PAGES = [
   /^\/design-system(\/|$)/,
   /^\/nouveautes$/,
   /^\/legal(\/|$)/,
+  /^\/aide(\/|$)/,
 ];
 
 /** Every page's route pattern (`/candidatures/[id]/documents`), route groups such as `(sections)` left out. */

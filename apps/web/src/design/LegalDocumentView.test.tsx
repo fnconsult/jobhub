@@ -25,6 +25,7 @@ describe("LegalDocumentView — a Legal Document on the Légal page (#470)", () 
     const documents = screen.getByRole("navigation", { name: "Documents légaux" });
     expect(within(documents).getAllByRole("link").map((link) => link.textContent)).toEqual([
       "Conditions d'utilisation",
+      "Conditions générales de vente",
       "Politique de confidentialité",
       "Cookies",
       "Sous-traitants et IA",

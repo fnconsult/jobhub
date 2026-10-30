@@ -4,7 +4,7 @@ import type { HelpLocale } from "./types";
  * The Legal Documents, in the order the Légal page lists them. Their titles, shown even before a text is written,
  * are in the catalogues (`legal.documents.<id>`); the texts are the team's, never an AI's.
  */
-export const LEGAL_DOCUMENTS = ["conditions-utilisation", "confidentialite", "cookies", "sous-traitants-et-ia", "mentions-legales"] as const;
+export const LEGAL_DOCUMENTS = ["conditions-utilisation", "cgv", "confidentialite", "cookies", "sous-traitants-et-ia", "mentions-legales"] as const;
 export type LegalDocumentId = (typeof LEGAL_DOCUMENTS)[number];
 
 /** Whether `value` names a Legal Document. */

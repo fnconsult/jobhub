@@ -131,7 +131,7 @@ test.describe("Nouveautés", () => {
     await expect(page.getByRole("navigation", { name: fr.publicSite.nav }).getByRole("link", { name: fr.publicSite.nouveautes })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { name: fr.nouveautes.emptyTitle })).toBeVisible();
     await expect(page.getByRole("textbox")).toHaveCount(0);
-    await expect(page.getByRole("link", { name: fr.nav.signIn })).toHaveAttribute("href", "/connexion");
+    await expect(page.getByRole("banner").getByRole("link", { name: fr.nav.signIn })).toHaveAttribute("href", "/connexion");
     expect(await axeViolations(page)).toEqual([]);
   });
 

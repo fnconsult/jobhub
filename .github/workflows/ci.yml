@@ -85,15 +85,27 @@ jobs:
       - run: npm run db:migrate
       # The emails project too (e2e/email-html.spec.ts): its -linux baselines are drawn in this image, and compared only here.
       - run: npx playwright test --project=web --project=emails $(grep -l toHaveScreenshot e2e/*.spec.ts)
-      # TEMPORARY (#511): print the shell's failed actual images into the log, to take CI's render as baselines. Removed before merge.
+      # TEMPORARY (#511): the shell's failed actual images as annotations (4,000 characters each, 10 per step), to take
+      # CI's render as baselines. Removed before merge.
       - if: failure()
         run: |
+          mkdir -p /tmp/png; manifest=""
           for f in $(find test-results -name 'back-office*-actual.png'); do
-            name=$(basename "$f"); sha=$(sha256sum "$f" | cut -c1-64)
-            base64 -w0 "$f" | split -b 50000 -d - "/tmp/$name.part"
-            n=$(ls /tmp/$name.part* | wc -l); i=0
-            for part in /tmp/$name.part*; do i=$((i+1)); echo "::notice title=PNG $name $i/$n $sha::$(cat $part)"; done
+            name=$(basename "$f" -actual.png); base64 -w0 "$f" | split -b 4000 -a 2 -d - "/tmp/png/$name."
+            manifest="$manifest $name:$(ls /tmp/png/$name.* | wc -l):$(sha256sum "$f" | cut -c1-64)"
           done
+          echo "::notice title=MANIFEST::$manifest"
+          ls /tmp/png > /tmp/png-list
+      - if: failure()
+        run: for p in $(sed -n '1,10p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '11,20p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '21,30p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '31,40p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
+      - if: failure()
+        run: for p in $(sed -n '41,50p' /tmp/png-list); do echo "::notice title=P $p::$(cat /tmp/png/$p)"; done
       # A failed comparison's expected, actual and diff images, and its trace.
       - uses: actions/upload-artifact@v4
         if: failure()

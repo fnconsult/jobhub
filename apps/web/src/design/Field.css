@@ -155,7 +155,20 @@
     border-radius: var(--radius-control);
   }
 
-  .ds-segmented__option[aria-checked="true"] {
+  /* SegmentedLinks: the same pill, its options links in a list (#469). */
+  .ds-segmented--links {
+    margin: 0;
+    list-style: none;
+  }
+
+  .ds-segmented--links .ds-segmented__option {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .ds-segmented__option[aria-checked="true"],
+  .ds-segmented__option[aria-current="page"] {
     color: var(--color-text);
     background: var(--color-background);
     box-shadow:

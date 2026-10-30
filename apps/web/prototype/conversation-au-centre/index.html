@@ -378,12 +378,12 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .col-pane > .cbody { padding: 1rem 1rem 1rem 0; }
 /* La barre de défilement ne doit pas épaissir la gouttière droite (prototype : masquée ; l'app suit sa règle des barres fines). */
 .col-pane > .cbody { scrollbar-width: none; }
-/* Une colonne ouverte : la conversation remplit sa place, pour garder 1rem jusqu'à la colonne voisine. */
-.body.has-pane .col { max-width: none; }
+/* 8e retour : les colonnes gardent leur taille ; la conversation garde sa largeur de lecture (46rem), centrée dans sa place,
+   si bien que ses marges gauche et droite restent égales quelles que soient les colonnes ouvertes. */
 .actcol > .cbody > p:first-child { margin-top: 0; }
 .col-pane > .cbody::-webkit-scrollbar { display: none; }
-/* 8e retour : la conversation garde une largeur de lecture (48rem au plus) ; une colonne seule prend le reste. */
-.fiche, .actcol { flex: 1 0 20rem; max-width: 30rem; }
+.fiche { width: 20rem; }
+.actcol { width: 18rem; }
 .fiche .obj .props { grid-template-columns: 1fr 1fr; }
 /* 5e retour : chaque Résultat est sa propre carte arrondie, sans trait entre eux. */
 .seclist.res { border: 0; border-radius: 0; overflow: visible; gap: .5rem; }
@@ -742,7 +742,7 @@ function VariantE() {
   const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
   const hasPane = (isApp && (S.fiche || S.doc)) || (!isApp && S.act === "open");
   return h`<div class="main">${topbar(btns)}<div class="body ${hasPane ? "has-pane" : ""}">
-    <div class="convo" style="min-width:20rem;flex:${hasPane ? "0 1 48rem" : "1 1 auto"}"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
+    <div class="convo" style="min-width:20rem;flex:1 1 24rem"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
     ${docPanel()}${fichePanel()}${actColumn()}</div></div>`;
 }
 

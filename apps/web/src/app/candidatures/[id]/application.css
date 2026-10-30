@@ -1,0 +1,138 @@
+/* An Application's page (#467) in the Confort Density: its own layout only; the notes, pills, buttons and the
+   Sections' tabs are the Design System's. */
+.application-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.application-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.application-head__back {
+  margin: 0;
+  font-weight: 500;
+}
+
+.application-head__back a {
+  color: var(--color-secondary);
+  text-decoration: none;
+}
+
+.application-head__back a::before {
+  content: "← ";
+}
+
+.application-head__back a:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+/* The Application's properties on a card, a label beside each value. */
+.application-head__props {
+  padding: var(--space-4) var(--space-6);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.application-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.application-page .ds-note p {
+  margin: 0;
+}
+
+.application-page .ds-note p + p {
+  margin-top: var(--space-2);
+}
+
+/* The Interviews Section: each Interview a card, its actions in a row. */
+.application-interviews {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.application-interview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.application-interview p {
+  margin: 0;
+}
+
+.application-interview__date {
+  font-weight: 600;
+}
+
+.application-interview[data-cancelled] .application-interview__date {
+  text-decoration: line-through;
+}
+
+.application-interview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.application-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.application-section-head > h2 {
+  margin: 0;
+}
+
+.application-hint {
+  margin: var(--space-3) 0 0;
+  color: var(--color-secondary);
+}
+
+/* A card is as wide as the page's column: the reading measure (70ch) is for lines of text. */
+/* Above `.workspace > .page :is(p, li, dd, .lead)` in app.css. */
+.workspace ul.application-interviews > li.application-interview {
+  max-width: none;
+}
+
+/* « Signaler que cette offre n'est plus publiée »: a button its words wide, its hint above. */
+.application-page > .field {
+  align-items: flex-start;
+}
+
+/* The fields of a new Interview: a form's width, not the page's. */
+.application-page form .ds-input {
+  max-width: 28rem;
+}
+
+/* Buttons named after their Interview (« Modifier l'entretien du vendredi 12 mars 2027 à 14:30 ») wrap on a phone
+   rather than run off its side. */
+.application-page .ds-button {
+  max-width: 100%;
+  padding-block: var(--space-1);
+  text-align: start;
+  white-space: normal;
+}

@@ -251,7 +251,8 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(title).toHaveAttribute("href", new RegExp(`^/offres/[0-9a-f-]+\\?profil=${profileId}$`));
       await expect(responsable.getByRole("link", { name: "Lire l'offre" })).toHaveAttribute("href", (await title.getAttribute("href"))!);
       await expect(responsable.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/)).toBeVisible();
-      await expect(responsable.locator(".meter")).toHaveAttribute("aria-hidden", "true");
+      // The ring around the figure only draws it (#467): the score is said in words.
+      await expect(responsable.locator(".ds-ring")).toHaveAttribute("aria-hidden", "true");
       const score = (await shownScores(page))[1];
       const why = responsable.getByText(`Pourquoi ${score} ?`, { exact: true });
       const reasons = responsable.getByRole("list").filter({ hasText: "Type de contrat" });
@@ -485,7 +486,7 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(sidebarLink(page)).toHaveAttribute("aria-current", "page");
 
       const main = page.getByRole("main");
-      const properties = main.locator("dl.props");
+      const properties = main.locator("dl.job-searches-criteria__list");
       await expect(properties.getByRole("term")).toHaveText(["Profil", "Critères"]);
       await expect(properties.getByRole("link", { name: searchCriteria.targetRole })).toHaveAttribute("href", `/profils/${profileId}`);
       await expect(properties.getByRole("definition").nth(1)).toContainText("Lyon · CDI");
@@ -586,7 +587,7 @@ test.describe("On-demand AI Coach job search", () => {
       await select.selectOption(second);
       await chooser(page).getByRole("button", { name: "Afficher" }).click();
       await expect(page).toHaveURL(`${origin}/recherches?profil=${second}`);
-      await expect(page.getByRole("main").locator("dl.props").getByRole("link", { name: secondRole })).toBeVisible();
+      await expect(page.getByRole("main").locator("dl.job-searches-criteria__list").getByRole("link", { name: secondRole })).toBeVisible();
       // The sidebar's Profile is the one shown, and its Job Searches link leads back here.
       await expect(page.getByRole("navigation", { name: "Sélecteur de profil" }).getByRole("button")).toHaveText(`Profil : ${secondRole}`);
       await expect(sidebarLink(page)).toHaveAttribute("href", `/recherches?profil=${second}`);

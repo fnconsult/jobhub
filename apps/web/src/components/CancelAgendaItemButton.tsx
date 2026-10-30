@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { send } from "@/components/ApplicationControls";
+import { buttonClass } from "@/design/button-class";
 
 /**
  * « Annuler » for an Agenda Item: an Interview (it stays, struck through) or a Coaching Session (back to
@@ -41,7 +42,7 @@ export function CancelAgendaItemButton({ url, label, name, question }: { url: st
 
   if (!asking)
     return (
-      <button ref={button} className="button" type="button" aria-label={name} onClick={() => setAsking(true)}>
+      <button ref={button} className={buttonClass()} type="button" aria-label={name} onClick={() => setAsking(true)}>
         {label}
       </button>
     );
@@ -50,10 +51,10 @@ export function CancelAgendaItemButton({ url, label, name, question }: { url: st
       <p id={`${id}-question`}>{question}</p>
       <div className="actions">
         {/* The question replaces the button the Candidate just pressed: focus goes to its first answer. */}
-        <button className="button button-primary" type="button" onClick={cancel} disabled={working} autoFocus>
+        <button className={buttonClass({ variant: "primary" })} type="button" onClick={cancel} disabled={working} autoFocus>
           {working ? t("agendaChanges.working") : t("agendaChanges.confirm")}
         </button>
-        <button className="button" type="button" onClick={keep} disabled={working}>
+        <button className={buttonClass()} type="button" onClick={keep} disabled={working}>
           {t("agendaChanges.keep")}
         </button>
       </div>

@@ -9,6 +9,7 @@ import { requireOwnApplication } from "@/applications/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AddInterviewForm, EditInterview, RemoveInterviewButton } from "@/components/ApplicationControls";
 import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
+import { EmptyStateHelp } from "@/components/HelpTerm";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CompanyDossierView } from "@/components/CompanyDossierView";
@@ -26,6 +27,9 @@ import { getProfiles } from "@/profiles/server";
 import { APPLICATION_SECTIONS, routes, type ApplicationSection } from "@/routes";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
+import { buttonClass } from "@/design/button-class";
+import { EmptyState } from "@/design/EmptyState";
+import { Pill } from "@/design/Pill";
 
 export type Params = { params: Promise<{ id: string }> };
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -187,25 +191,31 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
   const cancelledOn = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
   const { interviews } = application;
   return (
-    <section className="section" aria-labelledby="interviews-title">
-      <div className="section-head">
+    <section aria-labelledby="interviews-title">
+      <div className="application-section-head">
         <h2 id="interviews-title">{t("application.interviewsTitle")}</h2>
-        <Link href={agendaHref}>{t("application.seeInAgenda")}</Link>
+        <Link className={buttonClass({ variant: "quiet", size: "sm" })} href={agendaHref}>
+          {t("application.seeInAgenda")}
+        </Link>
       </div>
       {interviews.length > 0 ? (
-        <ul className="interview-list">
+        <ul className="application-interviews">
           {interviews.map((interview) => {
             const when = dateTime.format(interview.scheduledAt);
             return (
-              <li key={interview.id} className={interview.cancelledAt ? "interview interview-cancelled" : "interview"}>
-                <p className="interview-date">
+              <li key={interview.id} className="application-interview" data-cancelled={interview.cancelledAt ? true : undefined}>
+                <p className="application-interview__date">
                   {date.format(interview.scheduledAt)}, <InterviewTimes interview={interview} time={time} />
                 </p>
-                {interview.cancelledAt ? <p className="cancelled-on">{t("agendaChanges.cancelledOn", { date: cancelledOn.format(interview.cancelledAt) })}</p> : null}
+                {interview.cancelledAt ? (
+                  <p>
+                    <Pill tone="danger">{t("agendaChanges.cancelledOn", { date: cancelledOn.format(interview.cancelledAt) })}</Pill>
+                  </p>
+                ) : null}
                 <InterviewFacts interview={interview} t={t} />
                 {interview.note ? <p>{interview.note}</p> : null}
                 <RescheduleHistory reschedules={interview.reschedules} dateTime={changedAt} t={t} />
-                <div className="actions">
+                <div className="application-interview__actions">
                   <EditInterview
                     applicationId={application.id}
                     interview={{
@@ -233,10 +243,16 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
           })}
         </ul>
       ) : (
-        <p>{t("application.interviewsNone")}</p>
+        <EmptyState title={t("application.interviewsNone")} headingLevel={3} help={<EmptyStateHelp of="agenda" />}>
+          {application.status === "interview" ? undefined : t("application.interviewsHint")}
+        </EmptyState>
       )}
-      {interviews.length > 0 ? <p className="hint">{t("agendaChanges.removeHint")}</p> : null}
-      {application.status === "interview" ? <AddInterviewForm applicationId={application.id} /> : <p className="hint">{t("application.interviewsHint")}</p>}
+      {interviews.length > 0 ? <p className="application-hint">{t("agendaChanges.removeHint")}</p> : null}
+      {application.status === "interview" ? (
+        <AddInterviewForm applicationId={application.id} />
+      ) : interviews.length > 0 ? (
+        <p className="application-hint">{t("application.interviewsHint")}</p>
+      ) : null}
     </section>
   );
 }

@@ -9,6 +9,8 @@ import type { MatchScoreFigure, MatchScoreReason } from "@/components/job-search
 import { EMPTY_INTERVIEW_DRAFT, InterviewFields, interviewBody, type InterviewDraft } from "@/components/InterviewFields";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
 import { routes } from "@/routes";
+import { buttonClass } from "@/design/button-class";
+import "@/design/Field.css";
 
 type Outcome = "saved" | "failed" | null;
 
@@ -29,8 +31,19 @@ export async function send(url: string, method: "POST" | "PATCH" | "DELETE", bod
 /**
  * The Application Status, changed by hand by the Candidate. Saved as soon as it is chosen.
  * A labelled field, or with `property`, one property of a `<dl className="props">`: its label, then the value edited in place.
+ * `labelHidden`: its label for screen readers only, where a column header already says it (the Candidatures list, #467).
  */
-export function ApplicationStatusSelect({ applicationId, status, property }: { applicationId: string; status: ApplicationStatus; property?: boolean }) {
+export function ApplicationStatusSelect({
+  applicationId,
+  status,
+  property,
+  labelHidden,
+}: {
+  applicationId: string;
+  status: ApplicationStatus;
+  property?: boolean;
+  labelHidden?: boolean;
+}) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();
@@ -52,9 +65,13 @@ export function ApplicationStatusSelect({ applicationId, status, property }: { a
     else setValue(status);
   }
 
-  const label = <label htmlFor={id}>{t("application.statusLabel")}</label>;
+  const label = (
+    <label htmlFor={id} className={labelHidden ? "visually-hidden" : undefined}>
+      {t("application.statusLabel")}
+    </label>
+  );
   const select = (
-    <select id={id} className={property ? "inline-edit" : "input"} value={value} onChange={(event) => change(event.target.value as ApplicationStatus)}>
+    <select id={id} className={property ? "inline-edit" : "ds-input ds-select"} value={value} onChange={(event) => change(event.target.value as ApplicationStatus)}>
       {APPLICATION_STATUSES.map((option) => (
         <option key={option} value={option}>
           {t(`applicationStatuses.${option}`)}
@@ -147,7 +164,7 @@ export function EditInterview(props: { applicationId: string; interview: { id: s
   const [editing, setEditing] = useState(false);
   if (!editing)
     return (
-      <button className="button" type="button" onClick={() => setEditing(true)}>
+      <button className={buttonClass()} type="button" onClick={() => setEditing(true)}>
         {props.label}
       </button>
     );
@@ -191,11 +208,11 @@ function InterviewForm({ applicationId, interview, onClose }: { applicationId: s
     <form className="stack" onSubmit={submit} noValidate>
       <InterviewFields id={id} draft={draft} onChange={setDraft} errors={errors} />
       <div className="actions">
-        <button className="button button-primary" type="submit" disabled={working}>
+        <button className={buttonClass({ variant: "primary" })} type="submit" disabled={working}>
           {working ? t("application.working") : t(interview ? "application.saveInterview" : "application.addInterview")}
         </button>
         {interview ? (
-          <button className="button" type="button" onClick={onClose} disabled={working}>
+          <button className={buttonClass()} type="button" onClick={onClose} disabled={working}>
             {t("application.cancelInterviewEdit")}
           </button>
         ) : null}
@@ -220,7 +237,7 @@ export function RemoveInterviewButton({ applicationId, interviewId, label }: { a
     if (ok) router.refresh();
   }
   return (
-    <button className="button" type="button" onClick={remove} disabled={working}>
+    <button className={buttonClass()} type="button" onClick={remove} disabled={working}>
       {label}
     </button>
   );
@@ -253,7 +270,7 @@ export function ReportUnavailableButton({ applicationId, reported }: { applicati
           {t("application.reportUnavailableHint")}
         </p>
       )}
-      <button className="button" type="button" onClick={toggle} disabled={working} aria-describedby={reported ? undefined : `${id}-hint`}>
+      <button className={buttonClass()} type="button" onClick={toggle} disabled={working} aria-describedby={reported ? undefined : `${id}-hint`}>
         {reported ? t("application.undoReport") : t("application.reportUnavailable")}
       </button>
       <Outcome outcome={outcome} saved="" />
@@ -297,7 +314,7 @@ export function SaveJobOfferForm({
     <form className="stack" onSubmit={save}>
       <div className="field">
         <label htmlFor={id}>{t("jobOffer.profileLabel")}</label>
-        <select id={id} className="input" value={profileId} onChange={(event) => setProfileId(event.target.value)}>
+        <select id={id} className="ds-input ds-select" value={profileId} onChange={(event) => setProfileId(event.target.value)}>
           {profiles.map((profile) => (
             <option key={profile.id} value={profile.id}>
               {profile.name}
@@ -306,7 +323,7 @@ export function SaveJobOfferForm({
         </select>
       </div>
       {chosen ? <ProfileMatchScore profileName={chosen.name} figure={chosen.matchScore.figure} reasons={chosen.matchScore.reasons} live t={t} /> : null}
-      <button className="button button-primary" type="submit" disabled={working}>
+      <button className={buttonClass({ variant: "primary" })} type="submit" disabled={working}>
         {working ? t("jobOffer.saving") : t("jobOffer.save")}
       </button>
       {failed ? (

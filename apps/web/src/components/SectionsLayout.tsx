@@ -4,7 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useContext, useEffect, type ReactNode } from "react";
 import { Icons } from "@/components/icons";
-import { CURRENT, SidebarSections, TopBarBack } from "@/components/SidebarShell";
+import {
+  CURRENT,
+  SidebarSections,
+  TopBarBack,
+} from "@/components/SidebarShell";
+import "./SectionsTabs.css";
 
 /** Below this width the list is the page and each Section shows alone. */
 const NARROW = "(width < 64rem)";
@@ -18,7 +23,10 @@ export type SectionLink = { href: string; label: string };
  * is shown alone, sliding in like a sheet, with the Top Bar's title turned into
  * a way back to the list behind an arrow (iOS style): a page styled as a
  * drawer, so the back button, links and screen readers work as on any page.
- * With `look="tabs"` the Sections are tabs above the one shown, and an `aside` stays beside it.
+ * `look="tabs"` (an Application's page, #467; the Profile's, #468): from 64rem the Sections are tabs in one line
+ * above the one shown, the Design System's tab look, scrolling sideways when they do not fit; they never move to the
+ * sidebar. Below 64rem, the list and each Section alone, as with the list look.
+ * An `aside` (the Profile's, #468) stays beside every Section from 64rem, and under the list on a phone.
  */
 export function SectionsLayout({
   base,
@@ -33,10 +41,7 @@ export function SectionsLayout({
   label: string;
   backLabel: string;
   sections: ReadonlyArray<SectionLink>;
-  /**
-   * From 64rem, the Sections listed beside the one shown (`list`), or as tabs above it (`tabs`, the Profile's page in
-   * the Design System, #468). Below 64rem both are the phone's list.
-   */
+  /** From 64rem, the Sections listed beside the one shown (`list`), or as tabs above it (`tabs`). Below 64rem both are the phone's list. */
   look?: "list" | "tabs";
   /** What stays beside every Section from 64rem (the Profile's Search Criteria and ATS Score); under the list on a phone. */
   aside?: ReactNode;
@@ -45,7 +50,12 @@ export function SectionsLayout({
   const pathname = usePathname();
   const atBase = pathname === base;
   // The page's own address shows the first Section.
-  const shown = atBase ? sections[0]?.href : sections.find((section) => pathname === section.href || pathname.startsWith(`${section.href}/`))?.href;
+  const shown = atBase
+    ? sections[0]?.href
+    : sections.find(
+        (section) =>
+          pathname === section.href || pathname.startsWith(`${section.href}/`),
+      )?.href;
   const shownLabel = sections.find((section) => section.href === shown)?.label;
   // The Top Bar names the Section shown (in place of its own heading, which only screen readers
   // hear), except on a phone's list; there a Section shown alone gets the back arrow too.
@@ -55,7 +65,11 @@ export function SectionsLayout({
     const sync = () => {
       const phone = narrow.matches;
       if (!shownLabel || (phone && atBase)) setTopBar(null);
-      else setTopBar({ section: shownLabel, back: phone ? { href: base, label: backLabel } : null });
+      else
+        setTopBar({
+          section: shownLabel,
+          back: phone ? { href: base, label: backLabel } : null,
+        });
     };
     sync();
     narrow.addEventListener("change", sync);
@@ -64,20 +78,36 @@ export function SectionsLayout({
       setTopBar(null);
     };
   }, [atBase, base, backLabel, shownLabel, setTopBar]);
-  // The sidebar lists them in its place when the page's column is too narrow (see SidebarShell).
+  // The sidebar lists them in its place when the page's column is too narrow (see SidebarShell); tabs fit any column.
   const setSidebarSections = useContext(SidebarSections);
-  const items = JSON.stringify(sections.map((section) => ({ ...section, current: section.href === shown })));
+  const items = JSON.stringify(
+    sections.map((section) => ({
+      ...section,
+      current: section.href === shown,
+    })),
+  );
+  const tabs = look === "tabs";
   useEffect(() => {
+    if (tabs) return;
     setSidebarSections({ title: backLabel, label, items: JSON.parse(items) });
     return () => setSidebarSections(null);
-  }, [setSidebarSections, backLabel, label, items]);
+  }, [setSidebarSections, backLabel, label, items, tabs]);
   return (
-    <div className="sections" data-at-list={atBase || undefined} data-look={look} data-aside={aside ? true : undefined}>
+    <div
+      className="sections"
+      data-at-list={atBase || undefined}
+      data-look={tabs ? look : undefined}
+      data-aside={aside ? true : undefined}
+    >
       <nav className="sections-nav" aria-label={label}>
         <ul>
           {sections.map((section) => (
             <li key={section.href}>
-              <Link className="sidebar-link" href={section.href} aria-current={section.href === shown ? CURRENT : undefined}>
+              <Link
+                className="sidebar-link"
+                href={section.href}
+                aria-current={section.href === shown ? CURRENT : undefined}
+              >
                 {section.label}
                 <Icons.chevron />
               </Link>

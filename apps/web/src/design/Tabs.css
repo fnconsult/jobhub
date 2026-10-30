@@ -49,6 +49,11 @@
     border-bottom-color: var(--color-text);
   }
 
+  /* A panel kept mounted (keepMounted) while another tab is shown. */
+  .ds-tabs__panel[data-state="inactive"] {
+    display: none;
+  }
+
   .ds-tabs__panel:focus-visible {
     outline-offset: var(--space-1);
   }

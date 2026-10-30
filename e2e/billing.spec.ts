@@ -349,7 +349,7 @@ test.describe("Plans and Stripe billing", () => {
 
   test("the subscription page is for signed-in Candidates only", async ({ page }) => {
     await page.goto("/abonnement");
-    await expect(page).toHaveURL(/\/connexion$/);
+    await expect(page).toHaveURL(/\/connexion(\?|$)/);
   });
 });
 

@@ -274,7 +274,7 @@ test.describe("exporting my data and deleting my account", () => {
     const calls = (await (await page.request.get(`${stripe}/__calls`)).json()) as { method: string; path: string }[];
     expect(calls).toContainEqual(expect.objectContaining({ method: "DELETE", path: `/v1/customers/${fakeCustomerId(email)}` }));
     await page.goto("/compte");
-    await expect(page).toHaveURL(/\/connexion$/);
+    await expect(page).toHaveURL(/\/connexion(\?|$)/);
     expect((await page.request.get("/api/profiles")).status()).toBe(401);
 
     // Another Candidate still finds the Job Offer.

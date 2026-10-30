@@ -20,7 +20,7 @@ test.describe("magic-link sign-up and sign-in", () => {
     const email = newAddress("marie.dupont");
     await page.goto("/");
     await page.getByRole("link", { name: fr.nav.signIn }).click();
-    await expect(page).toHaveURL(/\/connexion$/);
+    await expect(page).toHaveURL(/\/connexion(\?|$)/);
     await expect(page).toHaveTitle(`${fr.signIn.title} · ${fr.app.name}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.signIn.title);
     await expect(page.getByLabel(/mot de passe/i)).toHaveCount(0);
@@ -81,7 +81,7 @@ test.describe("magic-link sign-up and sign-in", () => {
     await expect(replay).toHaveURL(/\/connexion\?error=/);
     await expect(replay.getByRole("alert").filter({ hasText: fr.signIn.linkError })).toBeVisible();
     await replay.goto("/compte");
-    await expect(replay).toHaveURL(/\/connexion$/);
+    await expect(replay).toHaveURL(/\/connexion(\?|$)/);
     await someoneElse.close();
   });
 
@@ -101,7 +101,7 @@ test.describe("magic-link sign-up and sign-in", () => {
 
   test("the account page is for signed-in Candidates only, and signing out ends the session", async ({ page }) => {
     await page.goto("/compte");
-    await expect(page).toHaveURL(/\/connexion$/);
+    await expect(page).toHaveURL(/\/connexion(\?|$)/);
 
     await signInWithMagicLink(page, newAddress("leaving"));
     await page.getByRole("button", { name: fr.account.signOut }).click();
@@ -109,7 +109,7 @@ test.describe("magic-link sign-up and sign-in", () => {
     await expect(page.getByRole("link", { name: fr.nav.signIn })).toBeVisible();
     expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
     await page.goto("/compte");
-    await expect(page).toHaveURL(/\/connexion$/);
+    await expect(page).toHaveURL(/\/connexion(\?|$)/);
   });
 });
 

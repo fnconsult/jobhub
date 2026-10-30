@@ -5,6 +5,10 @@ import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ForwardingAddress } from "@/email-intake";
 import type { CandidateSender, PlatformSender } from "@/email-intake/candidate-senders";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import { routes } from "@/routes";
 import { RecognisedSenders } from "./RecognisedSenders";
 import { SendingAddresses } from "./SendingAddresses";
@@ -87,8 +91,8 @@ export function EmailIntakeForm({
   const date = forwarding ? new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(forwarding.activatedAt) : null;
   return (
     <div className="stack">
-      <section className="stack" aria-labelledby={`${id}-title`}>
-        <h2 id={`${id}-title`}>{t("emailIntake.title")}</h2>
+      <Card title={t("emailIntake.title")} headingId={`${id}-title`}>
+        <div className="stack">
         <p>{t("emailIntake.explanation")}</p>
         <p>
           <Link href={routes.accountEmailIntakeWizard}>{t("emailIntake.wizardLink")}</Link>
@@ -96,29 +100,28 @@ export function EmailIntakeForm({
         {forwarding ? (
           <>
             <p role="status">{t("emailIntake.onSince", { date })}</p>
-            <div className="field">
-              <label htmlFor={`${id}-address`}>{t("emailIntake.addressLabel")}</label>
-              <input id={`${id}-address`} className="input" type="text" readOnly value={forwarding.address} onFocus={(event) => event.target.select()} />
-            </div>
+            <Field id={`${id}-address`} label={t("emailIntake.addressLabel")}>
+              <TextInput readOnly value={forwarding.address} onFocus={(event) => event.target.select()} />
+            </Field>
             <div className="actions">
-              <button className="button button-primary" type="button" disabled={working} onClick={() => void copy()}>
+              <button className={buttonClass({ variant: "primary" })} type="button" disabled={working} onClick={() => void copy()}>
                 {t("emailIntake.copy")}
               </button>
-              <button className="button" type="button" disabled={working} onClick={() => setPending("replace")}>
+              <button className={buttonClass()} type="button" disabled={working} onClick={() => setPending("replace")}>
                 {t("emailIntake.replace")}
               </button>
-              <button className="button" type="button" disabled={working} onClick={() => setPending("switchOff")}>
+              <button className={buttonClass()} type="button" disabled={working} onClick={() => setPending("switchOff")}>
                 {t("emailIntake.switchOff")}
               </button>
             </div>
             {pending ? (
-              <div className="stack" role="alertdialog" aria-labelledby={`${id}-confirm`}>
+              <div className="stack account-confirm" role="alertdialog" aria-labelledby={`${id}-confirm`}>
                 <p id={`${id}-confirm`}>{t(pending === "replace" ? "emailIntake.confirmReplace" : "emailIntake.confirmSwitchOff")}</p>
                 <div className="actions">
-                  <button className="button button-primary" type="button" disabled={working} onClick={() => void confirm()}>
+                  <button className={buttonClass({ variant: "primary" })} type="button" disabled={working} onClick={() => void confirm()}>
                     {t(pending === "replace" ? "emailIntake.replace" : "emailIntake.switchOff")}
                   </button>
-                  <button className="button" type="button" onClick={() => setPending(null)}>
+                  <button className={buttonClass()} type="button" onClick={() => setPending(null)}>
                     {t("emailIntake.cancel")}
                   </button>
                 </div>
@@ -129,18 +132,21 @@ export function EmailIntakeForm({
         ) : (
           <>
             <p role="status">{t("emailIntake.off")}</p>
-            <button className="button button-primary" type="button" disabled={working} onClick={() => void switchOn()}>
-              {t("emailIntake.switchOn")}
-            </button>
+            <div className="actions">
+              <button className={buttonClass({ variant: "primary" })} type="button" disabled={working} onClick={() => void switchOn()}>
+                {t("emailIntake.switchOn")}
+              </button>
+            </div>
           </>
         )}
-      </section>
+        </div>
+      </Card>
       <SendingAddresses initial={initialSending} />
       <RecognisedSenders initial={recognisedSenders} />
       {error ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t("emailIntake.errors.error")}
-        </p>
+        </Note>
       ) : null}
     </div>
   );

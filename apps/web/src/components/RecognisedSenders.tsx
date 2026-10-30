@@ -2,6 +2,10 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Field, TextInput } from "@/design/Field";
+import { Note } from "@/design/Note";
 import type { CandidateSender, PlatformSender } from "@/email-intake/candidate-senders";
 
 type Senders = { own: CandidateSender[]; platform: PlatformSender[] };
@@ -60,57 +64,43 @@ export function RecognisedSenders({ initial, compact = false, nested = false }: 
   }
 
   // Under a step of the setup wizard, whose title is itself an h3.
-  const Heading = nested ? "h4" : "h3";
   const SubHeading = nested ? "h5" : "h4";
-  return (
-    <section className="stack" aria-labelledby={`${id}-recognised`}>
-      <Heading id={`${id}-recognised`}>{t("emailIntake.recognised.title")}</Heading>
+  const content = (
+    <div className="stack">
       <p>{t("emailIntake.recognised.explanation")}</p>
       <form className="stack" onSubmit={(event) => void add(event)}>
-        <div className="field">
-          <label htmlFor={`${id}-sender`}>{t("emailIntake.recognised.senderLabel")}</label>
-          <input
-            id={`${id}-sender`}
-            className="input"
-            type="text"
-            inputMode="email"
-            autoComplete="off"
-            spellCheck={false}
-            value={sender}
-            onChange={(event) => setSender(event.target.value)}
-            aria-describedby={`${id}-from-hint`}
-            required
-          />
-          <p id={`${id}-from-hint`} className="hint">
-            {t("emailIntake.recognised.fromHint")}
-          </p>
-        </div>
-        <div className="field">
-          <label htmlFor={`${id}-label`}>{t("emailIntake.recognised.labelLabel")}</label>
-          <input id={`${id}-label`} className="input" type="text" maxLength={120} value={label} onChange={(event) => setLabel(event.target.value)} />
-        </div>
+        <Field id={`${id}-sender`} label={t("emailIntake.recognised.senderLabel")} hint={t("emailIntake.recognised.fromHint")}>
+          <TextInput inputMode="email" autoComplete="off" spellCheck={false} value={sender} onChange={(event) => setSender(event.target.value)} required />
+        </Field>
+        <Field id={`${id}-label`} label={t("emailIntake.recognised.labelLabel")}>
+          <TextInput maxLength={120} value={label} onChange={(event) => setLabel(event.target.value)} />
+        </Field>
         <div>
-          <button className="button" type="submit" disabled={working}>
+          <button className={buttonClass()} type="submit" disabled={working}>
             {t("emailIntake.recognised.add")}
           </button>
         </div>
       </form>
-      {status ? <p role="status">{t("emailIntake.recognised.added")}</p> : null}
+      {status ? (
+        <Note tone="success" role="status">
+          {t("emailIntake.recognised.added")}
+        </Note>
+      ) : null}
       {error ? (
-        <p className="field-error" role="alert">
+        <Note tone="danger" role="alert">
           {t(`emailIntake.recognised.errors.${error}`)}
-        </p>
+        </Note>
       ) : null}
 
       <SubHeading>{t("emailIntake.recognised.ownTitle")}</SubHeading>
       {senders.own.length === 0 ? (
         <p>{t("emailIntake.recognised.ownNone")}</p>
       ) : (
-        <ul aria-label={t("emailIntake.recognised.ownListLabel")}>
+        <ul className="account-list" aria-label={t("emailIntake.recognised.ownListLabel")}>
           {senders.own.map((own) => (
             <li key={own.value}>
               {own.label === own.value ? own.value : t("emailIntake.recognised.item", { label: own.label, value: own.value })}{" "}
-              <button className="button" type="button" disabled={working} aria-label={t("emailIntake.recognised.removeLabel", { value: own.value })} onClick={() => void call("DELETE", { value: own.value })}>
+              <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={working} aria-label={t("emailIntake.recognised.removeLabel", { value: own.value })} onClick={() => void call("DELETE", { value: own.value })}>
                 {t("emailIntake.recognised.remove")}
               </button>
             </li>
@@ -122,13 +112,13 @@ export function RecognisedSenders({ initial, compact = false, nested = false }: 
         <>
           <SubHeading>{t("emailIntake.recognised.platformTitle")}</SubHeading>
           <p>{t("emailIntake.recognised.platformIntro")}</p>
-          <ul aria-label={t("emailIntake.recognised.platformListLabel")}>
+          <ul className="account-list" aria-label={t("emailIntake.recognised.platformListLabel")}>
             {senders.platform.map((listed) => (
               <li key={listed.value} data-switched-off={listed.switchedOff || undefined}>
                 {listed.label}
                 {listed.switchedOff ? ` (${t("emailIntake.recognised.switchedOff")})` : null}{" "}
                 <button
-                  className="button"
+                  className={buttonClass({ variant: "quiet", size: "sm" })}
                   type="button"
                   disabled={working}
                   aria-label={t(listed.switchedOff ? "emailIntake.recognised.switchOnLabel" : "emailIntake.recognised.switchOffLabel", { label: listed.label })}
@@ -141,6 +131,19 @@ export function RecognisedSenders({ initial, compact = false, nested = false }: 
           </ul>
         </>
       )}
+    </div>
+  );
+  // Under a step of the setup wizard, whose title is itself an h3; on Mon compte, a Card of its own.
+  if (!nested)
+    return (
+      <Card title={t("emailIntake.recognised.title")} headingLevel={3} headingId={`${id}-recognised`}>
+        {content}
+      </Card>
+    );
+  return (
+    <section className="stack" aria-labelledby={`${id}-recognised`}>
+      <h4 id={`${id}-recognised`}>{t("emailIntake.recognised.title")}</h4>
+      {content}
     </section>
   );
 }

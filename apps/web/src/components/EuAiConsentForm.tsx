@@ -2,6 +2,10 @@
 
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { buttonClass } from "@/design/button-class";
+import { Card } from "@/design/Card";
+import { Note } from "@/design/Note";
+import { Pill } from "@/design/Pill";
 
 /**
  * The Candidate's EU AI consent (ADR-0007 amendment): with it, the AI calls carrying their
@@ -30,24 +34,29 @@ export function EuAiConsentForm({ givenAt: initial, locale }: { givenAt: Date | 
 
   const date = givenAt ? new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(givenAt) : null;
   return (
-    <section className="stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("euAiConsent.title")}</h2>
-      <p>{t("euAiConsent.explanation")}</p>
-      <p role="status">{date ? t("euAiConsent.givenOn", { date }) : t("euAiConsent.notGiven")}</p>
-      {givenAt ? (
-        <button className="button" type="button" disabled={working} onClick={() => void change(false)}>
-          {t("euAiConsent.withdraw")}
-        </button>
-      ) : (
-        <button className="button button-primary" type="button" disabled={working} onClick={() => void change(true)}>
-          {t("euAiConsent.give")}
-        </button>
-      )}
-      {failed ? (
-        <p className="field-error" role="alert">
-          {t("euAiConsent.error")}
+    <Card title={t("euAiConsent.title")} headingId={`${id}-title`}>
+      <div className="stack">
+        <p>{t("euAiConsent.explanation")}</p>
+        <p role="status" className="account-status">
+          {date ? <Pill tone="success">{t("euAiConsent.givenOn", { date })}</Pill> : <Pill>{t("euAiConsent.notGiven")}</Pill>}
         </p>
-      ) : null}
-    </section>
+        <div className="actions">
+          {givenAt ? (
+            <button className={buttonClass()} type="button" disabled={working} onClick={() => void change(false)}>
+              {t("euAiConsent.withdraw")}
+            </button>
+          ) : (
+            <button className={buttonClass({ variant: "primary" })} type="button" disabled={working} onClick={() => void change(true)}>
+              {t("euAiConsent.give")}
+            </button>
+          )}
+        </div>
+        {failed ? (
+          <Note tone="danger" role="alert">
+            {t("euAiConsent.error")}
+          </Note>
+        ) : null}
+      </div>
+    </Card>
   );
 }

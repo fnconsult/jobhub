@@ -2,16 +2,23 @@ import type { ReactNode } from "react";
 import { Icons } from "@/components/icons";
 import "./Card.css";
 
-/** A card: a bordered surface, titled (a heading, level 2 unless told) with its `actions` at the end of the title line. */
+/**
+ * A card: a bordered surface, titled (a heading, level 2 unless told) with its `actions` at the end of the title line.
+ * `as="article"` for one of a list of things (an Action Card, #467); with a `headingId`, it is named by its title.
+ */
 export function Card({
   title,
   headingLevel = 2,
+  headingId,
+  as: Element = "section",
   actions,
   flat = false,
   children,
 }: {
   title?: ReactNode;
   headingLevel?: 2 | 3;
+  headingId?: string;
+  as?: "section" | "article";
   actions?: ReactNode;
   /** On the surface colour, without a shadow: a card inside a card. */
   flat?: boolean;
@@ -19,15 +26,19 @@ export function Card({
 }) {
   const Heading = headingLevel === 3 ? "h3" : "h2";
   return (
-    <section className="ds-card" data-flat={flat || undefined}>
+    <Element className="ds-card" data-flat={flat || undefined} aria-labelledby={title && headingId ? headingId : undefined}>
       {title || actions ? (
         <div className="ds-card__head">
-          {title ? <Heading className="ds-card__title">{title}</Heading> : null}
+          {title ? (
+            <Heading className="ds-card__title" id={headingId}>
+              {title}
+            </Heading>
+          ) : null}
           {actions ? <div className="ds-card__actions">{actions}</div> : null}
         </div>
       ) : null}
       {children}
-    </section>
+    </Element>
   );
 }
 

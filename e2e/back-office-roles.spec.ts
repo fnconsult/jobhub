@@ -19,6 +19,7 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 /** Every Back Office section's path, and the sidebar label that leads to it. */
 const SECTIONS = {
   signalements: "/admin/signalements",
+  withdrawals: "/admin/retractations",
   plans: "/admin/offres",
   planQuotas: "/admin/quotas",
   coupons: "/admin/codes-promo",
@@ -121,7 +122,7 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
+    await expectSections(page, ["signalements", "withdrawals", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
@@ -181,7 +182,7 @@ test.describe("Back Office Roles", () => {
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
     // Support reads Activité's Recherches, never its Appels IA nor its Actions des administrateurs (#404).
-    await expectSections(supportPage, ["signalements", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem"], ["discoveryRuns"]);
+    await expectSections(supportPage, ["signalements", "withdrawals", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem"], ["discoveryRuns"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);

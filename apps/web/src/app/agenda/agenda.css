@@ -406,6 +406,15 @@
   content: none;
 }
 
+/* A block's buttons (« Ajouter à mon calendrier », « Modifier la date ») wrap inside its narrow column. */
+.agenda-week .ds-button {
+  justify-content: flex-start;
+  max-width: 100%;
+  padding-inline: 0;
+  text-align: left;
+  white-space: normal;
+}
+
 @container (width >= 54rem) {
   .agenda-week {
     display: grid;

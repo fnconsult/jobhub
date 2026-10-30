@@ -382,7 +382,8 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .body.has-pane .col { max-width: none; }
 .actcol > .cbody > p:first-child { margin-top: 0; }
 .col-pane > .cbody::-webkit-scrollbar { display: none; }
-.fiche { width: 20rem; }
+/* 8e retour : la conversation garde une largeur de lecture (48rem au plus) ; une colonne seule prend le reste. */
+.fiche, .actcol { flex: 1 0 20rem; max-width: 30rem; }
 .fiche .obj .props { grid-template-columns: 1fr 1fr; }
 /* 5e retour : chaque Résultat est sa propre carte arrondie, sans trait entre eux. */
 .seclist.res { border: 0; border-radius: 0; overflow: visible; gap: .5rem; }
@@ -404,7 +405,7 @@ table.list tr.row:hover td { background: var(--color-hover); cursor: pointer; }
 .docp .mail .b { border: 0; min-height: 10rem; line-height: 1.55; }
 .docp .letter { background: #fff; color: #222; padding: 1.5rem; border: 1px solid var(--color-border); line-height: 1.6; }
 .docp .hint { color: var(--color-meta); font-size: .75rem; margin-top: .6rem; }
-.actcol { width: 18rem; }
+
 .ghead { display: flex; gap: .4rem; align-items: center; width: 100%; border: 0; background: none; padding: .9rem 0 .35rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-meta); text-align: left; }
 .ghead .pill { text-transform: none; letter-spacing: 0; }
 .actcol.tucked { width: 2.75rem; align-items: center; padding-top: .5rem; gap: .5rem; cursor: pointer; }
@@ -741,7 +742,7 @@ function VariantE() {
   const thread = messages(!isApp).replace(/data-doc="CV adapté[^"]*"/g, 'data-open="cv"').replace(/data-pane="activite"/g, 'data-open="questions"');
   const hasPane = (isApp && (S.fiche || S.doc)) || (!isApp && S.act === "open");
   return h`<div class="main">${topbar(btns)}<div class="body ${hasPane ? "has-pane" : ""}">
-    <div class="convo" style="min-width:20rem;flex:1 1 24rem"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
+    <div class="convo" style="min-width:20rem;flex:${hasPane ? "0 1 48rem" : "1 1 auto"}"><div class="thread"><div class="col">${thread}</div></div>${composer()}</div>
     ${docPanel()}${fichePanel()}${actColumn()}</div></div>`;
 }
 

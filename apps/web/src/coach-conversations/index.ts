@@ -298,6 +298,11 @@ export function subjectFrom(row: SubjectRow): Subject | null {
   }
 }
 
+/** The Profile a conversation is attached to: a Free conversation's, or its Subject's own Profile; none for a menu. */
+export function attachedProfileFrom(row: SubjectRow): { id: string; name: string } | null {
+  return row.profile_id && row.profile_name !== null && row.subject_kind !== "menu" ? { id: row.profile_id, name: row.profile_name } : null;
+}
+
 interface ConversationRow extends SubjectRow {
   id: string;
   title: string;
@@ -313,7 +318,7 @@ function summaryFrom(row: ConversationRow): CoachConversationSummary {
     id: row.id,
     title: row.title,
     subject: subjectFrom(row),
-    profile: row.profile_id && row.profile_name !== null && row.subject_kind !== "menu" ? { id: row.profile_id, name: row.profile_name } : null,
+    profile: attachedProfileFrom(row),
     lastMessageAt: row.last_message_at,
   };
 }

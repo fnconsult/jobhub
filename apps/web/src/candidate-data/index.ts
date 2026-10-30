@@ -34,7 +34,7 @@ import type { KeptAtsScore } from "../ats-score";
 import type { AssistantMessage, ExplainedItem } from "../back-office-assistant";
 import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type SavedAssistantReply } from "../back-office-assistant/conversations";
 import type { CoachMessage } from "../coach";
-import { SAVED_REPLY_COLUMNS, savedReplyProvenance, type SavedReply } from "../coach-conversations";
+import { attachedProfileFrom, SAVED_REPLY_COLUMNS, savedReplyProvenance, SUBJECT_COLUMNS, SUBJECT_JOINS, subjectFrom, type FocusKind, type SavedReply, type Subject, type SubjectRow } from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
 import { discoveryRunsOf, type ExportedDiscoveryRun } from "../discovery-runs";
 import { emailIntakeOf, type ExportedEmailIntake } from "../email-intake";
@@ -192,20 +192,22 @@ export interface ExportedEnrichedContact {
 export interface ExportedCoachConversation {
   id: string;
   title: string;
-  /** The Profile in view when it started, if any. */
+  /** What it is about (#600): an object or a Sidebar menu, by its kind, id and name; null for a Free conversation. */
+  subject: Subject | null;
+  /** The Profile it is attached to, if any. */
   profile: { id: string; name: string } | null;
   createdAt: Date;
   lastMessageAt: Date;
   /** Oldest first. */
   /**
    * `jobOfferId`: the Job Offer of a reply's Job Offer card. `provenance`: what served a reply (#327), when it is known.
-   * `focus`: the page's object in view when a reply was asked (an Application, a Job Offer or a Profile).
+   * `focus`: what a reply was about: the Subject's object or what was In view (one of six kinds, #600; the Agenda has no id).
    */
   messages: (Omit<CoachMessage, "jobOffer" | "at" | "provenance"> & {
     jobOfferId?: string;
     sentAt: Date;
     provenance?: Provenance;
-    focus?: { kind: "application" | "job_offer" | "profile"; id: string };
+    focus?: { kind: FocusKind; id?: string };
   })[];
 }
 
@@ -354,7 +356,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier (with what served its last build)",
-  coach_conversation: "coachConversations",
+  coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
@@ -580,16 +582,15 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportCoachConversations(candidateId: string): Promise<ExportedCoachConversation[]> {
     const [conversations, messagesOf] = await Promise.all([
-      rowsOf<Omit<ExportedCoachConversation, "messages">>(
-        `SELECT c.id, c.title, CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('id', p.id, 'name', p.name) END AS profile,
-                c.created_at AS "createdAt", c.last_message_at AS "lastMessageAt"
-           FROM coach_conversation c LEFT JOIN profile p ON p.id = c.profile_id
+      rowsOf<Pick<ExportedCoachConversation, "id" | "title" | "createdAt" | "lastMessageAt"> & SubjectRow>(
+        `SELECT c.id, c.title, c.created_at AS "createdAt", c.last_message_at AS "lastMessageAt", ${SUBJECT_COLUMNS}
+           FROM coach_conversation c ${SUBJECT_JOINS}
           WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.id`,
         candidateId,
       ),
       grouped<
         Pick<ExportedCoachConversation["messages"][number], "from" | "text" | "sentAt"> &
-          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: "application" | "job_offer" | "profile" | null; focusId: string | null }
+          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: FocusKind | null; focusId: string | null }
       >(
         `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
                 m.focus_kind AS "focusKind", m.focus_id AS "focusId", ${SAVED_REPLY_COLUMNS}
@@ -600,9 +601,14 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     ]);
     // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer, a reply says what served it (#327)
     // and what was in view; the others carry no mark. Never what a reply cost.
-    return conversations.map((conversation) => ({
-      ...conversation,
-      messages: messagesOf(conversation.id).map((message) => {
+    return conversations.map(({ id, title, createdAt, lastMessageAt, ...row }) => ({
+      id,
+      title,
+      subject: subjectFrom(row),
+      profile: attachedProfileFrom(row),
+      createdAt,
+      lastMessageAt,
+      messages: messagesOf(id).map((message) => {
         const provenance = message.from === "coach" ? savedReplyProvenance(message) : null;
         return {
           from: message.from,
@@ -611,7 +617,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           ...(message.blocked ? { blocked: message.blocked } : {}),
           ...(message.jobOfferId ? { jobOfferId: message.jobOfferId } : {}),
           ...(provenance ? { provenance } : {}),
-          ...(message.focusKind && message.focusId ? { focus: { kind: message.focusKind, id: message.focusId } } : {}),
+          ...(message.focusKind ? { focus: { kind: message.focusKind, ...(message.focusId ? { id: message.focusId } : {}) } } : {}),
         };
       }),
     }));

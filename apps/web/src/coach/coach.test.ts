@@ -667,10 +667,10 @@ describe("a Job Search or Job Digest In view: its 30 best Match Scores only (#60
   /** 40 Job Offers, the worst first: Offre n scores n. */
   const forty = Array.from({ length: 40 }, (_, index) => ({ jobOffer: offer(index + 1), matchScore: { ...matchScore, score: index + 1 }, applicationId: null }));
 
-  it.each([
+  it.each<[CoachFocus["kind"], Partial<Workspace>, string]>([
     ["job_search", { jobSearches: [{ ...jobSearch, results: forty }] }, jobSearch.id],
     ["job_digest", { jobDigests: [{ ...jobDigest, results: forty }] }, jobDigest.id],
-  ] as const)("a %s sends its 30 best Job Offers, best first, and leaves the others out", async (kind, workspace, id) => {
+  ])("a %s sends its 30 best Job Offers, best first, and leaves the others out", async (kind, workspace, id) => {
     const { coach, provider } = coachWith({ workspace });
 
     await ask(coach, { kind, id });

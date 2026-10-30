@@ -13,8 +13,9 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
-// The Candidate's pages in the Design System (ADR-0053), their screenshot baselines, light, at three widths, in
+// The Candidate's pages in the Design System (ADR-0053), their screenshot baselines, light and dark (#473), at three widths, in
 // e2e/__screenshots__, failing CI on a visual difference; axe runs on each. Only the page (`#main`) is compared, or one
 // component alone: the shell has its own baselines (shell-screenshots.spec.ts). How to update a baseline on purpose:
 // docs/agents/screenshot-baselines.md.
@@ -362,7 +363,10 @@ async function expectNoAxeViolations(page: Page, selector = "#main") {
   ).toEqual([]);
 }
 
-/** axe on `target`, nothing off the side, then, where screenshots are compared, `target` against its baseline. */
+/**
+ * In each theme (#473): axe on `target`, nothing off the side, in dark every text at AA, then, where screenshots are
+ * compared, `target` against its baseline. The page is left light.
+ */
 async function check(
   page: Page,
   target: Locator,
@@ -371,26 +375,31 @@ async function check(
   width: number,
   whole = true,
 ) {
-  await settled(page);
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth),
-    `${name}: the page's width`,
-  ).toBeLessThanOrEqual(width);
-  await expectNoAxeViolations(page, selector);
-  if (!comparesScreenshots()) return;
-  // A page whole, its column drawn at once with nothing to scroll into view.
-  if (whole)
-    await page.setViewportSize({
-      width,
-      height: await page.evaluate(() => document.documentElement.scrollHeight),
+  for (const theme of THEMES) {
+    await showInTheme(page, theme);
+    await settled(page);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+      `${name}: the page's width`,
+    ).toBeLessThanOrEqual(width);
+    await expectNoAxeViolations(page, selector);
+    if (theme === "dark") await expectTextContrast(page, name);
+    if (!comparesScreenshots()) continue;
+    // A page whole, its column drawn at once with nothing to scroll into view.
+    if (whole)
+      await page.setViewportSize({
+        width,
+        height: await page.evaluate(() => document.documentElement.scrollHeight),
+      });
+    await settled(page);
+    await expect(target).toHaveScreenshot(`${themedName(name, theme)}.png`, {
+      mask: [
+        page.getByText(MONTHS),
+        page.locator(".provenance-line, .sidebar-count"),
+      ],
     });
-  await settled(page);
-  await expect(target).toHaveScreenshot(`${name}.png`, {
-    mask: [
-      page.getByText(MONTHS),
-      page.locator(".provenance-line, .sidebar-count"),
-    ],
-  });
+  }
+  await showInTheme(page, "light");
 }
 
 test.describe("the Candidate's pages in the Design System (#467)", () => {
@@ -462,27 +471,32 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
         await page.goto(shot.path());
         await expect(shot.ready(page)).toBeVisible({ timeout: 20_000 });
         await expect(page.locator(shot.component).first()).toBeAttached();
-        await settled(page);
-        // Nothing runs off the side: a wide table scrolls in its own frame.
-        expect(
-          await page.evaluate(() => document.documentElement.scrollWidth),
-          `${name}: the page's width`,
-        ).toBeLessThanOrEqual(width);
-        await expectNoAxeViolations(page);
-        if (comparesScreenshots()) {
-          // The page whole, its column drawn at once with nothing to scroll into view.
-          await page.setViewportSize({
-            width,
-            height: await page.evaluate(
-              () => document.documentElement.scrollHeight,
-            ),
-          });
+        for (const theme of THEMES) {
+          await showInTheme(page, theme);
           await settled(page);
-          await expect(page.locator("#main")).toHaveScreenshot(
-            `${shot.name}-${name}.png`,
-            { mask: shot.mask().map((selector) => page.locator(selector)) },
-          );
+          // Nothing runs off the side: a wide table scrolls in its own frame.
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth),
+            `${name}: the page's width`,
+          ).toBeLessThanOrEqual(width);
+          await expectNoAxeViolations(page);
+          if (theme === "dark") await expectTextContrast(page, `${shot.name}-${name}`);
+          if (comparesScreenshots()) {
+            // The page whole, its column drawn at once with nothing to scroll into view.
+            await page.setViewportSize({
+              width,
+              height: await page.evaluate(
+                () => document.documentElement.scrollHeight,
+              ),
+            });
+            await settled(page);
+            await expect(page.locator("#main")).toHaveScreenshot(
+              `${themedName(`${shot.name}-${name}`, theme)}.png`,
+              { mask: shot.mask().map((selector) => page.locator(selector)) },
+            );
+          }
         }
+        await showInTheme(page, "light");
       }
       await page.close();
     });

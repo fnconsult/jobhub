@@ -117,6 +117,15 @@ test.describe("Design System page (#463)", () => {
     await expect(page.getByRole("radiogroup", { name: p.density }).getByRole("radio", { name: p.compact })).toHaveAttribute("aria-checked", "true");
   });
 
+  test("in a Back Office drawn dark (#473), its light content is still drawn light", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto(PAGE);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(preview(page)).toHaveAttribute("data-theme", "light");
+    expect(await preview(page).evaluate((element) => getComputedStyle(element).backgroundColor)).toBe("rgb(255, 255, 255)");
+    expect(await preview(page).evaluate((element) => getComputedStyle(element).colorScheme)).toBe("light");
+  });
 });
 
 test.describe("Design System page's screenshots (#463)", () => {

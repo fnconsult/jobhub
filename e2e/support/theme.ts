@@ -13,11 +13,17 @@ export const themedName = (name: string, theme: ScreenshotTheme) => (theme === "
 
 /**
  * Shows the page in `theme` as a device set to it shows it: under the default choice, Système, the page follows the
- * device's preference at once, without a reload (#473).
+ * device's preference at once, without a reload (#473). Returns once the colours' transitions are over (polled: under
+ * an open Drawer, a transition's `finished` can be slow to settle).
  */
 export async function showInTheme(page: Page, theme: ScreenshotTheme) {
   await page.emulateMedia({ colorScheme: theme });
   await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  await expect
+    .poll(() => page.evaluate(() => document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getTiming().iterations !== Infinity).length), {
+      message: `the page's transitions into ${theme}`,
+    })
+    .toBe(0);
 }
 
 /**

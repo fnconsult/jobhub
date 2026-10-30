@@ -3,9 +3,10 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { expectTextContrast, showInTheme, themedName } from "./support/theme";
 
 // Issue #466 (ADR-0053): every other Back Office section in the Compact Density, on the components, with Paramètres
-// (#465) as the model. Their screenshot baselines, light, at the desktop width, live in e2e/__screenshots__ and fail CI on
+// (#465) as the model. Their screenshot baselines, light and dark (#473), at the desktop width, live in e2e/__screenshots__ and fail CI on
 // a visual difference; axe runs on each. Only the page (`<main>`) is compared: the shell has its own baselines
 // (shell-screenshots.spec.ts). What other specs change runs alongside (the screenshot specs share one server): who holds a
 // Back Office Role, and every count of calls or cost. So Administrateurs is shot by its form, with the Administrators
@@ -130,6 +131,14 @@ test.describe("every other Back Office section in the Design System (#466)", () 
       }
       if (comparesScreenshots()) {
         await expect(target).toHaveScreenshot(`${section.name}-desktop.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
+      }
+      // The same section in dark (#473): axe and every text at AA, then its own baseline.
+      await showInTheme(page, "dark");
+      await settled(page);
+      await expectNoAxeViolations(page);
+      await expectTextContrast(page, section.name);
+      if (comparesScreenshots()) {
+        await expect(target).toHaveScreenshot(`${themedName(`${section.name}-desktop`, "dark")}.png`, { mask: (section.mask ?? []).map((selector) => page.locator(selector)) });
       }
       await page.close();
     });

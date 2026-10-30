@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { signInHref } from "@/auth/sign-in-return";
-import { useToast } from "@/design/Toast";
+import { TOAST_DURATION_MS } from "@/design/Toast";
+import "@/design/Toast.css";
 
 /** What the page says of an answer from our API (#542): a session gone, or too many requests; null for the rest. */
 export type ResponseNotice = { kind: "sessionExpired" } | { kind: "tooManyRequests"; seconds: number | null };
@@ -30,26 +32,23 @@ function asksOurApi(input: RequestInfo | URL): boolean {
 }
 
 /**
- * Watches the page's calls to our API (#542) and says, in a Toast, what the person can do: their session expired (a
- * link to sign in again and come back here; nothing on the page is cleared, so what they typed can be copied first), or
- * they sent too many requests (when to try again, from `Retry-After`). `signedIn`: whether the page was drawn for a
- * signed-in person.
+ * Watches the page's calls to our API (#542) and says, drawn as a Toast, what the person can do: their session expired
+ * (a link to sign in again and come back here; nothing on the page is cleared, so what they typed can be copied first,
+ * and it stays until they act), or they sent too many requests (when to try again, from `Retry-After`; it goes by
+ * itself). An alert, put in the page only when there is something to say: no live region waits in every page.
+ * `signedIn`: whether the page was drawn for a signed-in person.
  */
 export function ResponseWatcher({ signedIn }: { signedIn: boolean }) {
   const { t } = useTranslation();
-  const toast = useToast();
+  const [shown, setShown] = useState<{ notice: ResponseNotice; back: string } | null>(null);
+
   useEffect(() => {
     const original = window.fetch;
     window.fetch = async (input, init) => {
       const response = await original(input, init);
       try {
         const notice = asksOurApi(input) ? responseNotice(response.status, response.headers.get("Retry-After"), signedIn) : null;
-        if (notice?.kind === "sessionExpired") {
-          const here = `${window.location.pathname}${window.location.search}`;
-          toast({ message: t("errorPage.toast.sessionExpired"), link: { label: t("errorPage.toast.signInAgain"), href: signInHref(here, true) } });
-        } else if (notice?.kind === "tooManyRequests") {
-          toast({ message: notice.seconds ? t("errorPage.toast.tooManyRequests", { seconds: notice.seconds }) : t("errorPage.toast.tooManyRequestsSoon") });
-        }
+        if (notice) setShown({ notice, back: `${window.location.pathname}${window.location.search}` });
       } catch {
         // An address the page cannot read: nothing to say about it.
       }
@@ -58,6 +57,30 @@ export function ResponseWatcher({ signedIn }: { signedIn: boolean }) {
     return () => {
       window.fetch = original;
     };
-  }, [signedIn, t, toast]);
-  return null;
+  }, [signedIn]);
+
+  useEffect(() => {
+    if (shown?.notice.kind !== "tooManyRequests") return;
+    const timer = setTimeout(() => setShown(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [shown]);
+
+  if (!shown) return null;
+  const { notice, back } = shown;
+  return (
+    <div className="ds-toast-region">
+      <div role="alert" className="ds-toast">
+        {notice.kind === "sessionExpired" ? (
+          <>
+            <span>{t("errorPage.toast.sessionExpired")}</span>
+            <Link className="ds-toast__link" href={signInHref(back, true)}>
+              {t("errorPage.toast.signInAgain")}
+            </Link>
+          </>
+        ) : (
+          <span>{notice.seconds ? t("errorPage.toast.tooManyRequests", { seconds: notice.seconds }) : t("errorPage.toast.tooManyRequestsSoon")}</span>
+        )}
+      </div>
+    </div>
+  );
 }

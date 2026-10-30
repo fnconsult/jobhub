@@ -784,6 +784,14 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS unchecked boolean NOT NULL DEFAULT false;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
+    -- The conversations saved before they had a Subject are deleted, once, as it ships (ADR-0070): attached to a Profile with mixed
+    -- Focus, they could not be split, and only staging held any. Their messages go with them; the Coach Memory is kept.
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_schema = current_schema() AND table_name = 'coach_conversation' AND column_name = 'subject_kind') THEN
+        DELETE FROM coach_conversation;
+      END IF;
+    END $$;
     -- Its Subject (ADR-0070, #600): an object (its own column), a Sidebar menu, or none (a Free conversation, kind null).
     -- An archived object keeps its conversation; a deleted one takes it along.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS subject_kind text CHECK (subject_kind IN ('application', 'profile', 'job_search', 'job_digest', 'menu'));

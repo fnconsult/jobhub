@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachMessageCost, CoachReply, CoachReplyOptions } from "../coach";
 import { createApplications, migrateApplications } from "../applications";
+import { migrateCoachMemory } from "../coach-memory";
 import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { migrateJobSearches } from "../job-searches";
@@ -708,6 +709,25 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       expect(await conversations.ofSubject(marie, subject)).toEqual({ ok: true, conversation: null });
       const again = await conversations.send(marie, { subject, message: "Bonjour" });
       expect(again.ok && again.conversation.id).not.toBe(sent.conversation.id);
+    });
+
+    it("deletes, once, every conversation saved before conversations had a Subject (ADR-0070), keeping the Coach Memory", async () => {
+      await migrateCoachMemory(database);
+      await database.query(`INSERT INTO coach_memory_item (candidate_id, kind, text) VALUES ($1, 'goal', 'Devenir DAF à Lyon')`, [marie]);
+      await conversations.send(marie, { message: "Avant", focus: { kind: "profile", id: profileId } });
+      // The table as it was before: no Subject.
+      await database.query(`ALTER TABLE coach_conversation DROP COLUMN subject_kind CASCADE`);
+
+      await migrateCoachConversations(database);
+
+      expect(await conversations.list(marie)).toEqual([]);
+      expect((await database.query(`SELECT count(*)::int AS n FROM coach_message`)).rows).toEqual([{ n: 0 }]);
+      expect((await database.query(`SELECT text FROM coach_memory_item WHERE candidate_id = $1`, [marie])).rows).toEqual([{ text: "Devenir DAF à Lyon" }]);
+      // Once: what is said afterwards stays, however often the migration runs again.
+      await conversations.send(marie, { subject: { kind: "profile", id: profileId }, message: "Après" });
+      await conversations.send(marie, { message: "Libre" });
+      await migrateCoachConversations(database);
+      expect(await conversations.list(marie)).toHaveLength(2);
     });
 
     it("goes with the object when the object itself is deleted", async () => {

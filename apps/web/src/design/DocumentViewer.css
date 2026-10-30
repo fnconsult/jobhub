@@ -1,0 +1,185 @@
+@layer base, components;
+
+@layer components {
+  .ds-viewer {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ds-viewer__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ds-viewer__name {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    min-width: 0;
+    font-weight: 500;
+  }
+
+  .ds-viewer__name > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ds-viewer__spacer {
+    flex: 1;
+  }
+
+  .ds-viewer__aside,
+  .ds-viewer__count {
+    font-size: var(--font-size-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-meta);
+  }
+
+  .ds-viewer__zoom {
+    display: inline-flex;
+    align-items: center;
+    height: var(--size-control);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-control);
+  }
+
+  .ds-viewer__zoom button {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    padding: 0 var(--space-3);
+    color: var(--color-secondary);
+    cursor: pointer;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-control);
+  }
+
+  .ds-viewer__zoom button:hover:not(:disabled) {
+    color: var(--color-text);
+    background: var(--color-hover);
+  }
+
+  .ds-viewer__zoom button:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+
+  .ds-viewer__zoom button:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .ds-viewer__zoom span {
+    min-width: 3.25rem;
+    font-size: var(--font-size-meta);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text);
+    text-align: center;
+  }
+
+  .ds-viewer__stage {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    height: min(40rem, 75vh);
+    min-height: 24rem;
+  }
+
+  .ds-viewer__thumbs {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+    padding: var(--space-3);
+    overflow: auto;
+    background: var(--color-background);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .ds-viewer__thumbs button {
+    display: grid;
+    gap: var(--space-1);
+    justify-items: center;
+    padding: 0;
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+    cursor: pointer;
+    background: none;
+    border: 0;
+  }
+
+  .ds-viewer__thumbs button .ds-viewer__canvas {
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+  }
+
+  .ds-viewer__thumbs button[aria-current] .ds-viewer__canvas {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .ds-viewer__thumbs button[aria-current] {
+    color: var(--color-text);
+  }
+
+  .ds-viewer__thumbs button:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+  }
+
+  /* The pages, as paper on the surface; scrolled on their own. Positioned, so a page's offsetTop is from here. */
+  .ds-viewer__pages {
+    position: relative;
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+    justify-items: safe center;
+    padding: var(--space-6);
+    overflow: auto;
+  }
+
+  .ds-viewer__pages:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+
+  .ds-viewer__paper {
+    max-width: none;
+    line-height: 0;
+    box-shadow: var(--shadow-pop);
+  }
+
+  .ds-viewer__canvas {
+    display: block;
+  }
+
+  .ds-viewer__loading {
+    margin: 0;
+    color: var(--color-secondary);
+  }
+
+  .ds-viewer__failed {
+    padding: var(--space-6);
+  }
+
+  /* On a phone the thumbnails make way for the pages. */
+  @media (width < 56rem) {
+    .ds-viewer__stage {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ds-viewer__thumbs {
+      display: none;
+    }
+  }
+}

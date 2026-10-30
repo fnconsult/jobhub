@@ -4496,6 +4496,19 @@
       "or": "or",
       "choose": "Choose a file",
       "remove": "Remove {{name}}"
+    },
+    "viewer": {
+      "toolbar": "Document tools",
+      "pageOf": "Page {{page}} of {{pages}}",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in",
+      "fit": "Fit",
+      "download": "Download",
+      "pages": "Document pages",
+      "page": "Page {{page}}",
+      "loading": "Opening the document…",
+      "failed": "This document could not be shown. Download it to open it.",
+      "title": "Viewer"
     }
   },
   "emails": {

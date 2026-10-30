@@ -4496,6 +4496,19 @@
       "or": "ou",
       "choose": "Choisir un fichier",
       "remove": "Retirer {{name}}"
+    },
+    "viewer": {
+      "toolbar": "Outils du document",
+      "pageOf": "Page {{page}} sur {{pages}}",
+      "zoomOut": "Réduire",
+      "zoomIn": "Agrandir",
+      "fit": "Ajuster",
+      "download": "Télécharger",
+      "pages": "Pages du document",
+      "page": "Page {{page}}",
+      "loading": "Ouverture du document…",
+      "failed": "Ce document n'a pas pu s'afficher. Téléchargez-le pour l'ouvrir.",
+      "title": "Visionneuse"
     }
   },
   "emails": {

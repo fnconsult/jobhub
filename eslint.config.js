@@ -21,6 +21,12 @@ export default tseslint.config(
     },
   },
   {
+    // Email intake's MTA (#580): Haraka loads its plugins with require(), so they are CommonJS.
+    files: ["apps/mta/**/*.js"],
+    languageOptions: { sourceType: "commonjs" },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
     files: ["**/*.tsx"],
     plugins: { "react-hooks": reactHooks },
     rules: reactHooks.configs.recommended.rules,

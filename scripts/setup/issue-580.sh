@@ -180,45 +180,51 @@ finish() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES: Email intake through Brevo Inbound Parsing (#442). Brevo posts each
-# forwarded email to /api/email-intake/inbound, authenticated by a shared
-# secret (BREVO_INBOUND_SECRET, a Provider Secret entered in Clés, Brevo).
-# None of these values are GitHub secrets or .env values: this only walks the
-# human through the Back Office and the Brevo and DNS dashboards.
+# STAGES: Email intake on Jobbbox's own MTA (#580). One Haraka on the VPS
+# (deploy/mta/compose.yml) takes mail for each environment's Email intake
+# domain on port 25 and posts each email to that environment's app with a
+# shared secret: EMAIL_INTAKE_INBOUND_SECRET in Clés, the same one in the MTA's
+# own /opt/jobbbox/mta/.env. Already done by hand (2026-10-30): mx.jobbbox.ai A
+# 72.61.106.167, MX of alertes.staging.jobbbox.ai, 25/tcp open in ufw.
+# Production's domain (alertes.jobbbox.ai) waits for #457.
 # ──────────────────────────────────────────────────────────────────────────
+TOTAL_STAGES=5
 
-TOTAL_STAGES=4
+banner "Email intake: Jobbbox's own MTA (#580)"
 
-banner "Email intake: Brevo Inbound Parsing (#442)"
+stage "Pick the environment"
+ask TARGET "Environment whose Email intake domain to route (staging or production):"
+ask INTAKE_DOMAIN "Its Email intake domain (Paramètres, EMAIL_INTAKE_DOMAIN; e.g. alertes.staging.jobbbox.ai):"
+say "The MTA reaches that environment's web container as jobbbox-${TARGET}-web on the Traefik network."
 
 stage "Generate the inbound shared secret"
-say "Brevo sends this secret with every inbound email; the app refuses any post without it."
+say "The MTA sends this secret with every email it posts; the app refuses any post without it."
 step "A new random value is generated below. Copy it; it is shown once."
 INBOUND_SECRET=$(openssl rand -hex 32)
 note "$INBOUND_SECRET"
-step "In the Back Office, open Clés (Brevo) and paste it as BREVO_INBOUND_SECRET for this environment."
-confirm "Saved in Clés (Brevo) for this environment?" || SKIPPED+=("Save BREVO_INBOUND_SECRET in Clés (Brevo)")
+step "In the Back Office of ${TARGET}, open Paramètres › Sources › Réception par email and replace EMAIL_INTAKE_INBOUND_SECRET with it."
+confirm "Saved on the Email intake sheet of ${TARGET}?" || SKIPPED+=("Save EMAIL_INTAKE_INBOUND_SECRET on the Email intake sheet of ${TARGET}")
+
+stage "Give the MTA its route"
+say "On the VPS, as a user who may write /opt/jobbbox (and readable by jobbbox-deploy), create or edit /opt/jobbbox/mta/.env (mode 600):"
+note "MTA_DEPLOYED_BY=staging"
+note "INTAKE_ROUTE_1_DOMAIN=${INTAKE_DOMAIN}"
+note "INTAKE_ROUTE_1_URL=http://jobbbox-${TARGET}-web:3000/api/email-intake/inbound"
+note "INTAKE_ROUTE_1_SECRET=${INBOUND_SECRET}"
+say "A second environment is INTAKE_ROUTE_2_DOMAIN, _URL and _SECRET; MTA_DEPLOYED_BY names the one whose deployment runs the MTA."
 unset INBOUND_SECRET
+confirm "Saved /opt/jobbbox/mta/.env on the VPS?" || SKIPPED+=("Write /opt/jobbbox/mta/.env with the route of ${INTAKE_DOMAIN}")
 
-stage "Point Brevo Inbound Parsing at the app"
-ask APP_HOST "Host of this environment (e.g. jobbbox.ai or staging.jobbbox.ai):"
-open_url "https://app.brevo.com/"
-step "Open Inbound Parsing (Transactional, then Inbound parsing) and add a webhook."
-step "URL: https://${APP_HOST}/api/email-intake/inbound"
-step "Under the webhook's headers, add x-inbound-secret with the value from the previous stage."
-confirm "Webhook saved with that URL and header?" || SKIPPED+=("Create the Brevo inbound webhook for https://${APP_HOST}/api/email-intake/inbound")
+stage "Deploy"
+step "Run: gh workflow run deploy.yml -f target=staging (the environment MTA_DEPLOYED_BY names); it builds the mta image and starts it."
+step "On the VPS, check: docker compose -p jobbbox-mta ps (the mta service up, port 25)."
+confirm "MTA running?" || SKIPPED+=("Deploy and check the MTA (docker compose -p jobbbox-mta ps)")
 
-stage "Point the forwarding domain's MX at Brevo"
-say "Candidates forward their mail to addresses on the email-intake domain (default alertes.jobbbox.ai)."
-step "In Brevo's Inbound Parsing settings, copy the MX record it shows for your inbound domain."
-step "In your DNS provider, add that MX record for the inbound domain, exactly as Brevo states it."
-note "Do not invent the MX value: use the one Brevo displays for your account."
-confirm "MX record added and visible from a DNS lookup?" || SKIPPED+=("Add the Brevo inbound MX record for the email-intake domain")
-
-stage "Check Brevo's IP ranges"
-say "The webhook refuses posts from outside Brevo's IP ranges (Paramètres, default 1.179.112.0/20 and 172.246.240.0/20)."
-step "Compare them with the ranges Brevo publishes for Inbound Parsing."
-step "If they differ, set them in Paramètres (Email intake), not in .env."
-confirm "Ranges in Paramètres match Brevo's published list?" || SKIPPED+=("Check EMAIL_INTAKE_BREVO_IP_RANGES in Paramètres against Brevo's list")
+stage "Check from outside"
+say "From a host that may send mail on port 25 (many home networks block it):"
+step "node apps/mta/scripts/probe.mjs mx.jobbbox.ai ${INTAKE_DOMAIN}"
+note "Expect: STARTTLS offered, other domains refused (no relay), ${INTAKE_DOMAIN} taken, an email over 10 MB refused."
+step "Then forward an email from an outside mailbox to a Forwarding address on ${INTAKE_DOMAIN}: it shows in Back Office › Activité › Emails reçus."
+confirm "Probe passed and the email shows in Emails reçus?" || SKIPPED+=("Probe mx.jobbbox.ai and send a test email to ${INTAKE_DOMAIN}")
 
 finish

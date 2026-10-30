@@ -562,14 +562,12 @@ describe("Back Office Assistant", () => {
 
       if (!result.ok) throw new Error("no reply");
       expect(result.reply).toContain("recus.jobbbox.test");
-      expect(result.reply).toContain("inbound1.sendinblue.com");
-      expect(result.reply).toContain("inbound2.sendinblue.com");
-      expect(result.reply).toMatch(/priorité 10/);
-      expect(result.reply).toMatch(/priorité 20/);
+      expect(result.reply).toContain("MX priorité 10 vers mx.jobbbox.ai");
+      expect(result.reply).toContain("72.61.106.167");
       expect(JSON.stringify(stubbed.calls.at(-1)!.messages.at(-1))).toContain("Élément : réglage EMAIL_INTAKE_DOMAIN");
     });
 
-    it("explains Brevo's inbound webhook and secret, then Microsoft, Google and Yahoo, saying what is not confirmed", async () => {
+    it("explains Jobbbox's own MTA (MX to the VPS, port 25, the secret on both sides), then Microsoft, Google and Yahoo, saying what is not confirmed", async () => {
       const { assistant, administrator } = assistantFor(["support"]);
 
       await assistant.reply(administrator, asked("Comment configurer la réception par email ?"));
@@ -580,7 +578,10 @@ describe("Back Office Assistant", () => {
       expect(system).toContain("recus.jobbbox.test");
       expect(system).not.toContain("alertes.jobbbox.ai");
       expect(system).toMatch(/différent du domaine d'envoi/);
-      for (const fact of ["inboundEmailProcessed", "BREVO_INBOUND_SECRET", "x-inbound-secret", "/api/email-intake/inbound", "EMAIL_INTAKE_BREVO_IP_RANGES"]) expect(system).toContain(fact);
+      for (const fact of ["mx.jobbbox.ai", "72.61.106.167", "port 25", "MX priorité 10", "EMAIL_INTAKE_INBOUND_SECRET", "INTAKE_ROUTE_", "/opt/jobbbox/mta/.env", "/api/email-intake/inbound", "EMAIL_INTAKE_MTA_IP_RANGES", "10 Mo", "450"]) {
+        expect(system).toContain(fact);
+      }
+      for (const gone of ["inboundEmailProcessed", "sendinblue", "BREVO_INBOUND_SECRET", "Brevo analyse"]) expect(system).not.toContain(gone);
       for (const fact of ["vérification de l'éditeur", "Microsoft AI Cloud Partner Program", "*.onmicrosoft.com", "Application Administrator"]) expect(system).toContain(fact);
       for (const fact of ["évaluation de sécurité", "CASA", "non confirmé"]) expect(system).toContain(fact);
       for (const fact of ["mail-r", "imap.mail.yahoo.com", "OAUTHBEARER"]) expect(system).toContain(fact);

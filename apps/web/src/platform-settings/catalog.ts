@@ -85,7 +85,7 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // Tool's sheet. AI Usage records each call at the prices in use, and a Job discovery run's budget spends that cost.
   ...PRICE_SETTINGS.map((price): PlatformSetting => ({ name: price.name, group: "prices", type: price.unit === "rate" ? decimal(0.01, 100) : decimal(0, 100), default: price.default })),
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
-  // Email intake (#441, ADR-0050): the domain the Candidates' Forwarding addresses are on, whose emails Brevo Inbound Parsing receives.
+  // Email intake (#441, #580): the domain the Candidates' Forwarding addresses are on, whose emails Jobbbox's own MTA receives.
   { name: "EMAIL_INTAKE_DOMAIN", group: "email_intake", type: { kind: "domain" }, default: "alertes.jobbbox.ai" },
   // Email intake (#442, #580): how many emails one Linked mailbox may have read a day (past it: set aside, counted), from
   // how many a day its filter counts as « filtre trop large », and the networks its MTA posts from (CIDR, comma

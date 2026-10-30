@@ -51,10 +51,29 @@ import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
 
+/**
+ * The Sidebar menus that are each one Coach Conversation per Candidate (ADR-0070), by their Sidebar key:
+ * Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains.
+ */
+export const SUBJECT_MENUS = ["applications", "jobSearches", "jobDigests", "agenda", "humanCoaches"] as const;
+export type SubjectMenu = (typeof SUBJECT_MENUS)[number];
+
+/** The objects a Coach Conversation can be about (ADR-0070). */
+export const SUBJECT_OBJECT_KINDS = ["application", "profile", "job_search", "job_digest"] as const;
+export type SubjectObjectKind = (typeof SUBJECT_OBJECT_KINDS)[number];
+
+/** A Subject as the browser names it: one of the Candidate's objects by its id, or a Sidebar menu by its key. */
+export type SubjectRef = { kind: SubjectObjectKind; id: string } | { kind: "menu"; id: SubjectMenu };
+
+/** What a Coach Conversation is about, fixed when it starts, with the name it is shown under. A Free conversation has none. */
+export type Subject = SubjectRef & { name: string };
+
 export interface CoachConversationSummary {
   id: string;
   title: string;
-  /** The Profile in view when the conversation started, if any. */
+  /** What it is about; null for a Free conversation. */
+  subject: Subject | null;
+  /** The Profile it is attached to: a Free conversation's Profile in view when it started, the Subject's own Profile otherwise; none for a menu. */
   profile: { id: string; name: string } | null;
   lastMessageAt: Date;
 }
@@ -106,6 +125,9 @@ export interface SendOptions {
   onEvent?: (event: CoachEvent) => void;
 }
 
+/** The conversation of a Subject, null until its first message; `not_found` when the Subject is not the Candidate's. */
+export type OfSubjectResult = { ok: true; conversation: CoachConversation | null } | { ok: false; error: "invalid" | "not_found" };
+
 export type RenameResult = { ok: true; conversation: CoachConversationSummary } | { ok: false; error: "invalid" | "not_found" };
 
 export interface CoachConversations {
@@ -113,6 +135,8 @@ export interface CoachConversations {
   /** The Candidate's conversations, most recently active first. */
   list(candidateId: string): Promise<CoachConversationSummary[]>;
   open(candidateId: string, conversationId: string): Promise<CoachConversation | null>;
+  /** The conversation of `subject` (untrusted: `{ kind, id }`), with its messages, or null before its first message. */
+  ofSubject(candidateId: string, subject: unknown): Promise<OfSubjectResult>;
   /** `title` is untrusted: trimmed, 1 to MAX_TITLE_LENGTH characters. */
   rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
@@ -147,8 +171,15 @@ export const MAX_TITLE_LENGTH = 80;
 
 const titleSchema = z.string().trim().min(1).max(MAX_TITLE_LENGTH);
 
+const subjectSchema = z.union([
+  z.object({ kind: z.enum(SUBJECT_OBJECT_KINDS), id: z.string().regex(UUID) }),
+  z.object({ kind: z.literal("menu"), id: z.enum(SUBJECT_MENUS) }),
+]);
+
 const sendSchema = z.object({
   conversationId: z.string().regex(UUID).optional(),
+  /** Without `conversationId`: the conversation of this Subject, started by this message if it has none yet. */
+  subject: subjectSchema.optional(),
   message: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
   /** What is in view; `profileId`: the Profile a Job Search, Job Digest or Application page shows, to attach a new conversation to. */
   focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100), profileId: z.string().max(100).optional() }).optional(),
@@ -200,26 +231,105 @@ interface MessageRow extends SavedReply {
   jobOffer: JobOfferCard | null;
 }
 
-interface ConversationRow {
-  id: string;
-  title: string;
+/** What a Subject's name is made of, as `SUBJECT_COLUMNS` reads it. */
+export interface SubjectRow {
+  subject_kind: SubjectObjectKind | "menu" | null;
+  subject_menu: SubjectMenu | null;
+  application_id: string | null;
+  job_search_id: string | null;
+  job_digest_id: string | null;
   profile_id: string | null;
   profile_name: string | null;
+  subject_offer_title: string | null;
+  subject_offer_employer: string | null;
+  subject_search_started_at: Date | null;
+  subject_digest_sent_at: Date | null;
+}
+
+/** Where each Subject's id is kept on `coach_conversation`: a column per kind of object, the menu's key for a menu. */
+const SUBJECT_COLUMN = { application: "application_id", profile: "profile_id", job_search: "job_search_id", job_digest: "job_digest_id", menu: "subject_menu" } as const;
+
+/** The columns `subjectFrom` reads, from `coach_conversation c` and `SUBJECT_JOINS`. */
+export const SUBJECT_COLUMNS = `c.subject_kind, c.subject_menu, c.application_id, c.job_search_id, c.job_digest_id, c.profile_id, sp.name AS profile_name,
+       so.title AS subject_offer_title, so.employer AS subject_offer_employer, ss.started_at AS subject_search_started_at, sd.sent_at AS subject_digest_sent_at`;
+export const SUBJECT_JOINS = `LEFT JOIN profile sp ON sp.id = c.profile_id
+       LEFT JOIN application sa ON sa.id = c.application_id LEFT JOIN job_offer so ON so.id = sa.job_offer_id
+       LEFT JOIN job_search ss ON ss.id = c.job_search_id LEFT JOIN job_digest sd ON sd.id = c.job_digest_id`;
+
+/** The French names of the Sidebar menus, as the Sidebar shows them. */
+const MENU_NAMES: Record<SubjectMenu, string> = {
+  applications: "Mes candidatures",
+  jobSearches: "Recherches d'offres",
+  jobDigests: "Job Digests",
+  agenda: "Agenda",
+  humanCoaches: "Mes coachs humains",
+};
+
+const SUBJECT_DAY = new Intl.DateTimeFormat("fr", { timeZone: "Europe/Paris", dateStyle: "long" });
+
+/** A conversation's Subject, named: an Application by its Job Offer, a Profile by its name, a Job Search or Job Digest by its date and Profile. */
+export function subjectFrom(row: SubjectRow): Subject | null {
+  const profile = row.profile_name ?? "";
+  switch (row.subject_kind) {
+    case "application":
+      return { kind: "application", id: row.application_id!, name: [row.subject_offer_title, row.subject_offer_employer].filter(Boolean).join(" · ") };
+    case "profile":
+      return { kind: "profile", id: row.profile_id!, name: profile };
+    case "job_search":
+      return { kind: "job_search", id: row.job_search_id!, name: `Recherche d'offres du ${SUBJECT_DAY.format(row.subject_search_started_at!)} · ${profile}` };
+    case "job_digest":
+      return { kind: "job_digest", id: row.job_digest_id!, name: `Job Digest du ${SUBJECT_DAY.format(row.subject_digest_sent_at!)} · ${profile}` };
+    case "menu":
+      return { kind: "menu", id: row.subject_menu!, name: MENU_NAMES[row.subject_menu!] };
+    default:
+      return null;
+  }
+}
+
+interface ConversationRow extends SubjectRow {
+  id: string;
+  title: string;
   last_message_at: Date;
   ai_disclosure: boolean;
 }
 
-const SUMMARY = `SELECT c.id, c.title, c.profile_id, p.name AS profile_name, c.last_message_at, c.ai_disclosure
-                   FROM coach_conversation c LEFT JOIN profile p ON p.id = c.profile_id`;
+const SUMMARY = `SELECT c.id, c.title, c.last_message_at, c.ai_disclosure, ${SUBJECT_COLUMNS}
+                   FROM coach_conversation c ${SUBJECT_JOINS}`;
 
 function summaryFrom(row: ConversationRow): CoachConversationSummary {
   return {
     id: row.id,
     title: row.title,
-    profile: row.profile_id && row.profile_name !== null ? { id: row.profile_id, name: row.profile_name } : null,
+    subject: subjectFrom(row),
+    profile: row.profile_id && row.profile_name !== null && row.subject_kind !== "menu" ? { id: row.profile_id, name: row.profile_name } : null,
     lastMessageAt: row.last_message_at,
   };
 }
+
+const NO_SUBJECT: SubjectRow = {
+  subject_kind: null,
+  subject_menu: null,
+  application_id: null,
+  job_search_id: null,
+  job_digest_id: null,
+  profile_id: null,
+  profile_name: null,
+  subject_offer_title: null,
+  subject_offer_employer: null,
+  subject_search_started_at: null,
+  subject_digest_sent_at: null,
+};
+
+/** The Candidate's own object a Subject names, with the Profile it belongs to, as `subjectFrom` reads it; null when it is not theirs. */
+const OWN_SUBJECT: Record<SubjectObjectKind, string> = {
+  application: `SELECT 'application' AS subject_kind, a.id AS application_id, a.profile_id, p.name AS profile_name, o.title AS subject_offer_title, o.employer AS subject_offer_employer
+                  FROM application a JOIN profile p ON p.id = a.profile_id JOIN job_offer o ON o.id = a.job_offer_id WHERE a.id = $1 AND a.candidate_id = $2`,
+  profile: `SELECT 'profile' AS subject_kind, p.id AS profile_id, p.name AS profile_name FROM profile p WHERE p.id = $1 AND p.candidate_id = $2`,
+  job_search: `SELECT 'job_search' AS subject_kind, s.id AS job_search_id, s.profile_id, p.name AS profile_name, s.started_at AS subject_search_started_at
+                 FROM job_search s JOIN profile p ON p.id = s.profile_id WHERE s.id = $1 AND s.candidate_id = $2`,
+  job_digest: `SELECT 'job_digest' AS subject_kind, d.id AS job_digest_id, d.profile_id, p.name AS profile_name, d.sent_at AS subject_digest_sent_at
+                 FROM job_digest d JOIN profile p ON p.id = d.profile_id WHERE d.id = $1 AND d.candidate_id = $2`,
+};
 
 function titleFrom(message: string): string {
   const words = message.replace(/\s+/g, " ").trim();
@@ -236,6 +346,27 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   async function find(candidateId: string, conversationId: string): Promise<CoachConversationSummary | null> {
     const row = await findRow(candidateId, conversationId);
     return row ? summaryFrom(row) : null;
+  }
+  async function findOfSubject(candidateId: string, subject: SubjectRef): Promise<ConversationRow | null> {
+    const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.candidate_id = $1 AND c.subject_kind = $2 AND c.${SUBJECT_COLUMN[subject.kind]} = $3`, [
+      candidateId,
+      subject.kind,
+      subject.id,
+    ]);
+    return rows[0] ?? null;
+  }
+
+  /**
+   * The Subject named, if it is the Candidate's (an archived object still is), with what a new conversation about it is
+   * attached to: its own Profile; none for a menu.
+   */
+  async function ownSubject(candidateId: string, subject: SubjectRef): Promise<{ subject: Subject; profile: { id: string; name: string } | null } | null> {
+    if (subject.kind === "menu") return { subject: { ...subject, name: MENU_NAMES[subject.id] }, profile: null };
+    const { rows } = await database.query<Partial<SubjectRow>>(OWN_SUBJECT[subject.kind], [subject.id, candidateId]);
+    const row = rows[0];
+    if (!row) return null;
+    const named = subjectFrom({ ...NO_SUBJECT, ...row });
+    return named ? { subject: named, profile: row.profile_id && row.profile_name ? { id: row.profile_id, name: row.profile_name } : null } : null;
   }
 
   /**
@@ -288,10 +419,12 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async send(candidateId, input, options = {}) {
       const parsed = sendSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
-      const { conversationId, message, focus, helpArticle, route } = parsed.data;
+      const { conversationId, subject, message, focus, helpArticle, route } = parsed.data;
+      if (conversationId && subject) return { ok: false, error: "invalid" };
       // A new conversation gets its id now, so a Stop keeps the message in the conversation the Candidate was told of.
       const id = conversationId ?? randomUUID();
-      return inTurn(id, async (): Promise<SendResult> => {
+      // Messages about one Subject take turns, so its first two make one conversation, not two.
+      return inTurn(subject ? `${candidateId}:${subject.kind}:${subject.id}` : id, async (): Promise<SendResult> => {
         const { signal, onEvent } = options;
         const emit = (event: CoachEvent) => {
           try {
@@ -301,11 +434,14 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           }
         };
 
-        const existing = conversationId ? await find(candidateId, conversationId) : null;
+        const owned = subject ? await ownSubject(candidateId, subject) : null;
+        if (subject && !owned) return { ok: false, error: "not_found" };
+        const ofSubject = subject ? await findOfSubject(candidateId, subject) : null;
+        const existing = conversationId ? await find(candidateId, conversationId) : ofSubject ? summaryFrom(ofSubject) : null;
         if (conversationId && !existing) return { ok: false, error: "not_found" };
         const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES, true) : [];
-        const profile = existing ? null : await profileInView(candidateId, focus);
-        const conversation: CoachConversationSummary = existing ?? { id, title: titleFrom(message), profile, lastMessageAt: now() };
+        const profile = existing ? null : owned ? owned.profile : await profileInView(candidateId, focus);
+        const conversation: CoachConversationSummary = existing ?? { id, title: titleFrom(message), subject: owned?.subject ?? null, profile, lastMessageAt: now() };
         emit({ type: "conversation", conversation });
 
         const answer = await deps.coach.reply(
@@ -366,6 +502,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       return { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null) };
     },
 
+    async ofSubject(candidateId, input) {
+      const parsed = subjectSchema.safeParse(input);
+      if (!parsed.success) return { ok: false, error: "invalid" };
+      if (!(await ownSubject(candidateId, parsed.data))) return { ok: false, error: "not_found" };
+      const row = await findOfSubject(candidateId, parsed.data);
+      if (!row) return { ok: true, conversation: null };
+      return { ok: true, conversation: { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null) } };
+    },
+
     async rename(candidateId, conversationId, title) {
       const parsed = titleSchema.safeParse(title);
       if (!parsed.success) return { ok: false, error: "invalid" };
@@ -413,11 +558,13 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     const client = await database.connect();
     try {
       await client.query("BEGIN");
-      const { id } = conversation;
+      const { id, subject } = conversation;
       if (isNew) {
+        const subjectId = (kind: SubjectRef["kind"]) => (subject?.kind === kind ? subject.id : null);
         await client.query(
-          `INSERT INTO coach_conversation (id, candidate_id, profile_id, title, created_at, last_message_at, ai_disclosure) VALUES ($1, $2, $3, $4, $5, $5, true)`,
-          [id, candidateId, conversation.profile?.id ?? null, conversation.title, sentAt],
+          `INSERT INTO coach_conversation (id, candidate_id, profile_id, title, created_at, last_message_at, ai_disclosure, subject_kind, subject_menu, application_id, job_search_id, job_digest_id)
+           VALUES ($1, $2, $3, $4, $5, $5, true, $6, $7, $8, $9, $10)`,
+          [id, candidateId, conversation.profile?.id ?? subjectId("profile"), conversation.title, sentAt, subject?.kind ?? null, subjectId("menu"), subjectId("application"), subjectId("job_search"), subjectId("job_digest")],
         );
       }
       await client.query(`INSERT INTO coach_message (conversation_id, author, text, created_at, blocked, unchecked) VALUES ($1, 'candidate', $2, $3, $4, $5)`, [
@@ -589,7 +736,7 @@ export async function purgeStaleCoachConversations(database: Pick<Pool, "query">
   return rowCount ?? 0;
 }
 
-/** Creates or upgrades the Coach Conversation tables. Run after the Profile, Job Offer and Application tables. Safe to run repeatedly. */
+/** Creates or upgrades the Coach Conversation tables. Run after the Profile, Job Offer, Application, Job Search and Job Digest tables. Safe to run repeatedly. */
 export async function migrateCoachConversations(database: Pool): Promise<void> {
   await database.query(`
     CREATE TABLE IF NOT EXISTS coach_conversation (
@@ -637,5 +784,20 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS unchecked boolean NOT NULL DEFAULT false;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
+    -- Its Subject (ADR-0070, #600): an object (its own column), a Sidebar menu, or none (a Free conversation, kind null).
+    -- An archived object keeps its conversation; a deleted one takes it along.
+    ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS subject_kind text CHECK (subject_kind IN ('application', 'profile', 'job_search', 'job_digest', 'menu'));
+    ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS subject_menu text CHECK (subject_menu IN (${SUBJECT_MENUS.map((menu) => `'${menu}'`).join(", ")}));
+    ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS application_id uuid REFERENCES application (id) ON DELETE CASCADE;
+    ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS job_search_id uuid REFERENCES job_search (id) ON DELETE CASCADE;
+    ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS job_digest_id uuid REFERENCES job_digest (id) ON DELETE CASCADE;
+    ALTER TABLE coach_conversation DROP CONSTRAINT IF EXISTS coach_conversation_subject_check;
+    ALTER TABLE coach_conversation ADD CONSTRAINT coach_conversation_subject_check CHECK (CASE subject_kind
+      WHEN 'application' THEN application_id IS NOT NULL WHEN 'profile' THEN profile_id IS NOT NULL WHEN 'job_search' THEN job_search_id IS NOT NULL
+      WHEN 'job_digest' THEN job_digest_id IS NOT NULL WHEN 'menu' THEN subject_menu IS NOT NULL ELSE true END);
+    -- An object or a menu has at most one conversation.
+    CREATE UNIQUE INDEX IF NOT EXISTS coach_conversation_subject_idx
+      ON coach_conversation (candidate_id, subject_kind, (coalesce(application_id::text, job_search_id::text, job_digest_id::text, subject_menu, profile_id::text)))
+      WHERE subject_kind IS NOT NULL;
   `);
 }

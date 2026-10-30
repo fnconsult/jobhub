@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachMessageCost, CoachReply, CoachReplyOptions } from "../coach";
 import { createApplications, migrateApplications } from "../applications";
+import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles } from "../profiles";
 import type { NoticedReply } from "../unanswered-questions";
 import { coachCostPerDay, coachCostPerPlaybookAgent, createCoachConversations, migrateCoachConversations, purgeStaleCoachConversations, type CoachConversations, type CoachEvent } from "./index";
@@ -80,6 +82,8 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
+    await migrateJobSearches(database);
+    await migrateJobDigests(database);
     await migrateCoachConversations(database);
     await migrateCoachConversations(database); // safe to run twice
     marie = await candidate("marie.dupont@example.fr");
@@ -182,8 +186,8 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     const list = await conversations.list(marie);
 
     expect(list).toEqual([
-      { id: onProfile.conversation.id, title: "Mon CV est-il bon ?", profile: { id: profile.profile.id, name: "Directrice financière" }, lastMessageAt: expect.any(Date) },
-      { id: elsewhere.conversation.id, title: "Comment préparer un entretien ?", profile: null, lastMessageAt: expect.any(Date) },
+      { id: onProfile.conversation.id, title: "Mon CV est-il bon ?", subject: null, profile: { id: profile.profile.id, name: "Directrice financière" }, lastMessageAt: expect.any(Date) },
+      { id: elsewhere.conversation.id, title: "Comment préparer un entretien ?", subject: null, profile: null, lastMessageAt: expect.any(Date) },
     ]);
     expect(onProfile.conversation.profile).toEqual({ id: profile.profile.id, name: "Directrice financière" });
     expect(asked[0]!.input.focus).toEqual({ kind: "profile", id: profile.profile.id });
@@ -576,6 +580,145 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     });
   });
 
+  describe("each conversation's Subject (#600, ADR-0070)", () => {
+    let profileId: string;
+    let applicationId: string;
+    let jobSearchId: string;
+    let jobDigestId: string;
+
+    beforeEach(async () => {
+      const profiles = createProfiles(database);
+      const profile = await profiles.create(marie, { masterCv, searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+      if (!profile.ok) throw new Error("fixture refused");
+      profileId = profile.profile.id;
+      const jobOffers = createJobOffers(database);
+      const captured = await jobOffers.capture({ source: { url: "https://carrieres.example.fr/daf" }, title: "DAF H/F", content: "Groupe Seb recrute son DAF.", employer: "Groupe Seb" });
+      if (!captured.ok) throw new Error("not captured");
+      const saved = await createApplications(database, { jobOffers, profiles }).save(marie, { jobOfferId: captured.jobOffer.id, profileId });
+      if (!saved.ok) throw new Error("not saved");
+      applicationId = saved.application.id;
+      const search = await database.query<{ id: string }>(`INSERT INTO job_search (candidate_id, profile_id, status, started_at) VALUES ($1, $2, 'done', '2026-10-13T08:00:00Z') RETURNING id`, [marie, profileId]);
+      jobSearchId = search.rows[0]!.id;
+      const digest = await database.query<{ id: string }>(`INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, '{}', '2026-10-14T06:00:00Z') RETURNING id`, [marie, profileId]);
+      jobDigestId = digest.rows[0]!.id;
+    });
+
+    it("gives an object at most one conversation, created at its first message: every message about it goes there", async () => {
+      const subject = { kind: "application", id: applicationId };
+      expect(await conversations.ofSubject(marie, subject)).toEqual({ ok: true, conversation: null });
+
+      const first = await conversations.send(marie, { subject, message: "Comment relancer ?" });
+      const second = await conversations.send(marie, { subject, message: "Et après ?" });
+
+      if (!first.ok || !second.ok) throw new Error("refused");
+      expect(second.conversation.id).toBe(first.conversation.id);
+      expect(first.conversation).toMatchObject({ subject: { kind: "application", id: applicationId, name: "DAF H/F · Groupe Seb" }, profile: { id: profileId } });
+      expect(await conversations.ofSubject(marie, subject)).toMatchObject({
+        ok: true,
+        conversation: { id: first.conversation.id, messages: [{ text: "Comment relancer ?" }, { text: "Réponse 1" }, { text: "Et après ?" }, { text: "Réponse 2" }] },
+      });
+      expect(await conversations.list(marie)).toHaveLength(1);
+    });
+
+    it("names each Subject: a Profile, a Job Search, a Job Digest by their Profile, each Sidebar menu once per Candidate", async () => {
+      const subjects = [
+        [{ kind: "profile", id: profileId }, "Directrice financière"],
+        [{ kind: "job_search", id: jobSearchId }, "Recherche d'offres du 13 octobre 2026 · Directrice financière"],
+        [{ kind: "job_digest", id: jobDigestId }, "Job Digest du 14 octobre 2026 · Directrice financière"],
+        [{ kind: "menu", id: "applications" }, "Mes candidatures"],
+        [{ kind: "menu", id: "jobSearches" }, "Recherches d'offres"],
+        [{ kind: "menu", id: "jobDigests" }, "Job Digests"],
+        [{ kind: "menu", id: "agenda" }, "Agenda"],
+        [{ kind: "menu", id: "humanCoaches" }, "Mes coachs humains"],
+      ] as const;
+
+      for (const [subject, name] of subjects) {
+        const first = await conversations.send(marie, { subject, message: "Bonjour" });
+        const again = await conversations.send(marie, { subject, message: "Encore" });
+        if (!first.ok || !again.ok) throw new Error(`refused: ${subject.kind}`);
+        expect(first.conversation.subject).toEqual({ ...subject, name });
+        expect(again.conversation.id).toBe(first.conversation.id);
+      }
+      expect(await conversations.list(marie)).toHaveLength(subjects.length);
+      // A menu is one conversation per Candidate: Jean's is his own; an object's attaches to its Profile, a menu's to none.
+      const jeans = await conversations.send(jean, { subject: { kind: "menu", id: "agenda" }, message: "Bonjour" });
+      expect(jeans).toMatchObject({ ok: true, conversation: { subject: { kind: "menu", id: "agenda" }, profile: null } });
+      expect(await conversations.ofSubject(marie, { kind: "menu", id: "agenda" })).toMatchObject({ ok: true, conversation: { messages: { length: 4 } } });
+      expect(await conversations.ofSubject(marie, { kind: "job_search", id: jobSearchId })).toMatchObject({ conversation: { profile: { id: profileId, name: "Directrice financière" } } });
+    });
+
+    it("still starts a new Free conversation for each message sent without a conversation or a Subject", async () => {
+      await conversations.send(marie, { subject: { kind: "profile", id: profileId }, message: "Mon CV ?" });
+      const free = await conversations.send(marie, { message: "Bonjour", focus: { kind: "profile", id: profileId } });
+      const another = await conversations.send(marie, { message: "Bonjour", focus: { kind: "profile", id: profileId } });
+
+      if (!free.ok || !another.ok) throw new Error("refused");
+      expect(free.conversation).toMatchObject({ subject: null, profile: { id: profileId } });
+      expect(another.conversation.id).not.toBe(free.conversation.id);
+      expect(await conversations.list(marie)).toHaveLength(3);
+    });
+
+    it("only takes a Subject that is the Candidate's: another's object is not found, a malformed one is refused, without asking the AI Coach", async () => {
+      for (const subject of [
+        { kind: "application", id: applicationId },
+        { kind: "profile", id: profileId },
+        { kind: "job_search", id: jobSearchId },
+        { kind: "job_digest", id: jobDigestId },
+      ]) {
+        expect(await conversations.send(jean, { subject, message: "Je lis ?" })).toEqual({ ok: false, error: "not_found" });
+        expect(await conversations.ofSubject(jean, subject)).toEqual({ ok: false, error: "not_found" });
+      }
+      for (const subject of [{ kind: "application", id: "42" }, { kind: "menu", id: "account" }, { kind: "job_offer", id: applicationId }, "agenda", null]) {
+        expect(await conversations.send(marie, { subject, message: "Bonjour" })).toEqual({ ok: false, error: "invalid" });
+        expect(await conversations.ofSubject(marie, subject)).toEqual({ ok: false, error: "invalid" });
+      }
+      // A message goes to a conversation or to a Subject's, never both.
+      const sent = await conversations.send(marie, { message: "Bonjour" });
+      if (!sent.ok) throw new Error("refused");
+      expect(await conversations.send(marie, { conversationId: sent.conversation.id, subject: { kind: "profile", id: profileId }, message: "Et là ?" })).toEqual({ ok: false, error: "invalid" });
+      expect(asked).toHaveLength(1);
+      expect(await conversations.list(jean)).toEqual([]);
+    });
+
+    it("keeps an archived object's conversation, which follows it when it is restored", async () => {
+      const profiles = createProfiles(database);
+      const subject = { kind: "profile", id: profileId } as const;
+      const sent = await conversations.send(marie, { subject, message: "Mon CV ?" });
+      if (!sent.ok) throw new Error("refused");
+
+      expect(await profiles.archive(marie, profileId)).toMatchObject({ ok: true });
+      expect(await conversations.ofSubject(marie, subject)).toMatchObject({ ok: true, conversation: { id: sent.conversation.id } });
+      expect(await conversations.ofSubject(marie, { kind: "application", id: applicationId })).toEqual({ ok: true, conversation: null });
+      expect(await conversations.send(marie, { subject: { kind: "application", id: applicationId }, message: "Et cette candidature archivée ?" })).toMatchObject({ ok: true });
+
+      expect(await profiles.restore(marie, profileId)).toMatchObject({ ok: true });
+      expect(await conversations.send(marie, { subject, message: "Me revoilà" })).toMatchObject({ ok: true, conversation: { id: sent.conversation.id } });
+      expect(await conversations.list(marie)).toHaveLength(2);
+    });
+
+    it("purges a Subject's conversation 12 months after its last message like any other: the next message starts it again", async () => {
+      const subject = { kind: "menu", id: "agenda" } as const;
+      const sent = await conversations.send(marie, { subject, message: "Bonjour" });
+      if (!sent.ok) throw new Error("refused");
+      const later = new Date(sent.conversation.lastMessageAt);
+      later.setMonth(later.getMonth() + 12);
+      later.setDate(later.getDate() + 1);
+
+      expect(await purgeStaleCoachConversations(database, later)).toBe(1);
+      expect(await conversations.ofSubject(marie, subject)).toEqual({ ok: true, conversation: null });
+      const again = await conversations.send(marie, { subject, message: "Bonjour" });
+      expect(again.ok && again.conversation.id).not.toBe(sent.conversation.id);
+    });
+
+    it("goes with the object when the object itself is deleted", async () => {
+      await conversations.send(marie, { subject: { kind: "application", id: applicationId }, message: "Bonjour" });
+
+      await database.query(`DELETE FROM application WHERE id = $1`, [applicationId]);
+
+      expect(await conversations.list(marie)).toEqual([]);
+    });
+  });
+
   it("names a new conversation after the start of its first message", async () => {
     const sent = await conversations.send(marie, { message: `Bonjour,\n\n${"je cherche un poste de directrice financière ".repeat(4)}` });
 
@@ -597,7 +740,7 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       const sent = await conversations.send(marie, { message: "Bonjour" }, { onEvent: (event) => events.push(event) });
 
       if (!sent.ok) throw new Error("refused");
-      expect(events).toEqual([{ type: "conversation", conversation: { id: sent.conversation.id, title: "Bonjour", profile: null, lastMessageAt: now } }, STEP_STARTED]);
+      expect(events).toEqual([{ type: "conversation", conversation: { id: sent.conversation.id, title: "Bonjour", subject: null, profile: null, lastMessageAt: now } }, STEP_STARTED]);
     });
 
     it("keeps the question of a stopped reply, with no reply, in the conversation it was asked in", async () => {

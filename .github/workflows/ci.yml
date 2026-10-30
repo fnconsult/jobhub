@@ -33,6 +33,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # One Version for the web app and the worker (#559): apps/web and apps/worker repeat the root package.json's.
+      - run: npm run check:versions
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

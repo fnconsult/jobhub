@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
-import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { comparesScreenshots, leaveOutRelease, SCREENSHOT_WIDTHS } from "./support/screenshots";
 import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #465 (ADR-0053): the pilot of the Back Office in the Compact Density, Paramètres, the Dashboard and Activité,
@@ -135,6 +135,7 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
           if (comparesScreenshots()) {
             // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.
             const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
+            await leaveOutRelease(page);
             if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
             await expect(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });

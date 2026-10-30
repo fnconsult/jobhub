@@ -105,6 +105,11 @@ jobs:
           target: ${{ matrix.target }}
           push: true
           tags: ${{ env.IMAGES }}/${{ matrix.name }}:${{ github.sha }}
+          # What the Back Office, Mon compte and /api/health name (#559): the commit and the target, baked into the
+          # image. The Version is the root package.json's, bundled by the build itself (apps/web/src/release).
+          build-args: |
+            JOBHUB_COMMIT=${{ github.sha }}
+            JOBHUB_TARGET=${{ inputs.target }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 

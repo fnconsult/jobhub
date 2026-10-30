@@ -4,7 +4,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { comparesScreenshots, leaveOutRelease, SCREENSHOT_WIDTHS } from "./support/screenshots";
 import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #469 (ADR-0053): the Agenda's three views, Mon compte and Mon abonnement in the Design System's Confort Density.
@@ -205,6 +205,7 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
           if (theme === "dark") await expectTextContrast(page, `${shot.name}-${name}`);
           if (comparesScreenshots()) {
             // The page whole, its column drawn at once with nothing to scroll into view.
+            await leaveOutRelease(page);
             await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
             await expect(page.locator("#main")).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: MASK.map((selector) => page.locator(selector)) });

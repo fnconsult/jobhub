@@ -884,6 +884,22 @@ _Avoid_: Help page, KB article, doc
 A Help Article that walks through one task step by step, across one or more pages, in numbered steps that quote the interface's labels word for word. Text first: it reads complete without any image or motion.
 _Avoid_: Guide, walkthrough, tour
 
+**Motion**:
+An Explainer Video or a Micro-animation. Always attached to a Tutorial (or to a page's empty state), which reads complete without it, and played only when asked for. A motion that is out of date never makes its Tutorial wrong.
+_Avoid_: GIF, tour, demo
+
+**Explainer Video**:
+A narrated video of 30 to 90 s showing one task of a Tutorial in the real interface, in French and in English, with captions and a descriptive transcript. Read in the Help Centre only, and never played on its own. The voice is synthetic, and the transcript says so.
+_Avoid_: Screencast, demo video, tutorial video
+
+**Micro-animation**:
+A movement of 2 to 5 s, played once when the reader clicks « Voir comment » beside a Tutorial's step or in an empty state, that shows a gesture hard to find by reading. Decorative beside the written step, and a still image for those who ask for reduced motion.
+_Avoid_: GIF, hint, coach mark
+
+**Motion Script**:
+The reviewed text of an Explainer Video, one per language, kept with its Tutorial: the narration, which says everything shown on screen, and the one source of its captions and transcript. Declares the pages it films, so a change to them flags the video to regenerate.
+_Avoid_: Storyboard, voice-over text
+
 **Help Centre**:
 The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Coach panel shows the same articles in context.
 _Avoid_: KB, support site, help desk

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STARTING_PLAN_QUOTAS } from "./index";
-import { usageMeter } from "./usage-meter";
+import { quotaBar, usageMeter } from "./usage-meter";
 
 const nothingUsed = { matchScores: 0, atsScores: 0, enrichedContacts: 0, jobSearches: 0 };
 
@@ -39,5 +39,22 @@ describe("usageMeter", () => {
     const quotas = { ...STARTING_PLAN_QUOTAS.premium, enrichedContacts: null };
 
     expect(usageMeter(quotas, { ...nothingUsed, matchScores: 40 })).toMatchObject({ used: 0, allowed: 0, percent: null });
+  });
+});
+
+describe("quotaBar: one weekly quota's bar on Mon abonnement (#469)", () => {
+  it("fills with what was used of what is allowed", () => {
+    expect(quotaBar({ used: 3, limit: 5 })).toEqual({ percent: 60, usedUp: false });
+    expect(quotaBar({ used: 0, limit: 1 })).toEqual({ percent: 0, usedUp: false });
+  });
+
+  it("is used up, full, once the limit is reached, and never runs past it", () => {
+    expect(quotaBar({ used: 1, limit: 1 })).toEqual({ percent: 100, usedUp: true });
+    // More than allowed: the Plan was lowered during the week.
+    expect(quotaBar({ used: 7, limit: 5 })).toEqual({ percent: 100, usedUp: true });
+  });
+
+  it("has no bar when the quota is unlimited", () => {
+    expect(quotaBar({ used: 12, limit: null })).toEqual({ percent: null, usedUp: false });
   });
 });

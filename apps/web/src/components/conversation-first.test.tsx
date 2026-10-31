@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
-import { ClearConversationButton, ConversationFirstProvider, SidebarConversations, useConversationFirst, type PageConversation } from "./conversation-first";
+import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, useConversationFirst, type PageConversation } from "./conversation-first";
+import { WorkPane, WorkPaneProvider } from "./WorkPane";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
-vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+vi.mock("next/navigation", () => ({ usePathname: () => pathname.current, useRouter: () => ({ refresh: vi.fn() }) }));
 
 const FREE = [
   { id: "11111111-1111-4111-8111-111111111111", title: "Préparer mon pitch" },
@@ -28,13 +29,17 @@ function Page({ page }: { page: PageConversation }) {
 function Shell({ page }: { page?: PageConversation }) {
   return (
     <ConversationFirstProvider conversations={FREE}>
-      <nav aria-label="Navigation principale">
-        <SidebarConversations />
-      </nav>
-      <header>
-        <ClearConversationButton />
-      </header>
-      {page ? <Page page={page} /> : null}
+      <WorkPaneProvider version="1.2.3">
+        <nav aria-label="Navigation principale">
+          <SidebarConversations />
+        </nav>
+        <header>
+          <ClearConversationButton />
+          <PageHelpButton />
+        </header>
+        {page ? <Page page={page} /> : null}
+        <WorkPane />
+      </WorkPaneProvider>
     </ConversationFirstProvider>
   );
 }
@@ -114,7 +119,7 @@ describe("the Sidebar's conversations, « Conversation au centre » on (#601, AD
   it("starts a new conversation on the page, rather than reloading it, when the page deletes the one it shows", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
     const startNew = vi.fn();
-    const page: PageConversation = { conversationId: FREE[0]!.id, replying: false, clear: vi.fn(), startNew };
+    const page: PageConversation = { conversationId: FREE[0]!.id, replying: false, clear: vi.fn(), startNew, askAbout: vi.fn() };
     const user = userEvent.setup();
     renderInFrench(<Shell page={page} />);
 
@@ -126,9 +131,27 @@ describe("the Sidebar's conversations, « Conversation au centre » on (#601, AD
     await waitFor(() => expect(startNew).toHaveBeenCalledTimes(1));
   });
 
+  it("has « Mémoire du coach » under « Coach », which opens the Coach Memory in the Work Pane (#602)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ items: [{ id: "m1", kind: "goal", text: "Un poste à Lyon", updatedAt: "2026-10-31T10:00:00.000Z" }] })));
+    const user = userEvent.setup();
+    renderInFrench(<Shell />);
+    const coach = within(sidebar()).getByRole("list", { name: "Coach" });
+    const memory = within(coach).getByRole("button", { name: "Mémoire du coach" });
+
+    await user.click(memory);
+
+    const pane = screen.getByRole("complementary", { name: "Mémoire du coach" });
+    expect(document.activeElement).toBe(within(pane).getByRole("heading", { level: 2, name: "Mémoire du coach" }));
+    expect(within(pane).queryByRole("heading", { level: 3 })).toBeNull();
+    expect(await within(pane).findByText("Un poste à Lyon")).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(document.activeElement).toBe(memory);
+  });
+
   it("« Nouvelle conversation » starts afresh on the page that shows one", async () => {
     const startNew = vi.fn();
-    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear: vi.fn(), startNew }} />);
+    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear: vi.fn(), startNew, askAbout: vi.fn() }} />);
     await userEvent.click(within(sidebar()).getByRole("link", { name: "Nouvelle conversation" }));
     expect(startNew).toHaveBeenCalledTimes(1);
   });
@@ -143,7 +166,7 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
   it("asks first, the focus on « Annuler », and deletes nothing on « Annuler »", async () => {
     const clear = vi.fn(async () => true);
     const user = userEvent.setup();
-    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear, startNew: vi.fn() }} />);
+    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
 
     await user.click(screen.getByRole("button", { name: "Effacer" }));
     const dialog = screen.getByRole("alertdialog", { name: "Effacer cette conversation ?" });
@@ -156,12 +179,48 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
   it("deletes every message of the page's conversation once confirmed, and takes it off the Sidebar", async () => {
     const clear = vi.fn(async () => true);
     const user = userEvent.setup();
-    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear, startNew: vi.fn() }} />);
+    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
 
     await user.click(screen.getByRole("button", { name: "Effacer" }));
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
 
     expect(clear).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(within(sidebar()).queryByRole("link", { name: "Préparer mon pitch" })).toBeNull());
+  });
+});
+
+describe("« Aide » in the Top Bar, on a page without a conversation (#602, ADR-0070)", () => {
+  afterEach(() => {
+    pathname.current = "/";
+  });
+
+  it("opens Mon compte's Help Article in the Work Pane, from any of its Sections; « Demander au coach » starts a Free conversation about it", async () => {
+    pathname.current = "/compte/relances";
+    const user = userEvent.setup();
+    renderInFrench(<Shell />);
+    const help = within(screen.getByRole("banner")).getByRole("button", { name: "Aide" });
+
+    await user.click(help);
+
+    const pane = screen.getByRole("complementary", { name: "Mon compte" });
+    expect(document.activeElement).toBe(within(pane).getByRole("heading", { level: 2, name: "Mon compte" }));
+    expect(within(pane).getByRole("link", { name: "Demander au coach" }).getAttribute("href")).toBe("/?aide=page-account");
+    await user.click(within(pane).getByRole("button", { name: "Fermer" }));
+    expect(document.activeElement).toBe(help);
+  });
+
+  it("is not there on a page that is a conversation, which has its own help", () => {
+    pathname.current = "/compte";
+    renderInFrench(<Shell page={{ conversationId: null, replying: false, clear: vi.fn(), startNew: vi.fn(), askAbout: vi.fn() }} />);
+    expect(within(screen.getByRole("banner")).queryByRole("button", { name: "Aide" })).toBeNull();
+  });
+
+  it("is never there on the home page or a Free conversation's, even before their conversation shows", () => {
+    for (const address of ["/", `/conversations/${FREE[0]!.id}`]) {
+      pathname.current = address;
+      const { unmount } = renderInFrench(<Shell />);
+      expect(within(screen.getByRole("banner")).queryByRole("button", { name: "Aide" })).toBeNull();
+      unmount();
+    }
   });
 });

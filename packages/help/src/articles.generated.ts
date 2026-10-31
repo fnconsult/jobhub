@@ -17,7 +17,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "nouvelle conversation"
       ],
       "route": "/",
-      "body": "L'accueil est votre point de départ dans Jobbbox. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\nUne question ? Ouvrez « Aide et coach » en haut de la page.\n\nAvec la nouvelle présentation, l'accueil est une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages."
+      "body": "L'accueil est votre point de départ dans Jobbbox. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\nUne question ? Ouvrez « Aide et coach » en haut de la page.\n\nAvec la nouvelle présentation, l'accueil est une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages.\n\nPendant que vous écrivez, les articles de l'aide qui correspondent s'affichent au-dessus de la zone de message, « Dans l'aide, sans IA », à la place des suggestions. Un article s'ouvre à côté de la conversation, comme « Comment marche cette page ? » tant que la conversation est vide ; « Demander au coach » y commence une question à son sujet."
     },
     {
       "id": "page-conversation",
@@ -198,7 +198,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "résiliation"
       ],
       "route": "/abonnement",
-      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai."
+      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
     },
     {
       "id": "page-account",
@@ -217,7 +217,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rappels"
       ],
       "route": "/compte",
-      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte."
+      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nAvec la nouvelle présentation, « Aide », en haut de la page, ouvre cet article à côté de la page. « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
     },
     {
       "id": "page-job-searches",
@@ -251,6 +251,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/retractation",
       "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif et sans frais : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement et tant qu'elle n'a pas eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse en entier sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés.\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
+    },
+    {
+      "id": "page-subscription-reduction",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Résilier sans frais",
+      "synonyms": [
+        "baisse",
+        "offre réduite",
+        "changement d'offre",
+        "remboursement",
+        "prorata",
+        "résilier",
+        "résiliation"
+      ],
+      "route": "/abonnement/baisse",
+      "body": "Quand nous baissons ce que comprend votre offre payante, vous recevez un e-mail au moins 30 jours avant la date du changement : ce qui change, pourquoi et à quelle date. Si ce changement ne vous convient pas, vous pouvez résilier sans frais.\n\nCette page, ouverte depuis l'e-mail ou depuis Mon abonnement, rappelle ce qui change, la raison et la date. « Confirmer la résiliation » arrête votre abonnement tout de suite : vous repassez à l'offre Gratuite, et nous vous remboursons au prorata la part de la période payée qui n'aura pas servi. Le remboursement apparaît sur votre relevé sous 5 à 10 jours.\n\nVous pouvez résilier ainsi avant la date du changement, ou jusqu'à 30 jours après. Si vous gardez votre abonnement, vous n'avez rien à faire."
     },
     {
       "id": "page-subscription-cancellation",
@@ -357,6 +374,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Un e-mail régulier, aussi visible dans Jobbbox, avec les nouvelles offres qui correspondent aux critères de recherche d'un profil.\n\nVous l'activez profil par profil, chaque semaine (le lundi à 7 h) ou chaque jour (à 7 h), selon votre offre. Il ne contient que des offres que vous n'avez pas encore vues, et ne compte dans aucun autre quota.\n\nVous pouvez vous désabonner depuis l'e-mail, sans vous connecter."
     },
     {
+      "id": "glossary-coach-memory",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Mémoire du coach",
+      "synonyms": [
+        "mémoire",
+        "mémoire du coach",
+        "retenir",
+        "ce que le coach retient",
+        "souvenirs",
+        "oublier"
+      ],
+      "route": null,
+      "body": "La mémoire du coach, ce sont les faits clés que votre coach IA retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord : dans une conversation, « Que retenir de cette conversation ? » lui fait proposer des éléments, et seuls ceux que vous confirmez avec « Retenir » sont gardés. Elle tient 30 éléments au plus.\n\nAvec la nouvelle présentation, « Mémoire du coach » est sous « Coach » dans le menu : elle s'ouvre à côté de la conversation, où vous pouvez modifier ou supprimer chaque élément. « Fermer » ou la touche Échap la referme.\n\nEffacer une conversation ne touche pas à la mémoire du coach. Elle est supprimée avec votre compte."
+    },
+    {
       "id": "glossary-proposals",
       "locale": "fr",
       "kind": "glossary",
@@ -385,7 +418,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "utilisation cette semaine"
       ],
       "route": null,
-      "body": "Ce que votre offre comprend : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest.\n\nLa barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris).\n\nParler à votre coach ne compte pas dans le quota."
+      "body": "Ce que votre offre comprend : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest.\n\nLa barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris).\n\nParler à votre coach ne compte pas dans le quota.\n\nUne hausse de votre offre s'applique tout de suite. Une baisse vous est annoncée par e-mail au moins 30 jours avant, et vous pouvez alors résilier sans frais, avec un remboursement au prorata."
     },
     {
       "id": "glossary-job-search",
@@ -516,7 +549,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "parler à quelqu'un"
       ],
       "route": null,
-      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », en bas du panneau « Aide et coach ». Vous le trouvez aussi avec l'icône à côté de « Mon compte », dans le menu sur téléphone.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
+      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », en bas du panneau « Aide et coach ». Vous le trouvez aussi avec l'icône à côté de « Mon compte », dans le menu sur téléphone.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne.\n\nAvec la nouvelle présentation, où chaque page est une conversation avec votre coach IA, « Signaler un problème » et « Proposer une idée » sont sous la zone de message, et l'icône reste à côté de « Mon compte ». Le formulaire s'ouvre à côté de la conversation, sans la cacher ; « Fermer » ou la touche Échap le referme et votre brouillon est gardé. « Poser la question à l'équipe » s'y ouvre aussi."
     },
     {
       "id": "faq-help-and-ai",
@@ -670,6 +703,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "It gathers everything about a job offer you follow, in sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving.\n\nUpdate the status as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up."
     },
     {
+      "id": "page-subscription-reduction",
+      "locale": "en",
+      "kind": "page",
+      "title": "Cancel at no cost",
+      "synonyms": [
+        "reduction",
+        "reduced plan",
+        "plan change",
+        "refund",
+        "prorata",
+        "cancel",
+        "cancellation"
+      ],
+      "route": "/abonnement/baisse",
+      "body": "When we reduce what your paid plan includes, you get an email at least 30 days before the date of the change: what changes, why and on which date. If the change does not suit you, you can cancel at no cost.\n\nThis page, opened from the email or from My subscription, sets out what changes, the reason and the date. « Confirm the cancellation » stops your subscription at once: you are back on the Free plan, and we refund prorata the part of the paid period that will not have been used. The refund shows on your statement within 5 to 10 days.\n\nYou can cancel this way before the date of the change, or up to 30 days after it. If you keep your subscription, there is nothing to do."
+    },
+    {
       "id": "page-subscription-cancellation",
       "locale": "en",
       "kind": "page",
@@ -732,7 +782,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "new conversation"
       ],
       "route": "/",
-      "body": "The home page is where you start in Jobbbox. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications.\n\nA question? Open « Help and coach » at the top of the page.\n\nWith the new layout, the home page is a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages."
+      "body": "The home page is where you start in Jobbbox. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications.\n\nA question? Open « Help and coach » at the top of the page.\n\nWith the new layout, the home page is a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages.\n\nWhile you write, the help's matching articles show above the message box, « In the help, without AI », in place of the suggestions. An article opens beside the conversation, as « How does this page work? » does while the conversation is empty; « Ask the coach » there starts a question about it."
     },
     {
       "id": "page-agenda",
@@ -798,7 +848,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "reminders"
       ],
       "route": "/compte",
-      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account."
+      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account.\n\nWith the new layout, « Help », at the top of the page, opens this article beside the page. « Ask the coach » there starts a new conversation with your AI coach about My account."
     },
     {
       "id": "page-applications",
@@ -853,7 +903,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "cancellation"
       ],
       "route": "/abonnement",
-      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again."
+      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
       "id": "page-withdrawal",
@@ -901,6 +951,21 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation. Jobbbox asks you to confirm first; « Cancel » deletes nothing. While the coach is replying, « Clear » waits: stop its reply first with « Stop ».\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
+    },
+    {
+      "id": "glossary-coach-memory",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Coach memory",
+      "synonyms": [
+        "memory",
+        "coach memory",
+        "remember",
+        "what the coach remembers",
+        "forget"
+      ],
+      "route": null,
+      "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\nWith the new layout, « Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
     },
     {
       "id": "glossary-follow-up",
@@ -987,7 +1052,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "usage this week"
       ],
       "route": null,
-      "body": "What your plan includes: the number of profiles you can have, and each week the number of Match Scores, ATS Scores, job searches and enriched contacts, as well as the Job Digest frequency.\n\nThe « Usage this week » bar, at the foot of the menu, shows where you stand. The count starts again from zero every Monday at midnight (Paris time).\n\nTalking to your coach does not count against the quota."
+      "body": "What your plan includes: the number of profiles you can have, and each week the number of Match Scores, ATS Scores, job searches and enriched contacts, as well as the Job Digest frequency.\n\nThe « Usage this week » bar, at the foot of the menu, shows where you stand. The count starts again from zero every Monday at midnight (Paris time).\n\nTalking to your coach does not count against the quota.\n\nAn increase in your plan applies at once. A reduction is announced to you by email at least 30 days ahead, and you can then cancel at no cost, with a prorata refund."
     },
     {
       "id": "glossary-tailored-cv",
@@ -1120,7 +1185,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "talk to someone"
       ],
       "route": null,
-      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », at the foot of the « Help and coach » panel. You also find it with the icon beside « My account », in the menu on phones.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person."
+      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », at the foot of the « Help and coach » panel. You also find it with the icon beside « My account », in the menu on phones.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person.\n\nWith the new layout, where each page is a conversation with your AI coach, « Report a problem » and « Suggest an idea » are under the message box, and the icon stays beside « My account ». The form opens beside the conversation, without hiding it; « Close » or the Escape key closes it and your draft is kept. « Ask the team » opens there too."
     },
     {
       "id": "faq-quota-renewal",

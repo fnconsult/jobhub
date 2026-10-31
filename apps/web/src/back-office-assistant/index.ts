@@ -241,7 +241,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     );
     return [
       heading("planQuotas"),
-      "Limites d'usage de chaque offre. Les quotas hebdomadaires se comptent par semaine, du lundi 0 h (heure de Paris). Une modification s'applique immédiatement à tous les candidats de l'offre. Un candidat qui atteint un quota voit une invitation à passer à l'offre supérieure (Upgrade Prompt).",
+      "Limites d'usage de chaque offre. Les quotas hebdomadaires se comptent par semaine, du lundi 0 h (heure de Paris). Une hausse s'applique immédiatement à tous les candidats de l'offre ; une baisse d'une offre que des candidats paient s'applique à une date d'effet au moins 30 jours plus tard, annoncée à chaque abonné par e-mail avec son droit de résilier sans frais (Baisses programmées, sur Offres). Un candidat qui atteint un quota voit une invitation à passer à l'offre supérieure (Upgrade Prompt).",
       ...lines,
     ].join("\n");
   },
@@ -440,6 +440,9 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   restored: "rétablissement",
   restored_to_default: "rétablissement au défaut",
   reset: "remise à zéro",
+  scheduled: "baisse programmée",
+  cancelled: "baisse annulée",
+  applied: "baisse appliquée",
   refused: "tentative refusée",
   denied: "accès refusé",
 };

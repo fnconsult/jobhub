@@ -24,3 +24,13 @@ export function planQuotasFromForm(form: FormData): { plan: Plan; quotas: PlanQu
   const { plan, ...quotas } = parsed.data as { plan: Plan } & PlanQuotas;
   return { plan, quotas };
 }
+
+/**
+ * The notice of a Quota Reduction a Back Office form sends with it (#514): its reason and effective date, trimmed; null
+ * when it gives neither (a change that lowers nothing needs none).
+ */
+export function reductionNoticeFromForm(form: FormData): { reason: string; effectiveOn: string } | null {
+  const reason = String(form.get("reductionReason") ?? "").trim();
+  const effectiveOn = String(form.get("reductionEffectiveOn") ?? "").trim();
+  return reason || effectiveOn ? { reason, effectiveOn } : null;
+}

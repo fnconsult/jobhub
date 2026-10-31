@@ -9,3 +9,5 @@ Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, I
 Dans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.
 
 Mes données permet de télécharger toutes vos données ou de supprimer votre compte.
+
+Avec la nouvelle présentation, « Aide », en haut de la page, ouvre cet article à côté de la page. « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.

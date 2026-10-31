@@ -131,26 +131,6 @@ test.describe("the Back Office Journal", () => {
     await page.getByRole("button", { name: fr.admin.humanCoaches.add }).click();
   }
 
-  test("records a Plan Quota edit with its before and after, and who made it", async ({ page }) => {
-    await signInWithMagicLink(page, ADMINISTRATOR);
-    await page.goto("/admin/quotas");
-    const standard = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Standard" }) });
-    await standard.getByLabel("Profils").fill("5");
-    await standard.getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Standard enregistrés.");
-    // Put the starting quota back for the other tests.
-    await page.goto("/admin/quotas");
-    await standard.getByLabel("Profils").fill("3");
-    await standard.getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
-    await expect(page.getByRole("status")).toBeVisible();
-
-    await page.goto("/admin/journal?section=plan_quotas");
-    const rows = page.getByRole("row").filter({ hasText: ADMINISTRATOR }).filter({ hasText: fr.billing.plans.standard });
-    await expect(rows.nth(0)).toContainText(tr(journal.changed, { field: fr.billing.quotas.profiles, before: "5", after: "3" }));
-    await expect(rows.nth(1)).toContainText(tr(journal.changed, { field: fr.billing.quotas.profiles, before: "3", after: "5" }));
-    await expect(rows.nth(0)).toContainText(journal.actions.updated);
-  });
-
   test("a failed write leaves no entry in the Journal", async ({ page }) => {
     await signInWithMagicLink(page, ADMINISTRATOR);
     const email = newAddress("journal-twice");

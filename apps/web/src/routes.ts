@@ -73,6 +73,8 @@ export const routes = {
   withdrawalDone: (id: string) => `/abonnement/retractation?faite=${encodeURIComponent(id)}`,
   /** « Résilier votre contrat » (#513): what cancelling the paid Plan does, and « Confirmer la résiliation ». */
   subscriptionCancellation: "/abonnement/resiliation",
+  /** Cancelling a subscription, refunded prorata, over a Quota Reduction the Candidate was told of (#514). */
+  subscriptionQuotaReduction: "/abonnement/baisse",
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
   coaching: "/coachs",
   /** One of the Candidate's Coaching Sessions, on the Human Coaches page: where an Agenda Item for it leads. */

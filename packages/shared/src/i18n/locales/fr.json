@@ -1425,13 +1425,18 @@
         "free_plan_built_in": "L'offre Gratuite ne peut être ni masquée, ni déplacée, ni liée à un produit Stripe.",
         "cannot_move": "Cette offre ne peut pas aller plus loin.",
         "product_frozen": "Le produit Stripe d'une offre payante ne change plus une fois choisi : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe.",
-        "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez."
+        "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez.",
+        "notice_required": "Vous retirez une fonctionnalité d'une offre que des candidats paient : donnez la raison et la date d'effet de la baisse, au moins 30 jours plus tard.",
+        "invalid_effective_date": "La date d'effet n'est pas une date.",
+        "too_soon": "La date d'effet d'une baisse doit être au moins 30 jours plus tard.",
+        "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord, ou attendez sa date d'effet.",
+        "reason_too_long": "La raison d'une baisse fait au plus 500 caractères : elle figure dans l'e-mail de chaque abonné."
       }
     },
     "planQuotas": {
       "title": "Quotas des offres",
-      "subtitle": "Les quotas de chaque offre, appliqués immédiatement.",
-      "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
+      "subtitle": "Les quotas de chaque offre : une hausse tout de suite, une baisse à 30 jours.",
+      "intro": "Une hausse s'applique immédiatement à tous les candidats de l'offre. Une baisse d'une offre payante que des candidats paient s'applique à une date d'effet au moins 30 jours plus tard, annoncée à chaque abonné. Laissez un champ vide pour « illimité ».",
       "plan": "Offre {{plan}}",
       "limitHelp": "Nombre, ou vide pour illimité",
       "weekly": "par semaine",
@@ -2201,7 +2206,10 @@
         "restored_to_default": "Rétablissement au défaut",
         "reset": "Remise à zéro",
         "refused": "Tentative refusée",
-        "denied": "Accès refusé"
+        "denied": "Accès refusé",
+        "scheduled": "Programmation",
+        "cancelled": "Annulation",
+        "applied": "Application"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -3229,6 +3237,68 @@
       "errors": {
         "not_found": "Ce remboursement n'existe pas.",
         "not_failed": "Ce remboursement n'a pas échoué : il n'y a rien à relancer."
+      }
+    },
+    "quotaReductions": {
+      "title": "Baisses programmées",
+      "intro": "Une baisse d'une offre que des candidats paient attend sa date d'effet, au moins 30 jours plus tard. Chaque abonné reçoit un e-mail avec ce qui change, la raison, la date et son droit de résilier sans frais, remboursé au prorata, jusqu'à 30 jours après la date d'effet. Une baisse peut être annulée avant sa date d'effet.",
+      "none": "Aucune baisse programmée.",
+      "caption": "Baisses programmées, la plus proche d'abord",
+      "plan": "Offre",
+      "changes": "Ce qui baisse",
+      "effectiveOn": "Date d'effet",
+      "reason": "Raison",
+      "subscribers": "Abonnés prévenus",
+      "resolved": "Résiliations",
+      "refundsPending": "Remboursements à traiter",
+      "notified": "{{notified}} e-mail(s) envoyé(s) sur {{count}}",
+      "change": "{{label}} : {{before}} → {{after}}",
+      "cancel": "Annuler la baisse de l'offre {{plan}}",
+      "cancelled": "Baisse annulée : l'offre garde ce qu'elle comprend.",
+      "notCancelled": "Cette baisse ne peut plus être annulée : sa date d'effet est passée, ou elle a déjà été annulée.",
+      "noticeTitle": "Si vous baissez cette offre",
+      "noticeHelp": "Sur une offre que des candidats paient, une baisse (un nombre plus petit, un nombre à la place d'« illimité », un Job Digest moins fréquent, une fonctionnalité retirée) s'applique à sa date d'effet, au moins 30 jours plus tard. Une hausse s'applique tout de suite.",
+      "reasonLabel": "Raison de la baisse",
+      "reasonHelp": "Elle figure dans l'e-mail envoyé à chaque abonné.",
+      "effectiveOnLabel": "Date d'effet",
+      "scheduled_one": "Baisse de l'offre {{plan}} programmée au {{date}} : {{count}} abonné va recevoir un e-mail.",
+      "scheduled_other": "Baisse de l'offre {{plan}} programmée au {{date}} : {{count}} abonnés vont recevoir un e-mail.",
+      "seePending": "Voir les baisses programmées",
+      "errors": {
+        "notice_required": "Cette modification baisse une offre que des candidats paient : donnez la raison et la date d'effet, au moins 30 jours plus tard.",
+        "invalid_effective_date": "La date d'effet n'est pas une date.",
+        "too_soon": "La date d'effet d'une baisse doit être au moins 30 jours plus tard.",
+        "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord (Offres), ou attendez sa date d'effet.",
+        "unknown_plan": "Cette offre n'existe pas.",
+        "reason_too_long": "La raison d'une baisse fait au plus 500 caractères : elle figure dans l'e-mail de chaque abonné."
+      },
+      "journalFields": {
+        "quotas": "Quotas baissés",
+        "removedFeatures": "Fonctionnalités retirées",
+        "reason": "Raison",
+        "effectiveOn": "Date d'effet",
+        "subscribers": "Abonnés prévenus",
+        "reduction": "Baisse",
+        "refund": "Remboursement"
+      },
+      "cancelHeader": "Annuler",
+      "refunds": {
+        "title": "Remboursements à traiter",
+        "intro": "Les remboursements au prorata que Stripe n'a pas faits, après une résiliation sans frais pour une baisse. Stripe a répondu par un refus (un paiement contesté, par exemple) : remboursez dans Stripe, depuis l'abonnement indiqué, puis marquez-le remboursé. Stripe n'a pas répondu : Jobbbox redemande, rien à faire.",
+        "none": "Aucun remboursement à traiter.",
+        "caption": "Remboursements à traiter, le plus ancien d'abord",
+        "plan": "Offre",
+        "subscription": "Abonnement Stripe",
+        "failure": "Réponse de Stripe",
+        "resolvedAt": "Résilié le",
+        "action": "Action",
+        "retrying": "Stripe n'a pas répondu : Jobbbox redemande",
+        "settle": "Remboursé dans Stripe",
+        "settleLabel": "Marquer remboursé dans Stripe l'abonnement {{subscription}}",
+        "settled": "Remboursement marqué comme fait dans Stripe.",
+        "notSettled": "Ce remboursement n'est plus à traiter : il a déjà été marqué, ou Jobbbox le redemande à Stripe.",
+        "due": "À rembourser",
+        "dueUnknown": "Inconnu : à calculer dans Stripe"
       }
     }
   },
@@ -4709,7 +4779,11 @@
     "suggestions": "Suggestions",
     "unfold": "Dérouler « {{menu}} »",
     "toHandle": "à traiter",
-    "seeAll": "Tout voir ({{count}})"
+    "seeAll": "Tout voir ({{count}})",
+    "help": "Aide",
+    "howThisPageWorks": "Comment marche cette page ?",
+    "askCoach": "Demander au coach",
+    "close": "Fermer"
   },
   "publicSite": {
     "nav": "Pages publiques",
@@ -4864,5 +4938,39 @@
     "agenda": {
       "label": "Renoncer au contrat ici : séance avec {{name}}"
     }
+  },
+  "quotaReduction": {
+    "features": {
+      "coachingSessionDiscount": "Séances de coaching à prix réduit"
+    },
+    "included": "Compris",
+    "before": "Aujourd'hui : {{value}}",
+    "after": "À partir du {{date}} : {{value}}",
+    "resolve": "Résilier sans frais",
+    "email": {
+      "subject": "Votre offre {{plan}} change le {{date}}",
+      "title": "Votre offre {{plan}} va changer",
+      "intro": "Le {{date}}, ce que comprend votre offre {{plan}} va baisser. Voici ce qui change :",
+      "reason": "Pourquoi : {{reason}}",
+      "right": "Si ce changement ne vous convient pas, vous pouvez résilier votre abonnement sans frais, avant le {{date}} ou jusqu'au {{until}} inclus. L'abonnement s'arrête alors tout de suite, et nous vous remboursons la part de la période déjà payée qui n'aura pas servi, au prorata.",
+      "nothingToDo": "Si vous gardez votre abonnement, vous n'avez rien à faire.",
+      "footer": "Vous recevez cet e-mail parce que votre abonnement à l'offre {{plan}} de Jobbbox est concerné."
+    },
+    "page": {
+      "title": "Votre offre {{plan}} change le {{date}}",
+      "intro": "Le {{date}}, ce que comprend votre offre baisse :",
+      "reason": "Pourquoi : {{reason}}",
+      "right": "Vous pouvez résilier sans frais jusqu'au {{until}} inclus : votre abonnement s'arrête tout de suite, et nous vous remboursons, au prorata, la part de la période payée qui n'aura pas servi.",
+      "confirmTitle": "Résilier sans frais",
+      "confirm": "Confirmer la résiliation",
+      "keep": "Garder mon abonnement",
+      "notOpen": "Aucune baisse de votre offre ne vous permet de résilier sans frais en ce moment.",
+      "done": "Votre abonnement est résilié. Nous vous remboursons {{amount}} : le remboursement apparaît sur votre relevé sous 5 à 10 jours.",
+      "doneNothing": "Votre abonnement est résilié. Il n'y avait rien à rembourser.",
+      "donePending": "Votre abonnement est résilié. Le remboursement n'a pas pu être fait tout de suite : notre équipe s'en occupe, vous n'avez rien à faire.",
+      "error": "La résiliation n'a pas pu être faite. Réessayez dans un instant.",
+      "doneSettled": "Votre abonnement est résilié, et notre équipe vous a remboursé au prorata la part de la période payée qui n'a pas servi."
+    },
+    "change": "{{label}} : {{before}} → {{after}}"
   }
 }

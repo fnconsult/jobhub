@@ -245,6 +245,22 @@ export interface CandidateDataExport {
    * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0032.
    */
   quotaUsage: { quota: string; week: string; used: number }[];
+  /** Each Quota Reduction they were told of (#514), and whether they cancelled over it, refunded how much (in cents). */
+  quotaReductionNotices: {
+    plan: string;
+    quotas: unknown;
+    removedFeatures: string[];
+    reason: string;
+    effectiveOn: string;
+    sentAt: Date | null;
+    resolvedAt: Date | null;
+    /**
+     * The prorata refund when they cancelled over it (null when they did not): made by Stripe (`refunded`), refused by
+     * Stripe and still to make (`pending`), made in Stripe by the Jobbbox team afterwards (`settled_by_support`), or
+     * `none` when nothing was left to refund. The amount is in the currency's smallest unit (cents).
+     */
+    refund: { status: "refunded" | "pending" | "settled_by_support" | "none"; amount: number | null; currency: string | null } | null;
+  }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
   /** The notice emails of substantial Legal Text Versions sent to the Candidate, and the privacy policy changes they closed (#547). */
@@ -337,6 +353,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   administrator_role: "account.backOfficeRoles (not who granted them)",
   candidate_plan: "plan (no Stripe identifiers)",
   quota_usage: "quotaUsage",
+  plan_quota_reduction_notice: "quotaReductionNotices (each Quota Reduction they were told of: its Plan, what it lowers, reason and date; when the e-mail went, and their cancellation and refund over it, with whether the refund was made, waits or was made by the team; no Stripe identifiers or error codes)",
   eu_ai_consent: "euAiConsent",
   forwarding_address: "emailIntake.forwardingAddresses (replaced and switched off ones included, with their dates)",
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
@@ -676,13 +693,26 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
           candidateId,
         ),
         rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
+        rowsOf<CandidateDataExport["quotaReductionNotices"][number]>(
+          `SELECT r.plan, r.quotas, r.removed_features AS "removedFeatures", r.reason, to_char(r.effective_on, 'YYYY-MM-DD') AS "effectiveOn",
+                  n.sent_at AS "sentAt", n.resolved_at AS "resolvedAt",
+                  CASE WHEN n.resolved_at IS NULL THEN NULL ELSE json_build_object(
+                    'status', CASE WHEN n.refund_failure IS NOT NULL THEN 'pending'
+                                   WHEN n.refund_settled_at IS NOT NULL THEN 'settled_by_support'
+                                   WHEN n.refund_id IS NOT NULL THEN 'refunded'
+                                   ELSE 'none' END,
+                    'amount', NULLIF(n.refund_amount, 0), 'currency', n.refund_currency) END AS refund
+             FROM plan_quota_reduction_notice n JOIN plan_quota_reduction r ON r.id = n.reduction_id
+            WHERE n.candidate_id = $1 ORDER BY r.effective_on DESC, r.id DESC`,
+          candidateId,
+        ),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
         legalTextNoticesOf(database, candidateId),
         emailIntakeOf(database, candidateId),
@@ -727,7 +757,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

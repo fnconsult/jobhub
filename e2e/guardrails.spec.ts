@@ -448,7 +448,9 @@ test.describe("Guardrails: distress, unavailable checks, no alert", () => {
     const log = readFileSync(process.env.E2E_SERVER_LOG!, "utf8");
     const mails = [...log.matchAll(/^\[mail\] to (\S+): (.*)\n((?:(?!\{|\[).*\n)*)/gm)].map(([, , subject, body]) => `${subject}\n${body}`);
     expect(mails.length).toBeGreaterThan(0);
-    expect(mails.filter((mail) => /3114|détresse|distress|suicid|garde-fou/i.test(mail))).toEqual([]);
+    // 3114 the number, as the distress message gives it: a mail's text here runs on into whatever the server logged next,
+    // and a Next.js error logged then (a page closed while it streamed) carries `digest: '3431148941'`.
+    expect(mails.filter((mail) => /(?<!\d)3114(?!\d)|détresse|distress|suicid|garde-fou/i.test(mail))).toEqual([]);
     expect(mails.filter((mail) => mail.includes(secretWords))).toEqual([]);
   });
 

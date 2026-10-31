@@ -2,7 +2,7 @@
  * The Back Office's writes, each recorded in the Back Office Audit (CONTEXT.md, #203).
  *
  * One deep module. `createBackOffice(database, deps)` answers:
- *  - change what the Jobbbox team runs     `createPlan`, `updatePlan`, `movePlan`, `setPlanQuotas`,
+ *  - change what the Jobbbox team runs     `createPlan`, `updatePlan`, `movePlan`, `setPlanQuotas`, `cancelQuotaReduction`,
  *                                          `createCoupon`, `deactivateCoupon`,
  *                                          `addHumanCoach`, `retireHumanCoach`
  *  - record any other Back Office write    `record`, the one seam every write goes through
@@ -22,7 +22,7 @@
  * operations record, not the Administrator's personal data export; they are kept
  * RETENTION_YEARS.
  */
-import { cleanTechnicalMessage, FREE_PLAN, type FailureReason, type Plan, type PlanQuotas, type TechnicalReason } from "@jobhub/shared";
+import { cleanTechnicalMessage, FREE_PLAN, PLAN_FEATURES, type FailureReason, type Plan, type PlanFeature, type PlanQuotas, type TechnicalReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type {
   Billing,
@@ -33,6 +33,7 @@ import type {
 } from "../billing";
 import type { Queryable } from "../database/pool";
 import type { AddHumanCoachResult, HumanCoaches } from "../human-coaches";
+import type { QuotaReduction, QuotaReductions, ReductionError, ReductionNotice } from "../quota-reductions";
 import { routes } from "../routes";
 import type { BackOfficeResource, Permission } from "./access";
 import { BACK_OFFICE_PAGES } from "./back-office-nav";
@@ -99,7 +100,8 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * deletes it (a search site). `viewed`: an AI Message Log was read (#218), the only read the
  * Back Office Audit records. `validated`, `archived` and `restored`: a Playbook Version was
  * Human-validated, a Coaching Playbook archived or restored (#225). `reset`: the week's Plan Quota
- * usage of every Candidate was forgotten (ADR-0032). `restored_to_default`: a Platform Setting's Back Office value was cleared
+ * usage of every Candidate was forgotten (ADR-0032). `scheduled`, `cancelled` and `applied`: a Quota Reduction
+ * was scheduled, cancelled before its effective date, or applied on it by the worker (#514). `restored_to_default`: a Platform Setting's Back Office value was cleared
  * (« Rétablir »), env's or the code's default in use again (#299). `refused`: an attempt refused or failed (#263); `denied`: an
  * Administrator opened a section outside their Back Office Roles (#264).
  */
@@ -115,6 +117,9 @@ export type BackOfficeAction =
   | "restored"
   | "restored_to_default"
   | "reset"
+  | "scheduled"
+  | "cancelled"
+  | "applied"
   | "refused"
   | "denied"
   | SecretAction;
@@ -259,6 +264,11 @@ export interface BackOfficeDeps {
     | "reactivateCoupon"
   >;
   humanCoaches: Pick<HumanCoaches, "add" | "retire">;
+  /**
+   * Quota Reductions (#514): with them, lowering a paid Plan's quotas or Plan Features while Candidates pay for it is
+   * scheduled with a notice; without, every change applies at once.
+   */
+  quotaReductions?: Pick<QuotaReductions, "changeQuotas" | "removeFeatures" | "cancel" | "settleRefund">;
   /** The time an Administrator denied entry is recorded at (its minute keeps one entry); the database's clock otherwise. */
   now?: () => Date;
 }
@@ -269,24 +279,39 @@ export interface BackOffice {
     actor: BackOfficeActor,
     input: unknown,
   ): Promise<PlanResult<{ plan: PlanDefinition }>>;
-  /** Changes a Plan's names, status, Stripe product or Plan Features (see Billing.updatePlan); nothing is recorded when refused. */
+  /**
+   * Changes a Plan's names, status, Stripe product or Plan Features (see Billing.updatePlan); nothing is recorded when
+   * refused. Plan Features taken off a Plan Candidates pay for stay until `notice`'s effective date (a Quota Reduction).
+   */
   updatePlan(
     actor: BackOfficeActor,
     plan: Plan,
     input: unknown,
-  ): Promise<PlanResult<object>>;
+    notice?: ReductionNotice | null,
+  ): Promise<PlanResult<{ scheduled: QuotaReduction | null }> | { ok: false; error: ReductionError }>;
   /** Moves a Plan one rank up or down (see Billing.movePlan); nothing is recorded when refused. */
   movePlan(
     actor: BackOfficeActor,
     plan: Plan,
     direction: "up" | "down",
   ): Promise<PlanResult<{ before: number; after: number }>>;
-  /** Replaces one Plan's quotas; nothing is recorded for an unknown Plan. */
+  /**
+   * Replaces one Plan's quotas; nothing is recorded for an unknown Plan. Quotas lowered on a Plan Candidates pay for wait
+   * for `notice`'s effective date (a Quota Reduction, #514), recorded as `scheduled`; the rest applies at once.
+   */
   setPlanQuotas(
     actor: BackOfficeActor,
     plan: Plan,
     quotas: PlanQuotas,
-  ): Promise<void>;
+    notice?: ReductionNotice | null,
+  ): Promise<{ ok: true; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }>;
+  /** Cancels a Quota Reduction before its effective date, recorded as `cancelled`; false when none waits by that id. */
+  cancelQuotaReduction(actor: BackOfficeActor, id: string): Promise<boolean>;
+  /**
+   * Marks a prorata refund Stripe refused as made by Support in Stripe (see QuotaReductions.settleRefund), recorded with
+   * its Stripe subscription; false when there is no such refund to settle.
+   */
+  settleQuotaReductionRefund(actor: BackOfficeActor, reductionId: string, subscriptionId: string): Promise<boolean>;
   /**
    * Forgets this week's Plan Quota usage of every Candidate (see Billing.resetWeeklyUsage),
    * recorded with the Administrator's reason; refused, and nothing reset, without one.
@@ -445,6 +470,51 @@ const recordedPlan = ({
   features: [...features],
 });
 
+/**
+ * Writes one Back Office Audit entry in `within`'s transaction. `record` goes through it; so does a change the worker
+ * makes on an Administrator's behalf (a Quota Reduction applied on its effective date, #514), named after them.
+ */
+export async function insertAuditEntry(within: Queryable, actor: { id: string | null; email: string }, change: BackOfficeChange): Promise<void> {
+  const secret = isSecretAction(change.action);
+  await within.query(
+    `INSERT INTO back_office_audit (candidate_id, actor_email, section, target, action, before, after)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
+    [
+      actor.id,
+      actor.email.trim().toLowerCase(),
+      change.section,
+      change.target,
+      change.action,
+      secret || !("before" in change) ? null : json(change.before),
+      secret || !("after" in change) ? null : json(change.after),
+    ],
+  );
+}
+
+/** The Plan Features ticked in an untrusted Plan form; none when it names none. */
+const featuresOf = (input: unknown): PlanFeature[] => {
+  const features = typeof input === "object" && input !== null ? (input as { features?: unknown }).features : undefined;
+  return Array.isArray(features) ? features.filter((feature): feature is PlanFeature => PLAN_FEATURES.includes(feature as PlanFeature)) : [];
+};
+
+/** A Quota Reduction as recorded: what it lowers (each quota's before and after), the Plan Features it takes off, why, from when, how many subscribers were told. */
+const recordedReduction = (reduction: QuotaReduction): { [key: string]: Recorded } => ({
+  quotas: JSON.parse(JSON.stringify(reduction.quotas)) as Recorded,
+  removedFeatures: [...reduction.removedFeatures],
+  reason: reduction.reason,
+  effectiveOn: reduction.effectiveOn,
+  subscribers: reduction.subscribers,
+});
+
+/** A Quota Reduction scheduled, as recorded: what it lowers, why, from when, and how many subscribers were told. */
+const scheduledChange = (section: "plans" | "plan_quotas", reduction: QuotaReduction): BackOfficeChange => ({
+  section,
+  target: reduction.plan,
+  action: "scheduled",
+  before: null,
+  after: { ...recordedReduction(reduction), reduction: reduction.id },
+});
+
 export function createBackOffice(
   database: Pool,
   deps: BackOfficeDeps,
@@ -496,22 +566,7 @@ export function createBackOffice(
         return result;
       }
       const changes: readonly BackOfficeChange[] = attempt === null ? [] : Array.isArray(attempt) ? attempt : [attempt as BackOfficeChange];
-      for (const change of changes) {
-        const secret = isSecretAction(change.action);
-        await client.query(
-          `INSERT INTO back_office_audit (candidate_id, actor_email, section, target, action, before, after)
-           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
-          [
-            actor.id,
-            actor.email.trim().toLowerCase(),
-            change.section,
-            change.target,
-            change.action,
-            secret || !("before" in change) ? null : json(change.before),
-            secret || !("after" in change) ? null : json(change.after),
-          ],
-        );
-      }
+      for (const change of changes) await insertAuditEntry(client, actor, change);
       await client.query("COMMIT");
       return result;
     } catch (error) {
@@ -557,7 +612,7 @@ export function createBackOffice(
       return created.ok ? { ok: true, plan: created.plan } : created;
     },
 
-    async updatePlan(actor, plan, input) {
+    async updatePlan(actor, plan, input, notice = null) {
       // A product given to a Plan with none yet is asked of Stripe before the transaction opens.
       const current = (await deps.billing.plans()).find(
         (each) => each.key === plan,
@@ -579,20 +634,26 @@ export function createBackOffice(
       }
       const updated = await record(
         actor,
-        (within) =>
-          deps.billing.updatePlan(plan, input, within, { productChecked }),
+        async (within) => {
+          // Plan Features taken off a Plan Candidates pay for stay until the Quota Reduction's effective date.
+          const removed = current ? current.features.filter((feature) => !featuresOf(input).includes(feature)) : [];
+          const reduction = deps.quotaReductions && removed.length > 0 ? await deps.quotaReductions.removeFeatures(plan, removed, notice ?? null, within, actor) : { ok: true as const, scheduled: null };
+          if (!reduction.ok) return reduction;
+          const kept = reduction.scheduled ? { ...(input as object), features: [...featuresOf(input), ...removed] } : input;
+          const result = await deps.billing.updatePlan(plan, kept, within, { productChecked });
+          return result.ok ? { ...result, scheduled: reduction.scheduled } : result;
+        },
         (result) =>
           result.ok
-            ? {
-                section: "plans",
-                target: plan,
-                action: "updated",
-                before: recordedPlan(result.before),
-                after: recordedPlan(result.after),
-              }
+            ? [
+                ...(JSON.stringify(recordedPlan(result.before)) === JSON.stringify(recordedPlan(result.after))
+                  ? []
+                  : [{ section: "plans", target: plan, action: "updated", before: recordedPlan(result.before), after: recordedPlan(result.after) } as const]),
+                ...(result.scheduled ? [scheduledChange("plans", result.scheduled)] : []),
+              ]
             : null,
       );
-      return updated.ok ? { ok: true } : updated;
+      return updated.ok ? { ok: true, scheduled: updated.scheduled } : updated;
     },
 
     movePlan(actor, plan, direction) {
@@ -612,21 +673,65 @@ export function createBackOffice(
       );
     },
 
-    async setPlanQuotas(actor, plan, quotas) {
-      await record(
+    async setPlanQuotas(actor, plan, quotas, notice = null) {
+      const changed = await record(
         actor,
-        (within) => deps.billing.setPlanQuotas(plan, quotas, within),
-        (before) =>
-          before
+        async (within): Promise<{ ok: true; before: PlanQuotas; applied: PlanQuotas; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }> => {
+          if (deps.quotaReductions) return deps.quotaReductions.changeQuotas(plan, quotas, notice, within, actor);
+          const before = await deps.billing.setPlanQuotas(plan, quotas, within);
+          return before ? { ok: true, before, applied: quotas, scheduled: null } : { ok: false, error: "unknown_plan" };
+        },
+        (result) =>
+          result.ok
+            ? [
+                ...((Object.keys(result.applied) as (keyof PlanQuotas)[]).every((key) => result.applied[key] === result.before[key]) && result.scheduled
+                  ? []
+                  : [{ section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(result.before), after: recordedQuotas(result.applied) } as const]),
+                ...(result.scheduled ? [scheduledChange("plan_quotas", result.scheduled)] : []),
+              ]
+            : null,
+      );
+      return changed.ok ? { ok: true, scheduled: changed.scheduled } : changed;
+    },
+
+    async settleQuotaReductionRefund(actor, reductionId, subscriptionId) {
+      if (!deps.quotaReductions) return false;
+      const reductions = deps.quotaReductions;
+      const settled = await record(
+        actor,
+        (within) => reductions.settleRefund(reductionId, subscriptionId, within),
+        (refund) =>
+          refund
             ? {
-                section: "plan_quotas",
-                target: plan,
+                section: "plans",
+                target: refund.plan,
                 action: "updated",
-                before: recordedQuotas(before),
-                after: recordedQuotas(quotas),
+                before: { refund: { subscription: refund.subscriptionId, failure: refund.failure }, reduction: refund.reductionId },
+                after: { refund: { subscription: refund.subscriptionId, settled: "stripe" }, reduction: refund.reductionId },
               }
             : null,
       );
+      return settled !== null;
+    },
+
+    async cancelQuotaReduction(actor, id) {
+      if (!deps.quotaReductions) return false;
+      const reductions = deps.quotaReductions;
+      const cancelled = await record(
+        actor,
+        (within) => reductions.cancel(id, within),
+        (reduction) =>
+          reduction
+            ? {
+                section: reduction.removedFeatures.length > 0 && Object.keys(reduction.quotas).length === 0 ? "plans" : "plan_quotas",
+                target: reduction.plan,
+                action: "cancelled",
+                before: { ...recordedReduction(reduction), reduction: reduction.id },
+                after: null,
+              }
+            : null,
+      );
+      return cancelled !== null;
     },
 
     async resetWeeklyUsage(actor, reason) {

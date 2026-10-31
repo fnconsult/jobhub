@@ -5,8 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { helpLocale, onThisPage } from "@/coach-help";
 import { Icons } from "@/components/icons";
-import { CURRENT } from "@/components/SidebarShell";
+import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
+import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
 import { routes } from "@/routes";
@@ -22,13 +24,15 @@ export type SidebarMenus = Partial<Record<"applications", UnfoldedMenu>>;
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
  * once its first message saved it; `replying` while a reply is on its way, when it cannot be cleared; `clear` deletes every
  * message of it (« Effacer ») and resolves whether it did; `startNew` turns the page into a new Free conversation, as the
- * home page is; null on a menu's page (#604), which « Nouvelle conversation » leaves for the home page.
+ * home page is, null on a menu's page (#604), which « Nouvelle conversation » leaves for the home page; `askAbout` starts,
+ * in its box, a question about a Help Article, whose title goes with it (« Demander au coach » in the Work Pane, #602).
  */
 export type PageConversation = {
   conversationId: string | null;
   replying: boolean;
   clear: () => Promise<boolean>;
   startNew: (() => void) | null;
+  askAbout: (article: { id: string; title: string }) => void;
 };
 
 interface ConversationFirst {
@@ -83,14 +87,16 @@ export function useConversationFirst(): ConversationFirst | null {
 /**
  * The Sidebar's conversations (ADR-0070): « Nouvelle conversation », which leads to the home page, a new Free
  * conversation; then « Coach », which folds, with the Free conversations, each its own page, renamed or deleted from its
- * actions (deleting asks first). `onNavigate`: closes the Sidebar's drawer on phones. Nothing while the switch is off.
+ * actions (deleting asks first), and « Mémoire du coach », opened in the Work Pane (#602). `onNavigate`: closes the
+ * Sidebar's drawer on phones; `closeDrawerThen` opens the Work Pane once it has (SidebarShell). Nothing while the switch is off.
  */
-export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarConversations({ onNavigate, closeDrawerThen }: { onNavigate?: () => void; closeDrawerThen?: CloseDrawerThen }) {
   const { t } = useTranslation();
   const conversationFirst = useConversationFirst();
   const pathname = usePathname();
   const id = useId();
   const [open, setOpen] = useUnfolded(COACH_MENU);
+  const workPane = useWorkPane();
   if (!conversationFirst) return null;
   const { conversations, page } = conversationFirst;
   return (
@@ -120,6 +126,23 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
           {conversations.map((conversation) => (
             <FreeConversationItem key={conversation.id} conversation={conversation} current={pathname === routes.conversation(conversation.id)} onNavigate={onNavigate} />
           ))}
+          {workPane ? (
+            <li>
+              <button
+                className="sidebar-link sidebar-memory"
+                type="button"
+                onClick={() => {
+                  // From the drawer on a phone, once it has closed: the page, the Work Pane with it, is inert behind it.
+                  const show = () => workPane.open({ kind: "memory" });
+                  if (closeDrawerThen) closeDrawerThen(show);
+                  else show();
+                }}
+              >
+                <Icons.memory />
+                {t("coachMemory.open")}
+              </button>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </div>
@@ -404,5 +427,27 @@ export function ClearConversationButton() {
     >
       {t("conversationFirst.clearText")}
     </ConfirmDialog>
+  );
+}
+
+/**
+ * « Aide » in the Top Bar of a page without a conversation (Mon compte, #602, ADR-0070): opens the page's Help Article in
+ * the Work Pane, whose « Demander au coach » starts a Free conversation about it. Nothing on a page that is a
+ * conversation (its box suggests the help), on a page without an article, or while the switch is off.
+ */
+export function PageHelpButton() {
+  const { t, i18n } = useTranslation();
+  const conversationFirst = useConversationFirst();
+  const workPane = useWorkPane();
+  const pathname = usePathname();
+  const article = onThisPage(pathname, helpLocale(i18n.language))?.article;
+  // A conversation's page is known by its address too, before it registers itself: the button never flashes there.
+  const isConversation = conversationFirst?.page || pathname === routes.home || pathname.startsWith(routes.conversation(""));
+  if (!conversationFirst || isConversation || !workPane || !article) return null;
+  return (
+    <button className={`${buttonClass()} topbar-help`} type="button" onClick={() => workPane.open({ kind: "help", article })}>
+      <Icons.help />
+      {t("conversationFirst.help")}
+    </button>
   );
 }

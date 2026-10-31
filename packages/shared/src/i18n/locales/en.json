@@ -1425,13 +1425,18 @@
         "free_plan_built_in": "The Free Plan cannot be hidden, moved or tied to a Stripe product.",
         "cannot_move": "This Plan cannot go any further.",
         "product_frozen": "A paid Plan's Stripe product no longer changes once chosen: its subscribers stay on it. To move them to another Plan, use Stripe.",
-        "conflict": "Another change to the Plans was saved at the same moment. Try again."
+        "conflict": "Another change to the Plans was saved at the same moment. Try again.",
+        "notice_required": "You are removing a feature from a plan Candidates pay for: give the reason and the effective date of the reduction, at least 30 days ahead.",
+        "invalid_effective_date": "The effective date is not a date.",
+        "too_soon": "A reduction's effective date must be at least 30 days ahead.",
+        "reduction_pending": "A reduction is already scheduled on this plan: cancel it first, or wait for its effective date.",
+        "reason_too_long": "A reduction's reason is at most 500 characters: it is quoted in each subscriber's email."
       }
     },
     "planQuotas": {
       "title": "Plan Quotas",
-      "subtitle": "Each Plan's quotas, applied at once.",
-      "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
+      "subtitle": "Each plan's quotas: an increase at once, a reduction 30 days ahead.",
+      "intro": "An increase applies at once to every Candidate on the plan. A reduction of a paid plan Candidates pay for applies on an effective date at least 30 days ahead, announced to each subscriber. Leave a field empty for “unlimited”.",
       "plan": "{{plan}} Plan",
       "limitHelp": "A number, or empty for unlimited",
       "weekly": "a week",
@@ -2201,7 +2206,10 @@
         "restored_to_default": "Restored to default",
         "reset": "Reset",
         "refused": "Attempt refused",
-        "denied": "Access denied"
+        "denied": "Access denied",
+        "scheduled": "Scheduling",
+        "cancelled": "Cancellation",
+        "applied": "Application"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -3229,6 +3237,68 @@
       "errors": {
         "not_found": "This refund does not exist.",
         "not_failed": "This refund did not fail: there is nothing to try again."
+      }
+    },
+    "quotaReductions": {
+      "title": "Scheduled reductions",
+      "intro": "A reduction of a plan Candidates pay for waits for its effective date, at least 30 days ahead. Each subscriber gets an email with what changes, the reason, the date and their right to cancel at no cost, refunded prorata, until 30 days after the effective date. A reduction can be cancelled before its effective date.",
+      "none": "No reduction scheduled.",
+      "caption": "Scheduled reductions, soonest first",
+      "plan": "Plan",
+      "changes": "What goes down",
+      "effectiveOn": "Effective date",
+      "reason": "Reason",
+      "subscribers": "Subscribers told",
+      "resolved": "Cancellations",
+      "refundsPending": "Refunds to handle",
+      "notified": "{{notified}} of {{count}} email(s) sent",
+      "change": "{{label}}: {{before}} → {{after}}",
+      "cancel": "Cancel the reduction of the {{plan}} plan",
+      "cancelled": "Reduction cancelled: the plan keeps what it includes.",
+      "notCancelled": "This reduction can no longer be cancelled: its effective date has passed, or it was cancelled already.",
+      "noticeTitle": "If you reduce this plan",
+      "noticeHelp": "On a plan Candidates pay for, a reduction (a smaller number, a number instead of “unlimited”, a less frequent Job Digest, a feature removed) applies on its effective date, at least 30 days ahead. An increase applies at once.",
+      "reasonLabel": "Reason for the reduction",
+      "reasonHelp": "It appears in the email sent to each subscriber.",
+      "effectiveOnLabel": "Effective date",
+      "scheduled_one": "Reduction of the {{plan}} plan scheduled for {{date}}: {{count}} subscriber will get an email.",
+      "scheduled_other": "Reduction of the {{plan}} plan scheduled for {{date}}: {{count}} subscribers will get an email.",
+      "seePending": "See the scheduled reductions",
+      "errors": {
+        "notice_required": "This change reduces a plan Candidates pay for: give the reason and the effective date, at least 30 days ahead.",
+        "invalid_effective_date": "The effective date is not a date.",
+        "too_soon": "A reduction's effective date must be at least 30 days ahead.",
+        "reduction_pending": "A reduction is already scheduled on this plan: cancel it first (Plans), or wait for its effective date.",
+        "unknown_plan": "This plan does not exist.",
+        "reason_too_long": "A reduction's reason is at most 500 characters: it is quoted in each subscriber's email."
+      },
+      "journalFields": {
+        "quotas": "Quotas reduced",
+        "removedFeatures": "Features removed",
+        "reason": "Reason",
+        "effectiveOn": "Effective date",
+        "subscribers": "Subscribers told",
+        "reduction": "Reduction",
+        "refund": "Refund"
+      },
+      "cancelHeader": "Cancel",
+      "refunds": {
+        "title": "Refunds to handle",
+        "intro": "The prorata refunds Stripe did not make after a no-cost cancellation over a reduction. Stripe refused (a disputed payment, say): refund in Stripe, from the subscription shown, then mark it refunded. Stripe did not answer: Jobbbox asks again, nothing to do.",
+        "none": "No refund to handle.",
+        "caption": "Refunds to handle, oldest first",
+        "plan": "Plan",
+        "subscription": "Stripe subscription",
+        "failure": "Stripe's answer",
+        "resolvedAt": "Cancelled on",
+        "action": "Action",
+        "retrying": "Stripe did not answer: Jobbbox asks again",
+        "settle": "Refunded in Stripe",
+        "settleLabel": "Mark the subscription {{subscription}} as refunded in Stripe",
+        "settled": "Refund marked as made in Stripe.",
+        "notSettled": "This refund is no longer to handle: it was marked already, or Jobbbox is asking Stripe again.",
+        "due": "To refund",
+        "dueUnknown": "Unknown: work it out in Stripe"
       }
     }
   },
@@ -4709,7 +4779,11 @@
     "suggestions": "Suggestions",
     "unfold": "Unfold “{{menu}}”",
     "toHandle": "to handle",
-    "seeAll": "See all ({{count}})"
+    "seeAll": "See all ({{count}})",
+    "help": "Help",
+    "howThisPageWorks": "How does this page work?",
+    "askCoach": "Ask the coach",
+    "close": "Close"
   },
   "publicSite": {
     "nav": "Public pages",
@@ -4864,5 +4938,39 @@
     "agenda": {
       "label": "Withdraw from the contract here: session with {{name}}"
     }
+  },
+  "quotaReduction": {
+    "features": {
+      "coachingSessionDiscount": "Coaching sessions at a reduced price"
+    },
+    "included": "Included",
+    "before": "Today: {{value}}",
+    "after": "From {{date}}: {{value}}",
+    "resolve": "Cancel at no cost",
+    "email": {
+      "subject": "Your {{plan}} plan changes on {{date}}",
+      "title": "Your {{plan}} plan is about to change",
+      "intro": "On {{date}}, what your {{plan}} plan includes will go down. Here is what changes:",
+      "reason": "Why: {{reason}}",
+      "right": "If this change does not suit you, you can cancel your subscription at no cost, before {{date}} or up to and including {{until}}. Your subscription then stops at once, and we refund the part of the period you have paid for that will not have been used, prorata.",
+      "nothingToDo": "If you keep your subscription, there is nothing to do.",
+      "footer": "You are receiving this email because your Jobbbox {{plan}} subscription is affected."
+    },
+    "page": {
+      "title": "Your {{plan}} plan changes on {{date}}",
+      "intro": "On {{date}}, what your plan includes goes down:",
+      "reason": "Why: {{reason}}",
+      "right": "You can cancel at no cost up to and including {{until}}: your subscription stops at once, and we refund, prorata, the part of the paid period that will not have been used.",
+      "confirmTitle": "Cancel at no cost",
+      "confirm": "Confirm the cancellation",
+      "keep": "Keep my subscription",
+      "notOpen": "No reduction of your plan lets you cancel at no cost right now.",
+      "done": "Your subscription is cancelled. We are refunding {{amount}}: the refund shows on your statement within 5 to 10 days.",
+      "doneNothing": "Your subscription is cancelled. There was nothing to refund.",
+      "donePending": "Your subscription is cancelled. The refund could not be made right away: our team is handling it, there is nothing for you to do.",
+      "error": "The cancellation could not be made. Try again in a moment.",
+      "doneSettled": "Your subscription is cancelled, and our team refunded you prorata the part of the paid period that was not used."
+    },
+    "change": "{{label}}: {{before}} → {{after}}"
   }
 }

@@ -4,7 +4,7 @@ import { mailClientLint } from "./mail-client-lint";
 import { EMAIL_NAMES, sampleEmails, type EmailName } from "./samples";
 
 /**
- * Each of the seven emails, rendered in both Interface Languages from its sample (./samples), checked in both parts:
+ * Each of the eight emails, rendered in both Interface Languages from its sample (./samples), checked in both parts:
  * the same facts and links in the text and the HTML, in the right language, the HTML passing the mail-client lint.
  */
 const greeting: Record<Locale, string> = { fr: "Bonjour,", en: "Hello," };
@@ -81,6 +81,30 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
     fr: ["2,40", "2,00", "2026-10", "Rien n'est coupé", "Voir le détail dans Consommation IA", "https://app.jobbbox.fr/admin/consommation-ia?periode=2026-10", "super-admin"],
     en: ["€2.40", "€2.00", "2026-10", "Nothing is cut", "See the details in Consommation IA", "https://app.jobbbox.fr/admin/consommation-ia?periode=2026-10", "super-admin"],
   },
+  quotaReduction: {
+    fr: [
+      "Le 14 novembre 2026, ce que comprend votre offre Standard va baisser",
+      "Recherches d'offres",
+      "Aujourd'hui : 7 par semaine",
+      "À partir du 14 novembre 2026 : 3 par semaine",
+      "Aujourd'hui : Illimité",
+      "Séances de coaching à prix réduit",
+      "Pourquoi : Les recherches d'offres coûtent plus cher à nos fournisseurs.",
+      "jusqu'au 14 décembre 2026 inclus",
+      "Résilier sans frais",
+      "https://app.jobbbox.fr/abonnement/baisse",
+    ],
+    en: [
+      "On November 14, 2026, what your Standard plan includes will go down",
+      "Today: 7 a week",
+      "From November 14, 2026: 3 a week",
+      "Today: Unlimited",
+      "Coaching sessions at a reduced price",
+      "up to and including December 14, 2026",
+      "Cancel at no cost",
+      "https://app.jobbbox.fr/abonnement/baisse",
+    ],
+  },
   abandonedFollowUp: {
     fr: ["Vos relances pour « DAF H/F » sont restées sans réponse", "Ouvrir la candidature", "https://app.jobbbox.fr/candidatures/application-1", "https://app.jobbbox.fr/compte/relances"],
     en: ['Your follow-ups for "DAF H/F" have had no answer', "Open the application", "https://app.jobbbox.fr/candidatures/application-1", "https://app.jobbbox.fr/compte/relances"],
@@ -89,11 +113,11 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
 
 const unescape = (html: string) => html.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
-describe.each(SUPPORTED_LOCALES)("the seven emails in %s", (language) => {
+describe.each(SUPPORTED_LOCALES)("the eight emails in %s", (language) => {
   const emails = sampleEmails(language);
 
-  it("are the seven", () => {
-    expect(EMAIL_NAMES).toHaveLength(7);
+  it("are the eight", () => {
+    expect(EMAIL_NAMES).toHaveLength(8);
     expect(Object.keys(emails).sort()).toEqual([...EMAIL_NAMES].sort());
     expect(Object.keys(facts).sort()).toEqual([...EMAIL_NAMES].sort());
   });

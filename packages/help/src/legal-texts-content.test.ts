@@ -57,6 +57,7 @@ effective: 2026-12-01
 change: substantielle
 approved_by: Camille Martin
 summary: Première version.
+recipients_outside_eu: [anthropic, stripe]
 ---
 ## Qui est responsable
 FN Consult.
@@ -156,6 +157,31 @@ describe("readLegalTexts — the Legal Text Versions of a directory", () => {
     const cgv = cguFr.replace("title: Conditions générales d'utilisation", "title: Conditions générales de vente").replace(" {#invite}", "");
     expect(() => readLegalTexts(legalDir({ "cgv/2026-12-01.fr.md": cgv, "cgv/2026-12-01.en.md": cgv }))).toThrow(
       /cgv\/2026-12-01\.fr\.md: no section is anchored #retractation/,
+    );
+  });
+
+  it("reads the Tools outside the EU each privacy policy version names (#548)", () => {
+    const texts = readLegalTexts(legalDir({ "confidentialite/2026-12-01.fr.md": privacyFr, "confidentialite/2026-12-01.en.md": privacyEn }));
+    expect(texts.fr[0]?.recipientsOutsideEu).toEqual(["anthropic", "stripe"]);
+    expect(texts.en[0]?.recipientsOutsideEu).toEqual(["anthropic", "stripe"]);
+    const none = (markdown: string) => markdown.replace("[anthropic, stripe]", "[]");
+    expect(readLegalTexts(legalDir({ "confidentialite/2026-12-01.fr.md": none(privacyFr), "confidentialite/2026-12-01.en.md": none(privacyEn) })).fr[0]?.recipientsOutsideEu).toEqual([]);
+  });
+
+  it.each([
+    ["an id no Tool has", privacyFr.replace("[anthropic, stripe]", "[anthropic, deepl]"), /confidentialite\/2026-12-01\.fr\.md: recipients_outside_eu names deepl, which is no Tool of the catalog \(packages\/shared\/src\/tools\.ts\)/],
+    ["no recipients_outside_eu", privacyFr.replace("recipients_outside_eu: [anthropic, stripe]\n", ""), /confidentialite\/2026-12-01\.fr\.md: recipients_outside_eu is missing: the Tools outside the EU this version names, \[\] for none/],
+    ["recipients_outside_eu that is not a list", privacyFr.replace("[anthropic, stripe]", "anthropic"), /confidentialite\/2026-12-01\.fr\.md: recipients_outside_eu is a list: \[anthropic, stripe\]/],
+  ])("refuses a privacy policy with %s", (_case, markdown, problem) => {
+    expect(() => readLegalTexts(legalDir({ "confidentialite/2026-12-01.fr.md": markdown, "confidentialite/2026-12-01.en.md": privacyEn }))).toThrow(problem);
+  });
+
+  it("refuses recipients_outside_eu outside the privacy policy, and a translation naming other Tools than the French text", () => {
+    expect(() => readLegalTexts(legalDir({ ...cgu, "cgu/2026-12-01.fr.md": cguFr.replace("---\n## En bref", "recipients_outside_eu: [anthropic]\n---\n## En bref") }))).toThrow(
+      /cgu\/2026-12-01\.fr\.md: only the privacy policy names recipients_outside_eu/,
+    );
+    expect(() => readLegalTexts(legalDir({ "confidentialite/2026-12-01.fr.md": privacyFr, "confidentialite/2026-12-01.en.md": privacyEn.replace("[anthropic, stripe]", "[anthropic]") }))).toThrow(
+      /confidentialite\/2026-12-01\.en\.md: its recipients_outside_eu \(anthropic\) differ from the French one's \(anthropic, stripe\)/,
     );
   });
 

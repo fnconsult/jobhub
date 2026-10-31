@@ -190,6 +190,24 @@ export async function startFakeStripe(port = 0) {
    * spec running beside it, on the same fake, still has its own refunds go through.
    */
   const refundRefusals = new Map<string, string>();
+  /** When each subscription's paid period ends (in seconds), by subscription id: a month from first asked, unless set. */
+  const subscriptionPeriodEnds = new Map<string, number>();
+  /** The subscriptions whose cancellation is scheduled at the end of the period (`cancel_at_period_end`). */
+  const cancellingSubscriptions = new Set<string>();
+  /** A subscription as Stripe gives it: its paid period's end on its item (API versions since 2025-03-31.basil). */
+  function subscriptionJson(subscription: string, discounts: unknown[]) {
+    if (!subscriptionPeriodEnds.has(subscription)) subscriptionPeriodEnds.set(subscription, Math.floor(Date.now() / 1000) + 30 * 24 * 3600);
+    return {
+      id: subscription,
+      object: "subscription",
+      status: cancelledSubscriptions.has(subscription) ? "canceled" : "active",
+      ...(subscriptionStarts.has(subscription) ? { start_date: subscriptionStarts.get(subscription) } : {}),
+      cancel_at: null,
+      cancel_at_period_end: cancellingSubscriptions.has(subscription),
+      items: { object: "list", data: [{ id: `si_fake_${subscription}`, object: "subscription_item", current_period_end: subscriptionPeriodEnds.get(subscription) }] },
+      discounts,
+    };
+  }
   let sequence = 0;
   function payInvoice(subscriptionId: string, amount: number): string {
     const id = ++sequence;
@@ -373,8 +391,16 @@ export async function startFakeStripe(port = 0) {
               },
             ]
           : [];
-        const started = subscriptionStarts.get(subscription);
-        return reply(200, { id: subscription, object: "subscription", status: cancelledSubscriptions.has(subscription) ? "canceled" : "active", discounts, ...(started === undefined ? {} : { start_date: started }) });
+        return reply(200, subscriptionJson(subscription, discounts));
+      }
+      const updated = request.method === "POST" && path.match(/^\/v1\/subscriptions\/([^/]+)$/)?.[1];
+      if (updated) {
+        const subscription = decodeURIComponent(updated);
+        if (params.has("cancel_at_period_end")) {
+          if (params.get("cancel_at_period_end") === "true") cancellingSubscriptions.add(subscription);
+          else cancellingSubscriptions.delete(subscription);
+        }
+        return reply(200, subscriptionJson(subscription, []));
       }
       const price = request.method === "GET" && path.match(/^\/v1\/prices\/([^/]+)$/)?.[1];
       if (price && FAKE_PRICES[price]) {
@@ -395,10 +421,15 @@ export async function startFakeStripe(port = 0) {
         return reply(200, { id: product, object: "product", active, default_price: defaultPriceField });
       }
       if (product) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such product: '${product}'` } });
-      // For e2e specs in another process: `discountSubscription` over HTTP.
+      // For e2e specs in another process: `discountSubscription` and `setSubscriptionPeriodEnd` (`end` in seconds) over HTTP.
       const discountPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/discount$/)?.[1];
       if (discountPath) {
         subscriptionDiscounts.set(decodeURIComponent(discountPath), { promotionCode: params.get("promotion_code") ?? "", end: numberParam(params, "end") });
+        return reply(200, {});
+      }
+      const periodPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/period$/)?.[1];
+      if (periodPath) {
+        subscriptionPeriodEnds.set(decodeURIComponent(periodPath), Number(params.get("end")));
         return reply(200, {});
       }
       const paidPath = request.method === "POST" && path.match(/^\/__customers\/([^/]+)\/paid$/)?.[1];
@@ -470,6 +501,8 @@ export async function startFakeStripe(port = 0) {
       refund.status = "failed";
       return refundEvent("refund.failed", { id: refund.id, paymentIntent: refund.payment_intent, amount: refund.amount, status: "failed", failureReason });
     },
+    /** Sets when a subscription's paid period ends, as Stripe gives it on the subscription's item. */
+    setSubscriptionPeriodEnd: (subscriptionId: string, end: Date) => void subscriptionPeriodEnds.set(subscriptionId, Math.floor(end.getTime() / 1000)),
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () =>

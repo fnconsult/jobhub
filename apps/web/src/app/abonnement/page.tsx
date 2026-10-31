@@ -43,16 +43,18 @@ const MAX_CODE_LENGTH = 40;
  * Mon compte's Subscription Section (ADR-0024), at its own address, in the Design System (#469): the Candidate's Plan
  * (and the discount their subscription gets) with the way to Stripe (and their invoices there), this week's usage as
  * bars, red once used up, the failed-payment Note, the offered Plans as comparison cards in rank order with their
- * prices (« Votre offre », « Conseillée »), and, on Free, a promotion code to check.
+ * prices (« Votre offre », « Conseillée »), and, on Free, a promotion code to check. A paid Plan whose cancellation is
+ * not scheduled has « Résilier votre contrat » beside the way to Stripe (#513); back from confirming it, a Note says it
+ * is recorded until when, and whether its acknowledgement was emailed.
  * A hidden Plan is not compared, even the Candidate's. A shared link's `?code=` is checked and carried
  * to Checkout, where it applies to the Plans it is for; checkout works without it all the same.
  */
-export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string }> }) {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string; resiliation?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan } = await searchParams;
+  const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan, resiliation } = await searchParams;
   const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
   const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable] = await Promise.all([
@@ -79,6 +81,9 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const carriedCode = code && plan === FREE_PLAN && !refusal && (promotion === null || notice?.role === "status") ? code : null;
   const planName = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
+  // « Résilier votre contrat » (#513): on a paid Plan, until its cancellation is scheduled (here or in Stripe's portal).
+  const cancellable = plan !== FREE_PLAN && !endsAt;
+  const cancelled = endsAt && (resiliation === "enregistree" || resiliation === "sans-accuse") ? { endsAt, acknowledged: resiliation === "enregistree" } : null;
 
   const cards = planCards({ plans, current: plan, quotas: allQuotas, prices, locale });
   const shownWeekly = WEEKLY_QUOTAS.filter((quota) => quotas[quota] !== 0);
@@ -112,6 +117,12 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             ) : null}
           </Note>
         ) : null}
+        {cancelled ? (
+          <Note tone="success" role="status">
+            <p>{t("billing.cancellation.done", { plan: planName[locale], date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(cancelled.endsAt) })}</p>
+            <p>{t(cancelled.acknowledged ? "billing.cancellation.receiptSent" : "billing.cancellation.receiptNotSent")}</p>
+          </Note>
+        ) : null}
         {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
 
         <div className="subscription-summary">
@@ -126,6 +137,11 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                       {t("billing.page.manage")}
                     </button>
                   </form>
+                ) : null}
+                {cancellable ? (
+                  <Link className={buttonClass()} href={routes.subscriptionCancellation}>
+                    {t("billing.cancellation.action")}
+                  </Link>
                 ) : null}
                 {hasInvoices ? (
                   <form method="post" action="/api/billing/portal">

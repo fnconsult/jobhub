@@ -44,6 +44,11 @@ const stripe = await startFakeStripe(Number(process.env.E2E_STRIPE_PORT));
 const logFile = process.env.E2E_SERVER_LOG;
 mkdirSync(path.dirname(logFile), { recursive: true });
 const log = createWriteStream(logFile, { flags: "w" });
+// Playwright killed outright leaves this stdout with no reader: writing to it is an EPIPE, an uncaught
+// crash that would print itself (« syscall: 'write' ») and leave stopping to chance. Its watchdog
+// (exit-with-parent.mjs) ends it instead, and next start with it; the server log keeps every line.
+// e2e/support/exit-with-parent.test.ts plays this launcher the same way.
+process.stdout.on("error", () => {});
 const server = spawn("npx", ["next", "start", "apps/web", "-p", process.env.E2E_WEB_PORT], {
   env: exitWithParentEnv(env),
   stdio: ["ignore", "pipe", "pipe"],

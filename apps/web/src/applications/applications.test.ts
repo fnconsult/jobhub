@@ -217,6 +217,19 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
     });
   });
 
+  it("gives the Match Score of each of the Candidate's Applications at once, for Mes candidatures (#604)", async () => {
+    const scored = await save({ jobOfferId, profileId });
+    const unscored = await save({ jobOfferId: await captureOffer("Contrôleur de gestion"), profileId });
+    const theirs = await save({ jobOfferId, profileId: await createProfile(otherCandidateId, "DAF") }, otherCandidateId);
+
+    const scores = await applications.matchScores(candidateId);
+
+    expect([...scores.keys()].sort()).toEqual([scored.id, unscored.id].sort());
+    expect(scores.get(scored.id)?.score).toBe(85); // as its page shows it, above
+    expect(scores.get(unscored.id)).toEqual((await applications.get(candidateId, unscored.id))?.matchScore);
+    expect(scores.has(theirs.id)).toBe(false);
+  });
+
   async function captureOffer(title: string) {
     const captured = await createJobOffers(testAuth.auth.options.database as Pool).capture({ title, content: `${title} : poste à Lyon.` });
     if (!captured.ok) throw new Error("fixture Job Offer refused");

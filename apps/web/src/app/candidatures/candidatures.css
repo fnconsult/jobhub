@@ -159,3 +159,9 @@ th[aria-sort] .applications-sort__mark {
 .workspace ul.applications-cards > li.applications-card {
   max-width: none;
 }
+
+/* Mes candidatures' card in its conversation (#604): under its list, the Archived Applications left out. */
+.applications-menu-card__archived {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+}

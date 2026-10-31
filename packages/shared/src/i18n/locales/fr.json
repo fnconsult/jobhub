@@ -1759,7 +1759,8 @@
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
-        "maintenance": "Maintenance"
+        "maintenance": "Maintenance",
+        "candidate_pages": "Pages du Candidate"
       },
       "setting": "Réglage",
       "value": "Valeur en vigueur",
@@ -1992,6 +1993,7 @@
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
         "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
+        "CONVERSATION_FIRST": "Conversation au centre (l'accueil du Candidate est une conversation avec le Coach IA)",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
       },

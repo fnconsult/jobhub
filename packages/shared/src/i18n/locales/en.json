@@ -1759,7 +1759,8 @@
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
-        "maintenance": "Maintenance"
+        "maintenance": "Maintenance",
+        "candidate_pages": "Candidate's pages"
       },
       "setting": "Setting",
       "value": "Value in use",
@@ -1992,6 +1993,7 @@
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
+        "CONVERSATION_FIRST": "Conversation first (the Candidate's home page is a conversation with the AI Coach)",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
       },

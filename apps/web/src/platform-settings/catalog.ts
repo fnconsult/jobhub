@@ -21,7 +21,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance", "candidate_pages"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -114,6 +114,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "MAINTENANCE_MESSAGE_FR", group: "maintenance", type: { kind: "text" }, default: "" },
   { name: "MAINTENANCE_MESSAGE_EN", group: "maintenance", type: { kind: "text" }, default: "" },
   { name: "MAINTENANCE_EXPECTED_MINUTES", group: "maintenance", type: whole(0, 1440), default: "30" },
+  // « Conversation au centre » (#601, ADR-0070): on, the Candidate's home page is a new Free conversation and the Sidebar lists
+  // their Free conversations; off, the Candidate's pages are as before. Off until the conversation-first pages are all built (#608).
+  { name: "CONVERSATION_FIRST", group: "candidate_pages", type: { kind: "boolean" }, default: "false" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));
@@ -123,10 +126,23 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303) and maintenance (#542).
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), maintenance (#542)
+ * and « Conversation au centre » (#601).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
-const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"];
+const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
+  "ai_routing",
+  "web_search",
+  "prices",
+  "email",
+  "email_intake",
+  "job_digest",
+  "job_discovery",
+  "enriched_contacts",
+  "extension",
+  "maintenance",
+  "candidate_pages",
+];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
 export const isEditable = (setting: PlatformSetting): boolean => EDITABLE_GROUPS.includes(setting.group);

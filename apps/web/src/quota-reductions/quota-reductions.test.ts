@@ -193,7 +193,16 @@ describe.skipIf(!connectionString)("Quota Reductions (#514, needs Postgres: DATA
 
     expect(await reductions.pending()).toEqual([]);
     expect(await reductions.refundsToSettle()).toEqual([
-      { reductionId: expect.any(String), plan: "standard", subscriptionId: marie.subscription, failure: "charge_disputed", retried: false, resolvedAt: t.clock.now },
+      // 11 of the 30 days of November paid for still to run: 999 × 11 / 30, rounded (the clock says 20 November, 10:00).
+      {
+        reductionId: expect.any(String),
+        plan: "standard",
+        subscriptionId: marie.subscription,
+        failure: "charge_disputed",
+        retried: false,
+        resolvedAt: t.clock.now,
+        due: { amount: Math.round((999 * (new Date("2026-12-01T00:00:00+01:00").getTime() - t.clock.now.getTime())) / (30 * 86_400_000)), currency: "eur" },
+      },
     ]);
     expect(await reductions.lastResolution(marie.id)).toEqual({ refund: null, refundPending: true, settled: false });
 

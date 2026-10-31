@@ -3296,7 +3296,9 @@
         "settle": "Refunded in Stripe",
         "settleLabel": "Mark the subscription {{subscription}} as refunded in Stripe",
         "settled": "Refund marked as made in Stripe.",
-        "notSettled": "This refund is no longer to handle: it was marked already, or Jobbbox is asking Stripe again."
+        "notSettled": "This refund is no longer to handle: it was marked already, or Jobbbox is asking Stripe again.",
+        "due": "To refund",
+        "dueUnknown": "Unknown: work it out in Stripe"
       }
     }
   },

@@ -132,6 +132,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   const { saved, created, moved, error, cancelled, notCancelled, refundSettled, refundNotSettled } = await searchParams;
   const [plans, reductions, refunds] = await Promise.all([getBilling().plans(), getQuotaReductions().pending(), getQuotaReductions().refundsToSettle()]);
   const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
+  const money = (due: { amount: number; currency: string }) => new Intl.NumberFormat(locale, { style: "currency", currency: due.currency }).format(due.amount / 100);
   const earliest = earliestEffectiveOn(new Date());
   // Notices name a Plan from the database only: nothing typed in the address bar is shown.
   const savedPlan = plans.find((plan) => plan.key === saved);
@@ -318,6 +319,12 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                     { header: t("admin.quotaReductions.refunds.subscription"), rowHeader: true, cell: (refund: RefundToSettle) => <code>{refund.subscriptionId}</code> },
                     { header: t("admin.quotaReductions.refunds.plan"), cell: (refund: RefundToSettle) => planName(refund.plan) },
                     { header: t("admin.quotaReductions.refunds.resolvedAt"), cell: (refund: RefundToSettle) => dateTime.format(refund.resolvedAt) },
+                    {
+                      header: t("admin.quotaReductions.refunds.due"),
+                      numeric: true,
+                      cell: (refund: RefundToSettle) =>
+                        refund.due ? money(refund.due) : t("admin.quotaReductions.refunds.dueUnknown"),
+                    },
                     {
                       header: t("admin.quotaReductions.refunds.failure"),
                       cell: (refund: RefundToSettle) => (refund.retried ? t("admin.quotaReductions.refunds.retrying") : <code>{refund.failure}</code>),

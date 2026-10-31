@@ -143,7 +143,13 @@ export type CancellationResult = { ok: true; plan: Plan; requestedAt: Date; ends
  */
 export type ProrataRefundResult =
   | { ok: true; refund: { id: string; amount: number; currency: string } | null }
-  | { ok: false; reason: string; subscription: string };
+  | {
+      ok: false;
+      reason: string;
+      subscription: string;
+      /** What was to be refunded, when Stripe refused it after it was worked out (null when Stripe could not tell it). */
+      due: { amount: number; currency: string } | null;
+    };
 
 /** How a Candidate checks out. */
 export interface CheckoutOptions {
@@ -928,6 +934,7 @@ export function createBilling(config: BillingConfig) {
    * payment that paid it. `key` makes Stripe refund once however often it is asked.
    */
   async function prorataRefund(subscriptionId: string, key: string, at: Date): Promise<ProrataRefundResult> {
+    let due: { amount: number; currency: string } | null = null;
     try {
       const { client } = stripe();
       const subscription = await client.subscriptions.retrieve(subscriptionId, { expand: ["latest_invoice.payments"] }, STRIPE_WRITE);
@@ -940,6 +947,7 @@ export function createBilling(config: BillingConfig) {
       const unused = Math.min(1, Math.max(0, (period.end * 1000 - at.getTime()) / ((period.end - period.start) * 1000)));
       const amount = Math.round(invoice.amount_paid * unused);
       if (amount <= 0) return { ok: true, refund: null };
+      due = { amount, currency: invoice.currency };
       const refund = await client.refunds.create(
         { payment_intent: paymentIntent, amount, metadata: { purpose: "plan_quota_reduction", subscription: subscriptionId } },
         { ...STRIPE_WRITE, idempotencyKey: key },
@@ -948,7 +956,7 @@ export function createBilling(config: BillingConfig) {
     } catch (error) {
       console.error("[billing] could not refund a subscription prorata", error);
       const reason = error instanceof Stripe.errors.StripeInvalidRequestError ? (error.code ?? "stripe_refused") : "stripe_unavailable";
-      return { ok: false, reason, subscription: subscriptionId };
+      return { ok: false, reason, subscription: subscriptionId, due };
     }
   }
 

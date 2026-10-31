@@ -86,6 +86,8 @@ export interface RefundToSettle {
   retried: boolean;
   /** When the Candidate cancelled. */
   resolvedAt: Date;
+  /** The prorata refund to make, in the currency's smallest unit (cents); null when Stripe failed before it was worked out. */
+  due: { amount: number; currency: string } | null;
 }
 
 /** The Quota Reduction a Candidate may cancel their subscription over, until `resolvableUntil` (a day in Paris, included). */
@@ -217,10 +219,11 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
         reductionId,
         candidateId,
         result.ok ? (result.refund?.id ?? null) : null,
-        result.ok ? (result.refund?.amount ?? 0) : null,
+        // Refused: what was to be refunded, for Support to refund in Stripe.
+        result.ok ? (result.refund?.amount ?? 0) : (result.due?.amount ?? null),
         result.ok ? null : result.reason,
         result.ok ? null : result.subscription,
-        result.ok ? (result.refund?.currency ?? null) : null,
+        result.ok ? (result.refund?.currency ?? null) : (result.due?.currency ?? null),
       ],
     );
   }
@@ -505,8 +508,8 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
      * again by the worker). Each names its Stripe subscription, never the Candidate. Oldest first.
      */
     async refundsToSettle(): Promise<RefundToSettle[]> {
-      const { rows } = await database.query<{ reduction_id: string; plan: Plan; subscription_id: string; failure: string; resolved_at: Date }>(
-        `SELECT n.reduction_id::text AS reduction_id, r.plan, n.subscription_id, n.refund_failure AS failure, n.resolved_at
+      const { rows } = await database.query<{ reduction_id: string; plan: Plan; subscription_id: string; failure: string; resolved_at: Date; refund_amount: number | null; refund_currency: string | null }>(
+        `SELECT n.reduction_id::text AS reduction_id, r.plan, n.subscription_id, n.refund_failure AS failure, n.resolved_at, n.refund_amount, n.refund_currency
          FROM plan_quota_reduction_notice n JOIN plan_quota_reduction r ON r.id = n.reduction_id
          WHERE n.refund_failure IS NOT NULL AND n.subscription_id IS NOT NULL
          ORDER BY n.resolved_at, n.reduction_id`,
@@ -518,6 +521,7 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
         failure: row.failure,
         retried: row.failure === STRIPE_UNAVAILABLE,
         resolvedAt: row.resolved_at,
+        due: row.refund_amount !== null && row.refund_currency ? { amount: row.refund_amount, currency: row.refund_currency } : null,
       }));
     },
 
@@ -528,16 +532,18 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
      */
     async settleRefund(reductionId: string, subscriptionId: string, within: Queryable): Promise<RefundToSettle | null> {
       if (!/^\d+$/.test(reductionId)) return null;
-      const { rows } = await within.query<{ plan: Plan; failure: string; resolved_at: Date }>(
+      const { rows } = await within.query<{ plan: Plan; failure: string; resolved_at: Date; refund_amount: number | null; refund_currency: string | null }>(
         `UPDATE plan_quota_reduction_notice n SET refund_failure = NULL, refund_settled_at = $3
          FROM plan_quota_reduction r, (SELECT refund_failure FROM plan_quota_reduction_notice WHERE reduction_id = $1 AND subscription_id = $2 FOR UPDATE) prior
          WHERE n.reduction_id = $1 AND n.subscription_id = $2 AND r.id = n.reduction_id
            AND n.refund_failure IS NOT NULL AND n.refund_failure <> $4
-         RETURNING r.plan, prior.refund_failure AS failure, n.resolved_at`,
+         RETURNING r.plan, prior.refund_failure AS failure, n.resolved_at, n.refund_amount, n.refund_currency`,
         [reductionId, subscriptionId, now(), STRIPE_UNAVAILABLE],
       );
       const row = rows[0];
-      return row ? { reductionId, plan: row.plan, subscriptionId, failure: row.failure, retried: false, resolvedAt: row.resolved_at } : null;
+      if (!row) return null;
+      const due = row.refund_amount !== null && row.refund_currency ? { amount: row.refund_amount, currency: row.refund_currency } : null;
+      return { reductionId, plan: row.plan, subscriptionId, failure: row.failure, retried: false, resolvedAt: row.resolved_at, due };
     },
 
     /**

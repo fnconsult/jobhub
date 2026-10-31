@@ -8,6 +8,9 @@ import { signInWithMagicLink } from "./support/candidate";
 import { emailsIn, newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 
+// Runs in the « plan-quotas » project, after every web spec (playwright.config.ts): these tests change Standard's and
+// Free's quotas for real for a few seconds, which web specs read (the plan comparison, Upgrade Prompts). Never run it
+// beside them (no --no-deps next to billing.spec.ts): « a rise and a reduction on Free » would race on Free's quotas.
 // Issue #514 (L224-25-26): lowering Standard while Candidates pay for it is scheduled 30 days ahead, shown to each
 // subscriber, who may cancel at no cost, refunded prorata. Stripe is the fake API on E2E_STRIPE_URL.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));

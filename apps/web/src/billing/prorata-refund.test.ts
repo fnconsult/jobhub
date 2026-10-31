@@ -70,7 +70,14 @@ describe.skipIf(!connectionString)("ending a subscription with a prorata refund 
     t.stripe.payPeriod(marie.subscription, { amount: 999, start: new Date("2026-10-01T00:00:00+02:00"), end: new Date("2026-10-31T00:00:00+01:00") });
     t.stripe.refuseRefunds("charge_disputed");
 
-    expect(await t.billing.endSubscriptionWithProrataRefund(marie.id, "quota-reduction-1")).toEqual({ ok: false, reason: "charge_disputed", subscription: marie.subscription });
+    const unused = (new Date("2026-10-31T00:00:00+01:00").getTime() - t.clock.now.getTime()) / (new Date("2026-10-31T00:00:00+01:00").getTime() - new Date("2026-10-01T00:00:00+02:00").getTime());
+    // What was to be refunded is kept with the refusal, for Support to refund in Stripe.
+    expect(await t.billing.endSubscriptionWithProrataRefund(marie.id, "quota-reduction-1")).toEqual({
+      ok: false,
+      reason: "charge_disputed",
+      subscription: marie.subscription,
+      due: { amount: Math.round(999 * unused), currency: "eur" },
+    });
     expect((await t.billing.entitlements(marie.id)).plan).toBe("free");
   });
 

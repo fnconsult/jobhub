@@ -3296,7 +3296,9 @@
         "settle": "Remboursé dans Stripe",
         "settleLabel": "Marquer remboursé dans Stripe l'abonnement {{subscription}}",
         "settled": "Remboursement marqué comme fait dans Stripe.",
-        "notSettled": "Ce remboursement n'est plus à traiter : il a déjà été marqué, ou Jobbbox le redemande à Stripe."
+        "notSettled": "Ce remboursement n'est plus à traiter : il a déjà été marqué, ou Jobbbox le redemande à Stripe.",
+        "due": "À rembourser",
+        "dueUnknown": "Inconnu : à calculer dans Stripe"
       }
     }
   },

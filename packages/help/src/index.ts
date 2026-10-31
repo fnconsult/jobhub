@@ -7,6 +7,7 @@
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  */
 import { ARTICLES } from "./articles.generated";
+import { isNoticed } from "./legal-notices";
 import { legalTextVersionUrl, type LegalTextHistoryEntry, type LegalTextId, type LegalTextVersion, type LegalTextVersionRecord } from "./legal-texts";
 import { LEGAL_TEXT_REGISTRY, LEGAL_TEXT_VERSIONS } from "./legal-texts.generated";
 import type { ReleaseNote } from "./release-notes";
@@ -28,6 +29,7 @@ export {
   type LegalTextVersion,
   type LegalTextVersionRecord,
 } from "./legal-texts";
+export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,
@@ -70,18 +72,24 @@ export function releaseNotes(locale: HelpLocale): readonly ReleaseNote[] {
   return RELEASE_NOTES[locale];
 }
 
-/** What /legal shows of one Legal Text: a version, whether it is the one in effect, and the version history. */
+/**
+ * What /legal shows of one Legal Text: a version, whether it is the one in effect, whether it is a substantial version
+ * still to come (its notice links to it, #547), and the version history.
+ */
 export interface ShownLegalText {
   version: LegalTextVersion;
   inEffect: boolean;
+  upcoming?: true;
   history: LegalTextHistoryEntry[];
 }
 
 /**
  * A Legal Text as /legal shows it (ADR-0062): the version in effect `on` that day (`parisDay()`), or the dated
- * `version` when asked, with the version history. A version is never served before its effective date. Null while
- * the team has written no version in effect, or for a date that is no version. `written` defaults to the versions
- * this build carries.
+ * `version` when asked, with the version history. A version is never served as the one in effect before its
+ * effective date; a substantial version of the CGU, the CGV or the privacy policy still to come is served at its dated
+ * address, marked upcoming, since the email telling Candidates of it links there (#547). Null while the team has
+ * written no version in effect, for a date that is no version, or a minor version still to come. `written` defaults
+ * to the versions this build carries.
  */
 export function legalText(
   text: LegalTextId,
@@ -90,9 +98,12 @@ export function legalText(
   written: readonly LegalTextVersion[] = LEGAL_TEXT_VERSIONS[locale],
 ): ShownLegalText | null {
   const served = inEffectSoFar(text, on, written);
+  const history = () => legalTextHistory(text, locale, on, written);
+  const coming = version ? written.find((entry) => entry.text === text && entry.effective === version && entry.effective > on && isNoticed(entry)) : undefined;
+  if (coming) return { version: coming, inEffect: false, upcoming: true, history: history() };
   const shown = version ? served.find((entry) => entry.effective === version) : served[0];
   if (!shown) return null;
-  return { version: shown, inEffect: shown === served[0], history: legalTextHistory(text, locale, on, written) };
+  return { version: shown, inEffect: shown === served[0], history: history() };
 }
 
 /** The version history of a Legal Text (/legal/<text>/versions): each version in effect `on` that day or before, newest first. */

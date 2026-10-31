@@ -4625,8 +4625,10 @@
       "mentions-legales": "Mentions légales"
     },
     "effective": "En vigueur depuis le {{date}}",
+    "effectiveFrom": "En vigueur à partir du {{date}}",
     "earlierVersions": "Versions précédentes",
     "archived": "Version archivée :",
+    "upcoming": "Version à venir : elle entre en vigueur le {{date}}.",
     "seeCurrent": "voir la version en vigueur",
     "translation": "Traduction : le texte français fait foi.",
     "readFrench": "Lire le texte français",

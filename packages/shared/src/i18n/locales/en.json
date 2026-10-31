@@ -4625,8 +4625,10 @@
       "mentions-legales": "Legal notice"
     },
     "effective": "In effect since {{date}}",
+    "effectiveFrom": "In effect from {{date}}",
     "earlierVersions": "Previous versions",
     "archived": "Archived version:",
+    "upcoming": "Upcoming version: it takes effect on {{date}}.",
     "seeCurrent": "see the version in effect",
     "translation": "Translation: the French text prevails.",
     "readFrench": "Read the French text",

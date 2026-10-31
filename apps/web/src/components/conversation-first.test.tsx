@@ -117,7 +117,7 @@ describe("the Sidebar's conversations, « Conversation au centre » on (#601, AD
   it("starts a new conversation on the page, rather than reloading it, when the page deletes the one it shows", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 204 })));
     const startNew = vi.fn();
-    const page: PageConversation = { conversationId: FREE[0]!.id, replying: false, clear: vi.fn(), startNew, askAbout: vi.fn() };
+    const page: PageConversation = { conversationId: FREE[0]!.id, free: true, replying: false, clear: vi.fn(), startNew, askAbout: vi.fn() };
     const user = userEvent.setup();
     renderInFrench(<Shell page={page} />);
 
@@ -149,7 +149,7 @@ describe("the Sidebar's conversations, « Conversation au centre » on (#601, AD
 
   it("« Nouvelle conversation » starts afresh on the page that shows one", async () => {
     const startNew = vi.fn();
-    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear: vi.fn(), startNew, askAbout: vi.fn() }} />);
+    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, free: true, replying: false, clear: vi.fn(), startNew, askAbout: vi.fn() }} />);
     await userEvent.click(within(sidebar()).getByRole("link", { name: "Nouvelle conversation" }));
     expect(startNew).toHaveBeenCalledTimes(1);
   });
@@ -164,7 +164,7 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
   it("asks first, the focus on « Annuler », and deletes nothing on « Annuler »", async () => {
     const clear = vi.fn(async () => true);
     const user = userEvent.setup();
-    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
+    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, free: true, replying: false, clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
 
     await user.click(screen.getByRole("button", { name: "Effacer" }));
     const dialog = screen.getByRole("alertdialog", { name: "Effacer cette conversation ?" });
@@ -177,7 +177,7 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
   it("deletes every message of the page's conversation once confirmed, and takes it off the Sidebar", async () => {
     const clear = vi.fn(async () => true);
     const user = userEvent.setup();
-    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, replying: false, clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
+    renderInFrench(<Shell page={{ conversationId: FREE[0]!.id, free: true, replying: false, clear, startNew: vi.fn(), askAbout: vi.fn() }} />);
 
     await user.click(screen.getByRole("button", { name: "Effacer" }));
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
@@ -209,7 +209,7 @@ describe("« Aide » in the Top Bar, on a page without a conversation (#602, ADR
 
   it("is not there on a page that is a conversation, which has its own help", () => {
     pathname.current = "/compte";
-    renderInFrench(<Shell page={{ conversationId: null, replying: false, clear: vi.fn(), startNew: vi.fn(), askAbout: vi.fn() }} />);
+    renderInFrench(<Shell page={{ conversationId: null, free: true, replying: false, clear: vi.fn(), startNew: vi.fn(), askAbout: vi.fn() }} />);
     expect(within(screen.getByRole("banner")).queryByRole("button", { name: "Aide" })).toBeNull();
   });
 

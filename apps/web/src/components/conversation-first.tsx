@@ -25,6 +25,8 @@ export type FreeConversation = { id: string; title: string };
  */
 export type PageConversation = {
   conversationId: string | null;
+  /** A Free conversation's page (the home page's, a saved one's), not an object's (#603): « Nouvelle conversation » starts it afresh in place. */
+  free: boolean;
   replying: boolean;
   clear: () => Promise<boolean>;
   startNew: () => void;
@@ -89,8 +91,9 @@ export function SidebarConversations({ onNavigate, closeDrawerThen }: { onNaviga
         className="sidebar-link sidebar-new-conversation"
         href={routes.home}
         onClick={(event) => {
-          // The page already shows a conversation: it starts afresh in place, as a reload of the home page would.
-          if (page) {
+          // The page already shows a Free conversation: it starts afresh in place, as a reload of the home page would.
+          // An object's page leads to the home page.
+          if (page?.free) {
             event.preventDefault();
             page.startNew();
           }

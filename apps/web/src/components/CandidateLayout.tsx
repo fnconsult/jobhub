@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { requireAcceptedTerms } from "@/acceptances/server";
 import type { ActivityElement } from "@/ai-activity/pane";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
@@ -66,6 +67,8 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
  * `wide` gives the page room for a board. `aiActivity`: the page's elements for
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
  * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations.
+ * While a CGU version waits for the Candidate's Acceptance (ADR-0062), only their data and
+ * subscription pages render: the others send them to the Acceptance screen (acceptances/gate.ts).
  */
 export async function CandidateLayout({
   candidateId,
@@ -82,6 +85,7 @@ export async function CandidateLayout({
   aiActivity?: readonly ActivityElement[];
   children: ReactNode;
 }) {
+  await requireAcceptedTerms(candidateId);
   const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),

@@ -980,6 +980,127 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   }
 }
 
+/* ---------- The Work Pane (#602, ADR-0070): one item beside the conversation, never over it ----------
+   A card in its own column, a 1rem gutter from the page and from the screen's edge, its header (the item's title, its
+   actions, ✕) fixed and its body scrolling. The conversation keeps its reading width, centred in what is left. On phones
+   (and below 64rem, where there is no room beside the page) it takes the whole screen. */
+.work-pane {
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.work-pane-head {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.work-pane-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.work-pane-head h2:focus {
+  outline: none;
+}
+
+.work-pane-head h2:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.work-pane-head .icon {
+  width: 1.125em;
+  height: 1.125em;
+}
+
+.work-pane-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.work-pane-article {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.work-pane-article :is(p, ul, ol) {
+  margin: 0;
+}
+
+@media (width >= 64rem) {
+  .workspace:has(> .work-pane) {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: start;
+  }
+
+  .workspace:has(> .work-pane):has(> .ai-activity-pane) {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .workspace:has(> .work-pane) > .topbar {
+    grid-column: 1 / -1;
+  }
+
+  .work-pane {
+    position: sticky;
+    top: calc(var(--topbar-height, 3.5rem) + var(--space-4));
+    align-self: start;
+    width: clamp(20rem, 32vw, 32rem);
+    max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-4));
+    margin: var(--space-4) var(--space-4) var(--space-4) 0;
+  }
+}
+
+@media (width < 64rem) {
+  .work-pane {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+/* « Mémoire du coach » under « Coach », a button among the Free conversations' links, like « Coach » itself. */
+.sidebar-memory {
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+/* « Aide » in the Top Bar of a page without a conversation (#602). */
+.topbar .topbar-help {
+  flex: none;
+}
+
+.topbar .topbar-help .icon {
+  width: 1.125em;
+  height: 1.125em;
+}
+
 /* « Coach » and its Free conversations in the Sidebar, under « Nouvelle conversation ». */
 .sidebar-conversations {
   display: flex;

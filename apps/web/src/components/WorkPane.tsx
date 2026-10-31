@@ -67,7 +67,6 @@ export function WorkPane() {
 
   if (!shown || !control) return null;
   const { close } = control;
-  const view = itemView(shown.item, { version, close, title });
 
   function onKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -79,36 +78,30 @@ export function WorkPane() {
     <aside className={PANE_CLASS} aria-labelledby={titleId} onKeyDown={onKeyDown}>
       <div className="work-pane-head">
         <h2 id={titleId} ref={title} tabIndex={-1}>
-          {view.title(t)}
+          {shown.item.kind === "help" ? shown.item.article.title : shown.item.kind === "memory" ? t("coachMemory.title") : t(signalementTitle(shown.item.start))}
         </h2>
-        {view.actions}
+        {shown.item.kind === "help" ? <AskCoach article={shown.item.article} /> : null}
         <button className={buttonClass({ variant: "quiet" })} type="button" onClick={close}>
           <Icons.close />
           {t("conversationFirst.close")}
         </button>
       </div>
       <div key={shown.opening} className="work-pane-body">
-        {view.body}
+        <ItemBody item={shown.item} version={version} close={close} heading={title} />
       </div>
     </aside>
   );
 }
 
-type Translate = ReturnType<typeof useTranslation>["t"];
-type ItemView = { title: (t: Translate) => string; actions?: ReactNode; body: ReactNode };
-
-/** How each kind of item shows in the pane: its title, its header's actions and its body. */
-function itemView(
-  item: WorkPaneItem,
-  { version, close, title }: { version: string; close: () => void; title: RefObject<HTMLHeadingElement | null> },
-): ItemView {
+/** What each kind of item shows in the pane, under the title its header gives it (`heading`). */
+function ItemBody({ item, version, close, heading }: { item: WorkPaneItem; version: string; close: () => void; heading: RefObject<HTMLHeadingElement | null> }) {
   switch (item.kind) {
     case "help":
-      return { title: () => item.article.title, actions: <AskCoach article={item.article} />, body: <HelpArticleBody article={item.article} /> };
+      return <HelpArticleBody article={item.article} />;
     case "signalement":
-      return { title: (t) => t(signalementTitle(item.start)), body: <SignalementPaneForm version={version} start={item.start} onClose={close} /> };
+      return <SignalementPaneForm version={version} start={item.start} onClose={close} />;
     case "memory":
-      return { title: (t) => t("coachMemory.title"), body: <CoachMemoryView heading={title} /> };
+      return <CoachMemoryView heading={heading} />;
   }
 }
 

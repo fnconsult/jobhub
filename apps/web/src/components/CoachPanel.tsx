@@ -535,12 +535,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // A draft cleared (sent) or cut short hides them at once.
   const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
 
-  // The Help Article opened last in the Work Pane, from wherever (a HelpTerm too), is the one read: its title goes with
-  // the next message (#602).
+  // The Help Article open in the Work Pane, from wherever (a HelpTerm too), is read: while it is open its title goes
+  // with each message, unless the Candidate asked about another one (#602).
   const inPane = isPage && workPane?.item?.kind === "help" ? workPane.item.article : null;
-  useEffect(() => {
-    if (inPane) setReadArticle({ id: inPane.id, title: inPane.title });
-  }, [inPane]);
 
   useEffect(() => {
     const box = input.current;
@@ -849,7 +846,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     setFailure(null);
     setUnanswered(null);
     // The Help Article read last goes with this message only: the AI Coach is told its title (#342).
-    const read = help ? readArticle : null;
+    const read = !help ? null : (readArticle ?? (inPane ? { id: inPane.id, title: inPane.title } : null));
     const stop = new AbortController();
     stopper.current = stop;
     const startedAt = Date.now();

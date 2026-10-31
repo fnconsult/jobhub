@@ -33,7 +33,7 @@ import {
   type DraftType,
 } from "@/signalements/draft";
 import { MESSAGE_MAX_LENGTH, MESSAGE_MIN_LENGTH } from "@/signalements/values";
-import { useWorkPane } from "@/components/work-pane";
+import { useWorkPane, type WorkPaneItem } from "@/components/work-pane";
 import { send } from "./ApplicationControls";
 import { SIGNALEMENT_GLYPHS, signalementGlyph } from "./signalement-glyphs";
 
@@ -56,6 +56,7 @@ export type SignalementStart =
   | { kind: "question"; question: string; coachReply: string };
 
 const DRAFT: SignalementStart = { kind: "draft" };
+const DRAFT_IN_PANE: WorkPaneItem = { kind: "signalement", start: DRAFT };
 
 /**
  * The Signalement's entry point in the Sidebar's foot (#375, ADR-0009 amendment « the Signalement icon »): an icon alone, the bug, to the right of
@@ -73,7 +74,7 @@ export function SignalementButton({ version }: { version: string }) {
       className="signalement-open"
       type="button"
       aria-label={t("signalement.open")}
-      {...(workPane ? { onClick: () => workPane.open({ kind: "signalement", start: DRAFT }) } : {})}
+      onClick={workPane ? () => workPane.open(DRAFT_IN_PANE) : undefined}
     >
       <svg
         className="icon signalement-glyph"

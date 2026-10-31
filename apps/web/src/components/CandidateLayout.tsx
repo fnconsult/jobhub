@@ -7,7 +7,11 @@ import { JobSearchNotifications } from "@/components/JobSearchNotifications";
 import { PaymentFailedBanner } from "@/components/PaymentFailedNotice";
 import { SignalementNotifications } from "@/components/SignalementNotifications";
 import { SidebarLayout } from "@/components/SidebarLayout";
+import { applicationsMenu } from "@/applications/menu";
+import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
+import type { SidebarMenus } from "@/components/conversation-first";
+import { getFollowUps } from "@/follow-ups/server";
 import { conversationFirst } from "@/conversation-first";
 import { getRequestLocale } from "@/i18n/server";
 import { currentHumanCoach } from "@/human-coaches/server";
@@ -55,6 +59,21 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
 }
 
 /**
+ * What the Sidebar's menus with objects unfold into, while « Conversation au centre » is on (#604): Mes candidatures'
+ * Applications. Never fails the page: without them, the menus are plain links.
+ */
+async function sidebarMenus(candidateId: string, on: boolean): Promise<SidebarMenus | undefined> {
+  if (!on) return undefined;
+  try {
+    const [applications, notices] = await Promise.all([getApplications().list(candidateId), getFollowUps().notices(candidateId)]);
+    return { applications: applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar };
+  } catch (error) {
+    console.error("[sidebar] could not read the menus' objects", error);
+    return {};
+  }
+}
+
+/**
  * The frame of every signed-in Candidate's page: the sidebar layout (see
  * SidebarLayout) around `children`, which it renders as the page's `<main>`,
  * topped by the Payment Failed Notice while there is one, the privacy policy's change until closed (#547), the
@@ -65,7 +84,8 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
  * `title` is the page's `<h1>`, shown in the Top Bar (see SidebarShell).
  * `wide` gives the page room for a board. `aiActivity`: the page's elements for
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
- * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations.
+ * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations, and
+ * Mes candidatures unfolds into its Applications (#604).
  */
 export async function CandidateLayout({
   candidateId,
@@ -82,7 +102,8 @@ export async function CandidateLayout({
   aiActivity?: readonly ActivityElement[];
   children: ReactNode;
 }) {
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free] = await Promise.all([
+  const on = conversationFirst(getPlatformSettingsResolver().current());
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     getRequestLocale().then((locale) => getPaymentFailedNotice(candidateId, locale)),
@@ -93,6 +114,7 @@ export async function CandidateLayout({
     weekUsage(candidateId),
     privacyChange(candidateId),
     freeConversations(candidateId),
+    sidebarMenus(candidateId, on),
   ]);
   return (
     <SidebarLayout
@@ -107,6 +129,7 @@ export async function CandidateLayout({
       aiActivity={aiActivity}
       version={jobbboxVersion()}
       freeConversations={free}
+      menus={menus}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {privacy ? <PrivacyChangeNotice change={privacy} /> : null}

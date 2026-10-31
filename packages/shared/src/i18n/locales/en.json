@@ -4664,7 +4664,10 @@
     "clearText": "All the messages of this conversation will be deleted. The coach's memory stays.",
     "cleared": "Conversation cleared.",
     "label": "Conversation with the AI Coach",
-    "suggestions": "Suggestions"
+    "suggestions": "Suggestions",
+    "unfold": "Unfold “{{menu}}”",
+    "toHandle": "to handle",
+    "seeAll": "See all ({{count}})"
   },
   "publicSite": {
     "nav": "Public pages",

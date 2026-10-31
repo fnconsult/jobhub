@@ -1015,6 +1015,44 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   list-style: none;
 }
 
+/* A Sidebar menu with objects (#604): its link, then the button that unfolds it into them. */
+.sidebar-menu-row {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.sidebar-menu-row .sidebar-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-menu-fold {
+  flex: none;
+}
+
+.sidebar-menu-fold .icon {
+  transition: transform 120ms ease;
+}
+
+.sidebar-menu-fold[aria-expanded="false"] .icon {
+  transform: rotate(-90deg);
+}
+
+/* An object à traiter: a dot at the line's end, its words for screen readers and on hover. */
+.sidebar-dot {
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: auto;
+  background: var(--color-warn);
+  border-radius: 50%;
+}
+
+.sidebar-link.sidebar-see-all {
+  color: var(--color-text-secondary);
+}
+
 .sidebar-conversation-row {
   display: flex;
   gap: var(--space-1);

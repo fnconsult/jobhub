@@ -3,16 +3,20 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
 import { routes } from "@/routes";
+import type { UnfoldedMenu } from "@/sidebar-menus";
 
 /** A Free conversation as the Sidebar lists it (ADR-0070): a Coach Conversation with no Subject. */
 export type FreeConversation = { id: string; title: string };
+
+/** The Sidebar's menus with objects (#604), by their Sidebar key, and what each unfolds into: Mes candidatures for now. */
+export type SidebarMenus = Partial<Record<"applications", UnfoldedMenu>>;
 
 /**
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
@@ -36,6 +40,8 @@ interface ConversationFirst {
   page: PageConversation | null;
   /** A page registers its conversation while it shows it, and clears it (null) when it goes. */
   setPage: (page: PageConversation | null) => void;
+  /** What the Sidebar's menus with objects unfold into. */
+  menus: SidebarMenus;
 }
 
 const Context = createContext<ConversationFirst | null>(null);
@@ -45,7 +51,15 @@ const Context = createContext<ConversationFirst | null>(null);
  * kept up to date as the page's conversation is saved, renamed or cleared, and the page's conversation, which « Effacer »
  * in the Top Bar and « Nouvelle conversation » in the Sidebar act on. Its absence means the switch is off.
  */
-export function ConversationFirstProvider({ conversations: initial, children }: { conversations: readonly FreeConversation[]; children: ReactNode }) {
+export function ConversationFirstProvider({
+  conversations: initial,
+  menus = NO_MENUS,
+  children,
+}: {
+  conversations: readonly FreeConversation[];
+  menus?: SidebarMenus;
+  children: ReactNode;
+}) {
   const [conversations, setConversations] = useState<readonly FreeConversation[]>(initial);
   const [page, setPageState] = useState<PageConversation | null>(null);
   const saved = useCallback((conversation: FreeConversation) => {
@@ -55,9 +69,11 @@ export function ConversationFirstProvider({ conversations: initial, children }: 
   }, []);
   const removed = useCallback((conversationId: string) => setConversations((list) => list.filter((each) => each.id !== conversationId)), []);
   const setPage = useCallback((next: PageConversation | null) => setPageState(next), []);
-  const value = useMemo(() => ({ conversations, saved, removed, page, setPage }), [conversations, saved, removed, page, setPage]);
+  const value = useMemo(() => ({ conversations, saved, removed, page, setPage, menus }), [conversations, saved, removed, page, setPage, menus]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
+
+const NO_MENUS: SidebarMenus = {};
 
 /** The pages' conversations under « Conversation au centre »; null while it is off. */
 export function useConversationFirst(): ConversationFirst | null {
@@ -74,7 +90,7 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
   const conversationFirst = useConversationFirst();
   const pathname = usePathname();
   const id = useId();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useUnfolded(COACH_MENU);
   if (!conversationFirst) return null;
   const { conversations, page } = conversationFirst;
   return (
@@ -94,7 +110,7 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
         <Icons.newConversation />
         {t("conversationFirst.newConversation")}
       </Link>
-      <button className="sidebar-link sidebar-fold" type="button" aria-expanded={open} aria-controls={`${id}-coach`} onClick={() => setOpen((was) => !was)}>
+      <button className="sidebar-link sidebar-fold" type="button" aria-expanded={open} aria-controls={`${id}-coach`} onClick={() => setOpen(!open)}>
         <Icons.coach />
         <span id={`${id}-coach-label`}>{t("conversationFirst.coach")}</span>
         <Icons.chevron />
@@ -107,6 +123,139 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
         </ul>
       ) : null}
     </div>
+  );
+}
+
+/** « Coach » among the menus whose fold this browser remembers. */
+const COACH_MENU = "coach";
+/** The menus this browser keeps folded, a JSON list of their keys (a per-browser convenience, like the hidden Sidebar). */
+const FOLDED_STORAGE_KEY = "jobbbox.sidebarFolded";
+const foldListeners = new Set<() => void>();
+
+function readFolded(): string | null {
+  try {
+    return window.localStorage.getItem(FOLDED_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function foldedMenus(stored: string | null): string[] {
+  try {
+    const parsed: unknown = JSON.parse(stored ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function subscribeToFolds(listener: () => void) {
+  foldListeners.add(listener);
+  // Folded in another tab of this browser: this one follows.
+  window.addEventListener("storage", listener);
+  return () => {
+    foldListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+/**
+ * Whether the Sidebar's `menu` is unfolded, and the way to fold or unfold it (#604): remembered in this browser, unfolded
+ * until folded. The server, which cannot know, draws it unfolded; storage blocked, the choice holds while the page does.
+ */
+function useUnfolded(menu: string): [boolean, (open: boolean) => void] {
+  const stored = useSyncExternalStore(subscribeToFolds, readFolded, () => null);
+  const [unsaved, setUnsaved] = useState<Record<string, boolean>>({});
+  const open = unsaved[menu] ?? !foldedMenus(stored).includes(menu);
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setUnsaved((was) => ({ ...was, [menu]: next }));
+      const others = foldedMenus(readFolded()).filter((key) => key !== menu);
+      try {
+        window.localStorage.setItem(FOLDED_STORAGE_KEY, JSON.stringify(next ? others : [...others, menu]));
+      } catch {
+        // Storage blocked: the choice holds until the next page load.
+      }
+      for (const listener of foldListeners) listener();
+    },
+    [menu],
+  );
+  return [open, setOpen];
+}
+
+/**
+ * One of the Sidebar's menus (#604): its link, to its page; with objects (Mes candidatures, under « Conversation au
+ * centre »), the button that unfolds it into them, each to its page, the one open highlighted rather than the menu, those
+ * à traiter marked with a dot, then « Tout voir (N) ». Its fold is remembered in this browser. `current`: the page shown is
+ * the menu's or one under it. `onNavigate`: closes the Sidebar's drawer on phones.
+ */
+export function SidebarMenu({
+  menu,
+  href,
+  current,
+  icon,
+  label,
+  onNavigate,
+}: {
+  menu: keyof SidebarMenus;
+  href: string;
+  current: boolean;
+  icon: ReactNode;
+  label: string;
+  onNavigate?: () => void;
+}) {
+  const { t } = useTranslation();
+  const pathname = usePathname();
+  const id = useId();
+  const objects = useConversationFirst()?.menus[menu];
+  const [open, setOpen] = useUnfolded(menu);
+  const unfolds = objects !== undefined && objects.total > 0;
+  // The object open, listed under the menu: it is the one highlighted.
+  const objectShown = unfolds && open && objects.shown.some((object) => object.href === pathname);
+  const link = (
+    <Link className="sidebar-link" href={href} aria-current={current && !objectShown ? CURRENT : undefined} onClick={onNavigate}>
+      {icon}
+      <span className="sidebar-link-text">{label}</span>
+    </Link>
+  );
+  if (!unfolds) return <li>{link}</li>;
+  return (
+    <li>
+      <div className="sidebar-menu-row">
+        {link}
+        <button
+          className={`${buttonClass({ variant: "quiet", size: "sm" })} sidebar-menu-fold`}
+          type="button"
+          aria-expanded={open}
+          aria-controls={`${id}-objects`}
+          aria-label={t("conversationFirst.unfold", { menu: label })}
+          onClick={() => setOpen(!open)}
+        >
+          <Icons.chevron />
+        </button>
+      </div>
+      {open ? (
+        <ul id={`${id}-objects`} className="sidebar-sublist" aria-label={label}>
+          {objects.shown.map((object) => (
+            <li key={object.id}>
+              <Link className="sidebar-link" href={object.href} aria-current={object.href === pathname ? CURRENT : undefined} onClick={onNavigate}>
+                <span className="sidebar-link-text">{object.label}</span>
+                {object.toHandle ? (
+                  <span className="sidebar-dot" title={t("conversationFirst.toHandle")}>
+                    <span className="visually-hidden">, {t("conversationFirst.toHandle")}</span>
+                  </span>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link className="sidebar-link sidebar-see-all" href={href} onClick={onNavigate}>
+              {t("conversationFirst.seeAll", { count: objects.total })}
+            </Link>
+          </li>
+        </ul>
+      ) : null}
+    </li>
   );
 }
 

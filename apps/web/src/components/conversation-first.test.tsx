@@ -44,6 +44,8 @@ const sidebar = () => screen.getByRole("navigation", { name: "Navigation princip
 describe("the Sidebar's conversations, « Conversation au centre » on (#601, ADR-0070)", () => {
   beforeEach(() => {
     pathname.current = "/";
+    // « Coach » folded is remembered in this browser (#604): each test starts with it unfolded.
+    window.localStorage.clear();
   });
   afterEach(() => vi.unstubAllGlobals());
 

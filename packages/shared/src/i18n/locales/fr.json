@@ -4664,7 +4664,10 @@
     "clearText": "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.",
     "cleared": "Conversation effacée.",
     "label": "Conversation avec le Coach IA",
-    "suggestions": "Suggestions"
+    "suggestions": "Suggestions",
+    "unfold": "Dérouler « {{menu}} »",
+    "toHandle": "à traiter",
+    "seeAll": "Tout voir ({{count}})"
   },
   "publicSite": {
     "nav": "Pages publiques",

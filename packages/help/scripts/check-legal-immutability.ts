@@ -1,7 +1,8 @@
 /**
- * Fails when this pull request edits a Legal Text Version in effect (ADR-0062), or adds a substantial one effective
- * less than 30 days from today, the day it would merge (#547): CI runs it on each pull request, with the base it is
- * compared to.
+ * Fails when the change since `<base ref>` edits a Legal Text Version in effect (ADR-0062), or adds a substantial one
+ * effective less than 30 days from today (#547). CI runs it on each pull request, against its base, and on each push to
+ * main, against main before that squashed merge: there today is the day of the merge, so a pull request merged too late
+ * turns main red and cannot be deployed.
  *
  *   npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
  */

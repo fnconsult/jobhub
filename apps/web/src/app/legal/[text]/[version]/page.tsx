@@ -16,8 +16,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 /**
  * A Legal Text Version at its permanent address, /legal/<text>/<YYYY-MM-DD> (ADR-0062): the one an Acceptance points
- * to (#510). Marked archived once a later version is in effect; 404 for a date that is no version, or a version
- * before its effective date.
+ * to (#510). Marked archived once a later version is in effect. A substantial version of the CGU, the CGV or the
+ * privacy policy still to come is served here, marked « Version à venir », for the email telling Candidates of it to link
+ * to (#547); 404 for a date that is no version, or a minor version before its effective date.
  */
 export default async function LegalTextVersionPage({ params }: Params) {
   const { text, version } = await params;

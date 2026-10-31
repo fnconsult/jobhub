@@ -9,8 +9,9 @@ type Params = { params: Promise<{ text: string }> };
 
 /**
  * « Télécharger en PDF » on Légal: a Legal Text Version (`?version=<YYYY-MM-DD>`, the one in effect by default) as a
- * PDF, in the page's language (`?lang=`). Public, like the page; 404 for a text not written yet, a date that is no
- * version, or a version before its effective date.
+ * PDF, in the page's language (`?lang=`). Public, like the page, so a substantial version still to come, served at its
+ * dated address (#547), downloads too; 404 for a text not written yet, a date that is no version, or a minor version
+ * before its effective date.
  */
 export async function GET(request: Request, { params }: Params) {
   const { text } = await params;

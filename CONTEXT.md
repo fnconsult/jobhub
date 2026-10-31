@@ -803,7 +803,7 @@ One of Jobbbox's public legal documents: the CGU, the CGV (with the withdrawal f
 _Avoid_: Terms page, policy page, legal page
 
 **Legal Text Version**:
-One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served before its effective date; once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
+One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served as the one in effect before its effective date: a substantial version of the CGU, the CGV or the privacy policy still to come is readable only at its permanent address, marked « Version à venir », where the email telling Candidates of it links (#547); a minor one is not served before its effective date. Once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
 _Avoid_: Revision, edition, draft
 
 **Legal Review**:

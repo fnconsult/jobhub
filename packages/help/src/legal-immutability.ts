@@ -1,10 +1,11 @@
 /**
- * A Legal Text Version is never edited once in effect (ADR-0062): a correction is a new version. CI runs this check on
- * every pull request (`scripts/check-legal-immutability.ts`): it fails when the pull request changes, deletes or
- * renames a file of `packages/help/legal/` whose effective date is reached, or adds one that would take effect in the
- * past, or a substantial version of the CGU, the CGV or the privacy policy effective less than 30 days after the day it
- * is checked, the day it would merge (#547: its notice could not go out in time). Node only (runs git): never imported
- * by `index.ts`.
+ * A Legal Text Version is never edited once in effect (ADR-0062): a correction is a new version. CI runs this check
+ * (`scripts/check-legal-immutability.ts`) on every pull request, and again on main on the day of its merge: it fails
+ * when the change edits, deletes or renames a file of `packages/help/legal/` whose effective date is reached, or adds
+ * one that would take effect in the past, or a substantial version of the CGU, the CGV or the privacy policy effective
+ * less than 30 days after the day it is checked (#547: its notice could not go out in time). The check on main is the
+ * one that counts from the merge: a pull request checked in time but merged late turns main red. Node only (runs git):
+ * never imported by `index.ts`.
  */
 import { execFileSync } from "node:child_process";
 import { parseFrontmatter } from "./content";

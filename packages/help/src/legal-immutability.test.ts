@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -122,5 +122,23 @@ describe("legalChangesSince — what a pull request changes in packages/help/leg
       { status: "R", path: file("2026-12-01.fr.md"), from: file("2026-06-01.fr.md") },
       { status: "A", path: file("2027-01-01.fr.md"), change: "substantielle" },
     ]);
+  });
+});
+
+describe("CI runs the check on the day of the merge on main, not only on the pull request (#547)", () => {
+  // A pull request checked on day 0 with a version effective on day 31, merged on day 10 with no new push, must still be
+  // refused: the 30 days count from the merge on main. Merges are squashed, so on main HEAD^1 is main before the merge.
+  const ci = readFileSync(path.resolve(__dirname, "../../../.github/workflows/ci.yml"), "utf8");
+  const steps = ci.split(/\n(?= {6}- )/);
+  const check = steps.filter((step) => step.includes("check-legal-immutability.ts"));
+
+  it("runs on push to main and on pull requests", () => {
+    expect(ci).toMatch(/\non:\n {2}push:\n {4}branches: \[main\]\n {2}pull_request:\n/);
+  });
+
+  it("runs its step on every event, against the commit before HEAD", () => {
+    expect(check).toHaveLength(1);
+    expect(check[0]).not.toMatch(/^\s*-?\s*if:/m);
+    expect(check[0]).toContain("check-legal-immutability.ts HEAD^1");
   });
 });

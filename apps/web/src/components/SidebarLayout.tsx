@@ -11,7 +11,8 @@ import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
-import { ClearConversationButton, ConversationFirstProvider, SidebarConversations, type FreeConversation } from "@/components/conversation-first";
+import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, type FreeConversation } from "@/components/conversation-first";
+import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
@@ -40,7 +41,8 @@ const LABELS = {
  * Signalement dialog; `version` is the Jobbbox version that dialog shows.
  * `freeConversations`: under « Conversation au centre » (#601, ADR-0070), the Candidate's Free conversations; the Sidebar
  * then has « Nouvelle conversation » and « Coach » with them above its links, and the Top Bar « Effacer » in place of
- * « Aide et coach ». Null while the switch is off.
+ * « Aide et coach » (« Aide » on a page without a conversation), and the Work Pane opens beside the page (#602). Null
+ * while the switch is off.
  */
 export function SidebarLayout({
   profiles,
@@ -82,8 +84,18 @@ export function SidebarLayout({
         brand={{ href: routes.home, label: t("app.name") }}
         title={title}
         wide={wide}
-        {...(freeConversations ? { topBarEnd: <ClearConversationButton /> } : {})}
-        foot={(closeDrawer) => (
+        {...(freeConversations
+          ? {
+              topBarEnd: (
+                <>
+                  <ClearConversationButton />
+                  <PageHelpButton />
+                </>
+              ),
+              beside: <WorkPane />,
+            }
+          : {})}
+        foot={(closeDrawer, closeDrawerThen) => (
           <>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
             <div className="sidebar-account-row">
@@ -91,7 +103,7 @@ export function SidebarLayout({
                 <Icons.account />
                 {t("nav.account")}
               </Link>
-              <SignalementButton version={version} />
+              <SignalementButton version={version} closeDrawerThen={closeDrawerThen} />
             </div>
           </>
         )}
@@ -106,9 +118,9 @@ export function SidebarLayout({
             />
           ) : null
         }
-        nav={(closeDrawer) => (
+        nav={(closeDrawer, closeDrawerThen) => (
           <nav className="sidebar-nav" aria-label={t("sidebar.label")}>
-            <SidebarConversations onNavigate={closeDrawer} />
+            <SidebarConversations onNavigate={closeDrawer} closeDrawerThen={closeDrawerThen} />
             <ul>
               {items.map((item) => {
                 const NavIcon = Icons[item.key];
@@ -129,5 +141,11 @@ export function SidebarLayout({
       </SidebarShell>
     </AiActivityProvider>
   );
-  return freeConversations ? <ConversationFirstProvider conversations={freeConversations}>{shell}</ConversationFirstProvider> : shell;
+  return freeConversations ? (
+    <ConversationFirstProvider conversations={freeConversations}>
+      <WorkPaneProvider version={version}>{shell}</WorkPaneProvider>
+    </ConversationFirstProvider>
+  ) : (
+    shell
+  );
 }

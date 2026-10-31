@@ -17,7 +17,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "nouvelle conversation"
       ],
       "route": "/",
-      "body": "L'accueil est votre point de départ dans Jobbbox. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\nUne question ? Ouvrez « Aide et coach » en haut de la page.\n\nAvec la nouvelle présentation, l'accueil est une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages."
+      "body": "L'accueil est votre point de départ dans Jobbbox. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\nUne question ? Ouvrez « Aide et coach » en haut de la page.\n\nAvec la nouvelle présentation, l'accueil est une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages.\n\nPendant que vous écrivez, les articles de l'aide qui correspondent s'affichent au-dessus de la zone de message, « Dans l'aide, sans IA », à la place des suggestions. Un article s'ouvre à côté de la conversation, comme « Comment marche cette page ? » tant que la conversation est vide ; « Demander au coach » y commence une question à son sujet."
     },
     {
       "id": "page-conversation",
@@ -215,7 +215,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rappels"
       ],
       "route": "/compte",
-      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte."
+      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nAvec la nouvelle présentation, « Aide », en haut de la page, ouvre cet article à côté de la page. « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
     },
     {
       "id": "page-job-searches",
@@ -370,6 +370,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Un e-mail régulier, aussi visible dans Jobbbox, avec les nouvelles offres qui correspondent aux critères de recherche d'un profil.\n\nVous l'activez profil par profil, chaque semaine (le lundi à 7 h) ou chaque jour (à 7 h), selon votre offre. Il ne contient que des offres que vous n'avez pas encore vues, et ne compte dans aucun autre quota.\n\nVous pouvez vous désabonner depuis l'e-mail, sans vous connecter."
+    },
+    {
+      "id": "glossary-coach-memory",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Mémoire du coach",
+      "synonyms": [
+        "mémoire",
+        "mémoire du coach",
+        "retenir",
+        "ce que le coach retient",
+        "souvenirs",
+        "oublier"
+      ],
+      "route": null,
+      "body": "La mémoire du coach, ce sont les faits clés que votre coach IA retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord : dans une conversation, « Que retenir de cette conversation ? » lui fait proposer des éléments, et seuls ceux que vous confirmez avec « Retenir » sont gardés. Elle tient 30 éléments au plus.\n\nAvec la nouvelle présentation, « Mémoire du coach » est sous « Coach » dans le menu : elle s'ouvre à côté de la conversation, où vous pouvez modifier ou supprimer chaque élément. « Fermer » ou la touche Échap la referme.\n\nEffacer une conversation ne touche pas à la mémoire du coach. Elle est supprimée avec votre compte."
     },
     {
       "id": "glossary-proposals",
@@ -531,7 +547,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "parler à quelqu'un"
       ],
       "route": null,
-      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », en bas du panneau « Aide et coach ». Vous le trouvez aussi avec l'icône à côté de « Mon compte », dans le menu sur téléphone.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
+      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », en bas du panneau « Aide et coach ». Vous le trouvez aussi avec l'icône à côté de « Mon compte », dans le menu sur téléphone.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne.\n\nAvec la nouvelle présentation, où chaque page est une conversation avec votre coach IA, « Signaler un problème » et « Proposer une idée » sont sous la zone de message, et l'icône reste à côté de « Mon compte ». Le formulaire s'ouvre à côté de la conversation, sans la cacher ; « Fermer » ou la touche Échap le referme et votre brouillon est gardé. « Poser la question à l'équipe » s'y ouvre aussi."
     },
     {
       "id": "faq-help-and-ai",
@@ -764,7 +780,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "new conversation"
       ],
       "route": "/",
-      "body": "The home page is where you start in Jobbbox. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications.\n\nA question? Open « Help and coach » at the top of the page.\n\nWith the new layout, the home page is a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages."
+      "body": "The home page is where you start in Jobbbox. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications.\n\nA question? Open « Help and coach » at the top of the page.\n\nWith the new layout, the home page is a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages.\n\nWhile you write, the help's matching articles show above the message box, « In the help, without AI », in place of the suggestions. An article opens beside the conversation, as « How does this page work? » does while the conversation is empty; « Ask the coach » there starts a question about it."
     },
     {
       "id": "page-agenda",
@@ -830,7 +846,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "reminders"
       ],
       "route": "/compte",
-      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account."
+      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account.\n\nWith the new layout, « Help », at the top of the page, opens this article beside the page. « Ask the coach » there starts a new conversation with your AI coach about My account."
     },
     {
       "id": "page-applications",
@@ -931,6 +947,21 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation. Jobbbox asks you to confirm first; « Cancel » deletes nothing. While the coach is replying, « Clear » waits: stop its reply first with « Stop ».\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
+    },
+    {
+      "id": "glossary-coach-memory",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Coach memory",
+      "synonyms": [
+        "memory",
+        "coach memory",
+        "remember",
+        "what the coach remembers",
+        "forget"
+      ],
+      "route": null,
+      "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\nWith the new layout, « Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
     },
     {
       "id": "glossary-follow-up",
@@ -1150,7 +1181,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "talk to someone"
       ],
       "route": null,
-      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », at the foot of the « Help and coach » panel. You also find it with the icon beside « My account », in the menu on phones.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person."
+      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », at the foot of the « Help and coach » panel. You also find it with the icon beside « My account », in the menu on phones.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person.\n\nWith the new layout, where each page is a conversation with your AI coach, « Report a problem » and « Suggest an idea » are under the message box, and the icon stays beside « My account ». The form opens beside the conversation, without hiding it; « Close » or the Escape key closes it and your draft is kept. « Ask the team » opens there too."
     },
     {
       "id": "faq-quota-renewal",

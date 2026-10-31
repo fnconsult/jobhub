@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { COACH_MEMORY_KINDS, MAX_ITEM_LENGTH, type CoachMemoryKind, type ProposedMemoryItem } from "@/coach-memory/kinds";
 
@@ -37,14 +37,16 @@ async function save(item: ProposedMemoryItem, itemId?: string): Promise<{ item: 
 }
 
 /**
- * The Candidate's Coach Memory inside the Coach Panel: every item the AI Coach
+ * The Candidate's Coach Memory inside the Coach Panel, or the Work Pane (#602): every item the AI Coach
  * keeps across conversations, to edit (kind and words) or delete after
  * confirming. Text buttons only (ADR-0009); focus stays on the item acted on.
+ * `heading`: the title of the Work Pane it shows in, which takes the focus where its own would (it then has none).
  */
-export function CoachMemoryView() {
+export function CoachMemoryView({ heading: given }: { heading?: RefObject<HTMLElement | null> } = {}) {
   const { t } = useTranslation();
   const id = useId();
-  const heading = useRef<HTMLHeadingElement>(null);
+  const own = useRef<HTMLHeadingElement>(null);
+  const heading = given ?? own;
   const [items, setItems] = useState<MemoryItem[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -54,7 +56,8 @@ export function CoachMemoryView() {
   const focusNext = useRef<string | null>(null);
 
   useEffect(() => {
-    heading.current?.focus();
+    // In the Work Pane, the pane gives its title the focus itself.
+    if (!given) own.current?.focus();
     let cancelled = false;
     void fetch("/api/coach/memory")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
@@ -63,7 +66,7 @@ export function CoachMemoryView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [given]);
 
   useEffect(() => {
     if (!focusNext.current) return;
@@ -102,10 +105,12 @@ export function CoachMemoryView() {
   }
 
   return (
-    <section className="stack coach-memory" aria-labelledby={`${id}-heading`}>
-      <h3 id={`${id}-heading`} ref={heading} tabIndex={-1}>
-        {t("coachMemory.title")}
-      </h3>
+    <section className="stack coach-memory" aria-labelledby={given ? undefined : `${id}-heading`}>
+      {given ? null : (
+        <h3 id={`${id}-heading`} ref={own} tabIndex={-1}>
+          {t("coachMemory.title")}
+        </h3>
+      )}
       <p className="hint">{t("coachMemory.hint")}</p>
       <Notices notice={notice} />
       {loadFailed ? (

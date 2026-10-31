@@ -4763,7 +4763,11 @@
     "clearText": "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.",
     "cleared": "Conversation effacée.",
     "label": "Conversation avec le Coach IA",
-    "suggestions": "Suggestions"
+    "suggestions": "Suggestions",
+    "help": "Aide",
+    "howThisPageWorks": "Comment marche cette page ?",
+    "askCoach": "Demander au coach",
+    "close": "Fermer"
   },
   "publicSite": {
     "nav": "Pages publiques",

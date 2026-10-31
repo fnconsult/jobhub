@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
-import { ClearConversationButton, ConversationFirstProvider, SidebarConversations, useConversationFirst, type PageConversation } from "./conversation-first";
+import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, useConversationFirst, type PageConversation } from "./conversation-first";
 import { WorkPane, WorkPaneProvider } from "./WorkPane";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
@@ -35,6 +35,7 @@ function Shell({ page }: { page?: PageConversation }) {
         </nav>
         <header>
           <ClearConversationButton />
+          <PageHelpButton />
         </header>
         {page ? <Page page={page} /> : null}
         <WorkPane />
@@ -183,5 +184,31 @@ describe("« Effacer » in the Top Bar (#601, ADR-0070)", () => {
 
     expect(clear).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(within(sidebar()).queryByRole("link", { name: "Préparer mon pitch" })).toBeNull());
+  });
+});
+
+describe("« Aide » in the Top Bar, on a page without a conversation (#602, ADR-0070)", () => {
+  afterEach(() => {
+    pathname.current = "/";
+  });
+
+  it("opens Mon compte's Help Article in the Work Pane, from any of its Sections; « Demander au coach » starts a Free conversation about it", async () => {
+    pathname.current = "/compte/relances";
+    const user = userEvent.setup();
+    renderInFrench(<Shell />);
+    const help = within(screen.getByRole("banner")).getByRole("button", { name: "Aide" });
+
+    await user.click(help);
+
+    const pane = screen.getByRole("complementary", { name: "Mon compte" });
+    expect(document.activeElement).toBe(within(pane).getByRole("heading", { level: 2, name: "Mon compte" }));
+    expect(within(pane).getByRole("link", { name: "Demander au coach" }).getAttribute("href")).toBe("/?aide=page-account");
+    await user.click(within(pane).getByRole("button", { name: "Fermer" }));
+    expect(document.activeElement).toBe(help);
+  });
+
+  it("is not there on a page that is a conversation, which has its own help", () => {
+    renderInFrench(<Shell page={{ conversationId: null, replying: false, clear: vi.fn(), startNew: vi.fn(), askAbout: vi.fn() }} />);
+    expect(within(screen.getByRole("banner")).queryByRole("button", { name: "Aide" })).toBeNull();
   });
 });

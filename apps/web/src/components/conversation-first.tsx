@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { helpLocale, onThisPage } from "@/coach-help";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
@@ -266,5 +267,25 @@ export function ClearConversationButton() {
     >
       {t("conversationFirst.clearText")}
     </ConfirmDialog>
+  );
+}
+
+/**
+ * « Aide » in the Top Bar of a page without a conversation (Mon compte, #602, ADR-0070): opens the page's Help Article in
+ * the Work Pane, whose « Demander au coach » starts a Free conversation about it. Nothing on a page that is a
+ * conversation (its box suggests the help), on a page without an article, or while the switch is off.
+ */
+export function PageHelpButton() {
+  const { t, i18n } = useTranslation();
+  const conversationFirst = useConversationFirst();
+  const workPane = useWorkPane();
+  const pathname = usePathname();
+  const article = onThisPage(pathname, helpLocale(i18n.language))?.article;
+  if (!conversationFirst || conversationFirst.page || !workPane || !article) return null;
+  return (
+    <button className={`${buttonClass()} topbar-help`} type="button" onClick={() => workPane.open({ kind: "help", article })}>
+      <Icons.help />
+      {t("conversationFirst.help")}
+    </button>
   );
 }

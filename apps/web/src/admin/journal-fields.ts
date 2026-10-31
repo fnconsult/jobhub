@@ -73,6 +73,9 @@ export function journalFieldName(t: TFunction, section: BackOfficeSection, field
   if (section === "eval_cases" && EVAL_CASE_FIELDS.includes(field as EvalCaseField)) return t(`admin.evals.journalFields.${field as EvalCaseField}`);
   if (section === "unanswered_questions" && field === "status") return t("admin.unansweredQuestions.journalFields.status");
   if (section === "signalements" && (field === "status" || field === "reply")) return t(`admin.signalements.journalFields.${field}`);
+  if (section === "recipients_outside_eu" && (field === "residency" || field === "privacyPolicy" || field === "coverage")) {
+    return t(`admin.tools.uncoveredRecipient.journalFields.${field}`);
+  }
   if (section === "provider_secrets" && field === "value") return t("admin.journal.value");
   if (section === "platform_settings" && (field === "value" || field === "source")) return t(`admin.platformSettings.journalFields.${field}`);
   if (field === "id") return t("admin.journal.id");

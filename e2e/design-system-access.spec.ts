@@ -58,6 +58,8 @@ test.describe("Design System page access (#463)", () => {
     const job = ci.slice(ci.indexOf("\n  screenshots:"), ci.indexOf("\n  images:"));
     expect(job).toContain('E2E_SCREENSHOTS: "1"');
     expect(job).toContain("grep -l toHaveScreenshot e2e/*.spec.ts");
+    // The emails' -linux baselines are compared in that image only (e2e/support/screenshots.ts).
+    expect(job).toMatch(/--project=web --project=emails/);
     expect(job).not.toMatch(/continue-on-error/);
     expect(job).toContain("mcr.microsoft.com/playwright:v1.63.0-noble");
     const config = read("playwright.config.ts");

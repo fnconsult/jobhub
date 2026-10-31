@@ -2,7 +2,7 @@
 
 The screenshot specs (`toHaveScreenshot`, first `e2e/design-system-page.spec.ts`, #463) compare screens with PNG baselines kept in `e2e/__screenshots__/<spec>/`. CI's `screenshots` job runs them in the Playwright image (`mcr.microsoft.com/playwright`, the version the repo pins) and fails when a screen differs from its baseline by more than 0.2 % of its pixels (`playwright.config.ts`). Each also runs axe, there and with the rest of the e2e suite.
 
-The baselines are drawn in that same image, so its fonts match. Elsewhere fonts render differently, so a run on your machine checks axe and skips the comparison (`e2e/support/screenshots.ts`; `E2E_SCREENSHOTS=1` forces it).
+The baselines are drawn in that same image, so its fonts match. Elsewhere fonts render differently, on another Linux machine too (a Chromium outside the image may draw text in grayscale where the baselines have colour fringes), so a run on your machine checks axe and skips the comparison (`e2e/support/screenshots.ts`; `E2E_SCREENSHOTS=1` forces it, and a browser in the Playwright container through `PW_TEST_CONNECT_WS_ENDPOINT` compares). Every spec with a `toHaveScreenshot` asks that module whether to compare, never the platform alone: `e2e/support/screenshots.test.ts` fails otherwise. The emails' baselines (`e2e/email-html.spec.ts`, #472) follow the same rule for their `-linux` PNGs, compared in the `screenshots` job's `emails` project; their `-darwin` ones are compared on a Mac.
 
 ## Update a baseline on purpose
 

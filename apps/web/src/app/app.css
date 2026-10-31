@@ -1034,6 +1034,15 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   scrollbar-width: thin;
 }
 
+.work-pane-body:focus {
+  outline: none;
+}
+
+.work-pane-body:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: -3px;
+}
+
 .work-pane-article {
   display: flex;
   flex-direction: column;

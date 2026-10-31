@@ -86,7 +86,8 @@ export function WorkPane() {
           {t("conversationFirst.close")}
         </button>
       </div>
-      <div key={shown.opening} className="work-pane-body">
+      {/* Scrolls with the keyboard too, when an article is longer than the pane and holds nothing to focus. */}
+      <div key={shown.opening} className="work-pane-body" tabIndex={0}>
         <ItemBody item={shown.item} version={version} close={close} heading={title} />
       </div>
     </aside>

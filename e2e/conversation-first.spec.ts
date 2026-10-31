@@ -141,7 +141,7 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await expect(conversation(page).getByText(fr.coachPanel.badge, { exact: true })).toBeVisible();
     // The Sidebar: « Nouvelle conversation » and « Coach », and its links still there.
     await expect(sidebar(page).getByRole("link", { name: texts.newConversation })).toBeVisible();
-    await expect(sidebar(page).getByRole("button", { name: texts.coach })).toHaveAttribute("aria-expanded", "true");
+    await expect(sidebar(page).getByRole("button", { name: texts.coach, exact: true })).toHaveAttribute("aria-expanded", "true");
     await expect(sidebar(page).getByRole("link", { name: fr.nav.applications })).toBeVisible();
     await expect(sidebar(page).getByRole("link", { name: fr.sidebar.agenda })).toBeVisible();
 

@@ -18,13 +18,15 @@ export type FreeConversation = { id: string; title: string };
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
  * once its first message saved it; `replying` while a reply is on its way, when it cannot be cleared; `clear` deletes every
  * message of it (« Effacer ») and resolves whether it did; `startNew` turns the page into a new Free conversation, as the
- * home page is.
+ * home page is; `askAbout` starts, in its box, a question about a Help Article, whose title goes with it (« Demander au
+ * coach » in the Work Pane, #602).
  */
 export type PageConversation = {
   conversationId: string | null;
   replying: boolean;
   clear: () => Promise<boolean>;
   startNew: () => void;
+  askAbout: (article: { id: string; title: string }) => void;
 };
 
 interface ConversationFirst {

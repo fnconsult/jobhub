@@ -122,15 +122,18 @@ export function createAcceptances(database: Pool, options: Partial<AcceptancesOp
       await record(candidateId, cgv, channel, payment);
     },
 
-    async of(candidateId) {
-      const { rows } = await database.query<Omit<ExportedAcceptance, "immediateExecutionRequested"> & { immediateExecutionRequested: boolean | null }>(
-        `SELECT text, version, url, sha256, channel, accepted_at AS "acceptedAt", immediate_execution_requested AS "immediateExecutionRequested"
-           FROM legal_acceptance WHERE candidate_id = $1 ORDER BY accepted_at, id`,
-        [candidateId],
-      );
-      return rows.map(({ immediateExecutionRequested, ...acceptance }) => ({ ...acceptance, ...(immediateExecutionRequested !== null && { immediateExecutionRequested }) }));
-    },
+    of: (candidateId) => acceptancesOf(database, candidateId),
   };
+}
+
+/** The Candidate's Acceptances for their Data export, oldest first. */
+export async function acceptancesOf(database: Queryable, candidateId: string): Promise<ExportedAcceptance[]> {
+  const { rows } = await database.query<Omit<ExportedAcceptance, "immediateExecutionRequested"> & { immediateExecutionRequested: boolean | null }>(
+    `SELECT text, version, url, sha256, channel, accepted_at AS "acceptedAt", immediate_execution_requested AS "immediateExecutionRequested"
+       FROM legal_acceptance WHERE candidate_id = $1 ORDER BY accepted_at, id`,
+    [candidateId],
+  );
+  return rows.map(({ immediateExecutionRequested, ...acceptance }) => ({ ...acceptance, ...(immediateExecutionRequested !== null && { immediateExecutionRequested }) }));
 }
 
 /**

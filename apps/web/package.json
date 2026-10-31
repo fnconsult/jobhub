@@ -8,6 +8,7 @@
     "./billing": "./src/billing/index.ts",
     "./billing/config": "./src/billing/config.ts",
     "./back-office": "./src/admin/back-office.ts",
+    "./acceptances": "./src/acceptances/index.ts",
     "./back-office-assistant": "./src/back-office-assistant/conversations.ts",
     "./job-offers": "./src/job-offers/index.ts",
     "./profiles": "./src/profiles/index.ts",

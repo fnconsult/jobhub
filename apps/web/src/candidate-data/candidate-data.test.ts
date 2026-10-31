@@ -19,6 +19,7 @@ import { createEmailIntakeInbound } from "../email-intake/inbound";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
+import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
@@ -286,6 +287,30 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       emailed: [{ text: "confidentialite", version: "2026-12-15", sentAt: at }],
       privacyChangesSeen: [{ version: "2026-10-01", seenAt: at }],
     });
+  });
+
+  it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {
+    expect((await candidateData.export(candidateId)).acceptances).toEqual([]);
+    const registry = () => [
+      { text: "cgu" as const, version: "2026-09-01", url: "/legal/cgu/2026-09-01", sha256: "a".repeat(64), change: "substantielle" as const },
+      { text: "cgv" as const, version: "2026-09-01", url: "/legal/cgv/2026-09-01", sha256: "b".repeat(64), change: "substantielle" as const },
+    ];
+    const acceptances = createAcceptances(database, { registry, secret: "test-secret-test-secret-test-secret-0123", now: () => new Date("2026-09-01T08:00:00Z") });
+    await acceptances.accept(candidateId, "2026-09-01");
+    await acceptances.acceptAtCheckout(candidateId, { channel: "paiement_plan", checkoutSessionId: "cs_test_42", immediateExecutionRequested: true });
+
+    const exported = await candidateData.export(candidateId);
+    expect(exported.acceptances).toEqual([
+      { text: "cgu", version: "2026-09-01", url: "/legal/cgu/2026-09-01", sha256: "a".repeat(64), channel: "premiere_connexion", acceptedAt: new Date("2026-09-01T08:00:00Z") },
+      { text: "cgv", version: "2026-09-01", url: "/legal/cgv/2026-09-01", sha256: "b".repeat(64), channel: "paiement_plan", acceptedAt: new Date("2026-09-01T08:00:00Z"), immediateExecutionRequested: true },
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("cs_test_42");
+    expect(JSON.stringify(exported)).not.toContain(acceptances.holderOf("marie.dupont@example.fr"));
+
+    await candidateData.delete(candidateId);
+
+    const { rows } = await database.query<{ candidate_id: string | null }>(`SELECT candidate_id FROM legal_acceptance`);
+    expect(rows).toEqual([{ candidate_id: null }, { candidate_id: null }]);
   });
 
   it("the export holds the Follow-up Delays the Candidate set (null while they keep the defaults) and the Follow-ups sent on each Application", async () => {

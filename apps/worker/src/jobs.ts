@@ -6,6 +6,7 @@ import { REMINDER_HOUR, REMINDER_TIME_ZONE, type AppointmentReminders } from "@j
 import type { LegalTextNotices } from "@jobhub/web/legal-text-notices";
 import type { QuotaReductions } from "@jobhub/web/quota-reductions";
 import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI_USAGE_RETENTION_MONTHS } from "@jobhub/web/ai-usage";
+import { CGU_RETENTION_YEARS, CGV_RETENTION_YEARS, purgeExpiredAcceptances } from "@jobhub/web/acceptances";
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
 import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coach-conversations";
@@ -132,6 +133,11 @@ export const EMAIL_INTAKE_READ = EMAIL_INTAKE_READ_QUEUE;
 
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
+/**
+ * Queue name: delete the Acceptances of deleted accounts (#510): the CGU ones CGU_RETENTION_YEARS after the Account
+ * deletion, the CGV ones CGV_RETENTION_YEARS after. A living Candidate's are never purged. Runs nightly.
+ */
+export const ACCEPTANCES_PURGE = "acceptances.purge";
 /**
  * Queue name: delete the AI Message Log MESSAGE_LOG_RETENTION_DAYS old, and the AI Usage and
  * external API calls AI_USAGE_RETENTION_MONTHS old. Runs nightly.
@@ -742,6 +748,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeExpiredBackOfficeAudit(deps.database, now());
           if (purged) log(`[back-office-audit] ${purged} Back Office Audit entry(ies) purged, ${BACK_OFFICE_AUDIT_RETENTION_YEARS} years after they were made`);
+        }),
+    },
+
+    // The Acceptances of a deleted account are kept 5 years (CGU) or 10 years (CGV) after the deletion. Safe to run again.
+    [ACCEPTANCES_PURGE]: {
+      cron: "10 4 * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await purgeExpiredAcceptances(deps.database, now());
+          if (purged) log(`[acceptances] ${purged} Acceptance(s) of deleted accounts purged (CGU ${CGU_RETENTION_YEARS} years, CGV ${CGV_RETENTION_YEARS} years after the deletion)`);
         }),
     },
 

@@ -10,7 +10,7 @@ Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comp
 
 « Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.
 
-« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, puis « Passer au paiement ».
+« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe.
 
 Pendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.
 

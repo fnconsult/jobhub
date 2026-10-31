@@ -10,7 +10,7 @@ This page shows your plan (Free, Standard or Premium) and what it includes: the 
 
 « Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.
 
-« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, then « Go to payment ».
+« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page.
 
 For 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.
 

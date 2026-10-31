@@ -36,7 +36,7 @@ const version = (locale: "fr" | "en", effective: string, extra: { drop?: string 
 
 const OLD = "2025-01-01"; // in effect once, then replaced
 const CURRENT = "2026-01-01"; // in effect today
-const FUTURE = "2099-01-01"; // not yet in effect
+const FUTURE = "2099-01-01"; // not yet in effect: substantial, so readable at its dated address (#547)
 const put = (effective: string, locale: "fr" | "en", markdown = version(locale, effective)) => {
   mkdirSync(cguDir, { recursive: true });
   writeFileSync(path.join(cguDir, `${effective}.${locale}.md`), markdown);
@@ -109,7 +109,7 @@ test.describe("Coque /legal (#546)", () => {
 
     const get = (url: string) => fetch(`${server.origin}${url}`, { redirect: "manual", signal: AbortSignal.timeout(120_000) });
 
-    test("/legal/cgu serves the version in effect, /legal/cgu/<date> the other with its banner, /versions lists them, a future one is not served", async ({ page }) => {
+    test("/legal/cgu serves the version in effect, /legal/cgu/<date> the other with its banner, /versions lists them, a future one only at its dated address, marked upcoming", async ({ page }) => {
       await page.goto(`${server.origin}/legal/cgu?lang=fr`, { timeout: 120_000 });
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.texts.cgu);
       await expect(page.getByText(`Texte français du ${CURRENT}.`)).toBeVisible();
@@ -129,7 +129,11 @@ test.describe("Coque /legal (#546)", () => {
       await expect(page.getByText(FUTURE)).toHaveCount(0);
       await expect(page.getByText(`Résumé de la version ${FUTURE}.`)).toHaveCount(0);
 
-      expect((await get(`/legal/cgu/${FUTURE}`)).status).toBe(404);
+      // A substantial version still to come is read at its dated address, which its notice email links to (#547).
+      await page.goto(`${server.origin}/legal/cgu/${FUTURE}?lang=fr`, { timeout: 120_000 });
+      await expect(page.getByText(`Texte français du ${FUTURE}.`)).toBeVisible();
+      await expect(page.getByText(fr.legal.upcoming.replace("{{date}}", "1 janvier 2099"))).toBeVisible();
+      expect((await get(`/legal/cgu/2098-01-01`)).status).toBe(404);
     });
 
     test("/legal/ia, /conditions-utilisation, /cookies, /sous-traitants-et-ia and ?version= redirect", async () => {

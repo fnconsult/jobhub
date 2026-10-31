@@ -813,8 +813,16 @@ One of Jobbbox's public legal documents: the CGU, the CGV (with the withdrawal f
 _Avoid_: Terms page, policy page, legal page
 
 **Legal Text Version**:
-One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served before its effective date; once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
+One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served as the one in effect before its effective date: a substantial version of the CGU, the CGV or the privacy policy still to come is readable only at its permanent address, marked « Version à venir », where the email telling Candidates of it links (#547); a minor one is not served before its effective date. Once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
 _Avoid_: Revision, edition, draft
+
+**Préavis**:
+The email telling a Candidate, 30 days before it takes effect, that a substantial version of the CGU, the CGV or the privacy policy is coming. Sent once per Candidate and version, in Production only, to a verified address; it names the text, its effective date and the next step, and links to the version still to come. Never sent for the legal notice.
+_Avoid_: Legal Notice (already means mentions légales), notification, newsletter
+
+**Privacy change notice**:
+The one-time line atop a Candidate's workspace announcing the privacy policy's latest substantial version in effect, closed with « J'ai compris ». It blocks nothing and is not shown to a Candidate who signed up on or after that version's effective date.
+_Avoid_: Banner, consent, Acceptance
 
 **Legal Review**:
 The legal AI's evaluation of one Legal Text Version, recorded with it, before the product owner signs its effective date. A minor version is reviewed on its changes only; the English translation is checked for fidelity, not reviewed. There is no lawyer at this stage: a lawyer is called only on a listed trigger.

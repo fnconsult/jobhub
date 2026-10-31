@@ -20,7 +20,8 @@ const CURRENT_LOCATION = "location";
  * A Legal Text on Légal (ADR-0062, layout of #470): the Legal Texts on the left, the version in a reading column (its
  * title, effective date, « Versions précédentes », « En bref », numbered sections, who approved it, « Télécharger en
  * PDF »), and « Sur cette page » on the right, following the reading. Both side columns stay in view to the end of a
- * long text. A dated version no longer in effect says it is archived; the English translation says the French text
+ * long text. A dated version no longer in effect says it is archived, a substantial one still to come that it is upcoming
+ * (#547); the English translation says the French text
  * prevails. A text the team has not written yet shows that it is not published.
  */
 export function LegalTextView({ text, shown }: { text: LegalTextId; shown: ShownLegalText | null }) {
@@ -42,10 +43,16 @@ export function LegalTextView({ text, shown }: { text: LegalTextId; shown: Shown
             </Note>
           ) : null}
           <div className="ds-legal__stamp">
-            <span>{t("legal.effective", { date: writtenDay(version.effective, i18n.language) })}</span>
+            <span>{t(shown.upcoming ? "legal.effectiveFrom" : "legal.effective", { date: writtenDay(version.effective, i18n.language) })}</span>
             {shown.history.length > 1 ? <Link href={routes.legalVersions(text)}>{t("legal.earlierVersions")}</Link> : null}
           </div>
-          {!shown.inEffect ? (
+          {shown.upcoming ? (
+            <Note>
+              <p>
+                {t("legal.upcoming", { date: writtenDay(version.effective, i18n.language) })} <Link href={routes.legal(text)}>{t("legal.seeCurrent")}</Link>
+              </p>
+            </Note>
+          ) : !shown.inEffect ? (
             <Note tone="warn">
               <p>
                 {t("legal.archived")} <Link href={routes.legal(text)}>{t("legal.seeCurrent")}</Link>

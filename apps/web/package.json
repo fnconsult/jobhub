@@ -17,6 +17,7 @@
     "./job-digests": "./src/job-digests/index.ts",
     "./applications": "./src/applications/index.ts",
     "./appointment-reminders": "./src/appointment-reminders/index.ts",
+    "./legal-text-notices": "./src/legal-text-notices/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./unanswered-questions": "./src/unanswered-questions/index.ts",
     "./signalements": "./src/signalements/index.ts",

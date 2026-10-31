@@ -123,6 +123,11 @@ export function legalTextRegistry(): readonly LegalTextVersionRecord[] {
   return LEGAL_TEXT_REGISTRY;
 }
 
+/** Every Legal Text Version this build carries in `locale`, those still to come included: what the notices of #547 read. */
+export function legalTextVersions(locale: HelpLocale): readonly LegalTextVersion[] {
+  return LEGAL_TEXT_VERSIONS[locale];
+}
+
 /** The registry's record of one Legal Text Version, by its id (its effective date); null for no such version. */
 export function legalTextVersionRecord(text: LegalTextId, version: string, registry: readonly LegalTextVersionRecord[] = LEGAL_TEXT_REGISTRY): LegalTextVersionRecord | null {
   return registry.find((entry) => entry.text === text && entry.version === version) ?? null;

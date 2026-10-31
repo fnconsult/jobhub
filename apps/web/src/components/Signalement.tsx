@@ -9,6 +9,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -32,6 +33,7 @@ import {
   type DraftType,
 } from "@/signalements/draft";
 import { MESSAGE_MAX_LENGTH, MESSAGE_MIN_LENGTH } from "@/signalements/values";
+import { useWorkPane } from "@/components/work-pane";
 import { send } from "./ApplicationControls";
 import { SIGNALEMENT_GLYPHS, signalementGlyph } from "./signalement-glyphs";
 
@@ -64,31 +66,36 @@ const DRAFT: SignalementStart = { kind: "draft" };
 export function SignalementButton({ version }: { version: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  // Under « Conversation au centre » the form opens in the Work Pane (#602, ADR-0070), and closing it brings the focus back here.
+  const workPane = useWorkPane();
+  const button = (
+    <button
+      className="signalement-open"
+      type="button"
+      aria-label={t("signalement.open")}
+      {...(workPane ? { onClick: () => workPane.open({ kind: "signalement", start: DRAFT }) } : {})}
+    >
+      <svg
+        className="icon signalement-glyph"
+        viewBox="0 0 24 24"
+        aria-hidden
+        focusable={false}
+      >
+        <path d={SIGNALEMENT_GLYPHS.bug} />
+      </svg>
+      <span className="signalement-tip" aria-hidden>
+        {t("signalement.open")}
+      </span>
+    </button>
+  );
+  if (workPane) return button;
   return (
     <SignalementDialog
       version={version}
       open={open}
       onOpenChange={setOpen}
       start={DRAFT}
-      trigger={
-        <button
-          className="signalement-open"
-          type="button"
-          aria-label={t("signalement.open")}
-        >
-          <svg
-            className="icon signalement-glyph"
-            viewBox="0 0 24 24"
-            aria-hidden
-            focusable={false}
-          >
-            <path d={SIGNALEMENT_GLYPHS.bug} />
-          </svg>
-          <span className="signalement-tip" aria-hidden>
-            {t("signalement.open")}
-          </span>
-        </button>
-      }
+      trigger={button}
     />
   );
 }
@@ -156,10 +163,18 @@ export function SignalementProvider({
   );
 }
 
-/** Opens the Signalement dialog on `start`; null outside a SignalementProvider (the Back Office, signed-out pages). */
+/**
+ * Opens the Signalement's form on `start`: in the Work Pane under « Conversation au centre » (#602, ADR-0070), else in
+ * the dialog. Null outside both (the Back Office, signed-out pages).
+ */
 export function useOpenSignalement():
   ((start: SignalementStart) => void) | null {
-  return useContext(OpenSignalement);
+  const dialog = useContext(OpenSignalement);
+  const inPane = useWorkPane()?.open;
+  return useMemo(
+    () => (inPane ? (start: SignalementStart) => inPane({ kind: "signalement", start }) : dialog),
+    [inPane, dialog],
+  );
 }
 
 /**

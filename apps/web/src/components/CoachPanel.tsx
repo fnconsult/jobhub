@@ -14,6 +14,7 @@ import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory"
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
 import { SignalementProvider, useOpenSignalement } from "@/components/Signalement";
+import { askedAbout, useWorkPane } from "@/components/work-pane";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
 import { createMentions, type Mentions } from "@/help-terms";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -71,21 +72,46 @@ const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "p
 const focusKey = (inView: InView) => `${inView.kind}:${inView.id}`;
 
 /**
- * Opens the Coach Panel on a Help Article (#342, ADR-0035), shown as a card in the conversation: `openHelp("glossary-ats-score")`.
- * Does nothing outside a Coach Panel (signed-out pages) or in one without help (the Back Office Assistant).
+ * Opens the Coach Panel on a Help Article (#342, ADR-0035), shown as a card in the conversation: `openHelp("glossary-ats-score")`;
+ * under « Conversation au centre », the Work Pane on it (#602). Does nothing outside a Coach Panel (signed-out pages) or
+ * in one without help (the Back Office Assistant).
  */
 export function useOpenHelp(): (articleId: string) => void {
-  return useContext(CoachPanelControl)?.openHelp ?? NO_HELP;
+  const control = useContext(CoachPanelControl);
+  const inPane = useHelpInWorkPane();
+  return inPane ?? control?.openHelp ?? NO_HELP;
 }
 const NO_HELP = () => {};
 
 /**
- * What help in pages needs (#343): opening a Help Article in the Coach Panel, and which mention of a glossary term is
- * the page's first. Null outside a Coach Panel (signed-out pages) or in one without help (the Back Office Assistant).
+ * What help in pages needs (#343): opening a Help Article in the Coach Panel (in the Work Pane under « Conversation au
+ * centre », #602), and which mention of a glossary term is the page's first. Null outside a Coach Panel (signed-out
+ * pages) or in one without help (the Back Office Assistant).
  */
 export function usePageHelp(): { openHelp: (articleId: string) => void; mentions: Mentions } | null {
   const control = useContext(CoachPanelControl);
-  return control?.mentions ? { openHelp: control.openHelp, mentions: control.mentions } : null;
+  const inPane = useHelpInWorkPane();
+  return control?.mentions ? { openHelp: inPane ?? control.openHelp, mentions: control.mentions } : null;
+}
+
+/**
+ * Opens a Help Article in the Work Pane, by its id, in the Interface Language; null where there is no Work Pane. Asked
+ * where the help is used: the Coach Panel wraps the page's layout, which holds the Work Pane.
+ */
+function useHelpInWorkPane(): ((articleId: string) => void) | null {
+  const open = useWorkPane()?.open;
+  const { i18n } = useTranslation();
+  const locale = helpLocale(i18n.language);
+  return useMemo(
+    () =>
+      open
+        ? (articleId: string) => {
+            const article = helpArticle(articleId, locale);
+            if (article) open({ kind: "help", article });
+          }
+        : null,
+    [open, locale],
+  );
 }
 
 /**
@@ -442,6 +468,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // A page that is a conversation is its address (#601): this browser does not remember it to reopen it elsewhere.
   const storageKey = isPage ? null : panel.storageKey;
   const conversationFirst = useConversationFirst();
+  // Under « Conversation au centre » a Help Article and a Signalement's form open in the Work Pane (#602, ADR-0070).
+  const workPane = useWorkPane();
   const pageConversationId = page?.conversationId ?? null;
   const id = useId();
   const pathname = usePathname();
@@ -507,6 +535,13 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // A draft cleared (sent) or cut short hides them at once.
   const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
 
+  // The Help Article opened last in the Work Pane, from wherever (a HelpTerm too), is the one read: its title goes with
+  // the next message (#602).
+  const inPane = isPage && workPane?.item?.kind === "help" ? workPane.item.article : null;
+  useEffect(() => {
+    if (inPane) setReadArticle({ id: inPane.id, title: inPane.title });
+  }, [inPane]);
+
   useEffect(() => {
     const box = input.current;
     if (!open || !box) return;
@@ -548,11 +583,25 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     };
   }, [panel.conversations, pageConversationId]);
 
-  // A page that is a conversation lets « Effacer » in the Top Bar and the Sidebar act on it while it is shown (#601).
-  const pageActions = useRef<{ clear: () => Promise<boolean>; startNew: () => void } | null>(null);
+  // A page that is a conversation lets « Effacer » in the Top Bar and the Sidebar act on it while it is shown (#601), and
+  // « Demander au coach » in the Work Pane (#602).
+  const pageActions = useRef<{ clear: () => Promise<boolean>; startNew: () => void; askAbout: (article: { id: string; title: string }) => void } | null>(null);
   useEffect(() => {
-    pageActions.current = { clear: clearPage, startNew: startAfresh };
+    pageActions.current = { clear: clearPage, startNew: startAfresh, askAbout };
   });
+
+  // « Demander au coach » from a page without a conversation (Mon compte, #602) leads here, the article named in the
+  // address: the box starts a question about it, and the address drops it.
+  useEffect(() => {
+    if (!isPage || !help) return;
+    const asked = askedAbout(window.location.search);
+    const article = asked ? helpArticle(asked, locale) : null;
+    if (!asked) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (article) pageActions.current?.askAbout({ id: article.id, title: article.title });
+    // Once, as the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const registerPage = conversationFirst?.setPage;
   const conversationOnPage = conversation?.id ?? null;
   const replying = status === "sending";
@@ -563,6 +612,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       replying,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
       startNew: () => pageActions.current?.startNew(),
+      askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
   }, [isPage, registerPage, conversationOnPage, replying]);
@@ -632,8 +682,15 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     setFocusInput((n) => n + 1);
   }
 
-  /** Shows a Help Article as a card at the end of the conversation (#342), and gives it the focus. */
+  /**
+   * Shows a Help Article as a card at the end of the conversation (#342), and gives it the focus; in the Work Pane under
+   * « Conversation au centre » (#602), never in the thread.
+   */
   function showArticle(article: HelpArticle) {
+    if (workPane) {
+      workPane.open({ kind: "help", article });
+      return;
+    }
     const key = (helpCards.current += 1);
     setMessages((shown) => [...shown, { from: "help", key, article, answered: false }]);
     setReadArticle({ id: article.id, title: article.title });
@@ -644,12 +701,13 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   function openHelp(articleId: string) {
     const article = help ? helpArticle(articleId, locale) : null;
     if (!article) return;
-    if (!open) void openPanel();
+    // A HelpTerm or an empty state's link: in the Work Pane, beside the page, the Coach Panel staying closed (#602).
+    if (!open && !workPane) void openPanel();
     showArticle(article);
   }
 
-  /** « Non, demander au coach »: the box starts a question about the article, to finish and send. */
-  function askAbout(article: HelpArticle) {
+  /** « Non, demander au coach » (« Demander au coach » in the Work Pane): the box starts a question about the article, to finish and send. */
+  function askAbout(article: { id: string; title: string }) {
     setDraft(t("coachPanel.help.askAbout", { title: article.title }));
     setReadArticle({ id: article.id, title: article.title });
     setFocusInput((n) => n + 1);
@@ -966,7 +1024,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
             <span className="visually-hidden">{t(texts.author)}</span>
             <p>{t(opening)}</p>
             {page?.introduction}
-            {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} /> : null}
+            {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
           </li>
         )}
         {messages.map((message, index) =>
@@ -1131,7 +1189,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   if (page) {
     // A page that is a conversation (#601, ADR-0070): the thread at its reading width, centred, the box at the page's foot,
     // the suggestions above it while nothing is sent.
-    const showSuggestions = !restoring && page.suggestions !== undefined && messages.every(isHelpCard);
+    // The help's articles, while the Candidate types, take the suggestions' place (#602).
+    const showSuggestions = !restoring && page.suggestions !== undefined && messages.every(isHelpCard) && suggestions.length === 0;
     return (
       <SetInView.Provider value={setInView}>
         <CoachPanelControl.Provider value={control}>

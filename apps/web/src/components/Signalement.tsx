@@ -9,6 +9,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -32,6 +33,8 @@ import {
   type DraftType,
 } from "@/signalements/draft";
 import { MESSAGE_MAX_LENGTH, MESSAGE_MIN_LENGTH } from "@/signalements/values";
+import type { CloseDrawerThen } from "@/components/SidebarShell";
+import { useWorkPane, type WorkPaneItem } from "@/components/work-pane";
 import { send } from "./ApplicationControls";
 import { SIGNALEMENT_GLYPHS, signalementGlyph } from "./signalement-glyphs";
 
@@ -54,41 +57,56 @@ export type SignalementStart =
   | { kind: "question"; question: string; coachReply: string };
 
 const DRAFT: SignalementStart = { kind: "draft" };
+const DRAFT_IN_PANE: WorkPaneItem = { kind: "signalement", start: DRAFT };
 
 /**
  * The Signalement's entry point in the Sidebar's foot (#375, ADR-0009 amendment « the Signalement icon »): an icon alone, the bug, to the right of
  * « Mon compte », a 44 px target named « Signalement » with its tooltip on hover and focus. It never moves. It opens the
  * Signalement dialog (a Drawer, #462; full screen on phones), and on close the focus comes back to it.
  * `version`: the Jobbbox version the dialog's detail shows (the server's, as the Signalement keeps it).
+ * `closeDrawerThen`: the Sidebar's (SidebarShell): from its drawer on a phone, the Work Pane opens once the drawer has closed.
  */
-export function SignalementButton({ version }: { version: string }) {
+export function SignalementButton({ version, closeDrawerThen }: { version: string; closeDrawerThen?: CloseDrawerThen }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  // Under « Conversation au centre » the form opens in the Work Pane (#602, ADR-0070), and closing it brings the focus back here.
+  const workPane = useWorkPane();
+  const button = (
+    <button
+      className="signalement-open"
+      type="button"
+      aria-label={t("signalement.open")}
+      onClick={
+        workPane
+          ? () => {
+              const show = () => workPane.open(DRAFT_IN_PANE);
+              if (closeDrawerThen) closeDrawerThen(show);
+              else show();
+            }
+          : undefined
+      }
+    >
+      <svg
+        className="icon signalement-glyph"
+        viewBox="0 0 24 24"
+        aria-hidden
+        focusable={false}
+      >
+        <path d={SIGNALEMENT_GLYPHS.bug} />
+      </svg>
+      <span className="signalement-tip" aria-hidden>
+        {t("signalement.open")}
+      </span>
+    </button>
+  );
+  if (workPane) return button;
   return (
     <SignalementDialog
       version={version}
       open={open}
       onOpenChange={setOpen}
       start={DRAFT}
-      trigger={
-        <button
-          className="signalement-open"
-          type="button"
-          aria-label={t("signalement.open")}
-        >
-          <svg
-            className="icon signalement-glyph"
-            viewBox="0 0 24 24"
-            aria-hidden
-            focusable={false}
-          >
-            <path d={SIGNALEMENT_GLYPHS.bug} />
-          </svg>
-          <span className="signalement-tip" aria-hidden>
-            {t("signalement.open")}
-          </span>
-        </button>
-      }
+      trigger={button}
     />
   );
 }
@@ -156,10 +174,18 @@ export function SignalementProvider({
   );
 }
 
-/** Opens the Signalement dialog on `start`; null outside a SignalementProvider (the Back Office, signed-out pages). */
+/**
+ * Opens the Signalement's form on `start`: in the Work Pane under « Conversation au centre » (#602, ADR-0070), else in
+ * the dialog. Null outside both (the Back Office, signed-out pages).
+ */
 export function useOpenSignalement():
   ((start: SignalementStart) => void) | null {
-  return useContext(OpenSignalement);
+  const dialog = useContext(OpenSignalement);
+  const inPane = useWorkPane()?.open;
+  return useMemo(
+    () => (inPane ? (start: SignalementStart) => inPane({ kind: "signalement", start }) : dialog),
+    [inPane, dialog],
+  );
 }
 
 /**
@@ -234,19 +260,43 @@ function SignalementDialog({
   );
 }
 
+/**
+ * A Signalement's form in the Work Pane (#602, ADR-0070), open on `start`: the pane's header gives its title (see
+ * signalementTitle), its ✕ or « Annuler » closes it (`onClose`), keeping the draft. Sent from « Mes signalements », that
+ * Section, beside it, lists the new one at once.
+ */
+export function SignalementPaneForm({ version, start, onClose }: { version: string; start: SignalementStart; onClose: () => void }) {
+  const message = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
+  const onMine = usePathname() === routes.accountSignalements;
+  const shared = { version, message, titled: false, onSent: () => onMine && router.refresh(), onClose };
+  return start.kind === "question" ? (
+    <SignalementForm {...shared} question={start} />
+  ) : (
+    <SignalementForm {...shared} type={start.kind === "type" ? start.type : undefined} />
+  );
+}
+
+/** A Signalement's form's title: « Poser la question à l'équipe » for a Question, else the Signalement's own. */
+export function signalementTitle(start: SignalementStart): "signalement.question.title" | "signalement.title" {
+  return start.kind === "question" ? "signalement.question.title" : "signalement.title";
+}
+
 type Problem = "tooShort" | "tooMany" | "failed";
 
 type Asked = Extract<SignalementStart, { kind: "question" }>;
 
 /**
  * The dialog's content, mounted on each opening: a Bug or an Idée from the kept draft (`type` chosen instead, when given),
- * or a Question (`question`), which keeps no draft.
+ * or a Question (`question`), which keeps no draft. `titled`: it has its own title, the Drawer's (the Work Pane's header
+ * gives it otherwise).
  */
 function SignalementForm({
   version,
   message,
   type: chosen,
   question,
+  titled = true,
   onSent,
   onClose,
 }: {
@@ -254,6 +304,7 @@ function SignalementForm({
   message: RefObject<HTMLTextAreaElement | null>;
   type?: DraftType | undefined;
   question?: Asked;
+  titled?: boolean;
   onSent: () => void;
   onClose: () => void;
 }) {
@@ -353,7 +404,7 @@ function SignalementForm({
     }
   }
 
-  const title = (
+  const title = titled && (
     <DrawerTitle className="dialog-title signalement-title">
       <MorphingGlyph
         d={question ? SIGNALEMENT_GLYPHS.info : signalementGlyph(type)}

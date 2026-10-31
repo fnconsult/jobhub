@@ -374,6 +374,7 @@ async function check(
   name: string,
   width: number,
   whole = true,
+  mask: Locator[] = [],
 ) {
   for (const theme of THEMES) {
     await showInTheme(page, theme);
@@ -396,6 +397,7 @@ async function check(
       mask: [
         page.getByText(MONTHS),
         page.locator(".provenance-line, .sidebar-count"),
+        ...mask,
       ],
     });
   }
@@ -676,7 +678,11 @@ test.describe("Candidate pages in the Design System (#468)", () => {
         name: fr.profilePage.savebarLabel,
       });
       await expect(bar).toBeVisible();
-      await check(page, bar, "#main", `profile-savebar-${name}`, width, false);
+      // The CV's dated line sits behind the bar's top edge, and a mask is drawn over its box even there: masking the
+      // whole card head keeps that box as wide whatever the date.
+      await check(page, bar, "#main", `profile-savebar-${name}`, width, false, [
+        page.locator(".cv-card-head").filter({ has: page.getByText(MONTHS) }),
+      ]);
     }
   });
 

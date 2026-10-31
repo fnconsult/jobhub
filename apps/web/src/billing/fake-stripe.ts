@@ -178,7 +178,7 @@ export async function startFakeStripe(port = 0) {
   const subscriptionStarts = new Map<string, number>();
   const cancelledSubscriptions = new Set<string>();
   /** The paid invoices of each subscription, by subscription id: their amount and the PaymentIntent they were paid with (none at 0). */
-  const invoices = new Map<string, { id: string; amount: number; paymentIntent: string | null }[]>();
+  const invoices = new Map<string, { id: string; amount: number; paymentIntent: string | null; period: { start: number; end: number } | null }[]>();
   /** What each paid Checkout Session (a Coaching Session's) was paid with, by its id. */
   const checkoutPayments = new Map<string, { paymentIntent: string; amount: number }>();
   /** Every PaymentIntent the fake took, and how much. */
@@ -235,11 +235,14 @@ export async function startFakeStripe(port = 0) {
     };
   }
   let sequence = 0;
-  function payInvoice(subscriptionId: string, amount: number): string {
+  /** `period`: what the invoice paid for (its first line's), for a Plan's prorata at a Withdrawal (#512); none by default. */
+  function payInvoice(subscriptionId: string, amount: number, period?: { start: Date; end: Date }): string {
     const id = ++sequence;
     const paymentIntent = amount > 0 ? `pi_fake${id}` : null;
     if (paymentIntent) paymentAmounts.set(paymentIntent, amount);
-    invoices.set(subscriptionId, [...(invoices.get(subscriptionId) ?? []), { id: `in_fake${id}`, amount, paymentIntent }]);
+    const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
+    const paidFor = period ? { start: seconds(period.start), end: seconds(period.end) } : null;
+    invoices.set(subscriptionId, [...(invoices.get(subscriptionId) ?? []), { id: `in_fake${id}`, amount, paymentIntent, period: paidFor }]);
     return paymentIntent ?? "";
   }
   function payCheckoutSession(checkoutSessionId: string, amount: number): string {
@@ -386,6 +389,7 @@ export async function startFakeStripe(port = 0) {
           subscription: of,
           amount_paid: invoice.amount,
           currency: "eur",
+          lines: { object: "list", has_more: false, data: invoice.period ? [{ id: `il_${invoice.id}`, object: "line_item", period: invoice.period }] : [] },
           payments: {
             object: "list",
             has_more: false,
@@ -476,7 +480,11 @@ export async function startFakeStripe(port = 0) {
       }
       // For e2e specs in another process: `payInvoice`, `payCheckoutSession`, `refuseRefunds` and `refunds` over HTTP.
       const invoicePath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/invoices$/)?.[1];
-      if (invoicePath) return reply(200, { payment_intent: payInvoice(decodeURIComponent(invoicePath), Number(params.get("amount") ?? 0)) });
+      if (invoicePath) {
+        // With `start` and `end` (in seconds): the period it paid for (#512).
+        const period = params.has("start") ? { start: new Date(Number(params.get("start")) * 1000), end: new Date(Number(params.get("end")) * 1000) } : undefined;
+        return reply(200, { payment_intent: payInvoice(decodeURIComponent(invoicePath), Number(params.get("amount") ?? 0), period) });
+      }
       const checkoutPaymentPath = request.method === "POST" && path.match(/^\/__checkout_sessions\/([^/]+)\/payment$/)?.[1];
       if (checkoutPaymentPath) return reply(200, { payment_intent: payCheckoutSession(decodeURIComponent(checkoutPaymentPath), Number(params.get("amount") ?? 0)) });
       // Scoped to one PaymentIntent (`payment_intent`, required): the e2e specs share this fake and run side by side.
@@ -619,6 +627,8 @@ export function checkoutSessionEvent(
     currency: string;
     paymentStatus: "paid" | "unpaid" | "no_payment_required";
     mode?: "payment" | "subscription";
+    /** The subscription a Plan's Checkout started. */
+    subscription?: string;
   },
   createdAt: Date = new Date(),
 ) {
@@ -638,6 +648,7 @@ export function checkoutSessionEvent(
         payment_status: session.paymentStatus,
         amount_total: session.amount,
         currency: session.currency,
+        subscription: session.subscription ?? null,
         metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId } : {},
       },
     },

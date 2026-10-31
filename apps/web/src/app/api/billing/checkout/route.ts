@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const code = form.get("code");
   const promotionCode = typeof code === "string" && code.trim() ? code.trim().slice(0, 40) : undefined;
   try {
-    return seeOther(await getBilling().startCheckout(candidate, plan, candidate.locale, { promotionCode }), request);
+    return seeOther((await getBilling().startCheckout(candidate, plan, candidate.locale, { promotionCode })).url, request);
   } catch (error) {
     // A code that cannot be applied: back to the subscription page, which says why and offers to go on without it.
     if (error instanceof PromotionCodeRefused && promotionCode) {

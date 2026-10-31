@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const coach = (await getHumanCoaches().list()).find((listed) => listed.id === coachId);
   if (!coach) return seeOther(routes.coaching, request);
   try {
-    return seeOther(await getBilling().startCoachingSessionCheckout(candidate, coach.id, candidate.locale), request);
+    return seeOther((await getBilling().startCoachingSessionCheckout(candidate, coach.id, candidate.locale)).url, request);
   } catch (error) {
     console.error("[coaching] checkout failed", error);
     const unavailable = error instanceof BillingError && (error.code === "stripe_not_configured" || error.code === "coaching_sessions_not_configured");

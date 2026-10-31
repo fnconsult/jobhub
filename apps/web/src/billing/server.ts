@@ -1,5 +1,6 @@
 import type { Locale } from "@jobhub/shared/i18n";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
+import { getMailer } from "@/auth/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getWithdrawals } from "@/withdrawals/server";
 import { STRIPE_SECRET_NAMES } from "@/provider-secrets/catalog";
@@ -14,7 +15,8 @@ let instance: Billing | undefined;
 /**
  * The app's billing module, configured from the environment with the Provider Secrets
  * over it, and rebuilt when the Stripe keys are replaced in the Back Office. Paid
- * Coaching Sessions go to the Human Coaches module, refunds' fates to Withdrawals (#511); each Stripe call to AI Usage's external APIs.
+ * Coaching Sessions go to the Human Coaches module, refunds' fates to Withdrawals (#511); each Stripe call to AI Usage's
+ * external APIs. Cancellations are acknowledged through the app's mailer (Brevo).
  */
 export function getBilling(): Billing {
   instance ??= liveObject(getSecretResolver(), STRIPE_SECRET_NAMES, (env) =>
@@ -23,6 +25,7 @@ export function getBilling(): Billing {
       onCoachingSessionPaid: (paid) => getHumanCoaches().recordPaidSession(paid),
       onRefundChanged: (change) => getWithdrawals().refundChanged(change),
       externalApis: getExternalApiLog(),
+      mailer: getMailer(),
     }),
   );
   return instance;

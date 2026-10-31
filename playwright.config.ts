@@ -4,6 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
 import { utf8Locale } from "./e2e/support/locale";
 import { webPort as e2eWebPort } from "./e2e/support/ports";
+import { utf8CharacterType } from "./e2e/support/utf8-locale";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
 // the built web app over HTTP, the built Chrome extension, the local docker
@@ -41,6 +42,9 @@ process.env.E2E_WEB_PORT = String(webPort);
 process.env.E2E_WEB_ORIGIN = webOrigin;
 process.env.E2E_STRIPE_PORT = String(stripePort);
 process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
+// A UTF-8 character type, whatever the shell has: under none, Chromium names a download « download » when its name is
+// not ASCII, « CV-Zoë-Łukasz.pdf » (e2e/support/utf8-locale.ts, e2e/export.spec.ts).
+Object.assign(process.env, utf8CharacterType());
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
@@ -64,7 +68,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|email-intake|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching)\.spec\.ts/,
+      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|email-intake|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching|subscription-cancellation)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },

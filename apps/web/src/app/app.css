@@ -1209,6 +1209,17 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   margin-top: 0;
 }
 
+/* A Section in the Work Pane: the pane's title names it, so its own heading would say it twice. It still names the
+   Section (aria-labelledby reads a hidden heading). */
+.work-pane-addressed > section:first-child > h2:first-child,
+.work-pane-addressed > section:first-child > :is(.section-head, .application-section-head) > h2:first-child {
+  display: none;
+}
+
+.work-pane-addressed > section:first-child > .application-section-head {
+  justify-content: flex-end;
+}
+
 /* « Fiche » and « Activité » in the Top Bar: pressed while their column (or group) is shown. */
 .topbar :is(.topbar-fiche, .topbar-activity)[aria-expanded="true"] {
   background: var(--color-accent-soft);

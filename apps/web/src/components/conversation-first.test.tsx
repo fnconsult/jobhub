@@ -208,7 +208,17 @@ describe("« Aide » in the Top Bar, on a page without a conversation (#602, ADR
   });
 
   it("is not there on a page that is a conversation, which has its own help", () => {
+    pathname.current = "/compte";
     renderInFrench(<Shell page={{ conversationId: null, replying: false, clear: vi.fn(), startNew: vi.fn(), askAbout: vi.fn() }} />);
     expect(within(screen.getByRole("banner")).queryByRole("button", { name: "Aide" })).toBeNull();
+  });
+
+  it("is never there on the home page or a Free conversation's, even before their conversation shows", () => {
+    for (const address of ["/", `/conversations/${FREE[0]!.id}`]) {
+      pathname.current = address;
+      const { unmount } = renderInFrench(<Shell />);
+      expect(within(screen.getByRole("banner")).queryByRole("button", { name: "Aide" })).toBeNull();
+      unmount();
+    }
   });
 });

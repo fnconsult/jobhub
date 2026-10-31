@@ -281,7 +281,9 @@ export function PageHelpButton() {
   const workPane = useWorkPane();
   const pathname = usePathname();
   const article = onThisPage(pathname, helpLocale(i18n.language))?.article;
-  if (!conversationFirst || conversationFirst.page || !workPane || !article) return null;
+  // A conversation's page is known by its address too, before it registers itself: the button never flashes there.
+  const isConversation = conversationFirst?.page || pathname === routes.home || pathname.startsWith(routes.conversation(""));
+  if (!conversationFirst || isConversation || !workPane || !article) return null;
   return (
     <button className={`${buttonClass()} topbar-help`} type="button" onClick={() => workPane.open({ kind: "help", article })}>
       <Icons.help />

@@ -3,6 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { comparesScreenshots } from "./support/screenshots";
 import { expectTextContrast, themedName, THEMES } from "./support/theme";
 
 // Issue #464: the shell in the Design System (ADR-0053), shared by both sides (SidebarShell): the Sidebar on the nav
@@ -22,8 +23,12 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 // Its own permanent super-admin (ADMIN_EMAILS): two sign-ins of one address at once can pick up each other's link.
 const BACK_OFFICE = "shell-office@e2e.jobbbox.test";
 
-/** A Linux browser draws them: CI's, or the Playwright container's through PW_TEST_CONNECT_WS_ENDPOINT. */
-const LINUX_RENDER = process.platform === "linux" || Boolean(process.env.PW_TEST_CONNECT_WS_ENDPOINT);
+/**
+ * Whether the shots are compared: where the baselines are drawn, CI's Playwright image or the Playwright container through
+ * PW_TEST_CONNECT_WS_ENDPOINT, not on any Linux machine, whose Chromium may draw text otherwise (e2e/support/screenshots.ts).
+ * Elsewhere the shell is still drawn, its drawer opened, its contrast and axe checked.
+ */
+const COMPARES = comparesScreenshots();
 
 const WIDTHS = [
   { name: "desktop", width: 1440, height: 900 },
@@ -61,13 +66,13 @@ async function shellScreenshot(page: Page, name: string, phone: boolean) {
     // A loaded machine takes a while to draw two stable shots in a row.
     timeout: 20_000,
   };
-  await expect(page).toHaveScreenshot(`${name}.png`, { ...options, mask: [...options.mask, page.locator("#main")] });
+  if (COMPARES) await expect(page).toHaveScreenshot(`${name}.png`, { ...options, mask: [...options.mask, page.locator("#main")] });
   if (!phone) return;
   await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
   const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
   await expect(drawer).toBeVisible();
   await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
-  await expect(drawer).toHaveScreenshot(`${name}-menu.png`, options);
+  if (COMPARES) await expect(drawer).toHaveScreenshot(`${name}-menu.png`, options);
 }
 
 /** axe on the shell, the page left out (its own ticket checks it). */
@@ -80,7 +85,6 @@ for (const theme of THEMES) for (const viewport of WIDTHS) {
   // Dark is the device's preference, which the default choice, Système, follows (#473).
   test.describe(`the shell in the Design System (${viewport.name}${theme === "dark" ? ", dark" : ""})`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: theme });
-    test.skip(!LINUX_RENDER, "the baselines are Linux renders: run in CI, or through the Playwright container (see above)");
 
     test("on a Candidate page: the Sidebar with the Profile switcher and the Usage Meter, the Top Bar", async ({ page }) => {
       await signInWithMagicLink(page, newAddress(`shell-${viewport.name}-${theme}`));

@@ -27,11 +27,19 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          # HEAD and its first parent, for the Legal Text Versions' check: on a pull request its merge commit and the
+          # base; on main the squashed merge and main before it.
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # A Legal Text Version in effect is never edited (ADR-0062): a correction is a new version. A substantial one is
+      # merged 30 days before it takes effect (#547): run on the pull request, and again on main on the day of the merge,
+      # so one merged late, with no new push since its pull request was checked, turns main red and cannot be deployed.
+      - run: npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -75,7 +83,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run db:migrate
-      - run: npx playwright test --project=web $(grep -l toHaveScreenshot e2e/*.spec.ts)
+      # The emails project too (e2e/email-html.spec.ts): its -linux baselines are drawn in this image, and compared only here.
+      - run: npx playwright test --project=web --project=emails $(grep -l toHaveScreenshot e2e/*.spec.ts)
       # A failed comparison's expected, actual and diff images, and its trace.
       - uses: actions/upload-artifact@v4
         if: failure()

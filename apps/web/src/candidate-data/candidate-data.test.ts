@@ -18,6 +18,7 @@ import { alertEmail, inboundPayload, unknownSenderEmail } from "../email-intake/
 import { createEmailIntakeInbound } from "../email-intake/inbound";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
+import { createLegalTextNotices } from "../legal-text-notices";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
@@ -264,6 +265,27 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect((await candidateData.export(candidateId)).euAiConsent).toEqual({ givenAt: new Date("2026-09-01T08:00:00Z") });
     expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
+  });
+
+  it("the export holds the Legal Text notices emailed to the Candidate and the privacy policy changes they closed (#547)", async () => {
+    expect((await candidateData.export(candidateId)).legalTextNotices).toEqual({ emailed: [], privacyChangesSeen: [] });
+    await database.query(`UPDATE candidate SET "createdAt" = '2026-01-15T10:00:00Z' WHERE id = $1`, [candidateId]);
+    const at = new Date("2026-10-30T09:00:00Z");
+    const policy = (effective: string) => ({ text: "confidentialite" as const, effective, title: "Politique", change: "substantielle" as const, approvedBy: "Camille Martin", summary: "Résumé.", inBrief: [], sections: [] });
+    const notices = createLegalTextNotices(database, {
+      mailer: { send: async () => {} },
+      baseURL: BASE_URL,
+      production: true,
+      now: () => at,
+      written: { fr: [{ ...policy("2026-10-01"), locale: "fr" }, { ...policy("2026-12-15"), locale: "fr" }], en: [] },
+    });
+    await notices.sendDue();
+    await notices.dismissPrivacyChange(candidateId, "2026-10-01");
+
+    expect((await candidateData.export(candidateId)).legalTextNotices).toEqual({
+      emailed: [{ text: "confidentialite", version: "2026-12-15", sentAt: at }],
+      privacyChangesSeen: [{ version: "2026-10-01", seenAt: at }],
+    });
   });
 
   it("the export holds the Follow-up Delays the Candidate set (null while they keep the defaults) and the Follow-ups sent on each Application", async () => {

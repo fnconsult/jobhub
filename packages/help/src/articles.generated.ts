@@ -450,6 +450,48 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Non. L'aide est écrite et relue par l'équipe Jobbbox. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
     },
     {
+      "id": "faq-legal-texts",
+      "locale": "fr",
+      "kind": "faq",
+      "title": "Où lire les conditions et la politique de confidentialité ?",
+      "synonyms": [
+        "CGU",
+        "CGV",
+        "conditions générales",
+        "conditions d'utilisation",
+        "conditions de vente",
+        "confidentialité",
+        "cookies",
+        "mentions légales",
+        "légal",
+        "version",
+        "historique"
+      ],
+      "route": null,
+      "body": "Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. Chaque texte se télécharge avec « Télécharger en PDF ».\n\nChaque texte porte sa date d'entrée en vigueur. Une version n'est jamais modifiée : une correction donne une nouvelle version. Le lien « Versions précédentes » mène à l'« Historique des versions » : chaque version, sa date, « Substantielle » ou « Mineure », et une ligne qui résume le changement.\n\nUne ancienne version reste lisible à son adresse datée, marquée « Version archivée : voir la version en vigueur ». Une version substantielle à venir s'y lit déjà, marquée « Version à venir » avec sa date d'entrée en vigueur : l'e-mail qui vous en prévient y mène. Le texte français fait foi ; la traduction anglaise le rappelle en tête."
+    },
+    {
+      "id": "faq-legal-text-notice",
+      "locale": "fr",
+      "kind": "faq",
+      "title": "Pourquoi ai-je reçu un e-mail sur les conditions ?",
+      "synonyms": [
+        "e-mail",
+        "mail",
+        "préavis",
+        "conditions",
+        "CGU",
+        "CGV",
+        "confidentialité",
+        "nouvelle version",
+        "changement",
+        "accepter",
+        "politique de confidentialité"
+      ],
+      "route": null,
+      "body": "Jobbbox vous écrit quand il publie une version substantielle des Conditions générales d'utilisation, des Conditions générales de vente ou de la Politique de confidentialité : au moins 30 jours avant son entrée en vigueur. L'e-mail nomme le texte, sa date d'entrée en vigueur et ce qui change, avec « Lire la nouvelle version » et l'« Historique des versions ». Une version mineure, une coquille corrigée par exemple, ne donne lieu à aucun e-mail.\n\nC'est un e-mail de service : vous le recevez même si vous ne recevez pas nos actualités. Il ne contient ni image ni lien de suivi, et vous ne le recevez qu'une fois par version.\n\nPour les Conditions générales d'utilisation, Jobbbox vous demandera d'accepter la nouvelle version à votre première connexion à partir de sa date d'entrée en vigueur. Pour les Conditions générales de vente, elle s'appliquera à vos prochains achats. La Politique de confidentialité ne s'accepte pas : après sa date d'entrée en vigueur, un avis « Notre politique de confidentialité a changé le … » s'affiche une fois dans votre espace, et « J'ai compris » le ferme."
+    },
+    {
       "id": "faq-quota-renewal",
       "locale": "fr",
       "kind": "faq",
@@ -926,6 +968,46 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Every Monday at midnight (Paris time). The « Usage this week » bar, at the foot of the menu, shows where you stand.\n\nTalking to your coach does not count against the quota. A job search that fails, or that you stop before it has found a job offer, does not count either.\n\nTo get more each week, change plan from My subscription."
+    },
+    {
+      "id": "faq-legal-texts",
+      "locale": "en",
+      "kind": "faq",
+      "title": "Where can I read the terms and the privacy policy?",
+      "synonyms": [
+        "terms of use",
+        "terms of sale",
+        "terms and conditions",
+        "privacy",
+        "cookies",
+        "legal notice",
+        "legal",
+        "version",
+        "history"
+      ],
+      "route": null,
+      "body": "On the Legal page, open to everyone, with no account: the Terms of use, the Terms of sale, the Privacy policy (with its sections on cookies and on AI in Jobbbox) and the Legal notice. Each text downloads with « Download as PDF ».\n\nEach text shows the date it took effect. A version is never changed: a correction makes a new version. The « Previous versions » link leads to the « Version history »: each version, its date, « Substantial » or « Minor », and a line that sums up the change.\n\nAn earlier version stays readable at its dated address, marked « Archived version: see the version in effect ». An upcoming substantial version can already be read there, marked « Upcoming version » with the date it takes effect: the email telling you of it leads there. The French text prevails; the English translation says so at the top."
+    },
+    {
+      "id": "faq-legal-text-notice",
+      "locale": "en",
+      "kind": "faq",
+      "title": "Why did I get an email about the terms?",
+      "synonyms": [
+        "email",
+        "mail",
+        "notice",
+        "terms",
+        "terms of use",
+        "terms of sale",
+        "privacy",
+        "new version",
+        "change",
+        "accept",
+        "privacy policy"
+      ],
+      "route": null,
+      "body": "Jobbbox writes to you when it publishes a substantial version of the Terms of use, the Terms of sale or the Privacy policy: at least 30 days before it takes effect. The email names the text, the date it takes effect and what changes, with « Read the new version » and the « Version history ». A minor version, a typo corrected for instance, gets no email.\n\nIt is a service email: you get it even if you do not receive our news. It has no image and no tracking link, and you get it only once per version.\n\nFor the Terms of use, Jobbbox will ask you to accept the new version the first time you sign in from the date it takes effect. For the Terms of sale, it will apply to your next purchases. The Privacy policy is not accepted: after it takes effect, a notice « Our privacy policy changed on … » shows once in your workspace, and « Got it » closes it."
     }
   ]
 };

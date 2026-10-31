@@ -33,6 +33,16 @@ describe("loadRootEnv", () => {
     expect(process.env.JOBHUB_ALREADY_SET).toBe("from-shell");
   });
 
+  it("reads nothing when JOBHUB_IGNORE_ROOT_ENV=1: the e2e suite's server runs on the suite's settings, not a developer's .env", () => {
+    touched.push("BEDROCK_REGION", "MAIL_FROM", "JOBHUB_IGNORE_ROOT_ENV");
+    delete process.env.BEDROCK_REGION;
+    delete process.env.MAIL_FROM;
+    process.env.JOBHUB_IGNORE_ROOT_ENV = "1";
+    loadRootEnv(rootWith('BEDROCK_REGION=eu-north-1\nMAIL_FROM="Jobbbox <hello@jobbbox.ai>"\n'));
+    expect(process.env.BEDROCK_REGION).toBeUndefined();
+    expect(process.env.MAIL_FROM).toBeUndefined();
+  });
+
   it("does nothing when there is no root .env (CI, containers)", () => {
     expect(() => loadRootEnv(rootWith())).not.toThrow();
   });

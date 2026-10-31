@@ -127,3 +127,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | 12 months after the conversation's last message (the worker's nightly job `coach-conversations.purge`); deleted at once with the Candidate's account, when they delete it, or with its object if the object itself is deleted. An archived object keeps its conversation. The conversations saved before Subjects existed (only on staging) were deleted when #600 shipped; the Coach Memory was kept. |
 | Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs). |
 | Security | Every read and change is scoped to the Candidate: another Candidate's conversation, or a Subject that is not theirs, is « not found ». |
+
+## Préavis des Legal Text Versions (#547)
+
+| | |
+| --- | --- |
+| Purpose | Tell each Candidate, at least 30 days ahead, of a substantial version of the CGU, the CGV or the privacy policy (ADR-0062): an email naming the text, its effective date, its line in the version history, what happens then, and links to the new version and the version history. Then show once in the app, from its effective date, that the privacy policy changed, and remember that the Candidate closed it. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)) to inform the Candidate of a change to the contract and to the information on processing, as the issue decided: Code de la consommation L215-1-1 and GDPR art. 12-13. These references are not verified against their primary sources yet (`docs/research/issue-547.md`): the Legal Review of the first noticed version confirms or corrects them. A service email: it goes without any marketing opt-in. |
+| People concerned | Candidates with a verified email address. |
+| Data | Per notice sent: the Candidate's id, the text and version (its effective date) it told of, when it was sent. Per privacy policy change closed: the Candidate's id, the version, when it was closed. The email itself goes to the Candidate's account address, in their Interface Language; its text is not kept. |
+| Source | Written by the worker when it sends each notice (`legal-text-notices.send`: when it starts, then daily, Production only, never the Beta), and by the web app when the Candidate clicks « J'ai compris » (`DELETE /api/privacy-change/<version>`). |
+| Processors | Brevo (EU, ADR-0007), which sends the email. The email carries no image and no tracked link: Brevo's open and click tracking must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). |
+| Who can read it | The Candidate, through their Data export. No Back Office screen shows it. |
+| Storage | The `legal_text_notice` and `privacy_change_seen` tables in the app's Postgres database (EU). |
+| Retention | As long as the account: deleted with it (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`legalTextNotices.emailed` and `legalTextNotices.privacyChangesSeen`); erased with the account. |
+| Security | One notice per Candidate and per version, claimed in the transaction that sends it. Closing checks the signed-in Candidate and the request's origin, and only the version shown can be closed. |

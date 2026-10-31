@@ -803,8 +803,16 @@ One of Jobbbox's public legal documents: the CGU, the CGV (with the withdrawal f
 _Avoid_: Terms page, policy page, legal page
 
 **Legal Text Version**:
-One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor. A correction is a new version; earlier versions stay readable.
+One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served as the one in effect before its effective date: a substantial version of the CGU, the CGV or the privacy policy still to come is readable only at its permanent address, marked « Version à venir », where the email telling Candidates of it links (#547); a minor one is not served before its effective date. Once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
 _Avoid_: Revision, edition, draft
+
+**Préavis**:
+The email telling a Candidate, 30 days before it takes effect, that a substantial version of the CGU, the CGV or the privacy policy is coming. Sent once per Candidate and version, in Production only, to a verified address; it names the text, its effective date and the next step, and links to the version still to come. Never sent for the legal notice.
+_Avoid_: Legal Notice (already means mentions légales), notification, newsletter
+
+**Privacy change notice**:
+The one-time line atop a Candidate's workspace announcing the privacy policy's latest substantial version in effect, closed with « J'ai compris ». It blocks nothing and is not shown to a Candidate who signed up on or after that version's effective date.
+_Avoid_: Banner, consent, Acceptance
 
 **Legal Review**:
 The legal AI's evaluation of one Legal Text Version, recorded with it, before the product owner signs its effective date. A minor version is reviewed on its changes only; the English translation is checked for fidelity, not reviewed. There is no lawyer at this stage: a lawyer is called only on a listed trigger.
@@ -1011,10 +1019,6 @@ _Avoid_: Storyboard, voice-over text
 **Help Centre**:
 The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Candidate's pages show the same articles in context: suggested above the box while typing and opened in the Work Pane.
 _Avoid_: KB, support site, help desk
-
-**Legal Document**:
-A text on the public Légal page (conditions of use, privacy, cookies, subprocessors and AI, legal notice), written by the team in French and English. Versioned with an effective date and an optional « En bref »; every version is kept and an earlier one stays readable. One the team has not written shows « Ce texte n'est pas encore publié ». Offered as a PDF.
-_Avoid_: Policy, terms page
 
 **Article card**:
 A Help Article opened in the Work Pane beside a Coach Conversation (ADR-0070; a card in the Coach Panel's conversation before), from the box's suggestions « Dans l'aide, sans IA », « Comment marche cette page ? » or a HelpTerm. Kept only in the browser: never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.

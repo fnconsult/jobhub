@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), Plan and Plan Quota use, EU AI consent, Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), Plan and Plan Quota use, EU AI consent, the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -43,6 +43,7 @@ import type { FollowUpDelays } from "../follow-ups";
 import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
+import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
@@ -245,6 +246,8 @@ export interface CandidateDataExport {
   quotaUsage: { quota: string; week: string; used: number }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
+  /** The notice emails of substantial Legal Text Versions sent to the Candidate, and the privacy policy changes they closed (#547). */
+  legalTextNotices: ExportedLegalTextNotices;
   /** The Candidate's Email intake (ADR-0051, #441): every Forwarding address given to them, with its activation date, and the sending addresses they added. */
   emailIntake: ExportedEmailIntake;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -338,6 +341,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",
+  legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
+  privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
@@ -663,7 +668,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, plan, quotaUsage, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
@@ -671,6 +676,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         ),
         rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
+        legalTextNoticesOf(database, candidateId),
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
@@ -712,7 +718,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers };
+      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers };
     },
 
     async delete(candidateId) {

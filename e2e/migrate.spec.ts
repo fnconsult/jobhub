@@ -127,12 +127,14 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "job_discovery_source", // issue #188: the Job discovery sources, each enabled or not
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
+        "legal_text_notice", // issue #547: the notice of a substantial Legal Text Version sent to each Candidate
         "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
         "master_cv_version",
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
         "platform_setting", // issue #298: Platform Settings set in the Back Office, over env
         "playbook_version", // issue #225: every Playbook Version, kept forever
+        "privacy_change_seen", // issue #547: the Candidates who closed the one-time privacy policy notice
         "profile",
         "provider_api_access", // issue #400: what each France Travail API answered its latest connection test
         "provider_secret", // issue #208: Provider Secrets, encrypted
@@ -255,11 +257,15 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
+        // The Legal Text notices (issue #547) follow their Candidate.
+        { from_table: "legal_text_notice", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
         // Playbook Versions (issue #225) belong to their Coaching Playbook, neither ever deleted; no Candidate is named.
         { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
+        // The one-time privacy policy notice (issue #547) follows its Candidate.
+        { from_table: "privacy_change_seen", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #442): the Received offer emails go with their Candidate; each points to its row of

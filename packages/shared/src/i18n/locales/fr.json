@@ -4612,6 +4612,20 @@
     "scheduleInterview": "Planifier un entretien",
     "askCoach": "Demander au coach"
   },
+  "conversationFirst": {
+    "newConversation": "Nouvelle conversation",
+    "coach": "Coach",
+    "actions": "Actions pour « {{title}} »",
+    "nameLabel": "Nom de la conversation",
+    "deleteTitle": "Supprimer la conversation « {{title}} » ?",
+    "deleteText": "Tous ses messages seront supprimés. La Mémoire du coach reste.",
+    "clear": "Effacer",
+    "clearTitle": "Effacer cette conversation ?",
+    "clearText": "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.",
+    "cleared": "Conversation effacée.",
+    "label": "Conversation avec le Coach IA",
+    "suggestions": "Suggestions"
+  },
   "publicSite": {
     "nav": "Pages publiques",
     "nouveautes": "Nouveautés",

@@ -4612,6 +4612,20 @@
     "scheduleInterview": "Schedule an interview",
     "askCoach": "Ask the coach"
   },
+  "conversationFirst": {
+    "newConversation": "New conversation",
+    "coach": "Coach",
+    "actions": "Actions for “{{title}}”",
+    "nameLabel": "Conversation name",
+    "deleteTitle": "Delete the conversation “{{title}}”?",
+    "deleteText": "All its messages will be deleted. The coach's memory stays.",
+    "clear": "Clear",
+    "clearTitle": "Clear this conversation?",
+    "clearText": "All the messages of this conversation will be deleted. The coach's memory stays.",
+    "cleared": "Conversation cleared.",
+    "label": "Conversation with the AI Coach",
+    "suggestions": "Suggestions"
+  },
   "publicSite": {
     "nav": "Public pages",
     "nouveautes": "What's new",

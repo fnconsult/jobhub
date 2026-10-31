@@ -11,6 +11,7 @@ import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
+import { ClearConversationButton, ConversationFirstProvider, SidebarConversations, type FreeConversation } from "@/components/conversation-first";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
@@ -37,6 +38,9 @@ const LABELS = {
  * Its Top Bar has AI Activity's button, its pane the page's `aiActivity` elements (none: « Aucun contenu
  * produit par l'IA sur cette page »). Beside « Mon compte », on its row, the Signalement icon (#375), which opens the
  * Signalement dialog; `version` is the Jobbbox version that dialog shows.
+ * `freeConversations`: under « Conversation au centre » (#601, ADR-0070), the Candidate's Free conversations; the Sidebar
+ * then has « Nouvelle conversation » and « Coach » with them above its links, and the Top Bar « Effacer » in place of
+ * « Aide et coach ». Null while the switch is off.
  */
 export function SidebarLayout({
   profiles,
@@ -49,6 +53,7 @@ export function SidebarLayout({
   wide = false,
   aiActivity = NO_AI_ACTIVITY,
   version,
+  freeConversations = null,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -61,6 +66,7 @@ export function SidebarLayout({
   wide?: boolean;
   aiActivity?: readonly ActivityElement[];
   version: string;
+  freeConversations?: readonly FreeConversation[] | null;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -70,12 +76,13 @@ export function SidebarLayout({
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
-  return (
+  const shell = (
     <AiActivityProvider elements={aiActivity}>
       <SidebarShell
         brand={{ href: routes.home, label: t("app.name") }}
         title={title}
         wide={wide}
+        {...(freeConversations ? { topBarEnd: <ClearConversationButton /> } : {})}
         foot={(closeDrawer) => (
           <>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
@@ -101,6 +108,7 @@ export function SidebarLayout({
         }
         nav={(closeDrawer) => (
           <nav className="sidebar-nav" aria-label={t("sidebar.label")}>
+            <SidebarConversations onNavigate={closeDrawer} />
             <ul>
               {items.map((item) => {
                 const NavIcon = Icons[item.key];
@@ -121,4 +129,5 @@ export function SidebarLayout({
       </SidebarShell>
     </AiActivityProvider>
   );
+  return freeConversations ? <ConversationFirstProvider conversations={freeConversations}>{shell}</ConversationFirstProvider> : shell;
 }

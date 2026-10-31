@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { FreeConversationPage } from "@/components/FreeConversationPage";
+import { conversationFirst } from "@/conversation-first";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { routes } from "@/routes";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { QuickActions } from "@/components/QuickActions";
@@ -10,7 +13,7 @@ import { getServerT } from "@/i18n/server";
 
 /**
  * The home page: in the sidebar layout for a signed-in Candidate, like every page of theirs (ADR-0024), the quick
- * actions first (#467).
+ * actions first (#467). Under « Conversation au centre » (#601, ADR-0070), a new Free conversation: the page itself.
  */
 export default async function HomePage() {
   const t = await getServerT();
@@ -22,6 +25,12 @@ export default async function HomePage() {
       <Note>{t("home.comingSoon")}</Note>
     </>
   );
+  if (candidate && conversationFirst(getPlatformSettingsResolver().current()))
+    return (
+      <CandidateLayout candidateId={candidate.id} title={t("conversationFirst.newConversation")}>
+        <FreeConversationPage conversationId={null} />
+      </CandidateLayout>
+    );
   if (candidate)
     return (
       <CandidateLayout candidateId={candidate.id} title={t("home.title")}>

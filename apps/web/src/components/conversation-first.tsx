@@ -16,11 +16,13 @@ export type FreeConversation = { id: string; title: string };
 
 /**
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
- * once its first message saved it; `clear` deletes every message of it (« Effacer ») and resolves whether it did;
- * `startNew` turns the page into a new Free conversation, as the home page is.
+ * once its first message saved it; `replying` while a reply is on its way, when it cannot be cleared; `clear` deletes every
+ * message of it (« Effacer ») and resolves whether it did; `startNew` turns the page into a new Free conversation, as the
+ * home page is.
  */
 export type PageConversation = {
   conversationId: string | null;
+  replying: boolean;
   clear: () => Promise<boolean>;
   startNew: () => void;
 };
@@ -217,7 +219,8 @@ function FreeConversationItem({ conversation, current, onNavigate }: { conversat
 /**
  * « Effacer » in the Top Bar (ADR-0070), while a page shows its conversation: after a confirming Dialog (the focus on
  * « Annuler »), deletes every message of the page's conversation; Coach Memory stays. The page starts afresh, and the
- * Sidebar no longer lists it.
+ * Sidebar no longer lists it. Unavailable while a reply is on its way: the server saves the Candidate's message when the
+ * reply ends or is stopped, which would leave it saved after clearing; « Arrêter » first, then « Effacer ».
  */
 export function ClearConversationButton() {
   const { t } = useTranslation();
@@ -231,7 +234,7 @@ export function ClearConversationButton() {
   return (
     <ConfirmDialog
       trigger={
-        <button className={`${buttonClass()} topbar-clear`} type="button">
+        <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
           <Icons.clear />
           {t("conversationFirst.clear")}
         </button>

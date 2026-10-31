@@ -555,15 +555,17 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   });
   const registerPage = conversationFirst?.setPage;
   const conversationOnPage = conversation?.id ?? null;
+  const replying = status === "sending";
   useEffect(() => {
     if (!isPage || !registerPage) return;
     registerPage({
       conversationId: conversationOnPage,
+      replying,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
       startNew: () => pageActions.current?.startNew(),
     });
     return () => registerPage(null);
-  }, [isPage, registerPage, conversationOnPage]);
+  }, [isPage, registerPage, conversationOnPage, replying]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
   async function openPanel(): Promise<Conversation | null> {
@@ -692,8 +694,13 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     if (window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
   }
 
-  /** « Effacer » (#601, ADR-0070): deletes every message of the page's conversation, then starts afresh; false when it could not. */
+  /**
+   * « Effacer » (#601, ADR-0070): deletes every message of the page's conversation, then starts afresh; false when it could not.
+   * Never while a reply is on its way: the server saves the Candidate's message when the request ends, even aborted (a Stop),
+   * so clearing then would leave it saved, in a conversation this page may not even know yet.
+   */
   async function clearPage(): Promise<boolean> {
+    if (status === "sending") return false;
     if (conversation) {
       const response = await fetch(`${panel.conversations}/${encodeURIComponent(conversation.id)}`, { method: "DELETE" }).catch(() => null);
       // Already gone (another tab, or purged): cleared either way.

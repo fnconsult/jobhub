@@ -300,7 +300,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "recommencer la conversation"
       ],
       "route": null,
-      "body": "« Effacer », en haut d'une page qui est une conversation avec votre coach IA, supprime tous les messages de cette conversation. Jobbbox vous demande d'abord de confirmer ; « Annuler » ne supprime rien.\n\nLa mémoire du coach reste : ce que vous lui avez demandé de retenir n'est pas effacé. La page redevient une nouvelle conversation."
+      "body": "« Effacer », en haut d'une page qui est une conversation avec votre coach IA, supprime tous les messages de cette conversation. Jobbbox vous demande d'abord de confirmer ; « Annuler » ne supprime rien. Pendant que le coach répond, « Effacer » attend : interrompez d'abord sa réponse avec « Arrêter ».\n\nLa mémoire du coach reste : ce que vous lui avez demandé de retenir n'est pas effacé. La page redevient une nouvelle conversation."
     },
     {
       "id": "glossary-job-digest",
@@ -808,7 +808,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "start the conversation over"
       ],
       "route": null,
-      "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation. Jobbbox asks you to confirm first; « Cancel » deletes nothing.\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
+      "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation. Jobbbox asks you to confirm first; « Cancel » deletes nothing. While the coach is replying, « Clear » waits: stop its reply first with « Stop ».\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
     },
     {
       "id": "glossary-follow-up",

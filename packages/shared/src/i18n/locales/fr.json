@@ -1193,6 +1193,7 @@
     },
     "renewal": {
       "plan": "Abonnement reconduit automatiquement {{every}}, jusqu'à sa résiliation",
+      "planUnknown": "Abonnement reconduit automatiquement, jusqu'à sa résiliation",
       "session": "Paiement unique, sans reconduction"
     },
     "pricePer": "{{price}} TTC {{per}}",

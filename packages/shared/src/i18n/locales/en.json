@@ -1193,6 +1193,7 @@
     },
     "renewal": {
       "plan": "Subscription renewed automatically {{every}}, until it is cancelled",
+      "planUnknown": "Subscription renewed automatically, until it is cancelled",
       "session": "One-off payment, not renewed"
     },
     "pricePer": "{{price}} incl. VAT {{per}}",

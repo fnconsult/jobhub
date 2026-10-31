@@ -66,6 +66,9 @@ export type PlaceOrderResult = { ok: true; url: string } | { ok: false; error: "
 /** The value of the Immediate Performance Request box, ticked. */
 export const IMMEDIATE_EXECUTION_REQUESTED = "yes";
 
+/** The Order page's boxes, by the names its form posts them under (`OrderAnswers`). */
+export const ORDER_FIELDS = { cgv: "cgv", immediateExecution: "immediateExecution" } as const;
+
 export interface OrdersDeps {
   billing: Pick<Billing, "plans" | "planPrices" | "coachingSessionPrice" | "startCheckout" | "startCoachingSessionCheckout">;
   /** The Human Coaches a Coaching Session can be booked with. */

@@ -581,8 +581,9 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   overflow-y: auto;
 }
 
-/* The coach speaks in the page's voice, unframed; the Candidate's own words sit in bubbles. */
-:is(.coach-panel, .page-conversation) .chat-coach {
+/* The coach speaks in the page's voice, unframed; the Candidate's own words sit in bubbles. A menu's card (#604) is
+   framed by its own Card, the thread's full width. */
+:is(.coach-panel, .page-conversation) :is(.chat-coach, .chat-card) {
   max-width: 100%;
   padding: 0;
   background: transparent;

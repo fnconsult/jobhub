@@ -979,11 +979,17 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
             <span className="visually-hidden">{t(texts.author)}</span>
             <p>{t(opening)}</p>
             {page?.introduction}
-            {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} /> : null}
+            {showIntro && !page?.card ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} /> : null}
           </li>
         )}
-        {/* A menu's content (#604), a card after the Introduction: it stays whatever is sent. */}
+        {/* A menu's content (#604), a card after the Introduction: it stays whatever is sent; the help comes after it. */}
         {page?.card ? <li className="chat-message chat-card">{page.card}</li> : null}
+        {page?.card && showIntro ? (
+          <li className="chat-message chat-coach">
+            <span className="visually-hidden">{t(texts.author)}</span>
+            <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} />
+          </li>
+        ) : null}
         {messages.map((message, index) =>
           message.from === "help" ? (
             <li key={`help-${message.key}`} className="chat-message chat-help">

@@ -57,6 +57,39 @@ describe("legalImmutabilityViolations — a pull request never edits a Legal Tex
   });
 });
 
+describe("legalImmutabilityViolations — a substantial version is merged 30 days before it takes effect (#547)", () => {
+  it("refuses a substantial version of the CGU, CGV or privacy policy effective less than 30 days after today, with the first possible date", () => {
+    expect(
+      legalImmutabilityViolations(
+        [
+          { status: "A", path: file("2026-11-19.fr.md"), change: "substantielle" },
+          { status: "R", path: "packages/help/legal/confidentialite/2026-11-28.fr.md", from: "packages/help/legal/confidentialite/2027-01-01.fr.md", change: "substantielle" },
+          { status: "M", path: "packages/help/legal/cgv/2026-11-01.en.md", change: "substantielle" },
+        ],
+        today,
+      ),
+    ).toEqual([
+      "packages/help/legal/cgu/2026-11-19.fr.md is a substantial change effective on 2026-11-19: Candidates are emailed 30 days before, so it takes effect on 2026-11-29 at the earliest",
+      "packages/help/legal/confidentialite/2026-11-28.fr.md is a substantial change effective on 2026-11-28: Candidates are emailed 30 days before, so it takes effect on 2026-11-29 at the earliest",
+      "packages/help/legal/cgv/2026-11-01.en.md is a substantial change effective on 2026-11-01: Candidates are emailed 30 days before, so it takes effect on 2026-11-29 at the earliest",
+    ]);
+  });
+
+  it("lets a substantial version 30 days ahead or more, a minor one at once, and the legal notice through", () => {
+    expect(
+      legalImmutabilityViolations(
+        [
+          { status: "A", path: file("2026-11-29.fr.md"), change: "substantielle" },
+          { status: "A", path: file("2026-11-30.en.md"), change: "substantielle" },
+          { status: "A", path: file("2026-10-30.fr.md"), change: "mineure" },
+          { status: "A", path: "packages/help/legal/mentions-legales/2026-11-02.fr.md", change: "substantielle" },
+        ],
+        today,
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("legalChangesSince — what a pull request changes in packages/help/legal, read from git", () => {
   it("lists the added, changed, deleted and renamed files since the base", () => {
     const repo = mkdtempSync(path.join(tmpdir(), "legal-git-"));
@@ -78,7 +111,7 @@ describe("legalChangesSince — what a pull request changes in packages/help/leg
     write(file("2026-10-12.fr.md"), "Deuxième version, corrigée.\n");
     rmSync(path.join(repo, file("2026-10-12.en.md")));
     git("mv", file("2026-06-01.fr.md"), file("2026-12-01.fr.md"));
-    write(file("2027-01-01.fr.md"), "Troisième version.\n");
+    write(file("2027-01-01.fr.md"), "---\ntitle: CGU\nchange: substantielle\n---\n## Objet\nTroisième version.\n");
     write("README.md", "Jobbbox, changé\n");
     git("add", "-A");
     git("commit", "-q", "-m", "head");
@@ -87,7 +120,7 @@ describe("legalChangesSince — what a pull request changes in packages/help/leg
       { status: "D", path: file("2026-10-12.en.md") },
       { status: "M", path: file("2026-10-12.fr.md") },
       { status: "R", path: file("2026-12-01.fr.md"), from: file("2026-06-01.fr.md") },
-      { status: "A", path: file("2027-01-01.fr.md") },
+      { status: "A", path: file("2027-01-01.fr.md"), change: "substantielle" },
     ]);
   });
 });

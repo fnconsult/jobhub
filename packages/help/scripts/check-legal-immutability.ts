@@ -1,6 +1,7 @@
 /**
- * Fails when this pull request edits a Legal Text Version in effect (ADR-0062): CI runs it on each pull request,
- * with the base it is compared to.
+ * Fails when this pull request edits a Legal Text Version in effect (ADR-0062), or adds a substantial one effective
+ * less than 30 days from today, the day it would merge (#547): CI runs it on each pull request, with the base it is
+ * compared to.
  *
  *   npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
  */
@@ -14,7 +15,7 @@ if (!base) {
 }
 const violations = legalImmutabilityViolations(legalChangesSince(base), parisDay());
 if (violations.length > 0) {
-  console.error(["A Legal Text Version in effect is never edited:", ...violations.map((line) => `- ${line}`)].join("\n"));
+  console.error(["A Legal Text Version in effect is never edited, and a substantial one is merged 30 days before it takes effect:", ...violations.map((line) => `- ${line}`)].join("\n"));
   process.exit(1);
 }
-console.log("Legal Text Versions: none in effect is edited.");
+console.log("Legal Text Versions: none in effect is edited, every substantial one has its 30 days of notice.");

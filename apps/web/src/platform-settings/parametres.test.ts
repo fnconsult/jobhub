@@ -67,12 +67,12 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
   });
 
   it("puts Email intake's Tool, its key and its settings on its sheet, on the Sources tab (#448)", () => {
-    const sheet = "/admin/parametres?tab=sources&fournisseur=brevo-inbound";
-    expect(providerSheetHref(tool("brevo-inbound"))).toBe(sheet);
-    expect(keyHref("BREVO_INBOUND_SECRET")).toBe(sheet);
-    for (const name of ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_BREVO_IP_RANGES"]) {
+    const sheet = "/admin/parametres?tab=sources&fournisseur=email-intake";
+    expect(providerSheetHref(tool("email-intake"))).toBe(sheet);
+    expect(keyHref("EMAIL_INTAKE_INBOUND_SECRET")).toBe(sheet);
+    for (const name of ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_MTA_IP_RANGES"]) {
       expect(settingHref(name), name).toBe(`${sheet}#setting-${name}`);
-      expect(sheetSettingsOf(tool("brevo-inbound")), name).toContain(name);
+      expect(sheetSettingsOf(tool("email-intake")), name).toContain(name);
       // Shown on the sheet only: neither the E-mail tab nor the Sources tab lists them again.
       expect(PARAMETRES_TABS.some((each) => each.settings.includes(name)), name).toBe(false);
     }

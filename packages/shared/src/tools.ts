@@ -447,11 +447,12 @@ export const TOOLS = [
     residency: "unknown",
   },
   {
-    // Email intake (#442, ADR-0050): Brevo Inbound Parsing posts each email sent to a Candidate's Forwarding address to
-    // the webhook, with the shared secret; it calls Jobbbox, never the other way, so no call is recorded. The Tool of the
-    // Email intake Job discovery source: its sheet is on the Sources tab of Paramètres (#448).
-    id: "brevo-inbound",
-    name: "Brevo (Inbound Parsing)",
+    // Email intake (#442, #580): Jobbbox's own MTA (Haraka, apps/mta, on the VPS) receives each email sent to a
+    // Candidate's Forwarding address and posts it to the app's door with the shared secret; it calls Jobbbox, never the
+    // other way, so no call is recorded. The Tool of the Email intake Job discovery source: its sheet is on the Sources
+    // tab of Paramètres (#448).
+    id: "email-intake",
+    name: "MTA Jobbbox (Haraka)",
     purpose: {
       fr: "Réception par email : reçoit les mails d'offres que les candidats transfèrent à leur adresse de transfert ; seul leur texte est lu.",
       en: "Email intake: receives the offer emails Candidates forward to their Forwarding address; only their text is read.",
@@ -459,8 +460,8 @@ export const TOOLS = [
     category: "job_discovery",
     module: "apps/web/src/email-intake/inbound.ts",
     runsIn: "web",
-    keys: ["BREVO_INBOUND_SECRET"],
-    settings: [{ name: "EMAIL_INTAKE_DOMAIN" }, { name: "EMAIL_INTAKE_BREVO_IP_RANGES" }, { name: "EMAIL_INTAKE_DAILY_CAP" }, { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD" }],
+    keys: ["EMAIL_INTAKE_INBOUND_SECRET"],
+    settings: [{ name: "EMAIL_INTAKE_DOMAIN" }, { name: "EMAIL_INTAKE_MTA_IP_RANGES" }, { name: "EMAIL_INTAKE_DAILY_CAP" }, { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD" }],
     usage: null,
     residency: "eu",
   },

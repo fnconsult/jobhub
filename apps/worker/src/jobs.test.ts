@@ -22,7 +22,7 @@ import { migrateJobDigests, type DueJobDigest, type JobDigestResult } from "@job
 import { createSecretKey, randomBytes } from "node:crypto";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../web/src/email-intake";
 import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
-import { alertEmail, inboundPayload } from "../../web/src/email-intake/fixtures/brevo-inbound";
+import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
 import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
@@ -1123,10 +1123,10 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
         emailIntake,
         cipher: () => cipher,
         queue: { send: async () => {} },
-        settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 10 }),
+        settings: () => ({ secret: "inbound-secret", mtaIpRanges: [], dailyCap: 10 }),
         now: () => arrived,
       });
-      await inbound.handle(new Request("http://localhost/api/email-intake/inbound", { method: "POST", headers: { "x-inbound-secret": "inbound-secret" }, body: JSON.stringify(inboundPayload(alertEmail(address))) }));
+      await inbound.handle(new Request("http://localhost/api/email-intake/inbound", { method: "POST", ...inboundRequest(alertEmail(address), "inbound-secret") }));
       const [email] = (await emailIntakeOf(database, candidateId)).receivedOfferEmails;
       const logs: string[] = [];
       const jobAt = (hours: number) => createJobs({ ...otherDeps, database, now: () => new Date(arrived.getTime() + hours * 3_600_000), log: (line) => logs.push(line) })[EMAIL_INTAKE_PURGE]!;

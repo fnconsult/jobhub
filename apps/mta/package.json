@@ -1,0 +1,7 @@
+{
+  "name": "@jobhub/mta",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Email intake's receiving MTA (Haraka): accepts mail for the Email intake domains only and posts each email to the app.",
+  "type": "commonjs"
+}

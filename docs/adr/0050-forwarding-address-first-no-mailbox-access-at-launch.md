@@ -1,5 +1,7 @@
 # Email intake starts with the Forwarding address; Jobbbox holds no access to a mailbox at launch
 
+_Partly superseded by ADR-0069: the emails are now received by Jobbbox's own MTA, not Brevo Inbound Parsing or Mailgun. The Forwarding address stays the only way in._
+
 Email intake (#426) needs the Candidate's offer emails. Research compared reaching them by connecting the mailbox (Gmail API: `docs/research/issue-427.md`; Microsoft Graph: `issue-428.md`; IMAP with an app or account password for iCloud, Yahoo, Orange, Free, SFR, La Poste: `issue-429.md`, `issue-430.md`) with the Candidate forwarding them to a Forwarding address (`issue-431.md`).
 
 At launch the Forwarding address is the only way, for every provider and every Plan: emails arrive through Brevo Inbound Parsing on `alertes.jobbbox.ai` (Mailgun's EU region if Brevo does not fit). Step-by-step guides cover filtered automatic forwarding for Gmail, Outlook.com, iCloud and Orange; Free and SFR get theirs once tested on real accounts; every other mailbox, Yahoo and AOL without Mail Plus included, forwards by hand. Then come, in this order: connecting Outlook, Hotmail and Live through Microsoft Graph (publisher verification started now), IMAP as a beta for providers without automatic forwarding, and Gmail OAuth, re-assessed once the number of Gmail Candidates is known.

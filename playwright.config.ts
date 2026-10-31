@@ -69,6 +69,8 @@ export default defineConfig({
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
+    // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
+    { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
@@ -169,9 +171,9 @@ export default defineConfig({
       BRAVE_SEARCH_API_KEY: "",
       TAVILY_API_KEY: "",
       CONTACT_ENRICHMENT_DPA_SIGNED: "true",
-      // Email intake's inbound webhook (#442): Brevo's shared secret, and its IP ranges (TEST-NET-3: e2e/email-intake-inbound.spec.ts sends X-Forwarded-For).
-      BREVO_INBOUND_SECRET: "e2e-brevo-inbound-secret",
-      EMAIL_INTAKE_BREVO_IP_RANGES: "203.0.113.0/24",
+      // Email intake's inbound door (#442, #580): the secret its MTA sends, and the MTA's network (TEST-NET-3: the e2e specs send X-Forwarded-For).
+      EMAIL_INTAKE_INBOUND_SECRET: "e2e-email-intake-inbound-secret-0123456789",
+      EMAIL_INTAKE_MTA_IP_RANGES: "203.0.113.0/24",
     },
   },
 });

@@ -17,8 +17,8 @@ export interface EmailIntakeLimits {
   dailyCap: number;
   /** From how many emails a day the Candidate's filter counts as « filtre trop large » (EMAIL_INTAKE_BROAD_FILTER_THRESHOLD). */
   broadFilterThreshold: number;
-  /** The IP ranges Brevo's inbound webhook is taken from (EMAIL_INTAKE_BREVO_IP_RANGES): those that read. */
-  brevoIpRanges: string[];
+  /** The networks Email intake's MTA posts from (EMAIL_INTAKE_MTA_IP_RANGES): those that read. */
+  mtaIpRanges: string[];
 }
 
 /** The setting in use as its type reads it, else its default (which its type always reads: the catalog's tests hold it). */
@@ -39,10 +39,10 @@ const rangesOf = (value: string) =>
     .filter((range) => IP_RANGE.test(range));
 
 export function emailIntakeLimits(settings: PlatformSettingsSnapshot): EmailIntakeLimits {
-  const ranges = rangesOf(String(settingOf(settings, "EMAIL_INTAKE_BREVO_IP_RANGES")));
+  const ranges = rangesOf(String(settingOf(settings, "EMAIL_INTAKE_MTA_IP_RANGES")));
   return {
     dailyCap: Number(settingOf(settings, "EMAIL_INTAKE_DAILY_CAP")),
     broadFilterThreshold: Number(settingOf(settings, "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD")),
-    brevoIpRanges: ranges.length > 0 ? ranges : rangesOf(platformSetting("EMAIL_INTAKE_BREVO_IP_RANGES")!.default),
+    mtaIpRanges: ranges.length > 0 ? ranges : rangesOf(platformSetting("EMAIL_INTAKE_MTA_IP_RANGES")!.default),
   };
 }

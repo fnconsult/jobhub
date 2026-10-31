@@ -3,12 +3,12 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
-import { alertEmail, gmailForwardingConfirmation, inboundPayload, unknownSenderEmail, type BrevoInboundItem } from "./fixtures/brevo-inbound";
+import { alertEmail, gmailForwardingConfirmation, inboundRequest, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
 import { forwardingSetupOf } from "./forwarding-setup";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 import { createEmailIntake, migrateEmailIntake, type EmailIntake } from "./index";
 
-const SECRET = "brevo-inbound-test-secret-0123456789";
+const SECRET = "email-intake-test-secret-0123456789";
 
 describe.skipIf(!connectionString)("Email intake: how far the Candidate's forwarding setup got (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
@@ -19,17 +19,13 @@ describe.skipIf(!connectionString)("Email intake: how far the Candidate's forwar
   let cipher: SecretCipher;
   let inbound: EmailIntakeInbound;
 
-  /** Delivers emails as Brevo's inbound webhook does, at `at`. */
-  async function deliver(at: string, ...items: BrevoInboundItem[]): Promise<void> {
+  /** Delivers emails as the MTA does, one request each, at `at`. */
+  async function deliver(at: string, ...emails: InboundTestEmail[]): Promise<void> {
     now = new Date(at);
-    const response = await inbound.handle(
-      new Request("http://localhost:3000/api/email-intake/inbound", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-inbound-secret": SECRET },
-        body: JSON.stringify(inboundPayload(...items)),
-      }),
-    );
-    expect(response.status).toBe(200);
+    for (const email of emails) {
+      const response = await inbound.handle(new Request("http://localhost:3000/api/email-intake/inbound", { method: "POST", ...inboundRequest(email, SECRET) }));
+      expect(response.status).toBe(200);
+    }
   }
 
   beforeEach(async () => {
@@ -46,7 +42,7 @@ describe.skipIf(!connectionString)("Email intake: how far the Candidate's forwar
       switchedOn: async () => true,
       cipher: () => cipher,
       queue: { send: async () => {} },
-      settings: () => ({ secret: SECRET, brevoIpRanges: [], dailyCap: 30 }),
+      settings: () => ({ secret: SECRET, mtaIpRanges: [], dailyCap: 30 }),
       now: () => now,
     });
   });

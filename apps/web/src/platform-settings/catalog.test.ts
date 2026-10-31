@@ -46,7 +46,7 @@ const WEB_SEARCH = [
 const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "BRAVE_SEARCH_PRICE_USD", "TAVILY_CREDIT_PRICE_USD", "EUR_PER_USD"];
 
 /** Email intake's: the domain of the Candidates' Forwarding addresses (#441), its daily cap, « filtre trop large » threshold and Brevo's IP ranges (#442). */
-const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_BREVO_IP_RANGES"];
+const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_MTA_IP_RANGES"];
 
 /** Maintenance (#542): on or off, its message in each language and how long it should last. */
 const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_MESSAGE_EN", "MAINTENANCE_EXPECTED_MINUTES"];

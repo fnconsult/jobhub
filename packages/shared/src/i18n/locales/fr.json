@@ -2147,6 +2147,7 @@
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
+        "recipients_outside_eu": "Destinataires hors UE",
         "discovery_runs": "Activité › Recherches",
         "received_emails": "Activité › Emails reçus"
       },
@@ -2166,7 +2167,8 @@
         "restored_to_default": "Rétablissement au défaut",
         "reset": "Remise à zéro",
         "refused": "Tentative refusée",
-        "denied": "Accès refusé"
+        "denied": "Accès refusé",
+        "switched_on": "Activation"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -2919,6 +2921,21 @@
         "eu": "Dans l'UE",
         "outside_eu": "Hors UE",
         "unknown": "Non établi"
+      },
+      "uncoveredRecipient": {
+        "title": "{{name}} : destinataire hors UE non couvert",
+        "warning": "Ce destinataire est hors UE et la politique de confidentialité en vigueur ne le couvre pas. Publiez une nouvelle version substantielle de la politique, avec son préavis de 30 jours, avant de l'activer en production.",
+        "policyInEffect": "Politique de confidentialité en vigueur : version du {{version}}.",
+        "noPolicy": "Aucune version de la politique de confidentialité n'est encore en vigueur.",
+        "journalFields": {
+          "residency": "Résidence",
+          "privacyPolicy": "Politique de confidentialité en vigueur",
+          "coverage": "Couverture"
+        },
+        "noPolicyValue": "aucune version en vigueur",
+        "coverage": {
+          "uncovered": "non couvert"
+        }
       },
       "statuses": {
         "configured": "Configuré",

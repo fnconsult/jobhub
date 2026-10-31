@@ -414,6 +414,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   guardrails: "garde-fous",
   unanswered_questions: "questions sans réponse",
   signalements: "signalements",
+  recipients_outside_eu: "destinataires hors UE",
   eval_runs: "Eval Runs",
   coach_message_cost: "coût coach",
   ai_usage: "consommation IA",
@@ -439,6 +440,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   reset: "remise à zéro",
   refused: "tentative refusée",
   denied: "accès refusé",
+  switched_on: "activation",
 };
 
 /**

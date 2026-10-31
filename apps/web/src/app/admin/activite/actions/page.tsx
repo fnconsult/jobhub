@@ -3,6 +3,7 @@ import {
   JOB_DISCOVERY_SOURCES,
   PLAN_FEATURES,
   PLAN_STATUSES,
+  toolById,
   type JobDigestFrequency,
   type JobDiscoverySource,
   type PlanFeature,
@@ -122,6 +123,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       return t(`admin.searchSites.sources.names.${entry.target as JobDiscoverySource}`);
     }
     if (entry.section === "guardrails" && isGuardrailId(entry.target)) return t(`admin.guardrails.names.${entry.target}`);
+    if (entry.section === "recipients_outside_eu") return toolById(entry.target)?.name ?? entry.target;
     return entry.target;
   };
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
@@ -170,6 +172,11 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       if (field === "setting" && GUARDRAIL_SETTINGS.includes(value as GuardrailSetting)) return t(`admin.guardrails.settings.${value as GuardrailSetting}`);
       if (field === "language" && GUARDRAIL_LANGUAGES.includes(value as GuardrailLanguage)) return t(`admin.guardrails.languages.${value as GuardrailLanguage}`);
       if (field === "validatedAt" && typeof value === "string") return at.format(new Date(value));
+    }
+    if (entrySection === "recipients_outside_eu") {
+      if (field === "residency" && (value === "eu" || value === "outside_eu" || value === "unknown")) return t(`admin.tools.residencies.${value}`);
+      if (field === "privacyPolicy" && value === null) return t("admin.tools.uncoveredRecipient.noPolicyValue");
+      if (field === "coverage" && value === "uncovered") return t("admin.tools.uncoveredRecipient.coverage.uncovered");
     }
     if (entrySection === "platform_settings" && field === "source" && (value === "back_office" || value === "env" || value === "default")) return t(`admin.platformSettings.sources.${value}`);
     if (entrySection === "unanswered_questions" && field === "status" && UNANSWERED_QUESTION_STATUSES.includes(value as UnansweredQuestionStatus)) {

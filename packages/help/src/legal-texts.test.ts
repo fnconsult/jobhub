@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { legalText, legalTextHistory, legalTextVersionInEffect, legalTextVersionRecord, parisDay, type LegalTextVersion, type LegalTextVersionRecord } from "./index";
+import { legalText, legalTextHistory, privacyPolicyCoverage, legalTextVersionInEffect, legalTextVersionRecord, parisDay, type LegalTextVersion, type LegalTextVersionRecord } from "./index";
 
 const cgu = (effective: string, change: LegalTextVersion["change"], summary: string): LegalTextVersion => ({
   text: "cgu",
@@ -73,6 +73,26 @@ describe("the version registry (#510)", () => {
     expect(legalTextVersionInEffect("cgu", "2027-01-01", registry)?.version).toBe("2027-01-01");
     expect(legalTextVersionInEffect("cgu", "2026-01-01", registry)).toBeNull();
     expect(legalTextVersionInEffect("cgv", today, registry)).toBeNull();
+  });
+});
+
+describe("privacyPolicyCoverage — the recipients outside the EU the privacy policy in effect names (#548)", () => {
+  const policy = (effective: string, recipientsOutsideEu: string[]): LegalTextVersion => ({
+    ...cgu(effective, "substantielle", "Politique."),
+    text: "confidentialite",
+    title: "Politique de confidentialité",
+    recipientsOutsideEu,
+  });
+  const policies = [policy("2026-06-01", ["anthropic"]), policy("2026-10-12", ["anthropic", "stripe"]), policy("2027-01-01", ["anthropic", "stripe", "lusha"])];
+
+  it("is the version in effect that day and the Tools it names, never those of a version still to come", () => {
+    expect(privacyPolicyCoverage(today, [...written, ...policies])).toEqual({ version: "2026-10-12", recipientsOutsideEu: ["anthropic", "stripe"] });
+    expect(privacyPolicyCoverage("2026-07-01", policies)).toEqual({ version: "2026-06-01", recipientsOutsideEu: ["anthropic"] });
+  });
+
+  it("names no version and no Tool before the first privacy policy is in effect", () => {
+    expect(privacyPolicyCoverage("2026-05-31", policies)).toEqual({ version: null, recipientsOutsideEu: [] });
+    expect(privacyPolicyCoverage(today, written)).toEqual({ version: null, recipientsOutsideEu: [] });
   });
 });
 

@@ -2147,6 +2147,7 @@
         "journal": "Activity › Administrator actions",
         "unanswered_questions": "Unanswered questions",
         "signalements": "Feedback",
+        "recipients_outside_eu": "Recipients outside the EU",
         "discovery_runs": "Activity › Searches",
         "received_emails": "Activity › Received emails"
       },
@@ -2166,7 +2167,8 @@
         "restored_to_default": "Restored to default",
         "reset": "Reset",
         "refused": "Attempt refused",
-        "denied": "Access denied"
+        "denied": "Access denied",
+        "switched_on": "Switched on"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -2919,6 +2921,21 @@
         "eu": "In the EU",
         "outside_eu": "Outside the EU",
         "unknown": "Not established"
+      },
+      "uncoveredRecipient": {
+        "title": "{{name}}: recipient outside the EU not covered",
+        "warning": "This recipient is outside the EU and the privacy policy in effect does not cover it. Publish a new substantial version of the policy, with its 30-day notice, before switching it on in production.",
+        "policyInEffect": "Privacy policy in effect: version of {{version}}.",
+        "noPolicy": "No version of the privacy policy is in effect yet.",
+        "journalFields": {
+          "residency": "Residency",
+          "privacyPolicy": "Privacy policy in effect",
+          "coverage": "Coverage"
+        },
+        "noPolicyValue": "no version in effect",
+        "coverage": {
+          "uncovered": "not covered"
+        }
       },
       "statuses": {
         "configured": "Configured",

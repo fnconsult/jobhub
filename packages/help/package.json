@@ -9,5 +9,8 @@
   "scripts": {
     "build": "tsx scripts/build-articles.ts",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@jobhub/shared": "*"
   }
 }

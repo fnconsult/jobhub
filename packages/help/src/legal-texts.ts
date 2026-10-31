@@ -50,6 +50,11 @@ export interface LegalTextVersion {
   approvedBy: string;
   /** Its line in the version history. */
   summary: string;
+  /**
+   * The privacy policy's only: the Tools outside the EU (or where that was not established) it names, by catalog id
+   * (`recipients_outside_eu`, #548). Switching on any other such recipient is a warning in Paramètres (ADR-0064).
+   */
+  recipientsOutsideEu?: string[];
   /** « En bref »: the few lines that sum it up; none when the text has no such section. */
   inBrief: string[];
   /** Its numbered sections, in order: `id` is their anchor (« Sur cette page »), stable when the file names it. */

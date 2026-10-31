@@ -1133,13 +1133,12 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 .fiche .props dt {
   min-height: 0;
   margin-top: var(--space-2);
-  font-size: var(--font-size-meta);
 }
 
 .fiche-group-head {
   margin: var(--space-3) 0 0;
-  font-size: var(--font-size-meta);
-  font-weight: 500;
+  font-size: inherit;
+  font-weight: 600;
 }
 
 .fiche-group-head button {
@@ -1150,10 +1149,8 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   min-height: var(--control-height);
   padding: 0;
   font: inherit;
-  color: var(--color-text-meta);
+  color: var(--color-text-secondary);
   text-align: start;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   cursor: pointer;
   background: none;
   border: 0;
@@ -1218,6 +1215,22 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 
 .work-pane-addressed > section:first-child > .application-section-head {
   justify-content: flex-end;
+}
+
+/* A Result in the Work Pane: the document above what is said of it, the pane being too narrow for both side by side. */
+.work-pane-addressed .ds-document-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.work-pane-addressed .ds-document-layout__aside {
+  position: static;
+}
+
+/* In the Fiche's width, a long button's words wrap rather than overflow it. */
+.fiche-card .ds-button {
+  height: auto;
+  white-space: normal;
+  text-align: start;
 }
 
 /* « Fiche » and « Activité » in the Top Bar: pressed while their column (or group) is shown. */

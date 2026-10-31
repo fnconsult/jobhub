@@ -331,6 +331,34 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     expect(await pane.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
   });
 
+  test("« Proposer une idée » and « Poser la question à l'équipe » open their form in the Work Pane, no Drawer", async ({ browser }) => {
+    const page = await signedIn(browser, newAddress("work-pane-team"));
+    await page.goto("/");
+    await expect(conversation(page)).toBeVisible();
+    const pane = page.getByRole("complementary").filter({ has: page.locator(".work-pane-head") });
+
+    // « Proposer une idée », under the box.
+    const idea = conversation(page).getByRole("button", { name: fr.coachPanel.team.suggestIdea, exact: true });
+    await idea.click();
+    await expect(pane).toHaveCount(1);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(pane).toHaveCount(0);
+    await expect(idea).toBeFocused();
+
+    // « Non » under a coach reply offers « Poser la question à l'équipe »: its form opens in the Work Pane.
+    await send(page, "Comment changer l'adresse e-mail de mon compte ?");
+    await expect(messages(page).last().getByRole("group", { name: fr.coachPanel.team.answered })).toBeVisible({ timeout: 30_000 });
+    await messages(page).last().getByRole("button", { name: fr.coachPanel.team.no, exact: true }).click();
+    const ask = conversation(page).getByRole("button", { name: fr.coachPanel.team.ask, exact: true });
+    await ask.click();
+    await expect(pane.getByRole("heading", { level: 2, name: fr.signalement.question.title })).toBeFocused();
+    await expect(pane.getByRole("textbox", { name: fr.signalement.question.label })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await pane.getByRole("button", { name: texts.close }).click();
+    await expect(pane).toHaveCount(0);
+  });
+
   test("in the dark theme, the conversation and its box are drawn on the dark tokens, in the Confort Density", async ({ browser }) => {
     const page = await signedIn(browser, newAddress("conversation-dark"), "dark");
     await page.goto("/");

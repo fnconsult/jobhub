@@ -2,6 +2,7 @@ import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import type { BackOfficeAuditEntry } from "../admin/back-office";
 import { STARTING_PLAN_QUOTAS } from "../billing";
+import { STRIPE_WEBHOOK_EVENTS } from "../billing/webhook-events";
 import { beforeEach, describe, expect, it } from "vitest";
 import { backOfficeAccess, type BackOfficeRole } from "../admin/access";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
@@ -429,6 +430,14 @@ describe("Back Office Assistant", () => {
     expect(prompt()).toContain("## Fournisseurs de connexion (SSO) (page /admin/parametres?tab=connexion)");
     expect(prompt()).toContain("fiche du fournisseur Stripe, dans l'onglet Paiement de Paramètres (/admin/parametres?tab=paiement&fournisseur=stripe)");
     expect(prompt()).not.toMatch(/\/admin\/(cles|connexion|sites)\b/);
+  });
+
+  it("lists every Stripe event the webhook acts on in its setup guide, the refunds' failures included (#511)", async () => {
+    const { assistant, administrator } = assistantFor(["super-admin"]);
+    await assistant.reply(administrator, asked("Quels événements cocher pour le webhook Stripe ?"));
+    const guide = prompt().match(/Webhook Stripe :[^"]*?type « Endpoint webhook »/)?.[0] ?? "";
+    expect(STRIPE_WEBHOOK_EVENTS.filter((event) => !guide.includes(event))).toEqual([]);
+    expect(guide).toContain("refund.failed");
   });
 
   it("explains what the Provider Secrets and SSO settings are to the roles that read them, never a value", async () => {

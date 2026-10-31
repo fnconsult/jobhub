@@ -36,6 +36,15 @@ describe("the withdrawal period (C. conso. L221-18, L221-19)", () => {
     expect(withdrawalDeadline(paris("2026-04-24T10:00"))).toEqual(paris("2026-05-12T00:00"));
   });
 
+  it("is still open on the 15th day when the 14th was not a working day, and closed on the first day after the working day", () => {
+    // Concluded Sunday 18 October: its 14th day is Sunday 1 November (also All Saints' Day), so the 15th day, Monday
+    // 2 November, is still in the period; #511's « au 15e jour, il ne le voit plus » holds only when the 14th day is a working day.
+    const concluded = paris("2026-10-18T10:00");
+
+    expect(withdrawalOpen(concluded, parisWinter("2026-11-02T10:00"))).toBe(true);
+    expect(withdrawalOpen(concluded, parisWinter("2026-11-03T00:00"))).toBe(false);
+  });
+
   it("counts the holidays that move with Easter", () => {
     // Easter 2027 is 28 March: Easter Monday is 29 March. Concluded Monday 15 March 2027, its 14th day is Monday 29 March.
     expect(withdrawalDeadline(parisWinter("2027-03-15T10:00"))).toEqual(paris("2027-03-31T00:00"));

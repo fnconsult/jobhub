@@ -54,6 +54,7 @@ import {
   type PlanName,
 } from "./plans";
 import { createCodeLookups } from "./code-lookups";
+import { type StripeWebhookEvent } from "./webhook-events";
 import { couponOf, couponParams, COUPON_CURRENCY, listedCouponOf, termsOf, type ActiveDiscount, type Coupon, type CouponResult, type ListedCoupon } from "./coupons";
 
 export type { PlanDefinition, PlanName } from "./plans";
@@ -850,6 +851,24 @@ export function createBilling(config: BillingConfig) {
     );
   }
 
+  /**
+   * What the signed webhook does with each event it acts on: one handler for each of STRIPE_WEBHOOK_EVENTS, the list
+   * the setup instructions give the operator, so no handler waits for an event the destination was never subscribed to.
+   */
+  const webhookHandlers: { [Type in StripeWebhookEvent]: (event: Extract<Stripe.Event, { type: Type }>) => Promise<void> } = {
+    "customer.subscription.created": (event) => applySubscription(event, event.data.object),
+    "customer.subscription.updated": (event) => applySubscription(event, event.data.object),
+    "customer.subscription.deleted": (event) => applySubscription(event, event.data.object),
+    "checkout.session.completed": (event) => applyCheckout(event.data.object),
+    "checkout.session.async_payment_succeeded": (event) => applyCheckout(event.data.object),
+    "refund.updated": (event) => applyRefund(event.data.object),
+    "refund.failed": (event) => applyRefund(event.data.object),
+  };
+
+  async function applyRefund(refund: Stripe.Refund) {
+    await config.onRefundChanged?.({ id: refund.id, status: refund.status as RefundStatus, failureReason: refund.failure_reason ?? null });
+  }
+
   /** Each payment taken on a subscription's paid invoices; an invoice a 100 % code left at 0 took none. */
   async function paymentsOn(subscriptionId: string, options: Stripe.RequestOptions = STRIPE_WRITE): Promise<Payment[]> {
     const invoices = await stripe()
@@ -1156,20 +1175,8 @@ export function createBilling(config: BillingConfig) {
       } catch (error) {
         throw new BillingError("invalid_webhook_signature", error instanceof Error ? error.message : undefined);
       }
-      if (
-        event.type === "customer.subscription.created" ||
-        event.type === "customer.subscription.updated" ||
-        event.type === "customer.subscription.deleted"
-      ) {
-        await applySubscription(event, event.data.object);
-      }
-      if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-        await applyCheckout(event.data.object);
-      }
-      if (event.type === "refund.updated" || event.type === "refund.failed") {
-        const refund = event.data.object;
-        await config.onRefundChanged?.({ id: refund.id, status: refund.status as RefundStatus, failureReason: refund.failure_reason ?? null });
-      }
+      if (!Object.hasOwn(webhookHandlers, event.type)) return;
+      await (webhookHandlers[event.type as StripeWebhookEvent] as (event: Stripe.Event) => Promise<void>)(event);
     },
 
     /**

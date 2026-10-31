@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
+import { withdrawalOpen } from "../apps/web/src/withdrawals/deadline";
 import { signInWithMagicLink } from "./support/candidate";
 import { emailsTo, newAddress, waitForEmail } from "./support/mailbox";
 
@@ -10,6 +11,18 @@ import { emailsTo, newAddress, waitForEmail } from "./support/mailbox";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const stripeUrl = process.env.E2E_STRIPE_URL!;
 const DAY_MS = 24 * 3600_000;
+
+/**
+ * How many days ago a subscription started on the 15th day of its Withdrawal period, or later: 15 when the period's
+ * 14th day was a working day, more when it was a Saturday, a Sunday or a public holiday and the period ran on to the
+ * next working day (L221-19). Run on a Monday, 15 days ago was a Sunday: its 14th day was yesterday, a Sunday, so its
+ * period runs to the end of today. Chosen from the clock, so the test holds whatever day it runs.
+ */
+function daysAgoPastTheWithdrawalPeriod(now = new Date()): number {
+  let daysAgo = 15;
+  while (withdrawalOpen(new Date(now.getTime() - daysAgo * DAY_MS), now)) daysAgo += 1;
+  return daysAgo;
+}
 
 /**
  * Puts the Candidate signed in on `page` on Standard, started `daysAgo` days ago, the way it happens for real: a Stripe
@@ -73,10 +86,10 @@ test.describe("Withdrawal from a Plan (#511)", () => {
     await expect(page.getByRole("link", { name: fr.withdrawals.page.title })).toHaveCount(0);
   });
 
-  test("a Candidate subscribed 15 days ago no longer sees « Renoncer au contrat ici »", async ({ page }) => {
+  test("a Candidate whose Withdrawal period is over (15 days ago, or more past a weekend or a holiday) no longer sees « Renoncer au contrat ici »", async ({ page }) => {
     const email = newAddress("retractation-tard");
     await signInWithMagicLink(page, email);
-    await subscribedDaysAgo(page, email, 15);
+    await subscribedDaysAgo(page, email, daysAgoPastTheWithdrawalPeriod());
 
     await page.goto("/abonnement");
     await expect(page.getByText("Votre offre actuelle : Standard")).toBeVisible();

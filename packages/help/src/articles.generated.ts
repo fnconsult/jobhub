@@ -13,10 +13,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "démarrer",
         "commencer",
         "début",
-        "par où commencer"
+        "par où commencer",
+        "nouvelle conversation"
       ],
       "route": "/",
-      "body": "L'accueil est votre point de départ dans Jobbbox. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\nUne question ? Ouvrez « Aide et coach » en haut de la page."
+      "body": "L'accueil est votre point de départ dans Jobbbox. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\nUne question ? Ouvrez « Aide et coach » en haut de la page.\n\nAvec la nouvelle présentation, l'accueil est une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages."
+    },
+    {
+      "id": "page-conversation",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Conversation avec le coach",
+      "synonyms": [
+        "conversation",
+        "discussion",
+        "coach",
+        "coach IA",
+        "renommer une conversation",
+        "supprimer une conversation"
+      ],
+      "route": "/conversations/[id]",
+      "body": "Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.\n\nÉcrivez dans la zone de message, en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse.\n\nPour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste."
     },
     {
       "id": "page-new-profile",
@@ -270,6 +287,20 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Votre CV complet pour un profil : celui d'où partent tous vos CV adaptés. Jobbbox n'y ajoute jamais rien que vous n'ayez dit.\n\nChaque enregistrement crée une nouvelle version ; vous pouvez revoir les versions précédentes et revenir à l'une d'elles."
+    },
+    {
+      "id": "glossary-clear-conversation",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Effacer la conversation",
+      "synonyms": [
+        "effacer",
+        "vider la conversation",
+        "supprimer les messages",
+        "recommencer la conversation"
+      ],
+      "route": null,
+      "body": "« Effacer », en haut d'une page qui est une conversation avec votre coach IA, supprime tous les messages de cette conversation. Jobbbox vous demande d'abord de confirmer ; « Annuler » ne supprime rien.\n\nLa mémoire du coach reste : ce que vous lui avez demandé de retenir n'est pas effacé. La page redevient une nouvelle conversation."
     },
     {
       "id": "glossary-job-digest",
@@ -585,6 +616,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "It gathers everything about a job offer you follow, in sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving.\n\nUpdate the status as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up."
     },
     {
+      "id": "page-conversation",
+      "locale": "en",
+      "kind": "page",
+      "title": "Conversation with the coach",
+      "synonyms": [
+        "conversation",
+        "chat",
+        "coach",
+        "AI coach",
+        "rename a conversation",
+        "delete a conversation"
+      ],
+      "route": "/conversations/[id]",
+      "body": "This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Did this answer your question? » lets you say so.\n\nWrite in the message box at the foot of the page. While the coach is replying, « Stop » interrupts its reply.\n\nTo rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays."
+    },
+    {
       "id": "page-new-profile",
       "locale": "en",
       "kind": "page",
@@ -609,10 +656,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "start",
         "get started",
         "beginning",
-        "where to start"
+        "where to start",
+        "new conversation"
       ],
       "route": "/",
-      "body": "The home page is where you start in Jobbbox. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications.\n\nA question? Open « Help and coach » at the top of the page."
+      "body": "The home page is where you start in Jobbbox. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications.\n\nA question? Open « Help and coach » at the top of the page.\n\nWith the new layout, the home page is a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages."
     },
     {
       "id": "page-agenda",
@@ -747,6 +795,20 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Recruiters use applicant tracking systems (ATS) that read your CV before a person does. The ATS Score, out of 100, says whether this software will read your Master CV well for the role you are aiming for.\n\nIt combines readability (contact details, headline, dated jobs…) and the role's keywords. It is worked out without AI, by fixed rules, and does not depend on any job offer.\n\nThe fixes to improve it come from your coach: you find them in the profile's Suggestions."
+    },
+    {
+      "id": "glossary-clear-conversation",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Clear the conversation",
+      "synonyms": [
+        "clear",
+        "empty the conversation",
+        "delete the messages",
+        "start the conversation over"
+      ],
+      "route": null,
+      "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation. Jobbbox asks you to confirm first; « Cancel » deletes nothing.\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
     },
     {
       "id": "glossary-follow-up",

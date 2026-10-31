@@ -2112,6 +2112,25 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   margin: 0 0 var(--space-6);
 }
 
+/* The privacy policy's change (#547), shown once atop the workspace's pages, like the Payment Failed Notice. */
+.privacy-change-notice {
+  margin: 0 0 var(--space-6);
+}
+
+.privacy-change-notice .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* Its buttons reach the 44px floor (ADR-0009), the link as well as the button. */
+.privacy-change-notice .button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+
 .sidebar-drawer {
   position: fixed;
   top: 0;

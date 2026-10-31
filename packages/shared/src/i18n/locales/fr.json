@@ -4625,8 +4625,10 @@
       "mentions-legales": "Mentions légales"
     },
     "effective": "En vigueur depuis le {{date}}",
+    "effectiveFrom": "En vigueur à partir du {{date}}",
     "earlierVersions": "Versions précédentes",
     "archived": "Version archivée :",
+    "upcoming": "Version à venir : elle entre en vigueur le {{date}}.",
     "seeCurrent": "voir la version en vigueur",
     "translation": "Traduction : le texte français fait foi.",
     "readFrench": "Lire le texte français",
@@ -4643,6 +4645,29 @@
     "pdf": "Télécharger en PDF",
     "notPublishedTitle": "Ce texte n'est pas encore publié",
     "notPublished": "L'équipe Jobbbox le rédige. Il paraîtra ici dès qu'il sera publié."
+  },
+  "legalTextNotice": {
+    "email": {
+      "subject": "{{text}} : nouvelle version le {{date}}",
+      "title": "Nouvelle version : {{text}}",
+      "intro": "Nous publions une nouvelle version d'un texte qui s'applique à votre compte Jobbbox : {{text}}. Elle entre en vigueur le {{date}}.",
+      "effective": "En vigueur à partir du {{date}}",
+      "summary": "Ce qui change : {{summary}}",
+      "then": {
+        "cgu": "À votre première connexion à partir du {{date}}, Jobbbox vous demandera d'accepter cette nouvelle version. D'ici là, rien ne change pour vous.",
+        "cgv": "Elle s'appliquera à vos achats à partir du {{date}}. Un achat déjà fait garde les conditions acceptées alors.",
+        "confidentialite": "Vous n'avez rien à accepter : elle s'applique à partir du {{date}}."
+      },
+      "read": "Lire la nouvelle version",
+      "history": "Historique des versions",
+      "reason": "Un e-mail de service : il vous prévient d'un changement des textes qui s'appliquent à votre compte Jobbbox, même si vous ne recevez pas nos actualités."
+    }
+  },
+  "privacyChange": {
+    "label": "Changement de la politique de confidentialité",
+    "message": "Notre politique de confidentialité a changé le {{date}}.",
+    "read": "Lire la politique de confidentialité",
+    "dismiss": "J'ai compris"
   },
   "nouveautes": {
     "eyebrow": "Nouveautés",

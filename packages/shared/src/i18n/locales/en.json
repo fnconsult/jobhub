@@ -4625,8 +4625,10 @@
       "mentions-legales": "Legal notice"
     },
     "effective": "In effect since {{date}}",
+    "effectiveFrom": "In effect from {{date}}",
     "earlierVersions": "Previous versions",
     "archived": "Archived version:",
+    "upcoming": "Upcoming version: it takes effect on {{date}}.",
     "seeCurrent": "see the version in effect",
     "translation": "Translation: the French text prevails.",
     "readFrench": "Read the French text",
@@ -4643,6 +4645,29 @@
     "pdf": "Download as PDF",
     "notPublishedTitle": "This text is not published yet",
     "notPublished": "The Jobbbox team is writing it. It will appear here once it is published."
+  },
+  "legalTextNotice": {
+    "email": {
+      "subject": "{{text}}: new version on {{date}}",
+      "title": "New version: {{text}}",
+      "intro": "We are publishing a new version of a text that applies to your Jobbbox account: {{text}}. It takes effect on {{date}}.",
+      "effective": "In effect from {{date}}",
+      "summary": "What changes: {{summary}}",
+      "then": {
+        "cgu": "The first time you sign in from {{date}}, Jobbbox will ask you to accept this new version. Until then, nothing changes for you.",
+        "cgv": "It will apply to your purchases from {{date}}. A purchase already made keeps the terms accepted then.",
+        "confidentialite": "You have nothing to accept: it applies from {{date}}."
+      },
+      "read": "Read the new version",
+      "history": "Version history",
+      "reason": "A service email: it tells you of a change to the texts that apply to your Jobbbox account, even if you do not receive our news."
+    }
+  },
+  "privacyChange": {
+    "label": "Change to the privacy policy",
+    "message": "Our privacy policy changed on {{date}}.",
+    "read": "Read the privacy policy",
+    "dismiss": "Got it"
   },
   "nouveautes": {
     "eyebrow": "What's new",

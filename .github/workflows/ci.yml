@@ -28,16 +28,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The pull request's merge commit and its base, for the Legal Text Versions' check.
+          # HEAD and its first parent, for the Legal Text Versions' check: on a pull request its merge commit and the
+          # base; on main the squashed merge and main before it.
           fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # A Legal Text Version in effect is never edited (ADR-0062): a correction is a new version.
-      - if: github.event_name == 'pull_request'
-        run: npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
+      # A Legal Text Version in effect is never edited (ADR-0062): a correction is a new version. A substantial one is
+      # merged 30 days before it takes effect (#547): run on the pull request, and again on main on the day of the merge,
+      # so one merged late, with no new push since its pull request was checked, turns main red and cannot be deployed.
+      - run: npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

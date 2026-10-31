@@ -13,6 +13,7 @@ import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
+import { createLegalTextNotices, sendsLegalTextNotices } from "@jobhub/web/legal-text-notices";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
@@ -29,7 +30,7 @@ import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
-import { createJobs, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
+import { createJobs, LEGAL_TEXT_NOTICES, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
 
 const connectionString = process.env.DATABASE_URL;
@@ -146,6 +147,8 @@ const jobs = createJobs({
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
+  // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
+  legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
   providerSecrets: providerSecrets.reader,
   referenceData,
   signInProviders: signInProvidersWorker(database, { cipher: secretCipher, env: process.env }),
@@ -187,6 +190,8 @@ started.runner = runner;
 await runner.enqueue("system.heartbeat");
 // A master key added to SECRETS_MASTER_KEYS is used for every row soon after the deployment that adds it.
 await runner.enqueue(PROVIDER_SECRETS_REENCRYPT);
+// The Production deployment carrying a substantial Legal Text Version starts the worker: its notices go out now (#547).
+await runner.enqueue(LEGAL_TEXT_NOTICES);
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

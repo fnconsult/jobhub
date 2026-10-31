@@ -850,7 +850,7 @@ The legal AI's evaluation of one Legal Text Version, recorded with it, before th
 _Avoid_: Counsel review, lawyer review, validation
 
 **Acceptance**:
-A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof. Only the CGU and the CGV are accepted: the privacy policy and the legal notice are information, never accepted. A Guest ticks the short CGU in the extension, held only in the Guest session.
+A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof. Only the CGU and the CGV are accepted: the privacy policy and the legal notice are information, never accepted. A Guest ticks the short CGU in the extension, held only in the Guest session. In the Data export while the account lives; after the Account deletion, kept under a pseudonym with no email and no name, 5 years (CGU) or 10 years (CGV) from the day of deletion (ADR-0073).
 _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
 
 ### Operations

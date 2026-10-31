@@ -9,3 +9,7 @@ Deletion takes effect at once, not within 30 days, so there is no scheduled purg
 ## Amendment: Jobbbox's own operations record
 
 Some tables are Jobbbox's own operations record, not Candidate data. They are kept when an account is deleted, with the Candidate's id set to null, and left out of the data export. `OPERATIONS_RECORD_TABLES` declares them, so the deletion-reach test treats them apart from Candidate data. The Back Office Audit is the first: an Administrator's changes must stay readable after they leave, and the entries describe Jobbbox's configuration, not the Administrator.
+
+## Amendment: an operations record can also be the Candidate's data
+
+The Acceptances of the CGU and CGV (#510) are Jobbbox's proof and the Candidate's data at once. Their table is in `OPERATIONS_RECORD_TABLES` and in `EXPORTED_TABLES`: exported while the account lives, kept after the deletion. An operations record table is left out of the export unless `EXPORTED_TABLES` also lists it. ADR-0073 sets how the Acceptances are kept after the deletion: a pseudonym instead of the email, and a retention counted from the day of deletion.

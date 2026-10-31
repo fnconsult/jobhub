@@ -513,6 +513,20 @@
     "withdraw": "Withdraw my consent",
     "error": "Something went wrong. Please try again."
   },
+  "acceptance": {
+    "title": "Our terms of use",
+    "intro": "Before you go on, read and accept Jobbbox's terms of use. You only do this once, then for each version that changes your rights.",
+    "read": "Read the Terms of use (version of {{date}})",
+    "box": "I accept the Terms of use (version of {{date}})",
+    "submit": "Accept and continue",
+    "sending": "Saving…",
+    "error": "Your acceptance could not be saved. Please try again.",
+    "meanwhile": "Without accepting, you can still download your data or delete your account in",
+    "data": "My data",
+    "meanwhileSubscription": ", and manage your subscription in",
+    "subscription": "Subscription",
+    "meanwhileEnd": "."
+  },
   "accountDeleted": {
     "title": "Your account is deleted",
     "body": "Your data has been erased. Thank you for using Jobbbox, and good luck with your job search.",

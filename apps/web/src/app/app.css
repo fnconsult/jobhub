@@ -962,6 +962,24 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   margin: 0;
 }
 
+/* On a phone the box stays where the thread ends (the screen is too short to hold it over the thread), and the
+   suggestions keep to one row that scrolls sideways. */
+@media (width < 40rem) {
+  .page-conversation-foot {
+    position: static;
+  }
+
+  .page-conversation-suggestions .quick-actions {
+    flex-wrap: nowrap;
+    padding-bottom: var(--space-1);
+    overflow-x: auto;
+  }
+
+  .page-conversation-suggestions .quick-actions > * {
+    flex: none;
+  }
+}
+
 /* « Coach » and its Free conversations in the Sidebar, under « Nouvelle conversation ». */
 .sidebar-conversations {
   display: flex;
@@ -988,7 +1006,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   transform: rotate(-90deg);
 }
 
-.sidebar-sublist {
+.sidebar-nav .sidebar-sublist {
   display: flex;
   flex-direction: column;
   gap: 2px;

@@ -728,6 +728,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       return;
     }
     // A page that is a conversation scrolls as a page: down to its latest message when the box at its foot hides it.
+    // Nothing sent yet, it stays at its top, on its Introduction.
+    if (messages.length === 0) return;
     const hidden = end.getBoundingClientRect().top - (foot.current?.getBoundingClientRect().top ?? window.innerHeight);
     if (hidden > 0) window.scrollBy(0, hidden);
   }, [messages, status, view, open, isPage]);

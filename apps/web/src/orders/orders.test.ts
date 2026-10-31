@@ -251,16 +251,13 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
   });
 
   describe("the Immediate Performance Request, for a Withdrawal", () => {
-    it("is found by the subscription a Plan's Order started, or the Checkout Session of a Coaching Session's", async () => {
+    it("is found by the subscription a Plan's Order started (a Coaching Session's: see the Withdrawals' tests)", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
       await orders.place(marie, { kind: "plan", plan: "standard" }, ticked, "fr");
       const plan = (await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order")).rows[0]!.checkout_session_id;
       await orders.paid({ checkoutSessionId: plan, candidateId: marie.id, mode: "subscription", subscriptionId: "sub_1", amount: 1900, currency: "eur" });
-      await orders.place(marie, { kind: "coachingSession", coachId: COACH.id }, { cgv: CGV.version }, "fr");
-      const session = (await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE kind = 'coaching_session'")).rows[0]!.checkout_session_id;
 
       expect(await orders.immediateExecutionRequested({ subscriptionId: "sub_1" })).toBe(true);
-      expect(await orders.immediateExecutionRequested({ checkoutSessionId: session })).toBe(false);
       // Bought before the page existed: nothing was asked, so nothing was requested.
       expect(await orders.immediateExecutionRequested({ subscriptionId: "sub_older" })).toBe(false);
     });

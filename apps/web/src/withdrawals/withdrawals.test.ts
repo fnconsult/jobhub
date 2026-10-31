@@ -6,6 +6,8 @@ import { connectionString, startTestBilling, type TestBilling } from "../billing
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles } from "../profiles";
+import { createAcceptances, migrateAcceptances } from "../acceptances";
+import { createOrders, migrateOrders, type Orders } from "../orders";
 import { createWithdrawals, migrateWithdrawals, withdrawalsOf, type Withdrawals } from "./index";
 
 /** An instant in French time, written without an offset: summer time until 25 October 2026, winter time after. */
@@ -20,6 +22,7 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
   let t: TestBilling;
   let coaches: HumanCoaches;
   let withdrawals: Withdrawals;
+  let orders: Orders;
   let sent: MailMessage[];
 
   beforeEach(async () => {
@@ -32,13 +35,26 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     await migrateApplications(t.database);
     await migrateHumanCoaches(t.database);
     await migrateWithdrawals(t.database);
+    await migrateAcceptances(t.database);
+    await migrateOrders(t.database);
     const profiles = createProfiles(t.database);
     const applications = createApplications(t.database, { jobOffers: createJobOffers(t.database), profiles });
     const now = () => t.clock.now;
     coaches = createHumanCoaches(t.database, { profiles, applications, tailoredDocuments: { get: async () => null }, tailoredCvs: { get: async () => null }, now });
+    // The page before Checkout (#512), with no CGV version in effect: only the Immediate Performance Request is asked.
+    orders = createOrders(t.database, {
+      billing: t.billing,
+      coaches,
+      acceptances: createAcceptances(t.database, { registry: () => [], secret: "test-secret-test-secret-test-secret-0123", now }),
+      mailer: { send: async () => {} },
+      baseURL: "https://app.jobbbox.fr",
+      registry: () => [],
+      now,
+    });
     withdrawals = createWithdrawals(t.database, {
       billing: t.billing,
       humanCoaches: coaches,
+      orders,
       mailer: { send: async (message) => void sent.push(message) },
       baseURL: "https://app.jobbbox.fr",
       now,
@@ -60,6 +76,25 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
     const customer = fakeCustomerId(marie.email);
     await deliver(subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.standard, status: "active", startDate: startedAt }, startedAt));
     const paymentIntent = t.stripe.payInvoice(`sub_fake_${customer}`, amount);
+    return { ...marie, customer, paymentIntent };
+  }
+
+  /**
+   * Marie, on Standard since `startedAt` through the Order page (#512), with the Immediate Performance Request or not,
+   * having paid 19 € for the month from `startedAt`.
+   */
+  async function orderedMarie(startedAt: Date, immediateExecution: boolean) {
+    const marie = await t.signUp("marie.dupont@example.fr");
+    const placed = await orders.place(marie, { kind: "plan", plan: "standard" }, immediateExecution ? { immediateExecution: "yes" } : {}, "fr");
+    if (!placed.ok) throw new Error("fixture refused");
+    const customer = fakeCustomerId(marie.email);
+    const subscriptionId = `sub_fake_${customer}`;
+    const { rows } = await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE candidate_id = $1", [marie.id]);
+    await deliver(subscriptionEvent("customer.subscription.created", { customer, price: FAKE_STRIPE_PRICES.standard, status: "active", startDate: startedAt }, startedAt));
+    await orders.paid({ checkoutSessionId: rows[0]!.checkout_session_id, candidateId: marie.id, mode: "subscription", subscriptionId, amount: 1900, currency: "eur" });
+    const end = new Date(startedAt);
+    end.setMonth(end.getMonth() + 1);
+    const paymentIntent = t.stripe.payInvoice(subscriptionId, 1900, { start: startedAt, end });
     return { ...marie, customer, paymentIntent };
   }
 
@@ -117,6 +152,27 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
       expect(sent[0]!.text).toMatch(/Montant remboursé : 19,00\s€/);
       expect(sent[0]!.html).toContain("15 octobre 2026 à 10:00");
       expect(await withdrawals.contracts(marie.id)).toEqual([]);
+    });
+
+    it("refunds a Plan ordered with the Immediate Performance Request the amount paid less the share of the days elapsed since the start of its period (#512)", async () => {
+      // 12 October to 12 November: 31 days, 3 of them elapsed on the 15th.
+      const marie = await orderedMarie(paris("2026-10-12T10:00"), true);
+
+      expect(await withdrawals.contract(marie.id, "plan")).toMatchObject({ paid: { amount: 1900 }, refund: { amount: 1716, currency: "eur" }, immediateExecutionRequested: true });
+      const result = await withdrawals.withdraw(marie, confirm, "fr");
+
+      expect(result).toMatchObject({ ok: true, withdrawal: { refunds: [{ amount: 1716, kept: 184, status: "succeeded" }] } });
+      expect(t.stripe.refunds()).toEqual([expect.objectContaining({ payment_intent: marie.paymentIntent, amount: 1716 })]);
+      expect(sent[0]!.text).toMatch(/Montant remboursé : 17,16\s€/);
+      expect(sent[0]!.text).toMatch(/service déjà fourni.*1,84\s€/);
+    });
+
+    it("refunds a Plan ordered without the Immediate Performance Request in full (#512)", async () => {
+      const marie = await orderedMarie(paris("2026-10-12T10:00"), false);
+
+      expect(await withdrawals.contract(marie.id, "plan")).toMatchObject({ refund: { amount: 1900 }, immediateExecutionRequested: false });
+      expect(await withdrawals.withdraw(marie, confirm, "fr")).toMatchObject({ ok: true, withdrawal: { refunds: [{ amount: 1900, kept: 0 }] } });
+      expect(t.stripe.callsTo("/v1/refunds")[0]!.params.has("amount")).toBe(false);
     });
 
     it("sends the acknowledgement to another address when the Candidate asks", async () => {
@@ -197,8 +253,61 @@ describe.skipIf(!connectionString)("Withdrawals (needs Postgres: DATABASE_URL)",
         },
       ]);
 
+      // Held, bought without the Immediate Performance Request: still withdrawable, refunded in full (#512).
       await coaches.scheduleSession(marie.id, sessionId, { scheduledAt: "2026-10-15T09:30" });
-      expect(await withdrawals.contracts(marie.id)).toEqual([]);
+      expect(await withdrawals.contracts(marie.id)).toMatchObject([{ ref: `coaching-session:${sessionId}` }]);
+    });
+
+    describe("bought on the Order page (#512)", () => {
+      /** Marie's Coaching Session with Sophie, ordered on the page (with the Immediate Performance Request or not) and paid 90 €. */
+      async function orderedSession(immediateExecution: boolean) {
+        const marie = await t.signUp("marie.dupont@example.fr");
+        const added = await coaches.add({ name: "Sophie Martin", email: "sophie.martin@rh-conseil.fr", bookingUrl: "https://cal.com/sophie-martin/seance" });
+        if (!added.ok) throw new Error("fixture refused");
+        await orders.place(marie, { kind: "coachingSession", coachId: added.coach.id }, immediateExecution ? { immediateExecution: "yes" } : {}, "fr");
+        const { rows } = await t.database.query<{ checkout_session_id: string }>("SELECT checkout_session_id FROM checkout_order WHERE candidate_id = $1", [marie.id]);
+        const checkoutSessionId = rows[0]!.checkout_session_id;
+        await coaches.recordPaidSession({ checkoutSessionId, candidateId: marie.id, coachId: added.coach.id, amount: 9000, currency: "eur" });
+        const paymentIntent = t.stripe.payCheckoutSession(checkoutSessionId, 9000);
+        const [session] = await coaches.sessions(marie.id);
+        await t.database.query("UPDATE coaching_session SET paid_at = $2 WHERE id = $1", [session!.id, paris("2026-10-13T09:00")]);
+        return { marie, sessionId: session!.id, paymentIntent };
+      }
+
+      it("is no longer withdrawable once held, with the Immediate Performance Request", async () => {
+        const { marie, sessionId } = await orderedSession(true);
+        expect(await orders.immediateExecutionRequested({ coachingSessionId: sessionId })).toBe(true);
+        expect(await withdrawals.contracts(marie.id)).toHaveLength(1);
+
+        await coaches.scheduleSession(marie.id, sessionId, { scheduledAt: "2026-10-15T09:30" });
+
+        expect(await withdrawals.contracts(marie.id)).toEqual([]);
+        expect(await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr")).toEqual({ ok: false, error: "not_withdrawable" });
+      });
+
+      it("is refunded in full once held, without the Immediate Performance Request, and keeps its date", async () => {
+        const { marie, sessionId, paymentIntent } = await orderedSession(false);
+        expect(await orders.immediateExecutionRequested({ coachingSessionId: sessionId })).toBe(false);
+        await coaches.scheduleSession(marie.id, sessionId, { scheduledAt: "2026-10-15T09:30" });
+
+        const result = await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr");
+
+        expect(result).toMatchObject({ ok: true, withdrawal: { refunds: [{ amount: 9000, kept: 0 }] } });
+        expect(t.stripe.refunds()).toEqual([expect.objectContaining({ payment_intent: paymentIntent, amount: 9000 })]);
+        const { rows } = await t.database.query("SELECT scheduled_at, withdrawn_at FROM coaching_session WHERE id = $1", [sessionId]);
+        expect(rows[0]).toEqual({ scheduled_at: paris("2026-10-15T09:30"), withdrawn_at: paris("2026-10-15T10:00") });
+        const toCoach = sent.find((message) => message.to === "sophie.martin@rh-conseil.fr")!;
+        expect(toCoach.text).toContain("a eu lieu le 15 octobre 2026 à 09:30");
+      });
+
+      it("is refunded in full before it is held, with the Immediate Performance Request", async () => {
+        const { marie, sessionId } = await orderedSession(true);
+
+        expect(await withdrawals.withdraw(marie, { contract: `coaching-session:${sessionId}`, name: "Marie Dupont", receipt: "account" }, "fr")).toMatchObject({
+          ok: true,
+          withdrawal: { refunds: [{ amount: 9000, kept: 0 }] },
+        });
+      });
     });
 
     it("refunds a paid session not held yet in full, cancels it from the Agenda and tells the Human Coach", async () => {

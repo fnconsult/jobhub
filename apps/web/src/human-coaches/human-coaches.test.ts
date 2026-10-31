@@ -406,6 +406,7 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
             currency: "eur",
             paidAt: session.paidAt,
             scheduledAt: new Date("2026-10-22T12:00:00.000Z"),
+            held: false,
             coach: { name: SOPHIE.name, email: SOPHIE.email },
             candidateName: "",
           });
@@ -431,6 +432,16 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
           later(3 * 24 * 60);
           expect(await clocked.withdrawSession(marie, session.id)).toBeNull();
           expect(await clocked.sessions(marie)).toHaveLength(1);
+        });
+
+        it("withdraws a session already held when asked to (bought without the Immediate Performance Request, #512), keeping its date", async () => {
+          const { marie, session } = await datedSession();
+          later(3 * 24 * 60);
+
+          expect(await clocked.withdrawSession(marie, session.id, { evenIfHeld: true })).toMatchObject({ held: true, scheduledAt: new Date("2026-10-22T12:00:00.000Z") });
+          expect(await clocked.sessions(marie)).toEqual([]);
+          const { rows } = await database.query("SELECT scheduled_at FROM coaching_session WHERE id = $1", [session.id]);
+          expect(rows).toEqual([{ scheduled_at: new Date("2026-10-22T12:00:00.000Z") }]);
         });
       });
 

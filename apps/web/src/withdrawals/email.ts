@@ -18,6 +18,8 @@ export interface WithdrawalReceipt {
   name: string;
   /** What is refunded, in all; null when nothing was paid. */
   refunded: { amount: number; currency: string } | null;
+  /** What is kept for the service already provided, at the Immediate Performance Request (#512); null when refunded in full. */
+  kept?: { amount: number; currency: string } | null;
 }
 
 /**
@@ -46,6 +48,7 @@ export function withdrawalReceiptEmail(receipt: WithdrawalReceipt, language: Loc
       receipt.refunded
         ? t("withdrawals.email.refunded", { amount: money(receipt.refunded.amount, receipt.refunded.currency, i18n.language) })
         : t("withdrawals.email.nothingToRefund"),
+      ...(receipt.kept ? [t("withdrawals.email.kept", { amount: money(receipt.kept.amount, receipt.kept.currency, i18n.language) })] : []),
       t("withdrawals.email.keep"),
     ],
     footer: { reason: t("withdrawals.email.reason") },
@@ -58,6 +61,8 @@ export interface WithdrawnSessionNotice {
   candidateName: string;
   paidAt: Date;
   scheduledAt: Date | null;
+  /** Whether it had already taken place (bought without the Immediate Performance Request, #512). */
+  held?: boolean;
 }
 
 /** Tells the Human Coach a Coaching Session is cancelled by a Withdrawal, in French (Human Coaches have no Interface Language yet). */
@@ -73,7 +78,9 @@ export function withdrawnSessionEmail(notice: WithdrawnSessionNotice, language: 
     title: t("withdrawals.coachEmail.title"),
     body: [
       t("withdrawals.coachEmail.intro", { candidate, paidAt: day.format(notice.paidAt) }),
-      notice.scheduledAt ? t("withdrawals.coachEmail.scheduled", { at: at.format(notice.scheduledAt) }) : t("withdrawals.coachEmail.unscheduled"),
+      notice.scheduledAt
+        ? t(notice.held ? "withdrawals.coachEmail.held" : "withdrawals.coachEmail.scheduled", { at: at.format(notice.scheduledAt) })
+        : t("withdrawals.coachEmail.unscheduled"),
       t("withdrawals.coachEmail.refunded"),
     ],
     footer: { reason: t("withdrawals.coachEmail.reason") },

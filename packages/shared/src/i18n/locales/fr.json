@@ -4941,6 +4941,7 @@
       "sessionCancelled": "La séance est annulée, et {{coach}} en est informé.",
       "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
       "nothingToRefund": "Rien à rembourser : aucun montant n'a été payé pour ce contrat.",
+      "kept": "Montant retenu pour le service déjà fourni, comme vous avez demandé qu'il commence immédiatement : {{amount}}.",
       "keep": "Conservez cet e-mail : il atteste de votre rétractation.",
       "reason": "Vous recevez cet e-mail parce que vous vous êtes rétracté d'un contrat conclu sur Jobbbox."
     },
@@ -4950,6 +4951,7 @@
       "intro": "{{candidate}} s'est rétracté de la séance de coaching payée le {{paidAt}}.",
       "scheduled": "Elle était prévue le {{at}} : ne la tenez pas, et libérez le créneau sur votre page Cal.com.",
       "unscheduled": "Elle n'était pas encore datée : si un créneau est réservé sur votre page Cal.com, libérez-le.",
+      "held": "Elle a eu lieu le {{at}} : le Candidat n'avait pas demandé qu'elle commence avant la fin de son délai de rétractation, elle lui est donc remboursée.",
       "refunded": "Jobbbox rembourse la séance au Candidat.",
       "someone": "Un Candidat",
       "reason": "Vous recevez cet e-mail parce que vous êtes Human Coach sur Jobbbox."
@@ -4957,12 +4959,14 @@
     "page": {
       "title": "Renoncer au contrat ici",
       "intro": "Vous pouvez vous rétracter de ce contrat sans donner de motif et sans frais, jusqu'au {{date}} inclus. Tout ce que vous avez payé pour lui vous est remboursé.",
+      "introProrata": "Vous pouvez vous rétracter de ce contrat sans donner de motif, jusqu'au {{date}} inclus. Comme vous avez demandé que le service commence immédiatement, vous payez le service déjà fourni : le reste vous est remboursé.",
       "contractTitle": "Le contrat",
       "contract": "Contrat",
       "subscribedOn": "Souscrit le",
       "paidOn": "Payé le",
       "amount": "Montant payé",
       "amountUnknown": "Indiqué sur votre facture",
+      "refundNow": "Remboursé si vous confirmez maintenant",
       "name": "Votre nom",
       "receipt": "Où envoyer l'accusé de réception ?",
       "receiptAccount": "À l'adresse de mon compte ({{email}})",
@@ -4970,6 +4974,7 @@
       "receiptEmail": "Autre adresse e-mail",
       "receiptEmailHint": "Seulement si vous avez choisi une autre adresse.",
       "whatHappensPlan": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé en entier.",
+      "whatHappensPlanProrata": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé, moins la part des jours écoulés depuis le début de la période.",
       "whatHappensSession": "La séance sera annulée et le coach prévenu ; le montant payé vous sera remboursé en entier.",
       "confirm": "Confirmer la rétractation",
       "cancel": "Retour",

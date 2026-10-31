@@ -15,7 +15,7 @@
  *  - what does Stripe's webhook do?   `paid`: the Order Confirmation is emailed (Brevo) once per Checkout Session, on a
  *    durable medium (L221-13): the summary, a permanent link to the CGV version accepted, the Immediate Performance
  *    Request, and where « Renoncer au contrat ici » is.
- *  - what does a Withdrawal refund?   `immediateExecutionRequested`, by the subscription or the Checkout Session.
+ *  - what does a Withdrawal refund?   `immediateExecutionRequested`, by the subscription or the Coaching Session.
  * and `ordersOf(database, candidateId)` for the Data export, `migrateOrders(database)` for its table.
  *
  * An Order is the Candidate's: deleted with their account (ON DELETE CASCADE, ADR-0010), in their Data export without
@@ -90,8 +90,11 @@ export interface Orders {
   place(candidate: { id: string; email: string }, item: OrderItem, answers: OrderAnswers, language: Locale): Promise<PlaceOrderResult>;
   /** A Checkout Stripe's signed webhook confirmed: emails its Order Confirmation once. Throws when the mailer fails, so Stripe delivers it again. */
   paid(checkout: PaidCheckout): Promise<void>;
-  /** Whether the Candidate made the Immediate Performance Request when ordering the contract; false for one not ordered on the page. */
-  immediateExecutionRequested(contract: { subscriptionId: string } | { checkoutSessionId: string }): Promise<boolean>;
+  /**
+   * Whether the Candidate made the Immediate Performance Request when ordering the contract (the subscription a Plan's
+   * Order started, or a Coaching Session, by its Checkout Session); false for one not ordered on the page.
+   */
+  immediateExecutionRequested(contract: { subscriptionId: string } | { coachingSessionId: string }): Promise<boolean>;
 }
 
 interface OrderRow {
@@ -219,8 +222,10 @@ export function createOrders(database: Pool, deps: OrdersDeps): Orders {
       const { rows } = await database.query<{ requested: boolean }>(
         "subscriptionId" in contract
           ? "SELECT immediate_execution_requested AS requested FROM checkout_order WHERE subscription_id = $1"
-          : "SELECT immediate_execution_requested AS requested FROM checkout_order WHERE checkout_session_id = $1",
-        ["subscriptionId" in contract ? contract.subscriptionId : contract.checkoutSessionId],
+          : `SELECT o.immediate_execution_requested AS requested
+               FROM checkout_order o JOIN coaching_session s ON s.stripe_checkout_session_id = o.checkout_session_id
+              WHERE s.id = $1::uuid`,
+        ["subscriptionId" in contract ? contract.subscriptionId : contract.coachingSessionId],
       );
       return rows.some((row) => row.requested);
     },

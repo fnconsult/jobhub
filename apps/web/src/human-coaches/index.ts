@@ -151,8 +151,10 @@ export interface WithdrawnCoachingSession {
   amount: number;
   currency: string;
   paidAt: Date;
-  /** Its date before it was cancelled; null when it was Unscheduled. */
+  /** Its date before it was cancelled (or when it took place, `held`); null when it was Unscheduled. */
   scheduledAt: Date | null;
+  /** Whether it had already taken place: withdrawn all the same, bought without the Immediate Performance Request (#512). */
+  held: boolean;
   coach: { name: string; email: string };
   /** "Marie D.": how the Candidate is named to the Human Coach; empty when they gave no name. */
   candidateName: string;
@@ -256,9 +258,10 @@ export interface HumanCoaches {
    * The Candidate withdraws from one of their own Coaching Sessions not held yet (Unscheduled, or dated later than now):
    * its date is cleared (the cancellation kept in its Reschedule history) and it leaves the Candidate's sessions, the
    * Agenda and the Coach space. Returns it as it was, to refund it and tell its Human Coach; null for a session held
-   * already, withdrawn already, or anyone else's. The refund is the caller's.
+   * already, withdrawn already, or anyone else's. The refund is the caller's. With `evenIfHeld` (one bought without the
+   * Immediate Performance Request, #512), a session held is withdrawn too, keeping its date.
    */
-  withdrawSession(candidateId: string, sessionId: string): Promise<WithdrawnCoachingSession | null>;
+  withdrawSession(candidateId: string, sessionId: string, options?: { evenIfHeld?: boolean }): Promise<WithdrawnCoachingSession | null>;
 }
 
 /** Cal.com's hosted sites (cal.com, its EU instance cal.eu, and their subdomains). */
@@ -676,7 +679,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
       return changed ? { ok: true } : { ok: false, error: "not_found" };
     },
 
-    async withdrawSession(candidateId, sessionId) {
+    async withdrawSession(candidateId, sessionId, options = {}) {
       if (!UUID.test(sessionId)) return null;
       return inTransaction(database, async (client) => {
         const { rows } = await client.query<{
@@ -691,13 +694,15 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
         }>(
           `SELECT s.stripe_checkout_session_id, s.amount, s.currency, s.paid_at, s.scheduled_at, h.name AS coach_name, h.email AS coach_email, c.name AS candidate_name
              FROM coaching_session s JOIN human_coach h ON h.id = s.coach_id JOIN candidate c ON c.id = s.candidate_id
-            WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND (s.scheduled_at IS NULL OR s.scheduled_at > $3)
+            WHERE s.id = $1 AND s.candidate_id = $2 AND s.withdrawn_at IS NULL AND ($4 OR s.scheduled_at IS NULL OR s.scheduled_at > $3)
             FOR UPDATE OF s`,
-          [sessionId, candidateId, now()],
+          [sessionId, candidateId, now(), options.evenIfHeld === true],
         );
         const session = rows[0];
         if (!session) return null;
-        await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: null, by: "candidate", now: now() });
+        const held = session.scheduled_at !== null && session.scheduled_at <= now();
+        // A session held keeps its date: it took place.
+        if (!held) await setAgendaItemDate(client, { table: "coaching_session", id: sessionId }, { to: null, by: "candidate", now: now() });
         await client.query("UPDATE coaching_session SET withdrawn_at = $2 WHERE id = $1", [sessionId, now()]);
         return {
           checkoutSessionId: session.stripe_checkout_session_id,
@@ -705,6 +710,7 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
           currency: session.currency,
           paidAt: session.paid_at,
           scheduledAt: session.scheduled_at,
+          held,
           coach: { name: session.coach_name, email: session.coach_email },
           candidateName: firstNameAndLastInitial(session.candidate_name ?? ""),
         };

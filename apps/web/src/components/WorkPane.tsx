@@ -7,6 +7,7 @@ import type { HelpArticle } from "@/coach-help";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
+import { SignalementPaneForm, signalementTitle } from "@/components/Signalement";
 import { WorkPaneContext, askCoachAddress, type WorkPaneItem } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 
@@ -15,14 +16,14 @@ const PANE_CLASS = "work-pane";
 
 /** What the pane shows, and how many times it was opened: each opening mounts its item afresh and takes the focus. */
 type Shown = { item: WorkPaneItem; opening: number };
-const ShownItem = createContext<Shown | null>(null);
+const ShownItem = createContext<{ shown: Shown | null; version: string }>({ shown: null, version: "" });
 
 /**
  * The Work Pane's state for the Candidate's pages under « Conversation au centre » (#602, ADR-0070): what is open, and
  * what had the focus before, which gets it back when the pane closes (or the page itself, when that is gone).
  * `version`: the Jobbbox version a Signalement's detail shows.
  */
-export function WorkPaneProvider({ children }: { version: string; children: ReactNode }) {
+export function WorkPaneProvider({ version, children }: { version: string; children: ReactNode }) {
   const [shown, setShown] = useState<Shown | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const open = useCallback((item: WorkPaneItem) => {
@@ -38,9 +39,10 @@ export function WorkPaneProvider({ children }: { version: string; children: Reac
     back?.focus();
   }, []);
   const control = useMemo(() => ({ item: shown?.item ?? null, open, close }), [shown, open, close]);
+  const showing = useMemo(() => ({ shown, version }), [shown, version]);
   return (
     <WorkPaneContext.Provider value={control}>
-      <ShownItem.Provider value={shown}>{children}</ShownItem.Provider>
+      <ShownItem.Provider value={showing}>{children}</ShownItem.Provider>
     </WorkPaneContext.Provider>
   );
 }
@@ -52,7 +54,7 @@ export function WorkPaneProvider({ children }: { version: string; children: Reac
  */
 export function WorkPane() {
   const { t } = useTranslation();
-  const shown = useContext(ShownItem);
+  const { shown, version } = useContext(ShownItem);
   const control = useContext(WorkPaneContext);
   const titleId = useId();
   const title = useRef<HTMLHeadingElement>(null);
@@ -64,7 +66,7 @@ export function WorkPane() {
 
   if (!shown || !control) return null;
   const { close } = control;
-  const view = itemView(shown.item);
+  const view = itemView(shown.item, { version, close });
 
   function onKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -95,10 +97,12 @@ type Translate = ReturnType<typeof useTranslation>["t"];
 type ItemView = { title: (t: Translate) => string; actions?: ReactNode; body: ReactNode };
 
 /** How each kind of item shows in the pane: its title, its header's actions and its body. */
-function itemView(item: WorkPaneItem): ItemView {
+function itemView(item: WorkPaneItem, { version, close }: { version: string; close: () => void }): ItemView {
   switch (item.kind) {
     case "help":
       return { title: () => item.article.title, actions: <AskCoach article={item.article} />, body: <HelpArticleBody article={item.article} /> };
+    case "signalement":
+      return { title: (t) => t(signalementTitle(item.start)), body: <SignalementPaneForm version={version} start={item.start} onClose={close} /> };
     default:
       throw new Error(`no view for ${item.kind}`);
   }

@@ -91,3 +91,53 @@ describe("the Work Pane (#602, ADR-0070)", () => {
     expect(within(pane()).queryByText(/Mon compte rassemble vos réglages/)).toBeNull();
   });
 });
+
+describe("a Signalement in the Work Pane (#602, ADR-0057 amended by ADR-0070)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function SignalementPage() {
+    return (
+      <WorkPaneProvider version="1.2.3">
+        <main>
+          <Opener item={{ kind: "signalement", start: { kind: "type", type: "idee" } }}>Proposer une idée</Opener>
+          <Opener item={{ kind: "signalement", start: { kind: "question", question: "Comment exporter ?", coachReply: "Je ne sais pas." } }}>
+            Poser la question à l'équipe
+          </Opener>
+        </main>
+        <WorkPane />
+      </WorkPaneProvider>
+    );
+  }
+
+  it("opens a Bug or an Idée's form there, not in a Drawer, and sends it", async () => {
+    const fetch = vi.fn(async () => Response.json({ signalement: { id: "s1" } }, { status: 201 }));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    renderInFrench(<SignalementPage />);
+
+    await user.click(screen.getByRole("button", { name: "Proposer une idée" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(within(pane()).getByRole("heading", { level: 2, name: "Envoyer un signalement" }));
+    expect(within(pane()).getByRole("radio", { name: "Idée" }).getAttribute("aria-checked")).toBe("true");
+    await user.type(within(pane()).getByRole("textbox"), "Un mode hors ligne serait utile.");
+    await user.click(within(pane()).getByRole("button", { name: "Envoyer" }));
+
+    expect(fetch).toHaveBeenCalledWith("/api/signalements", expect.objectContaining({ method: "POST" }));
+    expect(await within(pane()).findByText("Merci, c'est envoyé.")).toBeTruthy();
+  });
+
+  it("opens « Poser la question à l'équipe » there, titled so, the question prefilled", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<SignalementPage />);
+    const opener = screen.getByRole("button", { name: "Poser la question à l'équipe" });
+
+    await user.click(opener);
+
+    expect(within(pane()).getByRole("heading", { level: 2, name: "Poser la question à l'équipe" })).toBeTruthy();
+    expect((within(pane()).getByRole("textbox") as HTMLTextAreaElement).value).toBe("Comment exporter ?");
+    await user.click(within(pane()).getByRole("button", { name: "Annuler" }));
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+});

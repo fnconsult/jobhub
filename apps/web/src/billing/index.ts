@@ -1010,8 +1010,9 @@ export function createBilling(config: BillingConfig) {
      * « Confirmer la résiliation » (#513, C. conso. L215-1-1): schedules the cancellation of the Candidate's paid Plan
      * in Stripe at the end of the paid period (`cancel_at_period_end`), keeps its end date at once (Stripe's webhook
      * then reports the same), and emails the acknowledgement D215-2 asks for: when the request was received, when the
-     * contract ends. The Candidate's row is locked meanwhile, so a cancellation confirmed twice is scheduled and
-     * acknowledged once. Throws when Stripe could not schedule it; a failed email does not undo it.
+     * contract ends. The Candidate's row is locked meanwhile, each Stripe call bounded to a few seconds, so a cancellation
+     * confirmed twice is scheduled and acknowledged once; one already scheduled in the customer portal, its webhook not
+     * arrived yet, is left as Stripe has it. Throws when Stripe could not schedule it; a failed email does not undo it.
      */
     async scheduleCancellation(candidate: { id: string; email: string }, locale: Locale = "fr"): Promise<CancellationResult> {
       const requestedAt = now();
@@ -1026,7 +1027,15 @@ export function createBilling(config: BillingConfig) {
           await client.query("ROLLBACK");
           return { ok: false, error: "not_cancellable" };
         }
-        const subscription = await stripe().client.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+        // Scheduled already in the customer portal, its webhook not here yet: keep Stripe's date, change nothing there.
+        const current = await stripe().client.subscriptions.retrieve(subscriptionId, {}, STRIPE_WRITE);
+        const scheduledEnd = scheduledEndOf(current);
+        if (scheduledEnd !== null) {
+          await client.query("UPDATE candidate_plan SET ends_at = to_timestamp($2) WHERE candidate_id = $1", [candidate.id, scheduledEnd]);
+          await client.query("COMMIT");
+          return { ok: false, error: "not_cancellable" };
+        }
+        const subscription = await stripe().client.subscriptions.update(subscriptionId, { cancel_at_period_end: true }, STRIPE_WRITE);
         const end = scheduledEndOf(subscription);
         if (end === null) throw new Error(`Stripe gave no end date for the cancellation of ${subscriptionId}`);
         await client.query("UPDATE candidate_plan SET ends_at = to_timestamp($2) WHERE candidate_id = $1", [candidate.id, end]);

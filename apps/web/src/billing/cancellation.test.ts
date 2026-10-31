@@ -109,6 +109,17 @@ describe.skipIf(!connectionString)("Cancelling a paid Plan from Jobbbox (needs P
       expect(t.stripe.callsTo(`/v1/subscriptions/sub_fake_${marie.customer}`).filter((call) => call.method === "POST")).toHaveLength(1);
     });
 
+    it("changes nothing in Stripe, nor acknowledges, a cancellation already scheduled in the portal whose webhook has not arrived yet", async () => {
+      const marie = await premiumSubscriber();
+      // Scheduled in the customer portal: Stripe has it, Jobbbox does not know yet.
+      await fetch(`${t.stripe.url}/v1/subscriptions/sub_fake_${marie.customer}`, { method: "POST", body: new URLSearchParams({ cancel_at_period_end: "true" }) });
+
+      expect(await t.billing.scheduleCancellation(marie, "fr")).toEqual({ ok: false, error: "not_cancellable" });
+      expect(t.stripe.callsTo(`/v1/subscriptions/sub_fake_${marie.customer}`).filter((call) => call.method === "POST")).toHaveLength(1);
+      expect(mails).toEqual([]);
+      expect(await t.billing.entitlements(marie.id)).toMatchObject({ plan: "premium", endsAt: periodEnd });
+    });
+
     it("has nothing to cancel on Free", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
 

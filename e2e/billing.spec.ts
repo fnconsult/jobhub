@@ -5,7 +5,7 @@ import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
-import { submitToStripe } from "./support/stripe-checkout";
+import { orderToStripe, submitToStripe } from "./support/stripe-checkout";
 
 // Issue #22: Plans, Stripe billing (checkout, customer portal, webhooks) and
 // Plan Quotas edited in the back office. Stripe is the fake API on E2E_STRIPE_URL.
@@ -23,6 +23,13 @@ async function stripeCalls(path: string): Promise<{ params: Record<string, strin
 /** Submits a form by its button; returns where the server sends the browser (Stripe's pages are not loaded). */
 async function formRedirect(page: Page, path: string, button: string) {
   const response = await submitToStripe(page, path, button);
+  expect(response.status()).toBe(303);
+  return response.headers().location;
+}
+
+/** Chooses a Plan, then « Passer au paiement » on its Order page (#512): where the server sends the browser. */
+async function orderRedirect(page: Page, button: string) {
+  const response = await orderToStripe(page, "/api/billing/checkout", button);
   expect(response.status()).toBe(303);
   return response.headers().location;
 }
@@ -69,7 +76,7 @@ test.describe("Plans and Stripe billing", () => {
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
     expect((await planRow(page, "Match Scores"))[0]).toBe("1 par semaine");
 
-    expect(await formRedirect(page, "/api/billing/checkout", "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+    expect(await orderRedirect(page, "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = (await stripeCalls("/v1/checkout/sessions")).filter((call) => call.params.customer === fakeCustomerId(email));
     expect(checkout?.params).toMatchObject({ mode: "subscription", "line_items[0][price]": FAKE_STRIPE_PRICES.standard, locale: "fr" });
 
@@ -174,7 +181,7 @@ test.describe("Plans and Stripe billing", () => {
     const customer = fakeCustomerId(email);
     await signInWithMagicLink(page, email);
     await page.goto("/abonnement");
-    expect(await formRedirect(page, "/api/billing/checkout", "Choisir l'offre Premium")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+    expect(await orderRedirect(page, "Choisir l'offre Premium")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = (await stripeCalls("/v1/checkout/sessions")).filter((call) => call.params.customer === customer);
     expect(checkout?.params).toMatchObject({ mode: "subscription", "line_items[0][price]": FAKE_STRIPE_PRICES.premium });
 

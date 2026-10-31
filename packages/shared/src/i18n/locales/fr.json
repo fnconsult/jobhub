@@ -1188,6 +1188,7 @@
       "notImmediate": "Vous n'avez pas demandé que le service commence immédiatement : en cas de rétractation, le montant payé vous sera remboursé en entier.",
       "withdrawalPlan": "Vous pouvez vous rétracter sans motif jusqu'au {{date}} inclus, depuis « Renoncer au contrat ici » sur la page Mon abonnement : {{url}}",
       "withdrawalSession": "Vous pouvez vous rétracter sans motif jusqu'au {{date}} inclus, depuis « Renoncer au contrat ici » sur la séance, dans votre agenda : {{url}}",
+      "withdrawalForm": "Le formulaire type de rétractation figure dans nos CGV, à cette adresse : {{url}}",
       "keep": "Conservez cet e-mail : il confirme votre commande.",
       "reason": "Vous recevez cet e-mail parce que vous avez passé une commande sur Jobbbox."
     },

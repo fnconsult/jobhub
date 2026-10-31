@@ -101,9 +101,10 @@ export default defineConfig({
     // `next dev`, and Next.js refuses a second `next dev` in apps/web. legal-shell (#546) and acceptances (#510) write
     // fixture Legal Text Versions into packages/help/legal and rebuilds @jobhub/help, which
     // help-content-package also builds and tests (#347), hiding an article meanwhile; privacy-change
-    // (#547) writes a fixture version of the privacy policy, rebuilds it and serves it with `next dev`.
+    // (#547) writes a fixture version of the privacy policy, rebuilds it and serves it with `next dev`; order (#512) does
+    // the same with a CGV version, for the Order page's CGV box.
     // Projects run in parallel with each other, so they share this one.
-    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|acceptances|help-content-package|privacy-change)\.spec\.ts/, workers: 1 },
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|acceptances|order|help-content-package|privacy-change)\.spec\.ts/, workers: 1 },
   ],
   webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",

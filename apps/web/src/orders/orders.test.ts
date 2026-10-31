@@ -182,6 +182,9 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
       expect(text).toContain("reconduit");
       expect(text).toContain("CGV (version du 01/10/2026)");
       expect(text).toContain("https://app.jobbbox.fr/legal/cgv/2026-10-01");
+      // The model withdrawal form is the CGV's section « retractation » (#511).
+      expect(text).toContain("formulaire type de rétractation");
+      expect(text).toContain("https://app.jobbbox.fr/legal/cgv/2026-10-01#retractation");
       expect(text).toContain("Vous avez demandé que le service commence immédiatement");
       expect(text).toContain("Renoncer au contrat ici");
       expect(text).toContain("https://app.jobbbox.fr/abonnement/retractation?contrat=plan");
@@ -210,6 +213,7 @@ describe.skipIf(!connectionString)("Orders (needs Postgres: DATABASE_URL)", () =
       await orders.paid(await paidCheckout(marie.id));
 
       expect(sent[0]!.text).not.toContain("CGV");
+      expect(sent[0]!.text).not.toContain("formulaire type");
     });
 
     it("is sent again on Stripe's next delivery when the mailer failed, the webhook failing meanwhile", async () => {

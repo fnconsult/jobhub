@@ -1188,6 +1188,7 @@
       "notImmediate": "You did not ask for the service to start at once: if you withdraw, the amount paid will be refunded in full.",
       "withdrawalPlan": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the My subscription page: {{url}}",
       "withdrawalSession": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the session, in your agenda: {{url}}",
+      "withdrawalForm": "The model withdrawal form is in our terms of sale, at this address: {{url}}",
       "keep": "Keep this email: it confirms your order.",
       "reason": "You are receiving this email because you placed an order on Jobbbox."
     },

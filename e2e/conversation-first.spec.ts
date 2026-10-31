@@ -10,7 +10,8 @@ import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-ser
 // is a new Free conversation: the Introduction in its first message, the Quick actions as suggestions above the box at the
 // page's foot, replies in the thread. The Sidebar has « Nouvelle conversation » and « Coach » with the Free conversations;
 // the Top Bar « Effacer » (a confirming Dialog) in place of « Aide et coach ». The switch changes every Candidate's pages,
-// so this spec runs on a server of its own (own-server.ts). The AI Coach is faked inside it (fake-mistral.mjs).
+// so this spec runs on a server of its own (own-server.ts). The AI Coach is faked inside it (fake-mistral.mjs), and so are
+// the reference data's sources its context reads (fake-reference-data.mjs): nothing reaches the real ones.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const texts = fr.conversationFirst;
 const settings = fr.admin.platformSettings;
@@ -79,7 +80,9 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      NODE_OPTIONS: [`--import=${path.resolve("e2e/support/fake-google.mjs")}`, `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`].join(" "),
+      // The AI Coach's context reads the Sectors' and Domains' labels (#236): faked like the suite's server's, or a reply
+      // waits on INSEE and France Travail, which may take longer than a test does to answer.
+      NODE_OPTIONS: ["fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
     });
   });
 

@@ -100,7 +100,8 @@ test.describe("Withdrawal from a Coaching Session (#511)", () => {
     await signInWithMagicLink(page, email);
     const paymentIntent = await paidSession(page, coach.id);
 
-    await fetch(`${stripeUrl}/__refunds/refuse`, { method: "POST", body: new URLSearchParams({ code: "charge_disputed" }) });
+    // This PaymentIntent's refunds only: the fake Stripe is shared with the specs running beside this one (withdrawal.spec.ts).
+    await fetch(`${stripeUrl}/__refunds/refuse`, { method: "POST", body: new URLSearchParams({ payment_intent: paymentIntent, code: "charge_disputed" }) });
     try {
       await withdrawFromAgenda(page, coach.name);
       await expect(page.getByRole("status")).toContainText(`Séance de coaching avec ${coach.name}`);
@@ -117,7 +118,7 @@ test.describe("Withdrawal from a Coaching Session (#511)", () => {
       await expect(admin.getByText(fr.admin.withdrawals.retried.failed)).toBeVisible();
       await expect(admin.getByRole("row").filter({ hasText: email }).getByText(tr(fr.admin.withdrawals.attempts_other, { count: "2" }))).toBeVisible();
     } finally {
-      await fetch(`${stripeUrl}/__refunds/refuse`, { method: "POST", body: new URLSearchParams() });
+      await fetch(`${stripeUrl}/__refunds/refuse`, { method: "POST", body: new URLSearchParams({ payment_intent: paymentIntent }) });
     }
 
     // Stripe works again: the retry goes through.

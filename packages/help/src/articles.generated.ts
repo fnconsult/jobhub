@@ -218,6 +218,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte."
     },
     {
+      "id": "page-acceptance",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Nos conditions d'utilisation",
+      "synonyms": [
+        "CGU",
+        "conditions d'utilisation",
+        "accepter",
+        "acceptation",
+        "nouvelle version",
+        "case à cocher",
+        "accepter et continuer"
+      ],
+      "route": "/acceptation",
+      "body": "Cet écran s'affiche après la connexion quand les conditions générales d'utilisation (CGU) attendent votre accord : la première fois, puis à chaque nouvelle version qui change vos droits. Une version mineure ne vous est pas redemandée.\n\n« Lire les CGU » ouvre la version à accepter, avec sa date. Cochez « J'accepte les CGU (version du JJ/MM/AAAA) », puis « Accepter et continuer » : vous revenez à la page que vous vouliez ouvrir. La case n'est jamais cochée pour vous, et l'écran ne revient pas pour la même version.\n\nTant que vous n'avez pas accepté, vous pouvez toujours ouvrir Mes données, pour télécharger vos données ou supprimer votre compte, et Abonnement, pour vous rétracter ou résilier. Votre abonnement continue de courir.\n\nEn anglais, l'écran rappelle que le texte français fait foi."
+    },
+    {
       "id": "page-job-searches",
       "locale": "fr",
       "kind": "page",
@@ -494,7 +511,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "fermer mon compte"
       ],
       "route": null,
-      "body": "Dans Mon compte, rubrique Mes données : « Télécharger toutes mes données » vous donne un fichier avec tout ce que Jobbbox garde sur vous.\n\nAu même endroit, « Supprimer définitivement mon compte » le ferme tout de suite, après que vous avez saisi votre adresse e-mail pour confirmer. Vos profils, CV, candidatures et documents sont effacés, définitivement sous 30 jours au plus, et votre abonnement prend fin.\n\nTéléchargez vos données avant si vous souhaitez les garder."
+      "body": "Dans Mon compte, rubrique Mes données : « Télécharger toutes mes données » vous donne un fichier avec tout ce que Jobbbox garde sur vous, y compris les versions des CGU et CGV que vous avez acceptées.\n\nAu même endroit, « Supprimer définitivement mon compte » le ferme tout de suite, après que vous avez saisi votre adresse e-mail pour confirmer. Vos profils, CV, candidatures et documents sont effacés, définitivement sous 30 jours au plus, et votre abonnement prend fin. Seule la preuve des conditions que vous avez acceptées (CGU et CGV : quelle version, quand) est gardée, sans votre nom ni votre adresse e-mail : 5 ans pour les CGU, 10 ans pour les CGV.\n\nTéléchargez vos données avant si vous souhaitez les garder."
     },
     {
       "id": "faq-follow-up-recruiter",
@@ -903,6 +920,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason and at no cost: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it and as long as it has not taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirmer la rétractation » (confirm the withdrawal) ends the contract at once and refunds you in full, to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days.\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
     },
     {
+      "id": "page-acceptance",
+      "locale": "en",
+      "kind": "page",
+      "title": "Our terms of use",
+      "synonyms": [
+        "terms of use",
+        "accept",
+        "acceptance",
+        "new version",
+        "checkbox",
+        "accept and continue"
+      ],
+      "route": "/acceptation",
+      "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
+    },
+    {
       "id": "glossary-ats-score",
       "locale": "en",
       "kind": "glossary",
@@ -1113,7 +1146,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "close my account"
       ],
       "route": null,
-      "body": "In My account, under My data: « Download all my data » gives you one file with everything Jobbbox keeps about you.\n\nIn the same place, « Permanently delete my account » closes it at once, once you have typed your email address to confirm. Your profiles, CVs, applications and documents are erased, for good within 30 days at most, and your subscription ends.\n\nDownload your data first if you want to keep it."
+      "body": "In My account, under My data: « Download all my data » gives you one file with everything Jobbbox keeps about you, including the versions of the Terms of use and Terms of sale you accepted.\n\nIn the same place, « Permanently delete my account » closes it at once, once you have typed your email address to confirm. Your profiles, CVs, applications and documents are erased, for good within 30 days at most, and your subscription ends. Only the proof of the terms you accepted (Terms of use and Terms of sale: which version, when) is kept, without your name or email address: 5 years for the Terms of use, 10 years for the Terms of sale.\n\nDownload your data first if you want to keep it."
     },
     {
       "id": "faq-text-size",

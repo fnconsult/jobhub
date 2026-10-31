@@ -19,6 +19,21 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | Not part of a Candidate's account data export (it is Jobbbox's operations record, see `OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`). An Administrator or Human Coach who asks for access to, or erasure of, what it holds about them is answered by the Jobbbox team directly; a request to erase is weighed against the legitimate interest above (GDPR art. 17(1)(c) and 21) within the 3 years. |
 | Security | Back Office pages and writes check the Administrator on every request. Entries cannot be edited from the app; they are only added, read and purged. |
 
+## Acceptances of the CGU and CGV (#510)
+
+| | |
+| --- | --- |
+| Purpose | Keep proof that a Candidate accepted a given version of the CGU (on the Acceptance screen after sign-in, ADR-0062) or of the CGV (at a payment, #512): which version, its permanent URL and fingerprint, when, and how. It lets Jobbbox show which terms applied to a Candidate, including after their account is deleted. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)) for the CGV of a contract of 120 EUR or more (C. conso. L213-1, D213-1: kept 10 years); legitimate interest (GDPR art. 6(1)(f)) in the proof of the CGU accepted and of the CGV under that threshold. Durations assumed without a lawyer (#510); to confirm in the Legal Review. |
+| People concerned | Candidates. |
+| Data | Per Acceptance: the Candidate's id (while the account lives); a pseudonym (HMAC-SHA256 of their email address under the app's secret, AUTH_SECRET: not derivable from the email without that secret, never a plain hash); the text (CGU or CGV), the version id (its effective date), its permanent URL and the SHA-256 of its French text; the date and time; the channel (`premiere_connexion`, `nouvelle_acceptation`, `paiement_plan`, `paiement_coaching`); for a payment, the Stripe Checkout session id and whether the Candidate asked for immediate performance. After the Account deletion, the day of the deletion. No IP address, no user agent, no name, no email address. A pseudonymised record is still personal data (GDPR recital 26, art. 4(5)). |
+| Source | Written by the web app when the Candidate ticks the box and confirms (`POST /api/account/acceptances`), or at a payment. |
+| Who can read it | No page shows it; the Jobbbox team reads it in the database to answer a dispute, finding a former Candidate's rows from the email they give, with the secret. |
+| Storage | The `legal_acceptance` table in the app's Postgres database (EU). The key that links the pseudonym to an email (AUTH_SECRET) is kept apart, in the hosting's secret manager. Changing AUTH_SECRET leaves earlier rows unlinkable. |
+| Retention | While the account lives. At the Account deletion the Candidate's id is set to null and the day recorded; the worker's nightly job `acceptances.purge` deletes the CGU rows 5 years after the deletion and the CGV rows 10 years after (the deletion ends any paid Plan). |
+| Rights | In the Candidate's Data export (`acceptances`: version, URL, fingerprint, channel, date, immediate performance; never the pseudonym nor Stripe's id). It is Jobbbox's operations record (`OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`): an erasure request is weighed against the legal obligation and the proof (GDPR art. 17(3)(b) and (e)). |
+| Security | Rows are only added, read for the export and purged; the app never edits them. |
+
 ## Provider Secrets (#208)
 
 | | |

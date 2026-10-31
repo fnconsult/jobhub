@@ -5,6 +5,7 @@ import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
+import { createAcceptances, migrateAcceptances } from "@jobhub/web/acceptances";
 import { createBackOffice, migrateBackOfficeAudit } from "@jobhub/web/back-office";
 import { createAssistantConversations, migrateAssistantConversations } from "@jobhub/web/back-office-assistant";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "@jobhub/web/billing";
@@ -25,7 +26,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -1058,6 +1059,48 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await jobAt(3 * 365 + 5).handler({});
       expect(await backOffice.journal()).toEqual([]);
       expect(logs).toEqual(["[back-office-audit] 1 Back Office Audit entry(ies) purged, 3 years after they were made"]);
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
+  it("purges, every night, the Acceptances of deleted accounts: the CGU ones 5 years after the deletion, the CGV ones 10 years after (#510)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateAcceptances(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const registry = () => [
+        { text: "cgu" as const, version: "2026-01-01", url: "/legal/cgu/2026-01-01", sha256: "a".repeat(64), change: "substantielle" as const },
+        { text: "cgv" as const, version: "2026-01-01", url: "/legal/cgv/2026-01-01", sha256: "b".repeat(64), change: "substantielle" as const },
+      ];
+      const acceptances = createAcceptances(database, { registry, secret: "test-secret-test-secret-test-secret-0123" });
+      await acceptances.accept(candidateId, "2026-01-01");
+      await acceptances.acceptAtCheckout(candidateId, { channel: "paiement_plan", checkoutSessionId: "cs_test_1", immediateExecutionRequested: true });
+      await database.query(`DELETE FROM candidate WHERE id = $1`, [candidateId]);
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[ACCEPTANCES_PURGE]!;
+      const kept = async () => (await database.query<{ text: string }>(`SELECT text FROM legal_acceptance ORDER BY id`)).rows.map((row) => row.text);
+
+      expect(jobAt(0).cron).toBe("10 4 * * *");
+      await jobAt(5 * 365 - 5).handler({});
+      expect(await kept()).toEqual(["cgu", "cgv"]);
+      await jobAt(5 * 365 + 5).handler({});
+      expect(await kept()).toEqual(["cgv"]);
+      await jobAt(10 * 365 + 5).handler({});
+      expect(await kept()).toEqual([]);
+      expect(logs).toEqual([
+        "[acceptances] 1 Acceptance(s) of deleted accounts purged (CGU 5 years, CGV 10 years after the deletion)",
+        "[acceptances] 1 Acceptance(s) of deleted accounts purged (CGU 5 years, CGV 10 years after the deletion)",
+      ]);
+      const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+      try {
+        await expect(createJobs({ ...otherDeps, database: empty.pool })[ACCEPTANCES_PURGE]!.handler({})).resolves.toBeUndefined();
+      } finally {
+        await empty.drop();
+      }
     } finally {
       await testAuth.stop();
     }

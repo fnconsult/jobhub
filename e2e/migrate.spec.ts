@@ -128,6 +128,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "job_discovery_source", // issue #188: the Job discovery sources, each enabled or not
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
+        "legal_acceptance", // issue #510: the Acceptances of the CGU and CGV, kept by pseudonym after the Account deletion
         "legal_text_notice", // issue #547: the notice of a substantial Legal Text Version sent to each Candidate
         "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
         "master_cv_version",
@@ -262,6 +263,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
+        // Acceptances (issue #510) are Jobbbox's proof: the Account deletion sets the Candidate to null, the row stays.
+        { from_table: "legal_acceptance", from_column: "candidate_id", to_table: "candidate" },
         // The Legal Text notices (issue #547) follow their Candidate.
         { from_table: "legal_text_notice", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },

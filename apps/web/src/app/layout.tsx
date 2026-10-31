@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { pendingAcceptance } from "@/acceptances/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateCoachPanel } from "@/components/CoachPanel";
 import { ResponseWatcher } from "@/components/ResponseWatcher";
@@ -23,7 +24,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // The Coach Panel is on every page a signed-in Candidate sees but the Back
   // Office's, which has the Back Office Assistant. (Their own pages sit in the
   // sidebar layout, CandidateLayout, which also shows the Payment Failed Notice.)
+  // Not while a CGU version waits for their Acceptance (ADR-0062): the AI Coach waits too.
   const candidate = await getCurrentCandidate();
+  const coached = candidate !== null && !(await pendingAcceptance(candidate.id));
   return (
     <ThemedHtml lang={locale} suppressHydrationWarning>
       <head>
@@ -34,7 +37,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <I18nProvider locale={locale}>
           {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
           <ResponseWatcher signedIn={candidate !== null} />
-          {candidate ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
+          {coached ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
         </I18nProvider>
       </body>
     </ThemedHtml>

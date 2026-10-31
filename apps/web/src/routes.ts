@@ -101,6 +101,8 @@ export const routes = {
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
   coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
   accountDeleted: "/compte/supprime",
+  /** The Acceptance screen (ADR-0062, #510): the CGU version to accept after sign-in, before anything else. */
+  acceptance: "/acceptation",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */

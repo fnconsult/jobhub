@@ -240,7 +240,7 @@ export type EnvOnlyKind =
   | "secret"
   /** Set by the runtime or the deployment, not by an Administrator: never shown. */
   | "deployment"
-  /** Another API origin for the e2e suite's fakes: never shown. */
+  /** Another API origin for the e2e suite's fakes, or a switch only the e2e suite sets: never shown. */
   | "test";
 
 /** How Paramètres shows a variable only env holds: its value, a URL without its password, only whether it is set, or a keyring's versions. */
@@ -285,6 +285,8 @@ export const ENV_ONLY_SETTINGS = {
   STRIPE_API_URL: { kind: "test", shown: false },
   CONTACT_ENRICHMENT_API_URL: { kind: "test", shown: false },
   FANTASTIC_JOBS_API_URL: { kind: "test", shown: false },
+  // « ignore »: the e2e suite's server leaves the developer's root .env out (src/env/root-env.ts, #544).
+  JOBHUB_ROOT_ENV: { kind: "test", shown: false },
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
 
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;

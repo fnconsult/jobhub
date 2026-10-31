@@ -185,10 +185,15 @@ test.describe("AI consumption and AI message logs", () => {
       expect(failed).toBeTruthy();
     }).toPass();
     expect(failed).toMatchObject({ task: "guardrail", outcome: "failed", reason: { code: "provider_unavailable", wording: fr.failureReasons.provider_unavailable } });
-    const raw = JSON.stringify(failed);
+    // Its id (a random UUID) and its time (milliseconds) can hold "503" by chance: the rest is what the call said.
+    const { id, at, ...said } = failed!;
+    expect(id).toEqual(expect.any(String));
+    expect(at).toEqual(expect.any(String));
+    const raw = JSON.stringify(said);
     expect(raw).not.toContain("AiProviderError");
     expect(raw).not.toContain("technicalReason");
     expect(raw).not.toContain("503");
+    expect(raw).not.toContain("upstream unavailable");
   });
 
   test("Support sees the failures and warnings per Failure Reason on Consommation IA and on a Tool's page, never a technical reason (#262)", async ({ page, browser }) => {

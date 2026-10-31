@@ -339,7 +339,9 @@ test.describe("Job Digest", () => {
       const setting = office.locator(`tr[data-setting="${MAIL_FROM}"]`);
       const valueOf = () => setting.getByRole("cell").nth(0);
       // Env's sender, else the code's: what « Rétablir » goes back to.
-      const before = (await valueOf().innerText()).trim();
+      const shown = (await valueOf().innerText()).trim();
+      // The sender alone: an env sender other than the code's is shown flagged « Diffère du défaut » beside it.
+      const before = shown.replace(settingsTexts.differsFlag, "").trim();
       // MAIL_TRANSPORT stays env's: shown, never a field.
       await expect(office.locator('tr[data-setting="MAIL_TRANSPORT"]').getByRole("textbox")).toHaveCount(0);
 
@@ -362,7 +364,7 @@ test.describe("Job Digest", () => {
       // « Rétablir »: the next email goes out as before.
       await setting.getByRole("button", { name: settingsTexts.restore }).click();
       await expect(office.getByRole("status").filter({ hasText: MAIL_FROM })).toHaveText(settingsTexts.notices.restored.replace("{{name}}", MAIL_FROM));
-      await expect(valueOf()).toHaveText(before);
+      await expect(valueOf()).toHaveText(shown);
       await new Promise((resolve) => setTimeout(resolve, 3_000));
       expect((await newcomerSignIn("digest-sender-after")).from).toBe(before);
 

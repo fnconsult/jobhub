@@ -1276,6 +1276,23 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   }
 }
 
+/* Both columns beside the conversation need room: the Sidebar (16rem), the Fiche (20rem), the Work Pane (32vw, 20 to
+   32rem) and their gutters leave the conversation 0.68 × the screen − 40rem, or − 24rem with the Sidebar hidden. Under
+   28rem it no longer reads (its box and suggestions are cut, its words wrap letter by letter), so below 100rem (76.5rem
+   with the Sidebar hidden) the Work Pane takes the Fiche's place, still beside the conversation, never over it; the Fiche
+   comes back as it was when the pane closes. */
+@media (width >= 64rem) and (width < 100rem) {
+  html:not([data-sidebar="closed"]) .workspace:has(> .work-pane) > .fiche {
+    display: none;
+  }
+}
+
+@media (width >= 64rem) and (width < 76.5rem) {
+  .workspace:has(> .work-pane) > .fiche {
+    display: none;
+  }
+}
+
 /* On a phone the Fiche takes the whole screen, under the Work Pane (#608 finishes the phone's layout). */
 @media (width < 64rem) {
   .fiche {

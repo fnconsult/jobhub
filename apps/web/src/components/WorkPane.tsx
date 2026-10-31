@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { HelpArticle } from "@/coach-help";
@@ -32,18 +32,29 @@ export function WorkPaneProvider({ version, children }: { version: string; child
   const [shown, setShown] = useState<Shown | null>(null);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   const opener = useRef<HTMLElement | null>(null);
+  // Counts every opening, closings in between included: an item opened as another closes still takes the focus.
+  const openings = useRef(0);
   const open = useCallback((item: WorkPaneItem) => {
     const active = document.activeElement;
     // Another item opened from inside the pane: the focus still goes back to what opened the pane.
     if (active instanceof HTMLElement && !active.closest(`.${PANE_CLASS}`)) opener.current = active;
-    setShown((was) => ({ item, opening: (was?.opening ?? 0) + 1 }));
+    openings.current += 1;
+    setShown({ item, opening: openings.current });
   }, []);
+  // The focus goes back once the pane is gone: what opened it may only show again then (the Fiche, which gives the Work
+  // Pane its place on a narrower screen, app.css).
+  const focusBack = useRef(false);
   const close = useCallback(() => {
+    focusBack.current = true;
     setShown(null);
+  }, []);
+  useLayoutEffect(() => {
+    if (shown || !focusBack.current) return;
+    focusBack.current = false;
     const back = opener.current?.isConnected ? opener.current : document.getElementById(MAIN_ID);
     opener.current = null;
     back?.focus();
-  }, []);
+  }, [shown]);
   const control = useMemo(() => ({ item: shown?.item ?? null, open, close }), [shown, open, close]);
   const showing = useMemo(() => ({ shown, version, setSlot }), [shown, version]);
   return (
@@ -188,16 +199,25 @@ function AskCoach({ article }: { article: HelpArticle }) {
  * An object's Section or Result, at its own address (`href`), shown in the Work Pane under `title` rather than in the page
  * (#603, ADR-0070): the page renders it here, its actions working as they do on the page, and the pane draws it. Opening
  * it takes the focus to its title; closing it (✕, Escape) or opening another item in its place goes back to `back`, the
- * object's own address, so the address always says what is shown. Nothing outside a WorkPaneProvider.
+ * object's own address, so the address always says what is shown. Its address left otherwise (the browser's Back, a link
+ * elsewhere), the pane closes with it; at another address (a Result of the Section shown, say), it is another item.
+ * Nothing outside a WorkPaneProvider.
  */
-export function InWorkPane({ kind, title, href, back, children }: { kind: AddressedKind; title: string; href: string; back: string; children: ReactNode }) {
+export function InWorkPane(props: { kind: AddressedKind; title: string; href: string; back: string; children: ReactNode }) {
+  return <Addressed key={`${props.kind} ${props.href}`} {...props} />;
+}
+
+/** InWorkPane, for one address: another address mounts another one, so nothing it remembers carries over to it. */
+function Addressed({ kind, title, href, back, children }: { kind: AddressedKind; title: string; href: string; back: string; children: ReactNode }) {
   const control = useContext(WorkPaneContext);
   const slot = useContext(Slot);
   const router = useRouter();
   const open = control?.open;
+  const close = control?.close;
   const item = control?.item;
   const mine = item?.kind === kind && item.href === href;
   const shownOnce = useRef(false);
+  const shownNow = useRef(false);
 
   useEffect(() => {
     open?.({ kind, title, href });
@@ -205,12 +225,21 @@ export function InWorkPane({ kind, title, href, back, children }: { kind: Addres
 
   // Closed, or replaced by another item: the address goes back to the object's.
   useEffect(() => {
+    shownNow.current = mine;
     if (mine) shownOnce.current = true;
     else if (shownOnce.current) {
       shownOnce.current = false;
       router.push(back, { scroll: false });
     }
   }, [mine, back, router]);
+
+  // Its address left while the pane still shows it: the pane closes, not to stay open and empty.
+  useEffect(
+    () => () => {
+      if (shownNow.current) close?.();
+    },
+    [close],
+  );
 
   if (!control || !mine || !slot) return null;
   // Drawn in the pane, it is still part of the page: its keys reach the page, not the pane, so it closes on Escape itself.

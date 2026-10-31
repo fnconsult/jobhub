@@ -47,9 +47,9 @@ async function query<T extends pg.QueryResultRow>(sql: string, values: unknown[]
   }
 }
 
-/** A new Candidate, signed in on a wide screen, with an Application whose Cover Letter is drafted: its id. */
-async function withApplication(browser: Browser): Promise<{ page: Page; id: string }> {
-  const context = await browser.newContext({ baseURL: server.origin, locale: "en-US", viewport: { width: 1600, height: 1000 } });
+/** A new Candidate, signed in on a wide screen (or `viewport`), with an Application whose Cover Letter is drafted: its id. */
+async function withApplication(browser: Browser, viewport = { width: 1600, height: 1000 }): Promise<{ page: Page; id: string }> {
+  const context = await browser.newContext({ baseURL: server.origin, locale: "en-US", viewport });
   const page = await context.newPage();
   await signInByEmail(page, server, newAddress("application-conversation"));
   const headers = { origin: server.origin };
@@ -192,6 +192,41 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await page.keyboard.press("Escape");
     await expect(letter).toHaveCount(0);
     await expect(page).toHaveURL(`${server.origin}/candidatures/${id}`);
+  });
+
+  test("on a laptop's screen a Section takes the Fiche's place, the conversation still readable; Back closes it", async ({ browser }) => {
+    const { page, id } = await withApplication(browser, { width: 1280, height: 800 });
+    await page.goto(`/candidatures/${id}`);
+    const entretiens = ficheOf(page).getByRole("link", { name: application.sections.entretiens });
+
+    // The Sidebar, the Fiche and the Work Pane would leave the conversation 14rem: the Work Pane takes the Fiche's place.
+    await entretiens.click();
+    const interviews = workPane(page, application.sections.entretiens);
+    await expect(interviews.getByRole("heading", { level: 2, name: application.sections.entretiens })).toBeFocused();
+    await expect(ficheOf(page)).toBeHidden();
+    const rem = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+    const main = (await page.locator("main").boundingBox())!;
+    const thread = (await conversation(page).locator(".page-conversation-thread").boundingBox())!;
+    const card = (await interviews.boundingBox())!;
+    expect(thread.width).toBeGreaterThanOrEqual(28 * rem);
+    expect(card.x - (thread.x + thread.width)).toBeGreaterThanOrEqual(rem - 1);
+    expect(Math.abs(thread.x - main.x - (main.x + main.width - thread.x - thread.width))).toBeLessThanOrEqual(2);
+    await expect(conversation(page).getByRole("button", { name: application.conversation.suggestions.prepareInterview.label })).toBeInViewport();
+
+    // Closed, the Fiche is back, the focus on the link that opened the Section.
+    await interviews.getByRole("button", { name: texts.close }).click();
+    await expect(page).toHaveURL(`${server.origin}/candidatures/${id}`);
+    await expect(ficheOf(page)).toBeVisible();
+    await expect(entretiens).toBeFocused();
+
+    // Left by the browser's Back, the Section's address closes the Work Pane with it: nothing open and empty.
+    await entretiens.click();
+    await expect(interviews).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(`${server.origin}/candidatures/${id}`);
+    await expect(page.locator(".work-pane")).toHaveCount(0);
+    await expect(ficheOf(page)).toBeVisible();
+    await expect(entretiens).not.toHaveAttribute("aria-current", "page");
   });
 
   test("a suggestion starts the Application's conversation, which the page keeps at its address", async ({ browser }) => {

@@ -90,9 +90,10 @@ export default defineConfig({
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs
     // `next dev`, and Next.js refuses a second `next dev` in apps/web. legal-shell (#546) writes
     // fixture Legal Text Versions into packages/help/legal and rebuilds @jobhub/help, which
-    // help-content-package also builds and tests (#347), hiding an article meanwhile. Projects
-    // run in parallel with each other, so they share this one.
-    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|help-content-package)\.spec\.ts/, workers: 1 },
+    // help-content-package also builds and tests (#347), hiding an article meanwhile; privacy-change
+    // (#547) writes a fixture version of the privacy policy, rebuilds it and serves it with `next dev`.
+    // Projects run in parallel with each other, so they share this one.
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|help-content-package|privacy-change)\.spec\.ts/, workers: 1 },
   ],
   webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",

@@ -1151,6 +1151,65 @@
       "monthsOnly_other": "{{count}} mois"
     }
   },
+  "orders": {
+    "page": {
+      "title": "Votre commande",
+      "intro": "Vérifiez votre commande, puis passez au paiement sécurisé sur la page de notre prestataire de paiement, Stripe.",
+      "summaryTitle": "Récapitulatif",
+      "item": "Commande",
+      "price": "Prix",
+      "priceUnknown": "Indiqué sur la page de paiement",
+      "renewal": "Durée",
+      "code": "Code promo",
+      "codeCarried": "{{code}}, appliqué au paiement s'il est valable sur cette offre",
+      "readCgv": "Lire les CGV (version du {{date}})",
+      "cgvBox": "J'accepte les CGV (version du {{date}})",
+      "immediatePlan": "Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni.",
+      "immediateSession": "Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni et que je perds mon droit de rétractation une fois la séance réalisée.",
+      "immediateHint": "Facultatif : sans cette demande, vous payez et le service commence de la même façon, mais une rétractation vous est remboursée en entier.",
+      "withdrawal": "Vous pourrez vous rétracter pendant 14 jours, sans motif, depuis « Renoncer au contrat ici ». Une confirmation de votre commande vous est envoyée par e-mail après le paiement.",
+      "submit": "Passer au paiement",
+      "back": "Retour",
+      "cgvRequired": "Cochez la case « J'accepte les CGV » pour passer au paiement.",
+      "nothing": "Cette commande n'est plus possible : l'offre ou le coach n'est plus proposé, ou le paiement en ligne n'est pas disponible."
+    },
+    "email": {
+      "subjectPlan": "Confirmation de votre commande : offre {{plan}}",
+      "subjectSession": "Confirmation de votre commande : séance de coaching avec {{coach}}",
+      "title": "Votre commande est confirmée",
+      "intro": "Merci ! Votre paiement est enregistré le {{at}}. Voici le récapitulatif de votre commande :",
+      "plan": "Offre {{plan}}",
+      "coachingSession": "Séance de coaching avec {{coach}}",
+      "price": "Prix : {{price}}",
+      "paid": "Montant payé : {{amount}}",
+      "cgv": "Vous avez accepté nos CGV (version du {{date}}). Elles restent consultables à cette adresse permanente : {{url}}",
+      "immediatePlan": "Vous avez demandé que le service commence immédiatement. En cas de rétractation, vous paierez le service déjà fourni : le montant payé vous sera remboursé, moins la part des jours écoulés depuis le début de la période.",
+      "immediateSession": "Vous avez demandé que le service commence immédiatement. En cas de rétractation avant la séance, le montant payé vous sera remboursé en entier ; une fois la séance réalisée, vous perdez votre droit de rétractation.",
+      "notImmediate": "Vous n'avez pas demandé que le service commence immédiatement : en cas de rétractation, le montant payé vous sera remboursé en entier.",
+      "withdrawalPlan": "Vous pouvez vous rétracter sans motif jusqu'au {{date}} inclus, depuis « Renoncer au contrat ici » sur la page Mon abonnement : {{url}}",
+      "withdrawalSession": "Vous pouvez vous rétracter sans motif jusqu'au {{date}} inclus, depuis « Renoncer au contrat ici » sur la séance, dans votre agenda : {{url}}",
+      "keep": "Conservez cet e-mail : il confirme votre commande.",
+      "reason": "Vous recevez cet e-mail parce que vous avez passé une commande sur Jobbbox."
+    },
+    "renewal": {
+      "plan": "Abonnement reconduit automatiquement {{every}}, jusqu'à sa résiliation",
+      "session": "Paiement unique, sans reconduction"
+    },
+    "pricePer": "{{price}} TTC {{per}}",
+    "priceOnce": "{{price}} TTC",
+    "per": {
+      "day": "par jour",
+      "week": "par semaine",
+      "month": "par mois",
+      "year": "par an"
+    },
+    "every": {
+      "day": "chaque jour",
+      "week": "chaque semaine",
+      "month": "chaque mois",
+      "year": "chaque année"
+    }
+  },
   "admin": {
     "title": "Back office",
     "yourRoles": "Vos rôles : {{roles}}.",

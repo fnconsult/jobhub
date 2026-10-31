@@ -1151,6 +1151,65 @@
       "monthsOnly_other": "{{count}} months"
     }
   },
+  "orders": {
+    "page": {
+      "title": "Your order",
+      "intro": "Check your order, then go on to the secure payment page of our payment provider, Stripe.",
+      "summaryTitle": "Summary",
+      "item": "Order",
+      "price": "Price",
+      "priceUnknown": "Shown on the payment page",
+      "renewal": "Term",
+      "code": "Promotion code",
+      "codeCarried": "{{code}}, applied at payment if it is valid on this plan",
+      "readCgv": "Read the terms of sale (version of {{date}})",
+      "cgvBox": "I accept the terms of sale (version of {{date}})",
+      "immediatePlan": "I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided.",
+      "immediateSession": "I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided, and that I lose my right of withdrawal once the session has taken place.",
+      "immediateHint": "Optional: without this request, you pay and the service starts just the same, but a withdrawal is refunded in full.",
+      "withdrawal": "You may withdraw within 14 days, without giving a reason, from « Renoncer au contrat ici » (withdraw from the contract here). A confirmation of your order is emailed to you after payment.",
+      "submit": "Go to payment",
+      "back": "Back",
+      "cgvRequired": "Tick « I accept the terms of sale » to go to payment.",
+      "nothing": "This order is no longer possible: the plan or the coach is no longer offered, or online payment is not available."
+    },
+    "email": {
+      "subjectPlan": "Your order is confirmed: the {{plan}} plan",
+      "subjectSession": "Your order is confirmed: a coaching session with {{coach}}",
+      "title": "Your order is confirmed",
+      "intro": "Thank you! Your payment was recorded on {{at}}. Here is the summary of your order:",
+      "plan": "{{plan}} plan",
+      "coachingSession": "Coaching session with {{coach}}",
+      "price": "Price: {{price}}",
+      "paid": "Amount paid: {{amount}}",
+      "cgv": "You accepted our terms of sale (version of {{date}}); the French text prevails. They stay available at this permanent address: {{url}}",
+      "immediatePlan": "You asked for the service to start at once. If you withdraw, you will pay for the service already provided: the amount paid will be refunded, less the share of the days elapsed since the start of the period.",
+      "immediateSession": "You asked for the service to start at once. If you withdraw before the session, the amount paid will be refunded in full; once the session has taken place, you lose your right of withdrawal.",
+      "notImmediate": "You did not ask for the service to start at once: if you withdraw, the amount paid will be refunded in full.",
+      "withdrawalPlan": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the My subscription page: {{url}}",
+      "withdrawalSession": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the session, in your agenda: {{url}}",
+      "keep": "Keep this email: it confirms your order.",
+      "reason": "You are receiving this email because you placed an order on Jobbbox."
+    },
+    "renewal": {
+      "plan": "Subscription renewed automatically {{every}}, until it is cancelled",
+      "session": "One-off payment, not renewed"
+    },
+    "pricePer": "{{price}} incl. VAT {{per}}",
+    "priceOnce": "{{price}} incl. VAT",
+    "per": {
+      "day": "per day",
+      "week": "per week",
+      "month": "per month",
+      "year": "per year"
+    },
+    "every": {
+      "day": "every day",
+      "week": "every week",
+      "month": "every month",
+      "year": "every year"
+    }
+  },
   "admin": {
     "title": "Back office",
     "yourRoles": "Your roles: {{roles}}.",

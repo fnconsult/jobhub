@@ -1229,6 +1229,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 /* In the Fiche's width, a long button's words wrap rather than overflow it. */
 .fiche-card .ds-button {
   height: auto;
+  padding-block: var(--space-2);
   white-space: normal;
   text-align: start;
 }

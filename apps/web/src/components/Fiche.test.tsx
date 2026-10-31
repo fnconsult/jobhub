@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
 import { AiActivityProvider } from "./AiActivity";
 import { Fiche, FicheButtons, FicheProvider, type FicheContent } from "./Fiche";
+import { InWorkPane, WorkPane, WorkPaneProvider } from "./WorkPane";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/candidatures/a1/entretiens", useSearchParams: () => new URLSearchParams() }));
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/candidatures/a1/entretiens",
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push, refresh: vi.fn() }),
+}));
 
 const CONTENT: FicheContent = {
   card: <p>Ledger · Paris</p>,
@@ -116,5 +122,123 @@ describe("the Fiche (#603, ADR-0070)", () => {
     expect(fiche()).toBeTruthy();
     expect(group("Activité").getAttribute("aria-expanded")).toBe("false");
     expect(activity.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+/** A screen `rem` wide: matchMedia answers its `(width >= …rem)` and `(width < …rem)` queries as the browser would. */
+function screenOf(rem: number) {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    media: query,
+    matches: [...query.matchAll(/\(width (>=|<) ([\d.]+)rem\)/g)].every(([, op, bound]) => (op === ">=" ? rem >= Number(bound) : rem < Number(bound))),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
+/** The Interviews Section's page: the Application's page, the Section shown in the Work Pane, the Fiche after it. */
+function SectionPage() {
+  return (
+    <AiActivityProvider elements={[]}>
+      <WorkPaneProvider version="1.2.3">
+        <FicheProvider>
+          <header>
+            <FicheButtons />
+          </header>
+          <main>
+            <InWorkPane kind="section" title="Entretiens" href="/candidatures/a1/entretiens" back="/candidatures/a1">
+              <p>Mardi 4 novembre, 10 h</p>
+            </InWorkPane>
+          </main>
+          <WorkPane />
+          <Fiche content={CONTENT} />
+        </FicheProvider>
+      </WorkPaneProvider>
+    </AiActivityProvider>
+  );
+}
+
+const pane = () => screen.queryByRole("complementary", { name: "Entretiens" });
+const shownFiche = () => screen.queryByRole("complementary", { name: "Fiche" });
+
+describe("the Fiche giving way to the Work Pane on a narrower screen (#603, ADR-0070)", () => {
+  beforeEach(() => push.mockClear());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.sidebar;
+  });
+
+  it("is hidden while a Section is open on a laptop's screen with the Sidebar, « Fiche » and « Activité » saying so", async () => {
+    screenOf(80);
+    renderInFrench(<SectionPage />);
+
+    expect(await screen.findByText("Mardi 4 novembre, 10 h")).toBeTruthy();
+    expect(shownFiche()).toBeNull();
+    expect(within(topBar()).getByRole("button", { name: "Fiche" }).getAttribute("aria-expanded")).toBe("false");
+    expect(within(topBar()).getByRole("button", { name: "Activité" }).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("comes back with « Fiche », which closes the Work Pane and keeps the focus", async () => {
+    const user = userEvent.setup();
+    screenOf(80);
+    renderInFrench(<SectionPage />);
+    await screen.findByText("Mardi 4 novembre, 10 h");
+    const button = within(topBar()).getByRole("button", { name: "Fiche" });
+
+    await user.click(button);
+
+    expect(pane()).toBeNull();
+    expect(push).toHaveBeenCalledWith("/candidatures/a1", { scroll: false });
+    expect(shownFiche()).not.toBeNull();
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(button);
+
+    await user.click(button);
+    expect(shownFiche()).toBeNull();
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("comes back on its Activity group with « Activité », which closes the Work Pane", async () => {
+    const user = userEvent.setup();
+    screenOf(80);
+    renderInFrench(<SectionPage />);
+    await screen.findByText("Mardi 4 novembre, 10 h");
+    const activity = within(topBar()).getByRole("button", { name: "Activité" });
+
+    await user.click(activity);
+
+    expect(pane()).toBeNull();
+    expect(shownFiche()).not.toBeNull();
+    expect(group("Activité").getAttribute("aria-expanded")).toBe("true");
+    expect(activity.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(activity);
+  });
+
+  it("stays beside the Work Pane where there is room for both: a wider screen, or the Sidebar hidden", async () => {
+    screenOf(110);
+    const { unmount } = renderInFrench(<SectionPage />);
+    await screen.findByText("Mardi 4 novembre, 10 h");
+    expect(shownFiche()).not.toBeNull();
+    expect(within(topBar()).getByRole("button", { name: "Fiche" }).getAttribute("aria-expanded")).toBe("true");
+    unmount();
+
+    screenOf(80);
+    document.documentElement.dataset.sidebar = "closed";
+    renderInFrench(<SectionPage />);
+    await screen.findByText("Mardi 4 novembre, 10 h");
+    expect(shownFiche()).not.toBeNull();
+    expect(within(topBar()).getByRole("button", { name: "Fiche" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("gives way once the Sidebar comes back beside it", async () => {
+    screenOf(80);
+    document.documentElement.dataset.sidebar = "closed";
+    renderInFrench(<SectionPage />);
+    await screen.findByText("Mardi 4 novembre, 10 h");
+    expect(shownFiche()).not.toBeNull();
+
+    document.documentElement.dataset.sidebar = "open";
+
+    await vi.waitFor(() => expect(shownFiche()).toBeNull());
+    expect(within(topBar()).getByRole("button", { name: "Fiche" }).getAttribute("aria-expanded")).toBe("false");
   });
 });

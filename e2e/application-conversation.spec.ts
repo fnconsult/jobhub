@@ -227,6 +227,28 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(page.locator(".work-pane")).toHaveCount(0);
     await expect(ficheOf(page)).toBeVisible();
     await expect(entretiens).not.toHaveAttribute("aria-current", "page");
+
+    // While the Fiche has given way, « Fiche » and « Activité » say it is not shown, and bring it back in the pane's place.
+    const ficheButton = topBar(page).getByRole("button", { name: fiche.label, exact: true });
+    const activityButton = topBar(page).getByRole("button", { name: fiche.activity, exact: true });
+    await entretiens.click();
+    await expect(interviews).toBeVisible();
+    await expect(ficheButton).toHaveAttribute("aria-expanded", "false");
+    await expect(activityButton).toHaveAttribute("aria-expanded", "false");
+    await ficheButton.click();
+    await expect(page).toHaveURL(`${server.origin}/candidatures/${id}`);
+    await expect(page.locator(".work-pane")).toHaveCount(0);
+    await expect(ficheOf(page)).toBeVisible();
+    await expect(ficheButton).toHaveAttribute("aria-expanded", "true");
+    await expect(ficheButton).toBeFocused();
+    await group(page, fiche.groups.activity).click();
+    await entretiens.click();
+    await expect(interviews).toBeVisible();
+    await activityButton.click();
+    await expect(page.locator(".work-pane")).toHaveCount(0);
+    await expect(ficheOf(page)).toBeVisible();
+    await expect(group(page, fiche.groups.activity)).toHaveAttribute("aria-expanded", "true");
+    await expect(activityButton).toHaveAttribute("aria-expanded", "true");
   });
 
   test("a suggestion starts the Application's conversation, which the page keeps at its address", async ({ browser }) => {

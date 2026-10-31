@@ -42,10 +42,12 @@ export function WorkPaneProvider({ version, children }: { version: string; child
     setShown({ item, opening: openings.current });
   }, []);
   // The focus goes back once the pane is gone: what opened it may only show again then (the Fiche, which gives the Work
-  // Pane its place on a narrower screen, app.css).
+  // Pane its place on a narrower screen, Fiche.tsx). Only when the pane had it: closed from elsewhere (« Fiche » in the
+  // Top Bar, bringing the Fiche back), the focus stays where it is.
   const focusBack = useRef(false);
   const close = useCallback(() => {
-    focusBack.current = true;
+    const active = document.activeElement;
+    focusBack.current = !(active instanceof HTMLElement) || active === document.body || active.closest(`.${PANE_CLASS}`) !== null;
     setShown(null);
   }, []);
   useLayoutEffect(() => {

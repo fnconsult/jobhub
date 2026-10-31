@@ -1,5 +1,5 @@
 /**
- * Acceptances (ADR-0062, #510): a Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof.
+ * Acceptances (ADR-0062, ADR-0073, #510): a Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof.
  *
  * One deep module. Callers get `createAcceptances(database, options)`:
  *  - `pending` names the CGU version the Candidate must accept before going on, or null. Nothing while the registry

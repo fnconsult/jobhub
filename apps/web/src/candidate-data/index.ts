@@ -407,13 +407,14 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
 /**
  * Tables naming a Candidate that are Jobbbox's own operations record, not only the Candidate's data:
  * kept when their account is deleted, the Candidate's id set to null. Each says what it keeps, for how
- * long, and whether it is in the export while the account lives (then EXPORTED_TABLES lists it too).
+ * long, and whether it is in the export while the account lives (then EXPORTED_TABLES lists it too, ADR-0010's
+ * amendment and ADR-0073).
  * The same test checks every other table tied to a Candidate is exported and deleted with them.
  */
 export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
   back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; not exported; purged after 3 years",
   legal_acceptance:
-    "Acceptances (#510, ADR-0062): proof of each CGU and CGV version accepted, kept by a pseudonym (no email, no name); exported while the account lives; purged 5 years after the deletion (CGU), 10 years (CGV)",
+    "Acceptances (#510, ADR-0062, ADR-0073): proof of each CGU and CGV version accepted, kept by a pseudonym (no email, no name); exported while the account lives; purged 5 years after the deletion (CGU), 10 years (CGV)",
 };
 
 export interface CandidateData {

@@ -115,7 +115,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "statut"
       ],
       "route": "/candidatures/[id]",
-      "body": "Elle rassemble tout ce qui concerne une offre que vous suivez, en rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer.\n\nMettez le statut à jour quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance."
+      "body": "Elle rassemble tout ce qui concerne une offre que vous suivez, en rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer.\n\nMettez le statut à jour quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance.\n\nAvec la nouvelle présentation, la page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nUne rubrique (L'offre, Entretiens, Documents, Contacts, Dossier entreprise…) ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez comme avant, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation."
     },
     {
       "id": "page-job-offer",
@@ -357,6 +357,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "« Effacer », en haut d'une page qui est une conversation avec votre coach IA, supprime tous les messages de cette conversation. Jobbbox vous demande d'abord de confirmer ; « Annuler » ne supprime rien. Pendant que le coach répond, « Effacer » attend : interrompez d'abord sa réponse avec « Arrêter ».\n\nLa mémoire du coach reste : ce que vous lui avez demandé de retenir n'est pas effacé. La page redevient une nouvelle conversation."
     },
     {
+      "id": "glossary-fiche",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Fiche",
+      "synonyms": [
+        "fiche",
+        "fiche de la candidature",
+        "colonne de droite",
+        "sections",
+        "rubriques",
+        "panneau de droite"
+      ],
+      "route": null,
+      "body": "La fiche, c'est la colonne à droite de la conversation, avec la nouvelle présentation, sur la page d'une candidature : la candidature d'un coup d'œil (son statut et son profil, que vous changez sur place, sa correspondance, l'offre), puis trois groupes, « Sections », « Activité » et « Résultats ». Un clic sur le titre d'un groupe le replie ou le déplie.\n\nElle ne cache jamais la conversation : elle la pousse sur le côté. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus."
+    },
+    {
       "id": "glossary-job-digest",
       "locale": "fr",
       "kind": "glossary",
@@ -445,6 +461,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Un e-mail que votre coach rédige quand une candidature reste « Postulée » ou « Relancée » trop longtemps sans nouvelles. Il apparaît comme une proposition dans la page de la candidature.\n\nJobbbox n'envoie rien à l'employeur : copiez le texte, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé. La candidature passe alors à « Relancée ».\n\nLe délai avant une relance se règle dans Mon compte, rubrique Relances."
+    },
+    {
+      "id": "glossary-results",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Résultats",
+      "synonyms": [
+        "résultats",
+        "résultat",
+        "documents produits",
+        "cv adapté",
+        "lettre de motivation",
+        "message d'approche",
+        "relance"
+      ],
+      "route": null,
+      "body": "Les résultats, ce sont ce que votre coach IA a produit pour une candidature et qui reste avec elle : le CV adapté, la lettre de motivation, le message d'approche, les relances qu'il vous suggère. Avec la nouvelle présentation, ils sont listés dans le groupe « Résultats » de la fiche, chacun avec son état (« Brouillon du… », « Enregistré le… »).\n\nUn résultat s'ouvre à côté de la conversation, seul : vous le relisez, le modifiez, le téléchargez ou le copiez. Rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme."
     },
     {
       "id": "glossary-withdrawal",
@@ -698,7 +731,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "status"
       ],
       "route": "/candidatures/[id]",
-      "body": "It gathers everything about a job offer you follow, in sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving.\n\nUpdate the status as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up."
+      "body": "It gathers everything about a job offer you follow, in sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving.\n\nUpdate the status as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.\n\nWith the new layout, an application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nA section (The job offer, Interviews, Documents, Contacts, Company dossier…) or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there as before, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation."
     },
     {
       "id": "page-subscription-reduction",
@@ -964,6 +997,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\nWith the new layout, « Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
     },
     {
+      "id": "glossary-fiche",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Fiche",
+      "synonyms": [
+        "fiche",
+        "application fiche",
+        "right column",
+        "sections",
+        "right panel",
+        "details"
+      ],
+      "route": null,
+      "body": "The fiche is the column on the right of the conversation, with the new layout, on an application's page: the application at a glance (its status and profile, which you change in place, its match, the job offer), then three groups, « Sections », « Activity » and « Results ». A click on a group's title folds or unfolds it.\n\nIt never hides the conversation: it pushes it aside. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it."
+    },
+    {
       "id": "glossary-follow-up",
       "locale": "en",
       "kind": "glossary",
@@ -1049,6 +1098,23 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "What your plan includes: the number of profiles you can have, and each week the number of Match Scores, ATS Scores, job searches and enriched contacts, as well as the Job Digest frequency.\n\nThe « Usage this week » bar, at the foot of the menu, shows where you stand. The count starts again from zero every Monday at midnight (Paris time).\n\nTalking to your coach does not count against the quota.\n\nAn increase in your plan applies at once. A reduction is announced to you by email at least 30 days ahead, and you can then cancel at no cost, with a prorata refund."
+    },
+    {
+      "id": "glossary-results",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Results",
+      "synonyms": [
+        "results",
+        "result",
+        "produced documents",
+        "tailored cv",
+        "cover letter",
+        "outreach message",
+        "follow-up"
+      ],
+      "route": null,
+      "body": "Results are what your AI coach made for an application and kept with it: the Tailored CV, the cover letter, the outreach message, the follow-ups it suggests. With the new layout, they are listed in the fiche's « Results » group, each with where it stands (« Draft of… », « Saved on… »).\n\nA result opens beside the conversation, on its own: you review, edit, download or copy it there. Nothing is sent without your click. « Close » or the Escape key closes it."
     },
     {
       "id": "glossary-tailored-cv",

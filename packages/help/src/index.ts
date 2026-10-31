@@ -7,14 +7,27 @@
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  */
 import { ARTICLES } from "./articles.generated";
-import { compareLegalVersions, type LegalDocument, type LegalDocumentId } from "./legal";
-import { LEGAL_DOCUMENT_VERSIONS } from "./legal-documents.generated";
+import { legalTextVersionUrl, type LegalTextHistoryEntry, type LegalTextId, type LegalTextVersion, type LegalTextVersionRecord } from "./legal-texts";
+import { LEGAL_TEXT_REGISTRY, LEGAL_TEXT_VERSIONS } from "./legal-texts.generated";
 import type { ReleaseNote } from "./release-notes";
 import { RELEASE_NOTES } from "./release-notes.generated";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import type { HelpArticle, HelpLocale } from "./types";
 
-export { compareLegalVersions, isLegalDocumentId, LEGAL_DOCUMENTS, type LegalDocument, type LegalDocumentId } from "./legal";
+export {
+  isLegalTextId,
+  LEGAL_TEXT_ANCHORS,
+  LEGAL_TEXT_CHANGES,
+  LEGAL_TEXT_DAY,
+  LEGAL_TEXTS,
+  legalTextVersionUrl,
+  parisDay,
+  type LegalTextChange,
+  type LegalTextHistoryEntry,
+  type LegalTextId,
+  type LegalTextVersion,
+  type LegalTextVersionRecord,
+} from "./legal-texts";
 export {
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,
@@ -57,21 +70,60 @@ export function releaseNotes(locale: HelpLocale): readonly ReleaseNote[] {
   return RELEASE_NOTES[locale];
 }
 
+/** What /legal shows of one Legal Text: a version, whether it is the one in effect, and the version history. */
+export interface ShownLegalText {
+  version: LegalTextVersion;
+  inEffect: boolean;
+  history: LegalTextHistoryEntry[];
+}
+
 /**
- * A Legal Document as the Légal page shows it (#470): its latest version, or `version` when asked, and the other
- * versions newest first (« Versions précédentes »). Null while the team has written no text for it, or for a version
- * it never had. `written` defaults to the versions this build carries.
+ * A Legal Text as /legal shows it (ADR-0062): the version in effect `on` that day (`parisDay()`), or the dated
+ * `version` when asked, with the version history. A version is never served before its effective date. Null while
+ * the team has written no version in effect, or for a date that is no version. `written` defaults to the versions
+ * this build carries.
  */
-export function legalDocument(
-  id: LegalDocumentId,
+export function legalText(
+  text: LegalTextId,
   locale: HelpLocale,
-  { version }: { version?: string } = {},
-  written: readonly LegalDocument[] = LEGAL_DOCUMENT_VERSIONS[locale],
-): { document: LegalDocument; earlier: { version: string; effective: string }[] } | null {
-  const versions = written.filter((entry) => entry.id === id).sort((a, b) => compareLegalVersions(b.version, a.version));
-  const document = version ? versions.find((entry) => entry.version === version) : versions[0];
-  if (!document) return null;
-  return { document, earlier: versions.filter((entry) => entry !== document).map((entry) => ({ version: entry.version, effective: entry.effective })) };
+  { on, version }: { on: string; version?: string },
+  written: readonly LegalTextVersion[] = LEGAL_TEXT_VERSIONS[locale],
+): ShownLegalText | null {
+  const served = inEffectSoFar(text, on, written);
+  const shown = version ? served.find((entry) => entry.effective === version) : served[0];
+  if (!shown) return null;
+  return { version: shown, inEffect: shown === served[0], history: legalTextHistory(text, locale, on, written) };
+}
+
+/** The version history of a Legal Text (/legal/<text>/versions): each version in effect `on` that day or before, newest first. */
+export function legalTextHistory(text: LegalTextId, locale: HelpLocale, on: string, written: readonly LegalTextVersion[] = LEGAL_TEXT_VERSIONS[locale]): LegalTextHistoryEntry[] {
+  return inEffectSoFar(text, on, written).map(({ effective, change, summary }) => ({ effective, change, summary, url: legalTextVersionUrl(text, effective) }));
+}
+
+function inEffectSoFar(text: LegalTextId, on: string, written: readonly LegalTextVersion[]): LegalTextVersion[] {
+  return written.filter((entry) => entry.text === text && entry.effective <= on).sort((a, b) => b.effective.localeCompare(a.effective));
+}
+
+/**
+ * Every Legal Text Version this build carries, those still to come included, as the Acceptances record them (#510):
+ * id, permanent URL, SHA-256 of the French text, change. Computed at build, never written to the database here.
+ */
+export function legalTextRegistry(): readonly LegalTextVersionRecord[] {
+  return LEGAL_TEXT_REGISTRY;
+}
+
+/** The registry's record of one Legal Text Version, by its id (its effective date); null for no such version. */
+export function legalTextVersionRecord(text: LegalTextId, version: string, registry: readonly LegalTextVersionRecord[] = LEGAL_TEXT_REGISTRY): LegalTextVersionRecord | null {
+  return registry.find((entry) => entry.text === text && entry.version === version) ?? null;
+}
+
+/** The registry's record of the version of `text` in effect `on` that day: the one to accept; null before its first version. */
+export function legalTextVersionInEffect(text: LegalTextId, on: string, registry: readonly LegalTextVersionRecord[] = LEGAL_TEXT_REGISTRY): LegalTextVersionRecord | null {
+  return (
+    registry
+      .filter((entry) => entry.text === text && entry.version <= on)
+      .sort((a, b) => b.version.localeCompare(a.version))[0] ?? null
+  );
 }
 
 const indexes = new Map<HelpLocale, IndexedArticle[]>();

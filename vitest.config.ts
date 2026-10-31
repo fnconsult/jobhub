@@ -7,7 +7,7 @@ export default defineConfig({
   // The web app's own import alias (apps/web/tsconfig.json), for its component tests.
   resolve: { alias: [{ find: /^@\//, replacement: fileURLToPath(new URL("./apps/web/src/", import.meta.url)) }] },
   test: {
-    include: ["{packages,apps}/*/src/**/*.test.{ts,tsx}", "docs/prototypes/**/*.test.ts", "e2e/support/**/*.test.ts"],
+    include: ["{packages,apps}/*/src/**/*.test.{ts,tsx}", "docs/prototypes/**/*.test.ts", "e2e/support/**/*.test.ts", "scripts/**/*.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
   },
 });

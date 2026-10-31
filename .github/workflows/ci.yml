@@ -27,11 +27,17 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The pull request's merge commit and its base, for the Legal Text Versions' check.
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # A Legal Text Version in effect is never edited (ADR-0062): a correction is a new version.
+      - if: github.event_name == 'pull_request'
+        run: npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -75,7 +81,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run db:migrate
-      - run: npx playwright test --project=web $(grep -l toHaveScreenshot e2e/*.spec.ts)
+      # The emails project too (e2e/email-html.spec.ts): its -linux baselines are drawn in this image, and compared only here.
+      - run: npx playwright test --project=web --project=emails $(grep -l toHaveScreenshot e2e/*.spec.ts)
       # A failed comparison's expected, actual and diff images, and its trace.
       - uses: actions/upload-artifact@v4
         if: failure()

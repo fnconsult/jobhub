@@ -91,6 +91,23 @@ test.describe("monorepo tooling", () => {
     expect(projects[0].workers).toBe(1);
   });
 
+  // `npm run build -w @jobhub/help` reads every Markdown file of packages/help and rewrites its generated modules. The
+  // specs that run it also change those files for a while (the Legal Text fixtures of #546, a Help Article hidden by
+  // #347's), so one spec's build fails on the other's files if they overlap: all in one project, one spec at a time.
+  test("the e2e specs that rebuild @jobhub/help share one serial project", () => {
+    const rebuildsHelp = readdirSync("e2e")
+      .filter((file) => file.endsWith(".spec.ts"))
+      .filter((file) => /"run",\s*"build",\s*"-w",\s*"@jobhub\/help"/.test(read(path.join("e2e", file))));
+    expect(rebuildsHelp.length).toBeGreaterThan(1);
+
+    const projects = (config.projects ?? []).filter((project) =>
+      rebuildsHelp.some((file) => (project.testMatch as RegExp).test(file)),
+    );
+    expect(projects.map((project) => project.name)).toHaveLength(1);
+    for (const file of rebuildsHelp) expect(file).toMatch(projects[0].testMatch as RegExp);
+    expect(projects[0].workers).toBe(1);
+  });
+
   test("EU hosting target is documented (ADR-0007)", () => {
     const adr = read("docs/adr/0007-eu-hosting-provider-agnostic-ai.md");
     expect(adr).toMatch(/\bEU\b/);

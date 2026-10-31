@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
+import { utf8Locale } from "./e2e/support/locale";
 import { webPort as e2eWebPort } from "./e2e/support/ports";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
@@ -32,7 +33,10 @@ const webPort = e2eWebPort();
 const webOrigin = `http://localhost:${webPort}`;
 const stripePort = Number(process.env.E2E_STRIPE_PORT ?? webPort + 9000);
 
-// Set once in the main process; Playwright workers inherit them.
+// Set once in the main process; Playwright workers inherit them, and the browsers and servers they start.
+// A UTF-8 locale whatever the machine's: under POSIX, Chromium saves a download named in another script as « download »
+// (e2e/support/locale.ts).
+Object.assign(process.env, utf8Locale(process.env));
 process.env.E2E_WEB_PORT = String(webPort);
 process.env.E2E_WEB_ORIGIN = webOrigin;
 process.env.E2E_STRIPE_PORT = String(stripePort);
@@ -65,7 +69,7 @@ export default defineConfig({
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
-    { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|help-content-package)\.spec\.ts/ },
+    { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
@@ -84,9 +88,11 @@ export default defineConfig({
     // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
     // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs
-    // `next dev`, and Next.js refuses a second `next dev` in apps/web. Projects run in parallel
-    // with each other, so they share this one.
-    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev)\.spec\.ts/, workers: 1 },
+    // `next dev`, and Next.js refuses a second `next dev` in apps/web. legal-shell (#546) writes
+    // fixture Legal Text Versions into packages/help/legal and rebuilds @jobhub/help, which
+    // help-content-package also builds and tests (#347), hiding an article meanwhile. Projects
+    // run in parallel with each other, so they share this one.
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|help-content-package)\.spec\.ts/, workers: 1 },
   ],
   webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",
@@ -98,6 +104,10 @@ export default defineConfig({
       // The e2e environment serves the latest Playbook Versions, validated or not: a production build
       // naming no target serves only Human-validated ones (ADR-0021, #225).
       JOBHUB_TARGET: "e2e",
+      // A developer's repo-root .env stays unread (apps/web/src/env/root-env.ts): the server runs on these settings
+      // alone, as in CI, which has none. A copy of .env.example would set BEDROCK_REGION and MAIL_FROM, which the
+      // Outils and Paramètres specs expect at their code default.
+      JOBHUB_IGNORE_ROOT_ENV: "1",
       // Candidate accounts in a local production build: sign-in links go to the server log.
       APP_URL: webOrigin,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",

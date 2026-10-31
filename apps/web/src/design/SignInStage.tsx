@@ -4,7 +4,7 @@ import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 import "./SignInStage.css";
 
-const TERMS = routes.legal("conditions-utilisation");
+const TERMS = routes.legal("cgu");
 const PRIVACY = routes.legal("confidentialite");
 
 /**

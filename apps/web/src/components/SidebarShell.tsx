@@ -36,6 +36,12 @@ export const SidebarSections = createContext<(menu: SidebarSectionsMenu | null) 
 /** Below this width (in rem) the page's column has no room for its Sections' list: the same as app.css. */
 const CRAMPED_REM = 44;
 
+/**
+ * Closes the drawer, then does `action` once it has closed and given the focus back to the Menu button: what opens
+ * beside the page (the Work Pane), which is inert behind the drawer. In the docked sidebar, `action` at once.
+ */
+export type CloseDrawerThen = (action: () => void) => void;
+
 /** Hides or shows the sidebar on wide screens. The state lives on <html data-sidebar>, which the CSS reads (see design/sidebar-state). */
 function setHidden(hidden: boolean) {
   document.documentElement.dataset.sidebar = hidden ? SIDEBAR_CLOSED : SIDEBAR_OPEN;
@@ -59,7 +65,9 @@ function setHidden(hidden: boolean) {
  * (remembered by this browser); the Menu button brings it back. Below 64rem
  * it is a drawer: a modal dialog (Radix, ADR-0018) the Menu button opens, and
  * Escape, its close button or any link closes. `nav` gets the function its
- * links call to close the drawer. Icons always come with words.
+ * links call to close the drawer, and `closeDrawerThen` for what opens beside the page
+ * (the Work Pane): the page is inert behind the drawer, so that opens once the drawer has
+ * closed, the focus back on the Menu button, which it then gives back to. Icons always come with words.
  */
 export function SidebarShell({
   brand,
@@ -75,9 +83,9 @@ export function SidebarShell({
   brand: { href: string; label: string };
   top?: ReactNode;
   title?: ReactNode;
-  nav: (closeDrawer: () => void) => ReactNode;
-  /** Above signing out, in the sidebar's foot (Mon compte); gets the drawer's close function too. */
-  foot?: (closeDrawer: () => void) => ReactNode;
+  nav: (closeDrawer: () => void, closeDrawerThen: CloseDrawerThen) => ReactNode;
+  /** Above signing out, in the sidebar's foot (Mon compte); gets the drawer's close functions too. */
+  foot?: (closeDrawer: () => void, closeDrawerThen: CloseDrawerThen) => ReactNode;
   wide?: boolean;
   /** The Top Bar's last button: the Coach Panel's, or « Effacer » under « Conversation au centre » (#601). */
   topBarEnd?: ReactNode;
@@ -92,6 +100,8 @@ export function SidebarShell({
   const [drawerPath, setDrawerPath] = useState<string | null>(null);
   const drawerOpen = drawerPath === pathname;
   const menuButton = useRef<HTMLButtonElement>(null);
+  // What waits for the drawer to close before it happens (closeDrawerThen).
+  const [afterDrawer, setAfterDrawer] = useState<(() => void) | null>(null);
   const topbar = useRef<HTMLElement>(null);
   const [shownSection, setShownSection] = useState<TopBarSection | null>(null);
   const back = shownSection?.back ?? null;
@@ -166,6 +176,15 @@ export function SidebarShell({
     requestAnimationFrame(() => menuButton.current?.focus());
   }
 
+  const closeDrawer = () => setDrawerPath(null);
+  /** The drawer's closeDrawerThen: `action` waits for the drawer to close (onCloseAutoFocus). */
+  const closeDrawerThen: CloseDrawerThen = (action) => {
+    setAfterDrawer(() => action);
+    setDrawerPath(null);
+  };
+  /** The docked sidebar's: nothing to close. */
+  const runNow: CloseDrawerThen = (action) => action();
+
   const content = (inDrawer: boolean) => (
     <>
       <div className="sidebar-head">
@@ -173,7 +192,7 @@ export function SidebarShell({
           {brand.label}
         </Link>
         {inDrawer ? (
-          <button className="button button-quiet" type="button" onClick={() => setDrawerPath(null)}>
+          <button className="button button-quiet" type="button" onClick={closeDrawer}>
             <Icons.close />
             {t("sidebar.close")}
           </button>
@@ -208,11 +227,11 @@ export function SidebarShell({
               <Icons.chevron />
             </button>
           ) : null}
-          {nav(() => setDrawerPath(null))}
+          {nav(closeDrawer, inDrawer ? closeDrawerThen : runNow)}
         </>
       )}
       <div className="sidebar-foot">
-        {foot?.(() => setDrawerPath(null))}
+        {foot?.(closeDrawer, inDrawer ? closeDrawerThen : runNow)}
         <SignOutButton />
         {inDrawer ? null : (
           <button ref={collapseButton} className="button button-quiet sidebar-collapse" type="button" aria-controls={`${id}-sidebar`} onClick={hide}>
@@ -254,6 +273,8 @@ export function SidebarShell({
             onCloseAutoFocus={(event) => {
               event.preventDefault();
               menuButton.current?.focus();
+              setAfterDrawer(null);
+              afterDrawer?.();
             }}
           >
             <DrawerTitle className="visually-hidden">{t("sidebar.menu")}</DrawerTitle>

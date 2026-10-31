@@ -33,6 +33,7 @@ import {
   type DraftType,
 } from "@/signalements/draft";
 import { MESSAGE_MAX_LENGTH, MESSAGE_MIN_LENGTH } from "@/signalements/values";
+import type { CloseDrawerThen } from "@/components/SidebarShell";
 import { useWorkPane, type WorkPaneItem } from "@/components/work-pane";
 import { send } from "./ApplicationControls";
 import { SIGNALEMENT_GLYPHS, signalementGlyph } from "./signalement-glyphs";
@@ -63,8 +64,9 @@ const DRAFT_IN_PANE: WorkPaneItem = { kind: "signalement", start: DRAFT };
  * « Mon compte », a 44 px target named « Signalement » with its tooltip on hover and focus. It never moves. It opens the
  * Signalement dialog (a Drawer, #462; full screen on phones), and on close the focus comes back to it.
  * `version`: the Jobbbox version the dialog's detail shows (the server's, as the Signalement keeps it).
+ * `closeDrawerThen`: the Sidebar's (SidebarShell): from its drawer on a phone, the Work Pane opens once the drawer has closed.
  */
-export function SignalementButton({ version }: { version: string }) {
+export function SignalementButton({ version, closeDrawerThen }: { version: string; closeDrawerThen?: CloseDrawerThen }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   // Under « Conversation au centre » the form opens in the Work Pane (#602, ADR-0070), and closing it brings the focus back here.
@@ -74,7 +76,15 @@ export function SignalementButton({ version }: { version: string }) {
       className="signalement-open"
       type="button"
       aria-label={t("signalement.open")}
-      onClick={workPane ? () => workPane.open(DRAFT_IN_PANE) : undefined}
+      onClick={
+        workPane
+          ? () => {
+              const show = () => workPane.open(DRAFT_IN_PANE);
+              if (closeDrawerThen) closeDrawerThen(show);
+              else show();
+            }
+          : undefined
+      }
     >
       <svg
         className="icon signalement-glyph"

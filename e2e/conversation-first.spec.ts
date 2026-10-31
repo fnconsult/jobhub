@@ -329,6 +329,28 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await topBar(page).getByRole("button", { name: texts.help, exact: true }).click();
     await expect(pane.getByRole("heading", { level: 2, name: "Mon compte" })).toBeFocused();
     expect(await pane.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
+    await page.keyboard.press("Escape");
+    await expect(pane).toHaveCount(0);
+
+    // From the Sidebar's drawer: the icon beside « Mon compte » (the phone's only way to a Signalement here) closes the
+    // drawer and opens the form in the Work Pane, the focus on its title; closing it gives the focus to the Menu button.
+    const menu = topBar(page).getByRole("button", { name: fr.sidebar.menu });
+    const drawer = page.getByRole("dialog");
+    await menu.click();
+    await drawer.getByRole("button", { name: fr.signalement.open }).click();
+    await expect(drawer).toHaveCount(0);
+    await expect(pane.getByRole("heading", { level: 2, name: fr.signalement.title })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(pane).toHaveCount(0);
+    await expect(menu).toBeFocused();
+
+    // « Mémoire du coach » too, the focus staying in the pane once the drawer has closed.
+    await menu.click();
+    await drawer.getByRole("button", { name: fr.coachMemory.open }).click();
+    await expect(drawer).toHaveCount(0);
+    await expect(pane.getByRole("heading", { level: 2, name: fr.coachMemory.title })).toBeFocused();
+    await pane.getByRole("button", { name: texts.close }).click();
+    await expect(menu).toBeFocused();
   });
 
   test("« Proposer une idée » and « Poser la question à l'équipe » open their form in the Work Pane, no Drawer", async ({ browser }) => {

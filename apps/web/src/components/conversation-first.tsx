@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { helpLocale, onThisPage } from "@/coach-help";
 import { Icons } from "@/components/icons";
-import { CURRENT } from "@/components/SidebarShell";
+import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
@@ -72,9 +72,9 @@ export function useConversationFirst(): ConversationFirst | null {
  * The Sidebar's conversations (ADR-0070): « Nouvelle conversation », which leads to the home page, a new Free
  * conversation; then « Coach », which folds, with the Free conversations, each its own page, renamed or deleted from its
  * actions (deleting asks first), and « Mémoire du coach », opened in the Work Pane (#602). `onNavigate`: closes the
- * Sidebar's drawer on phones. Nothing while the switch is off.
+ * Sidebar's drawer on phones; `closeDrawerThen` opens the Work Pane once it has (SidebarShell). Nothing while the switch is off.
  */
-export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarConversations({ onNavigate, closeDrawerThen }: { onNavigate?: () => void; closeDrawerThen?: CloseDrawerThen }) {
   const { t } = useTranslation();
   const conversationFirst = useConversationFirst();
   const pathname = usePathname();
@@ -116,8 +116,10 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
                 className="sidebar-link sidebar-memory"
                 type="button"
                 onClick={() => {
-                  workPane.open({ kind: "memory" });
-                  onNavigate?.();
+                  // From the drawer on a phone, once it has closed: the page, the Work Pane with it, is inert behind it.
+                  const show = () => workPane.open({ kind: "memory" });
+                  if (closeDrawerThen) closeDrawerThen(show);
+                  else show();
                 }}
               >
                 <Icons.memory />

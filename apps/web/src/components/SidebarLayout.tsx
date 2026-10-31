@@ -95,7 +95,7 @@ export function SidebarLayout({
               beside: <WorkPane />,
             }
           : {})}
-        foot={(closeDrawer) => (
+        foot={(closeDrawer, closeDrawerThen) => (
           <>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
             <div className="sidebar-account-row">
@@ -103,7 +103,7 @@ export function SidebarLayout({
                 <Icons.account />
                 {t("nav.account")}
               </Link>
-              <SignalementButton version={version} />
+              <SignalementButton version={version} closeDrawerThen={closeDrawerThen} />
             </div>
           </>
         )}
@@ -118,9 +118,9 @@ export function SidebarLayout({
             />
           ) : null
         }
-        nav={(closeDrawer) => (
+        nav={(closeDrawer, closeDrawerThen) => (
           <nav className="sidebar-nav" aria-label={t("sidebar.label")}>
-            <SidebarConversations onNavigate={closeDrawer} />
+            <SidebarConversations onNavigate={closeDrawer} closeDrawerThen={closeDrawerThen} />
             <ul>
               {items.map((item) => {
                 const NavIcon = Icons[item.key];

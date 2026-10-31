@@ -179,4 +179,67 @@ test.describe("« Conversation au centre »: Mes candidatures and the Sidebar's 
     await expect(sidebar(page).getByRole("button", { name: tr(texts.unfold, { menu: fr.nav.applications }) })).toHaveAttribute("aria-expanded", "false");
     await expect(sublist(page)).toHaveCount(0);
   });
+
+  test("an Application à traiter is marked with a dot in the Sidebar even when old, and the card says why; « Tout voir (N) » leads to the list", async ({ browser }) => {
+    const email = newAddress("conversation-to-handle");
+    const page = await signedIn(browser, email);
+    const ids = await saveApplications(page, ["Poste 1", "Poste 2", "Poste 3", "Poste 4", "Poste 5", "Poste 6", "Poste 7"]);
+
+    // The oldest waits for an answer (« Postulée ») with a Follow-up ready.
+    const db = new pg.Client({ connectionString: server.databaseUrl });
+    await db.connect();
+    try {
+      const { rows } = await db.query<{ id: string }>("SELECT id::text FROM candidate WHERE email = $1", [email]);
+      await db.query("UPDATE application SET status = 'applied' WHERE id::text = $1", [ids[0]]);
+      await db.query(`INSERT INTO action_card (candidate_id, kind, title, body, focus_kind, focus_id) VALUES ($1, 'follow_up', 'Relancer : Poste 1', 'Bonjour', 'application', $2)`, [rows[0]!.id, ids[0]]);
+    } finally {
+      await db.end();
+    }
+
+    await page.goto("/candidatures/" + ids[6]);
+    // Five shown: the one à traiter though it is the oldest, then the most recent until five; the open one is highlighted.
+    await expect(sublist(page).getByRole("link")).toHaveText([
+      "Acme Industrie · Poste 7",
+      "Acme Industrie · Poste 6",
+      "Acme Industrie · Poste 5",
+      "Acme Industrie · Poste 4",
+      `Acme Industrie · Poste 1, ${texts.toHandle}`,
+      tr(texts.seeAll, { count: 7 }),
+    ]);
+    const marked = sublist(page).getByRole("link", { name: /Poste 1/ });
+    await expect(marked.locator(".sidebar-dot")).toHaveCount(1);
+    await expect(marked).toContainText(texts.toHandle);
+    await expect(sublist(page).getByRole("link", { name: /Poste 7/ }).locator(".sidebar-dot")).toHaveCount(0);
+    await expect(sublist(page).getByRole("link", { name: /Poste 7/ })).toHaveAttribute("aria-current", "page");
+
+    // « Tout voir (N) » leads to Mes candidatures, whose card says what is to handle and offers the Follow-up.
+    await sublist(page).getByRole("link", { name: tr(texts.seeAll, { count: 7 }) }).click();
+    await expect(page).toHaveURL(`${server.origin}/candidatures`);
+    const card = conversation(page).getByRole("region", { name: new RegExp(tr(menuTexts.count_other, { count: 7 })) });
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("row").filter({ hasText: "Poste 1" })).toContainText(menuTexts.followUpReady);
+    await expect(conversation(page).getByRole("group", { name: texts.suggestions }).getByRole("link", { name: /Poste 1/ })).toBeVisible();
+  });
+
+  test("« Ajouter une candidature » puts the focus in the box; « Chercher des offres » leads to Recherches d'offres", async ({ browser }) => {
+    const page = await signedIn(browser, newAddress("conversation-suggestions"));
+    await page.goto("/candidatures");
+    const suggestions = conversation(page).getByRole("group", { name: texts.suggestions });
+    await suggestions.getByRole("button", { name: fr.quickActions.addApplication }).click();
+    await expect(conversation(page).getByRole("textbox", { name: fr.coachPanel.messageLabel })).toBeFocused();
+    await suggestions.getByRole("link", { name: fr.quickActions.searchJobOffers }).click();
+    await expect(page).toHaveURL(`${server.origin}/recherches`);
+  });
+
+  test("the Help Article of /candidatures exists in French and English, and the Release Note fragment announces the page", async () => {
+    for (const [locale, seeAll] of [["fr", "Tout voir"], ["en", "See all"]] as const) {
+      const article = readFileSync(`packages/help/articles/${locale}/page-applications.md`, "utf8");
+      expect(article, locale).toMatch(/^kind: page$/m);
+      expect(article, locale).toMatch(/^route: \/candidatures$/m);
+      expect(article, locale).toContain(seeAll);
+    }
+    const fragment = readFileSync("packages/help/releases/unreleased/619.md", "utf8");
+    expect(fragment).toMatch(/#604/);
+    expect(fragment).toMatch(/## fr[\s\S]*Mes candidatures[\s\S]*## en[\s\S]*My applications/);
+  });
 });

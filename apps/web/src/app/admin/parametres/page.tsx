@@ -1,5 +1,6 @@
 import { modelSettingProviders, type AgentModelChoice, type ProviderId } from "@jobhub/ai";
-import { DEFAULT_JOB_DISCOVERY_SETTINGS, isFailureReason } from "@jobhub/shared";
+import { parisDay, privacyPolicyCoverage } from "@jobhub/help";
+import { DEFAULT_JOB_DISCOVERY_SETTINGS, isFailureReason, isRecipientOutsideEu, toolById, type Tool } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -32,6 +33,7 @@ import { getSearchSites } from "@/search-sites/server";
 import type { SignInProviderStatus } from "@/sign-in-providers/index";
 import { getSignInProviders } from "@/sign-in-providers/server";
 import { currentState } from "@/tools/server";
+import { UncoveredRecipientNote } from "../outils/UncoveredRecipientNote";
 import { restoreSetting, saveSetting } from "./actions";
 import { AddPanel, addableTypes } from "./AddPanel";
 import { AiTasksSection, PlaybookAgentPanel, RoutePanel, SearchTasksSection, type ModelChoices } from "./AiTasksSection";
@@ -52,6 +54,7 @@ import {
   SENDER_NOTICE_PARAM,
   SENDER_NOTICES,
   SITES_NOTICES,
+  UNCOVERED_PARAM,
   type SecretError,
 } from "./notices";
 import { ProviderSheet } from "./ProviderSheet";
@@ -173,6 +176,12 @@ function Notices({ ctx, search, signInProviders, requireSso }: { ctx: Ctx; searc
     if (error) notices.push({ role: "alert", text: t(`admin.providerSecrets.errors.${error}`, { name: named(one(search.key)) ?? "" }) });
     if (status && (error === "test_failed" || (tested && !passed))) notices.push({ role: "alert", text: t("admin.providerSecrets.status", { status }) });
   }
+  // The recipients outside the EU the change switched on that the privacy policy in effect does not name (#548): by id only, each checked.
+  const uncovered = (one(search[UNCOVERED_PARAM]) ?? "")
+    .split(",")
+    .map((id) => toolById(id))
+    .filter((tool): tool is Tool => tool !== undefined && isRecipientOutsideEu(tool));
+  const policy = privacyPolicyCoverage(parisDay());
   return (
     <>
       {notices.map((each) => (
@@ -180,6 +189,9 @@ function Notices({ ctx, search, signInProviders, requireSso }: { ctx: Ctx; searc
           <p>{each.text}</p>
           {each.detail}
         </Note>
+      ))}
+      {uncovered.map((tool) => (
+        <UncoveredRecipientNote key={tool.id} t={t} locale={ctx.locale} tool={tool} policy={policy} />
       ))}
     </>
   );

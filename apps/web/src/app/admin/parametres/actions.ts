@@ -6,21 +6,23 @@
  * Roles for its own resource, as the sections it replaces did, and comes back to the tab (and sheet) it was sent from,
  * saying how it went: by key name, setting name and code only, never a value.
  */
+import { parisDay, privacyPolicyCoverage } from "@jobhub/help";
 import { toolById } from "@jobhub/shared";
 import { redirect } from "next/navigation";
 import type { TextTask } from "@jobhub/ai";
 import type { BackOfficeActor } from "@/admin/back-office";
 import type { PlatformSettingValueChange } from "@/admin/platform-settings-back-office";
-import { getCoachingPlaybooksBackOffice, getPlatformSettingsBackOffice, getRecognisedSendersBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
+import { getBackOffice, getCoachingPlaybooksBackOffice, getPlatformSettingsBackOffice, getRecognisedSendersBackOffice, getSearchSitesBackOffice, requireBackOffice } from "@/admin/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { aiTaskRoutes, playbookAgentChange, routeChange, TEXT_TASK_IDS } from "@/platform-settings/ai-tasks";
+import { switchingOn } from "@/tools/recipients";
 import { currentState } from "@/tools/server";
 import { applyLatestSignIn } from "@/auth/server";
 import { parametresHref, parametresTab, providerSheetHref, type ParametresTabId } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { getProviderSecrets, getSecretResolver } from "@/provider-secrets/server";
 import { getSignInProviders } from "@/sign-in-providers/server";
-import { AI_FORM, CONFIRMED, FORM, SENDER_NOTICE_PARAM, SIGN_IN_SWITCHES, type PlaybookAgentNotice, type PlatformSettingNotice, type RouteNotice, type SenderNotice, type SitesNotice } from "./notices";
+import { AI_FORM, CONFIRMED, FORM, SENDER_NOTICE_PARAM, SIGN_IN_SWITCHES, UNCOVERED_PARAM, type PlaybookAgentNotice, type PlatformSettingNotice, type RouteNotice, type SenderNotice, type SitesNotice } from "./notices";
 
 const isTextTask = (value: string): value is TextTask => (TEXT_TASK_IDS as readonly string[]).includes(value);
 
@@ -52,11 +54,32 @@ const text = (form: FormData, name: string): string | undefined => {
   return typeof value === "string" ? value : undefined;
 };
 
+// ---- Recipients outside the EU (#548, ADR-0064) ----
+
+/** What the page a change comes back to is told of the recipients outside the EU it switched on uncovered: none, or their ids. */
+type RecipientsWarning = Record<string, string>;
+
+/**
+ * Runs a Paramètres `change` and gives back its result: never blocked, each recipient outside the EU it switched on that
+ * the privacy policy in effect does not name is written to the Back Office Audit and warned of on the page it comes back to.
+ */
+async function warningOfRecipients<T>(administrator: BackOfficeActor, change: () => Promise<T>): Promise<{ result: T; warning: RecipientsWarning }> {
+  const { result, uncovered } = await switchingOn(
+    {
+      state: currentState,
+      policy: () => privacyPolicyCoverage(parisDay()),
+      record: async (entries) => void (await getBackOffice().record(administrator, async () => null, () => entries)),
+    },
+    change,
+  );
+  return { result, warning: uncovered.length > 0 ? { [UNCOVERED_PARAM]: uncovered.map((tool) => tool.id).join(",") } : {} };
+}
+
 // ---- Platform Settings (#299 to #303) ----
 
-/** Back at the setting's row, saying how it went; a refused change with its Failure Reason and technical detail (#301). */
-const settingBack = (form: FormData, notice: PlatformSettingNotice, name: string, refusal?: { reason: string; technical: { message: string } }): never =>
-  back(form, { notice, setting: name, ...(refusal ? { reason: refusal.reason, detail: refusal.technical.message.slice(0, DETAIL_MAX_LENGTH) } : {}) }, `setting-${name}`);
+/** Back at the setting's row, saying how it went; a refused change with its Failure Reason and technical detail (#301); the recipients it switched on uncovered (#548). */
+const settingBack = (form: FormData, notice: PlatformSettingNotice, name: string, refusal?: { reason: string; technical: { message: string } }, warning: RecipientsWarning = {}): never =>
+  back(form, { notice, setting: name, ...(refusal ? { reason: refusal.reason, detail: refusal.technical.message.slice(0, DETAIL_MAX_LENGTH) } : {}), ...warning }, `setting-${name}`);
 
 /**
  * A super-admin saves a value, parsed as env's is; a value the setting refuses is recorded in the Journal (#299).
@@ -65,18 +88,28 @@ const settingBack = (form: FormData, notice: PlatformSettingNotice, name: string
 export async function saveSetting(form: FormData) {
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const name = String(form.get("name") ?? "");
-  const done = await getPlatformSettingsBackOffice().set(administrator, name, String(form.get("value") ?? ""), { confirmed: form.get(FORM.confirmed) === CONFIRMED });
+  const { result: done, warning } = await warningOfRecipients(administrator, () =>
+    getPlatformSettingsBackOffice().set(administrator, name, String(form.get("value") ?? ""), { confirmed: form.get(FORM.confirmed) === CONFIRMED }),
+  );
   if (!done.ok && done.error === "refused") settingBack(form, "refused", name, done);
-  settingBack(form, done.ok ? (done.changed ? "saved" : "unchanged") : (done.error as Exclude<typeof done.error, "refused">), name);
+  settingBack(form, done.ok ? (done.changed ? "saved" : "unchanged") : (done.error as Exclude<typeof done.error, "refused">), name, undefined, warning);
 }
 
 /** « Rétablir »: the Back Office's value is cleared, env's is used, else the code's default (#299); env's DPA marked signed is confirmed first (#302). */
 export async function restoreSetting(form: FormData) {
   const { administrator } = await requireBackOffice("platformSettings", "write");
   const name = String(form.get("name") ?? "");
-  const done = await getPlatformSettingsBackOffice().restore(administrator, name, { confirmed: form.get(FORM.confirmed) === CONFIRMED });
+  const { result: done, warning } = await warningOfRecipients(administrator, () =>
+    getPlatformSettingsBackOffice().restore(administrator, name, { confirmed: form.get(FORM.confirmed) === CONFIRMED }),
+  );
   if (!done.ok && done.error === "refused") settingBack(form, "refused", name, done);
-  settingBack(form, done.ok ? (done.changed ? "restored" : "notRestored") : done.error === "unconfirmed" ? "restoreUnconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), name);
+  settingBack(
+    form,
+    done.ok ? (done.changed ? "restored" : "notRestored") : done.error === "unconfirmed" ? "restoreUnconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">),
+    name,
+    undefined,
+    warning,
+  );
 }
 
 // ---- AI tasks' routes and Playbook Agents, in a side panel (#402, ADR-0042) ----
@@ -90,17 +123,17 @@ async function routeIn(form: FormData) {
   return route;
 }
 
-const routeBack = (form: FormData, notice: RouteNotice): never => back(form, { route: notice });
+const routeBack = (form: FormData, notice: RouteNotice, warning: RecipientsWarning = {}): never => back(form, { route: notice, ...warning });
 
 /**
  * Saves an AI task's route `changes` as one (#402): all kept, or, the first refused, none, the route staying as it was;
  * the refusal is said as that Platform Setting's.
  */
 async function applyRoute(form: FormData, administrator: BackOfficeActor, changes: readonly PlatformSettingValueChange[], saved: RouteNotice): Promise<never> {
-  const done = await getPlatformSettingsBackOffice().apply(administrator, changes);
+  const { result: done, warning } = await warningOfRecipients(administrator, () => getPlatformSettingsBackOffice().apply(administrator, changes));
   if (!done.ok && done.error === "refused") settingBack(form, "refused", done.name, done);
   if (!done.ok) settingBack(form, done.error === "unconfirmed" ? "unconfirmed" : (done.error as Exclude<typeof done.error, "refused" | "unconfirmed">), done.name);
-  return routeBack(form, saved);
+  return routeBack(form, saved, warning);
 }
 
 /**
@@ -156,11 +189,14 @@ const statusIn = (detail: string): string | undefined => /\bHTTP (\d{3})\b/.exec
 export async function replaceSecret(form: FormData) {
   const { administrator } = await requireBackOffice("providerSecrets", "write");
   const name = form.get("name");
-  const replaced = await getProviderSecrets().replace(administrator, name, form.get("value"), { saveAnyway: form.get("saveAnyway") === "on" });
+  const { result: replaced, warning } = await warningOfRecipients(administrator, async () => {
+    const done = await getProviderSecrets().replace(administrator, name, form.get("value"), { saveAnyway: form.get("saveAnyway") === "on" });
+    // This process uses it at once; the others hear the NOTIFY.
+    if (done.ok) await getSecretResolver().refresh();
+    return done;
+  });
   if (!replaced.ok) back(form, { error: replaced.error, key: String(name), status: replaced.error === "test_failed" ? statusIn(replaced.detail) : undefined });
-  // This process uses it at once; the others hear the NOTIFY.
-  await getSecretResolver().refresh();
-  back(form, { saved: String(name), test: replaced.test });
+  back(form, { saved: String(name), test: replaced.test, ...warning });
 }
 
 export async function clearSecret(form: FormData) {
@@ -261,24 +297,27 @@ export async function removeRecognisedSender(form: FormData) {
 
 export async function saveProvider(form: FormData) {
   const { administrator } = await requireBackOffice("ssoProviders", "write");
-  const saved = await getSignInProviders().save(administrator, {
-    type: text(form, "type"),
-    id: text(form, "id"),
-    displayName: text(form, "displayName"),
-    clientId: text(form, "clientId"),
-    discoveryUrl: text(form, "discoveryUrl"),
-    tenantId: text(form, "tenantId"),
-    appBundleIdentifier: text(form, "appBundleIdentifier"),
-    enabled: form.get(SIGN_IN_SWITCHES.enabled) === "on",
-    shownToCandidates: form.get(SIGN_IN_SWITCHES.shownToCandidates) === "on",
-    allowedForAdministrators: form.get(SIGN_IN_SWITCHES.allowedForAdministrators) === "on",
-    trustedForLinking: form.get(SIGN_IN_SWITCHES.trustedForLinking) === "on",
-    secrets: { clientSecret: text(form, "clientSecret"), teamId: text(form, "teamId"), keyId: text(form, "keyId"), privateKey: text(form, "privateKey") },
+  const { result: saved, warning } = await warningOfRecipients(administrator, async () => {
+    const done = await getSignInProviders().save(administrator, {
+      type: text(form, "type"),
+      id: text(form, "id"),
+      displayName: text(form, "displayName"),
+      clientId: text(form, "clientId"),
+      discoveryUrl: text(form, "discoveryUrl"),
+      tenantId: text(form, "tenantId"),
+      appBundleIdentifier: text(form, "appBundleIdentifier"),
+      enabled: form.get(SIGN_IN_SWITCHES.enabled) === "on",
+      shownToCandidates: form.get(SIGN_IN_SWITCHES.shownToCandidates) === "on",
+      allowedForAdministrators: form.get(SIGN_IN_SWITCHES.allowedForAdministrators) === "on",
+      trustedForLinking: form.get(SIGN_IN_SWITCHES.trustedForLinking) === "on",
+      secrets: { clientSecret: text(form, "clientSecret"), teamId: text(form, "teamId"), keyId: text(form, "keyId"), privateKey: text(form, "privateKey") },
+    });
+    // This process uses it at once; the others hear the NOTIFY.
+    if (done.ok) await applyLatestSignIn();
+    return done;
   });
   if (!saved.ok) back(form, { error: saved.error, form: text(form, "formKey") });
-  // This process uses it at once; the others hear the NOTIFY.
-  await applyLatestSignIn();
-  back(form, { saved: saved.id });
+  back(form, { saved: saved.id, ...warning });
 }
 
 export async function removeProvider(form: FormData) {

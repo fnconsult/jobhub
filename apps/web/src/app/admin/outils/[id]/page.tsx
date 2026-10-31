@@ -1,3 +1,4 @@
+import { parisDay, privacyPolicyCoverage } from "@jobhub/help";
 import { toolById } from "@jobhub/shared";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -13,10 +14,12 @@ import { keyHref, settingHref } from "@/platform-settings/parametres";
 import { isProviderSecretName } from "@/provider-secrets/catalog";
 import { routes } from "@/routes";
 import { LATEST_CALLS, type ToolCall } from "@/tools";
+import { uncoveredRecipient } from "@/tools/recipients";
 import { toolPage } from "@/tools/server";
 import { SOURCE_TONE } from "../../parametres/tone";
 import { EnvBadge } from "../EnvBadge";
 import { STATUS_TONE } from "../tone";
+import { UncoveredRecipientNote } from "../UncoveredRecipientNote";
 import "../../section.css";
 
 type Params = { params: Promise<{ id: string }> };
@@ -34,6 +37,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * reason's wording), duration and cost. Never a payload, a secret nor a technical reason.
  * And its Platform Settings (#304), read-only with their value and source, each linked to its row
  * on Paramètres for those who can read it: Paramètres stays the only place they are changed.
+ * While it is a recipient outside the EU switched on that the privacy policy in effect does not name, the warning
+ * Paramètres gave when it was switched on, read-only (#548).
  */
 export default async function ToolPage({ params }: Params) {
   const { access } = await requireBackOffice("tools");
@@ -44,6 +49,7 @@ export default async function ToolPage({ params }: Params) {
   const t = await getServerT(locale);
   const readsSecrets = access.can("providerSecrets", "read");
   const readsSettings = access.can("platformSettings", "read");
+  const policy = privacyPolicyCoverage(parisDay());
 
   const number = new Intl.NumberFormat(locale);
   const eur = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 6 });
@@ -66,6 +72,7 @@ export default async function ToolPage({ params }: Params) {
           <Link href={routes.adminTools}>{t("admin.tools.back")}</Link>
         </p>
         <p className="section-lead">{tool.purpose[locale]}</p>
+        {uncoveredRecipient(tool, row.status, policy) ? <UncoveredRecipientNote t={t} locale={locale} tool={tool} policy={policy} /> : null}
 
         <Card title={t("admin.tools.details")}>
           <Properties label={t("admin.tools.details")}>

@@ -45,13 +45,16 @@ async function saveApplication(page: Page, jobOfferId: string, profileId: string
   return (await saved.json()).id;
 }
 
-/** What the worker leaves behind: a finished Job Search and a sent Job Digest (no public endpoint stores them without a worker). */
+/**
+ * What the worker leaves behind: a Job Search and a sent Job Digest (no public endpoint stores them without a worker).
+ * The search is left 'searching': job-search-metrics.spec.ts checks, across the shared database, that every finished one has its metrics.
+ */
 async function storeSearchAndDigest(page: Page, profileId: string, jobOfferIds: string[]): Promise<{ searchId: string; digestId: string }> {
   const candidate: string = (await (await page.request.get("/api/auth/get-session")).json()).user.id;
   const db = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
   await db.connect();
   try {
-    const search = await db.query("INSERT INTO job_search (candidate_id, profile_id, status, started_at) VALUES ($1, $2, 'done', now()) RETURNING id", [candidate, profileId]);
+    const search = await db.query("INSERT INTO job_search (candidate_id, profile_id, status, started_at) VALUES ($1, $2, 'searching', now()) RETURNING id", [candidate, profileId]);
     const digest = await db.query("INSERT INTO job_digest (candidate_id, profile_id, job_offer_ids, sent_at) VALUES ($1, $2, $3, now()) RETURNING id", [candidate, profileId, jobOfferIds]);
     return { searchId: search.rows[0].id, digestId: digest.rows[0].id };
   } finally {

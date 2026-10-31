@@ -662,6 +662,27 @@ describe("the item In view, in full", () => {
   });
 });
 
+describe("a Job Search or Job Digest In view: its 30 best Match Scores only (#600)", () => {
+  const offer = (n: number): JobOffer => ({ ...jobOffer, id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title: `Offre ${n}` });
+  /** 40 Job Offers, the worst first: Offre n scores n. */
+  const forty = Array.from({ length: 40 }, (_, index) => ({ jobOffer: offer(index + 1), matchScore: { ...matchScore, score: index + 1 }, applicationId: null }));
+
+  it.each<[CoachFocus["kind"], Partial<Workspace>, string]>([
+    ["job_search", { jobSearches: [{ ...jobSearch, results: forty }] }, jobSearch.id],
+    ["job_digest", { jobDigests: [{ ...jobDigest, results: forty }] }, jobDigest.id],
+  ])("a %s sends its 30 best Job Offers, best first, and leaves the others out", async (kind, workspace, id) => {
+    const { coach, provider } = coachWith({ workspace });
+
+    await ask(coach, { kind, id });
+
+    const context = contextOf(provider);
+    const best = Array.from({ length: 30 }, (_, index) => context.indexOf(`Offre ${40 - index} chez`));
+    expect(best.every((index) => index >= 0)).toBe(true);
+    expect(best).toEqual([...best].sort((a, b) => a - b));
+    for (let n = 1; n <= 10; n += 1) expect(context).not.toContain(`Offre ${n} chez`);
+  });
+});
+
 describe("the rest, summarised", () => {
   const offer = (n: number): JobOffer => ({ ...jobOffer, id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title: `Offre ${n}` });
   const scored = (n: number, score: number) => ({ jobOffer: offer(n), matchScore: { ...matchScore, score }, applicationId: null });

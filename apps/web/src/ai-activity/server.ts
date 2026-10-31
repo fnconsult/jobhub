@@ -1,6 +1,6 @@
 import { getCoachConversations } from "@/coach-conversations/server";
 import { getJobOffers } from "@/job-offers/server";
-import { applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type ActivityElement, type PageSources } from "./index";
+import { agendaPage, applicationPage, jobDigestPage, jobOfferPage, jobSearchPage, profilePage, type ActivityElement, type PageSources } from "./index";
 
 const sources = (): PageSources => ({ jobOffers: getJobOffers(), coachReplies: getCoachConversations() });
 
@@ -23,4 +23,5 @@ export const loadAiActivity = {
   jobDigest: (...args: Rest<typeof jobDigestPage>) => quietly((s) => jobDigestPage(s, ...args)),
   application: (...args: Rest<typeof applicationPage>) => quietly((s) => applicationPage(s, ...args)),
   profile: (...args: Rest<typeof profilePage>) => quietly((s) => profilePage(s, ...args)),
+  agenda: (...args: Rest<typeof agendaPage>) => quietly((s) => agendaPage(s, ...args)),
 };

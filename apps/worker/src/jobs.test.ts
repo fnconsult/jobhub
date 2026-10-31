@@ -18,7 +18,7 @@ import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from ".
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import { createDiscoveryRuns, migrateDiscoveryRuns, type DiscoveryRunRecord } from "@jobhub/web/discovery-runs";
 import { migrateJobSearches } from "@jobhub/web/job-searches";
-import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
+import { migrateJobDigests, type DueJobDigest, type JobDigestResult } from "@jobhub/web/job-digests";
 import { createSecretKey, randomBytes } from "node:crypto";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../web/src/email-intake";
 import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
@@ -951,6 +951,8 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await migrateProfiles(database);
       await migrateJobOffers(database);
       await migrateApplications(database);
+      await migrateJobSearches(database);
+      await migrateJobDigests(database);
       await migrateCoachConversations(database);
       const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
       const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };

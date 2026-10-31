@@ -154,6 +154,16 @@ test.describe("Acceptances des CGU (#510)", () => {
       await expect(page).toHaveURL(/\/acceptation\?/);
       await page.goto("/compte/donnees");
       await expect(page).toHaveURL(/\/compte\/donnees$/);
+      // A click from Mes données to another Section of Mon compte is a client-side navigation, which re-renders only
+      // what changes: it is sent to the screen too, the gate holds on every page, not only on a full load.
+      const accountSection = (name: string) =>
+        page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).first().getByRole("link", { name, exact: true });
+      for (const section of [fr.account.sections.preferences, fr.account.sections.profiles]) {
+        await page.goto("/compte/donnees");
+        await accountSection(section).click();
+        await expect(page).toHaveURL(/\/acceptation\?/);
+        await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.acceptance.title);
+      }
       await page.goto("/acceptation");
 
       // Server side: without the box, nothing is recorded; a stranger is refused.

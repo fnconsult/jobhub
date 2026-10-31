@@ -3,6 +3,7 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { Provenance } from "@jobhub/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BASE_URL, connectionString } from "../auth/test-support";
+import { CGU_RETENTION_YEARS, createAcceptances, purgeExpiredAcceptances } from "../acceptances";
 import { createJobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
@@ -91,12 +92,41 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(missing).toEqual([]);
   });
 
-  it("Jobbbox's operations record outlives the Candidate: their id is set to null, nothing hangs off it, and it is not exported", () => {
+  it("Jobbbox's operations record outlives the Candidate: their id is set to null and nothing hangs off it", () => {
     for (const table of Object.keys(OPERATIONS_RECORD_TABLES)) {
       expect(foreignKeys.filter((key) => key.table === table && key.references === "candidate")).toEqual([{ table, column: expect.any(String), references: "candidate", onDelete: "set null" }]);
       expect(foreignKeys.filter((key) => key.references === table)).toEqual([]);
-      expect(EXPORTED_TABLES).not.toHaveProperty(table);
     }
+    expect(Object.keys(OPERATIONS_RECORD_TABLES)).toEqual(expect.arrayContaining(["back_office_audit", "legal_acceptance"]));
+  });
+
+  it("the Back Office Audit is not exported; the Acceptances are, while the account lives (#510)", () => {
+    expect(EXPORTED_TABLES).not.toHaveProperty("back_office_audit");
+    expect(EXPORTED_TABLES).toHaveProperty("legal_acceptance");
+  });
+
+  it("the Acceptances outlive the Account deletion with no email and no name, by a pseudonym, and are purged when due (#510)", async () => {
+    const database = throwaway.pool;
+    const { rows: columns } = await database.query<{ column: string }>(
+      `SELECT column_name AS column FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'legal_acceptance'`,
+    );
+    expect(columns.map((row) => row.column)).toEqual(expect.arrayContaining(["candidate_id", "holder", "account_deleted_at"]));
+    expect(columns.map((row) => row.column).filter((column) => /email|name|ip_|address|agent/.test(column))).toEqual([]);
+
+    await database.query(`INSERT INTO candidate (id, name, email, "emailVerified", "interfaceLanguage", "createdAt", "updatedAt") VALUES
+      ('marie', 'Marie Dupont', 'marie@example.fr', true, 'fr', now(), now())`);
+    const registry = () => [{ text: "cgu" as const, version: "2026-12-01", url: "/legal/cgu/2026-12-01", sha256: "a".repeat(64), change: "substantielle" as const }];
+    const acceptances = createAcceptances(database, { registry, secret: "test-secret-test-secret-test-secret-0123", now: () => new Date("2026-12-01T10:00:00Z") });
+    expect(await acceptances.accept("marie", "2026-12-01")).toBe("accepted");
+
+    await database.query(`DELETE FROM candidate WHERE id = 'marie'`);
+
+    const { rows } = await database.query<Record<string, unknown>>(`SELECT * FROM legal_acceptance`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ candidate_id: null, holder: acceptances.holderOf("marie@example.fr"), version: "2026-12-01" });
+    expect(JSON.stringify(rows)).not.toMatch(/marie|dupont/i);
+    expect(await purgeExpiredAcceptances(database, new Date())).toBe(0);
+    expect(await purgeExpiredAcceptances(database, new Date(Date.now() + (CGU_RETENTION_YEARS * 366 + 1) * 86_400_000))).toBe(1);
   });
 
   it("Provider Secrets name no Candidate, so they are never swept into a Candidate's data export (#208)", async () => {

@@ -3,6 +3,7 @@
  * run repeatedly. `npm run db:migrate` runs it; tests use it to check rules that
  * hold across all tables (e.g. what deleting a Candidate removes, ADR-0010).
  */
+import { migrateAcceptances } from "./acceptances/index";
 import { migrateActionCards } from "./action-cards/index";
 import { migrateAdministratorRoles } from "./admin/administrators";
 import { migrateBackOfficeAudit } from "./admin/back-office";
@@ -85,6 +86,7 @@ export async function migrateDatabase(
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
     ["Quota Reductions are up to date", () => migrateQuotaReductions(database)],
+    ["Acceptances of the CGU and CGV are up to date", () => migrateAcceptances(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],

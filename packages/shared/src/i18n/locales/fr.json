@@ -513,6 +513,20 @@
     "withdraw": "Retirer mon accord",
     "error": "Une erreur est survenue. Réessayez."
   },
+  "acceptance": {
+    "title": "Nos conditions d'utilisation",
+    "intro": "Avant de continuer, lisez et acceptez les conditions générales d'utilisation de Jobbbox. Vous n'avez à le faire qu'une fois, puis à chaque version qui change vos droits.",
+    "read": "Lire les CGU (version du {{date}})",
+    "box": "J'accepte les CGU (version du {{date}})",
+    "submit": "Accepter et continuer",
+    "sending": "Enregistrement…",
+    "error": "Votre acceptation n'a pas pu être enregistrée. Réessayez.",
+    "meanwhile": "Sans accepter, vous pouvez toujours télécharger vos données ou supprimer votre compte dans",
+    "data": "Mes données",
+    "meanwhileSubscription": ", et gérer votre abonnement dans",
+    "subscription": "Abonnement",
+    "meanwhileEnd": "."
+  },
   "accountDeleted": {
     "title": "Votre compte est supprimé",
     "body": "Vos données ont été effacées. Merci d'avoir utilisé Jobbbox, et bonne continuation dans votre recherche.",

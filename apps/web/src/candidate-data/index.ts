@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), Plan and Plan Quota use, EU AI consent, the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -28,6 +28,7 @@
 import { failureReasonWording } from "@jobhub/shared/i18n";
 import { isFailureReason, readProvenance, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
+import { acceptancesOf, type ExportedAcceptance } from "../acceptances";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
@@ -238,6 +239,8 @@ export interface CandidateDataExport {
   exportedAt: Date;
   /** Null once the account is deleted. */
   account: ExportedAccount | null;
+  /** Every CGU and CGV version the Candidate accepted (#510), oldest first: its permanent URL and fingerprint, when and how. */
+  acceptances: ExportedAcceptance[];
   /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
   plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
   /**
@@ -398,16 +401,20 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",
   withdrawal_refund: "withdrawals[].refunds (amount, currency and status; no Stripe identifiers)",
   job_offer: "privateJobOffers (only the Job Offers private to the Candidate, ADR-0049; shared ones are no one's and are kept)",
+  legal_acceptance: "acceptances (each CGU and CGV version accepted, when and how; never the pseudonym kept after deletion, nor Stripe's Checkout session id)",
 };
 
 /**
- * Tables naming a Candidate that are Jobbbox's own operations record, not the Candidate's data:
- * left out of their export and kept when their account is deleted, the Candidate's id set to
- * null. Each says what it keeps and for how long. The same test checks every other table tied
- * to a Candidate is exported and deleted with them.
+ * Tables naming a Candidate that are Jobbbox's own operations record, not only the Candidate's data:
+ * kept when their account is deleted, the Candidate's id set to null. Each says what it keeps, for how
+ * long, and whether it is in the export while the account lives (then EXPORTED_TABLES lists it too, ADR-0010's
+ * amendment and ADR-0073).
+ * The same test checks every other table tied to a Candidate is exported and deleted with them.
  */
 export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
-  back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; purged after 3 years",
+  back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; not exported; purged after 3 years",
+  legal_acceptance:
+    "Acceptances (#510, ADR-0062, ADR-0073): proof of each CGU and CGV version accepted, kept by a pseudonym (no email, no name); exported while the account lives; purged 5 years after the deletion (CGU), 10 years (CGV)",
 };
 
 export interface CandidateData {
@@ -693,8 +700,9 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
+        acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
           candidateId,
@@ -757,7 +765,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

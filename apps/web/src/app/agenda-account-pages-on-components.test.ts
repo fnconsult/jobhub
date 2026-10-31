@@ -20,6 +20,9 @@ const PAGES = [
   join(app, "agenda/page.tsx"),
   join(app, "abonnement/page.tsx"),
   ...pages(join(app, "compte/(sections)")),
+  // Mes données, the Section open before the CGU Acceptance (ADR-0062), and the frame both groups share.
+  ...pages(join(app, "compte/(open-before-acceptance)")),
+  join(app, "compte/account-layout.tsx"),
   // What the Agenda draws.
   join(components, "RescheduleHistory.tsx"),
   join(components, "CoachingSessionDialog.tsx"),
@@ -70,7 +73,7 @@ function classNames(source: string): string[] {
 
 describe("the Agenda, Mon compte and Mon abonnement in the Design System (#469, ADR-0053)", () => {
   it("are found, every Section of Mon compte", () => {
-    for (const page of ["agenda/page.tsx", "abonnement/page.tsx", "compte/(sections)/page.tsx", "compte/(sections)/rappels/page.tsx", "compte/(sections)/outils/page.tsx"]) {
+    for (const page of ["agenda/page.tsx", "abonnement/page.tsx", "compte/(sections)/page.tsx", "compte/(sections)/rappels/page.tsx", "compte/(sections)/outils/page.tsx", "compte/(open-before-acceptance)/donnees/page.tsx"]) {
       expect(PAGES.some((file) => file.endsWith(page))).toBe(true);
     }
   });
@@ -80,7 +83,7 @@ describe("the Agenda, Mon compte and Mon abonnement in the Design System (#469, 
     expect(used.map((name) => `${name} → ${OLD_CLASSES[name]}`)).toEqual([]);
   });
 
-  it.each([join(app, "agenda/agenda.css"), join(app, "abonnement/abonnement.css"), join(app, "compte/(sections)/account.css")].map((file) => [file.slice(join(app, "..").length + 1), file]))(
+  it.each([join(app, "agenda/agenda.css"), join(app, "abonnement/abonnement.css"), join(app, "compte/account.css")].map((file) => [file.slice(join(app, "..").length + 1), file]))(
     "%s keeps its page's layout beside it, on the ADR-0009 floor and the tokens",
     (_, file) => {
       expect(auditStylesheet(readFileSync(file, "utf8"))).toEqual([]);

@@ -6,7 +6,7 @@
  *   formatTokens(2125, "fr")            « 2,1k »: the k stuck to the number from 1 000 on, no « tokens » word
  *   formatDuration(6400, "fr")          « 6,4 s », « 790 ms », « 1 min 05 s »
  *   formatTimeOfDay(at, now, "fr")      « 10:40 », « 22/10 à 10:15 » on another day (EN « 22 Oct, 10:15 »), the year in another year
- *   spokenMeasure(2100, 6400, "fr")     « 2 100 tokens, 6,4 secondes »: what screen readers hear for « 2,1k · 6,4 s »
+ *   spokenMeasure(2100, 6400, "fr")     « 2 100 jetons, 6,4 secondes »: what screen readers hear for « 2,1k · 6,4 s »
  *
  * It names each model for people (the model catalogue), where it ran, and whether it went to the identity route
  * under the Candidate's EU AI Consent (« consentement IA UE ») or ran outside the EU (« hors UE »). It holds no cost,
@@ -101,9 +101,9 @@ function spokenDuration(ms: number, language: Language): string {
   return `${unit(Math.floor(whole / 60), "minute", language)} ${unit(whole % 60, "second", language)}`;
 }
 
-/** Tokens and time as screen readers hear them (#320): « 2 100 tokens, 6,4 secondes »; either may be unknown (null). */
+/** Tokens and time as screen readers hear them (#320): « 2 100 jetons, 6,4 secondes »; either may be unknown (null). */
 export function spokenMeasure(tokens: number | null, ms: number | null, language: Language): string {
-  return [tokens === null ? null : `${new Intl.NumberFormat(language).format(tokens)} tokens`, ms === null ? null : spokenDuration(ms, language)]
+  return [tokens === null ? null : `${new Intl.NumberFormat(language).format(tokens)} ${language === "fr" ? "jetons" : "tokens"}`, ms === null ? null : spokenDuration(ms, language)]
     .filter((part) => part !== null)
     .join(", ");
 }

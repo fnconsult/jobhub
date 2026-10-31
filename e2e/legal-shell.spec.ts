@@ -211,7 +211,12 @@ test.describe("CI and agent guards (#546)", () => {
     }
   });
 
-  test("CONTEXT.md no longer has the term Legal Document", () => {
+  test("CONTEXT.md and the README no longer have the term Legal Document, nor its old layout", () => {
     expect(readFileSync("CONTEXT.md", "utf8")).not.toContain("Legal Document");
+    const readme = readFileSync("README.md", "utf8");
+    expect(readme).not.toContain("Legal Document");
+    expect(readme).not.toContain("legal-documents.generated.ts");
+    expect(readme).toContain("legal/<texte>/<AAAA-MM-JJ>.<fr|en>.md");
+    expect(readme).toContain("legal-texts.generated.ts");
   });
 });

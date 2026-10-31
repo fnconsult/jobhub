@@ -157,10 +157,12 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "tableau",
         "liste",
         "statut",
-        "archivée"
+        "archivée",
+        "à traiter",
+        "tout voir"
       ],
       "route": "/candidatures",
-      "body": "Cette page rassemble toutes les offres que vous suivez. Chaque offre enregistrée devient une candidature, liée à l'un de vos profils.\n\nAffichez-les en liste ou en tableau, une colonne par statut : À postuler, Postulée, Relancée, Entretien, Offre reçue, Acceptée, Refusée, Abandonnée. Filtrez par profil ou par statut ; les candidatures archivées restent masquées sauf si vous demandez à les voir.\n\nOuvrez une candidature pour préparer vos documents, voir le score de correspondance et noter vos entretiens."
+      "body": "Cette page rassemble toutes les offres que vous suivez. Chaque offre enregistrée devient une candidature, liée à l'un de vos profils.\n\nAffichez-les en liste ou en tableau, une colonne par statut : À postuler, Postulée, Relancée, Entretien, Offre reçue, Acceptée, Refusée, Abandonnée. Filtrez par profil ou par statut ; les candidatures archivées restent masquées sauf si vous demandez à les voir.\n\nOuvrez une candidature pour préparer vos documents, voir le score de correspondance et noter vos entretiens.\n\nAvec la nouvelle présentation, « Mes candidatures » est une conversation avec votre coach IA, la même à chaque visite. Vos candidatures en cours y sont listées dans une carte : leur statut, leur score de correspondance et celles « à traiter », quand une relance est prête ou qu'une candidature reste sans réponse. Cliquez sur une ligne pour ouvrir la candidature ; « Les afficher » montre aussi les candidatures archivées. Demandez au coach laquelle traiter en premier, ou partez d'une suggestion au-dessus de la zone de message : « Ajouter une candidature », « Chercher des offres ».\n\nDans le menu, « Mes candidatures » se déroule sur vos candidatures les plus récentes, et sur celles à traiter, marquées d'un point ; « Tout voir » mène à cette page. La flèche à côté replie ou déroule la liste, et ce navigateur s'en souvient."
     },
     {
       "id": "page-human-coaches",
@@ -810,10 +812,12 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "board",
         "list",
         "status",
-        "archived"
+        "archived",
+        "to handle",
+        "see all"
       ],
       "route": "/candidatures",
-      "body": "This page gathers every job offer you follow. Each job offer you save becomes an application, linked to one of your profiles.\n\nShow them as a list or as a board, one column per status: To apply, Applied, Followed up, Interview, Offer received, Accepted, Rejected, Abandoned. Filter by profile or by status; archived applications stay hidden unless you ask to see them.\n\nOpen an application to prepare your documents, see the Match Score and record your interviews."
+      "body": "This page gathers every job offer you follow. Each job offer you save becomes an application, linked to one of your profiles.\n\nShow them as a list or as a board, one column per status: To apply, Applied, Followed up, Interview, Offer received, Accepted, Rejected, Abandoned. Filter by profile or by status; archived applications stay hidden unless you ask to see them.\n\nOpen an application to prepare your documents, see the Match Score and record your interviews.\n\nWith the new layout, « My applications » is a conversation with your AI coach, the same one at each visit. Your applications in progress are listed in a card: their status, their Match Score and those « to handle », when a follow-up is ready or an application still has no answer. Click a line to open the application; « Show them » also shows the archived applications. Ask the coach which one to handle first, or start from a suggestion above the message box: « Add an application », « Search for job offers ».\n\nIn the menu, « My applications » unfolds into your most recent applications, and those to handle, marked with a dot; « See all » leads to this page. The arrow beside it folds or unfolds the list, and this browser remembers it."
     },
     {
       "id": "page-human-coaches",

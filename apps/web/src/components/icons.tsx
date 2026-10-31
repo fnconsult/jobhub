@@ -3,6 +3,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BookOpen,
+  Brain,
   Briefcase,
   Calendar,
   ChartLine,
@@ -13,6 +14,7 @@ import {
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
+  CircleHelp,
   CircleUser,
   ClipboardList,
   Copy,
@@ -154,6 +156,9 @@ const LUCIDE = {
   newConversation: SquarePen,
   more: Ellipsis,
   clear: Eraser,
+  // « Mémoire du coach » in the Sidebar and « Aide » in the Top Bar (#602).
+  memory: Brain,
+  help: CircleHelp,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

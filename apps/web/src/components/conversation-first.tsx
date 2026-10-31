@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
+import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
 import { routes } from "@/routes";
@@ -69,7 +70,8 @@ export function useConversationFirst(): ConversationFirst | null {
 /**
  * The Sidebar's conversations (ADR-0070): « Nouvelle conversation », which leads to the home page, a new Free
  * conversation; then « Coach », which folds, with the Free conversations, each its own page, renamed or deleted from its
- * actions (deleting asks first). `onNavigate`: closes the Sidebar's drawer on phones. Nothing while the switch is off.
+ * actions (deleting asks first), and « Mémoire du coach », opened in the Work Pane (#602). `onNavigate`: closes the
+ * Sidebar's drawer on phones. Nothing while the switch is off.
  */
 export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation();
@@ -77,6 +79,7 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
   const pathname = usePathname();
   const id = useId();
   const [open, setOpen] = useState(true);
+  const workPane = useWorkPane();
   if (!conversationFirst) return null;
   const { conversations, page } = conversationFirst;
   return (
@@ -106,6 +109,21 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
           {conversations.map((conversation) => (
             <FreeConversationItem key={conversation.id} conversation={conversation} current={pathname === routes.conversation(conversation.id)} onNavigate={onNavigate} />
           ))}
+          {workPane ? (
+            <li>
+              <button
+                className="sidebar-link sidebar-memory"
+                type="button"
+                onClick={() => {
+                  workPane.open({ kind: "memory" });
+                  onNavigate?.();
+                }}
+              >
+                <Icons.memory />
+                {t("coachMemory.open")}
+              </button>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </div>

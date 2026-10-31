@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { HelpArticle } from "@/coach-help";
+import { CoachMemoryView } from "@/components/CoachMemory";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
@@ -66,7 +67,7 @@ export function WorkPane() {
 
   if (!shown || !control) return null;
   const { close } = control;
-  const view = itemView(shown.item, { version, close });
+  const view = itemView(shown.item, { version, close, title });
 
   function onKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape" || event.defaultPrevented) return;
@@ -97,14 +98,17 @@ type Translate = ReturnType<typeof useTranslation>["t"];
 type ItemView = { title: (t: Translate) => string; actions?: ReactNode; body: ReactNode };
 
 /** How each kind of item shows in the pane: its title, its header's actions and its body. */
-function itemView(item: WorkPaneItem, { version, close }: { version: string; close: () => void }): ItemView {
+function itemView(
+  item: WorkPaneItem,
+  { version, close, title }: { version: string; close: () => void; title: RefObject<HTMLHeadingElement | null> },
+): ItemView {
   switch (item.kind) {
     case "help":
       return { title: () => item.article.title, actions: <AskCoach article={item.article} />, body: <HelpArticleBody article={item.article} /> };
     case "signalement":
       return { title: (t) => t(signalementTitle(item.start)), body: <SignalementPaneForm version={version} start={item.start} onClose={close} /> };
-    default:
-      throw new Error(`no view for ${item.kind}`);
+    case "memory":
+      return { title: (t) => t("coachMemory.title"), body: <CoachMemoryView heading={title} /> };
   }
 }
 

@@ -24,9 +24,15 @@ import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
-import { APPLICATION_SECTIONS, routes, type ApplicationSection } from "@/routes";
+import { APPLICATION_SECTIONS, applicationResultOf, routes, type ApplicationResult, type ApplicationSection } from "@/routes";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments } from "@/tailored-documents/server";
+import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
+import { JobOfferSummary } from "@/components/JobOfferSummary";
+import { JobOfferTiles } from "@/components/JobOfferView";
+import { conversationFirst } from "@/conversation-first";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
 import { Pill } from "@/design/Pill";
@@ -96,17 +102,51 @@ export const loadApplicationPage = cache(async (id: string) => {
 /** Always there, as is the Job Offer. */
 const MATCH_SCORE: ApplicationSection = "correspondance";
 
-type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
+export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
+
+/** What an Application's Section and Result are, in the Work Pane (#603). */
+const SECTION: AddressedKind = "section";
+const RESULT: AddressedKind = "result";
+
+/** Whether the Application's page is its conversation (« Conversation au centre », #603, ADR-0070). */
+const asConversation = () => conversationFirst(getPlatformSettingsResolver().current());
 
 /**
  * One Section of an Application's page, at its own address. A Section there
  * is not (no Tailored Documents yet, say) answers 404, except Propositions: its
  * last Action Card accepted refreshes the page, which keeps saying it was.
+ * Under « Conversation au centre » (#603, ADR-0070), it opens in the Work Pane beside the Application's conversation;
+ * the « documents » Section shows one Result alone when its address names it (`result`: `?resultat=lettre`).
  */
-export async function ApplicationSectionPage({ params, section }: Params & { section: ApplicationSection }) {
+export async function ApplicationSectionPage({ params, section, result }: Params & { section: ApplicationSection; result?: string | string[] }) {
   const data = await loadApplicationPage((await params).id);
   if (section !== "propositions" && !data.sections.includes(section)) notFound();
-  return <SectionView data={data} section={section} />;
+  if (!asConversation()) return <SectionView data={data} section={section} />;
+  const { application, t } = data;
+  const back = routes.application(application.id);
+  const alone = section === "documents" ? shownResult(data, applicationResultOf(result)) : null;
+  if (alone)
+    return (
+      <InWorkPane kind={RESULT} title={resultTitle(alone, t)} href={routes.applicationResult(application.id, alone)} back={back}>
+        <SectionView data={data} section={section} result={alone} />
+      </InWorkPane>
+    );
+  return (
+    <InWorkPane kind={SECTION} title={t(`application.sections.${section}`)} href={routes.applicationSection(application.id, section)} back={back}>
+      <SectionView data={data} section={section} />
+    </InWorkPane>
+  );
+}
+
+/** The Result an address names, when the Application has it. */
+function shownResult({ tailoredCv, drafts }: ApplicationPageData, result: ApplicationResult | null): ApplicationResult | null {
+  if (result === "tailored_cv") return tailoredCv ? result : null;
+  return result && drafts ? result : null;
+}
+
+function resultTitle(result: ApplicationResult, t: T): string {
+  if (result === "tailored_cv") return t("tailoredCv.tailored");
+  return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
 }
 
 /**
@@ -117,6 +157,8 @@ export async function ApplicationSectionPage({ params, section }: Params & { sec
  */
 export async function ApplicationFirstSectionPage({ params }: Params) {
   const data = await loadApplicationPage((await params).id);
+  // The page is the Application's conversation: no Section is open in the Work Pane at its own address.
+  if (asConversation()) return null;
   const first = data.sections.find((section) => section !== "propositions") ?? MATCH_SCORE;
   return (
     <>
@@ -126,7 +168,7 @@ export async function ApplicationFirstSectionPage({ params }: Params) {
   );
 }
 
-function SectionView({ data, section }: { data: ApplicationPageData; section: ApplicationSection }) {
+function SectionView({ data, section, result }: { data: ApplicationPageData; section: ApplicationSection; result?: ApplicationResult }) {
   const { application, t, locale } = data;
   switch (section) {
     case "propositions":
@@ -150,6 +192,7 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
           recipients={recipients}
           locale={locale}
           target={{ title: application.jobOffer.title, ...(application.jobOffer.employer && { employer: application.jobOffer.employer }) }}
+          {...(result ? { only: result } : {})}
         />
       );
     }
@@ -172,7 +215,16 @@ function SectionView({ data, section }: { data: ApplicationPageData; section: Ap
         />
       ) : null;
     case "offre":
-      // The offer's facts are framed in the page's header: here, its full text.
+      // The offer's facts are framed in the page's header: here, its full text. Under « Conversation au centre » there is
+      // no header: its facts and its Job Offer Summary come first (#603).
+      if (asConversation())
+        return (
+          <>
+            <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
+            <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
+            <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
+          </>
+        );
       return <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />;
   }
 }

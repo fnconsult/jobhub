@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
@@ -48,7 +48,17 @@ export function toggleActivity(state: FicheState): FicheState {
 
 /** Wide enough for the Fiche beside the conversation: it starts open there (below, it would cover the page). */
 const WIDE = "(width >= 64rem)";
-const OPEN: FicheState = { open: true, folded: new Set() };
+const UNFOLDED: ReadonlySet<FicheGroup> = new Set();
+const SECTIONS: FicheGroup = "sections";
+const ACTIVITY: FicheGroup = "activity";
+const RESULTS: FicheGroup = "results";
+/** The glyph « Activité » shows while an AI action of the page is under way, before its step is known. */
+const UNDER_WAY = "think";
+
+const noSubscription = () => () => {};
+/** Whether the screen is wide enough for the Fiche: the server's HTML, and a browser without media queries, say it is. */
+const wideScreen = () => typeof window.matchMedia !== "function" || window.matchMedia(WIDE).matches;
+const wideOnServer = () => true;
 
 type Control = {
   state: FicheState;
@@ -68,22 +78,22 @@ const FicheControl = createContext<Control | null>(null);
  * screen; closed on a narrower one.
  */
 export function FicheProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<FicheState>(OPEN);
+  const wide = useSyncExternalStore(noSubscription, wideScreen, wideOnServer);
+  // Untouched, the Fiche is as the screen has it; once « Fiche », « Activité » or a group is used, as the Candidate left it.
+  const [changed, setChanged] = useState<FicheState | null>(null);
+  const state = useMemo(() => changed ?? { open: wide, folded: UNFOLDED }, [changed, wide]);
   const [activityAsked, setActivityAsked] = useState(0);
   const ficheId = useId();
-  useEffect(() => {
-    if (typeof window.matchMedia === "function" && !window.matchMedia(WIDE).matches) setState((was) => ({ ...was, open: false }));
-  }, []);
   const control = useMemo<Control>(
     () => ({
       state,
       ficheId: `${ficheId}-fiche`,
-      toggleFiche: () => setState(toggleFiche),
+      toggleFiche: () => setChanged(toggleFiche(state)),
       toggleActivity: () => {
-        setState(toggleActivity);
+        setChanged(toggleActivity(state));
         setActivityAsked((n) => n + 1);
       },
-      toggleGroup: (group) => setState((was) => toggleGroup(was, group)),
+      toggleGroup: (group) => setChanged(toggleGroup(state, group)),
       activityAsked,
     }),
     [state, ficheId, activityAsked],
@@ -121,7 +131,7 @@ export function FicheButtons() {
         aria-controls={state.open ? ficheId : undefined}
         onClick={control.toggleActivity}
       >
-        {underWay ? <ActivityGlyph activity="think" live /> : <Icons.aiActivity />}
+        {underWay ? <ActivityGlyph activity={UNDER_WAY} live /> : <Icons.aiActivity />}
         {t("fiche.activity")}
       </button>
     </>
@@ -153,8 +163,8 @@ export function Fiche({ content }: { content: FicheContent }) {
 
   if (!control || !open) return null;
   const { state, ficheId } = control;
-  const links = (items: readonly FicheLink[], className: string) => (
-    <ul className={className}>
+  const links = (items: readonly FicheLink[]) => (
+    <ul className="fiche-links">
       {items.map((item) => (
         <li key={item.href}>
           <Link href={item.href} aria-current={item.href === shown ? CURRENT : undefined} scroll={false}>
@@ -168,14 +178,14 @@ export function Fiche({ content }: { content: FicheContent }) {
   return (
     <aside id={ficheId} className="fiche" aria-label={t("fiche.label")}>
       <div className="fiche-card">{content.card}</div>
-      <Group group="sections" label={t("fiche.groups.sections")} state={state} toggle={control.toggleGroup}>
-        {links(content.sections, "fiche-sections")}
+      <Group group={SECTIONS} label={t("fiche.groups.sections")} state={state} toggle={control.toggleGroup}>
+        {links(content.sections)}
       </Group>
-      <Group group="activity" label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
+      <Group group={ACTIVITY} label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
         <AiActivityContent />
       </Group>
-      <Group group="results" label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
-        {content.results.length > 0 ? links(content.results, "fiche-results") : <p className="hint">{t("fiche.noResults")}</p>}
+      <Group group={RESULTS} label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
+        {content.results.length > 0 ? links(content.results) : <p className="hint">{t("fiche.noResults")}</p>}
       </Group>
     </aside>
   );

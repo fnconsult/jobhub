@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { ActivityElement } from "@/ai-activity/pane";
+import type { FicheContent } from "@/components/Fiche";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
@@ -65,7 +66,8 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
  * `title` is the page's `<h1>`, shown in the Top Bar (see SidebarShell).
  * `wide` gives the page room for a board. `aiActivity`: the page's elements for
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
- * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations.
+ * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations, and `fiche`,
+ * an object's Fiche, stands beside its conversation (#603).
  */
 export async function CandidateLayout({
   candidateId,
@@ -73,6 +75,7 @@ export async function CandidateLayout({
   title,
   wide,
   aiActivity,
+  fiche,
   children,
 }: {
   candidateId: string;
@@ -80,6 +83,7 @@ export async function CandidateLayout({
   title?: ReactNode;
   wide?: boolean;
   aiActivity?: readonly ActivityElement[];
+  fiche?: FicheContent;
   children: ReactNode;
 }) {
   const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free] = await Promise.all([
@@ -107,6 +111,7 @@ export async function CandidateLayout({
       aiActivity={aiActivity}
       version={jobbboxVersion()}
       freeConversations={free}
+      fiche={fiche ?? null}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {privacy ? <PrivacyChangeNotice change={privacy} /> : null}

@@ -9,6 +9,21 @@ export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 export const APPLICATION_SECTIONS = ["propositions", "documents", "correspondance", "entretiens", "avis", "dossier", "contacts", "offre"] as const;
 export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
 
+/**
+ * An Application's Results (#603, ADR-0070), each at its own address in its « documents » Section, by its Tailored
+ * Document: the Tailored CV, the Cover Letter, the Outreach Message.
+ */
+export const APPLICATION_RESULTS = { tailored_cv: "cv-adapte", cover_letter: "lettre", outreach_message: "message" } as const;
+export type ApplicationResult = keyof typeof APPLICATION_RESULTS;
+/** The query parameter naming the Result the « documents » Section shows alone. */
+export const RESULT_PARAMETER = "resultat";
+
+/** The Result an address's `resultat` names, or null. */
+export function applicationResultOf(value: string | string[] | undefined): ApplicationResult | null {
+  const found = Object.entries(APPLICATION_RESULTS).find(([, slug]) => slug === value);
+  return found ? (found[0] as ApplicationResult) : null;
+}
+
 /** Paths of the web app's pages. French, like the interface default. */
 export const routes = {
   home: "/",
@@ -58,6 +73,8 @@ export const routes = {
   application: (id: string) => `/candidatures/${id}`,
   /** A Section of an Application's page (ADR-0024); `application` itself shows the first one there is. */
   applicationSection: (id: string, section: ApplicationSection) => `/candidatures/${id}/${section}`,
+  /** One of an Application's Results (#603), shown alone, in the Work Pane under « Conversation au centre ». */
+  applicationResult: (id: string, result: ApplicationResult) => `/candidatures/${id}/documents?${RESULT_PARAMETER}=${APPLICATION_RESULTS[result]}`,
   /** A Job Offer's page; with `profileId`, its Match Score preselects that Profile (the one a Job Search or Job Digest is for). */
   jobOffer: (id: string, profileId?: string) => (profileId ? `/offres/${id}?profil=${encodeURIComponent(profileId)}` : `/offres/${id}`),
   jobSearch: (id: string) => `/recherches/${id}`,

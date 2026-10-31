@@ -186,7 +186,8 @@ type Tab = typeof TAILORED_CV | TailoredDocumentKind;
  * Candidate, drafted again on request. Drafts only (ADR-0005): the Candidate
  * copies the text or opens it in their mail client. The Outreach Message can be
  * addressed to one of the Application's Enriched Contacts (`recipients`).
- * Every tab stays mounted, so switching tabs keeps unsaved edits.
+ * Every tab stays mounted, so switching tabs keeps unsaved edits. `only`: one of them alone, without tabs nor the
+ * Section's heading: a Result in the Work Pane (#603), titled by the pane.
  */
 export function TailoredDocuments({
   applicationId,
@@ -196,6 +197,7 @@ export function TailoredDocuments({
   recipients = [],
   locale,
   target,
+  only,
 }: {
   applicationId: string;
   documentLanguage: DocumentLanguage;
@@ -205,6 +207,7 @@ export function TailoredDocuments({
   locale: string;
   /** The Job Offer the documents are tailored to, named in each tab's aside. */
   target: Target;
+  only?: Tab;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -225,11 +228,140 @@ export function TailoredDocuments({
     cover_letter: t("tailoredDocuments.coverLetter.title"),
     outreach_message: t("tailoredDocuments.outreachMessage.title"),
   };
+  const documents = [
+    ...(tailoredCv
+      ? [
+          {
+            value: TAILORED_CV,
+            label: label[TAILORED_CV],
+            content: (
+              <DocumentLayout
+                asideLabel={t("tailoredDocuments.aside.label", {
+                  document: label.tailored_cv,
+                })}
+                aside={
+                  <DocumentAside
+                    target={target}
+                    matchScore={savedCv?.matchScore.tailored ?? null}
+                    note={t("tailoredDocuments.aside.cvNote")}
+                    exportPath={
+                      savedCv ? exportPath(applicationId, TAILORED_CV) : null
+                    }
+                    savedOn={savedCv ? longDate(savedCv.savedAt, locale) : null}
+                  />
+                }
+              >
+                {savedCv ? (
+                  <DocumentViewer
+                    key={String(savedCv.savedAt)}
+                    src={`${exportPath(applicationId, TAILORED_CV)}?format=pdf&template=${DEFAULT_TEMPLATE}`}
+                    fileName={t("tailoredDocuments.aside.cvFile", {
+                      title: target.title,
+                    })}
+                    aside={t("tailoredDocuments.aside.preview")}
+                  />
+                ) : null}
+                <TailoredCvReview
+                  applicationId={applicationId}
+                  initial={tailoredCv}
+                  language={language}
+                  locale={locale}
+                  onSaved={setSavedCv}
+                />
+              </DocumentLayout>
+            ),
+          },
+        ]
+      : []),
+    ...(drafts
+      ? [
+          {
+            value: COVER_LETTER,
+            label: label[COVER_LETTER],
+            content: (
+              <DocumentLayout
+                asideLabel={t("tailoredDocuments.aside.label", {
+                  document: label.cover_letter,
+                })}
+                aside={
+                  <DocumentAside
+                    target={target}
+                    note={t("tailoredDocuments.draftsOnly")}
+                    exportPath={
+                      letter.exists
+                        ? exportPath(applicationId, COVER_LETTER)
+                        : null
+                    }
+                  />
+                }
+              >
+                {letter.exists ? (
+                  <DocumentViewer
+                    key={letter.version}
+                    src={`${exportPath(applicationId, COVER_LETTER)}?format=pdf&template=${DEFAULT_TEMPLATE}`}
+                    fileName={t("tailoredDocuments.aside.letterFile", {
+                      title: target.title,
+                    })}
+                    aside={t("tailoredDocuments.aside.preview")}
+                  />
+                ) : null}
+                <DraftEditor
+                  applicationId={applicationId}
+                  document={COVER_LETTER}
+                  language={language}
+                  initial={drafts.coverLetter}
+                  onSaved={() =>
+                    setLetter((current) => ({
+                      exists: true,
+                      version: current.version + 1,
+                    }))
+                  }
+                />
+              </DocumentLayout>
+            ),
+          },
+          {
+            value: OUTREACH_MESSAGE,
+            label: label[OUTREACH_MESSAGE],
+            content: (
+              <DocumentLayout
+                asideLabel={t("tailoredDocuments.aside.label", {
+                  document: label.outreach_message,
+                })}
+                aside={
+                  <DocumentAside
+                    target={target}
+                    note={t("tailoredDocuments.draftsOnly")}
+                    exportPath={null}
+                  />
+                }
+              >
+                <DraftEditor
+                  applicationId={applicationId}
+                  document={OUTREACH_MESSAGE}
+                  language={language}
+                  initial={drafts.outreachMessage}
+                  recipients={recipients}
+                />
+              </DocumentLayout>
+            ),
+          },
+        ]
+      : []),
+  ] satisfies DocumentTab<string>[];
+  const alone = only
+    ? documents.find((document) => document.value === only)
+    : undefined;
   return (
-    <section className="section" aria-labelledby={`${id}-title`}>
-      <div className="section-head">
-        <h2 id={`${id}-title`}>{t("application.documentsTitle")}</h2>
-      </div>
+    <section
+      className="section"
+      aria-labelledby={alone ? undefined : `${id}-title`}
+    >
+      {alone ? null : (
+        <div className="section-head">
+          <h2 id={`${id}-title`}>{t("application.documentsTitle")}</h2>
+        </div>
+      )}
       <div className="field">
         <label htmlFor={`${id}-language`}>
           {t("tailoredDocuments.languageLabel")}
@@ -254,140 +386,18 @@ export function TailoredDocuments({
         </select>
       </div>
       {/* The Design System's Tabs (#467); every tab stays mounted, so switching keeps unsaved edits. Each tab is a
-          Document Layout (#468): the saved document's Viewer and its editor, beside an aside. */}
-      <Tabs
-        label={t("application.documentsTitle")}
-        value={tab}
-        onValueChange={setTab}
-        keepMounted
-        tabs={
-          [
-            ...(tailoredCv
-              ? [
-                  {
-                    value: TAILORED_CV,
-                    label: label[TAILORED_CV],
-                    content: (
-                      <DocumentLayout
-                        asideLabel={t("tailoredDocuments.aside.label", {
-                          document: label.tailored_cv,
-                        })}
-                        aside={
-                          <DocumentAside
-                            target={target}
-                            matchScore={savedCv?.matchScore.tailored ?? null}
-                            note={t("tailoredDocuments.aside.cvNote")}
-                            exportPath={
-                              savedCv
-                                ? exportPath(applicationId, TAILORED_CV)
-                                : null
-                            }
-                            savedOn={
-                              savedCv ? longDate(savedCv.savedAt, locale) : null
-                            }
-                          />
-                        }
-                      >
-                        {savedCv ? (
-                          <DocumentViewer
-                            key={String(savedCv.savedAt)}
-                            src={`${exportPath(applicationId, TAILORED_CV)}?format=pdf&template=${DEFAULT_TEMPLATE}`}
-                            fileName={t("tailoredDocuments.aside.cvFile", {
-                              title: target.title,
-                            })}
-                            aside={t("tailoredDocuments.aside.preview")}
-                          />
-                        ) : null}
-                        <TailoredCvReview
-                          applicationId={applicationId}
-                          initial={tailoredCv}
-                          language={language}
-                          locale={locale}
-                          onSaved={setSavedCv}
-                        />
-                      </DocumentLayout>
-                    ),
-                  },
-                ]
-              : []),
-            ...(drafts
-              ? [
-                  {
-                    value: COVER_LETTER,
-                    label: label[COVER_LETTER],
-                    content: (
-                      <DocumentLayout
-                        asideLabel={t("tailoredDocuments.aside.label", {
-                          document: label.cover_letter,
-                        })}
-                        aside={
-                          <DocumentAside
-                            target={target}
-                            note={t("tailoredDocuments.draftsOnly")}
-                            exportPath={
-                              letter.exists
-                                ? exportPath(applicationId, COVER_LETTER)
-                                : null
-                            }
-                          />
-                        }
-                      >
-                        {letter.exists ? (
-                          <DocumentViewer
-                            key={letter.version}
-                            src={`${exportPath(applicationId, COVER_LETTER)}?format=pdf&template=${DEFAULT_TEMPLATE}`}
-                            fileName={t("tailoredDocuments.aside.letterFile", {
-                              title: target.title,
-                            })}
-                            aside={t("tailoredDocuments.aside.preview")}
-                          />
-                        ) : null}
-                        <DraftEditor
-                          applicationId={applicationId}
-                          document={COVER_LETTER}
-                          language={language}
-                          initial={drafts.coverLetter}
-                          onSaved={() =>
-                            setLetter((current) => ({
-                              exists: true,
-                              version: current.version + 1,
-                            }))
-                          }
-                        />
-                      </DocumentLayout>
-                    ),
-                  },
-                  {
-                    value: OUTREACH_MESSAGE,
-                    label: label[OUTREACH_MESSAGE],
-                    content: (
-                      <DocumentLayout
-                        asideLabel={t("tailoredDocuments.aside.label", {
-                          document: label.outreach_message,
-                        })}
-                        aside={
-                          <DocumentAside
-                            target={target}
-                            note={t("tailoredDocuments.draftsOnly")}
-                            exportPath={null}
-                          />
-                        }
-                      >
-                        <DraftEditor
-                          applicationId={applicationId}
-                          document={OUTREACH_MESSAGE}
-                          language={language}
-                          initial={drafts.outreachMessage}
-                          recipients={recipients}
-                        />
-                      </DocumentLayout>
-                    ),
-                  },
-                ]
-              : []),
-          ] satisfies DocumentTab<string>[]
-        }
-      />
+          Document Layout (#468): the saved document's Viewer and its editor, beside an aside. A Result alone, without them. */}
+      {alone ? (
+        alone.content
+      ) : (
+        <Tabs
+          label={t("application.documentsTitle")}
+          value={tab}
+          onValueChange={setTab}
+          keepMounted
+          tabs={documents}
+        />
+      )}
     </section>
   );
 }

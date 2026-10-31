@@ -85,7 +85,7 @@ export function WorkPane() {
     <aside className={PANE_CLASS} aria-labelledby={titleId} onKeyDown={onKeyDown}>
       <div className="work-pane-head">
         <h2 id={titleId} ref={title} tabIndex={-1}>
-          {itemTitle(shown.item, t)}
+          <ItemTitle item={shown.item} />
         </h2>
         {shown.item.kind === "help" ? <AskCoach article={shown.item.article} /> : null}
         <button className={buttonClass({ variant: "quiet" })} type="button" onClick={close}>
@@ -102,7 +102,8 @@ export function WorkPane() {
 }
 
 /** An item's title, in the pane's header. */
-function itemTitle(item: WorkPaneItem, t: ReturnType<typeof useTranslation>["t"]): string {
+function ItemTitle({ item }: { item: WorkPaneItem }) {
+  const { t } = useTranslation();
   switch (item.kind) {
     case "help":
       return item.article.title;

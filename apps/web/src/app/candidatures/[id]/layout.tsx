@@ -8,6 +8,8 @@ import { dossierSites } from "@/company-dossiers";
 import { ABANDON_CARD } from "@/follow-ups";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { conversationFirst } from "@/conversation-first";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { CoachInView } from "@/components/CoachPanel";
 import { JobOfferSummary } from "@/components/JobOfferSummary";
 import { ExpiredJobOfferNotice, JobOfferTiles, jobOfferSite } from "@/components/JobOfferView";
@@ -17,6 +19,7 @@ import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { routes, type ApplicationSection } from "@/routes";
 import "./application.css";
+import { ApplicationConversation } from "./conversation";
 import { loadApplicationPage, type Params } from "./sections";
 
 const MATCH_SCORE: ApplicationSection = "correspondance";
@@ -40,9 +43,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * Tailored Documents in tabs, the Match Score's breakdown, the Interviews, the
  * Human Coaches' Coach Reviews, the Company Dossier, its Enriched Contacts (when
  * a contact-data provider is on) and the full Job Offer.
+ * Under « Conversation au centre » (#603, ADR-0070), the page is the Application's conversation instead, with its Fiche
+ * (see ApplicationConversation).
  */
 export default async function ApplicationLayout({ params, children }: Params & { children: ReactNode }) {
-  const { candidateId, application, t, locale, inView, profiles, sections, shownCards, companyDossier, tailoredCv, drafts } = await loadApplicationPage((await params).id);
+  const data = await loadApplicationPage((await params).id);
+  const { candidateId, application, t, locale, inView, profiles, sections, shownCards, companyDossier, tailoredCv, drafts } = data;
   // What AI made for the Application: the Tailored CV and Documents (#334), the Action Cards (#336) and the Company Dossier
   // (#335; one built before shows « modèle non enregistré » with the sites its source names) with their Provenance. An
   // « Abandonnée » suggestion is worded by Jobbbox, no AI: not listed.
@@ -63,6 +69,12 @@ export default async function ApplicationLayout({ params, children }: Params & {
       .map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
   ];
   const aiActivity = await loadAiActivity.application(candidateId, { id: application.id, jobOffer: { id: application.jobOffer.id, title: application.jobOffer.title } }, made);
+  if (conversationFirst(getPlatformSettingsResolver().current()))
+    return (
+      <ApplicationConversation data={data} aiActivity={aiActivity}>
+        {children}
+      </ApplicationConversation>
+    );
   // Active Profiles to pick from, and the one in use even if it was archived since.
   const choices = profiles.filter((profile) => !profile.archived || profile.id === application.profile.id).map(({ id, name }) => ({ id, name }));
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });

@@ -4,6 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
 import { utf8Locale } from "./e2e/support/locale";
 import { webPort as e2eWebPort } from "./e2e/support/ports";
+import { utf8CharacterType } from "./e2e/support/utf8-locale";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
 // the built web app over HTTP, the built Chrome extension, the local docker
@@ -41,6 +42,9 @@ process.env.E2E_WEB_PORT = String(webPort);
 process.env.E2E_WEB_ORIGIN = webOrigin;
 process.env.E2E_STRIPE_PORT = String(stripePort);
 process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
+// A UTF-8 character type, whatever the shell has: under none, Chromium names a download « download » when its name is
+// not ASCII, « CV-Zoë-Łukasz.pdf » (e2e/support/utf8-locale.ts, e2e/export.spec.ts).
+Object.assign(process.env, utf8CharacterType());
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");

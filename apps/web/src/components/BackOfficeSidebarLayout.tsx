@@ -15,7 +15,7 @@ const isUnder = (pathname: string, path: string) => pathname === path || pathnam
  * The Back Office's sidebar layout (#204, Notion design language of map #123):
  * the sections an Administrator's roles cover, by group, each group named; the
  * Back Office Assistant in the top bar, on every page. `groups` holds only what they may see; the Dashboard, the
- * Back Office's home, comes first for everyone (#408).
+ * Back Office's home, comes first for everyone (#408). Last, Mon compte and the public Légal (#544).
  */
 export function BackOfficeSidebarLayout({ groups, title, children }: { groups: ReadonlyArray<BackOfficeNavGroup>; title?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
@@ -72,6 +72,13 @@ export function BackOfficeSidebarLayout({ groups, title, children }: { groups: R
               <Link className="sidebar-link" href={routes.account} onClick={closeDrawer}>
                 <Icons.account />
                 {t("admin.nav.account")}
+              </Link>
+            </li>
+            {/* The public Légal (#544); the Back Office's own help, /admin/aide, joins it with #551. */}
+            <li>
+              <Link className="sidebar-link" href={routes.legal()} onClick={closeDrawer}>
+                <Icons.legal />
+                {t("admin.nav.publicLegal")}
               </Link>
             </li>
           </ul>

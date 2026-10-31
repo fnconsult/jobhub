@@ -74,6 +74,8 @@ export const routes = {
   accountDeleted: "/compte/supprime",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
+  /** The Help Centre (#544): « Le centre d'aide arrive bientôt » until #549 brings its Help Articles; public. */
+  help: "/aide",
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
   nouveautes: "/nouveautes",
   /** Légal (#470): a Legal Document (the first by default), at `version` when not the one in effect; public. */

@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
+import { utf8LocaleFor } from "./e2e/support/locale";
 import { webPort as e2eWebPort } from "./e2e/support/ports";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
@@ -38,6 +39,8 @@ process.env.E2E_WEB_ORIGIN = webOrigin;
 process.env.E2E_STRIPE_PORT = String(stripePort);
 process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
+// A UTF-8 locale, or Chromium on Linux names a download beyond ASCII « download » (e2e/support/locale.ts, #544).
+Object.assign(process.env, utf8LocaleFor(process.env, process.platform));
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
   url.pathname = `/jobhub_e2e_${webPort}`;
@@ -51,6 +54,9 @@ export default defineConfig({
   reporter: [["list"]],
   timeout: 60_000,
   globalTeardown: "./e2e/support/global-teardown.ts",
+  // Per web port, like the server's log and database: a run empties its output folder as it starts, so two runs in one
+  // checkout (each on its own E2E_WEB_PORT) would delete each other's traces mid-test (ENOENT, #544).
+  outputDir: `test-results/e2e-${webPort}`,
   use: { trace: "retain-on-failure" },
   // Screenshot baselines (#463, #464, #465, #466): one set, drawn in Linux Chromium, CI's, whatever platform runs the suite
   // (e2e/support/screenshots.ts, e2e/shell-screenshots.spec.ts), kept in the repo beside the specs. A difference beyond a few pixels in a thousand fails; animations stop and the caret hides first.
@@ -60,7 +66,7 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|email-intake|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer)\.spec\.ts/,
+      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|email-intake|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
@@ -98,6 +104,9 @@ export default defineConfig({
       // The e2e environment serves the latest Playbook Versions, validated or not: a production build
       // naming no target serves only Human-validated ones (ADR-0021, #225).
       JOBHUB_TARGET: "e2e",
+      // Its whole environment is this one, as CI's: a developer's root .env (apps/web/src/env/root-env.ts) is left out,
+      // or its values (BEDROCK_REGION, MAIL_FROM…) replace the code's defaults the specs expect (#544).
+      JOBHUB_ROOT_ENV: "ignore",
       // Candidate accounts in a local production build: sign-in links go to the server log.
       APP_URL: webOrigin,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",
@@ -139,7 +148,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test,search-keys-office@e2e.jobbbox.test,web-search-settings-office@e2e.jobbbox.test,ai-tasks-office@e2e.jobbbox.test,prices-office@e2e.jobbbox.test,activite-office@e2e.jobbbox.test,explain-office@e2e.jobbbox.test,dashboard-office@e2e.jobbbox.test,design-system-office@e2e.jobbbox.test,email-intake-office@e2e.jobbbox.test,design-system-page-office@e2e.jobbbox.test,design-system-access-office@e2e.jobbbox.test,design-system-screens-office@e2e.jobbbox.test,shell-office@e2e.jobbbox.test,emails-recus-office@e2e.jobbbox.test,pilot-pages-office@e2e.jobbbox.test,sections-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test,search-keys-office@e2e.jobbbox.test,web-search-settings-office@e2e.jobbbox.test,ai-tasks-office@e2e.jobbbox.test,prices-office@e2e.jobbbox.test,activite-office@e2e.jobbbox.test,explain-office@e2e.jobbbox.test,dashboard-office@e2e.jobbbox.test,design-system-office@e2e.jobbbox.test,email-intake-office@e2e.jobbbox.test,design-system-page-office@e2e.jobbbox.test,design-system-access-office@e2e.jobbbox.test,design-system-screens-office@e2e.jobbbox.test,shell-office@e2e.jobbbox.test,emails-recus-office@e2e.jobbbox.test,pilot-pages-office@e2e.jobbbox.test,sections-office@e2e.jobbbox.test,public-shell-office@e2e.jobbbox.test",
       // Provider Secrets (#208): an obviously fake master key, for the providers' sheets in Paramètres (#396).
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.

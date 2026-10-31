@@ -41,6 +41,7 @@ import {
   PanelLeftClose,
   Plus,
   RefreshCw,
+  Scale,
   Search,
   SearchCheck,
   ServerCrash,
@@ -144,6 +145,8 @@ const LUCIDE = {
   download: Download,
   upload: Upload,
   minus: Minus,
+  /** The public Légal, from the Back Office (#544). */
+  legal: Scale,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

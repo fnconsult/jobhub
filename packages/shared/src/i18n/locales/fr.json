@@ -191,7 +191,8 @@
     "jobDigests": "Job Digests",
     "subscription": "Abonnement",
     "mainMenu": "Menu principal",
-    "agenda": "Agenda"
+    "agenda": "Agenda",
+    "helpAndLegal": "Aide et légal"
   },
   "usageMeter": {
     "title": "Hebdomadaire",
@@ -1205,7 +1206,8 @@
         "platform": "Plateforme",
         "team": "Équipe"
       },
-      "toHandle": "{{count}} à traiter"
+      "toHandle": "{{count}} à traiter",
+      "publicLegal": "Légal (site public)"
     },
     "sections": {
       "signalements": "Signalements",
@@ -4613,13 +4615,27 @@
   "publicSite": {
     "nav": "Pages publiques",
     "nouveautes": "Nouveautés",
-    "legal": "Légal"
+    "legal": "Légal",
+    "help": "Aide",
+    "menu": "Menu",
+    "language": "Langue",
+    "languages": {
+      "fr": {
+        "short": "FR",
+        "name": "Français"
+      },
+      "en": {
+        "short": "EN",
+        "name": "English"
+      }
+    }
   },
   "legal": {
     "eyebrow": "Légal",
     "documentsNav": "Documents légaux",
     "documents": {
       "conditions-utilisation": "Conditions d'utilisation",
+      "cgv": "Conditions générales de vente",
       "confidentialite": "Politique de confidentialité",
       "cookies": "Cookies",
       "sous-traitants-et-ia": "Sous-traitants et IA",
@@ -4662,5 +4678,29 @@
     "emptyTitle": "Rien n'est encore publié",
     "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
     "noneForTag": "Aucune version ne porte ce thème pour le moment."
+  },
+  "publicFooter": {
+    "legal": {
+      "title": "Légal",
+      "mentionsLegales": "Mentions légales",
+      "cgu": "CGU",
+      "cgv": "CGV",
+      "confidentialite": "Confidentialité et cookies",
+      "ia": "IA dans Jobbbox"
+    },
+    "help": {
+      "title": "Aide",
+      "helpCentre": "Centre d'aide",
+      "contact": "Nous contacter",
+      "extension": "Extension"
+    },
+    "language": "Langue du site",
+    "copyright": "© Jobbbox"
+  },
+  "helpCentre": {
+    "eyebrow": "Aide",
+    "title": "Centre d'aide",
+    "comingSoonTitle": "Le centre d'aide arrive bientôt",
+    "comingSoon": "Ses articles répondront ici à vos questions sur Jobbbox. D'ici là, les textes légaux et les nouveautés sont en bas de chaque page."
   }
 }

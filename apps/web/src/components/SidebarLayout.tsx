@@ -12,6 +12,7 @@ import { AiActivityProvider } from "@/components/AiActivity";
 import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
+import { AIDE_ET_LEGAL } from "@/public-pages/public-shell";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
 
@@ -36,7 +37,8 @@ const LABELS = {
  * and in its foot the Usage Meter of the week's Plan Quotas (null when billing could not be read).
  * Its Top Bar has AI Activity's button, its pane the page's `aiActivity` elements (none: « Aucun contenu
  * produit par l'IA sur cette page »). Beside « Mon compte », on its row, the Signalement icon (#375), which opens the
- * Signalement dialog; `version` is the Jobbbox version that dialog shows.
+ * Signalement dialog; `version` is the Jobbbox version that dialog shows. At the top of its foot, « Aide et légal »
+ * (#544): the public Aide, Légal and Nouveautés, in the drawer too on a phone.
  */
 export function SidebarLayout({
   profiles,
@@ -78,6 +80,21 @@ export function SidebarLayout({
         wide={wide}
         foot={(closeDrawer) => (
           <>
+            {/* Named by its own words; no id, the drawer drawing the same block beside the docked sidebar. */}
+            <nav className="sidebar-help" aria-label={t("sidebar.helpAndLegal")}>
+              <p className="sidebar-help-title" aria-hidden="true">
+                {t("sidebar.helpAndLegal")}
+              </p>
+              <ul>
+                {AIDE_ET_LEGAL.map((link) => (
+                  <li key={link.key}>
+                    <Link href={link.href} onClick={closeDrawer}>
+                      {t(link.label)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
             <div className="sidebar-account-row">
               <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>

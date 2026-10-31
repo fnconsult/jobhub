@@ -14,6 +14,7 @@ import { getSecretResolver } from "@/provider-secrets/server";
 import { getRecognisedSenderList } from "@/email-intake/server";
 import { getSearchSites } from "@/search-sites/server";
 import { needsSsoForBackOffice } from "@/sign-in-providers/policy";
+import { getQuotaReductions } from "@/quota-reductions/server";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
 import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission } from "./access";
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
@@ -42,7 +43,7 @@ let signalementsBackOffice: SignalementsBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
-  backOffice ??= createBackOffice(sharedPool(), { billing: getBilling(), humanCoaches: getHumanCoaches() });
+  backOffice ??= createBackOffice(sharedPool(), { billing: getBilling(), humanCoaches: getHumanCoaches(), quotaReductions: getQuotaReductions() });
   return backOffice;
 }
 

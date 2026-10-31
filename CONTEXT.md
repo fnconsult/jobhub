@@ -789,8 +789,12 @@ What a Plan costs each billing interval, shown in the plan comparison: the defau
 _Avoid_: Tariff, fee
 
 **Plan Quota**:
-A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores, Job Searches and Enriched Contacts per week (from Monday 00:00, French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan. Administrators who may change them can also reset the week's usage of every Candidate, giving a reason the Back Office Audit records.
+A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores, Job Searches and Enriched Contacts per week (from Monday 00:00, French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; an increase applies at once to every Candidate on the Plan, a reduction of a Plan Candidates pay for is a Quota Reduction. Administrators who may change them can also reset the week's usage of every Candidate, giving a reason the Back Office Audit records.
 _Avoid_: Limit, allowance, credits, monthly quota
+
+**Quota Reduction**:
+Lowering a paid Plan's Plan Quotas or Plan Features while Candidates pay for it (a lower number, a number where it was unlimited, a rarer Job Digest, a Plan Feature taken off). It waits for an effective date at least 30 days ahead, with a reason; each paying subscriber is told by e-mail and may cancel at no cost until 30 days after that date, the unused part of the paid period refunded prorata (« Résilier sans frais »). Listed on Offres, where it can be cancelled before its date. On Free, or on a Plan nobody pays for, a reduction applies at once.
+_Avoid_: Downgrade (that is a Candidate changing Plan), quota cut, plan change
 
 **Usage Meter**:
 The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Titled « Hebdomadaire » ("Weekly"), with a line under the bar saying the quota renews Monday at midnight. Its button opens a card above the meter (Escape closes it) showing each quota's use and the Job Digest frequency, and leading to the subscription page.

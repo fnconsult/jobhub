@@ -823,6 +823,34 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toMatch(/cus_secret_customer|sub_secret_subscription/);
   });
 
+  it("the export holds each Quota Reduction the Candidate was told of, and whether its refund was made, waits or was made by Support, never a Stripe identifier", async () => {
+    // Three applied reductions of Standard (one waits per Plan at a time): refunded, refused by Stripe, settled by Support.
+    const { rows } = await database.query<{ id: string }>(
+      `INSERT INTO plan_quota_reduction (plan, quotas, reason, effective_on, effective_at, scheduled_by_email, applied_at)
+       SELECT 'standard', '{"jobSearches":{"before":7,"after":3}}', 'Coûts', d::date, d::timestamptz, 'claire@jobbbox.fr', now()
+       FROM unnest(ARRAY['2026-11-14', '2026-12-14', '2027-01-14']) AS d
+       RETURNING id::text AS id`,
+    );
+    const [refunded, refused, settled] = rows.map((row) => row.id);
+    await database.query(
+      `INSERT INTO plan_quota_reduction_notice (reduction_id, candidate_id, sent_at, resolved_at, subscription_id, refund_id, refund_amount, refund_currency, refund_failure, refund_settled_at) VALUES
+         ($2, $1, now(), now(), 'sub_secret_subscription', 're_secret_refund', 666, 'eur', NULL, NULL),
+         ($3, $1, now(), now(), 'sub_secret_subscription', NULL, 500, 'eur', 'charge_disputed', NULL),
+         ($4, $1, now(), now(), 'sub_secret_subscription', NULL, 400, 'eur', NULL, now())`,
+      [candidateId, refunded, refused, settled],
+    );
+
+    const exported = await candidateData.export(candidateId);
+
+    // Newest effective date first.
+    expect(exported.quotaReductionNotices.map(({ effectiveOn, refund }) => ({ effectiveOn, refund }))).toEqual([
+      { effectiveOn: "2027-01-14", refund: { status: "settled_by_support", amount: 400, currency: "eur" } },
+      { effectiveOn: "2026-12-14", refund: { status: "pending", amount: 500, currency: "eur" } },
+      { effectiveOn: "2026-11-14", refund: { status: "refunded", amount: 666, currency: "eur" } },
+    ]);
+    expect(JSON.stringify(exported)).not.toMatch(/sub_secret_subscription|re_secret_refund|charge_disputed/);
+  });
+
   it("the export holds how the Candidate signs in and their sign-in sessions, but no token or password", async () => {
     // Linked when the Candidate signs in with Google.
     await database.query(

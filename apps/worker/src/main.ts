@@ -5,6 +5,8 @@ import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
+import { billingConfigFromEnv } from "@jobhub/web/billing/config";
+import { createQuotaReductions } from "@jobhub/web/quota-reductions";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
 import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
 import { workerGuardrails } from "@jobhub/web/guardrails/checks";
@@ -120,6 +122,15 @@ mailerFromEnv(secretsWithSettings(secrets, platformSettings.resolver).current().
 const mailer = worker.mailer;
 
 const billing = createBilling({ database, baseURL });
+/** Billing with Stripe, for what only Stripe does (a Quota Reduction's prorata refund, #514); without its keys, the one above. */
+const stripeBilling = () => {
+  try {
+    return createBilling({ ...billingConfigFromEnv(secrets.current().env), database, baseURL, externalApis });
+  } catch (error) {
+    console.warn("[worker] billing without Stripe: refunds wait until its keys are set", error instanceof Error ? error.message : error);
+    return billing;
+  }
+};
 // SECRETS_MASTER_KEYS: Apple's client secret is sealed under it, and so are the Received offer emails' texts.
 const secretCipher = secretCipherFromEnv(process.env);
 const digestApplications = createApplications(database, { jobOffers, profiles });
@@ -149,6 +160,9 @@ const jobs = createJobs({
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
+  // A Quota Reduction (#514) applies on its effective date; each subscriber gets its notice, in their Interface Language.
+  // Stripe asked again for prorata refunds it did not answer about: its keys as the web app has them (Provider Secrets over env).
+  quotaReductions: { run: () => createQuotaReductions(database, { billing: stripeBilling(), mailer, baseURL }).run() },
   providerSecrets: providerSecrets.reader,
   referenceData,
   signInProviders: signInProvidersWorker(database, { cipher: secretCipher, env: process.env }),

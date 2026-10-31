@@ -286,6 +286,8 @@ export const ENV_ONLY_SETTINGS = {
   STRIPE_API_URL: { kind: "test", shown: false },
   CONTACT_ENRICHMENT_API_URL: { kind: "test", shown: false },
   FANTASTIC_JOBS_API_URL: { kind: "test", shown: false },
+  // The e2e suite's server leaves a developer's repo-root .env unread (env/root-env.ts).
+  JOBHUB_IGNORE_ROOT_ENV: { kind: "test", shown: false },
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
 
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;

@@ -53,11 +53,11 @@ _Avoid_: Anonymous user, prospect, lead, Guest (for someone on the site)
 ### Coaching
 
 **AI Coach**:
-The AI agent persona that guides the Candidate through onboarding, CV improvement, job search, application preparation and follow-up. It always says it is an AI and not a person (AI Act art. 50(1)): a fixed first message in every Coach Conversation, a « Coach IA » badge by the message box and as the Coach Panel's title, and a truthful answer when asked. Its replies show no author name; each is followed by its Provenance.
+The AI agent persona that guides the Candidate through onboarding, CV improvement, job search, application preparation and follow-up. It always says it is an AI and not a person (AI Act art. 50(1)): a fixed first message in every Coach Conversation, a « Coach IA » badge by the message box, and a truthful answer when asked. Its replies show no author name; each is followed by its Provenance.
 _Avoid_: Bot, assistant, agent (in user-facing language)
 
 **AI disclosure**:
-The AI Coach's fixed first message in a new Coach Conversation, saying it is an AI and not a person and that a Human Coach can be booked. Shown by the Coach Panel, not sent by the AI Coach: no AI call, no Plan Quota use, no Coach Message Cost, and not in the Coach context. A Coach Conversation made before it was introduced has none.
+The AI Coach's fixed first message in a new Coach Conversation, saying it is an AI and not a person and that a Human Coach can be booked. Shown at the top of the conversation, not sent by the AI Coach: no AI call, no Plan Quota use, no Coach Message Cost, and not in the Coach context. A Coach Conversation made before it was introduced has none.
 _Avoid_: Welcome message
 
 **Human Coach**:
@@ -89,7 +89,7 @@ A Human Coach no longer listed to Candidates and who can no longer read anything
 _Avoid_: Deleted coach
 
 **Coach Panel**:
-The side panel, available from every page, where the Candidate asks for help and talks with the AI Coach; its Top Bar button reads « Aide et coach » (« Aide » on phones). On wide screens it sits beside the page as a card, like AI Activity's pane, and the Candidate can widen it into a drawer over the page; on phones it takes the whole screen. Its one menu, the conversation's title, holds a new conversation, the saved Coach Conversations and the Coach Memory. Its one box takes the Candidate's question: while they type, matching Help Articles are suggested above it, without AI; sending it asks the AI Coach. With no message yet, it shows the Help Article of the page in view and a few frequent questions. Under each AI Coach reply it asks « Cela répond à votre question ? Oui / Non »; « Non » offers « Poser la question à l'équipe », a Question Signalement (under a Help Article, « Non » asks the AI Coach first). Its foot holds two links, « Signaler un problème » and « Proposer une idée », which open the Signalement dialog as a Bug or an Idée.
+The side panel where an Administrator talks with the Back Office Assistant. Retired from the Candidate's pages by the conversation-first design (ADR-0070): there the conversation is the page (see Coach Conversation, Fiche, Work Pane), and « Aide et coach » is gone from the Top Bar.
 _Avoid_: Chat, chatbot, sidebar, help menu
 
 **Coach context**:
@@ -99,11 +99,19 @@ What the AI Coach is told before each reply: always the Candidate summary and th
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.
 
 **Coach Conversation**:
-A saved conversation between a Candidate and the AI Coach in the Coach Panel. A Candidate has several, each attached to the Profile in view when it started. The Candidate can name, reopen and delete it. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message, without the Coach Message Cost.
+A saved conversation between a Candidate and the AI Coach, and on the Candidate's pages the page itself (ADR-0070), with its box at the foot. Each has a Subject. An object or a Sidebar menu has at most one, created at its first message; until then the page shows the Introduction and suggestions. A Free conversation is attached to the active Profile and can be named. « Effacer », after a confirming Dialog, deletes every message of the page's conversation; the object and Coach Memory stay. An archived object keeps its conversation. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message and its Subject, without the Coach Message Cost.
 _Avoid_: Chat, thread, session
 
+**Subject**:
+What a Coach Conversation is about, fixed when it starts: one object (an Application, a Profile, a Job Search or a Job Digest), one Sidebar menu (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains; one conversation per Candidate each), or none for a Free conversation. A Job Offer's page starts a Free conversation with the Job Offer In view.
+_Avoid_: Focus (that is per reply), owner, topic
+
+**Free conversation**:
+A Coach Conversation with no object or menu as its Subject, started from « Nouvelle conversation » or « Coach » in the Sidebar, where it is listed. The home page is a new Free conversation.
+_Avoid_: General chat, scratch conversation
+
 **Coach Memory**:
-The key facts (goals, constraints, decisions) the AI Coach keeps about a Candidate across Coach Conversations. The AI Coach proposes them from a Coach Conversation; an item is saved only once the Candidate confirms it, one by one. The Candidate sees, edits and deletes items in the Coach Panel. At most 30 items of 300 characters each. Sent with every AI Coach message. Kept when a Coach Conversation is deleted; deleted with the account. Human Coaches never see it. In the Data export.
+The key facts (goals, constraints, decisions) the AI Coach keeps about a Candidate across Coach Conversations. The AI Coach proposes them from a Coach Conversation; an item is saved only once the Candidate confirms it, one by one. The Candidate sees, edits and deletes items from « Mémoire du coach » under « Coach » in the Sidebar, opened in the Work Pane. At most 30 items of 300 characters each. Sent with every AI Coach message. Kept when a Coach Conversation is deleted; deleted with the account. Human Coaches never see it. In the Data export.
 _Avoid_: Profile notes, chat history
 
 **Coach Message Cost**:
@@ -117,7 +125,7 @@ EUR 0.03 per AI Coach reply, judged on the daily median and p90 of the Coach Mes
 Input tokens the AI provider reads from its prompt cache rather than processing again; priced apart from the rest of the input.
 
 **In view**:
-The Profile, Application, Job Offer, Job Search or Job Digest the page the Candidate is on shows, or, on the Agenda, the Agenda Items of the next 30 days. The Coach Panel and AI Coach use it as context, and only if it belongs to the Candidate.
+The Profile, Application, Job Offer, Job Search or Job Digest the page the Candidate is on shows, or, on the Agenda, the Agenda Items of the next 30 days. The Coach Conversation and AI Coach use it as context, and only if it belongs to the Candidate.
 _Avoid_: Focus, current item, selected
 
 **Action Card**:
@@ -268,7 +276,7 @@ The act of the browser extension turning the job page the person is viewing into
 _Avoid_: Scrape, import, clip
 
 **Job Offer link**:
-A link to one job posting the Candidate pastes in a Coach Panel message. Once the Guardrails let the message through, Jobbbox reads the page the way Job discovery reads one (robots rules, as itself, giving up at bot protection or a sign-in), takes its JobPosting data or has the AI read its text as data, and stores it as a Job Offer like a Capture. The AI Coach answers with a set reply and a Job Offer card instead of its own reply. A Forbidden site is never read: the reply sends the Candidate to the extension, as it does for a page that cannot be read.
+A link to one job posting the Candidate pastes in a Coach Conversation message. Once the Guardrails let the message through, Jobbbox reads the page the way Job discovery reads one (robots rules, as itself, giving up at bot protection or a sign-in), takes its JobPosting data or has the AI read its text as data, and stores it as a Job Offer like a Capture. The AI Coach answers with a set reply and a Job Offer card instead of its own reply. A Forbidden site is never read: the reply sends the Candidate to the extension, as it does for a page that cannot be read.
 _Avoid_: URL import, scrape
 
 **Job Offer card**:
@@ -280,7 +288,7 @@ A Job Offer in a list of Job Offers (a Job Search, a Job Digest, « Reçues par 
 _Avoid_: Job Offer card, result card
 
 **Quick actions**:
-The row of pills on the Candidate's home page that start the usual next steps: search for Job Offers, add an Application or ask the AI Coach (both open the Coach Panel), plan an Interview.
+The suggestions above the box of the home page's empty conversation that start the usual next steps: search for Job Offers, add an Application, plan an Interview, ask how the page works.
 _Avoid_: shortcuts
 
 **Job discovery**:
@@ -292,7 +300,7 @@ A result page that lists several postings (a job board's search results, a caree
 _Avoid_: Results page, index page
 
 **Job Search**:
-One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Panel and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
+One run of Job discovery that a Candidate starts for a Profile, and its outcome: searching, done, failed or stopped. Started from the Recherches d'offres page, for one Profile or for all their active Profiles at once (one Job Search each); the Coach Conversation and "Relancer une recherche" on a Job Search's page start one for a single Profile. A Profile's page does not offer it. With several locations it searches each of them within the one Job discovery budget. It counts one against the Plan Quota, and the use is given back if the search fails, times out or is stopped without keeping a Job Offer. The Candidate can stop it from its page or from AI Activity (a Stop request); a stopped or failed search keeps, and links, the Job Offers it had already found. A search nobody has finished after 15 minutes is failed. Its page shows the Match Scores against the Profile's current Search Criteria; a Job Search keeps no copy of the criteria it was run with.
 _Avoid_: Search (alone, ambiguous with Search Criteria)
 
 **Stop request**:
@@ -613,15 +621,31 @@ The Candidate's choice of how large all interface text is shown, on a four-step 
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, links to their pages, and at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into its 5 to 10 most recent objects and « Tout voir »; at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
 
+**Fiche**:
+The column beside an object's Coach Conversation that shows the object: its card, then three groups the Candidate can fold, its Sections, its Activity (AI Activity and the Context bar) and its Results. Opened and closed only by the Top Bar's « Fiche » (« Activité » opens it on its Activity); never over the conversation.
+_Avoid_: Details panel, sidebar, record pane
+
+**Work Pane**:
+The column beside a Coach Conversation where one item opens to be acted on: a Result (shown in the Viewer when it is a document), a Section, a Help Article or a form (a Signalement, an Interview…). One item at a time, with its actions in its header (modify, download, send, stop, « Demander au coach ») and its ✕ to close it; never over the conversation. On phones it takes the whole screen.
+_Avoid_: Drawer (Back Office and the Sidebar on phones), document pane, modal
+
+**Result**:
+What an AI action of the Candidate produced and kept with its object: a Tailored CV, a Cover Letter, an Outreach or Follow-up message, an interview preparation. Listed in the Fiche's Results and in the reply that produced it; opened in the Work Pane.
+_Avoid_: Output, artefact, deliverable
+
+**Context bar**:
+The bar in Activity showing how much of a Coach Conversation the AI Coach reads: its messages out of the 40 it reads and the jetons of its context out of the ceiling. From 80 % it says that the AI Coach reads only the latest messages and offers « Effacer la conversation ».
+_Avoid_: Memory gauge, quota bar (that is the Usage Meter)
+
 **Top Bar**:
-The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and the Coach Panel's button, « Aide et coach », while the panel is closed. Nothing else for help or Signalements goes there.
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte) has « Aide », which opens its Help Article in the Work Pane. Nothing else for help or Signalements goes there.
 _Avoid_: Header, navbar
 
 **Section**:
-One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels, Mes signalements or Mes données, a Profile's or an Application's parts, a Back Office section. On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
+One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels, Mes signalements or Mes données, a Profile's or an Application's parts, a Back Office section. An object's Sections are listed in its Fiche and each opens in the Work Pane (ADR-0070). On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
 _Avoid_: Tab, sub-page, panel
 
 **Design System**:
@@ -653,7 +677,7 @@ The Design System's filters that live in the page's address, drawn as chips, so 
 _Avoid_: Filter bar, tabs
 
 **Drawer**:
-The Design System's panel that slides in from the side over the page, for anything the person fills in or reads in detail: a form, a Section on phones, the Sidebar's menu on phones. It holds focus while open and « Fermer » or Escape returns focus to what opened it.
+The Design System's panel that slides in from the side over the page, for anything the person fills in or reads in detail in the Back Office, and for the Sidebar's menu on phones. On the Candidate's pages a form opens in the Work Pane instead (ADR-0070). It holds focus while open and « Fermer » or Escape returns focus to what opened it.
 _Avoid_: Modal, popup, dialog (a Dialog only confirms)
 
 **ConfirmDialog**:
@@ -789,7 +813,7 @@ One of Jobbbox's public legal documents: the CGU, the CGV (with the withdrawal f
 _Avoid_: Terms page, policy page, legal page
 
 **Legal Text Version**:
-One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor. A correction is a new version; earlier versions stay readable.
+One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served before its effective date; once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
 _Avoid_: Revision, edition, draft
 
 **Legal Review**:
@@ -907,7 +931,7 @@ The quiet line under each saved AI Coach or Back Office Assistant reply: the mod
 _Avoid_: Footer, metadata line, usage line
 
 **Focus**:
-The object of the page in view when a Coach reply was asked: an Application, a Job Offer or a Profile. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
+The object a Coach reply was about: the Subject's object, or the item In view when it was asked: an Application, a Job Offer, a Profile, a Job Search, a Job Digest or the Agenda. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
 _Avoid_: Context, subject, target
 
 **Joined Provenance**:
@@ -927,7 +951,7 @@ What AI Activity calls a running step: its Activity, or « check » for a Guardr
 _Avoid_: Step name, status
 
 **Live action**:
-An AI action of the Candidate running now, or stopped or failed lately, as AI Activity shows it: running, stopping, stopped or failed. A finished action leaves, its result counting with the page. A stopped or failed action stays in the pane until the next Coach reply replaces it or, for a Job Search, until its notification is dismissed; only a Job Search this browser saw running is shown so. Only an action this browser saw start is announced as starting (a Job Search found running after a page reload is not). Its start and its end are announced once, by one polite live region above every Candidate page, so a page change neither loses nor repeats them; the Coach Panel and a Job Search's notification announce their own end.
+An AI action of the Candidate running now, or stopped or failed lately, as AI Activity shows it: running, stopping, stopped or failed. A finished action leaves, its result counting with the page. A stopped or failed action stays in the pane until the next Coach reply replaces it or, for a Job Search, until its notification is dismissed; only a Job Search this browser saw running is shown so. Only an action this browser saw start is announced as starting (a Job Search found running after a page reload is not). Its start and its end are announced once, by one polite live region above every Candidate page, so a page change neither loses nor repeats them; the Coach Conversation and a Job Search's notification announce their own end.
 _Avoid_: Task, job, process
 
 **Stop**:
@@ -952,6 +976,7 @@ The Provenance of content made by Jobbbox's rules alone: one compute step, no mo
 The button in the Candidate's top bar, left of « Aide et coach », and the pane it opens, « Cette page »: which models (with tokens and time), Provenance sites and Tools produced what the page shows, summed for the page and listed per element, read from each element's Provenance; the AI Coach replies given while the page's object was in view count with the page. While an AI action of the Candidate runs (on this page or « En cours ailleurs »), it shows each step live with its Activity's glyph and a stop icon; a stopped or failed action is shown in light red, in words, with its finished steps. A failed action gives its Failure Reason in French when its route sent a known code (only the code, never the provider's words), and « Elle n'a pas pu aboutir. » when it sent none or `other`. Never in the Back Office, never cost, prompts, the Playbook Agent, Back Office settings or internal identifiers; tokens are labelled a technical measure, not counted against Plan Quotas, and never appear in the Usage Meter. Models are named for people (« Claude Opus 5 »), with where they ran (« AWS Bedrock · UE ») and the EU AI Consent or outside-the-EU route when that served the call; providers are named in text, with a logo only where its owner allowed it in writing.
 The button has a frame (the bordered square around its icon alone, as high as « Aide et coach ») and words (the page's summary or the step under way) left of the frame; the words are outside the frame but still part of the button.
 _Avoid_: Session pane, sources bar, tasks panel
+On the Candidate's pages (ADR-0070) it is the « Activité » group of an object's Fiche, and elsewhere a column opened by the Top Bar's « Activité », with the Context bar; never over the conversation.
 
 **AI Activity element**:
 One item AI Activity lists under « Par élément » with its own Provenance: a Job Offer, an AI Coach reply, a Job Search, a Company Dossier, a Master CV Version read from a file (« CV de référence, lu dans votre fichier »), and so on. An Abandonnée suggestion is not one: Jobbbox writes its text, with no AI. One without a recorded Provenance shows « modèle non enregistré » and counts in no total. It still shows the sites its source names. Each Provenance site appears once in the page's Sources, however many elements read it.
@@ -966,11 +991,11 @@ One time a Guardrail blocked, flagged or could not check a message or reply: whi
 _Avoid_: Guardrail log, incident, alert
 
 **Back Office Assistant**:
-The AI Coach panel shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles, including from an Explainable label, which asks it to explain that item in context; read-only, never sees Provider Secrets nor email addresses. Its box suggests the Administrators' Help Articles first, found without AI, and it answers from the matching ones, citing them; with none, it says no tutorial covers the point and offers « Demander un tutoriel ». Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
+The AI Coach in a side panel (the Coach Panel) shown to Administrators in the Back Office. Answers questions about Back Office data and settings within the asking Administrator's Back Office Roles, including from an Explainable label, which asks it to explain that item in context; read-only, never sees Provider Secrets nor email addresses. Its box suggests the Administrators' Help Articles first, found without AI, and it answers from the matching ones, citing them; with none, it says no tutorial covers the point and offers « Demander un tutoriel ». Its conversations are the Administrator's own, kept apart from Coach Conversations and counted against no Plan Quota: kept 12 months after their last message, deleted with the account, in their Data export.
 _Avoid_: Admin bot, admin copilot
 
 **Help Article**:
-One short text in French and in English that explains the product without an AI call: a page article (one per page), a glossary entry, a FAQ answer or a tutorial, with synonyms the reader's words are matched against. Written as Markdown, possibly drafted by an agent but published only once a person has reviewed it, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile). Each article is meant for one audience (Visitor, Guest, Candidate, Human Coach or Administrator). The first four are public and read the same in the Coach panel and in the Help Centre; the Administrators' are read only in the Back Office, never public nor indexed.
+One short text in French and in English that explains the product without an AI call: a page article (one per page), a glossary entry, a FAQ answer or a tutorial, with synonyms the reader's words are matched against. Written as Markdown, possibly drafted by an agent but published only once a person has reviewed it, searched by rules. The page article of a page is also shown for the pages under it (the Sections of an Application or of a Profile). Each article is meant for one audience (Visitor, Guest, Candidate, Human Coach or Administrator). The first four are public and read the same on the Candidate's pages and in the Help Centre; the Administrators' are read only in the Back Office, never public nor indexed.
 _Avoid_: Help page, KB article, doc
 
 **Tutorial**:
@@ -994,28 +1019,24 @@ The reviewed text of an Explainer Video, one per language, kept with its Tutoria
 _Avoid_: Storyboard, voice-over text
 
 **Help Centre**:
-The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Coach panel shows the same articles in context.
+The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Candidate's pages show the same articles in context: suggested above the box while typing and opened in the Work Pane.
 _Avoid_: KB, support site, help desk
 
-**Legal Document**:
-A text on the public Légal page (conditions of use, privacy, cookies, subprocessors and AI, legal notice), written by the team in French and English. Versioned with an effective date and an optional « En bref »; every version is kept and an earlier one stays readable. One the team has not written shows « Ce texte n'est pas encore publié ». Offered as a PDF.
-_Avoid_: Policy, terms page
-
 **Article card**:
-A Help Article shown in the Coach panel's conversation, from the box's suggestions « Dans l'aide, sans IA », the page in view or « Souvent demandé ». Kept only in the browser: gone after a reload, never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.
+A Help Article opened in the Work Pane beside a Coach Conversation (ADR-0070; a card in the Coach Panel's conversation before), from the box's suggestions « Dans l'aide, sans IA », « Comment marche cette page ? » or a HelpTerm. Kept only in the browser: never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.
 
 **Souvent demandé**:
 The three FAQ Help Articles an empty Coach Conversation offers, beside « Sur cette page », the page's article.
 
 **HelpTerm**:
-The first mention of a glossary term (Match Score, ATS Score, Propositions, CV de référence, CV adapté, Relance, Plan Quota) in a visible sentence of a page, shown with a dotted underline; it opens that term's Help Article in the Coach panel. Later mentions on the same page are plain text. Never in a Section's heading, which is visually hidden, and absent where there is no Coach panel with help; the Back Office has Explainable labels instead.
+The first mention of a glossary term (Match Score, ATS Score, Propositions, CV de référence, CV adapté, Relance, Plan Quota) in a visible sentence of a page, shown with a dotted underline; it opens that term's Help Article in the Work Pane. Later mentions on the same page are plain text. Never in a Section's heading, which is visually hidden, and absent in the Back Office, which has Explainable labels instead.
 _Avoid_: Tooltip, glossary link
 
 **Empty state help link**:
 The link that follows the line of an empty state (no Propositions, no Relances, no Applications, no Job Search, nothing on the Agenda, no Profile data) and opens the Help Article that explains what fills it.
 
 **Question sans réponse (couldNotAnswer)**:
-The AI Coach's own hidden mark on a reply (a last line removed before anyone sees it) saying it could not answer the question. The Coach Panel then offers « Poser la question à l'équipe » at once, without asking « Cela répond à votre question ? ». Never set on a Guardrail message or a Job Offer link; not saved with the Coach Conversation. Not the same as an Unanswered Question, and never linked to one.
+The AI Coach's own hidden mark on a reply (a last line removed before anyone sees it) saying it could not answer the question. The Coach Conversation then offers « Poser la question à l'équipe » at once, without asking « Cela répond à votre question ? ». Never set on a Guardrail message or a Job Offer link; not saved with the Coach Conversation. Not the same as an Unanswered Question, and never linked to one.
 _Avoid_: unanswered flag
 
 **Unanswered Question**:
@@ -1023,7 +1044,7 @@ A question about using Jobbbox that a Candidate asked the AI Coach, or an Admini
 _Avoid_: FAQ gap, feedback, ticket
 
 **Signalement**:
-What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from the Coach Panel's foot or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in the Coach Panel when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its dialog is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The dialog keeps an unsent draft for the visit (closing it does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
+What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The dialog keeps an unsent draft for the visit (closing it does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
 _Avoid_: Ticket, support request, Retour
 
 **Signalement notification**:

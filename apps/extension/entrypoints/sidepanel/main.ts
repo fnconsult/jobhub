@@ -1,4 +1,4 @@
-import { designTokens, renderDesignCss, trackScrolling } from "@jobhub/shared/design";
+import { designTokens, followTheme, PREFERS_DARK, renderDesignCss, trackScrolling } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
 import type { JobOffer, MatchScore } from "@jobhub/shared";
 import { browser } from "wxt/browser";
@@ -31,6 +31,9 @@ import "./sidepanel.css";
 const style = document.createElement("style");
 style.textContent = renderDesignCss(designTokens);
 document.head.append(style);
+// The device's light or dark theme (#473): the Candidate's choice in Préférences stays on the web app's origin, so
+// the Side Panel follows Système, the default, the way index.html's color-scheme already draws it before this runs.
+followTheme(document.documentElement, window.matchMedia(PREFERS_DARK), () => null);
 trackScrolling(document);
 
 // Shared with the web app (ADR-0011): read again when the panel comes back into view, so

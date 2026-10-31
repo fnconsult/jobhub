@@ -49,7 +49,7 @@ export default tseslint.config(
           // Its form controls take a form field's own attributes, which name and wire it, never text (#465):
           // `<TextInput name="value" autoComplete="new-password" aria-describedby="…-help">`; an AddressDrawer's
           // `opener` is the selector of the link that opened it. A public page names itself to its site header (#470):
-          // `<PublicSite current="legal">`.
+          // `<PublicSite current="legal">`. A document's language is a code, never text (#473): `<ThemedHtml lang="fr">`.
           "jsx-attributes": {
             include: [],
             exclude: [
@@ -77,6 +77,7 @@ export default tseslint.config(
               "aria-describedby",
               "opener",
               "current",
+              "lang",
             ],
           },
         },

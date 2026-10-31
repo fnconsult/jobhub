@@ -4,9 +4,10 @@ import { expect, test, type BrowserContext, type Locator, type Page } from "@pla
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #465 (ADR-0053): the pilot of the Back Office in the Compact Density, Paramètres, the Dashboard and Activité,
-// drawn in the Design System. Their screenshot baselines, light, at three widths, live in e2e/__screenshots__ and fail
+// drawn in the Design System. Their screenshot baselines, light and dark (#473), at three widths, live in e2e/__screenshots__ and fail
 // CI on a visual difference; axe runs on each. Only the page (`<main>`) is compared: the shell has its own baselines
 // (shell-screenshots.spec.ts). What changes with the day is masked: the Dashboard's month and its day-by-day axes.
 // How to update a baseline on purpose: docs/agents/screenshot-baselines.md.
@@ -126,14 +127,20 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
           const body = await page.locator("[data-sheet] .ds-drawer__body").evaluate((element) => ({ scrollWidth: element.scrollWidth, clientWidth: element.clientWidth }));
           expect(body.scrollWidth, `${name}: the sheet's content width`).toBeLessThanOrEqual(body.clientWidth);
         }
-        await expectNoAxeViolations(page, sheet ? "[data-sheet]" : "#main");
-        if (comparesScreenshots()) {
-          // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.
-          const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
-          if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
+        for (const theme of THEMES) {
+          await showInTheme(page, theme);
           await settled(page);
-          await expect(target).toHaveScreenshot(`${shot.name}-${name}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });
+          await expectNoAxeViolations(page, sheet ? "[data-sheet]" : "#main");
+          if (theme === "dark") await expectTextContrast(page, `${shot.name}-${name}`);
+          if (comparesScreenshots()) {
+            // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.
+            const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
+            if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
+            await settled(page);
+            await expect(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });
+          }
         }
+        await showInTheme(page, "light");
       }
       await page.close();
     });

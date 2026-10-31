@@ -1,4 +1,4 @@
-import type { LegalDocumentId } from "@jobhub/help";
+import type { LegalTextId } from "@jobhub/help";
 import type { CalendarView } from "./agenda/calendar";
 
 /** The Sections of a Profile's page, in order (ADR-0024). */
@@ -76,12 +76,16 @@ export const routes = {
   jobDigestUnsubscribe: "/desabonnement",
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
   nouveautes: "/nouveautes",
-  /** Légal (#470): a Legal Document (the first by default), at `version` when not the one in effect; public. */
-  legal: (document: LegalDocumentId = "conditions-utilisation", version?: string) =>
-    `/legal/${document}${version ? `?version=${encodeURIComponent(version)}` : ""}`,
-  /** A Legal Document's version as a PDF to download (« Télécharger en PDF »), in the page's language. */
-  legalPdf: (document: LegalDocumentId, version: string, lang: string) =>
-    `/api/legal/${document}/pdf?version=${encodeURIComponent(version)}&lang=${encodeURIComponent(lang)}`,
+  /**
+   * Légal (ADR-0062): a Legal Text (the CGU by default), the version in effect; or `version`, its permanent dated
+   * address. Public.
+   */
+  legal: (text: LegalTextId = "cgu", version?: string) => `/legal/${text}${version ? `/${version}` : ""}`,
+  /** A Legal Text's version history: each version with its effective date, change and line. */
+  legalVersions: (text: LegalTextId) => `/legal/${text}/versions`,
+  /** A Legal Text Version as a PDF to download (« Télécharger en PDF »), in the page's language. */
+  legalPdf: (text: LegalTextId, version: string, lang: string) =>
+    `/api/legal/${text}/pdf?version=${encodeURIComponent(version)}&lang=${encodeURIComponent(lang)}`,
   admin: "/admin",
   /** The Plans (Offres): names, rank, offered or hidden, Stripe product, Plan Features. */
   adminPlans: "/admin/offres",

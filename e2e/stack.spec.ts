@@ -57,7 +57,12 @@ test.describe("local stack (docker compose)", () => {
   });
 
   test("Postgres accepts connections on the host port", async () => {
-    expect(await canConnect(postgresPort)).toBe(true);
+    // A container that answers inside the Docker VM yet not here means the VM stopped forwarding newly published
+    // ports to the host (Colima's ssh port forwarder: `failed to set up forwarding tcp port` in its ha.stderr.log).
+    expect(
+      await canConnect(postgresPort),
+      `nothing answers on the host port ${postgresPort}: if Postgres answers inside its container, the Docker VM is not forwarding the port (Colima: \`colima restart\`)`,
+    ).toBe(true);
     const out = run("exec", "-T", "postgres", "psql", "-U", "jobhub", "-d", "jobhub", "-tAc", "select 'pret'");
     expect(out.trim()).toBe("pret");
   });

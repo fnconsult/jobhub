@@ -5,9 +5,10 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #469 (ADR-0053): the Agenda's three views, Mon compte and Mon abonnement in the Design System's Confort Density.
-// Their screenshot baselines, light, at three widths, live in e2e/__screenshots__ and fail CI on a visual difference;
+// Their screenshot baselines, light and dark (#473), at three widths, live in e2e/__screenshots__ and fail CI on a visual difference;
 // axe runs on each. Only the page (`<main>`) is compared: the shell has its own baselines (shell-screenshots.spec.ts).
 // The Agenda shows a week of March 2030, far from today, so nothing in it is past or today whatever day the suite runs;
 // only the day an Interview was cancelled is masked. How to update a baseline on purpose: docs/agents/screenshot-baselines.md.
@@ -197,13 +198,19 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
           if (!(await target.isVisible())) continue;
           expect.soft((await target.boundingBox())!.height, `${name}: the height of « ${await target.innerText()} »`).toBeGreaterThanOrEqual(44);
         }
-        await expectNoAxeViolations(page);
-        if (comparesScreenshots()) {
-          // The page whole, its column drawn at once with nothing to scroll into view.
-          await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
+        for (const theme of THEMES) {
+          await showInTheme(page, theme);
           await settled(page);
-          await expect(page.locator("#main")).toHaveScreenshot(`${shot.name}-${name}.png`, { mask: MASK.map((selector) => page.locator(selector)) });
+          await expectNoAxeViolations(page);
+          if (theme === "dark") await expectTextContrast(page, `${shot.name}-${name}`);
+          if (comparesScreenshots()) {
+            // The page whole, its column drawn at once with nothing to scroll into view.
+            await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
+            await settled(page);
+            await expect(page.locator("#main")).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: MASK.map((selector) => page.locator(selector)) });
+          }
         }
+        await showInTheme(page, "light");
       }
       await page.close();
     });

@@ -24,7 +24,8 @@
 }
 
 .account-hint,
-.text-size-hint {
+.text-size-hint,
+.theme-choice-hint {
   margin: 0;
   color: var(--color-secondary);
 }
@@ -86,4 +87,9 @@
 
 .account-confirm p {
   margin: 0;
+}
+
+/* Préférences' theme choice (#473): its name above the segmented control, like the Text Size's. */
+.theme-choice-label {
+  font-weight: 600;
 }

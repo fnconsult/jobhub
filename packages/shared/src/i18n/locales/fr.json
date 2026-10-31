@@ -16,6 +16,13 @@
     "xlarge": "Grand",
     "hint": "Mémorisée sur cet appareil."
   },
+  "theme": {
+    "label": "Thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "hint": "Mémorisé sur cet appareil. Système suit le réglage de votre appareil."
+  },
   "notFound": {
     "backHome": "Retour à l'accueil"
   },
@@ -4612,20 +4619,27 @@
   },
   "legal": {
     "eyebrow": "Légal",
-    "documentsNav": "Documents légaux",
-    "documents": {
-      "conditions-utilisation": "Conditions d'utilisation",
+    "documentsNav": "Textes légaux",
+    "texts": {
+      "cgu": "Conditions générales d'utilisation",
+      "cgv": "Conditions générales de vente",
       "confidentialite": "Politique de confidentialité",
-      "cookies": "Cookies",
-      "sous-traitants-et-ia": "Sous-traitants et IA",
       "mentions-legales": "Mentions légales"
     },
     "effective": "En vigueur depuis le {{date}}",
-    "version": "Version {{version}}",
     "earlierVersions": "Versions précédentes",
-    "earlierVersion": "Version {{version}}, en vigueur depuis le {{date}}",
-    "readingEarlier": "Vous lisez une version précédente de ce texte.",
-    "backToCurrent": "Lire la version en vigueur",
+    "archived": "Version archivée :",
+    "seeCurrent": "voir la version en vigueur",
+    "translation": "Traduction : le texte français fait foi.",
+    "readFrench": "Lire le texte français",
+    "approvedBy": "Approuvé par {{name}}, directeur de la publication, le {{date}}",
+    "history": "Historique des versions",
+    "historyIntro": "Chaque version de ce texte, la plus récente d'abord. Une version n'est jamais modifiée : une correction est une nouvelle version.",
+    "historyVersion": "Version du {{date}}",
+    "change": {
+      "substantielle": "Substantielle",
+      "mineure": "Mineure"
+    },
     "summary": "En bref",
     "toc": "Sur cette page",
     "pdf": "Télécharger en PDF",

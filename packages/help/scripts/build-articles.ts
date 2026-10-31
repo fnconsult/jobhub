@@ -1,10 +1,10 @@
 /**
- * Checks the Help Articles', the Release Notes' and the Legal Documents' Markdown files and writes them as
- * src/articles.generated.ts, src/release-notes.generated.ts and src/legal-documents.generated.ts, the modules the app bundles.
+ * Checks the Help Articles', the Release Notes' and the Legal Text Versions' Markdown files and writes them as
+ * src/articles.generated.ts, src/release-notes.generated.ts and src/legal-texts.generated.ts, the modules the app bundles.
  */
 import { writeFileSync } from "node:fs";
 import { generatedModulePath, readHelpContent, renderArticlesModule } from "../src/content";
-import { legalDocumentsModulePath, readLegalDocuments, renderLegalDocumentsModule } from "../src/legal-content";
+import { legalTextsModulePath, readLegalTexts, renderLegalTextsModule } from "../src/legal-texts-content";
 import { readReleaseNotes, releaseNotesModulePath, renderReleaseNotesModule } from "../src/release-notes-content";
 
 const content = readHelpContent();
@@ -15,6 +15,6 @@ const notes = readReleaseNotes();
 writeFileSync(releaseNotesModulePath, renderReleaseNotesModule(notes));
 console.log(`Release Notes: ${notes.fr.length} in French and English → ${releaseNotesModulePath}`);
 
-const legal = readLegalDocuments();
-writeFileSync(legalDocumentsModulePath, renderLegalDocumentsModule(legal));
-console.log(`Legal Documents: ${legal.fr.length} versions in French and English → ${legalDocumentsModulePath}`);
+const legal = readLegalTexts();
+writeFileSync(legalTextsModulePath, renderLegalTextsModule(legal));
+console.log(`Legal Text Versions: ${legal.fr.length} in French and English → ${legalTextsModulePath}`);

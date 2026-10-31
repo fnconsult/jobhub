@@ -22,12 +22,20 @@ describe("renderDesignCss", () => {
     expect(root).toContain("color-scheme: light;");
   });
 
-  it("renders the dark values under [data-theme=\"dark\"], which nothing sets yet", () => {
+  it("renders the dark values under [data-theme=\"dark\"], which the page's chosen theme sets on <html> (#473)", () => {
     const dark = block(css, '[data-theme="dark"]');
     expect(dark).toContain("--color-text: #ececf3;");
     expect(dark).toContain("--color-background: #121219;");
     expect(dark).toContain("--shadow-card: none;");
     expect(dark).toContain("color-scheme: dark;");
+  });
+
+  it("renders the light values under [data-theme=\"light\"] too, so a part of a dark page can be drawn light (#473)", () => {
+    const light = block(css, '[data-theme="light"]');
+    expect(light).toContain("--color-text: #1b1b26;");
+    expect(light).toContain("--color-text-meta: #686978;");
+    expect(light).toContain("color-scheme: light;");
+    expect(css.indexOf('[data-theme="light"] {')).toBeLessThan(css.indexOf('[data-theme="dark"] {'));
   });
 
   it("keeps the old token names as aliases of the new ones, in each theme", () => {

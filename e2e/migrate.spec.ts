@@ -208,8 +208,12 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
-        // Coach Conversations (issue #124) go with their Candidate, and the Profile they started on; their messages with them.
+        // Coach Conversations (issue #124) go with their Candidate, and the Profile they are attached to; their messages with them.
+        // Their Subject (issue #600, ADR-0070): an Application, a Job Search or a Job Digest takes its conversation along.
+        { from_table: "coach_conversation", from_column: "application_id", to_table: "application" },
         { from_table: "coach_conversation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_conversation", from_column: "job_digest_id", to_table: "job_digest" },
+        { from_table: "coach_conversation", from_column: "job_search_id", to_table: "job_search" },
         { from_table: "coach_conversation", from_column: "profile_id", to_table: "profile" },
         // Coach Memory (issue #125) goes with its Candidate.
         { from_table: "coach_memory_item", from_column: "candidate_id", to_table: "candidate" },
@@ -312,6 +316,39 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(upgraded.status, upgraded.stderr).toBe(0);
       expect(await usageColumns()).toEqual(["candidate_id", "quota", "used", "week"]);
       expect((await quotas()).rows).toEqual(startingQuotas.map((row) => (row.plan === "premium" ? { ...row, enriched_contacts: 12 } : row)));
+    } finally {
+      await db.end();
+    }
+  });
+
+  // Issue #600 / ADR-0070: Coach Conversations gain a Subject. The ones saved before are deleted, once, with their messages;
+  // the Coach Memory is kept.
+  test("deletes the Coach Conversations saved before Subjects, once, and keeps the Coach Memory (#600)", async () => {
+    const db = new pg.Client({ connectionString: databaseUrl.toString() });
+    await db.connect();
+    try {
+      const candidate = "migrate-subject";
+      await db.query(`INSERT INTO candidate (id, name, email, "emailVerified", "interfaceLanguage") VALUES ($1, 'Marie', 'migrate-subject@example.fr', true, 'fr')`, [candidate]);
+      await db.query(`INSERT INTO coach_memory_item (candidate_id, kind, text) VALUES ($1, 'goal', 'Devenir DAF à Lyon')`, [candidate]);
+      const talk = async (title: string) => {
+        const { rows } = await db.query(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, $2) RETURNING id`, [candidate, title]);
+        await db.query(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'candidate', 'Bonjour')`, [rows[0].id]);
+      };
+      await talk("Avant");
+      // The table as it was before: no Subject.
+      await db.query("ALTER TABLE coach_conversation DROP COLUMN subject_kind CASCADE");
+
+      const migrated = migrate();
+      expect(migrated.status, migrated.stderr).toBe(0);
+      expect((await db.query("SELECT count(*)::int AS n FROM coach_conversation")).rows).toEqual([{ n: 0 }]);
+      expect((await db.query("SELECT count(*)::int AS n FROM coach_message")).rows).toEqual([{ n: 0 }]);
+      expect((await db.query("SELECT text FROM coach_memory_item WHERE candidate_id = $1", [candidate])).rows).toEqual([{ text: "Devenir DAF à Lyon" }]);
+
+      // Once: what is said afterwards stays, however often the migration runs again.
+      await talk("Après");
+      const again = migrate();
+      expect(again.status, again.stderr).toBe(0);
+      expect((await db.query("SELECT title FROM coach_conversation")).rows).toEqual([{ title: "Après" }]);
     } finally {
       await db.end();
     }

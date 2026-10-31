@@ -350,6 +350,24 @@ async function settled(page: Page) {
   );
 }
 
+/**
+ * Today's date written out becomes one fixed date: masked, it still has the width of its text (« 31 octobre » is
+ * narrower than « 30 octobre »), so the mask would move with the day. The baselines were drawn on 30 October 2026.
+ */
+async function fixDates(page: Page) {
+  await page.evaluate((source) => {
+    const pattern = new RegExp(
+      `((lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) )?${source}`,
+      "g",
+    );
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode())
+      node.textContent = node.textContent!.replace(pattern, (_, weekday) =>
+        weekday ? "vendredi 30 octobre 2026" : "30 octobre 2026",
+      );
+  }, MONTHS.source);
+}
+
 async function expectNoAxeViolations(page: Page, selector = "#main") {
   const results = await new AxeBuilder({ page })
     .include(selector)
@@ -391,6 +409,7 @@ async function check(
         width,
         height: await page.evaluate(() => document.documentElement.scrollHeight),
       });
+    await fixDates(page);
     await settled(page);
     await expect(target).toHaveScreenshot(`${themedName(name, theme)}.png`, {
       mask: [

@@ -5,6 +5,7 @@ import { agendaPeriod } from "@/agenda";
 import { calendarFileUrl, hasCalendarFile } from "@/agenda/calendar-file";
 import { calendarPeriod, frenchDay, readAgendaAddress, type AgendaView, type CalendarPeriod, type CalendarView } from "@/agenda/calendar";
 import { getAgenda } from "@/agenda/server";
+import { loadAiActivity } from "@/ai-activity/server";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { isArchivedApplication } from "@/applications/list-view";
 import { getApplications } from "@/applications/server";
@@ -127,7 +128,13 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const address = readAgendaAddress(params, now);
   const past = address.view === "liste" && params.periode === PAST;
   const agenda = getAgenda();
-  const [t, locale, unscheduled, applications] = await Promise.all([getServerT(), getRequestLocale(), agenda.unscheduled(candidate.id), getApplications().list(candidate.id)]);
+  const [t, locale, unscheduled, applications, aiActivity] = await Promise.all([
+    getServerT(),
+    getRequestLocale(),
+    agenda.unscheduled(candidate.id),
+    getApplications().list(candidate.id),
+    loadAiActivity.agenda(candidate.id),
+  ]);
   // The Application picker offers the ongoing Applications only: not the Archived ones.
   const ongoing: InterviewableApplication[] = applications
     .filter((application) => !isArchivedApplication(application))
@@ -151,7 +158,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   }
 
   return (
-    <CandidateLayout candidateId={candidate.id} title={t("agenda.title")} wide={address.view === "semaine"}>
+    <CandidateLayout candidateId={candidate.id} title={t("agenda.title")} wide={address.view === "semaine"} aiActivity={aiActivity}>
       {/* An address naming no view (the Sidebar's link) brings back the one last picked. */}
       <AgendaViewMemory view={address.view} restore={!address.chosen && params.periode === undefined} />
       <div className="agenda-page">

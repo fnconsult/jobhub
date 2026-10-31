@@ -575,7 +575,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("daf|lyon");
   });
 
-  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), each reply's Provenance and focus (#327), but not what each reply cost", async () => {
+  it("the export holds every Coach Conversation with its Subject (#600) and all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), each reply's Provenance and focus (#327), but not what each reply cost", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     let replies = 0;
     const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
@@ -591,7 +591,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         reply: async () => ({
           ok: true,
           reply: `Réponse ${++replies}`,
-          outcome: replies === 3 ? "blocked_message" : "replied",
+          outcome: replies === 4 ? "blocked_message" : "replied",
           cost,
           playbooks: [],
           consultations: [{ playbookId: "interview-psychology", version: 1, ...cost, model: "secret-agent-model" }],
@@ -600,7 +600,9 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       },
       profiles,
     });
-    const first = await conversations.send(candidateId, { message: "Comment relancer Acme ?", focus: { kind: "profile", id: profileId } });
+    const menu = await conversations.send(candidateId, { subject: { kind: "menu", id: "agenda" }, message: "Mes entretiens ?" });
+    if (!menu.ok) throw new Error("fixture Coach Conversation refused");
+    const first = await conversations.send(candidateId, { subject: { kind: "profile", id: profileId }, message: "Comment relancer Acme ?" });
     if (!first.ok) throw new Error("fixture Coach Conversation refused");
     await conversations.send(candidateId, { conversationId: first.conversation.id, message: "Et après une semaine ?" });
     const second = await conversations.send(candidateId, { message: "Bonjour" });
@@ -612,22 +614,33 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       {
         id: second.conversation.id,
         title: "Bonjour",
+        subject: null,
         profile: null,
         createdAt: expect.any(Date),
         lastMessageAt: expect.any(Date),
         messages: [
           { from: "candidate", text: "Bonjour", blocked: true, sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 3", blocked: true, sentAt: expect.any(Date), provenance },
+          { from: "coach", text: "Réponse 4", blocked: true, sentAt: expect.any(Date), provenance },
         ],
       },
       expect.objectContaining({
         id: first.conversation.id,
+        subject: { kind: "profile", id: profileId, name: "DAF" },
         profile: { id: profileId, name: "DAF" },
         messages: [
           { from: "candidate", text: "Comment relancer Acme ?", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
+          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
           { from: "candidate", text: "Et après une semaine ?", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date), provenance },
+          { from: "coach", text: "Réponse 3", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
+        ],
+      }),
+      expect.objectContaining({
+        id: menu.conversation.id,
+        subject: { kind: "menu", id: "agenda", name: "Agenda" },
+        profile: null,
+        messages: [
+          { from: "candidate", text: "Mes entretiens ?", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date), provenance, focus: { kind: "agenda" } },
         ],
       }),
     ]);

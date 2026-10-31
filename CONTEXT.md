@@ -99,7 +99,7 @@ What the AI Coach is told before each reply: always the Candidate summary and th
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.
 
 **Coach Conversation**:
-A saved conversation between a Candidate and the AI Coach, and on the Candidate's pages the page itself (ADR-0070), with its box at the foot. Each has a Subject. An object or a Sidebar menu has at most one, created at its first message; until then the page shows the Introduction and suggestions. A Free conversation is attached to the active Profile and can be named. « Effacer », after a confirming Dialog, deletes every message of the page's conversation; the object and Coach Memory stay. An archived object keeps its conversation. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message and its Subject, without the Coach Message Cost.
+A saved conversation between a Candidate and the AI Coach, and on the Candidate's pages the page itself (ADR-0070), with its box at the foot. Each has a Subject. An object or a Sidebar menu has at most one, created at its first message; until then the page shows the Introduction and suggestions. A Free conversation is attached to the active Profile and can be named. « Effacer », after a confirming Dialog, deletes every message of the page's conversation; the object and Coach Memory stay. An archived object keeps its conversation; a deleted one takes it along. An object's conversation is attached to that object's Profile, a menu's to none. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message and its Subject, without the Coach Message Cost.
 _Avoid_: Chat, thread, session
 
 **Subject**:
@@ -929,7 +929,7 @@ The quiet line under each saved AI Coach or Back Office Assistant reply: the mod
 _Avoid_: Footer, metadata line, usage line
 
 **Focus**:
-The object a Coach reply was about: the Subject's object, or the item In view when it was asked: an Application, a Job Offer, a Profile, a Job Search, a Job Digest or the Agenda. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
+The object a Coach reply was about: the Subject's object, else the Agenda for the Agenda menu, else the item In view when it was asked: an Application, a Job Offer, a Profile, a Job Search, a Job Digest or the Agenda (which has no id). Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
 _Avoid_: Context, subject, target
 
 **Joined Provenance**:

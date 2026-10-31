@@ -411,10 +411,13 @@ async function check(
       });
     await fixDates(page);
     await settled(page);
+    // Only what `target` holds is masked. A mask is painted over its element wherever that is, on top of whatever
+    // covers it: a date behind the save bar, which is stuck to the bottom over the Master CV, would paint its box into
+    // the bar's screenshot, as wide as that day's name (« samedi », « vendredi »), and fail it on any other weekday.
     await expect(target).toHaveScreenshot(`${themedName(name, theme)}.png`, {
       mask: [
-        page.getByText(MONTHS),
-        page.locator(".provenance-line, .sidebar-count"),
+        target.getByText(MONTHS),
+        target.locator(".provenance-line, .sidebar-count"),
       ],
     });
   }

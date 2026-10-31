@@ -55,6 +55,8 @@ const statements = {
    * Questions, without the Candidate's email or Plan; nobody deletes one from the Back Office.
    */
   signalements: ["read", "write"],
+  /** Withdrawals (Rétractations, #511): every one and its refunds; write covers trying a failed refund again. */
+  withdrawals: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -89,7 +91,8 @@ const ROLES = {
     discoveryRuns: READ,
     receivedEmails: READ,
   }),
-  // Reads everything but Provider Secrets, the AI Message Log and the Job Search behind a run, and triages Signalements; the team's own
+  // Reads everything but Provider Secrets, the AI Message Log and the Job Search behind a run, triages Signalements and follows
+  // Withdrawals (trying a failed refund again, #511); the team's own
   // sections (Administrateurs, Actions des administrateurs) stay with super-admins.
   support: control.newRole({
     planQuotas: READ,
@@ -107,6 +110,7 @@ const ROLES = {
     platformSettings: READ,
     unansweredQuestions: READ,
     signalements: ["read", "write"],
+    withdrawals: ["read", "write"],
     discoveryRuns: READ,
     receivedEmails: READ,
   }),

@@ -52,6 +52,7 @@ import {
   SquarePen,
   Tag,
   TriangleAlert,
+  Undo2,
   Upload,
   User,
   Users,
@@ -96,6 +97,8 @@ const LUCIDE = {
   searchAgain: RefreshCw,
   // The Back Office's sections (#204). A flag on its pole: the Signalements (#376).
   signalements: Flag,
+  // An arrow turning back: the Withdrawals (#511).
+  withdrawals: Undo2,
   // Stacked layers: the Plans (#206).
   plans: Layers,
   planQuotas: ChartNoAxesColumn,

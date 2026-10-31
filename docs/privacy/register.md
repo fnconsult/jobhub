@@ -143,3 +143,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | As long as the account: deleted with it (`ON DELETE CASCADE`). |
 | Rights | In the Candidate's Data export (`legalTextNotices.emailed` and `legalTextNotices.privacyChangesSeen`); erased with the account. |
 | Security | One notice per Candidate and per version, claimed in the transaction that sends it. Closing checks the signed-in Candidate and the request's origin, and only the version shown can be closed. |
+
+## Withdrawals (#511)
+
+| | |
+| --- | --- |
+| Purpose | Let a Candidate withdraw online from a contract concluded on Jobbbox (a Plan's subscription, a Coaching Session) within its withdrawal period, through « Renoncer au contrat ici » (C. conso. L221-18, L221-21 al. 3), refund them, acknowledge the withdrawal on a durable medium, and let Support follow refunds that fail. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)): the Code de la consommation's withdrawal right, its acknowledgement (D221-5) and the refund within 14 days (L221-24). The contract itself (art. 6(1)(b)) for cancelling it. |
+| People concerned | Candidates who withdraw. Human Coaches, told by email that a Coaching Session is cancelled. A third person, when the Candidate has the acknowledgement sent to another address. |
+| Data | Per Withdrawal: the Candidate's id, the contract (Plan or Coaching Session, its name or the Human Coach's, when it was concluded), the name the Candidate typed, the address the acknowledgement went to, when the withdrawal was received and when the acknowledgement was sent. Per refund: amount, currency, status, Stripe's failure reason, how many attempts; Stripe's identifiers of the subscription, payment, Checkout Session and refund. The Coaching Session gets the date it was withdrawn. The Human Coach is sent the Candidate's first name and last initial, the day the session was paid and the date it was planned for. |
+| Source | The Candidate, on the Withdrawal form (`/abonnement/retractation`); Stripe, for what was paid and each refund's fate (its signed `refund.updated` and `refund.failed` webhooks). |
+| Processors | Stripe (subscription cancelled at once, refund `requested_by_customer`; already a processor for payments); Brevo, which sends the acknowledgement and the Human Coach's notice (already a processor for emails). No new processor, no recipient outside the EU beyond those already listed for them. |
+| Who can read it | The Candidate, on the confirmation page and in their acknowledgement. Super-admins and Support, on the Back Office's Rétractations section (`/admin/retractations`), with the Candidate's email; Support tries a failed refund again, recorded in the Back Office Audit. Anyone else gets a 404. |
+| Storage | The `withdrawal` and `withdrawal_refund` tables, and `coaching_session.withdrawn_at`, in the app's Postgres database (EU). |
+| Retention | Until the account is deleted (ON DELETE CASCADE, ADR-0010). Whether to keep withdrawals longer, as evidence or for accounting, is a question for the Juriste (see the « Légal : » issue). |
+| Rights | In the Candidate's Data export (`withdrawals`, with their refunds, without Stripe's identifiers); deleted with their account. |
+| Security | The form and its API check the signed-in Candidate and the request's origin; one Withdrawal per contract (a double click records one); each refund is sent to Stripe with an idempotency key, a retry with a new one. |

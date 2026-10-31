@@ -44,6 +44,7 @@ import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateTargetCompanies } from "./target-companies/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
 import { migrateWebSearchAlerts } from "./web-search-alert/index";
+import { migrateWithdrawals } from "./withdrawals/index";
 
 /**
  * Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date").
@@ -76,6 +77,7 @@ export async function migrateDatabase(
     ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
+    ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],

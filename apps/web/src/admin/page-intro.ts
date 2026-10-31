@@ -25,6 +25,7 @@ export const INTRO_PAGES = [
   "tools",
   "administrators",
   "aiUsage",
+  "withdrawals",
 ] as const;
 export type IntroPage = (typeof INTRO_PAGES)[number];
 
@@ -57,6 +58,7 @@ const TEXTS = {
   tools: { line: "admin.tools.subtitle", explanation: ["admin.tools.intro"] },
   administrators: { line: "admin.administrators.subtitle", explanation: ["admin.administrators.intro"] },
   aiUsage: { line: "admin.aiUsage.subtitle", explanation: ["admin.aiUsage.intro"] },
+  withdrawals: { line: "admin.withdrawals.subtitle", explanation: ["admin.withdrawals.intro"] },
 } as const satisfies Record<IntroPage, { line: string; explanation: readonly string[] }>;
 
 /** `page`'s intro, its explanation filled with `values` (a retention, the Administrator's roles). */

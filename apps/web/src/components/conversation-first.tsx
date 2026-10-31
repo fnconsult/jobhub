@@ -131,13 +131,28 @@ const COACH_MENU = "coach";
 /** The menus this browser keeps folded, a JSON list of their keys (a per-browser convenience, like the hidden Sidebar). */
 const FOLDED_STORAGE_KEY = "jobbbox.sidebarFolded";
 const foldListeners = new Set<() => void>();
+/** The folded menus while this browser's storage is out of reach (`unsaved`): they hold until the page is left. */
+let foldedInMemory: string | null = null;
+let unsaved = false;
 
 function readFolded(): string | null {
+  if (unsaved) return foldedInMemory;
   try {
     return window.localStorage.getItem(FOLDED_STORAGE_KEY);
   } catch {
-    return null;
+    return foldedInMemory;
   }
+}
+
+function writeFolded(value: string) {
+  foldedInMemory = value;
+  try {
+    window.localStorage.setItem(FOLDED_STORAGE_KEY, value);
+    unsaved = false;
+  } catch {
+    unsaved = true;
+  }
+  for (const listener of foldListeners) listener();
 }
 
 function foldedMenus(stored: string | null): string[] {
@@ -161,22 +176,16 @@ function subscribeToFolds(listener: () => void) {
 
 /**
  * Whether the Sidebar's `menu` is unfolded, and the way to fold or unfold it (#604): remembered in this browser, unfolded
- * until folded. The server, which cannot know, draws it unfolded; storage blocked, the choice holds while the page does.
+ * until folded, the same in the docked Sidebar and its drawer. The server, which cannot know, draws it unfolded; with
+ * storage blocked, the choice holds until the page is left.
  */
 function useUnfolded(menu: string): [boolean, (open: boolean) => void] {
   const stored = useSyncExternalStore(subscribeToFolds, readFolded, () => null);
-  const [unsaved, setUnsaved] = useState<Record<string, boolean>>({});
-  const open = unsaved[menu] ?? !foldedMenus(stored).includes(menu);
+  const open = !foldedMenus(stored).includes(menu);
   const setOpen = useCallback(
     (next: boolean) => {
-      setUnsaved((was) => ({ ...was, [menu]: next }));
       const others = foldedMenus(readFolded()).filter((key) => key !== menu);
-      try {
-        window.localStorage.setItem(FOLDED_STORAGE_KEY, JSON.stringify(next ? others : [...others, menu]));
-      } catch {
-        // Storage blocked: the choice holds until the next page load.
-      }
-      for (const listener of foldListeners) listener();
+      writeFolded(JSON.stringify(next ? others : [...others, menu]));
     },
     [menu],
   );

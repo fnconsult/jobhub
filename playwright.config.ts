@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
+import { utf8LocaleFor } from "./e2e/support/locale";
 import { webPort as e2eWebPort } from "./e2e/support/ports";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
@@ -38,6 +39,8 @@ process.env.E2E_WEB_ORIGIN = webOrigin;
 process.env.E2E_STRIPE_PORT = String(stripePort);
 process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
+// A UTF-8 locale, or Chromium on Linux names a download beyond ASCII « download » (e2e/support/locale.ts, #544).
+Object.assign(process.env, utf8LocaleFor(process.env, process.platform));
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
   url.pathname = `/jobhub_e2e_${webPort}`;
@@ -51,6 +54,9 @@ export default defineConfig({
   reporter: [["list"]],
   timeout: 60_000,
   globalTeardown: "./e2e/support/global-teardown.ts",
+  // Per web port, like the server's log and database: a run empties its output folder as it starts, so two runs in one
+  // checkout (each on its own E2E_WEB_PORT) would delete each other's traces mid-test (ENOENT, #544).
+  outputDir: `test-results/e2e-${webPort}`,
   use: { trace: "retain-on-failure" },
   // Screenshot baselines (#463, #464, #465, #466): one set, drawn in Linux Chromium, CI's, whatever platform runs the suite
   // (e2e/support/screenshots.ts, e2e/shell-screenshots.spec.ts), kept in the repo beside the specs. A difference beyond a few pixels in a thousand fails; animations stop and the caret hides first.
@@ -98,6 +104,9 @@ export default defineConfig({
       // The e2e environment serves the latest Playbook Versions, validated or not: a production build
       // naming no target serves only Human-validated ones (ADR-0021, #225).
       JOBHUB_TARGET: "e2e",
+      // Its whole environment is this one, as CI's: a developer's root .env (apps/web/src/env/root-env.ts) is left out,
+      // or its values (BEDROCK_REGION, MAIL_FROM…) replace the code's defaults the specs expect (#544).
+      JOBHUB_ROOT_ENV: "ignore",
       // Candidate accounts in a local production build: sign-in links go to the server log.
       APP_URL: webOrigin,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",

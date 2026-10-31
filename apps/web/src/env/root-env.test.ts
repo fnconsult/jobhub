@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -35,6 +35,19 @@ describe("loadRootEnv", () => {
 
   it("does nothing when there is no root .env (CI, containers)", () => {
     expect(() => loadRootEnv(rootWith())).not.toThrow();
+  });
+
+  // #544: the e2e suite's server is configured whole by playwright.config.ts, as CI's is. A developer's .env, copied
+  // from .env.example, set BEDROCK_REGION and MAIL_FROM there, and the specs expecting the code's defaults failed.
+  it("leaves the root .env out of a server whose environment says JOBHUB_ROOT_ENV=ignore (the e2e suite's)", () => {
+    touched.push("JOBHUB_ROOT_ONLY", "JOBHUB_ROOT_ENV");
+    process.env.JOBHUB_ROOT_ENV = "ignore";
+    loadRootEnv(rootWith("JOBHUB_ROOT_ONLY=from-root\n"));
+    expect(process.env.JOBHUB_ROOT_ONLY).toBeUndefined();
+  });
+
+  it("is what playwright.config.ts asks for the e2e suite's server", () => {
+    expect(readFileSync(path.join(repoRoot, "playwright.config.ts"), "utf8")).toMatch(/\n\s+JOBHUB_ROOT_ENV: "ignore",\n/);
   });
 });
 

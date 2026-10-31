@@ -12,7 +12,7 @@ When a change is meant to alter how a screen looks (a token, a component, a scre
 2. Open the changed PNGs (`git status e2e/__screenshots__`) and check that every difference is one you meant, in light and dark, Confort and Compact, and at each width.
 3. Commit them with the change that caused them, and say in the commit or PR why the screen changed.
 
-Never update a baseline to make a failing CI run pass without looking at the difference. A failing comparison writes the expected, actual and diff images to `test-results/`; CI keeps that folder as the `screenshots` job's `screenshot-results` artifact.
+Never update a baseline to make a failing CI run pass without looking at the difference. A failing comparison writes the expected, actual and diff images under `test-results/` (`test-results/e2e-<web port>/`); CI keeps that folder as the `screenshots` job's `screenshot-results` artifact.
 
 ## Add a screen
 

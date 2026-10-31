@@ -903,6 +903,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
+      "id": "page-acceptance",
+      "locale": "en",
+      "kind": "page",
+      "title": "Our terms of use",
+      "synonyms": [
+        "terms of use",
+        "accept",
+        "acceptance",
+        "new version",
+        "checkbox",
+        "accept and continue"
+      ],
+      "route": "/acceptation",
+      "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
+    },
+    {
       "id": "page-withdrawal",
       "locale": "en",
       "kind": "page",
@@ -918,22 +934,6 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/retractation",
       "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason and at no cost: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it and as long as it has not taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirmer la rétractation » (confirm the withdrawal) ends the contract at once and refunds you in full, to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days.\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
-    },
-    {
-      "id": "page-acceptance",
-      "locale": "en",
-      "kind": "page",
-      "title": "Our terms of use",
-      "synonyms": [
-        "terms of use",
-        "accept",
-        "acceptance",
-        "new version",
-        "checkbox",
-        "accept and continue"
-      ],
-      "route": "/acceptation",
-      "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
     },
     {
       "id": "glossary-ats-score",

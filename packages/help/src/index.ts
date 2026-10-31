@@ -104,6 +104,22 @@ function inEffectSoFar(text: LegalTextId, on: string, written: readonly LegalTex
   return written.filter((entry) => entry.text === text && entry.effective <= on).sort((a, b) => b.effective.localeCompare(a.effective));
 }
 
+/** The privacy policy in effect, by its id (null before its first version), and the Tools outside the EU it names. */
+export interface PrivacyPolicyCoverage {
+  version: string | null;
+  recipientsOutsideEu: readonly string[];
+}
+
+/**
+ * The privacy policy version in effect `on` that day (`parisDay()`) and the Tools outside the EU it names, by catalog id
+ * (`recipients_outside_eu`, #548): switching on any other recipient outside the EU warns in Paramètres (ADR-0064). A
+ * version still to come covers nothing yet. `written` defaults to the French versions this build carries.
+ */
+export function privacyPolicyCoverage(on: string, written: readonly LegalTextVersion[] = LEGAL_TEXT_VERSIONS.fr): PrivacyPolicyCoverage {
+  const inEffect = inEffectSoFar("confidentialite", on, written)[0];
+  return { version: inEffect?.effective ?? null, recipientsOutsideEu: inEffect?.recipientsOutsideEu ?? [] };
+}
+
 /**
  * Every Legal Text Version this build carries, those still to come included, as the Acceptances record them (#510):
  * id, permanent URL, SHA-256 of the French text, change. Computed at build, never written to the database here.

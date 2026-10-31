@@ -12,6 +12,8 @@ export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
 /** Paths of the web app's pages. French, like the interface default. */
 export const routes = {
   home: "/",
+  /** A Free conversation (ADR-0070), under « Conversation au centre » (#601): the page is the conversation. */
+  conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
   signIn: "/connexion",
   /** The Back Office sign-in: the providers allowed for Administrators; where Require SSO sends an Administrator. */
   backOfficeSignIn: "/connexion/back-office",

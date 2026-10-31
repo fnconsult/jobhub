@@ -185,6 +185,11 @@ export async function startFakeStripe(port = 0) {
   const refundAnswers = new Map<string, { status: number; json: unknown }>();
   /** The error code every refund is refused with, while set. */
   let refundRefusal: string | null = null;
+  /**
+   * The error code a PaymentIntent's refunds are refused with, while set: what an e2e spec refuses over HTTP, so a
+   * spec running beside it, on the same fake, still has its own refunds go through.
+   */
+  const refundRefusals = new Map<string, string>();
   let sequence = 0;
   function payInvoice(subscriptionId: string, amount: number): string {
     const id = ++sequence;
@@ -202,8 +207,9 @@ export async function startFakeStripe(port = 0) {
   /** Refunds a PaymentIntent as Stripe does: in full unless `amount` says less, never more than is left. */
   function createRefund(params: URLSearchParams): { status: number; json: unknown } {
     const refusal = (code: string, message: string, status = 400) => ({ status, json: { error: { type: "invalid_request_error", code, message } } });
-    if (refundRefusal) return refusal(refundRefusal, `Refund refused: ${refundRefusal}`);
     const paymentIntent = params.get("payment_intent") ?? "";
+    const refused = refundRefusal ?? refundRefusals.get(paymentIntent);
+    if (refused) return refusal(refused, `Refund refused: ${refused}`);
     const paid = paymentAmounts.get(paymentIntent);
     if (paid === undefined) return refusal("resource_missing", `No such payment_intent: '${paymentIntent}'`, 404);
     const refunded = refunds.filter((refund) => refund.payment_intent === paymentIntent && refund.status !== "failed").reduce((sum, refund) => sum + refund.amount, 0);
@@ -405,8 +411,13 @@ export async function startFakeStripe(port = 0) {
       if (invoicePath) return reply(200, { payment_intent: payInvoice(decodeURIComponent(invoicePath), Number(params.get("amount") ?? 0)) });
       const checkoutPaymentPath = request.method === "POST" && path.match(/^\/__checkout_sessions\/([^/]+)\/payment$/)?.[1];
       if (checkoutPaymentPath) return reply(200, { payment_intent: payCheckoutSession(decodeURIComponent(checkoutPaymentPath), Number(params.get("amount") ?? 0)) });
+      // Scoped to one PaymentIntent (`payment_intent`, required): the e2e specs share this fake and run side by side.
       if (request.method === "POST" && path === "/__refunds/refuse") {
-        refundRefusal = params.get("code") || null;
+        const paymentIntent = params.get("payment_intent");
+        if (!paymentIntent) return reply(400, { error: { type: "invalid_request_error", message: "fake Stripe refuses one PaymentIntent's refunds: payment_intent is required" } });
+        const code = params.get("code");
+        if (code) refundRefusals.set(paymentIntent, code);
+        else refundRefusals.delete(paymentIntent);
         return reply(200, {});
       }
       if (request.method === "GET" && path === "/__refunds") return reply(200, refunds);

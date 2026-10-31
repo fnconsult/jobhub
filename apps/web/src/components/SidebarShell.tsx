@@ -51,7 +51,7 @@ function setHidden(hidden: boolean) {
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
  * sidebar (brand, `top`, the `nav`, signing out), the Top
  * Bar with the Menu button, the page's `title`, the AI Activity button and the
- * Coach Panel button, and the page as `<main>`, AI Activity's pane beside it (both
+ * Coach Panel button (or `topBarEnd` in its place), and the page as `<main>`, AI Activity's pane beside it (both
  * only inside an AiActivityProvider: Candidate pages, never the Back Office). `title` is the page's `<h1>`: a string, or an element that
  * is one itself (an editable title). Pages never render their own (ADR-0024).
  *
@@ -68,6 +68,7 @@ export function SidebarShell({
   foot,
   title,
   wide = false,
+  topBarEnd = <CoachPanelToggle />,
   children,
 }: {
   brand: { href: string; label: string };
@@ -77,6 +78,8 @@ export function SidebarShell({
   /** Above signing out, in the sidebar's foot (Mon compte); gets the drawer's close function too. */
   foot?: (closeDrawer: () => void) => ReactNode;
   wide?: boolean;
+  /** The Top Bar's last button: the Coach Panel's, or « Effacer » under « Conversation au centre » (#601). */
+  topBarEnd?: ReactNode;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -294,7 +297,7 @@ export function SidebarShell({
                 )}
               </div>
               <AiActivityButton />
-              <CoachPanelToggle />
+              {topBarEnd}
             </header>
             <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"}>
               {children}

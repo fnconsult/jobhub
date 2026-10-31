@@ -582,7 +582,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 }
 
 /* The coach speaks in the page's voice, unframed; the Candidate's own words sit in bubbles. */
-.coach-panel .chat-coach {
+:is(.coach-panel, .page-conversation) .chat-coach {
   max-width: 100%;
   padding: 0;
   background: transparent;
@@ -590,19 +590,19 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 }
 
 /* A reply (#464): its Activity's glyph, then its words, the Provenance line and the feedback under them. */
-.coach-panel .chat-coach:has(> .activity-glyph) {
+:is(.coach-panel, .page-conversation) .chat-coach:has(> .activity-glyph) {
   display: grid;
   grid-template-columns: 1.25em minmax(0, 1fr);
   column-gap: var(--space-3);
   align-items: start;
 }
 
-.coach-panel .chat-coach > .activity-glyph {
+:is(.coach-panel, .page-conversation) .chat-coach > .activity-glyph {
   grid-row: 1 / span 9;
   margin-top: 0.2em;
 }
 
-.coach-panel
+:is(.coach-panel, .page-conversation)
   .chat-coach:has(> .activity-glyph)
   > :not(.activity-glyph, .visually-hidden) {
   grid-column: 2;
@@ -612,7 +612,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
  * No author is shown (#317, #327): the Candidate's own words sit in bubbles at least 3:1 against the panel (ADR-0009
  * amendment), on the right; the AI's replies on the left, each with its Provenance line.
  */
-.coach-panel .chat-candidate {
+:is(.coach-panel, .page-conversation) .chat-candidate {
   max-width: 85%;
   padding: var(--space-2) var(--space-3);
   color: var(--color-on-accent);
@@ -621,11 +621,11 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-radius: 14px 14px var(--radius-sm) 14px;
 }
 
-.coach-panel .chat-candidate .chat-blocked-label {
+:is(.coach-panel, .page-conversation) .chat-candidate .chat-blocked-label {
   color: inherit;
 }
 
-.coach-panel .chat-candidate.chat-blocked {
+:is(.coach-panel, .page-conversation) .chat-candidate.chat-blocked {
   border-color: var(--color-text);
 }
 
@@ -652,7 +652,7 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 /* While its step runs, its strokes move and morph, drawn from JavaScript (ActivityGlyph); still under reduced motion. */
 
 /* « Réponse arrêtée » (#328) and a failed reply's Failure Reason: very light red, said in words too. */
-.coach-panel .chat-stopped {
+:is(.coach-panel, .page-conversation) .chat-stopped {
   padding: var(--space-2) var(--space-3);
   background: var(--color-danger-surface);
   border-radius: var(--radius-md);
@@ -897,6 +897,151 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 .coach-panel-foot .link-action,
 .reply-feedback .link-action {
   min-height: var(--control-height);
+}
+
+/* ---------- « Conversation au centre » (#601, ADR-0070): the conversation is the page ----------
+   The page spans the workspace, so the conversation keeps its reading width (46rem) centred in it, its margins equal; the
+   box sits at the foot of the screen over the thread, the suggestions above it while nothing is sent. */
+.workspace > .page:has(> .page-conversation) {
+  max-width: none;
+  padding-bottom: 0;
+}
+
+.page-conversation {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--topbar-height, 3.25rem) - var(--space-6));
+}
+
+.page-conversation-thread,
+.page-conversation-foot {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
+.page-conversation-thread {
+  flex: 1;
+  padding-bottom: var(--space-6);
+}
+
+.page-conversation-thread .chat-coach > .ds-note {
+  margin-top: var(--space-3);
+}
+
+.page-conversation-thread .chat-coach > p + p {
+  margin-top: var(--space-3);
+}
+
+.page-conversation-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-3);
+  background: var(--color-background);
+}
+
+.page-conversation-foot .coach-panel-form {
+  padding: 0;
+  border-top: 0;
+}
+
+.page-conversation-foot .coach-panel-foot {
+  padding-inline: var(--space-1);
+}
+
+.page-conversation-foot .notice {
+  margin: 0;
+}
+
+.page-conversation-suggestions .quick-actions {
+  margin: 0;
+}
+
+/* On a phone the box stays where the thread ends (the screen is too short to hold it over the thread), and the
+   suggestions keep to one row that scrolls sideways. */
+@media (width < 40rem) {
+  .page-conversation-foot {
+    position: static;
+  }
+
+  .page-conversation-suggestions .quick-actions {
+    flex-wrap: nowrap;
+    padding-bottom: var(--space-1);
+    overflow-x: auto;
+  }
+
+  .page-conversation-suggestions .quick-actions > * {
+    flex: none;
+  }
+}
+
+/* « Coach » and its Free conversations in the Sidebar, under « Nouvelle conversation ». */
+.sidebar-conversations {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.sidebar-fold {
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.sidebar-fold .icon:last-child {
+  margin-left: auto;
+  transition: transform 120ms ease;
+}
+
+.sidebar-fold[aria-expanded="false"] .icon:last-child {
+  transform: rotate(-90deg);
+}
+
+.sidebar-nav .sidebar-sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 0 var(--space-6);
+  list-style: none;
+}
+
+.sidebar-conversation-row {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.sidebar-conversation-row .sidebar-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-link-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-conversation-actions {
+  flex: none;
+}
+
+.sidebar-rename .input {
+  width: 100%;
+}
+
+.topbar .topbar-clear {
+  flex: none;
 }
 
 /* Under an AI Coach reply (#345): « Cela répond à votre question ? Oui / Non », then the team. */
@@ -4395,7 +4540,7 @@ textarea.title-edit {
 }
 
 /* A Help Article opened in the conversation: a card, said to be written by the team, never by the AI. */
-.coach-panel .chat-help {
+:is(.coach-panel, .page-conversation) .chat-help {
   max-width: 100%;
   padding: 0;
   border: 0;

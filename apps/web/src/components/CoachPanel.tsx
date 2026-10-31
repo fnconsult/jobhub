@@ -9,6 +9,7 @@ import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import type { CoachFocus } from "@/coach";
 import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
+import { useConversationFirst } from "@/components/conversation-first";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
@@ -53,6 +54,8 @@ type Control = {
   repliesInView: readonly ReplyInView[];
   /** Opens the panel and sends `question`, with the item an Explainable label asks about (#407); null in a panel without them. */
   ask: ((question: string, explained: ExplainedItem) => void) | null;
+  /** Puts the focus in the message box. */
+  focusBox: () => void;
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
@@ -95,14 +98,15 @@ export function useAskAssistant(): ((question: string, explained: ExplainedItem)
 }
 
 /**
- * Opens the Coach Panel, as « Aide et coach » does (the home page's quick actions, #467); does nothing while it is
- * open. Null outside a Coach Panel (signed-out pages).
+ * Opens the Coach Panel, as « Aide et coach » does (the home page's quick actions, #467); while it is open (and on a
+ * page that is a conversation, #601), puts the focus in its message box. Null outside a Coach Panel (signed-out pages).
  */
 export function useOpenCoachPanel(): (() => void) | null {
   const control = useContext(CoachPanelControl);
   if (!control) return null;
   return () => {
     if (!control.open) control.toggle();
+    else control.focusBox();
   };
 }
 
@@ -234,6 +238,14 @@ type ReplyBody = {
 const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? step.tokens.input + step.tokens.output : 0);
 
 /**
+ * A Coach Conversation shown as the page itself (#601, ADR-0070), its box at the foot, rather than in the side panel:
+ * `conversationId`, the saved one the page shows (null: a new Free conversation, as the home page is); `introduction`,
+ * what the page says after the AI disclosure in its first message (the Introduction); `suggestions`, shown above the box
+ * while nothing is sent (the Quick actions).
+ */
+export type PagePlacement = { conversationId: string | null; introduction?: ReactNode; suggestions?: ReactNode };
+
+/**
  * Which panel it is: the Candidate's Coach Panel, with the AI Coach, or the
  * Back Office Assistant (#205), the same panel for Administrators in the Back
  * Office, with its own conversations and no Coach Memory, nothing In view and
@@ -342,7 +354,8 @@ const asPanelMessage = (message: ServerMessage): CoachMessage => ({
   ...(message.at ? { provenance: message.provenance ?? null, at: message.at } : {}),
 });
 
-function remember(storageKey: string, conversationId: string | null) {
+function remember(storageKey: string | null, conversationId: string | null) {
+  if (storageKey === null) return;
   try {
     if (conversationId) window.localStorage.setItem(storageKey, conversationId);
     else window.localStorage.removeItem(storageKey);
@@ -416,25 +429,33 @@ async function fetchConversation(
  * starts new conversations and lists, reopens, renames or deletes saved ones.
  * With a Profile in view, the Candidate can also ask the AI Coach to search
  * for Job Offers for it. `kind="backOfficeAssistant"`: the same panel for an
- * Administrator in the Back Office (see PanelKind).
+ * Administrator in the Back Office (see PanelKind). `page`: the same conversation shown as the page itself rather than
+ * in the side panel (#601, see CoachConversationPage).
  */
-export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; children: ReactNode }) {
+export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKind; page?: PagePlacement; children: ReactNode }) {
   const { t, i18n } = useTranslation();
   // A Signalement from the panel (#345): only around the Candidate's pages (CandidateCoachPanel).
   const signalement = useOpenSignalement();
   const panel = PANELS[kind];
   const texts = panel.texts;
+  const isPage = page !== undefined;
+  // A page that is a conversation is its address (#601): this browser does not remember it to reopen it elsewhere.
+  const storageKey = isPage ? null : panel.storageKey;
+  const conversationFirst = useConversationFirst();
+  const pageConversationId = page?.conversationId ?? null;
   const id = useId();
   const pathname = usePathname();
   // AI Activity shows the reply on its way too, with its steps and a stop icon (#333): on the Candidate's pages only.
   const aiActivity = useAiActivityLive();
-  const [open, setOpen] = useState(false);
+  // A page that is a conversation is always open.
+  const [open, setOpen] = useState(isPage);
   const [inView, setInViewState] = useState<InView | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   // Whether the conversation in view opened with the AI disclosure: a new one does, until it is saved.
   const [aiDisclosure, setAiDisclosure] = useState(true);
   const [messages, setMessages] = useState<PanelMessage[]>([]);
-  const [restoring, setRestoring] = useState(false);
+  // A page that shows a saved conversation brings it back first.
+  const [restoring, setRestoring] = useState(pageConversationId !== null);
   const [view, setView] = useState<"chat" | "list" | "memory">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
@@ -443,14 +464,20 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   // Why the last reply failed, its Failure Reason in words (#328), never the technical message.
   const [failure, setFailure] = useState<FailureReason | null>(null);
   const [live, setLive] = useState<Live | null>(null);
+  // What a page that is a conversation says of « Effacer » (#601): done, or why not.
+  const [pageNotice, setPageNotice] = useState<{ kind: "status" | "alert"; text: string } | null>(null);
   // Aborts the reply on its way: the Candidate's Stop.
   const stopper = useRef<AbortController | null>(null);
   const [focusInput, setFocusInput] = useState(0);
-  const restored = useRef(false);
+  // Counts the page's fresh starts (#601): a reply to a conversation since cleared is dropped.
+  const generation = useRef(0);
+  const restored = useRef(isPage);
   const toggles = useRef(new Set<HTMLButtonElement>());
   const input = useRef<HTMLTextAreaElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
+  // A page that is a conversation (#601): its foot, the box, stays at the bottom of the screen over the thread.
+  const foot = useRef<HTMLDivElement>(null);
   const setInView = useCallback((next: InView | null) => setInViewState(next), []);
   // Agrandir: the panel widens into a modal drawer over the page (ADR-0024); never remembered.
   const [wide, setWide] = useState(false);
@@ -483,9 +510,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   useEffect(() => {
     const box = input.current;
     if (!open || !box) return;
+    // A page that is a conversation leaves the focus where a page load puts it, until something asks for the box.
+    if (isPage && focusInput === 0) return;
     box.focus();
     box.setSelectionRange(box.value.length, box.value.length);
-  }, [open, focusInput]);
+  }, [open, focusInput, isPage]);
 
   // An article opened takes the focus, so it is read out and Escape brings the Candidate back to the box.
   useEffect(() => {
@@ -494,9 +523,49 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
 
   // Open, the Coach Panel announces its replies itself: AI Activity leaves them to it (#333).
   const tellAiActivity = aiActivity?.coachPanel;
+  // So does a page that is a conversation, while it is shown.
   useEffect(() => {
     tellAiActivity?.(open);
-  }, [tellAiActivity, open]);
+    if (isPage) return () => tellAiActivity?.(false);
+  }, [tellAiActivity, open, isPage]);
+
+  // A page that shows a saved conversation brings it back (#601); gone (deleted meanwhile), the page is a new one.
+  useEffect(() => {
+    if (!pageConversationId) return;
+    let shown = true;
+    void fetchConversation(panel.conversations, pageConversationId).then((found) => {
+      if (!shown) return;
+      if ("conversation" in found) {
+        const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
+        setConversation(summary);
+        setAiDisclosure(disclosed);
+        setMessages((opened) => [...saved, ...opened.filter(isHelpCard)]);
+      } else if (window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+      setRestoring(false);
+    });
+    return () => {
+      shown = false;
+    };
+  }, [panel.conversations, pageConversationId]);
+
+  // A page that is a conversation lets « Effacer » in the Top Bar and the Sidebar act on it while it is shown (#601).
+  const pageActions = useRef<{ clear: () => Promise<boolean>; startNew: () => void } | null>(null);
+  useEffect(() => {
+    pageActions.current = { clear: clearPage, startNew: startAfresh };
+  });
+  const registerPage = conversationFirst?.setPage;
+  const conversationOnPage = conversation?.id ?? null;
+  const replying = status === "sending";
+  useEffect(() => {
+    if (!isPage || !registerPage) return;
+    registerPage({
+      conversationId: conversationOnPage,
+      replying,
+      clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
+      startNew: () => pageActions.current?.startNew(),
+    });
+    return () => registerPage(null);
+  }, [isPage, registerPage, conversationOnPage, replying]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
   async function openPanel(): Promise<Conversation | null> {
@@ -504,7 +573,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     // The first time the panel opens, reopen the conversation this browser had open.
     if (restored.current) return null;
     restored.current = true;
-    const conversationId = remembered(panel.storageKey);
+    const conversationId = storageKey ? remembered(storageKey) : null;
     if (!conversationId) return null;
     setRestoring(true);
     const found = await fetchConversation(panel.conversations, conversationId);
@@ -516,7 +585,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       // A Help Article opened meanwhile (the panel opened on it) stays after the saved messages.
       setMessages((shown) => [...saved, ...shown.filter(isHelpCard)]);
       reopened = { conversation: summary, messages: saved };
-    } else if (found.gone) remember(panel.storageKey, null);
+    } else if (found.gone) remember(storageKey, null);
     setRestoring(false);
     return reopened;
   }
@@ -603,8 +672,46 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setReadArticle(null);
     setUnanswered(null);
     setStatus("idle");
-    remember(panel.storageKey, null);
+    remember(storageKey, null);
     showChat();
+  }
+
+  /** A page that is a conversation takes the address of the conversation its first message saved, and the Sidebar lists it (#601). */
+  function savedOnPage(saved: ConversationSummary) {
+    if (!isPage) return;
+    conversationFirst?.saved({ id: saved.id, title: saved.title });
+    const address = routes.conversation(saved.id);
+    if (window.location.pathname !== address) window.history.replaceState(null, "", address);
+  }
+
+  /** A page that is a conversation turns into a new Free conversation, the home page (#601). */
+  function startAfresh() {
+    generation.current += 1;
+    stopper.current?.abort();
+    startNewConversation();
+    setDraft("");
+    setPageNotice(null);
+    if (window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+  }
+
+  /**
+   * « Effacer » (#601, ADR-0070): deletes every message of the page's conversation, then starts afresh; false when it could not.
+   * Never while a reply is on its way: the server saves the Candidate's message when the request ends, even aborted (a Stop),
+   * so clearing then would leave it saved, in a conversation this page may not even know yet.
+   */
+  async function clearPage(): Promise<boolean> {
+    if (status === "sending") return false;
+    if (conversation) {
+      const response = await fetch(`${panel.conversations}/${encodeURIComponent(conversation.id)}`, { method: "DELETE" }).catch(() => null);
+      // Already gone (another tab, or purged): cleared either way.
+      if (!response?.ok && response?.status !== 404) {
+        setPageNotice({ kind: "alert", text: t("coachPanel.listErrors.action") });
+        return false;
+      }
+    }
+    startAfresh();
+    setPageNotice({ kind: "status", text: t("conversationFirst.cleared") });
+    return true;
   }
 
   async function showList() {
@@ -622,8 +729,17 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
   useEffect(() => {
     const element = body.current;
     const end = messagesEnd.current;
-    if (element && end) element.scrollTop += end.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
-  }, [messages, status, view, open]);
+    if (!element || !end) return;
+    if (!isPage) {
+      element.scrollTop += end.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
+      return;
+    }
+    // A page that is a conversation scrolls as a page: down to its latest message when the box at its foot hides it.
+    // Nothing sent yet, it stays at its top, on its Introduction.
+    if (messages.length === 0) return;
+    const hidden = end.getBoundingClientRect().top - (foot.current?.getBoundingClientRect().top ?? window.innerHeight);
+    if (hidden > 0) window.scrollBy(0, hidden);
+  }, [messages, status, view, open, isPage]);
 
   async function openConversation(conversationId: string): Promise<boolean> {
     const found = await fetchConversation(panel.conversations, conversationId);
@@ -636,7 +752,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     setAiDisclosure(disclosed);
     setMessages(saved);
     setStatus("idle");
-    remember(panel.storageKey, summary.id);
+    remember(storageKey, summary.id);
     showChat();
     return true;
   }
@@ -680,12 +796,20 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     stopper.current = stop;
     const startedAt = Date.now();
     let spent = 0;
+    // Started afresh meanwhile (« Effacer », « Nouvelle conversation »): what comes back belongs to no conversation shown.
+    const startedIn = generation.current;
+    const abandoned = () => {
+      if (generation.current === startedIn) return false;
+      shownLive?.end("stopped");
+      return true;
+    };
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
     let asked: ConversationSummary | null = current;
     if (panel.features.live) setLive({ step: null, tokens: 0 });
     const shownLive: RequestActionLive | null = panel.features.live && aiActivity ? aiActivity.requestAction("coach_reply", pathname, () => stop.abort()) : null;
 
     const giveBack = (error: Status, reason?: unknown) => {
+      if (abandoned()) return;
       // Give the Candidate their message back to retry or shorten it.
       setMessages(before);
       setDraft(text);
@@ -696,8 +820,10 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       shownLive?.end("failed", isFailureReason(reason) ? `failureReasons.${reason}` : null);
     };
     const answered = (body: ReplyBody) => {
+      if (abandoned()) return;
       setConversation(body.conversation);
-      remember(panel.storageKey, body.conversation.id);
+      remember(storageKey, body.conversation.id);
+      savedOnPage(body.conversation);
       // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
       const blocked = body.blocked;
       setMessages([
@@ -719,10 +845,12 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
       shownLive?.end("done");
     };
     const gone = () => {
+      if (abandoned()) return;
       // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
       setConversation(null);
       setAiDisclosure(true);
-      remember(panel.storageKey, null);
+      remember(storageKey, null);
+      if (isPage && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
       setMessages([]);
       setDraft(text);
       setStatus("unavailable");
@@ -730,9 +858,11 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     };
     // Stopped (#316 answer 11): the question stays, saved in its conversation; « Réponse arrêtée » stands in for the reply.
     const stopped = (where: ConversationSummary | null) => {
+      if (abandoned()) return;
       if (where) {
         setConversation(where);
-        remember(panel.storageKey, where.id);
+        remember(storageKey, where.id);
+        savedOnPage(where);
       }
       setMessages([...shown, { from: "stopped", tokens: spent, ms: Date.now() - startedAt }]);
       setReadArticle(null);
@@ -818,9 +948,227 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
     mentions: help ? mentions : null,
     repliesInView,
     ask: panel.features.explain ? ask : null,
+    focusBox: () => setFocusInput((n) => n + 1),
   };
   // An empty conversation opens on the help (#342): only Help Articles opened so far, nothing sent.
   const showIntro = help && !restoring && messages.every(isHelpCard);
+
+  // The conversation: its messages, then the reply on its way or why there is none (the panel's body, or the page's thread).
+  const thread = (
+    <>
+      <h3 className="visually-hidden">{conversationTitle}</h3>
+      {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
+      <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
+        {/* Until a reopened conversation is back, which opening it had is not known yet. */}
+        {restoring ? null : (
+          <li className="chat-message chat-coach">
+            {/* No visible author (#317, #327): screen readers still hear who speaks. */}
+            <span className="visually-hidden">{t(texts.author)}</span>
+            <p>{t(opening)}</p>
+            {page?.introduction}
+            {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} /> : null}
+          </li>
+        )}
+        {messages.map((message, index) =>
+          message.from === "help" ? (
+            <li key={`help-${message.key}`} className="chat-message chat-help">
+              <HelpArticleCard
+                article={message.article}
+                headingId={`${id}-help-${message.key}`}
+                answered={message.answered}
+                onAnswered={() => setMessages((shown) => shown.map((each) => (isHelpCard(each) && each.key === message.key ? { ...each, answered: true } : each)))}
+                onAskCoach={() => askAbout(message.article)}
+              />
+            </li>
+          ) : message.from === "stopped" ? (
+            <li key={index} className="chat-message chat-coach chat-stopped">
+              <span className="visually-hidden">{t(texts.author)}</span>
+              <StoppedReplyLine reply={message} />
+            </li>
+          ) : (
+          <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
+            <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
+            {/* A reply is unframed text after the glyph of what it did last (#464); the Candidate's words, a bubble. */}
+            {message.from === "coach" ? <ActivityGlyph activity={replyActivity(message.provenance ?? null)} /> : null}
+            {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
+            {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
+            {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
+            {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
+            {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
+              <ReplyFeedback
+                couldNotAnswer={message.couldNotAnswer === true}
+                satisfied={message.satisfied}
+                onAnswer={(satisfied) => answerFeedback(index, satisfied)}
+                onAskTeam={() => askTeam(questionBefore(messages, index), message.text)}
+              />
+            ) : null}
+          </li>
+          ),
+        )}
+      </ol>
+      {status === "sending" && live ? (
+        <>
+          {/* Only the start is announced (the reply, or its Stop, is announced by the list): each step is shown, not read out. */}
+          <p className="visually-hidden" role="status">
+            {t(texts.thinking)}
+          </p>
+          {live.step ? (
+            <p className="coach-panel-step">
+              <ActivityGlyph activity={live.step.activity} live />
+              {t(`aiActivity.steps.${live.step.label}`)}
+            </p>
+          ) : null}
+        </>
+      ) : status === "sending" ? (
+        <p className="notice" role="status">
+          {t(texts.thinking)}
+        </p>
+      ) : null}
+      {status === "unavailable" || status === "invalid" ? (
+        <p className={failure ? "notice notice-failed" : "notice"} role="alert">
+          {failureText}
+        </p>
+      ) : null}
+      {status === "unavailable" && unanswered !== null ? (
+        <HelpForUnanswered
+          question={unanswered}
+          locale={locale}
+          onOpen={showArticle}
+          // The team, directly: the AI Coach's unavailable message stands for its reply (#345).
+          {...(openSignalement ? { onAskTeam: () => askTeam(unanswered, failureText) } : {})}
+        />
+      ) : null}
+      <div ref={messagesEnd} aria-hidden="true" />
+      {conversation && panel.features.memory ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
+    </>
+  );
+
+  // The message box, Send (« Arrêter » while a reply is on its way) and the « Coach IA » badge in it, and what goes with the message.
+  const composer = (
+    <form className="coach-panel-form" onSubmit={send}>
+      {help ? (
+        <>
+          <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
+          {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
+          <p className="visually-hidden" aria-live="polite">
+            {suggestions.length > 0 ? t("coachPanel.help.found", { count: suggestions.length }) : ""}
+          </p>
+        </>
+      ) : null}
+      <label className="visually-hidden" htmlFor={`${id}-message`}>
+        {t("coachPanel.messageLabel")}
+      </label>
+      {/* The Send button sits inside the message box; a click anywhere in the box writes in it. */}
+      <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
+        <textarea
+          id={`${id}-message`}
+          ref={input}
+          rows={2}
+          placeholder={t("coachPanel.messageLabel")}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            // ↓ at the end of the draft goes to the help's suggestions (#342).
+            const box = event.currentTarget;
+            if (event.key === "ArrowDown" && suggestions.length > 0 && box.selectionStart === box.value.length && focusFirstSuggestion(box)) {
+              event.preventDefault();
+              return;
+            }
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
+          }}
+        />
+        <div className="coach-panel-composer-actions">
+          {/* Says, by the message box, that the one answering is an AI (#324). */}
+          <span className="pill coach-panel-badge" data-tone="accent">
+            {t(texts.badge)}
+          </span>
+          {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
+          {status === "sending" && panel.features.live ? (
+            <button key="send" className={buttonClass()} type="button" onClick={() => stopper.current?.abort()}>
+              {t("coachPanel.stop")}
+            </button>
+          ) : (
+            <button key="send" className={buttonClass({ variant: "primary" })} type="submit" disabled={status === "sending" || restoring}>
+              {t(panel.sendLabel)}
+            </button>
+          )}
+        </div>
+      </div>
+      {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
+      <details className="coach-panel-context">
+        <summary>
+          <Icons.coach />
+          <span className="coach-panel-context-line">{contextText}</span>
+        </summary>
+        <div className="coach-panel-context-more">
+          <p className="coach-panel-in-view">{contextText}</p>
+          {!panel.features.inView ? null : profileIdOf(inView) ? (
+            <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
+          ) : (
+            <p className="hint">{t("coachPanel.searchHint")}</p>
+          )}
+        </div>
+      </details>
+    </form>
+  );
+
+  // « Signaler un problème », « Proposer une idée » (#345): under the box, from every view.
+  const teamLinks = openSignalement ? (
+    // The panel's foot (#345): a Bug or an Idée, from every view; on phones, with the drawer's icon, the way in.
+    <nav className="coach-panel-foot" aria-label={t("coachPanel.team.foot")}>
+      <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "bug" })}>
+        {t("coachPanel.team.reportProblem")}
+      </button>
+      <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "idee" })}>
+        {t("coachPanel.team.suggestIdea")}
+      </button>
+    </nav>
+  ) : null;
+
+  if (page) {
+    // A page that is a conversation (#601, ADR-0070): the thread at its reading width, centred, the box at the page's foot,
+    // the suggestions above it while nothing is sent.
+    const showSuggestions = !restoring && page.suggestions !== undefined && messages.every(isHelpCard);
+    return (
+      <SetInView.Provider value={setInView}>
+        <CoachPanelControl.Provider value={control}>
+          <section
+            className="page-conversation"
+            aria-label={t("conversationFirst.label")}
+            onKeyDown={(event) => {
+              // Escape in the help brings the Candidate back to the message box (#342).
+              if (event.key === "Escape" && event.target instanceof Element && event.target.closest("[data-help]")) {
+                event.preventDefault();
+                input.current?.focus();
+              }
+            }}
+          >
+            <div className="page-conversation-thread" ref={body}>
+              {thread}
+            </div>
+            <div className="page-conversation-foot" ref={foot}>
+              <div role="status">{pageNotice?.kind === "status" ? <p className="notice">{pageNotice.text}</p> : null}</div>
+              {pageNotice?.kind === "alert" ? (
+                <p className="notice" role="alert">
+                  {pageNotice.text}
+                </p>
+              ) : null}
+              {showSuggestions ? (
+                <div className="page-conversation-suggestions" role="group" aria-label={t("conversationFirst.suggestions")}>
+                  {page.suggestions}
+                </div>
+              ) : null}
+              {composer}
+              {teamLinks}
+            </div>
+          </section>
+        </CoachPanelControl.Provider>
+      </SetInView.Provider>
+    );
+  }
 
   return (
     <SetInView.Provider value={setInView}>
@@ -916,7 +1264,7 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
                       setConversation(null);
                       setAiDisclosure(true);
                       setMessages([]);
-                      remember(panel.storageKey, null);
+                      remember(storageKey, null);
                     }
                   }}
                 />
@@ -924,177 +1272,29 @@ export function CoachPanel({ kind = "coach", children }: { kind?: PanelKind; chi
             ) : (
               <>
                 <div className="coach-panel-body" ref={body}>
-                  <h3 className="visually-hidden">{conversationTitle}</h3>
-                  {restoring ? <p role="status">{t("coachPanel.loading")}</p> : null}
-                  <ol className="chat coach-panel-messages" aria-label={t(texts.messagesLabel)} aria-live="polite">
-                    {/* Until a reopened conversation is back, which opening it had is not known yet. */}
-                    {restoring ? null : (
-                      <li className="chat-message chat-coach">
-                        {/* No visible author (#317, #327): screen readers still hear who speaks. */}
-                        <span className="visually-hidden">{t(texts.author)}</span>
-                        <p>{t(opening)}</p>
-                        {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} /> : null}
-                      </li>
-                    )}
-                    {messages.map((message, index) =>
-                      message.from === "help" ? (
-                        <li key={`help-${message.key}`} className="chat-message chat-help">
-                          <HelpArticleCard
-                            article={message.article}
-                            headingId={`${id}-help-${message.key}`}
-                            answered={message.answered}
-                            onAnswered={() => setMessages((shown) => shown.map((each) => (isHelpCard(each) && each.key === message.key ? { ...each, answered: true } : each)))}
-                            onAskCoach={() => askAbout(message.article)}
-                          />
-                        </li>
-                      ) : message.from === "stopped" ? (
-                        <li key={index} className="chat-message chat-coach chat-stopped">
-                          <span className="visually-hidden">{t(texts.author)}</span>
-                          <StoppedReplyLine reply={message} />
-                        </li>
-                      ) : (
-                      <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
-                        <span className="visually-hidden">{message.from === "coach" ? t(texts.author) : t("questionnaire.you")}</span>
-                        {/* A reply is unframed text after the glyph of what it did last (#464); the Candidate's words, a bubble. */}
-                        {message.from === "coach" ? <ActivityGlyph activity={replyActivity(message.provenance ?? null)} /> : null}
-                        {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
-                        {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
-                        {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
-                        {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
-                        {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
-                          <ReplyFeedback
-                            couldNotAnswer={message.couldNotAnswer === true}
-                            satisfied={message.satisfied}
-                            onAnswer={(satisfied) => answerFeedback(index, satisfied)}
-                            onAskTeam={() => askTeam(questionBefore(messages, index), message.text)}
-                          />
-                        ) : null}
-                      </li>
-                      ),
-                    )}
-                  </ol>
-                  {status === "sending" && live ? (
-                    <>
-                      {/* Only the start is announced (the reply, or its Stop, is announced by the list): each step is shown, not read out. */}
-                      <p className="visually-hidden" role="status">
-                        {t(texts.thinking)}
-                      </p>
-                      {live.step ? (
-                        <p className="coach-panel-step">
-                          <ActivityGlyph activity={live.step.activity} live />
-                          {t(`aiActivity.steps.${live.step.label}`)}
-                        </p>
-                      ) : null}
-                    </>
-                  ) : status === "sending" ? (
-                    <p className="notice" role="status">
-                      {t(texts.thinking)}
-                    </p>
-                  ) : null}
-                  {status === "unavailable" || status === "invalid" ? (
-                    <p className={failure ? "notice notice-failed" : "notice"} role="alert">
-                      {failureText}
-                    </p>
-                  ) : null}
-                  {status === "unavailable" && unanswered !== null ? (
-                    <HelpForUnanswered
-                      question={unanswered}
-                      locale={locale}
-                      onOpen={showArticle}
-                      // The team, directly: the AI Coach's unavailable message stands for its reply (#345).
-                      {...(openSignalement ? { onAskTeam: () => askTeam(unanswered, failureText) } : {})}
-                    />
-                  ) : null}
-                  <div ref={messagesEnd} aria-hidden="true" />
-                  {conversation && panel.features.memory ? <CoachMemoryProposals key={conversation.id} conversationId={conversation.id} /> : null}
+                  {thread}
                 </div>
-                <form className="coach-panel-form" onSubmit={send}>
-                  {help ? (
-                    <>
-                      <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
-                      {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
-                      <p className="visually-hidden" aria-live="polite">
-                        {suggestions.length > 0 ? t("coachPanel.help.found", { count: suggestions.length }) : ""}
-                      </p>
-                    </>
-                  ) : null}
-                  <label className="visually-hidden" htmlFor={`${id}-message`}>
-                    {t("coachPanel.messageLabel")}
-                  </label>
-                  {/* The Send button sits inside the message box; a click anywhere in the box writes in it. */}
-                  <div className="coach-panel-composer" onClick={(event) => event.target === event.currentTarget && input.current?.focus()}>
-                    <textarea
-                      id={`${id}-message`}
-                      ref={input}
-                      rows={2}
-                      placeholder={t("coachPanel.messageLabel")}
-                      value={draft}
-                      onChange={(event) => setDraft(event.target.value)}
-                      onKeyDown={(event) => {
-                        // ↓ at the end of the draft goes to the help's suggestions (#342).
-                        const box = event.currentTarget;
-                        if (event.key === "ArrowDown" && suggestions.length > 0 && box.selectionStart === box.value.length && focusFirstSuggestion(box)) {
-                          event.preventDefault();
-                          return;
-                        }
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          event.currentTarget.form?.requestSubmit();
-                        }
-                      }}
-                    />
-                    <div className="coach-panel-composer-actions">
-                      {/* Says, by the message box, that the one answering is an AI (#324). */}
-                      <span className="pill coach-panel-badge" data-tone="accent">
-                        {t(texts.badge)}
-                      </span>
-                      {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
-                      {status === "sending" && panel.features.live ? (
-                        <button key="send" className={buttonClass()} type="button" onClick={() => stopper.current?.abort()}>
-                          {t("coachPanel.stop")}
-                        </button>
-                      ) : (
-                        <button key="send" className={buttonClass({ variant: "primary" })} type="submit" disabled={status === "sending" || restoring}>
-                          {t(panel.sendLabel)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
-                  <details className="coach-panel-context">
-                    <summary>
-                      <Icons.coach />
-                      <span className="coach-panel-context-line">{contextText}</span>
-                    </summary>
-                    <div className="coach-panel-context-more">
-                      <p className="coach-panel-in-view">{contextText}</p>
-                      {!panel.features.inView ? null : profileIdOf(inView) ? (
-                        <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
-                      ) : (
-                        <p className="hint">{t("coachPanel.searchHint")}</p>
-                      )}
-                    </div>
-                  </details>
-                </form>
+                {composer}
               </>
             )}
-            {openSignalement ? (
-              // The panel's foot (#345): a Bug or an Idée, from every view; on phones, with the drawer's icon, the way in.
-              <nav className="coach-panel-foot" aria-label={t("coachPanel.team.foot")}>
-                <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "bug" })}>
-                  {t("coachPanel.team.reportProblem")}
-                </button>
-                <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "idee" })}>
-                  {t("coachPanel.team.suggestIdea")}
-                </button>
-              </nav>
-            ) : null}
+            {teamLinks}
           </aside>
         ) : null}
         <CoachPanelToggle floating />
       </CoachPanelControl.Provider>
     </SetInView.Provider>
   );
+}
+
+/**
+ * A Coach Conversation that is the page itself (#601, ADR-0070), under « Conversation au centre »: the home page's new
+ * Free conversation, or a saved one (`conversationId`). The thread at its reading width, centred; the box at the page's
+ * foot with the « Coach IA » badge, « Arrêter » while a reply is on its way, the Signalement links under it; each reply
+ * with its Provenance line and « Cela répond à votre question ? ». Its first message saved, the page takes the
+ * conversation's address and the Sidebar lists it; « Effacer » in the Top Bar clears it. Key it by `conversationId`.
+ */
+export function CoachConversationPage(placement: PagePlacement) {
+  return <CoachPanel page={placement}>{null}</CoachPanel>;
 }
 
 /**

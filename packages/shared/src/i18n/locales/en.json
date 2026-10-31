@@ -1761,7 +1761,8 @@
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
-        "maintenance": "Maintenance"
+        "maintenance": "Maintenance",
+        "candidate_pages": "Candidate's pages"
       },
       "setting": "Setting",
       "value": "Value in use",
@@ -1995,6 +1996,7 @@
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
+        "CONVERSATION_FIRST": "Conversation first (the Candidate's home page is a conversation with the AI Coach)",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
       },
@@ -4649,6 +4651,20 @@
     "addApplication": "Add an application",
     "scheduleInterview": "Schedule an interview",
     "askCoach": "Ask the coach"
+  },
+  "conversationFirst": {
+    "newConversation": "New conversation",
+    "coach": "Coach",
+    "actions": "Actions for “{{title}}”",
+    "nameLabel": "Conversation name",
+    "deleteTitle": "Delete the conversation “{{title}}”?",
+    "deleteText": "All its messages will be deleted. The coach's memory stays.",
+    "clear": "Clear",
+    "clearTitle": "Clear this conversation?",
+    "clearText": "All the messages of this conversation will be deleted. The coach's memory stays.",
+    "cleared": "Conversation cleared.",
+    "label": "Conversation with the AI Coach",
+    "suggestions": "Suggestions"
   },
   "publicSite": {
     "nav": "Public pages",

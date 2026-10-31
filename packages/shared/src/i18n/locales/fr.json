@@ -1761,7 +1761,8 @@
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
-        "maintenance": "Maintenance"
+        "maintenance": "Maintenance",
+        "candidate_pages": "Pages du Candidate"
       },
       "setting": "Réglage",
       "value": "Valeur en vigueur",
@@ -1995,6 +1996,7 @@
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
         "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
+        "CONVERSATION_FIRST": "Conversation au centre (l'accueil du Candidate est une conversation avec le Coach IA)",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
       },
@@ -4649,6 +4651,20 @@
     "addApplication": "Ajouter une candidature",
     "scheduleInterview": "Planifier un entretien",
     "askCoach": "Demander au coach"
+  },
+  "conversationFirst": {
+    "newConversation": "Nouvelle conversation",
+    "coach": "Coach",
+    "actions": "Actions pour « {{title}} »",
+    "nameLabel": "Nom de la conversation",
+    "deleteTitle": "Supprimer la conversation « {{title}} » ?",
+    "deleteText": "Tous ses messages seront supprimés. La Mémoire du coach reste.",
+    "clear": "Effacer",
+    "clearTitle": "Effacer cette conversation ?",
+    "clearText": "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.",
+    "cleared": "Conversation effacée.",
+    "label": "Conversation avec le Coach IA",
+    "suggestions": "Suggestions"
   },
   "publicSite": {
     "nav": "Pages publiques",

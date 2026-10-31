@@ -86,7 +86,7 @@ export default defineConfig({
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs
     // `next dev`, and Next.js refuses a second `next dev` in apps/web. Projects run in parallel
     // with each other, so they share this one.
-    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev)\.spec\.ts/, workers: 1 },
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell)\.spec\.ts/, workers: 1 },
   ],
   webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",

@@ -108,13 +108,15 @@ test("a rise and a reduction on Free apply at once, with no notice", async ({ br
   await field.fill(String(Number(original) + 3));
   await save.click();
   await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
-  await admin.reload();
+  // Back to the page without its « enregistrés » status (?saved=free), so the next one can only be the next save's.
+  await admin.goto("/admin/quotas");
+  await expect(admin.getByRole("status")).toHaveCount(0);
   await expect(field).toHaveValue(String(Number(original) + 3));
 
   await field.fill(original);
   await save.click();
   await expect(admin.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
-  await admin.reload();
+  await admin.goto("/admin/quotas");
   await expect(field).toHaveValue(original);
 
   await admin.goto("/admin/offres#baisses");

@@ -4956,5 +4956,15 @@
       "doneSettled": "Your subscription is cancelled, and our team refunded you prorata the part of the paid period that was not used."
     },
     "change": "{{label}}: {{before}} → {{after}}"
+  },
+  "fiche": {
+    "label": "Fiche",
+    "activity": "Activity",
+    "groups": {
+      "sections": "Sections",
+      "activity": "Activity",
+      "results": "Results"
+    },
+    "noResults": "No results yet: what the coach makes here is added to this list."
   }
 }

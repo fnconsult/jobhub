@@ -42,6 +42,7 @@ import {
   NotebookText,
   Palette,
   PanelLeftClose,
+  PanelRight,
   Plus,
   RefreshCw,
   Search,
@@ -159,6 +160,8 @@ const LUCIDE = {
   // « Mémoire du coach » in the Sidebar and « Aide » in the Top Bar (#602).
   memory: Brain,
   help: CircleHelp,
+  // « Fiche » in the Top Bar of an object's page (#603).
+  fiche: PanelRight,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

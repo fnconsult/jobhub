@@ -4956,5 +4956,15 @@
       "doneSettled": "Votre abonnement est résilié, et notre équipe vous a remboursé au prorata la part de la période payée qui n'a pas servi."
     },
     "change": "{{label}} : {{before}} → {{after}}"
+  },
+  "fiche": {
+    "label": "Fiche",
+    "activity": "Activité",
+    "groups": {
+      "sections": "Sections",
+      "activity": "Activité",
+      "results": "Résultats"
+    },
+    "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste."
   }
 }

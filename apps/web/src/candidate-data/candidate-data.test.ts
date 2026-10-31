@@ -14,7 +14,7 @@ import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
 import { createCoachConversations } from "../coach-conversations";
 import { createHumanCoaches } from "../human-coaches";
 import { createEmailIntake } from "../email-intake";
-import { alertEmail, inboundPayload, unknownSenderEmail } from "../email-intake/fixtures/brevo-inbound";
+import { alertEmail, inboundRequest, unknownSenderEmail } from "../email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound } from "../email-intake/inbound";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
@@ -938,16 +938,12 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       emailIntake,
       cipher: () => createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]])),
       queue: { send: async () => {} },
-      settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 10 }),
+      settings: () => ({ secret: "inbound-secret", mtaIpRanges: [], dailyCap: 10 }),
       now: () => now,
     });
-    await inbound.handle(
-      new Request("http://localhost:3000/api/email-intake/inbound", {
-        method: "POST",
-        headers: { "x-inbound-secret": "inbound-secret" },
-        body: JSON.stringify(inboundPayload(alertEmail(address), unknownSenderEmail(address))),
-      }),
-    );
+    for (const email of [alertEmail(address), unknownSenderEmail(address)]) {
+      await inbound.handle(new Request("http://localhost:3000/api/email-intake/inbound", { method: "POST", ...inboundRequest(email, "inbound-secret") }));
+    }
 
     const exported = (await candidateData.export(candidateId)).emailIntake.receivedOfferEmails;
 

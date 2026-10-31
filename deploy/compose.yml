@@ -48,7 +48,11 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    networks: [default, traefik]
+    networks:
+      default:
+      traefik:
+        # Email intake's MTA (deploy/mta/compose.yml) posts each email here, over this network.
+        aliases: ["${JOBHUB_SLUG}-web"]
     labels:
       - traefik.enable=true
       - traefik.docker.network=n8n_default

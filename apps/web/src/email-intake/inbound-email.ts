@@ -1,54 +1,38 @@
 /**
- * An email Brevo Inbound Parsing posts (#442, docs/research/issue-442.md), as Email intake reads it: who sent it, to
- * which addresses, when, the Authentication-Results Brevo's MX stamped on it, and its text. Only its text part is
- * kept (the HTML rendered to text, each link written after its words, else the plain text part), capped; never its
- * other headers, images or attachments, which are not even read (CONTEXT.md, Received offer email). The text the HTML
- * hides from its reader is kept between HIDDEN_TEXT_OPEN and HIDDEN_TEXT_CLOSE, for the email Guardrail (#446).
+ * An email Email intake's MTA posts (#580): its raw message and, beside it, the envelope's
+ * recipients and the MTA's own Authentication-Results (inbound-headers.ts). As Email intake reads it: who sent it, to
+ * which addresses, when, how the MTA authenticated it, and its text. Only its text part is kept (the HTML rendered to
+ * text, each link written after its words, else the plain text part), capped; never its other headers, images or
+ * attachments (CONTEXT.md, Received offer email). The text the HTML hides from its reader is kept between
+ * HIDDEN_TEXT_OPEN and HIDDEN_TEXT_CLOSE, for the email Guardrail (#446).
  *
- *   const emails = readInboundEmails(await request.json()); // null: not Brevo's body
+ *   const email = await readInboundEmail(request); // null: not an email with a sender
  */
+import { createHash } from "node:crypto";
 import { htmlToText } from "@jobhub/shared/page-reading";
+import PostalMime from "postal-mime";
 import { HIDDEN_TEXT_CLOSE, HIDDEN_TEXT_OPEN } from "../guardrails/email";
+import { AUTHENTICATION_RESULTS_HEADER, ENVELOPE_TO_HEADER } from "./inbound-headers";
 
 /** The most characters of an email's text kept: an alert of 30 offers fits many times over. */
 export const MAX_TEXT_CHARACTERS = 50_000;
 
 export interface InboundEmail {
-  /** Brevo's MessageId, else its Uuid: one email delivered twice is received once. */
+  /** Its Message-ID, else a digest of what it holds: one email delivered twice is received once. */
   messageId: string;
   /** The From address, in lower case. */
   from: string;
-  /** The addresses it was delivered to (RCPT TO, else To), in lower case: a Forwarding address among them. */
+  /** The addresses it was delivered to (the envelope's RCPT TO, else its To), in lower case: a Forwarding address among them. */
   recipients: string[];
   /** The date the email says it was sent, or null when it says none that reads. */
   sentAt: Date | null;
   /**
-   * The first Authentication-Results header: the one Brevo's MX added on receiving it, above any the email carried
-   * (which anyone can write). Empty when there is none.
+   * The Authentication-Results the MTA wrote on receiving it, never one the message carried (which anyone can
+   * write). Empty when there is none.
    */
   authenticationResults: string;
   /** Its text, capped at MAX_TEXT_CHARACTERS. */
   text: string;
-}
-
-type Item = Record<string, unknown>;
-
-const isObject = (value: unknown): value is Item => typeof value === "object" && value !== null && !Array.isArray(value);
-
-function addressOf(value: unknown): string | null {
-  const address = typeof value === "string" ? value : isObject(value) && typeof value.Address === "string" ? value.Address : null;
-  const trimmed = address?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
-
-const addressesOf = (value: unknown): string[] => (Array.isArray(value) ? value.flatMap((entry) => addressOf(entry) ?? []) : []);
-
-/** A header by name, any case; Brevo gives a string when it appears once, an array when more. */
-function header(headers: unknown, name: string): string[] {
-  if (!isObject(headers)) return [];
-  const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
-  const value = key === undefined ? undefined : headers[key];
-  return (Array.isArray(value) ? value : [value]).filter((entry): entry is string => typeof entry === "string");
 }
 
 /** An anchor's words followed by its link, so the reading keeps where each offer is; other links (mailto:, tracking images) go. */
@@ -102,33 +86,35 @@ export function inboundTextOf(parts: { html?: string | null; text?: string | nul
   return text.slice(0, MAX_TEXT_CHARACTERS);
 }
 
-const textOf = (item: Item): string =>
-  inboundTextOf({ html: typeof item.RawHtmlBody === "string" ? item.RawHtmlBody : null, text: typeof item.RawTextBody === "string" ? item.RawTextBody : null });
+const addressesOf = (value: string | null): string[] =>
+  (value ?? "")
+    .split(",")
+    .map((address) => address.trim().toLowerCase())
+    .filter((address) => address.includes("@"));
 
-function dateOf(value: unknown): Date | null {
-  if (typeof value !== "string") return null;
+function dateOf(value: string | undefined): Date | null {
+  if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function readItem(item: unknown): InboundEmail | null {
-  if (!isObject(item)) return null;
-  const from = addressOf(item.From);
-  const messageId = typeof item.MessageId === "string" && item.MessageId.trim() ? item.MessageId.trim() : Array.isArray(item.Uuid) && typeof item.Uuid[0] === "string" ? item.Uuid[0] : null;
-  if (!from || !messageId) return null;
-  const recipients = addressesOf(item.Recipients);
+/** One email as the MTA posts it (raw message, envelope and stamp in headers); null when its message names no sender. */
+export async function readInboundEmail(request: Request): Promise<InboundEmail | null> {
+  const raw = new Uint8Array(await request.arrayBuffer());
+  if (raw.byteLength === 0) return null;
+  const message = await PostalMime.parse(raw, { attachmentEncoding: "arraybuffer" }).catch(() => null);
+  const from = message?.from?.address?.trim().toLowerCase();
+  if (!message || !from) return null;
+  const text = inboundTextOf({ html: message.html, text: message.text });
+  const envelope = addressesOf(request.headers.get(ENVELOPE_TO_HEADER));
+  const messageId =
+    message.messageId?.trim() || `<${createHash("sha256").update(`${from}\n${message.date ?? ""}\n${message.subject ?? ""}\n${text}`, "utf8").digest("hex")}@email-intake>`;
   return {
     messageId,
     from,
-    recipients: recipients.length > 0 ? recipients : addressesOf(item.To),
-    sentAt: dateOf(item.SentAtDate),
-    authenticationResults: header(item.Headers, "Authentication-Results")[0] ?? "",
-    text: textOf(item),
+    recipients: envelope.length > 0 ? envelope : (message.to ?? []).flatMap((to) => addressesOf(to.address ?? null)),
+    sentAt: dateOf(message.date),
+    authenticationResults: request.headers.get(AUTHENTICATION_RESULTS_HEADER)?.trim() ?? "",
+    text,
   };
-}
-
-/** The emails of a Brevo Inbound Parsing body (`{ items: [...] }`), those without a sender left out; null for any other body. */
-export function readInboundEmails(body: unknown): InboundEmail[] | null {
-  if (!isObject(body) || !Array.isArray(body.items)) return null;
-  return body.items.flatMap((item) => readItem(item) ?? []);
 }

@@ -386,6 +386,16 @@ _Avoid_: Email import, mail scraping, inbox source
 A sender of offer emails whose emails Email intake reads (« Expéditeur reconnu »): a job board's or a careers site's alert address, recognised by its authenticated domain, or by its full address when the domain sends for many (a shared sending platform such as `jobs2web.com`). Administrators keep the platform's list on the Email intake sheet of Paramètres, each with a label naming the job board or company and its site for reading only; they can disable one (it stays listed but is not read) or remove it, and each change is recorded in the Back Office Audit (section « Expéditeurs reconnus »). A Candidate can add one for themselves alone, from an email set aside as unrecognised or by pasting the address in the setup wizard; it then counts from their next email, and is proposed to Administrators (domain and number of Candidates, no names), who alone add it to the platform's list. The Email intake sheet lists them under « Expéditeurs proposés » (Proposed senders). A Candidate's own sender is kept by the domain of its « De : » address, or by the full address on a shared sending platform (the fixed list `jobs2web.com`, `mjt.lu`, `sendgrid.net`; pasting only the platform's domain is refused); it is recognised only when it passes DMARC, up to 50 per Candidate, and one the platform list already reads is refused as « already recognised ». A Candidate can also add a sender Administrators disabled (read for them alone) and switch a platform sender off for themselves only (and back on); that choice goes in their Data export. Nothing a Candidate does changes what another Candidate's emails read.
 _Avoid_: Whitelist, allowed sender, trusted source
 
+**Email intake MTA**:
+Jobbbox's own receiving server for Email intake (« MTA Jobbbox », Tool `email-intake`): one for every environment, it accepts mail only for the Email intake domains of its Routes, checks SPF, DKIM and DMARC, and hands each email to the right environment's app without keeping it (ADR-0069).
+_Avoid_: Mail server, inbound parser
+
+**Route**:
+One Email intake domain mapped to one environment's app and its shared secret, in the Email intake MTA's configuration. A recipient on any other domain is refused.
+
+**MTA stamp**:
+The Authentication-Results the Email intake MTA writes on each email it passes on: the only authentication Email intake trusts. One found inside the message itself is ignored.
+
 **Linked mailbox**:
 A Candidate's own mailbox Jobbbox reads for Email intake (« Boîte reliée »): reached either by connecting it, or by the Candidate forwarding its offer emails to their Forwarding address. The Candidate can unlink it at any time.
 _Avoid_: Inbox, email account, mail connector

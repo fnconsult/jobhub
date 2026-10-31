@@ -5,7 +5,7 @@
  *
  *   senderStanding(email, { recognisedSenders, sendingAddresses }) // "recognised_sender" | "own_address" | ...
  *
- * A sender counts only once authenticated, as Brevo's MX found it (its Authentication-Results, the first one):
+ * A sender counts only once authenticated, as Email intake's MTA found it (the Authentication-Results it wrote):
  * DMARC passed for the From domain; or, for a Recognised sender listed `aligned` (diffusion.apec.fr) and for the
  * Candidate's own addresses, DKIM or SPF passed for a domain of the same organisation. A From address alone is
  * written by whoever sends the email. The organisation of a domain is its last two labels: enough for the senders
@@ -85,7 +85,7 @@ function methodResults(header: string): MethodResult[] {
 const domainOf = (address: string): string => address.slice(address.lastIndexOf("@") + 1);
 const organisationOf = (domain: string): string => domain.split(".").slice(-2).join(".");
 
-/** How Brevo's MX authenticated the From domain: DMARC passed for it, or (weaker) DKIM or SPF passed for its organisation. */
+/** How the MTA authenticated the From domain: DMARC passed for it, or (weaker) DKIM or SPF passed for its organisation. */
 function authenticationOf(from: string, authenticationResults: string): { dmarc: boolean; aligned: boolean } {
   const domain = domainOf(from);
   const results = methodResults(authenticationResults).filter((entry) => entry.result === "pass");
@@ -104,7 +104,7 @@ function listed(sender: RecognisedSender, from: string): boolean {
   return domain === sender.value || domain.endsWith(`.${sender.value}`);
 }
 
-/** Whether Email intake reads an email, and why: by its sender and how Brevo's MX authenticated it. */
+/** Whether Email intake reads an email, and why: by its sender and how the MTA authenticated it. */
 export function senderStanding(
   email: Pick<InboundEmail, "from" | "authenticationResults">,
   known: { recognisedSenders: readonly RecognisedSender[]; sendingAddresses: readonly string[] },

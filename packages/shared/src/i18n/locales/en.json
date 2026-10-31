@@ -1572,7 +1572,7 @@
           "fantastic_jobs": "Fantastic.jobs API (ATS postings)",
           "web_search": "Web search (search provider)",
           "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)",
-          "email_intake": "Email intake (Brevo Inbound)"
+          "email_intake": "Email intake (Jobbbox's MTA)"
         },
         "awaitingAccess": "Awaiting access",
         "accessRefused": "Unavailable: access refused by France Travail (Offres d'emploi API). Job searches go on without it."
@@ -1703,7 +1703,8 @@
         "kaspr": "Kaspr",
         "apollo": "Apollo",
         "stripe": "Stripe",
-        "brevo": "Brevo"
+        "brevo": "Brevo",
+        "email-intake": "Email intake (Jobbbox's MTA)"
       },
       "replaceLegend": "Replace {{name}}",
       "newValue": "New value of {{name}}",
@@ -1940,7 +1941,8 @@
           "caption": "Environment variables no longer used",
           "replacedBy": "Replaced by",
           "by": {
-            "coaching_playbooks": "Coaching Playbooks, set in Playbooks"
+            "coaching_playbooks": "Coaching Playbooks, set in Playbooks",
+            "email_intake_mta": "Jobbbox's own MTA for Email intake (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)"
           }
         }
       },
@@ -1984,7 +1986,7 @@
         "EMAIL_INTAKE_DOMAIN": "Forwarding addresses' domain (Email intake)",
         "EMAIL_INTAKE_DAILY_CAP": "Emails read a day per Linked mailbox, at most (Email intake)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails a day from which the filter is « too broad »",
-        "EMAIL_INTAKE_BREVO_IP_RANGES": "Brevo webhook's IP ranges (CIDR)",
+        "EMAIL_INTAKE_MTA_IP_RANGES": "Networks the receiving MTA posts emails from (CIDR)",
         "MAIL_TRANSPORT": "Email sending",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",

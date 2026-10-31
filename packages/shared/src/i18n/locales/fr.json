@@ -1572,7 +1572,7 @@
           "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
           "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)",
-          "email_intake": "Réception par email (Brevo Inbound)"
+          "email_intake": "Réception par email (MTA de Jobbbox)"
         },
         "awaitingAccess": "En attente d'accès",
         "accessRefused": "Indisponible : accès refusé par France Travail (API Offres d'emploi). Les recherches d'offres continuent sans elle."
@@ -1703,7 +1703,8 @@
         "kaspr": "Kaspr",
         "apollo": "Apollo",
         "stripe": "Stripe",
-        "brevo": "Brevo"
+        "brevo": "Brevo",
+        "email-intake": "Réception par email (MTA de Jobbbox)"
       },
       "replaceLegend": "Remplacer {{name}}",
       "newValue": "Nouvelle valeur de {{name}}",
@@ -1940,7 +1941,8 @@
           "caption": "Variables de l'environnement qui ne servent plus",
           "replacedBy": "Remplacée par",
           "by": {
-            "coaching_playbooks": "Les Coaching Playbooks, réglés dans Playbooks"
+            "coaching_playbooks": "Les Coaching Playbooks, réglés dans Playbooks",
+            "email_intake_mta": "Le MTA de Jobbbox pour la réception par email (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)"
           }
         }
       },
@@ -1984,7 +1986,7 @@
         "EMAIL_INTAKE_DOMAIN": "Domaine des adresses de transfert (Réception par email)",
         "EMAIL_INTAKE_DAILY_CAP": "Emails lus par jour et par boîte reliée, au plus (Réception par email)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
-        "EMAIL_INTAKE_BREVO_IP_RANGES": "Plages d'adresses IP du webhook de Brevo (CIDR)",
+        "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",

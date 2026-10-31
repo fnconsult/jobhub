@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEmailIntakeActivity, purgeEmailIntakeActivity, recordReading, type EmailIntakeActivity } from "./activity";
-import { alertEmail, inboundItem, inboundPayload, unknownSenderEmail } from "./fixtures/brevo-inbound";
+import { alertEmail, inboundEmail, inboundRequest, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
 import { createEmailIntakeInbound, type EmailIntakeInbound } from "./inbound";
 
-const SECRET = "brevo-inbound-test-secret-0123456789";
+const SECRET = "email-intake-test-secret-0123456789";
 const MARIE = { email: "marie.dupont@example.fr", name: "Marie Dupont" };
 
 describe.skipIf(!connectionString)("Email intake in the Back Office's Activité: « Emails reçus » (#449; needs Postgres: DATABASE_URL)", () => {
@@ -21,14 +21,7 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
   let inbound: EmailIntakeInbound;
   let activity: EmailIntakeActivity;
 
-  const post = (...items: Parameters<typeof inboundPayload>) =>
-    inbound.handle(
-      new Request("http://localhost:3000/api/email-intake/inbound", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-inbound-secret": SECRET },
-        body: JSON.stringify(inboundPayload(...items)),
-      }),
-    );
+  const post = (email: InboundTestEmail) => inbound.handle(new Request("http://localhost:3000/api/email-intake/inbound", { method: "POST", ...inboundRequest(email, SECRET) }));
 
   beforeEach(async () => {
     testAuth = await startTestAuth();
@@ -46,7 +39,7 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
       switchedOn: async () => true,
       cipher: () => cipher,
       queue: { send: async () => {} },
-      settings: () => ({ secret: SECRET, brevoIpRanges: [], dailyCap: 1 }),
+      settings: () => ({ secret: SECRET, mtaIpRanges: [], dailyCap: 1 }),
       now: () => now,
     });
     activity = createEmailIntakeActivity(database, { now: () => now });
@@ -60,7 +53,7 @@ describe.skipIf(!connectionString)("Email intake in the Back Office's Activité:
     now = new Date("2026-10-27T10:00:00Z");
     await post(unknownSenderEmail(address));
     now = new Date("2026-10-27T10:05:00Z");
-    await post(inboundItem({ from: MARIE.email, to: address, text: "TR: Offre de Responsable marketing" }));
+    await post(inboundEmail({ from: MARIE.email, to: address, text: "TR: Offre de Responsable marketing" }));
 
     const rows = await activity.receivedEmails({});
 

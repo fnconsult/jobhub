@@ -6,7 +6,7 @@
  *   await reading.read(receivedOfferEmailId); // { outcome: "offers_found" | "other" | "failed" | "guardrail" | "not_awaiting" }, or throws to be tried again
  *
  * One try, as AI Activity shows its live steps and each Job Offer's Provenance keeps them:
- *  1. the email's text, taken with the Email intake Tool (`brevo-inbound`, read);
+ *  1. the email's text, taken with the Email intake Tool (`email-intake`, read);
  *  2. one `offer_email_reading` call on the served version of « Lire un email d'offres d'emploi » (readOfferEmail):
  *     its kind (alert, recruiter, other) and offers; while no version is served, the try fails without a call. It is
  *     guarded (#446, ADR-0052): first the « Contenu piégé dans un email » Guardrail (fixed rules, then one `guardrail`
@@ -147,7 +147,7 @@ export function createEmailReading(options: EmailReadingOptions): EmailReading {
     async read(id) {
       const progress = createRunProgress((events) => readings.progress(id, events));
       const run = createProvenanceRecorder(options.ai, { now, onEvent: progress.onEvent });
-      const email = await run.step({ tool: "brevo-inbound" }, () => readings.startTry(id));
+      const email = await run.step({ tool: "email-intake" }, () => readings.startTry(id));
       if (!email) return { outcome: "not_awaiting" };
       const failed = async (): Promise<EmailReadOutcome> => {
         await progress.flush();

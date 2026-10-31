@@ -24,6 +24,7 @@ import { Note } from "@/design/Note";
 import { SegmentedLinks } from "@/design/SegmentedLinks";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes, type ApplicationSection } from "@/routes";
+import { getWithdrawals } from "@/withdrawals/server";
 import "./agenda.css";
 
 /** Where an Interview leads: its Application's Interviews Section. */
@@ -128,13 +129,16 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   const address = readAgendaAddress(params, now);
   const past = address.view === "liste" && params.periode === PAST;
   const agenda = getAgenda();
-  const [t, locale, unscheduled, applications, aiActivity] = await Promise.all([
+  const [t, locale, unscheduled, applications, aiActivity, contracts] = await Promise.all([
     getServerT(),
     getRequestLocale(),
     agenda.unscheduled(candidate.id),
     getApplications().list(candidate.id),
     loadAiActivity.agenda(candidate.id),
+    getWithdrawals().contracts(candidate.id),
   ]);
+  // The Coaching Sessions « Renoncer au contrat ici » is offered on (#511): paid less than 14 days ago, not held yet.
+  const withdrawable: Withdrawable = new Set(contracts.flatMap((contract) => (contract.kind === "coachingSession" ? [contract.sessionId] : [])));
   // The Application picker offers the ongoing Applications only: not the Archived ones.
   const ongoing: InterviewableApplication[] = applications
     .filter((application) => !isArchivedApplication(application))
@@ -145,15 +149,15 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   let content;
   if (address.view === "liste") {
     const days = await agenda.days(candidate.id, { period: past ? "past" : "upcoming", now });
-    content = <AgendaList days={days} past={past} formats={formats} t={t} />;
+    content = <AgendaList days={days} past={past} withdrawable={withdrawable} formats={formats} t={t} />;
   } else {
     const period = calendarPeriod(address.view, address.date);
     const byDay = new Map((await agenda.daysBetween(candidate.id, period)).map((day) => [day.day, day.items]));
     content =
       address.view === "semaine" ? (
-        <AgendaWeek period={period} byDay={byDay} today={today} formats={formats} t={t} />
+        <AgendaWeek period={period} byDay={byDay} today={today} withdrawable={withdrawable} formats={formats} t={t} />
       ) : (
-        <AgendaMonth period={period} byDay={byDay} selected={address.date} today={today} formats={formats} t={t} />
+        <AgendaMonth period={period} byDay={byDay} selected={address.date} today={today} withdrawable={withdrawable} formats={formats} t={t} />
       );
   }
 
@@ -169,7 +173,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           </div>
         </div>
         <CoachInView {...AGENDA_IN_VIEW} name={t("agenda.title")} />
-        {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} formats={formats} t={t} /> : null}
+        {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} withdrawable={withdrawable} formats={formats} t={t} /> : null}
         {content}
         <Legend t={t} />
       </div>
@@ -205,7 +209,7 @@ function Legend({ t }: { t: T }) {
 }
 
 /** The list: upcoming Agenda Items by day, oldest first, or the past ones, newest first and dimmed. */
-function AgendaList({ days, past, formats, t }: { days: AgendaDay[]; past: boolean; formats: Formats; t: T }) {
+function AgendaList({ days, past, withdrawable, formats, t }: { days: AgendaDay[]; past: boolean; withdrawable: Withdrawable; formats: Formats; t: T }) {
   return (
     <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby="agenda-period-title">
       <div className="agenda-period-head">
@@ -237,7 +241,7 @@ function AgendaList({ days, past, formats, t }: { days: AgendaDay[]; past: boole
                     <span className="agenda-day-weekday">{formats.weekdayName(day.day)}</span> <span className="agenda-day-date">{formats.day.format(noonOf(day.day))}</span>
                   </time>
                 </h3>
-                <Items items={day.items} formats={formats} t={t} />
+                <Items items={day.items} withdrawable={withdrawable} formats={formats} t={t} />
               </section>
             );
           })}
@@ -265,7 +269,7 @@ function PeriodNav({ view, period, today, t }: { view: CalendarView; period: Cal
 }
 
 /** The week: Monday to Sunday, one column per day with its items and their time, no hourly grid; the days stacked on phones. */
-function AgendaWeek({ period, byDay, today, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; today: string; formats: Formats; t: T }) {
+function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; today: string; withdrawable: Withdrawable; formats: Formats; t: T }) {
   return (
     <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
       <div className="agenda-period-head">
@@ -286,7 +290,7 @@ function AgendaWeek({ period, byDay, today, formats, t }: { period: CalendarPeri
                     {formats.weekday(day)}
                   </time>
                 </h3>
-                {items.length === 0 ? <p className="agenda-nothing">{t("agenda.nothing")}</p> : <Items items={items} formats={formats} t={t} />}
+                {items.length === 0 ? <p className="agenda-nothing">{t("agenda.nothing")}</p> : <Items items={items} withdrawable={withdrawable} formats={formats} t={t} />}
               </section>
             </li>
           );
@@ -303,7 +307,23 @@ function AgendaWeek({ period, byDay, today, formats, t }: { period: CalendarPeri
  * address's date) lists its items below the grid. The buttons submit a GET form, so they work
  * without JavaScript too.
  */
-function AgendaMonth({ period, byDay, selected, today, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; selected: string; today: string; formats: Formats; t: T }) {
+function AgendaMonth({
+  period,
+  byDay,
+  selected,
+  today,
+  withdrawable,
+  formats,
+  t,
+}: {
+  period: CalendarPeriod;
+  byDay: Map<string, AgendaItem[]>;
+  selected: string;
+  today: string;
+  withdrawable: Withdrawable;
+  formats: Formats;
+  t: T;
+}) {
   const chosen = byDay.get(selected) ?? [];
   return (
     <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
@@ -363,7 +383,7 @@ function AgendaMonth({ period, byDay, selected, today, formats, t }: { period: C
         <h3 id="agenda-chosen-day-title">
           <time dateTime={selected}>{formats.fullDay(selected)}</time>
         </h3>
-        {chosen.length === 0 ? <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p> : <Items items={chosen} formats={formats} t={t} />}
+        {chosen.length === 0 ? <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p> : <Items items={chosen} withdrawable={withdrawable} formats={formats} t={t} />}
       </section>
     </section>
   );
@@ -379,7 +399,7 @@ function monthDayClass(day: string, today: string): string {
  * Human Coach, leads to their Cal.com booking page and lets the Candidate enter the date booked; a cancelled
  * one keeps its history.
  */
-function ToSchedule({ sessions, formats, t }: { sessions: UnscheduledCoachingSession[]; formats: Formats; t: T }) {
+function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: UnscheduledCoachingSession[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
   return (
     <section className="agenda-to-schedule" aria-labelledby="agenda-to-schedule-title">
       <h2 id="agenda-to-schedule-title">{t("agenda.toSchedule")}</h2>
@@ -397,6 +417,7 @@ function ToSchedule({ sessions, formats, t }: { sessions: UnscheduledCoachingSes
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
               </a>
               <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
+              {withdrawable.has(session.id) ? <WithdrawalLink sessionId={session.id} coachName={session.coach.name} t={t} /> : null}
             </div>
           </li>
         ))}
@@ -406,14 +427,14 @@ function ToSchedule({ sessions, formats, t }: { sessions: UnscheduledCoachingSes
 }
 
 /** A day's Agenda Items, each with its time; the past ones dimmed. */
-function Items({ items, formats, t }: { items: AgendaItem[]; formats: Formats; t: T }) {
+function Items({ items, withdrawable, formats, t }: { items: AgendaItem[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
   return (
     <ul className="agenda-items">
       {items.map((item) =>
         item.kind === "interview" ? (
           <InterviewItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formats={formats} t={t} />
         ) : (
-          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formats={formats} t={t} />
+          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} withdrawable={withdrawable.has(item.id)} formats={formats} t={t} />
         ),
       )}
     </ul>
@@ -425,7 +446,7 @@ function Items({ items, formats, t }: { items: AgendaItem[]; formats: Formats; t
  * the Human Coach was the last to change its date, leading to them on the Human Coaches page;
  * its Reschedule history, and its date can be edited, or the session cancelled, here.
  */
-function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSessionAgendaItem; past: boolean; formats: Formats; t: T }) {
+function CoachingSessionItem({ item, past, withdrawable, formats, t }: { item: CoachingSessionAgendaItem; past: boolean; withdrawable: boolean; formats: Formats; t: T }) {
   return (
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
@@ -455,7 +476,20 @@ function CoachingSessionItem({ item, past, formats, t }: { item: CoachingSession
         name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
         question={t("agendaChanges.cancelSessionConfirm")}
       />
+      {withdrawable ? <WithdrawalLink sessionId={item.id} coachName={item.coach.name} t={t} /> : null}
     </li>
+  );
+}
+
+/** The ids of the Coaching Sessions the Candidate may still withdraw from (#511). */
+type Withdrawable = ReadonlySet<string>;
+
+/** « Renoncer au contrat ici » for a Coaching Session (#511): to its Withdrawal form, named with its Human Coach. */
+function WithdrawalLink({ sessionId, coachName, t }: { sessionId: string; coachName: string; t: T }) {
+  return (
+    <Link className={buttonClass({ variant: "quiet" })} href={routes.withdrawal(`coaching-session:${sessionId}`)} aria-label={t("withdrawals.agenda.label", { name: coachName })}>
+      {t("withdrawals.page.title")}
+    </Link>
   );
 }
 

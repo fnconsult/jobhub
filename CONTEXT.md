@@ -796,6 +796,14 @@ _Avoid_: Paywall, upsell, upgrade popup
 What a Candidate is shown while their subscription is past due: Stripe is retrying a failed payment and the Plan is kept. It sends them to the Stripe customer portal to update their payment method, and disappears once payment succeeds. Shown only in the Candidate's sidebar layout.
 _Avoid_: Dunning banner, billing alert
 
+**Withdrawal**:
+A Candidate renouncing a contract concluded online, without a reason and at no cost (« rétractation », C. conso. L221-18): a Plan's subscription, or a paid Coaching Session not held yet. Made on Jobbbox's own page, « Renoncer au contrat ici » (`/abonnement/retractation`), reached from the subscription page and from the Coaching Session in the Agenda, never from the Stripe customer portal. « Confirmer la rétractation » ends the contract at once (a subscription is cancelled now, never a Scheduled Cancellation; a Coaching Session is cancelled and its Human Coach told) and refunds everything paid for it in full through Stripe, automatically (ADR-0071). The acknowledgement (« accusé de réception ») is emailed with its date and time and the amount refunded, whatever happens to the refund. A refund that fails, at once or days later, shows as « Échoué » in the Back Office's « Rétractations », where Support retries it. A contract a 100 % Coupon left free is withdrawn all the same, with nothing to refund. Each Withdrawal is the Candidate's: in their Data export, deleted with their account.
+_Avoid_: Cancellation (that is a Scheduled Cancellation or an immediate one, with no refund), refund request, renunciation
+
+**Withdrawal period**:
+How long a contract can be withdrawn from: 14 days from the day after it was concluded (a subscription's start, a Coaching Session's payment), to the end of the 14th day, French time. A period whose 14th day is a Saturday, a Sunday or a public holiday of metropolitan France runs on to the end of the next working day (L221-19): the 15th day is then still in it. A Plan changed in the customer portal is the same contract and opens no new period.
+_Avoid_: Cooling-off period, grace period, 14-day window
+
 ### Legal texts
 
 **Legal Text**:
@@ -825,7 +833,7 @@ _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Platform Settings, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites, the Unanswered Questions, the Candidates' Signalements (in the « Candidats » group, with the count of those « à traiter ») and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools; its home page is the Back Office Dashboard and what happened is on its Back Office Activity page.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Platform Settings, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites, the Unanswered Questions, the Candidates' Signalements (in the « Candidats » group, with the count of those « à traiter »), the Candidates' Withdrawals and their refunds (« Rétractations ») and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools; its home page is the Back Office Dashboard and what happened is on its Back Office Activity page.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Dashboard**:

@@ -48,7 +48,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "séance"
       ],
       "route": "/agenda",
-      "body": "L'agenda montre vos entretiens et vos séances avec un coach humain. Affichez-le en liste (les prochains rendez-vous, jour par jour), par semaine ou par mois.\n\nAjoutez un entretien avec « Ajouter un entretien », ou depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ».\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels."
+      "body": "L'agenda montre vos entretiens et vos séances avec un coach humain. Affichez-le en liste (les prochains rendez-vous, jour par jour), par semaine ou par mois.\n\nAjoutez un entretien avec « Ajouter un entretien », ou depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ».\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu."
     },
     {
       "id": "page-job-digests",
@@ -178,7 +178,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "résilier"
       ],
       "route": "/abonnement",
-      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou résiliez. Jobbbox ne voit jamais votre numéro de carte."
+      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou résiliez. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai."
     },
     {
       "id": "page-account",
@@ -213,6 +213,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/recherches",
       "body": "Votre coach cherche des offres d'emploi selon les critères de recherche d'un profil. Choisissez le profil, ou tous vos profils actifs, puis lancez la recherche.\n\nLa page se met à jour toute seule pendant la recherche, et vous pouvez l'arrêter. Les dernières offres trouvées s'affichent avec leur score de correspondance.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas."
+    },
+    {
+      "id": "page-withdrawal",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Renoncer au contrat ici",
+      "synonyms": [
+        "rétractation",
+        "rétracter",
+        "renoncer",
+        "remboursement",
+        "rembourser",
+        "annuler",
+        "14 jours",
+        "délai de rétractation"
+      ],
+      "route": "/abonnement/retractation",
+      "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif et sans frais : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement et tant qu'elle n'a pas eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse en entier sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés.\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
     },
     {
       "id": "page-job-digest",
@@ -344,6 +362,21 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Un e-mail que votre coach rédige quand une candidature reste « Postulée » ou « Relancée » trop longtemps sans nouvelles. Il apparaît comme une proposition dans la page de la candidature.\n\nJobbbox n'envoie rien à l'employeur : copiez le texte, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé. La candidature passe alors à « Relancée ».\n\nLe délai avant une relance se règle dans Mon compte, rubrique Relances."
+    },
+    {
+      "id": "glossary-withdrawal",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Rétractation",
+      "synonyms": [
+        "rétracter",
+        "renoncer",
+        "délai de rétractation",
+        "14 jours",
+        "remboursement"
+      ],
+      "route": null,
+      "body": "Votre droit de renoncer, sans motif et sans frais, à un contrat conclu en ligne : pendant 14 jours après votre abonnement à une offre, ou après le paiement d'une séance avec un coach humain tant qu'elle n'a pas eu lieu.\n\nSur Jobbbox, utilisez « Renoncer au contrat ici », sur la page Mon abonnement ou sur la séance dans l'agenda. Le contrat s'arrête tout de suite, vous êtes remboursé en entier et vous recevez un accusé de réception par e-mail."
     },
     {
       "id": "glossary-match-score",
@@ -629,7 +662,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "session"
       ],
       "route": "/agenda",
-      "body": "The agenda shows your interviews and your sessions with a human coach. Show it as a list (upcoming appointments, day by day), by week or by month.\n\nAdd an interview with « Add an interview », or from the « Interviews » section of an application at the « Interview » stage.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders."
+      "body": "The agenda shows your interviews and your sessions with a human coach. Show it as a list (upcoming appointments, day by day), by week or by month.\n\nAdd an interview with « Add an interview », or from the « Interviews » section of an application at the « Interview » stage.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.\n\nFor 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Renoncer au contrat ici » (withdraw from the contract here) cancels it and refunds it in full; the coach is told."
     },
     {
       "id": "page-job-digests",
@@ -730,7 +763,24 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "cancel"
       ],
       "route": "/abonnement",
-      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or cancel. Jobbbox never sees your card number."
+      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or cancel. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again."
+    },
+    {
+      "id": "page-withdrawal",
+      "locale": "en",
+      "kind": "page",
+      "title": "Withdraw from the contract here",
+      "synonyms": [
+        "withdrawal",
+        "withdraw",
+        "renounce",
+        "refund",
+        "cancel",
+        "14 days",
+        "cooling-off period"
+      ],
+      "route": "/abonnement/retractation",
+      "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason and at no cost: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it and as long as it has not taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirmer la rétractation » (confirm the withdrawal) ends the contract at once and refunds you in full, to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days.\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
     },
     {
       "id": "glossary-ats-score",
@@ -848,6 +898,21 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "A copy of your Master CV adapted to one job offer: your coach rephrases, reorders, cuts and highlights what it says, and never invents anything.\n\nWhen the job offer asks for something your CV does not show, it asks you; it is added only if you confirm. You check the proposal before saving it.\n\nIt is prepared in the application's « Documents » section, with the Match Score before and after."
+    },
+    {
+      "id": "glossary-withdrawal",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Withdrawal",
+      "synonyms": [
+        "withdraw",
+        "renounce",
+        "cooling-off period",
+        "14 days",
+        "refund"
+      ],
+      "route": null,
+      "body": "Your right to renounce a contract made online, without a reason and at no cost: for 14 days after you subscribe to a plan, or after you pay for a session with a human coach as long as it has not taken place.\n\nOn Jobbbox, use « Renoncer au contrat ici » (withdraw from the contract here), on the My subscription page or on the session in the agenda. The contract stops at once, you are refunded in full and you get an acknowledgement by email."
     },
     {
       "id": "glossary-proposals",

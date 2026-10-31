@@ -1229,7 +1229,8 @@
       "activity": "Activité",
       "discoveryRuns": "Recherches",
       "designSystem": "Design System",
-      "receivedEmails": "Emails reçus"
+      "receivedEmails": "Emails reçus",
+      "withdrawals": "Rétractations"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -2148,7 +2149,8 @@
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
         "discovery_runs": "Activité › Recherches",
-        "received_emails": "Activité › Emails reçus"
+        "received_emails": "Activité › Emails reçus",
+        "withdrawals": "Rétractations"
       },
       "actions": {
         "added": "Ajout",
@@ -3159,6 +3161,42 @@
     },
     "pageIntro": {
       "more": "En savoir plus"
+    },
+    "withdrawals": {
+      "title": "Rétractations",
+      "subtitle": "Les rétractations des candidats, et le remboursement de chacune dans Stripe.",
+      "intro": "Chaque rétractation reçue par « Renoncer au contrat ici » : un abonnement à une offre ou une séance de coaching, dans les 14 jours qui suivent sa conclusion. L'abonnement est annulé tout de suite, la séance annulée et le coach prévenu, et tout ce qui a été payé est remboursé en entier dans Stripe. Un remboursement que Stripe refuse, ou qui échoue plus tard (carte expirée, banque), reste « Échoué » ici : il peut être relancé. Si la carte n'existe plus, remboursez par virement, hors Stripe.",
+      "caption": "Rétractations, de la plus récente à la plus ancienne",
+      "none": "Aucune rétractation pour l'instant.",
+      "withdrawnAt": "Reçue le",
+      "candidate": "Candidat",
+      "contract": "Contrat",
+      "concludedAt": "conclu le {{date}}",
+      "receipt": "Accusé de réception",
+      "receiptSent": "Envoyé à {{email}} le {{at}}",
+      "receiptNotSent": "Non envoyé ({{email}}) : à envoyer à la main",
+      "refunds": "Remboursement",
+      "nothingToRefund": "Rien à rembourser",
+      "states": {
+        "pending": "En cours",
+        "succeeded": "Remboursé",
+        "failed": "Échoué"
+      },
+      "failureReason": "Raison Stripe : {{reason}}",
+      "attempts_one": "{{count}} tentative",
+      "attempts_other": "{{count}} tentatives",
+      "retry": "Relancer le remboursement",
+      "failedCount_one": "{{count}} remboursement a échoué : relancez-le, ou remboursez par virement.",
+      "failedCount_other": "{{count}} remboursements ont échoué : relancez-les, ou remboursez par virement.",
+      "retried": {
+        "succeeded": "Le remboursement est fait.",
+        "pending": "Le remboursement est demandé à Stripe, qui le traite.",
+        "failed": "Stripe a refusé le remboursement encore une fois : voyez sa raison, ou remboursez par virement."
+      },
+      "errors": {
+        "not_found": "Ce remboursement n'existe pas.",
+        "not_failed": "Ce remboursement n'a pas échoué : il n'y a rien à relancer."
+      }
     }
   },
   "backOfficeAssistant": {
@@ -4694,5 +4732,74 @@
     "emptyTitle": "Rien n'est encore publié",
     "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
     "noneForTag": "Aucune version ne porte ce thème pour le moment."
+  },
+  "withdrawals": {
+    "email": {
+      "subject": "Accusé de réception de votre rétractation",
+      "title": "Votre rétractation est enregistrée",
+      "intro": "Nous avons bien reçu votre rétractation le {{at}}. Elle porte sur le contrat suivant :",
+      "plan": "Offre {{plan}}",
+      "coachingSession": "Séance de coaching avec {{coach}}",
+      "concludedAt": "Conclu le {{date}}",
+      "paid": "Montant payé : {{amount}}",
+      "declaredBy": "Rétractation déclarée par : {{name}}.",
+      "planEnded": "Votre abonnement est annulé dès maintenant : vous êtes passé à l'offre Gratuite.",
+      "sessionCancelled": "La séance est annulée, et {{coach}} en est informé.",
+      "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
+      "nothingToRefund": "Rien à rembourser : aucun montant n'a été payé pour ce contrat.",
+      "keep": "Conservez cet e-mail : il atteste de votre rétractation.",
+      "reason": "Vous recevez cet e-mail parce que vous vous êtes rétracté d'un contrat conclu sur Jobbbox."
+    },
+    "coachEmail": {
+      "subject": "Séance annulée : {{candidate}} s'est rétracté",
+      "title": "Une séance de coaching est annulée",
+      "intro": "{{candidate}} s'est rétracté de la séance de coaching payée le {{paidAt}}.",
+      "scheduled": "Elle était prévue le {{at}} : ne la tenez pas, et libérez le créneau sur votre page Cal.com.",
+      "unscheduled": "Elle n'était pas encore datée : si un créneau est réservé sur votre page Cal.com, libérez-le.",
+      "refunded": "Jobbbox rembourse la séance au Candidat.",
+      "someone": "Un Candidat",
+      "reason": "Vous recevez cet e-mail parce que vous êtes Human Coach sur Jobbbox."
+    },
+    "page": {
+      "title": "Renoncer au contrat ici",
+      "intro": "Vous pouvez vous rétracter de ce contrat sans donner de motif et sans frais, jusqu'au {{date}} inclus. Tout ce que vous avez payé pour lui vous est remboursé.",
+      "contractTitle": "Le contrat",
+      "contract": "Contrat",
+      "subscribedOn": "Souscrit le",
+      "paidOn": "Payé le",
+      "amount": "Montant payé",
+      "amountUnknown": "Indiqué sur votre facture",
+      "name": "Votre nom",
+      "receipt": "Où envoyer l'accusé de réception ?",
+      "receiptAccount": "À l'adresse de mon compte ({{email}})",
+      "receiptOther": "À une autre adresse",
+      "receiptEmail": "Autre adresse e-mail",
+      "receiptEmailHint": "Seulement si vous avez choisi une autre adresse.",
+      "whatHappensPlan": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé en entier.",
+      "whatHappensSession": "La séance sera annulée et le coach prévenu ; le montant payé vous sera remboursé en entier.",
+      "confirm": "Confirmer la rétractation",
+      "cancel": "Retour",
+      "done": "Votre rétractation ({{contract}}) est enregistrée le {{at}}.",
+      "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
+      "receiptSent": "Un accusé de réception a été envoyé à {{email}}.",
+      "receiptNotSent": "L'accusé de réception n'a pas pu être envoyé : notre équipe vous l'enverra.",
+      "nothing": "Aucun contrat ne peut faire l'objet d'une rétractation ici : le délai de 14 jours est passé, la séance a eu lieu, ou vous vous êtes déjà rétracté.",
+      "back": "Retour à mon abonnement",
+      "backToAgenda": "Retour à l'agenda",
+      "errors": {
+        "name_required": "Indiquez votre nom.",
+        "name_too_long": "Votre nom est trop long.",
+        "receiptEmail_required": "Indiquez l'adresse où envoyer l'accusé de réception.",
+        "receiptEmail_invalid": "Cette adresse e-mail n'est pas valide.",
+        "not_withdrawable": "Ce contrat ne peut plus faire l'objet d'une rétractation : le délai est passé, ou vous vous êtes déjà rétracté.",
+        "stripe_unavailable": "Le paiement en ligne ne répond pas : rien n'a été modifié. Réessayez dans un instant."
+      }
+    },
+    "subscription": {
+      "offer": "Vous pouvez vous rétracter de cet abonnement, sans motif et sans frais, jusqu'au {{date}} inclus."
+    },
+    "agenda": {
+      "label": "Renoncer au contrat ici : séance avec {{name}}"
+    }
   }
 }

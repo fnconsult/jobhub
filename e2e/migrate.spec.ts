@@ -156,6 +156,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
         "web_search_alert", // issue #403: the month's web search alert, once sent; no Candidate
+        "withdrawal", // issue #511: each Withdrawal from a Plan or a Coaching Session
+        "withdrawal_refund", // issue #511: its Stripe refunds, a failed one tried again
         "workflow_agent_run",
       ]);
 
@@ -289,6 +291,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "target_company", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "target_company", from_column: "profile_id", to_table: "profile" },
         { from_table: "target_company_refresh", from_column: "profile_id", to_table: "profile" },
+        // A Withdrawal (issue #511) goes with its Candidate's account, and with the Coaching Session it withdrew from; its refunds with it.
+        { from_table: "withdrawal", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "withdrawal", from_column: "coaching_session_id", to_table: "coaching_session" },
+        { from_table: "withdrawal_refund", from_column: "withdrawal_id", to_table: "withdrawal" },
       ]);
       // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0032); re-running keeps them.
       const startingQuotas = [

@@ -1229,7 +1229,8 @@
       "activity": "Activity",
       "discoveryRuns": "Searches",
       "designSystem": "Design System",
-      "receivedEmails": "Received emails"
+      "receivedEmails": "Received emails",
+      "withdrawals": "Withdrawals"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -2148,7 +2149,8 @@
         "unanswered_questions": "Unanswered questions",
         "signalements": "Feedback",
         "discovery_runs": "Activity › Searches",
-        "received_emails": "Activity › Received emails"
+        "received_emails": "Activity › Received emails",
+        "withdrawals": "Withdrawals"
       },
       "actions": {
         "added": "Added",
@@ -3159,6 +3161,42 @@
     },
     "pageIntro": {
       "more": "Learn more"
+    },
+    "withdrawals": {
+      "title": "Withdrawals",
+      "subtitle": "Candidates' withdrawals, and the refund of each in Stripe.",
+      "intro": "Every withdrawal received through « Renoncer au contrat ici »: a Plan's subscription or a Coaching Session, within 14 days of its conclusion. The subscription is cancelled at once, the session cancelled and its coach told, and everything paid is refunded in full in Stripe. A refund Stripe refuses, or that fails later (expired card, bank), stays « Failed » here: it can be tried again. If the card no longer exists, refund by bank transfer, outside Stripe.",
+      "caption": "Withdrawals, newest first",
+      "none": "No withdrawal yet.",
+      "withdrawnAt": "Received on",
+      "candidate": "Candidate",
+      "contract": "Contract",
+      "concludedAt": "concluded on {{date}}",
+      "receipt": "Acknowledgement",
+      "receiptSent": "Sent to {{email}} on {{at}}",
+      "receiptNotSent": "Not sent ({{email}}): send it by hand",
+      "refunds": "Refund",
+      "nothingToRefund": "Nothing to refund",
+      "states": {
+        "pending": "Pending",
+        "succeeded": "Refunded",
+        "failed": "Failed"
+      },
+      "failureReason": "Stripe's reason: {{reason}}",
+      "attempts_one": "{{count}} attempt",
+      "attempts_other": "{{count}} attempts",
+      "retry": "Try the refund again",
+      "failedCount_one": "{{count}} refund failed: try it again, or refund by bank transfer.",
+      "failedCount_other": "{{count}} refunds failed: try them again, or refund by bank transfer.",
+      "retried": {
+        "succeeded": "The refund is done.",
+        "pending": "The refund is asked of Stripe, which is processing it.",
+        "failed": "Stripe refused the refund again: see its reason, or refund by bank transfer."
+      },
+      "errors": {
+        "not_found": "This refund does not exist.",
+        "not_failed": "This refund did not fail: there is nothing to try again."
+      }
     }
   },
   "backOfficeAssistant": {
@@ -4694,5 +4732,74 @@
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
     "noneForTag": "No version has this topic yet."
+  },
+  "withdrawals": {
+    "email": {
+      "subject": "Acknowledgement of your withdrawal",
+      "title": "Your withdrawal is recorded",
+      "intro": "We received your withdrawal on {{at}}. It concerns the following contract:",
+      "plan": "{{plan}} Plan",
+      "coachingSession": "Coaching Session with {{coach}}",
+      "concludedAt": "Concluded on {{date}}",
+      "paid": "Amount paid: {{amount}}",
+      "declaredBy": "Withdrawal declared by: {{name}}.",
+      "planEnded": "Your subscription is cancelled now: you are on the Free Plan.",
+      "sessionCancelled": "The session is cancelled, and {{coach}} has been told.",
+      "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
+      "nothingToRefund": "Nothing to refund: nothing was paid for this contract.",
+      "keep": "Keep this email: it records your withdrawal.",
+      "reason": "You get this email because you withdrew from a contract made on Jobbbox."
+    },
+    "coachEmail": {
+      "subject": "Session cancelled: {{candidate}} withdrew",
+      "title": "A Coaching Session is cancelled",
+      "intro": "{{candidate}} withdrew from the Coaching Session paid on {{paidAt}}.",
+      "scheduled": "It was planned for {{at}}: do not hold it, and free the slot on your Cal.com page.",
+      "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
+      "refunded": "Jobbbox refunds the session to the Candidate.",
+      "someone": "A Candidate",
+      "reason": "You get this email because you are a Human Coach on Jobbbox."
+    },
+    "page": {
+      "title": "Withdraw from the contract here",
+      "intro": "You may withdraw from this contract without giving a reason and at no cost, until {{date}} included. Everything you paid for it is refunded.",
+      "contractTitle": "The contract",
+      "contract": "Contract",
+      "subscribedOn": "Subscribed on",
+      "paidOn": "Paid on",
+      "amount": "Amount paid",
+      "amountUnknown": "As on your invoice",
+      "name": "Your name",
+      "receipt": "Where should we send the acknowledgement?",
+      "receiptAccount": "To my account's address ({{email}})",
+      "receiptOther": "To another address",
+      "receiptEmail": "Other email address",
+      "receiptEmailHint": "Only if you chose another address.",
+      "whatHappensPlan": "Your subscription will be cancelled at once: you will be on the Free Plan, and what you paid will be refunded in full.",
+      "whatHappensSession": "The session will be cancelled and the coach told; what you paid will be refunded in full.",
+      "confirm": "Confirm the withdrawal",
+      "cancel": "Back",
+      "done": "Your withdrawal ({{contract}}) was recorded on {{at}}.",
+      "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
+      "receiptSent": "An acknowledgement was sent to {{email}}.",
+      "receiptNotSent": "The acknowledgement could not be sent: our team will send it to you.",
+      "nothing": "No contract can be withdrawn from here: the 14 days are over, the session took place, or you already withdrew.",
+      "back": "Back to my subscription",
+      "backToAgenda": "Back to the Agenda",
+      "errors": {
+        "name_required": "Enter your name.",
+        "name_too_long": "Your name is too long.",
+        "receiptEmail_required": "Enter the address to send the acknowledgement to.",
+        "receiptEmail_invalid": "This email address is not valid.",
+        "not_withdrawable": "This contract can no longer be withdrawn from: the period is over, or you already withdrew.",
+        "stripe_unavailable": "Online payment is not answering: nothing was changed. Try again in a moment."
+      }
+    },
+    "subscription": {
+      "offer": "You may withdraw from this subscription, without a reason and at no cost, until {{date}} included."
+    },
+    "agenda": {
+      "label": "Withdraw from the contract here: session with {{name}}"
+    }
   }
 }

@@ -111,6 +111,18 @@ const listParam = (params: URLSearchParams, prefix: string) =>
     .map((key) => params.get(key)!);
 const numberParam = (params: URLSearchParams, name: string) => (params.has(name) ? Number(params.get(name)) : null);
 
+/** A refund as the fake keeps it: its Stripe fields. */
+export type FakeRefund = {
+  id: string;
+  object: "refund";
+  amount: number;
+  currency: string;
+  payment_intent: string;
+  reason: string | null;
+  status: "succeeded" | "pending" | "failed";
+  metadata: Record<string, string>;
+};
+
 /** Starts the fake on `port` (any free port by default). */
 export async function startFakeStripe(port = 0) {
   const calls: StripeCall[] = [];
@@ -159,7 +171,49 @@ export async function startFakeStripe(port = 0) {
   }
   /** The discount each subscription has, by subscription id: its promotion code and when it ends. */
   const subscriptionDiscounts = new Map<string, { promotionCode: string; end: number | null }>();
+  /** When each subscription started (Stripe's `start_date`, in seconds), by subscription id; cancelled ones. */
+  const subscriptionStarts = new Map<string, number>();
+  const cancelledSubscriptions = new Set<string>();
+  /** The paid invoices of each subscription, by subscription id: their amount and the PaymentIntent they were paid with (none at 0). */
+  const invoices = new Map<string, { id: string; amount: number; paymentIntent: string | null }[]>();
+  /** What each paid Checkout Session (a Coaching Session's) was paid with, by its id. */
+  const checkoutPayments = new Map<string, { paymentIntent: string; amount: number }>();
+  /** Every PaymentIntent the fake took, and how much. */
+  const paymentAmounts = new Map<string, number>();
+  const refunds: FakeRefund[] = [];
+  /** Refund answers by idempotency key: a request sent again with its key gets the same answer, as from Stripe. */
+  const refundAnswers = new Map<string, { status: number; json: unknown }>();
+  /** The error code every refund is refused with, while set. */
+  let refundRefusal: string | null = null;
   let sequence = 0;
+  function payInvoice(subscriptionId: string, amount: number): string {
+    const id = ++sequence;
+    const paymentIntent = amount > 0 ? `pi_fake${id}` : null;
+    if (paymentIntent) paymentAmounts.set(paymentIntent, amount);
+    invoices.set(subscriptionId, [...(invoices.get(subscriptionId) ?? []), { id: `in_fake${id}`, amount, paymentIntent }]);
+    return paymentIntent ?? "";
+  }
+  function payCheckoutSession(checkoutSessionId: string, amount: number): string {
+    const paymentIntent = `pi_fake${++sequence}`;
+    paymentAmounts.set(paymentIntent, amount);
+    checkoutPayments.set(checkoutSessionId, { paymentIntent, amount });
+    return paymentIntent;
+  }
+  /** Refunds a PaymentIntent as Stripe does: in full unless `amount` says less, never more than is left. */
+  function createRefund(params: URLSearchParams): { status: number; json: unknown } {
+    const refusal = (code: string, message: string, status = 400) => ({ status, json: { error: { type: "invalid_request_error", code, message } } });
+    if (refundRefusal) return refusal(refundRefusal, `Refund refused: ${refundRefusal}`);
+    const paymentIntent = params.get("payment_intent") ?? "";
+    const paid = paymentAmounts.get(paymentIntent);
+    if (paid === undefined) return refusal("resource_missing", `No such payment_intent: '${paymentIntent}'`, 404);
+    const refunded = refunds.filter((refund) => refund.payment_intent === paymentIntent && refund.status !== "failed").reduce((sum, refund) => sum + refund.amount, 0);
+    const amount = numberParam(params, "amount") ?? paid - refunded;
+    if (amount <= 0 || refunded + amount > paid) return refusal("charge_already_refunded", `PaymentIntent ${paymentIntent} has already been refunded.`);
+    const metadata = Object.fromEntries([...params].filter(([key]) => key.startsWith("metadata[")).map(([key, value]) => [key.slice("metadata[".length, -1), value]));
+    const refund: FakeRefund = { id: `re_fake${++sequence}`, object: "refund", amount, currency: "eur", payment_intent: paymentIntent, reason: params.get("reason"), status: "succeeded", metadata };
+    refunds.push(refund);
+    return { status: 200, json: refund };
+  }
   const server: Server = createServer((request, response) => {
     let body = "";
     request.on("data", (chunk) => (body += chunk));
@@ -259,6 +313,43 @@ export async function startFakeStripe(port = 0) {
       if (request.method === "POST" && path === "/v1/billing_portal/sessions") {
         return reply(200, { id: `bps_fake${id}`, object: "billing_portal.session", url: `https://billing.stripe.test/bps_fake${id}` });
       }
+      const cancelled = request.method === "DELETE" && path.match(/^\/v1\/subscriptions\/([^/]+)$/)?.[1];
+      if (cancelled) {
+        cancelledSubscriptions.add(decodeURIComponent(cancelled));
+        return reply(200, { id: cancelled, object: "subscription", status: "canceled" });
+      }
+      if (request.method === "GET" && path === "/v1/invoices") {
+        const query = new URL(request.url ?? "/", "http://stripe.test").searchParams;
+        const of = query.get("subscription") ?? "";
+        const data = (invoices.get(of) ?? []).map((invoice) => ({
+          id: invoice.id,
+          object: "invoice",
+          status: "paid",
+          subscription: of,
+          amount_paid: invoice.amount,
+          currency: "eur",
+          payments: {
+            object: "list",
+            has_more: false,
+            data: invoice.paymentIntent
+              ? [{ id: `inpay_${invoice.id}`, object: "invoice_payment", amount_paid: invoice.amount, currency: "eur", status: "paid", payment: { type: "payment_intent", payment_intent: invoice.paymentIntent } }]
+              : [],
+          },
+        }));
+        return reply(200, { object: "list", url: "/v1/invoices", has_more: false, data });
+      }
+      const checkoutSession = request.method === "GET" && path.match(/^\/v1\/checkout\/sessions\/([^/]+)$/)?.[1];
+      if (checkoutSession) {
+        const paid = checkoutPayments.get(decodeURIComponent(checkoutSession));
+        if (!paid) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such checkout.session: '${checkoutSession}'` } });
+        return reply(200, { id: checkoutSession, object: "checkout.session", mode: "payment", payment_status: "paid", payment_intent: paid.paymentIntent, amount_total: paid.amount, currency: "eur" });
+      }
+      if (request.method === "POST" && path === "/v1/refunds") {
+        const key = request.headers["idempotency-key"];
+        const answer = (typeof key === "string" && refundAnswers.get(key)) || createRefund(params);
+        if (typeof key === "string") refundAnswers.set(key, answer);
+        return reply(answer.status, answer.json);
+      }
       const subscription = request.method === "GET" && path.match(/^\/v1\/subscriptions\/([^/]+)$/)?.[1];
       if (subscription) {
         const discount = subscriptionDiscounts.get(subscription);
@@ -276,7 +367,8 @@ export async function startFakeStripe(port = 0) {
               },
             ]
           : [];
-        return reply(200, { id: subscription, object: "subscription", discounts });
+        const started = subscriptionStarts.get(subscription);
+        return reply(200, { id: subscription, object: "subscription", status: cancelledSubscriptions.has(subscription) ? "canceled" : "active", discounts, ...(started === undefined ? {} : { start_date: started }) });
       }
       const price = request.method === "GET" && path.match(/^\/v1\/prices\/([^/]+)$/)?.[1];
       if (price && FAKE_PRICES[price]) {
@@ -308,6 +400,16 @@ export async function startFakeStripe(port = 0) {
         paidCustomers.add(decodeURIComponent(paidPath));
         return reply(200, {});
       }
+      // For e2e specs in another process: `payInvoice`, `payCheckoutSession`, `refuseRefunds` and `refunds` over HTTP.
+      const invoicePath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/invoices$/)?.[1];
+      if (invoicePath) return reply(200, { payment_intent: payInvoice(decodeURIComponent(invoicePath), Number(params.get("amount") ?? 0)) });
+      const checkoutPaymentPath = request.method === "POST" && path.match(/^\/__checkout_sessions\/([^/]+)\/payment$/)?.[1];
+      if (checkoutPaymentPath) return reply(200, { payment_intent: payCheckoutSession(decodeURIComponent(checkoutPaymentPath), Number(params.get("amount") ?? 0)) });
+      if (request.method === "POST" && path === "/__refunds/refuse") {
+        refundRefusal = params.get("code") || null;
+        return reply(200, {});
+      }
+      if (request.method === "GET" && path === "/__refunds") return reply(200, refunds);
       const promotionCodesPath = request.method === "GET" && path === "/__promotion_codes";
       if (promotionCodesPath) return reply(200, [...promotionCodes.values()].map(promotionCodeJson));
       if (request.method === "GET" && path === "/__calls") return reply(200, calls.map((call) => ({ ...call, params: Object.fromEntries(call.params) })));
@@ -340,6 +442,23 @@ export async function startFakeStripe(port = 0) {
     /** Gives a subscription the discount of a promotion code, ending at `end` (null: as long as the subscription). */
     discountSubscription: (subscriptionId: string, promotionCodeId: string, end: Date | null) =>
       void subscriptionDiscounts.set(subscriptionId, { promotionCode: promotionCodeId, end: end && Math.floor(end.getTime() / 1000) }),
+    /** Sets when a subscription started (Stripe's `start_date`), as Stripe gives it when asked. */
+    setSubscriptionStart: (subscriptionId: string, startedAt: Date) => void subscriptionStarts.set(subscriptionId, Math.floor(startedAt.getTime() / 1000)),
+    /** Records a paid invoice of a subscription (`amount` 0: a 100 % code, nothing taken); returns the PaymentIntent it was paid with ("" at 0). */
+    payInvoice,
+    /** Records a paid Checkout Session (a Coaching Session's); returns the PaymentIntent it was paid with. */
+    payCheckoutSession,
+    /** Makes Stripe refuse every refund with this error code from now on (null: refunds go through again). */
+    refuseRefunds: (code: string | null) => void (refundRefusal = code),
+    /** Every refund made, oldest first. */
+    refunds: () => [...refunds],
+    /** Makes a refund fail, as a bank does days later; returns the `refund.failed` event Stripe then sends. */
+    failRefund: (refundId: string, failureReason: string) => {
+      const refund = refunds.find((each) => each.id === refundId);
+      if (!refund) throw new Error(`fake Stripe has no refund ${refundId}`);
+      refund.status = "failed";
+      return refundEvent("refund.failed", { id: refund.id, paymentIntent: refund.payment_intent, amount: refund.amount, status: "failed", failureReason });
+    },
     /** Calls made to one endpoint, e.g. "/v1/checkout/sessions". */
     callsTo: (path: string) => calls.filter((call) => call.path === path),
     stop: () =>
@@ -374,6 +493,8 @@ export function subscriptionEvent(
     cancelAt?: Date;
     /** The card it is charged to; null for one started with a 100 % Coupon and no card. A card by default. */
     defaultPaymentMethod?: string | null;
+    /** When Stripe started it (`start_date`): the event's time by default. */
+    startDate?: Date;
   },
   createdAt: Date = new Date(),
 ) {
@@ -393,6 +514,7 @@ export function subscriptionEvent(
         status: subscription.status,
         cancel_at: subscription.cancelAt ? seconds(subscription.cancelAt) : null,
         cancel_at_period_end: subscription.cancelAtPeriodEnd ?? false,
+        start_date: seconds(subscription.startDate ?? createdAt),
         default_payment_method: subscription.defaultPaymentMethod === undefined ? "pm_card_fake" : subscription.defaultPaymentMethod,
         items: {
           object: "list",
@@ -434,6 +556,33 @@ export function checkoutSessionEvent(
         amount_total: session.amount,
         currency: session.currency,
         metadata: mode === "payment" ? { purpose: "coaching_session", coach_id: session.coachId ?? "", candidate_id: session.candidateId } : {},
+      },
+    },
+  };
+}
+
+/** A `refund.*` event as Stripe sends it, reduced to the fields that matter. */
+export function refundEvent(
+  type: "refund.created" | "refund.updated" | "refund.failed",
+  refund: { id: string; paymentIntent: string; amount: number; status: "pending" | "succeeded" | "failed" | "canceled" | "requires_action"; failureReason?: string },
+  createdAt: Date = new Date(),
+) {
+  eventSequence += 1;
+  return {
+    id: `evt_fake${eventSequence}`,
+    object: "event",
+    type,
+    created: Math.floor(createdAt.getTime() / 1000),
+    data: {
+      object: {
+        id: refund.id,
+        object: "refund",
+        amount: refund.amount,
+        currency: "eur",
+        payment_intent: refund.paymentIntent,
+        status: refund.status,
+        failure_reason: refund.failureReason ?? null,
+        metadata: {},
       },
     },
   };

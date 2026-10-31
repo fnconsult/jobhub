@@ -63,6 +63,12 @@ export const routes = {
   jobDigest: (id: string) => `/job-digests/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
+  /**
+   * « Renoncer au contrat ici » (#511): the Withdrawal form for one contract (`contract`: "plan", or
+   * "coaching-session:<id>"), or, with `done`, the Withdrawal just recorded.
+   */
+  withdrawal: (contract: string) => `/abonnement/retractation?contrat=${encodeURIComponent(contract)}`,
+  withdrawalDone: (id: string) => `/abonnement/retractation?faite=${encodeURIComponent(id)}`,
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
   coaching: "/coachs",
   /** One of the Candidate's Coaching Sessions, on the Human Coaches page: where an Agenda Item for it leads. */
@@ -92,6 +98,8 @@ export const routes = {
   adminPlanQuotas: "/admin/quotas",
   /** Coupons (Codes promo): Stripe promotion codes, Plans managers. */
   adminCoupons: "/admin/codes-promo",
+  /** The Withdrawals (Rétractations, #511): every one and its refunds, a failed refund tried again; super-admins and Support. */
+  adminWithdrawals: "/admin/retractations",
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",

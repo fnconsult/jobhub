@@ -1,5 +1,6 @@
 import { FREE_PLAN, WEEKLY_QUOTAS } from "@jobhub/shared";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { PROMOTION_CODE_REFUSALS, type PromotionCodeRefusal } from "@/billing";
 import { codeNotice } from "@/billing/code-notice";
@@ -19,6 +20,7 @@ import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import { getWithdrawals } from "@/withdrawals/server";
 import "./abonnement.css";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -53,14 +55,17 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan } = await searchParams;
   const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
     billing.planPrices(),
     billing.hasInvoices(candidate.id),
     billing.activeDiscount(candidate.id),
+    getWithdrawals().contracts(candidate.id),
   ]);
+  // « Renoncer au contrat ici » (#511): for 14 days after the subscription started.
+  const planWithdrawal = withdrawable.find((contract) => contract.kind === "plan");
   const offeredKeys = plans.filter((each) => each.status === "offered" && each.key !== FREE_PLAN).map((each) => each.key);
   // Sent back from Checkout, which refused the code for that Plan: say why, and offer to go on without it.
   const refusal =
@@ -133,6 +138,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             ) : null}
             {plan !== FREE_PLAN ? <p className="subscription-help">{t("billing.page.manageHelp")}</p> : null}
             {hasInvoices ? <p className="subscription-help">{t("billing.page.invoicesHelp")}</p> : null}
+            {planWithdrawal ? (
+              <div className="subscription-withdrawal">
+                <p>{t("withdrawals.subscription.offer", { date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(planWithdrawal.deadline.getTime() - 1)) })}</p>
+                <Link className={buttonClass()} href={routes.withdrawal(planWithdrawal.ref)}>
+                  {t("withdrawals.page.title")}
+                </Link>
+              </div>
+            ) : null}
           </Card>
 
           <Card title={t("billing.page.usageTitle")} headingLevel={3}>

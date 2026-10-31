@@ -16,4 +16,4 @@ Never update a baseline to make a failing CI run pass without looking at the dif
 
 ## Add a screen
 
-When a ticket migrates a key screen, add a spec that signs in as needed, sets each width from `SCREENSHOT_WIDTHS`, runs axe and calls `toHaveScreenshot` with a name of its own. Then draw its baselines with the script above and commit them.
+When a ticket migrates a key screen, add a spec that signs in as needed, sets each width from `SCREENSHOT_WIDTHS`, runs axe and calls `toHaveScreenshot` with a name of its own. Mask what changes from run to run (a date, a count) with locators inside the screenshot's target (`target.getByText(…)`, not `page.getByText(…)`): Playwright paints a mask over its element even where something covers it, so a page-wide mask under a sticky component (the Profile's save bar over a dated line, #511) leaks into that component's screenshot. Then draw its baselines with the script above and commit them.

@@ -1429,7 +1429,8 @@
         "notice_required": "Vous retirez une fonctionnalité d'une offre que des candidats paient : donnez la raison et la date d'effet de la baisse, au moins 30 jours plus tard.",
         "invalid_effective_date": "La date d'effet n'est pas une date.",
         "too_soon": "La date d'effet d'une baisse doit être au moins 30 jours plus tard.",
-        "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord, ou attendez sa date d'effet."
+        "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord, ou attendez sa date d'effet.",
+        "reason_too_long": "La raison d'une baisse fait au plus 500 caractères : elle figure dans l'e-mail de chaque abonné."
       }
     },
     "planQuotas": {
@@ -3268,7 +3269,8 @@
         "invalid_effective_date": "La date d'effet n'est pas une date.",
         "too_soon": "La date d'effet d'une baisse doit être au moins 30 jours plus tard.",
         "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord (Offres), ou attendez sa date d'effet.",
-        "unknown_plan": "Cette offre n'existe pas."
+        "unknown_plan": "Cette offre n'existe pas.",
+        "reason_too_long": "La raison d'une baisse fait au plus 500 caractères : elle figure dans l'e-mail de chaque abonné."
       },
       "journalFields": {
         "quotas": "Quotas baissés",
@@ -3276,9 +3278,26 @@
         "reason": "Raison",
         "effectiveOn": "Date d'effet",
         "subscribers": "Abonnés prévenus",
-        "reduction": "Baisse"
+        "reduction": "Baisse",
+        "refund": "Remboursement"
       },
-      "cancelHeader": "Annuler"
+      "cancelHeader": "Annuler",
+      "refunds": {
+        "title": "Remboursements à traiter",
+        "intro": "Les remboursements au prorata que Stripe n'a pas faits, après une résiliation sans frais pour une baisse. Stripe a répondu par un refus (un paiement contesté, par exemple) : remboursez dans Stripe, depuis l'abonnement indiqué, puis marquez-le remboursé. Stripe n'a pas répondu : Jobbbox redemande, rien à faire.",
+        "none": "Aucun remboursement à traiter.",
+        "caption": "Remboursements à traiter, le plus ancien d'abord",
+        "plan": "Offre",
+        "subscription": "Abonnement Stripe",
+        "failure": "Réponse de Stripe",
+        "resolvedAt": "Résilié le",
+        "action": "Action",
+        "retrying": "Stripe n'a pas répondu : Jobbbox redemande",
+        "settle": "Remboursé dans Stripe",
+        "settleLabel": "Marquer remboursé dans Stripe l'abonnement {{subscription}}",
+        "settled": "Remboursement marqué comme fait dans Stripe.",
+        "notSettled": "Ce remboursement n'est plus à traiter : il a déjà été marqué, ou Jobbbox le redemande à Stripe."
+      }
     }
   },
   "backOfficeAssistant": {
@@ -4927,7 +4946,8 @@
       "done": "Votre abonnement est résilié. Nous vous remboursons {{amount}} : le remboursement apparaît sur votre relevé sous 5 à 10 jours.",
       "doneNothing": "Votre abonnement est résilié. Il n'y avait rien à rembourser.",
       "donePending": "Votre abonnement est résilié. Le remboursement n'a pas pu être fait tout de suite : notre équipe s'en occupe, vous n'avez rien à faire.",
-      "error": "La résiliation n'a pas pu être faite. Réessayez dans un instant."
+      "error": "La résiliation n'a pas pu être faite. Réessayez dans un instant.",
+      "doneSettled": "Votre abonnement est résilié, et notre équipe vous a remboursé au prorata la part de la période payée qui n'a pas servi."
     },
     "change": "{{label}} : {{before}} → {{after}}"
   }

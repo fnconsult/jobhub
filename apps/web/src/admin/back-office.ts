@@ -268,7 +268,7 @@ export interface BackOfficeDeps {
    * Quota Reductions (#514): with them, lowering a paid Plan's quotas or Plan Features while Candidates pay for it is
    * scheduled with a notice; without, every change applies at once.
    */
-  quotaReductions?: Pick<QuotaReductions, "changeQuotas" | "removeFeatures" | "cancel">;
+  quotaReductions?: Pick<QuotaReductions, "changeQuotas" | "removeFeatures" | "cancel" | "settleRefund">;
   /** The time an Administrator denied entry is recorded at (its minute keeps one entry); the database's clock otherwise. */
   now?: () => Date;
 }
@@ -307,6 +307,11 @@ export interface BackOffice {
   ): Promise<{ ok: true; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }>;
   /** Cancels a Quota Reduction before its effective date, recorded as `cancelled`; false when none waits by that id. */
   cancelQuotaReduction(actor: BackOfficeActor, id: string): Promise<boolean>;
+  /**
+   * Marks a prorata refund Stripe refused as made by Support in Stripe (see QuotaReductions.settleRefund), recorded with
+   * its Stripe subscription; false when there is no such refund to settle.
+   */
+  settleQuotaReductionRefund(actor: BackOfficeActor, reductionId: string, subscriptionId: string): Promise<boolean>;
   /**
    * Forgets this week's Plan Quota usage of every Candidate (see Billing.resetWeeklyUsage),
    * recorded with the Administrator's reason; refused, and nothing reset, without one.
@@ -687,6 +692,26 @@ export function createBackOffice(
             : null,
       );
       return changed.ok ? { ok: true, scheduled: changed.scheduled } : changed;
+    },
+
+    async settleQuotaReductionRefund(actor, reductionId, subscriptionId) {
+      if (!deps.quotaReductions) return false;
+      const reductions = deps.quotaReductions;
+      const settled = await record(
+        actor,
+        (within) => reductions.settleRefund(reductionId, subscriptionId, within),
+        (refund) =>
+          refund
+            ? {
+                section: "plans",
+                target: refund.plan,
+                action: "updated",
+                before: { refund: { subscription: refund.subscriptionId, failure: refund.failure }, reduction: refund.reductionId },
+                after: { refund: { subscription: refund.subscriptionId, settled: "stripe" }, reduction: refund.reductionId },
+              }
+            : null,
+      );
+      return settled !== null;
     },
 
     async cancelQuotaReduction(actor, id) {

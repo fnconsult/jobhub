@@ -13,7 +13,8 @@ import { subscribe } from "./support/plan";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const reductions = fr.admin.quotaReductions;
 const stripeUrl = process.env.E2E_STRIPE_URL!;
-const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
+// Its own Administrator: two specs signing one in at once would each take the other's sign-in link.
+const ADMINISTRATOR = "quota-reduction-office@e2e.jobbbox.test";
 
 /** Runs the worker's "quota-reductions.run" job once, its clock `days` ahead. Returns its output (with the emails it printed). */
 function runQuotaReductions(days = 0): string {

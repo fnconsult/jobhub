@@ -1429,7 +1429,8 @@
         "notice_required": "You are removing a feature from a plan Candidates pay for: give the reason and the effective date of the reduction, at least 30 days ahead.",
         "invalid_effective_date": "The effective date is not a date.",
         "too_soon": "A reduction's effective date must be at least 30 days ahead.",
-        "reduction_pending": "A reduction is already scheduled on this plan: cancel it first, or wait for its effective date."
+        "reduction_pending": "A reduction is already scheduled on this plan: cancel it first, or wait for its effective date.",
+        "reason_too_long": "A reduction's reason is at most 500 characters: it is quoted in each subscriber's email."
       }
     },
     "planQuotas": {
@@ -3268,7 +3269,8 @@
         "invalid_effective_date": "The effective date is not a date.",
         "too_soon": "A reduction's effective date must be at least 30 days ahead.",
         "reduction_pending": "A reduction is already scheduled on this plan: cancel it first (Plans), or wait for its effective date.",
-        "unknown_plan": "This plan does not exist."
+        "unknown_plan": "This plan does not exist.",
+        "reason_too_long": "A reduction's reason is at most 500 characters: it is quoted in each subscriber's email."
       },
       "journalFields": {
         "quotas": "Quotas reduced",
@@ -3276,9 +3278,26 @@
         "reason": "Reason",
         "effectiveOn": "Effective date",
         "subscribers": "Subscribers told",
-        "reduction": "Reduction"
+        "reduction": "Reduction",
+        "refund": "Refund"
       },
-      "cancelHeader": "Cancel"
+      "cancelHeader": "Cancel",
+      "refunds": {
+        "title": "Refunds to handle",
+        "intro": "The prorata refunds Stripe did not make after a no-cost cancellation over a reduction. Stripe refused (a disputed payment, say): refund in Stripe, from the subscription shown, then mark it refunded. Stripe did not answer: Jobbbox asks again, nothing to do.",
+        "none": "No refund to handle.",
+        "caption": "Refunds to handle, oldest first",
+        "plan": "Plan",
+        "subscription": "Stripe subscription",
+        "failure": "Stripe's answer",
+        "resolvedAt": "Cancelled on",
+        "action": "Action",
+        "retrying": "Stripe did not answer: Jobbbox asks again",
+        "settle": "Refunded in Stripe",
+        "settleLabel": "Mark the subscription {{subscription}} as refunded in Stripe",
+        "settled": "Refund marked as made in Stripe.",
+        "notSettled": "This refund is no longer to handle: it was marked already, or Jobbbox is asking Stripe again."
+      }
     }
   },
   "backOfficeAssistant": {
@@ -4927,7 +4946,8 @@
       "done": "Your subscription is cancelled. We are refunding {{amount}}: the refund shows on your statement within 5 to 10 days.",
       "doneNothing": "Your subscription is cancelled. There was nothing to refund.",
       "donePending": "Your subscription is cancelled. The refund could not be made right away: our team is handling it, there is nothing for you to do.",
-      "error": "The cancellation could not be made. Try again in a moment."
+      "error": "The cancellation could not be made. Try again in a moment.",
+      "doneSettled": "Your subscription is cancelled, and our team refunded you prorata the part of the paid period that was not used."
     },
     "change": "{{label}}: {{before}} → {{after}}"
   }

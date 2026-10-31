@@ -12,12 +12,13 @@ describe.skipIf(!connectionString)("Quota Reductions in the Back Office and its 
   let t: TestBilling;
   let backOffice: BackOffice;
   let claire: { id: string; email: string };
+  let quotaReductions: ReturnType<typeof createQuotaReductions>;
 
   beforeEach(async () => {
     t = await startTestBilling();
     await migrateBackOfficeAudit(t.database);
     await migrateQuotaReductions(t.database);
-    const quotaReductions = createQuotaReductions(t.database, { billing: t.billing, mailer: { send: async () => {} }, baseURL: "https://app.jobbbox.fr", now: () => t.clock.now });
+    quotaReductions = createQuotaReductions(t.database, { billing: t.billing, mailer: { send: async () => {} }, baseURL: "https://app.jobbbox.fr", now: () => t.clock.now });
     backOffice = createBackOffice(t.database, { billing: t.billing, humanCoaches: { add: async () => ({ ok: false, error: "invalid" }) as never, retire: async () => null }, quotaReductions });
     claire = await t.signUp("claire@jobbbox.fr");
     // A subscriber on each paid Plan.
@@ -86,5 +87,26 @@ describe.skipIf(!connectionString)("Quota Reductions in the Back Office and its 
 
     expect((await journal()).map(({ action }) => action)).toEqual(["scheduled", "cancelled"]);
     expect((await journal())[1]).toMatchObject({ section: "plan_quotas", target: "standard", before: { reason: notice.reason, effectiveOn: "2026-11-14", reduction: id }, after: null });
+  });
+
+  it("marking a refund Stripe refused as made in Stripe records it with its Stripe subscription; nothing when there is none to settle", async () => {
+    await backOffice.setPlanQuotas(claire, "standard", { ...standard, jobSearches: 3 }, notice);
+    const marie = (await t.database.query<{ candidate_id: string }>("SELECT candidate_id FROM candidate_plan WHERE plan = 'standard'")).rows[0]!.candidate_id;
+    const subscription = `sub_fake_${fakeCustomerId("marie.dupont@example.fr")}`;
+    t.stripe.payPeriod(subscription, { amount: 999, start: new Date("2026-10-01T00:00:00+02:00"), end: new Date("2026-10-31T00:00:00+01:00") });
+    t.stripe.refuseRefunds("charge_disputed");
+    await quotaReductions.resolve(marie);
+    const [refund] = await quotaReductions.refundsToSettle();
+
+    expect(await backOffice.settleQuotaReductionRefund(claire, refund!.reductionId, subscription)).toBe(true);
+    expect(await backOffice.settleQuotaReductionRefund(claire, refund!.reductionId, subscription)).toBe(false);
+
+    expect((await journal()).at(-1)).toEqual({
+      section: "plans",
+      target: "standard",
+      action: "updated",
+      before: { refund: { subscription, failure: "charge_disputed" }, reduction: refund!.reductionId },
+      after: { refund: { subscription, settled: "stripe" }, reduction: refund!.reductionId },
+    });
   });
 });

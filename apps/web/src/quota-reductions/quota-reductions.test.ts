@@ -139,7 +139,7 @@ describe.skipIf(!connectionString)("Quota Reductions (#514, needs Postgres: DATA
     expect(await reductions.openFor(marie.id)).toBeNull();
     expect(await reductions.resolve(marie.id)).toEqual({ ok: false, error: "not_open" });
     expect(await reductions.pending()).toMatchObject([{ resolved: 1, refundsPending: 0 }]);
-    expect(await reductions.lastResolution(marie.id)).toEqual({ refund: { amount: (resolved as { refund: { amount: number } }).refund.amount, currency: "eur" }, refundPending: false });
+    expect(await reductions.lastResolution(marie.id)).toEqual({ refund: { amount: (resolved as { refund: { amount: number } }).refund.amount, currency: "eur" }, refundPending: false, settled: false });
     expect(await reductions.lastResolution(jean.id)).toBeNull();
   });
 
@@ -176,6 +176,88 @@ describe.skipIf(!connectionString)("Quota Reductions (#514, needs Postgres: DATA
     t.stripe.refuseRefunds(null);
     expect(await reductions.run()).toMatchObject({ refunds: 0 });
     expect(await reductions.pending()).toMatchObject([{ resolved: 2, refundsPending: 1 }]);
+  });
+
+  it("a refund Stripe refused stays on Support's list after the reduction applies, naming the Stripe subscription; settled in Stripe, it leaves", async () => {
+    const marie = await subscriber("marie.dupont@example.fr");
+    await reductions.changeQuotas("standard", lower, notice, t.database, claire);
+    // After the effective date, still inside the window, in a paid period that runs on.
+    t.clock.now = new Date("2026-11-20T10:00:00+01:00");
+    await reductions.run();
+    t.stripe.payPeriod(marie.subscription, { amount: 999, start: new Date("2026-11-01T00:00:00+01:00"), end: new Date("2026-12-01T00:00:00+01:00") });
+    t.stripe.refuseRefunds("charge_disputed");
+
+    expect(await reductions.resolve(marie.id)).toEqual({ ok: true, refund: null, refundPending: true });
+    t.stripe.refuseRefunds(null);
+    await reductions.run();
+
+    expect(await reductions.pending()).toEqual([]);
+    expect(await reductions.refundsToSettle()).toEqual([
+      { reductionId: expect.any(String), plan: "standard", subscriptionId: marie.subscription, failure: "charge_disputed", retried: false, resolvedAt: t.clock.now },
+    ]);
+    expect(await reductions.lastResolution(marie.id)).toEqual({ refund: null, refundPending: true, settled: false });
+
+    const [toSettle] = await reductions.refundsToSettle();
+    expect(await reductions.settleRefund(toSettle!.reductionId, "sub_unknown", t.database)).toBeNull();
+    expect(await reductions.settleRefund(toSettle!.reductionId, marie.subscription, t.database)).toMatchObject({ plan: "standard", failure: "charge_disputed" });
+    expect(await reductions.settleRefund(toSettle!.reductionId, marie.subscription, t.database)).toBeNull();
+    expect(await reductions.refundsToSettle()).toEqual([]);
+    expect(await reductions.lastResolution(marie.id)).toEqual({ refund: null, refundPending: false, settled: true });
+  });
+
+  it("a refund Stripe did not answer about is listed as asked again, and cannot be settled by hand", async () => {
+    const marie = await subscriber("marie.dupont@example.fr");
+    await reductions.changeQuotas("standard", lower, notice, t.database, claire);
+    t.stripe.refuseRefunds("rate_limit");
+    await reductions.resolve(marie.id);
+
+    const [retrying] = await reductions.refundsToSettle();
+    expect(retrying).toMatchObject({ failure: "stripe_unavailable", retried: true });
+    expect(await reductions.settleRefund(retrying!.reductionId, marie.subscription, t.database)).toBeNull();
+  });
+
+  it("a notice claimed by a worker that stopped before sending it is sent once its claim has lapsed", async () => {
+    await subscriber("marie.dupont@example.fr");
+    await reductions.changeQuotas("standard", lower, notice, t.database, claire);
+    // A worker claimed it and died.
+    await t.database.query("UPDATE plan_quota_reduction_notice SET claimed_at = $1", [t.clock.now]);
+
+    expect(await reductions.run()).toMatchObject({ sent: 0 });
+    t.clock.now = new Date(t.clock.now.getTime() + 16 * 60_000);
+    expect(await reductions.run()).toMatchObject({ sent: 1 });
+    expect(await reductions.run()).toMatchObject({ sent: 0 });
+    expect(outbox).toHaveLength(1);
+  });
+
+  it("sends every notice of a large Plan, a batch at a time", async () => {
+    await subscriber("marie.dupont@example.fr");
+    await reductions.changeQuotas("standard", lower, notice, t.database, claire);
+    // 119 more subscribers told, beside Marie.
+    const others = Array.from({ length: 119 }, (_, index) => `abonne-${index}`);
+    await t.database.query(
+      `INSERT INTO candidate (id, name, email, "emailVerified", "interfaceLanguage", "createdAt", "updatedAt")
+       SELECT id, id, id || '@example.fr', true, 'fr', now(), now() FROM unnest($1::text[]) AS id`,
+      [others],
+    );
+    await t.database.query("INSERT INTO plan_quota_reduction_notice (reduction_id, candidate_id) SELECT r.id, unnest($1::text[]) FROM plan_quota_reduction r", [others]);
+
+    expect(await reductions.run()).toMatchObject({ sent: 120, failed: 0 });
+    expect(new Set(outbox.map((message) => message.to)).size).toBe(120);
+  });
+
+  it("a quota a waiting reduction lowers cannot be changed until it is cancelled; the others can", async () => {
+    await subscriber("marie.dupont@example.fr");
+    await reductions.changeQuotas("standard", lower, notice, t.database, claire);
+
+    expect(await reductions.changeQuotas("standard", { ...standard, jobSearches: 20 }, null, t.database, claire)).toEqual({ ok: false, error: "reduction_pending" });
+    expect(await reductions.changeQuotas("standard", { ...standard, profiles: 5 }, null, t.database, claire)).toMatchObject({ ok: true, scheduled: null, applied: { profiles: 5, jobSearches: 7 } });
+  });
+
+  it("refuses a reason longer than 500 characters", async () => {
+    await subscriber("marie.dupont@example.fr");
+
+    expect(await reductions.changeQuotas("standard", lower, { ...notice, reason: "x".repeat(501) }, t.database, claire)).toEqual({ ok: false, error: "reason_too_long" });
+    expect(await reductions.changeQuotas("standard", lower, { ...notice, reason: "x".repeat(500) }, t.database, claire)).toMatchObject({ ok: true });
   });
 
   it("an increase, and a reduction on Free, apply at once, as before", async () => {

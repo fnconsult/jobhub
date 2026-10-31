@@ -1,5 +1,5 @@
 /**
- * Prints the seven emails' HTML (#472), rendered from their samples in `process.argv[2]` (fr by default) with the
+ * Prints the eight emails' HTML (#472), rendered from their samples in `process.argv[2]` (fr by default) with the
  * sender's address a mailer writes in, as JSON { name: html }. Run with tsx by e2e/email-html.spec.ts: Playwright's
  * loader cannot import the translation catalogues the emails are built with.
  */

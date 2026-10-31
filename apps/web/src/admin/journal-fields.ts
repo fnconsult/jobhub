@@ -47,14 +47,14 @@ type GuardrailField = (typeof GUARDRAIL_FIELDS)[number];
 const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstPaymentOnly", "active"] as const;
 type CouponField = (typeof COUPON_FIELDS)[number];
 
+/** A Quota Reduction's recorded fields (#514), on the Quotas and Offres pages. */
+const REDUCTION_FIELDS = ["quotas", "removedFeatures", "effectiveOn", "subscribers", "reduction", "refund"] as const;
+type ReductionField = (typeof REDUCTION_FIELDS)[number];
+
 /**
  * A recorded field of a `section` entry (a change, or the field at fault in a failure), named as the
  * Back Office page it was changed on names it. A field no page names stays as recorded.
  */
-/** A Quota Reduction's recorded fields (#514), on the Quotas and Offres pages. */
-const REDUCTION_FIELDS = ["quotas", "removedFeatures", "effectiveOn", "subscribers", "reduction"] as const;
-type ReductionField = (typeof REDUCTION_FIELDS)[number];
-
 export function journalFieldName(t: TFunction, section: BackOfficeSection, field: string): string {
   if (section === "plan_quotas" && (LIMITED_QUOTAS.includes(field as LimitedQuota) || field === "jobDigest")) {
     return t(`billing.quotas.${field as LimitedQuota | "jobDigest"}`);

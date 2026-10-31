@@ -22,13 +22,16 @@ async function resolve() {
   "use server";
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
+  let resolved;
   try {
-    await getQuotaReductions().resolve(candidate.id);
+    resolved = await getQuotaReductions().resolve(candidate.id);
   } catch (error) {
     // Stripe could not cancel: nothing has changed, they may try again.
     console.error("[quota-reductions] could not end a subscription over a Quota Reduction", error);
     redirect(`${routes.subscriptionQuotaReduction}?erreur=1`);
   }
+  // None open any more (a second click, the window closed meanwhile): the page says so, never an older cancellation as this one.
+  if (!resolved.ok) redirect(routes.subscriptionQuotaReduction);
   redirect(`${routes.subscriptionQuotaReduction}?resiliation=${DONE}`);
 }
 
@@ -59,7 +62,13 @@ export default async function QuotaReductionResolutionPage({ searchParams }: { s
         ) : null}
         {done ? (
           <Note tone="success" role="status">
-            {done.refundPending ? t("quotaReduction.page.donePending") : done.refund ? t("quotaReduction.page.done", { amount: amount(done.refund) }) : t("quotaReduction.page.doneNothing")}
+            {done.refundPending
+              ? t("quotaReduction.page.donePending")
+              : done.settled
+                ? t("quotaReduction.page.doneSettled")
+                : done.refund
+                  ? t("quotaReduction.page.done", { amount: amount(done.refund) })
+                  : t("quotaReduction.page.doneNothing")}
           </Note>
         ) : reduction ? (
           <QuotaReductionNotice reduction={reduction} locale={locale} t={t}>

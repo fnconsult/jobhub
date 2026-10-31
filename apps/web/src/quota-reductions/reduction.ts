@@ -6,6 +6,9 @@ export const REDUCTION_TIME_ZONE = "Europe/Paris";
 /** How many days ahead of its effective date a Quota Reduction is announced, at the least (L224-25-26, #514). */
 export const NOTICE_DAYS = 30;
 
+/** The longest reason a Quota Reduction may give: it is quoted in every subscriber's e-mail. */
+export const MAX_REASON_LENGTH = 500;
+
 /** How long after the effective date a subscriber told of it may still cancel with a prorata refund. */
 export const RESOLUTION_DAYS_AFTER = 30;
 

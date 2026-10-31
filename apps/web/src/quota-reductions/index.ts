@@ -9,6 +9,7 @@
  *  - worker:      `run`: applies those due (each recorded in the Back Office Audit under the Administrator who
  *                 scheduled it), sends the notices not sent yet (one e-mail per subscriber), asks again for refunds
  *                 Stripe did not answer about
+ *                 which refunds Stripe did not make?  `refundsToSettle`, and `settleRefund` once made in Stripe
  *  - Candidate:   `openFor` (the reduction they may still cancel over), `resolve` (cancel now, refunded prorata),
  *                 `lastResolution` (how that went)
  * and `migrateQuotaReductions(database)`.
@@ -25,10 +26,14 @@ import type { Billing, PlanName, ProrataRefundResult } from "../billing";
 import type { Queryable } from "../database/pool";
 import { routes } from "../routes";
 import { quotaReductionEmail } from "./email";
-import { addDays, dayInParis, earliestEffectiveOn, effectiveAtOf, RESOLUTION_DAYS_AFTER, splitQuotaChange, type ReducedQuotas } from "./reduction";
+import { addDays, dayInParis, earliestEffectiveOn, effectiveAtOf, MAX_REASON_LENGTH, RESOLUTION_DAYS_AFTER, splitQuotaChange, type ReducedQuotas } from "./reduction";
 
-export { earliestEffectiveOn, NOTICE_DAYS, RESOLUTION_DAYS_AFTER, splitQuotaChange } from "./reduction";
+export { earliestEffectiveOn, MAX_REASON_LENGTH, NOTICE_DAYS, RESOLUTION_DAYS_AFTER, splitQuotaChange } from "./reduction";
 export type { QuotaReductionStep, ReducedQuotas } from "./reduction";
+
+/** How many notices the worker claims at a time, and how long a claim holds before a notice not sent is claimed again. */
+const NOTICE_BATCH = 50;
+const CLAIM_LEASE_MINUTES = 15;
 
 /** What an Administrator gives when lowering a paid Plan: why, and from when ("2026-11-14", midnight in Paris). */
 export interface ReductionNotice {
@@ -44,8 +49,10 @@ export type ReductionError =
   | "invalid_effective_date"
   /** An effective date less than NOTICE_DAYS away. */
   | "too_soon"
-  /** The Plan already has a Quota Reduction scheduled: cancel it first. */
+  /** The Plan already has a Quota Reduction scheduled, or the change touches a quota it lowers: cancel it first. */
   | "reduction_pending"
+  /** A reason longer than MAX_REASON_LENGTH. */
+  | "reason_too_long"
   | "unknown_plan";
 
 /** A scheduled Quota Reduction, as the Back Office lists it. */
@@ -63,6 +70,22 @@ export interface QuotaReduction {
   /** Cancellations whose refund Stripe has not made: asked again by the worker when Stripe did not answer, left to Support when it refused. */
   refundsPending: number;
   scheduledBy: string;
+}
+
+/** Why a refund was not made when Stripe did not answer (billing's ProrataRefundResult): the worker asks again. */
+const STRIPE_UNAVAILABLE = "stripe_unavailable";
+
+/** A prorata refund Stripe has not made, as Support sees it on Offres: never who it is for, only their Stripe subscription. */
+export interface RefundToSettle {
+  reductionId: string;
+  plan: Plan;
+  subscriptionId: string;
+  /** Stripe's error code (`charge_disputed`...), or `stripe_unavailable`. */
+  failure: string;
+  /** True when Stripe did not answer: the worker asks it again, nothing to do by hand. */
+  retried: boolean;
+  /** When the Candidate cancelled. */
+  resolvedAt: Date;
 }
 
 /** The Quota Reduction a Candidate may cancel their subscription over, until `resolvableUntil` (a day in Paris, included). */
@@ -123,6 +146,12 @@ export async function migrateQuotaReductions(database: Pool): Promise<void> {
       PRIMARY KEY (reduction_id, candidate_id)
     );
     CREATE INDEX IF NOT EXISTS plan_quota_reduction_notice_candidate_idx ON plan_quota_reduction_notice (candidate_id);
+    -- A notice is claimed (claimed_at) before it is sent, and marked sent (sent_at) once the mailer took it: a claim older
+    -- than the lease is the worker's that died meanwhile, and is claimed again. The refund's currency, as Stripe gave it.
+    -- A refund Stripe refused, once Support refunded it in Stripe (« Remboursé dans Stripe »).
+    ALTER TABLE plan_quota_reduction_notice ADD COLUMN IF NOT EXISTS claimed_at timestamptz;
+    ALTER TABLE plan_quota_reduction_notice ADD COLUMN IF NOT EXISTS refund_currency text;
+    ALTER TABLE plan_quota_reduction_notice ADD COLUMN IF NOT EXISTS refund_settled_at timestamptz;
   `);
 }
 
@@ -156,6 +185,7 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
     const reason = notice?.reason.trim() ?? "";
     const effectiveOn = notice?.effectiveOn.trim() ?? "";
     if (!reason || !effectiveOn) return { ok: false, error: "notice_required" };
+    if (reason.length > MAX_REASON_LENGTH) return { ok: false, error: "reason_too_long" };
     const effectiveAt = effectiveAtOf(effectiveOn);
     if (!effectiveAt) return { ok: false, error: "invalid_effective_date" };
     if (effectiveOn < earliestEffectiveOn(now())) return { ok: false, error: "too_soon" };
@@ -181,9 +211,17 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
   /** Records what Stripe did with a prorata refund on the notice it was for. */
   async function keepRefund(reductionId: string, candidateId: string, result: ProrataRefundResult): Promise<void> {
     await database.query(
-      `UPDATE plan_quota_reduction_notice SET refund_id = $3, refund_amount = $4, refund_failure = $5, subscription_id = COALESCE($6, subscription_id)
+      `UPDATE plan_quota_reduction_notice SET refund_id = $3, refund_amount = $4, refund_currency = $7, refund_failure = $5, subscription_id = COALESCE($6, subscription_id)
        WHERE reduction_id = $1 AND candidate_id = $2`,
-      [reductionId, candidateId, result.ok ? (result.refund?.id ?? null) : null, result.ok ? (result.refund?.amount ?? 0) : null, result.ok ? null : result.reason, result.ok ? null : result.subscription],
+      [
+        reductionId,
+        candidateId,
+        result.ok ? (result.refund?.id ?? null) : null,
+        result.ok ? (result.refund?.amount ?? 0) : null,
+        result.ok ? null : result.reason,
+        result.ok ? null : result.subscription,
+        result.ok ? (result.refund?.currency ?? null) : null,
+      ],
     );
   }
 
@@ -191,7 +229,7 @@ export function createQuotaReductions(database: Pool, deps: QuotaReductionsDeps)
    * The Quota Reduction the Candidate was told of and may still cancel their subscription over (until RESOLUTION_DAYS_AFTER
    * its effective date, while they still pay for its Plan); null when none.
    */
-async function openFor(candidateId: string): Promise<OpenReduction | null> {
+  async function openFor(candidateId: string): Promise<OpenReduction | null> {
     const { plan } = await deps.billing.entitlements(candidateId);
     if (plan === FREE_PLAN) return null;
     const today = dayInParis(now());
@@ -235,6 +273,14 @@ async function openFor(candidateId: string): Promise<OpenReduction | null> {
     ): Promise<{ ok: true; before: PlanQuotas; applied: PlanQuotas; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }> {
       const before = await deps.billing.lockPlanQuotas(plan, within);
       if (!before) return { ok: false, error: "unknown_plan" };
+      // A quota a waiting Quota Reduction lowers keeps its amount until then: changed now, even raised, the reduction
+      // would set it back on its date to what subscribers were told. Cancel the reduction first.
+      const { rows: waiting } = await within.query<{ quotas: ReducedQuotas }>(
+        "SELECT quotas FROM plan_quota_reduction WHERE plan = $1 AND cancelled_at IS NULL AND applied_at IS NULL",
+        [plan],
+      );
+      const held = waiting.flatMap((row) => Object.keys(row.quotas)) as (keyof PlanQuotas)[];
+      if (held.some((quota) => quotas[quota] !== before[quota])) return { ok: false, error: "reduction_pending" };
       const { now: raised, reduced } = splitQuotaChange(before, quotas);
       const subscribers = Object.keys(reduced).length > 0 ? await deps.billing.subscribersOf(plan, within) : [];
       if (plan === FREE_PLAN || subscribers.length === 0) {
@@ -370,43 +416,60 @@ async function openFor(candidateId: string): Promise<OpenReduction | null> {
 
       let sent = 0;
       let failed = 0;
-      // Claimed before it is sent, so two workers never send one twice; given back when it could not be sent.
-      const { rows: claimed } = await database.query<ReductionRow & { candidate_id: string; email: string; language: string | null }>(
-        `UPDATE plan_quota_reduction_notice n SET sent_at = $1
-         FROM plan_quota_reduction r, candidate c
-         WHERE n.reduction_id = r.id AND c.id = n.candidate_id AND n.sent_at IS NULL AND r.cancelled_at IS NULL
-         RETURNING ${REDUCTION_COLUMNS}, n.candidate_id, c.email, c."interfaceLanguage" AS language`,
-        [now()],
-      );
-      const names = claimed.length > 0 ? await planNames() : new Map<Plan, PlanName>();
-      for (const notice of claimed) {
-        const language: Locale = isSupportedLocale(notice.language) ? notice.language : DEFAULT_LOCALE;
-        try {
-          const email = quotaReductionEmail(
-            {
-              planName: names.get(notice.plan)?.[language] ?? notice.plan,
-              quotas: notice.quotas,
-              removedFeatures: notice.removed_features,
-              reason: notice.reason,
-              effectiveOn: notice.effective_on,
-              resolvableUntil: addDays(notice.effective_on, RESOLUTION_DAYS_AFTER),
-              resolveUrl: new URL(routes.subscriptionQuotaReduction, typeof deps.baseURL === "string" ? deps.baseURL : deps.baseURL()).toString(),
-            },
-            language,
-          );
-          await deps.mailer.send({ to: notice.email, ...email });
-          sent += 1;
-        } catch (error) {
-          console.error("[quota-reductions] could not send a notice; it is sent again on the next run", error);
-          await database.query("UPDATE plan_quota_reduction_notice SET sent_at = NULL WHERE reduction_id = $1 AND candidate_id = $2", [notice.id, notice.candidate_id]);
-          failed += 1;
+      // Claimed a batch at a time before it is sent, so two workers never send one twice; given back when it could not be
+      // sent. A claim older than the lease (a worker stopped while sending) is claimed again: a notice is never lost.
+      const names = await planNames();
+      const baseURL = typeof deps.baseURL === "string" ? deps.baseURL : deps.baseURL();
+      const failedNow = new Set<string>();
+      for (;;) {
+        const { rows: claimed } = await database.query<ReductionRow & { candidate_id: string; email: string; language: string | null }>(
+          `WITH due AS (
+             SELECT n.reduction_id, n.candidate_id FROM plan_quota_reduction_notice n JOIN plan_quota_reduction r ON r.id = n.reduction_id
+             WHERE n.sent_at IS NULL AND r.cancelled_at IS NULL
+               AND (n.claimed_at IS NULL OR n.claimed_at < $1::timestamptz - make_interval(mins => $2))
+               AND NOT ((n.reduction_id::text || ':' || n.candidate_id) = ANY($4::text[]))
+             ORDER BY n.reduction_id, n.candidate_id LIMIT $3 FOR UPDATE OF n SKIP LOCKED
+           )
+           UPDATE plan_quota_reduction_notice n SET claimed_at = $1
+           FROM due, plan_quota_reduction r, candidate c
+           WHERE n.reduction_id = due.reduction_id AND n.candidate_id = due.candidate_id AND r.id = n.reduction_id AND c.id = n.candidate_id
+           RETURNING ${REDUCTION_COLUMNS}, n.candidate_id, c.email, c."interfaceLanguage" AS language`,
+          [now(), CLAIM_LEASE_MINUTES, NOTICE_BATCH, [...failedNow]],
+        );
+        if (claimed.length === 0) break;
+        for (const notice of claimed) {
+          const language: Locale = isSupportedLocale(notice.language) ? notice.language : DEFAULT_LOCALE;
+          try {
+            const email = quotaReductionEmail(
+              {
+                planName: names.get(notice.plan)?.[language] ?? notice.plan,
+                quotas: notice.quotas,
+                removedFeatures: notice.removed_features,
+                reason: notice.reason,
+                effectiveOn: notice.effective_on,
+                resolvableUntil: addDays(notice.effective_on, RESOLUTION_DAYS_AFTER),
+                resolveUrl: new URL(routes.subscriptionQuotaReduction, baseURL).toString(),
+              },
+              language,
+            );
+            await deps.mailer.send({ to: notice.email, ...email });
+            await database.query("UPDATE plan_quota_reduction_notice SET sent_at = $3 WHERE reduction_id = $1 AND candidate_id = $2", [notice.id, notice.candidate_id, now()]);
+            sent += 1;
+          } catch (error) {
+            console.error("[quota-reductions] could not send a notice; it is sent again on the next run", error);
+            await database.query("UPDATE plan_quota_reduction_notice SET claimed_at = NULL WHERE reduction_id = $1 AND candidate_id = $2", [notice.id, notice.candidate_id]);
+            // Not again in this run: the next one tries it.
+            failedNow.add(`${notice.id}:${notice.candidate_id}`);
+            failed += 1;
+          }
         }
       }
 
       let refunds = 0;
       const { rows: unrefunded } = await database.query<{ reduction_id: string; candidate_id: string; subscription_id: string; resolved_at: Date }>(
-        // Only those Stripe did not answer: one it refused (a disputed payment, say) is for Support, in Stripe.
-        "SELECT reduction_id::text AS reduction_id, candidate_id, subscription_id, resolved_at FROM plan_quota_reduction_notice WHERE refund_failure = 'stripe_unavailable' AND subscription_id IS NOT NULL",
+        // Only those Stripe did not answer: one it refused (a disputed payment, say) is for Support, in Stripe (refundsToSettle).
+        "SELECT reduction_id::text AS reduction_id, candidate_id, subscription_id, resolved_at FROM plan_quota_reduction_notice WHERE refund_failure = $1 AND subscription_id IS NOT NULL",
+        [STRIPE_UNAVAILABLE],
       );
       for (const notice of unrefunded) {
         const result = await deps.billing.retryProrataRefund(notice.subscription_id, refundKey(notice.reduction_id, notice.candidate_id), notice.resolved_at);
@@ -418,16 +481,63 @@ async function openFor(candidateId: string): Promise<OpenReduction | null> {
 
     openFor,
 
-    /** How the Candidate's latest cancellation over a Quota Reduction was refunded, to tell them; null when they made none. */
-    async lastResolution(candidateId: string): Promise<{ refund: { amount: number; currency: string } | null; refundPending: boolean } | null> {
-      const { rows } = await database.query<{ refund_amount: number | null; refund_failure: string | null }>(
-        "SELECT refund_amount, refund_failure FROM plan_quota_reduction_notice WHERE candidate_id = $1 AND resolved_at IS NOT NULL ORDER BY resolved_at DESC LIMIT 1",
+    /**
+     * How the Candidate's latest cancellation over a Quota Reduction was refunded, to tell them: the refund Stripe made,
+     * one still to make (`refundPending`), or one Support made in Stripe after Stripe refused it (`settled`); null when
+     * they made none.
+     */
+    async lastResolution(candidateId: string): Promise<{ refund: { amount: number; currency: string } | null; refundPending: boolean; settled: boolean } | null> {
+      const { rows } = await database.query<{ refund_amount: number | null; refund_currency: string | null; refund_failure: string | null; refund_settled_at: Date | null }>(
+        `SELECT refund_amount, refund_currency, refund_failure, refund_settled_at FROM plan_quota_reduction_notice
+         WHERE candidate_id = $1 AND resolved_at IS NOT NULL ORDER BY resolved_at DESC LIMIT 1`,
         [candidateId],
       );
       const row = rows[0];
       if (!row) return null;
-      if (row.refund_failure) return { refund: null, refundPending: true };
-      return { refund: row.refund_amount ? { amount: row.refund_amount, currency: "eur" } : null, refundPending: false };
+      if (row.refund_failure) return { refund: null, refundPending: true, settled: false };
+      if (row.refund_settled_at) return { refund: null, refundPending: false, settled: true };
+      return { refund: row.refund_amount && row.refund_currency ? { amount: row.refund_amount, currency: row.refund_currency } : null, refundPending: false, settled: false };
+    },
+
+    /**
+     * The prorata refunds Stripe has not made, for Support on Offres, whether their Quota Reduction still waits or has
+     * applied: refused by Stripe (a disputed payment, say: to settle in Stripe, then mark settled), or not answered (asked
+     * again by the worker). Each names its Stripe subscription, never the Candidate. Oldest first.
+     */
+    async refundsToSettle(): Promise<RefundToSettle[]> {
+      const { rows } = await database.query<{ reduction_id: string; plan: Plan; subscription_id: string; failure: string; resolved_at: Date }>(
+        `SELECT n.reduction_id::text AS reduction_id, r.plan, n.subscription_id, n.refund_failure AS failure, n.resolved_at
+         FROM plan_quota_reduction_notice n JOIN plan_quota_reduction r ON r.id = n.reduction_id
+         WHERE n.refund_failure IS NOT NULL AND n.subscription_id IS NOT NULL
+         ORDER BY n.resolved_at, n.reduction_id`,
+      );
+      return rows.map((row) => ({
+        reductionId: row.reduction_id,
+        plan: row.plan,
+        subscriptionId: row.subscription_id,
+        failure: row.failure,
+        retried: row.failure === STRIPE_UNAVAILABLE,
+        resolvedAt: row.resolved_at,
+      }));
+    },
+
+    /**
+     * Marks a refund Stripe refused as made by Support in Stripe (Back Office), in `within`'s transaction: it leaves the
+     * list, and the Candidate's page no longer says it waits. Returns it, or null when there is no such refund to settle
+     * (one the worker still asks Stripe for is not settled by hand).
+     */
+    async settleRefund(reductionId: string, subscriptionId: string, within: Queryable): Promise<RefundToSettle | null> {
+      if (!/^\d+$/.test(reductionId)) return null;
+      const { rows } = await within.query<{ plan: Plan; failure: string; resolved_at: Date }>(
+        `UPDATE plan_quota_reduction_notice n SET refund_failure = NULL, refund_settled_at = $3
+         FROM plan_quota_reduction r, (SELECT refund_failure FROM plan_quota_reduction_notice WHERE reduction_id = $1 AND subscription_id = $2 FOR UPDATE) prior
+         WHERE n.reduction_id = $1 AND n.subscription_id = $2 AND r.id = n.reduction_id
+           AND n.refund_failure IS NOT NULL AND n.refund_failure <> $4
+         RETURNING r.plan, prior.refund_failure AS failure, n.resolved_at`,
+        [reductionId, subscriptionId, now(), STRIPE_UNAVAILABLE],
+      );
+      const row = rows[0];
+      return row ? { reductionId, plan: row.plan, subscriptionId, failure: row.failure, retried: false, resolvedAt: row.resolved_at } : null;
     },
 
     /**

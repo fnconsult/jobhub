@@ -19,7 +19,7 @@ import { Pill } from "@/design/Pill";
 import { Properties, Property } from "@/design/Properties";
 import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { earliestEffectiveOn, type QuotaReduction, type ReductionError } from "@/quota-reductions";
+import { earliestEffectiveOn, type QuotaReduction, type ReductionError, type RefundToSettle } from "@/quota-reductions";
 import { longDay, reductionLines } from "@/quota-reductions/describe";
 import { getQuotaReductions } from "@/quota-reductions/server";
 import { routes } from "@/routes";
@@ -55,10 +55,12 @@ const ERRORS = [
   "invalid_effective_date",
   "too_soon",
   "reduction_pending",
+  "reason_too_long",
 ] as const satisfies readonly (PlanError | ReductionError)[];
 
-/** Where the scheduled Quota Reductions are listed on the page. */
+/** Where the scheduled Quota Reductions, and the refunds Stripe did not make, are listed on the page. */
 const REDUCTIONS_ANCHOR = "baisses";
+const REFUNDS_ANCHOR = "remboursements";
 
 /** The value a ticked checkbox sends. */
 const TICKED = "on";
@@ -108,18 +110,28 @@ async function cancelReduction(form: FormData) {
   redirect(`${routes.adminPlans}?${cancelled ? "cancelled" : "notCancelled"}=1#${REDUCTIONS_ANCHOR}`);
 }
 
+async function settleRefund(form: FormData) {
+  "use server";
+  const { administrator } = await requireBackOffice("plans", "write");
+  const settled = await getBackOffice().settleQuotaReductionRefund(administrator, String(form.get("reduction") ?? ""), String(form.get("subscription") ?? ""));
+  redirect(`${routes.adminPlans}?${settled ? "refundSettled" : "refundNotSettled"}=1#${REFUNDS_ANCHOR}`);
+}
+
 /**
  * Administrators define the Plans: names, rank (the order of the comparison and of Upgrade
  * Prompts), offered or hidden, Stripe product and Plan Features. A new Plan starts hidden.
  * Plans are never deleted; Free is built in. Below, the Quota Reductions waiting for their effective date (#514), with
- * what they lower, why and how many subscribers were told; each can be cancelled before its date.
+ * what they lower, why and how many subscribers were told; each can be cancelled before its date. Then the prorata refunds
+ * Stripe did not make, whether their reduction still waits or has applied, by Stripe subscription, never by Candidate:
+ * one Stripe refused is made in Stripe by Support, then marked refunded here.
  */
-export default async function PlansPage({ searchParams }: { searchParams: Promise<{ saved?: string; created?: string; moved?: string; error?: string; cancelled?: string; notCancelled?: string }> }) {
+export default async function PlansPage({ searchParams }: { searchParams: Promise<{ saved?: string; created?: string; moved?: string; error?: string; cancelled?: string; notCancelled?: string; refundSettled?: string; refundNotSettled?: string }> }) {
   const { access, canWrite } = await requireBackOffice("plans");
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { saved, created, moved, error, cancelled, notCancelled } = await searchParams;
-  const [plans, reductions] = await Promise.all([getBilling().plans(), getQuotaReductions().pending()]);
+  const { saved, created, moved, error, cancelled, notCancelled, refundSettled, refundNotSettled } = await searchParams;
+  const [plans, reductions, refunds] = await Promise.all([getBilling().plans(), getQuotaReductions().pending(), getQuotaReductions().refundsToSettle()]);
+  const dateTime = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" });
   const earliest = earliestEffectiveOn(new Date());
   // Notices name a Plan from the database only: nothing typed in the address bar is shown.
   const savedPlan = plans.find((plan) => plan.key === saved);
@@ -281,6 +293,60 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
             )}
           </div>
         </Card>
+
+        {/* Shown only when there is one: Offres stays as it was the rest of the time. */}
+        {refunds.length > 0 || refundSettled || refundNotSettled ? (
+          <Card title={<span id={REFUNDS_ANCHOR}>{t("admin.quotaReductions.refunds.title")}</span>}>
+            <div className="section-form">
+              <p>{t("admin.quotaReductions.refunds.intro")}</p>
+              {refundSettled ? (
+                <Note tone="success" role="status">
+                  {t("admin.quotaReductions.refunds.settled")}
+                </Note>
+              ) : null}
+              {refundNotSettled ? (
+                <Note tone="danger" role="alert">
+                  {t("admin.quotaReductions.refunds.notSettled")}
+                </Note>
+              ) : null}
+              {refunds.length === 0 ? (
+                <p>{t("admin.quotaReductions.refunds.none")}</p>
+              ) : (
+                <Table
+                  label={t("admin.quotaReductions.refunds.caption")}
+                  columns={[
+                    { header: t("admin.quotaReductions.refunds.subscription"), rowHeader: true, cell: (refund: RefundToSettle) => <code>{refund.subscriptionId}</code> },
+                    { header: t("admin.quotaReductions.refunds.plan"), cell: (refund: RefundToSettle) => planName(refund.plan) },
+                    { header: t("admin.quotaReductions.refunds.resolvedAt"), cell: (refund: RefundToSettle) => dateTime.format(refund.resolvedAt) },
+                    {
+                      header: t("admin.quotaReductions.refunds.failure"),
+                      cell: (refund: RefundToSettle) => (refund.retried ? t("admin.quotaReductions.refunds.retrying") : <code>{refund.failure}</code>),
+                    },
+                    {
+                      header: t("admin.quotaReductions.refunds.action"),
+                      cell: (refund: RefundToSettle) =>
+                        canWrite && !refund.retried ? (
+                          <form action={settleRefund}>
+                            <input type="hidden" name="reduction" value={refund.reductionId} />
+                            <input type="hidden" name="subscription" value={refund.subscriptionId} />
+                            <button
+                              className={buttonClass({ size: "sm" })}
+                              type="submit"
+                              aria-label={t("admin.quotaReductions.refunds.settleLabel", { subscription: refund.subscriptionId })}
+                            >
+                              {t("admin.quotaReductions.refunds.settle")}
+                            </button>
+                          </form>
+                        ) : null,
+                    },
+                  ]}
+                  rows={refunds}
+                  rowKey={(refund) => `${refund.reductionId}:${refund.subscriptionId}`}
+                />
+              )}
+            </div>
+          </Card>
+        ) : null}
 
         {canWrite ? (
           <form action={createPlan}>

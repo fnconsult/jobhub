@@ -23,7 +23,7 @@ import "../section.css";
 const INTRO: IntroPage = "planQuotas";
 
 /** Why a change of quotas may be refused (#514): each has its message. */
-const REDUCTION_ERRORS = ["notice_required", "invalid_effective_date", "too_soon", "reduction_pending", "unknown_plan"] as const satisfies readonly ReductionError[];
+const REDUCTION_ERRORS = ["notice_required", "invalid_effective_date", "too_soon", "reduction_pending", "reason_too_long", "unknown_plan"] as const satisfies readonly ReductionError[];
 const isReductionError = (value: string | undefined): value is ReductionError => REDUCTION_ERRORS.includes(value as ReductionError);
 
 export async function generateMetadata(): Promise<Metadata> {

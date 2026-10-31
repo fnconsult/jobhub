@@ -254,6 +254,7 @@ export async function startFakeStripe(port = 0) {
     const seconds = (date: Date) => Math.floor(date.getTime() / 1000);
     paidPeriods.set(subscriptionId, { invoice: `in_fake${id}`, amount: paid.amount, paymentIntent: paid.amount > 0 ? `pi_fake${id}` : null, start: seconds(paid.start), end: seconds(paid.end) });
     if (paid.amount > 0) paymentAmounts.set(`pi_fake${id}`, paid.amount);
+    subscriptionPeriodEnds.set(subscriptionId, seconds(paid.end));
   }
   /** Refunds a PaymentIntent as Stripe does: in full unless `amount` says less, never more than is left. */
   function createRefund(params: URLSearchParams): { status: number; json: unknown } {
@@ -455,7 +456,7 @@ export async function startFakeStripe(port = 0) {
         return reply(200, { id: product, object: "product", active, default_price: defaultPriceField });
       }
       if (product) return reply(404, { error: { type: "invalid_request_error", code: "resource_missing", message: `No such product: '${product}'` } });
-      // For e2e specs in another process: `discountSubscription` and `setSubscriptionPeriodEnd` (`end` in seconds) over HTTP.
+      // For e2e specs in another process: `discountSubscription`, and `setSubscriptionPeriodEnd` (`end` in seconds) or `payPeriod` over HTTP.
       const discountPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/discount$/)?.[1];
       if (discountPath) {
         subscriptionDiscounts.set(decodeURIComponent(discountPath), { promotionCode: params.get("promotion_code") ?? "", end: numberParam(params, "end") });
@@ -463,7 +464,9 @@ export async function startFakeStripe(port = 0) {
       }
       const periodPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/period$/)?.[1];
       if (periodPath) {
-        subscriptionPeriodEnds.set(decodeURIComponent(periodPath), Number(params.get("end")));
+        // With an `amount` (#514): a paid period, its invoice the subscription's latest; without: its end alone (#513).
+        if (params.has("amount")) payPeriod(decodeURIComponent(periodPath), { amount: Number(params.get("amount")), start: new Date(Number(params.get("start")) * 1000), end: new Date(Number(params.get("end")) * 1000) });
+        else subscriptionPeriodEnds.set(decodeURIComponent(periodPath), Number(params.get("end")));
         return reply(200, {});
       }
       const paidPath = request.method === "POST" && path.match(/^\/__customers\/([^/]+)\/paid$/)?.[1];
@@ -471,16 +474,11 @@ export async function startFakeStripe(port = 0) {
         paidCustomers.add(decodeURIComponent(paidPath));
         return reply(200, {});
       }
-      // For e2e specs in another process: `payInvoice`, `payCheckoutSession`, `payPeriod`, `refuseRefunds` and `refunds` over HTTP.
+      // For e2e specs in another process: `payInvoice`, `payCheckoutSession`, `refuseRefunds` and `refunds` over HTTP.
       const invoicePath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/invoices$/)?.[1];
       if (invoicePath) return reply(200, { payment_intent: payInvoice(decodeURIComponent(invoicePath), Number(params.get("amount") ?? 0)) });
       const checkoutPaymentPath = request.method === "POST" && path.match(/^\/__checkout_sessions\/([^/]+)\/payment$/)?.[1];
       if (checkoutPaymentPath) return reply(200, { payment_intent: payCheckoutSession(decodeURIComponent(checkoutPaymentPath), Number(params.get("amount") ?? 0)) });
-      const periodPath = request.method === "POST" && path.match(/^\/__subscriptions\/([^/]+)\/period$/)?.[1];
-      if (periodPath) {
-        payPeriod(decodeURIComponent(periodPath), { amount: Number(params.get("amount") ?? 0), start: new Date(Number(params.get("start")) * 1000), end: new Date(Number(params.get("end")) * 1000) });
-        return reply(200, {});
-      }
       // Scoped to one PaymentIntent (`payment_intent`, required): the e2e specs share this fake and run side by side.
       if (request.method === "POST" && path === "/__refunds/refuse") {
         const paymentIntent = params.get("payment_intent");

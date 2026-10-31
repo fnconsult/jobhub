@@ -212,9 +212,6 @@ export interface JobsDeps {
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
   /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
   legalTextNotices?: Pick<LegalTextNotices, "sendDue">;
-        }),
-    },
-
   /** Quota Reductions (#514). Without them, none is applied nor announced. */
   quotaReductions?: Pick<QuotaReductions, "run">;
   /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
@@ -497,6 +494,9 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           log(`[legal-text-notices] ${sent.emails} notice email(s) sent` + (sent.failed ? `; ${sent.failed} could not be sent, left to the next try` : ""));
           // Thrown for the runner to try again: the notices sent are not sent twice.
           if (sent.failed) throw new Error(`${sent.failed} Legal Text notice(s) could not be sent`);
+        }),
+    },
+
     // Every 5 minutes: a Quota Reduction applies within minutes of its effective date (midnight in Paris). Safe to run again.
     [QUOTA_REDUCTIONS]: {
       cron: "*/5 * * * *",

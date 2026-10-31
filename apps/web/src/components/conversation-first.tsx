@@ -22,13 +22,13 @@ export type SidebarMenus = Partial<Record<"applications", UnfoldedMenu>>;
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
  * once its first message saved it; `replying` while a reply is on its way, when it cannot be cleared; `clear` deletes every
  * message of it (« Effacer ») and resolves whether it did; `startNew` turns the page into a new Free conversation, as the
- * home page is.
+ * home page is; null on a menu's page (#604), which « Nouvelle conversation » leaves for the home page.
  */
 export type PageConversation = {
   conversationId: string | null;
   replying: boolean;
   clear: () => Promise<boolean>;
-  startNew: () => void;
+  startNew: (() => void) | null;
 };
 
 interface ConversationFirst {
@@ -99,8 +99,8 @@ export function SidebarConversations({ onNavigate }: { onNavigate?: () => void }
         className="sidebar-link sidebar-new-conversation"
         href={routes.home}
         onClick={(event) => {
-          // The page already shows a conversation: it starts afresh in place, as a reload of the home page would.
-          if (page) {
+          // The page already shows a Free conversation: it starts afresh in place, as a reload of the home page would.
+          if (page?.startNew) {
             event.preventDefault();
             page.startNew();
           }
@@ -297,7 +297,7 @@ function FreeConversationItem({ conversation, current, onNavigate }: { conversat
       return;
     }
     conversationFirst.removed(conversation.id);
-    if (conversationFirst.page?.conversationId === conversation.id) conversationFirst.page.startNew();
+    if (conversationFirst.page?.conversationId === conversation.id) conversationFirst.page.startNew?.();
   }
 
   return (

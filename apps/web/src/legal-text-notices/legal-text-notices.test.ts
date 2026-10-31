@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { MailMessage } from "../auth";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
 import { mailClientLint } from "../emails/mail-client-lint";
-import { createLegalTextNotices, legalTextNoticesOf, migrateLegalTextNotices, type LegalTextNoticesDeps } from "./index";
+import { createLegalTextNotices, legalTextNoticesOf, migrateLegalTextNotices, sendsLegalTextNotices, type LegalTextNoticesDeps } from "./index";
 
 /** Friday 30 October 2026, 10:00 in Paris. */
 const TODAY = new Date("2026-10-30T09:00:00.000Z");
@@ -30,6 +30,16 @@ const both = (text: LegalTextVersion["text"], effective: string, change: LegalTe
 function written(...versions: ReturnType<typeof both>[]): LegalTextNoticesDeps["written"] {
   return { fr: versions.map((entry) => entry.fr), en: versions.map((entry) => entry.en) };
 }
+
+describe("sendsLegalTextNotices — only Production sends the notices, never the Beta", () => {
+  it("is Production when JOBHUB_TARGET says so, or for a production build that names no target", () => {
+    expect(sendsLegalTextNotices({ JOBHUB_TARGET: "production" })).toBe(true);
+    expect(sendsLegalTextNotices({ NODE_ENV: "production" })).toBe(true);
+    expect(sendsLegalTextNotices({ JOBHUB_TARGET: "staging", NODE_ENV: "production" })).toBe(false);
+    expect(sendsLegalTextNotices({ JOBHUB_TARGET: "e2e", NODE_ENV: "production" })).toBe(false);
+    expect(sendsLegalTextNotices({})).toBe(false);
+  });
+});
 
 describe.skipIf(!connectionString)("Legal Text notices: the email 30 days ahead, the privacy change shown once (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;

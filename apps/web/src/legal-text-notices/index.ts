@@ -31,6 +31,16 @@ import type { Mailer } from "../auth";
 import { routes } from "../routes";
 import { legalTextNoticeEmail } from "./email";
 
+/**
+ * Whether this deployment sends the notices: Production only (#547), never the Beta. Production is
+ * JOBHUB_TARGET=production, or a production build that names no target, as Nouveautés and the Playbooks' serving read
+ * it (ADR-0021, ADR-0063); staging, the e2e suite and a developer's machine never send one.
+ */
+export function sendsLegalTextNotices(env: Record<string, string | undefined>): boolean {
+  const target = env.JOBHUB_TARGET?.trim();
+  return target ? target === "production" : env.NODE_ENV === "production";
+}
+
 export interface LegalTextNoticesDeps {
   mailer: Mailer;
   /** The web app's address, which the email's links lead to. */

@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { REMINDER_HOUR, REMINDER_TIME_ZONE, type AppointmentReminders } from "@jobhub/web/appointment-reminders";
+import type { LegalTextNotices } from "@jobhub/web/legal-text-notices";
 import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI_USAGE_RETENTION_MONTHS } from "@jobhub/web/ai-usage";
 import { purgeExpiredBackOfficeAudit, RETENTION_YEARS as BACK_OFFICE_AUDIT_RETENTION_YEARS } from "@jobhub/web/back-office";
 import { purgeStaleAssistantConversations, RETENTION_MONTHS as ASSISTANT_RETENTION_MONTHS } from "@jobhub/web/back-office-assistant";
@@ -74,6 +75,17 @@ export const JOB_DIGEST_RUN = "job-digest.run";
  * their Agenda Items of the next day. Safe to run again: one reminder per item and per date.
  */
 export const APPOINTMENT_REMINDERS = "appointment-reminders.send";
+
+/**
+ * Queue name: email each Candidate the notice of every substantial Legal Text Version not in effect yet (#547), once
+ * each, only in Production. Run when the worker starts, so a Production deployment carrying a new version sends its
+ * notices at once, then daily for the Candidates who signed up since. A run where some emails failed is tried again
+ * (LEGAL_TEXT_NOTICES_RETRY), and only those are sent.
+ */
+export const LEGAL_TEXT_NOTICES = "legal-text-notices.send";
+
+/** How a run of LEGAL_TEXT_NOTICES with emails that failed is tried again: 5 more times, from 15 minutes apart, doubling. */
+const LEGAL_TEXT_NOTICES_RETRY = { limit: 5, delaySeconds: 900, backoff: true };
 
 /** Queue name: re-check the sources of the Job Offers due (those Candidates are applying to), to find Expired Job Offers. Runs daily. */
 export const SOURCE_RECHECK = "job-offers.recheck-sources";
@@ -191,6 +203,8 @@ export interface JobsDeps {
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
   /** The Appointment Reminders, sent daily. Satisfied by the web app's Appointment Reminders module. Without them, nothing to send. */
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
+  /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
+  legalTextNotices?: Pick<LegalTextNotices, "sendDue">;
   /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
   referenceData?: Pick<ReferenceData, "refresh">;
   /** The monthly web search alert (#403). Without it, nothing is checked. */
@@ -456,6 +470,21 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
             `[appointment-reminders] ${sent.emails} Appointment Reminder(s) sent, for ${sent.items} Agenda Item(s)` +
               (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""),
           );
+        }),
+    },
+
+    // Every morning, and when the worker starts. Safe to run again: one notice per Candidate and per version.
+    [LEGAL_TEXT_NOTICES]: {
+      cron: "17 9 * * *",
+      tz: "Europe/Paris",
+      retry: LEGAL_TEXT_NOTICES_RETRY,
+      handler: () =>
+        onceTablesExist(async () => {
+          const sent = await deps.legalTextNotices?.sendDue();
+          if (!sent || (!sent.emails && !sent.failed)) return;
+          log(`[legal-text-notices] ${sent.emails} notice email(s) sent` + (sent.failed ? `; ${sent.failed} could not be sent, left to the next try` : ""));
+          // Thrown for the runner to try again: the notices sent are not sent twice.
+          if (sent.failed) throw new Error(`${sent.failed} Legal Text notice(s) could not be sent`);
         }),
     },
 

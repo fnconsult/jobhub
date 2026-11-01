@@ -1,6 +1,8 @@
 import { referenceLabels, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
 import { notFound, redirect } from "next/navigation";
 import { Fragment, cache } from "react";
+import type { Made } from "@/ai-activity";
+import { loadAiActivity } from "@/ai-activity/server";
 import { getActionCards } from "@/action-cards/server";
 import { atsFixOf } from "@/ats-score";
 import { getAtsScoring } from "@/ats-score/server";
@@ -9,12 +11,18 @@ import { AtsScoreView } from "@/components/AtsScoreView";
 import { CvExportForm } from "@/components/CvExportForm";
 import { anyOfInWords, contractTypesInWords, remoteWorkOptionsInWords } from "@/components/job-search-words";
 import { MasterCvDocument } from "@/components/MasterCvDocument";
+import { pagesAreConversations } from "@/components/ObjectConversation";
+import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { ProfileActions } from "@/components/ProfileActions";
 import { TargetCompanies } from "@/components/TargetCompanies";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { PROFILE_SECTIONS, type ProfileSection, routes } from "@/routes";
 import { getTargetCompanies } from "@/target-companies/server";
+
+/** What it is in the Work Pane. */
+const SECTION: AddressedKind = "section";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -36,9 +44,28 @@ export const loadProfilePage = cache(async (id: string) => {
 });
 
 /**
+ * What the head of a Profile's page, or its Fiche, shows beside its Sections, loaded once per request: its ATS Score, the
+ * versions of its Master CV, and its AI Activity: the Master CV when the AI Coach read it from the Candidate's file
+ * (#335), then the ATS Score and the Action Cards (ATS Fixes among them), each with what made it (#336).
+ */
+export const loadProfileAside = cache(async (id: string) => {
+  const { candidateId, profile, cards } = await loadProfilePage(id);
+  const [atsScore, versions] = await Promise.all([getAtsScoring().latest(candidateId, profile.id), getProfiles().masterCvVersions(candidateId, profile.id)]);
+  const read = versions?.find((version) => version.provenance);
+  const made: Made[] = [
+    ...(read ? [{ kind: "master_cv" as const, at: read.savedAt, provenance: read.provenance }] : []),
+    ...(atsScore ? [{ kind: "ats_score" as const, at: atsScore.computedAt, provenance: atsScore.provenance }] : []),
+    ...cards.map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
+  ];
+  const aiActivity = await loadAiActivity.profile(candidateId, { id: profile.id }, made);
+  return { atsScore, versions: versions ?? [], aiActivity };
+});
+
+/**
  * One Section of a Profile's page. A Section the Profile does not have is not
  * found, but for Propositions: its last Action Card decided (an accepted one
  * refreshes the page), the Candidate is taken back to the Profile's page.
+ * Under « Conversation au centre » (#605, ADR-0070), it opens in the Work Pane beside the Profile's conversation.
  */
 export async function ProfileSectionPage({ id, section }: { id: string; section: ProfileSection }) {
   const page = await loadProfilePage(id);
@@ -47,6 +74,15 @@ export async function ProfileSectionPage({ id, section }: { id: string; section:
     notFound();
   }
   const t = await getServerT();
+  if (!pagesAreConversations()) return <SectionView page={page} section={section} t={t} />;
+  return (
+    <InWorkPane kind={SECTION} title={t(`profilePage.sections.${section}`)} href={routes.profileSection(page.profile.id, section)} back={routes.profile(page.profile.id)}>
+      <SectionView page={page} section={section} t={t} />
+    </InWorkPane>
+  );
+}
+
+function SectionView({ page, section, t }: { page: Page; section: ProfileSection; t: T }) {
   switch (section) {
     case "propositions":
       return <Propositions page={page} t={t} />;

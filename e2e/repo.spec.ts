@@ -182,3 +182,24 @@ test.describe("ADR-0009 amendment: the Signalement icon (issue #375)", () => {
     expect(text).toMatch(/Every other function still needs a visible label/);
   });
 });
+
+// Issue #512: the Order page's terms are in the glossary, and the Withdrawal entry says what the Immediate Performance
+// Request changes: a Plan refunded at the prorata, a Coaching Session no longer withdrawable once held.
+test.describe("The Order page's terms are in the glossary (issue #512)", () => {
+  const entry = (glossary: string, term: string) => new RegExp(`^\\*\\*${term}\\*\\*:\\n([^\\n]+)`, "m").exec(glossary)?.[1];
+
+  test("Order, Immediate Performance Request and Order Confirmation have entries", () => {
+    const glossary = read("CONTEXT.md");
+    expect(entry(glossary, "Order"), "an Order entry").toMatch(/before Stripe Checkout/);
+    expect(entry(glossary, "Immediate Performance Request"), "an Immediate Performance Request entry").toMatch(/L221-25/);
+    expect(entry(glossary, "Order Confirmation"), "an Order Confirmation entry").toMatch(/once per paid Checkout Session/);
+  });
+
+  test("the Withdrawal entry refunds the prorata and keeps a held Coaching Session bought without the request withdrawable", () => {
+    const withdrawal = entry(read("CONTEXT.md"), "Withdrawal");
+    expect(withdrawal, "the Withdrawal entry").toMatch(/prorata/);
+    expect(withdrawal).toMatch(/L221-28 1°/);
+    expect(withdrawal).not.toMatch(/not held yet/);
+    expect(withdrawal).not.toMatch(/refunds everything paid for it in full/);
+  });
+});

@@ -136,7 +136,8 @@ test.describe("La page avant Checkout (#512)", () => {
       expect(unticked.headers().location).toBe(`${server.origin}/abonnement/commande?offre=standard&erreur=cgv`);
       expect(await checkoutSessionsOf(email)).toEqual([]);
       await page.goto(unticked.headers().location!);
-      await expect(page.getByRole("alert")).toHaveText(orders.page.cgvRequired);
+      // Scoped to the main landmark: Next.js keeps its own role=alert route announcer outside it.
+      await expect(page.getByRole("main").getByRole("alert")).toHaveText(orders.page.cgvRequired);
 
       await cgvBox.check();
       await immediate.check();

@@ -6,9 +6,13 @@ import { MasterCvView } from "@/components/MasterCvView";
 import { pagesAreConversations } from "@/components/ObjectConversation";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
 import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
+
+/** What it is in the Work Pane. */
+const RESULT: AddressedKind = "result";
 
 type Params = { params: Promise<{ id: string; version: string }> };
 
@@ -49,7 +53,7 @@ export default async function MasterCvVersionPage({ params }: Params) {
   );
   if (pagesAreConversations())
     return (
-      <InWorkPane kind="result" title={t("versions.viewTitle", { version: shown.version })} href={routes.masterCvVersion(profile.id, shown.version)} back={routes.profile(profile.id)}>
+      <InWorkPane kind={RESULT} title={t("versions.viewTitle", { version: shown.version })} href={routes.masterCvVersion(profile.id, shown.version)} back={routes.profile(profile.id)}>
         {version}
       </InWorkPane>
     );

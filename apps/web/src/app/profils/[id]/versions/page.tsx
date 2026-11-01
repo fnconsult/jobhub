@@ -5,9 +5,13 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { pagesAreConversations } from "@/components/ObjectConversation";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
 import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
+
+/** What it is in the Work Pane. */
+const SECTION: AddressedKind = "section";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -49,7 +53,7 @@ export default async function MasterCvVersionsPage({ params }: Params) {
   );
   if (pagesAreConversations())
     return (
-      <InWorkPane kind="section" title={t("versions.title")} href={routes.masterCvVersions(profile.id)} back={routes.profile(profile.id)}>
+      <InWorkPane kind={SECTION} title={t("versions.title")} href={routes.masterCvVersions(profile.id)} back={routes.profile(profile.id)}>
         <p>{t("versions.intro")}</p>
         {list}
       </InWorkPane>

@@ -13,12 +13,16 @@ import { anyOfInWords, contractTypesInWords, remoteWorkOptionsInWords } from "@/
 import { MasterCvDocument } from "@/components/MasterCvDocument";
 import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { ProfileActions } from "@/components/ProfileActions";
 import { TargetCompanies } from "@/components/TargetCompanies";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { PROFILE_SECTIONS, type ProfileSection, routes } from "@/routes";
 import { getTargetCompanies } from "@/target-companies/server";
+
+/** What it is in the Work Pane. */
+const SECTION: AddressedKind = "section";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -72,7 +76,7 @@ export async function ProfileSectionPage({ id, section }: { id: string; section:
   const t = await getServerT();
   if (!pagesAreConversations()) return <SectionView page={page} section={section} t={t} />;
   return (
-    <InWorkPane kind="section" title={t(`profilePage.sections.${section}`)} href={routes.profileSection(page.profile.id, section)} back={routes.profile(page.profile.id)}>
+    <InWorkPane kind={SECTION} title={t(`profilePage.sections.${section}`)} href={routes.profileSection(page.profile.id, section)} back={routes.profile(page.profile.id)}>
       <SectionView page={page} section={section} t={t} />
     </InWorkPane>
   );

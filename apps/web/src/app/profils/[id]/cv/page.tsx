@@ -4,9 +4,13 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { MasterCvEditor } from "@/components/MasterCvEditor";
 import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { getServerT } from "@/i18n/server";
 import { requireOwnProfile } from "@/profiles/server";
 import { routes } from "@/routes";
+
+/** What it is in the Work Pane. */
+const SECTION: AddressedKind = "section";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -25,7 +29,7 @@ export default async function EditMasterCvPage({ params }: Params) {
   const t = await getServerT();
   if (pagesAreConversations())
     return (
-      <InWorkPane kind="section" title={t("cvEditor.title")} href={routes.editMasterCv(profile.id)} back={routes.profile(profile.id)}>
+      <InWorkPane kind={SECTION} title={t("cvEditor.title")} href={routes.editMasterCv(profile.id)} back={routes.profile(profile.id)}>
         <p>{t("cvEditor.intro")}</p>
         <p>{t("cvEditor.editingVersion", { version: profile.masterCv.version })}</p>
         <MasterCvEditor profileId={profile.id} version={profile.masterCv.version} content={profile.masterCv.content} />

@@ -2,10 +2,15 @@ import { redirect } from "next/navigation";
 import { JobDigestSettings } from "@/components/JobDigestSettings";
 import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { getJobDigests } from "@/job-digests/server";
 import { getProfiles } from "@/profiles/server";
-import { routes } from "@/routes";
+import { routes, type JobDigestSection } from "@/routes";
 import { loadJobDigestPage, type Params } from "../job-digest-page";
+
+/** What it is in the Work Pane. */
+const SECTION: AddressedKind = "section";
+const SETTINGS: JobDigestSection = "reglages";
 
 /**
  * The settings of the Job Digest of the Profile this one was sent for (#605): how often, changed in place, and the latest
@@ -18,7 +23,7 @@ export default async function JobDigestSettingsPage({ params }: Params) {
   const { profile } = jobDigest;
   const [settings, current] = await Promise.all([getJobDigests().settings(candidateId, profile.id), getProfiles().get(candidateId, profile.id)]);
   return (
-    <InWorkPane kind="section" title={t("jobDigest.page.settings")} href={routes.jobDigestSection(jobDigest.id, "reglages")} back={routes.jobDigest(jobDigest.id)}>
+    <InWorkPane kind={SECTION} title={t("jobDigest.page.settings")} href={routes.jobDigestSection(jobDigest.id, SETTINGS)} back={routes.jobDigest(jobDigest.id)}>
       <p>{t("jobDigest.hint")}</p>
       {current?.archived ? <p className="notice">{t("jobDigest.page.archived")}</p> : settings ? <JobDigestSettings profile={profile} jobDigest={settings} locale={locale} t={t} /> : null}
     </InWorkPane>

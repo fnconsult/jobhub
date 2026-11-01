@@ -2,8 +2,12 @@ import { notFound, redirect } from "next/navigation";
 import { JobOfferInPane } from "@/components/JobOfferInPane";
 import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
+import type { AddressedKind } from "@/components/work-pane";
 import { routes } from "@/routes";
 import { loadJobDigestPage } from "../../job-digest-page";
+
+/** What it is in the Work Pane. */
+const RESULT: AddressedKind = "result";
 
 type Params = { params: Promise<{ id: string; offre: string }> };
 
@@ -19,7 +23,7 @@ export default async function JobDigestOfferPage({ params }: Params) {
   if (!result) notFound();
   if (!pagesAreConversations()) redirect(routes.jobOffer(result.jobOffer.id, jobDigest.profile.id));
   return (
-    <InWorkPane kind="result" title={result.jobOffer.title} href={routes.jobDigestOffer(jobDigest.id, result.jobOffer.id)} back={routes.jobDigest(jobDigest.id)}>
+    <InWorkPane kind={RESULT} title={result.jobOffer.title} href={routes.jobDigestOffer(jobDigest.id, result.jobOffer.id)} back={routes.jobDigest(jobDigest.id)}>
       <JobOfferInPane result={result} profile={jobDigest.profile} t={t} locale={locale} />
     </InWorkPane>
   );

@@ -1,24 +1,47 @@
 import { SUPPORTED_LOCALES, type Locale } from "@jobhub/shared/i18n";
 import type { ParseKeys } from "i18next";
+import { ENGLISH_PREFIX, splitLocalePrefix } from "@/i18n/locale-header";
 import { routes } from "@/routes";
 
 /** A link of the public shell: `label` is its catalogue key. */
 export type ShellLink = { key: string; href: string; label: ParseKeys };
 
 /**
- * `href` in the language the page's URL chose (`?lang=`, src/proxy.ts), so a Visitor who picked English stays in it
- * from page to page; unchanged when the URL chose none, or for a link out of the site. The `/en` prefix (#545) will
- * take its place.
+ * `href` (a path of this site, its query and anchor included) at its address in `locale` (#545): under `/en` in English
+ * (`/en` for the home page), unprefixed in French. Unchanged without a locale, for a link out of the site, or for a
+ * path already under `/en`.
+ */
+export function localePath(href: string, locale?: Locale): string {
+  if (locale !== "en" || !href.startsWith("/") || splitLocalePrefix(href.split(/[?#]/, 1)[0]!).locale === "en") return href;
+  return href === "/" ? ENGLISH_PREFIX : /^\/[?#]/.test(href) ? `${ENGLISH_PREFIX}${href.slice(1)}` : `${ENGLISH_PREFIX}${href}`;
+}
+
+/**
+ * `href` with the URL's `lang` (#544), before its anchor, its query kept: the language a page shows whoever reads it,
+ * a signed-in Candidate's Interface Language included (« Lire le texte français », the switch of a signed-in
+ * Candidate). Unchanged without a language, or for a link out of the site.
  */
 export function withLang(href: string, lang?: Locale): string {
   if (!lang || !href.startsWith("/")) return href;
+  const { pathname, params, anchor } = parts(href);
+  params.set("lang", lang);
+  return `${pathname}?${params.toString()}${anchor}`;
+}
+
+/**
+ * A link of the public shell from a page whose URL is in `url` (#545): at its address in that language, so a Visitor
+ * who picked English stays in it from page to page; with `lang` too when the page's URL had one (see withLang).
+ */
+export function shellHref(href: string, { url, lang }: { url?: Locale | undefined; lang?: Locale | undefined }): string {
+  return withLang(localePath(href, url ?? lang), lang);
+}
+
+function parts(href: string): { pathname: string; params: URLSearchParams; anchor: string } {
   const hash = href.indexOf("#");
   const [path, anchor] = hash < 0 ? [href, ""] : [href.slice(0, hash), href.slice(hash)];
   const query = path.indexOf("?");
   const [pathname, search] = query < 0 ? [path, ""] : [path.slice(0, query), path.slice(query + 1)];
-  const params = new URLSearchParams(search);
-  params.set("lang", lang);
-  return `${pathname}?${params.toString()}${anchor}`;
+  return { pathname, params: new URLSearchParams(search), anchor };
 }
 
 /** The public header's links (#544), in its order; « Se connecter » or « Mon compte » come apart. */
@@ -86,7 +109,18 @@ export function footerColumns({
   ];
 }
 
-/** The page asked (`path`, its query included) in each language: the FR/EN switch. */
-export function languageLinks(path: string): { locale: Locale; href: string }[] {
-  return SUPPORTED_LOCALES.map((locale) => ({ locale, href: withLang(path, locale) }));
+/**
+ * The page asked (`path`, as asked: `/en` and its query included) in each language: the FR/EN switch (#544, #545).
+ * Each leads to the page's address in that language, its `lang` dropped. A signed-in Candidate reads every page in
+ * their Interface Language (#501), so their switch also says `lang`, which comes first.
+ */
+export function languageLinks(path: string, { signedIn = false }: { signedIn?: boolean } = {}): { locale: Locale; href: string }[] {
+  const { pathname, params, anchor } = parts(path);
+  params.delete("lang");
+  const search = params.toString();
+  const page = `${splitLocalePrefix(pathname).pathname}${search ? `?${search}` : ""}${anchor}`;
+  return SUPPORTED_LOCALES.map((locale) => {
+    const href = localePath(page, locale);
+    return { locale, href: signedIn ? withLang(href, locale) : href };
+  });
 }

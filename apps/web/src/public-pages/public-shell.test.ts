@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AIDE_ET_LEGAL, footerColumns, HEADER_LINKS, languageLinks, withLang } from "./public-shell";
+import { AIDE_ET_LEGAL, footerColumns, HEADER_LINKS, languageLinks, localePath, shellHref, withLang } from "./public-shell";
 
 const hrefs = (links: ReadonlyArray<{ href: string }>) => links.map((link) => link.href);
 
@@ -64,12 +64,46 @@ describe("the public footer (#544)", () => {
   });
 });
 
-describe("languageLinks", () => {
-  it("names the page itself in French and in English, its query kept", () => {
+describe("languageLinks (#545)", () => {
+  it("names the page itself at its French and its English address, its query kept and its `lang` dropped", () => {
     expect(languageLinks("/legal/cgv?version=1.0")).toEqual([
-      { locale: "fr", href: "/legal/cgv?version=1.0&lang=fr" },
-      { locale: "en", href: "/legal/cgv?version=1.0&lang=en" },
+      { locale: "fr", href: "/legal/cgv?version=1.0" },
+      { locale: "en", href: "/en/legal/cgv?version=1.0" },
     ]);
+    expect(languageLinks("/en/nouveautes?lang=en")).toEqual([
+      { locale: "fr", href: "/nouveautes" },
+      { locale: "en", href: "/en/nouveautes" },
+    ]);
+    expect(languageLinks("/en")).toEqual([
+      { locale: "fr", href: "/" },
+      { locale: "en", href: "/en" },
+    ]);
+  });
+
+  it("for a signed-in Candidate, whose Interface Language comes first, also says `lang`", () => {
+    expect(languageLinks("/en/legal/cgu", { signedIn: true })).toEqual([
+      { locale: "fr", href: "/legal/cgu?lang=fr" },
+      { locale: "en", href: "/en/legal/cgu?lang=en" },
+    ]);
+  });
+});
+
+describe("localePath and shellHref (#545)", () => {
+  it("puts a page of the site under /en in English, the home page at /en; French has no prefix", () => {
+    expect(localePath("/legal/confidentialite#ia", "en")).toBe("/en/legal/confidentialite#ia");
+    expect(localePath("/", "en")).toBe("/en");
+    expect(localePath("/?x=1", "en")).toBe("/en?x=1");
+    expect(localePath("/en/aide", "en")).toBe("/en/aide");
+    expect(localePath("/aide", "fr")).toBe("/aide");
+    expect(localePath("/aide")).toBe("/aide");
+    expect(localePath("mailto:contact@jobbbox.fr", "en")).toBe("mailto:contact@jobbbox.fr");
+  });
+
+  it("keeps the URL's language from page to page, and its `lang` when it had one", () => {
+    expect(shellHref("/nouveautes", { url: "en" })).toBe("/en/nouveautes");
+    expect(shellHref("/nouveautes", { url: "fr" })).toBe("/nouveautes");
+    expect(shellHref("/legal/cgu", { url: "en", lang: "en" })).toBe("/en/legal/cgu?lang=en");
+    expect(shellHref("https://chromewebstore.google.com/detail/jobbbox", { url: "en" })).toBe("https://chromewebstore.google.com/detail/jobbbox");
   });
 });
 

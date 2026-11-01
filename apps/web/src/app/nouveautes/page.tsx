@@ -4,10 +4,12 @@ import { PublicSite } from "@/design/PublicSite";
 import { ReleaseNotesView } from "@/design/ReleaseNotesView";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { nouveautesDeployment } from "@/public-pages/deployment";
+import { publicMetadata } from "@/public-pages/indexing-server";
+import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
-  return { title: `${t("publicSite.nouveautes")} · ${t("app.name")}` };
+  return { title: `${t("publicSite.nouveautes")} · ${t("app.name")}`, ...(await publicMetadata(routes.nouveautes, ["fr", "en"])) };
 }
 
 /**

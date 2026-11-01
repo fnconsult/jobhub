@@ -9,7 +9,14 @@ import { TextSizeControl } from "@/components/TextSizeControl";
 import { QuickActions } from "@/components/QuickActions";
 import { buttonClass } from "@/design/button-class";
 import { Note } from "@/design/Note";
+import type { Metadata } from "next";
 import { getServerT } from "@/i18n/server";
+import { publicMetadata } from "@/public-pages/indexing-server";
+
+/** The home page is indexed, in French at `/` and in English at `/en` (#545). */
+export async function generateMetadata(): Promise<Metadata> {
+  return publicMetadata(routes.home, ["fr", "en"]);
+}
 
 /**
  * The home page: in the sidebar layout for a signed-in Candidate, like every page of theirs (ADR-0024), the quick

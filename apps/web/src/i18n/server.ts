@@ -1,7 +1,7 @@
 import { createI18n, DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import { headers } from "next/headers";
 import { getCurrentCandidate } from "@/auth/server";
-import { LOCALE_HEADER, VISITOR_LOCALE_HEADER } from "./locale-header";
+import { LOCALE_HEADER, URL_LOCALE_HEADER, VISITOR_LOCALE_HEADER } from "./locale-header";
 
 /** A Candidate's Interface Language, or French for a Guest (or an unsupported setting). */
 export function localeOf(candidate: { interfaceLanguage?: unknown } | null | undefined): Locale {
@@ -23,10 +23,19 @@ export async function getRequestLocale(): Promise<Locale> {
   return isSupportedLocale(visitor) ? visitor : DEFAULT_LOCALE;
 }
 
-/** The language the request's URL chose with `lang`, for the public shell's links to carry on (#544); none otherwise. */
+/**
+ * The language of a public page's URL (#545): English under `/en`, French otherwise, or the one its `lang` chose; none
+ * off the public site. What the public shell's links, `canonical` and `hreflang` follow, whatever language a signed-in
+ * Candidate reads the page in.
+ */
 export async function getUrlLocale(): Promise<Locale | undefined> {
-  const all = await headers();
-  const chosen = all.get(LOCALE_HEADER) ?? all.get(VISITOR_LOCALE_HEADER);
+  const url = (await headers()).get(URL_LOCALE_HEADER);
+  return isSupportedLocale(url) ? url : undefined;
+}
+
+/** The language the URL's `lang` chose for a public page, whoever reads it (see LOCALE_HEADER); none otherwise. */
+export async function getChosenLocale(): Promise<Locale | undefined> {
+  const chosen = (await headers()).get(LOCALE_HEADER);
   return isSupportedLocale(chosen) ? chosen : undefined;
 }
 

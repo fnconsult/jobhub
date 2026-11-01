@@ -32,6 +32,11 @@ type Section = {
   mask?: string[];
   /** What the other specs lengthen above the target, left out of the page before it is shot, so the target lands where it did. */
   leaveOut?: string[];
+  /**
+   * What shows a date that is today's on CI's fresh database: its dates written as one fixed day before the page is
+   * shot. A mask hides a date but not its width, and a table's columns follow it (« 31 oct. 2026 », « 1 nov. 2026 »).
+   */
+  fixedDates?: string[];
 };
 
 const SECTIONS: Section[] = [
@@ -41,7 +46,13 @@ const SECTIONS: Section[] = [
   { name: "codes-promo", path: "/admin/codes-promo", ready: (page) => page.getByRole("heading", { name: admin.coupons.createTitle }) },
   { name: "coachs", path: "/admin/coachs", ready: (page) => page.getByRole("heading", { name: admin.humanCoaches.addTitle }) },
   { name: "cout-coach", path: "/admin/cout-coach", ready: (page) => page.getByRole("heading", { name: admin.coachCost.agents.title }) },
-  { name: "playbooks", path: "/admin/playbooks", ready: (page) => page.getByRole("table", { name: admin.coachingPlaybooks.caption }), mask: ["main tbody td:nth-child(2)"] },
+  {
+    name: "playbooks",
+    path: "/admin/playbooks",
+    ready: (page) => page.getByRole("table", { name: admin.coachingPlaybooks.caption }),
+    mask: ["main tbody td:nth-child(2)"],
+    fixedDates: ["main tbody td:nth-child(2)"],
+  },
   { name: "garde-fous", path: "/admin/garde-fous", ready: (page) => page.getByRole("table", { name: admin.guardrails.caption }) },
   {
     name: "questions-sans-reponse",
@@ -113,6 +124,17 @@ test.describe("every other Back Office section in the Design System (#466)", () 
       expect(await page.evaluate(() => document.documentElement.scrollWidth), "the page's width").toBeLessThanOrEqual(DESKTOP.width);
       await expectNoAxeViolations(page);
       if (section.leaveOut) await page.addStyleTag({ content: `${section.leaveOut.join(", ")} { display: none !important; }` });
+      for (const selector of section.fixedDates ?? []) {
+        await page.locator(selector).evaluateAll((elements) =>
+          elements.forEach((element) => {
+            // Its text alone, so the cell keeps its markup.
+            const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            for (let text = texts.nextNode(); text; text = texts.nextNode()) {
+              text.textContent = (text.textContent ?? "").replace(/\d{1,2} [^\s\d]+\.? \d{4}/gu, "1 janv. 2026");
+            }
+          }),
+        );
+      }
       // The page whole, its column drawn at once with nothing to scroll into view.
       const fitPage = async () => {
         await page.setViewportSize({ width: DESKTOP.width, height: await page.evaluate(() => document.documentElement.scrollHeight) });

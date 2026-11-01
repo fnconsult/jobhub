@@ -1297,6 +1297,56 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   }
 }
 
+/* The Context bar (#607), in Activité: a thin pill like the Usage Meter's, in the accent, in the warning colour from 80 %. */
+.context-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.context-bar p {
+  max-width: none;
+  margin: 0;
+}
+
+.context-bar-title {
+  font-weight: 600;
+}
+
+.context-bar-track {
+  display: block;
+  height: 0.375rem;
+  overflow: hidden;
+  background: var(--color-background);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+}
+
+.context-bar-track > span {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-control);
+}
+
+.context-bar[data-nearly-full] .context-bar-track > span {
+  background: var(--color-warn);
+}
+
+.context-bar-figures {
+  font-size: var(--font-size-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.context-bar-clear {
+  margin-top: var(--space-1);
+}
+
 /* Without room for both beside the conversation, the Work Pane takes the Fiche's place: FicheProvider decides (Fiche.tsx),
    so that « Fiche » and « Activité » in the Top Bar know what is shown. */
 .fiche[hidden] {

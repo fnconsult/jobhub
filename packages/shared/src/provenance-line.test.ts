@@ -137,11 +137,11 @@ describe("the Provenance line's numbers, as AI Activity writes them (#320)", () 
   });
 
   it.each([
-    [2100, 6400, "fr", "2 100 tokens, 6,4 secondes"],
-    [312, 790, "fr", "312 tokens, 790 millisecondes"],
+    [2100, 6400, "fr", "2 100 jetons, 6,4 secondes"],
+    [312, 790, "fr", "312 jetons, 790 millisecondes"],
     [10_900, 65_000, "en", "10,900 tokens, 1 minute 5 seconds"],
     [null, 21_500, "en", "21.5 seconds"],
-    [850, null, "fr", "850 tokens"],
+    [850, null, "fr", "850 jetons"],
   ] as const)("says %s tokens in %s ms in words for screen readers (%s)", (tokens, ms, language, words) => {
     expect(spokenMeasure(tokens, ms, language).replace(/\u202f|\u00a0/g, " ")).toBe(words);
   });

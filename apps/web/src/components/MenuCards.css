@@ -1,0 +1,37 @@
+/* The cards of the Sidebar menus' conversations (#604, #606): Mes candidatures, Recherches d'offres, Job Digests, the
+   Agenda and Mes coachs humains. Beside their components (ADR-0053). */
+
+/* Each line of a card's table opens its object: its link covers the whole line, for the pointer. */
+table[data-row-links] tbody tr {
+  position: relative;
+}
+
+table[data-row-links] tbody tr:hover {
+  background: var(--color-hover);
+}
+
+table[data-row-links] tbody th a::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+/* One group of a card (a Profile's Job Searches or Job Digests, the Human Coaches): its heading, then its lines. */
+.menu-card-group + .menu-card-group {
+  margin-top: var(--space-6);
+}
+
+.menu-card-group > h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-h3);
+}
+
+.menu-card-group > p,
+.menu-card-foot {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.menu-card-foot {
+  margin-top: var(--space-4);
+}

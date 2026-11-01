@@ -1,0 +1,457 @@
+import Link from "next/link";
+import type { AgendaDay, AgendaItem, CoachingSessionAgendaItem, InterviewAgendaItem, UnscheduledCoachingSession } from "@/agenda";
+import { agendaPeriod } from "@/agenda";
+import { calendarFileUrl, hasCalendarFile } from "@/agenda/calendar-file";
+import type { AgendaView, CalendarPeriod, CalendarView } from "@/agenda/calendar";
+import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
+import { AgendaDayButton } from "@/components/AgendaControls";
+import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
+import { EmptyStateHelp } from "@/components/HelpTerm";
+import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
+import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
+import { RescheduleHistory } from "@/components/RescheduleHistory";
+import { buttonClass } from "@/design/button-class";
+import { Note } from "@/design/Note";
+import { SegmentedLinks } from "@/design/SegmentedLinks";
+import type { getServerT } from "@/i18n/server";
+import { routes, type ApplicationSection } from "@/routes";
+import "@/app/agenda/agenda.css";
+
+/**
+ * The Agenda's views (ADR-0028), drawn on its page and, under « Conversation au centre » (#606, ADR-0070), in its menu's
+ * conversation: the list (upcoming or past) and « À planifier » on its card, the week and the month in the Work Pane.
+ */
+
+/** Where an Interview leads: its Application's Interviews Section. */
+const INTERVIEWS: ApplicationSection = "entretiens";
+/** How many markers a day of the month grid shows before « +n ». */
+const MARKERS = 3;
+/** The address's values for the week and month views. */
+const WEEK: CalendarView = "semaine";
+const MONTH: CalendarView = "mois";
+
+type T = Awaited<ReturnType<typeof getServerT>>;
+
+/** How the page writes days and times: in French time, in the Interface Language. */
+export interface Formats {
+  /** The time formatter, for `InterviewTimes`: "14:30". */
+  timeFormat: Intl.DateTimeFormat;
+  /** "14:30". */
+  time: (value: Date) => string;
+  /** A calendar day ("2026-10-22") in full: "jeudi 22 octobre 2026". */
+  fullDay: (day: string) => string;
+  /** "jeudi 22 octobre". */
+  weekday: (day: string) => string;
+  /** "jeudi". */
+  weekdayName: (day: string) => string;
+  /** "jeu.". */
+  weekdayShort: (day: string) => string;
+  /** "22". */
+  dayNumber: (day: string) => string;
+  /** The month a day is in: "octobre 2026". */
+  month: (day: string) => string;
+  /** The days from `first` to `last` ("19–25 octobre 2026"). */
+  range: (first: string, last: string) => string;
+  /** Whether an Agenda Item is past: before today, as in the list. */
+  isPast: (item: AgendaItem) => boolean;
+  /** When a date changed, and the dates changed from and to: "22 octobre 2026 à 14:30". */
+  changedAt: Intl.DateTimeFormat;
+  /** The day an item was cancelled, or a session paid: "22 octobre 2026". */
+  day: Intl.DateTimeFormat;
+}
+
+/** A calendar day at noon UTC: always that same day in French time, so `Intl` writes it in Europe/Paris. */
+const noonOf = (day: string) => new Date(`${day}T12:00:00Z`);
+
+export function formatsFor(locale: string, now: Date): Formats {
+  const zone = { timeZone: INTERVIEW_TIME_ZONE };
+  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", ...zone });
+  const dayIn = (options: Intl.DateTimeFormatOptions) => {
+    const format = new Intl.DateTimeFormat(locale, { ...options, ...zone });
+    return (day: string) => format.format(noonOf(day));
+  };
+  const range = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", ...zone });
+  return {
+    timeFormat: time,
+    time: (value) => time.format(value),
+    fullDay: dayIn({ dateStyle: "full" }),
+    weekday: dayIn({ weekday: "long", day: "numeric", month: "long" }),
+    weekdayName: dayIn({ weekday: "long" }),
+    weekdayShort: dayIn({ weekday: "short" }),
+    dayNumber: dayIn({ day: "numeric" }),
+    month: dayIn({ month: "long", year: "numeric" }),
+    range: (first, last) => range.formatRange(noonOf(first), noonOf(last)),
+    isPast: (item) => agendaPeriod(item.scheduledAt, now) === "past",
+    changedAt: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", ...zone }),
+    day: new Intl.DateTimeFormat(locale, { dateStyle: "long", ...zone }),
+  };
+}
+
+
+/** « Liste », « Semaine », « Mois »: the Design System's segmented control, each view a link, the one shown `aria-current`. Week and month keep the day shown. */
+export function ViewSwitch({ view, date, t }: { view: AgendaView; date: string; t: T }) {
+  const views: { id: AgendaView; href: string; label: string }[] = [
+    { id: "liste", href: routes.agendaList(), label: t("agenda.listView") },
+    { id: "semaine", href: routes.agendaCalendar("semaine", date), label: t("agenda.weekView") },
+    { id: "mois", href: routes.agendaCalendar("mois", date), label: t("agenda.monthView") },
+  ];
+  return <SegmentedLinks label={t("agenda.viewsLabel")} links={views} shown={view} />;
+}
+
+/** What the shapes say, in every view: a disc for an Interview, a hollow diamond for a Coaching Session; and that the past is dimmed. */
+export function Legend({ t }: { t: T }) {
+  return (
+    <ul className="agenda-legend" aria-label={t("agenda.legendLabel")}>
+      <li>
+        <span className="agenda-marker agenda-marker-interview" aria-hidden="true" />
+        {t("agenda.interview")}
+      </li>
+      <li>
+        <span className="agenda-marker agenda-marker-coachingSession" aria-hidden="true" />
+        {t("agenda.coachingSession")}
+      </li>
+      <li>{t("agenda.pastDimmed")}</li>
+    </ul>
+  );
+}
+
+/** The list: upcoming Agenda Items by day, oldest first, or the past ones, newest first and dimmed. */
+export function AgendaList({ days, past, withdrawable, formats, t }: { days: AgendaDay[]; past: boolean; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  return (
+    <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby="agenda-period-title">
+      <div className="agenda-period-head">
+        <h2 id="agenda-period-title" className="agenda-period-title">
+          {t(past ? "agenda.pastTitle" : "agenda.upcomingTitle")}
+        </h2>
+        <Link className={buttonClass({ variant: "quiet" })} href={routes.agendaList(!past)}>
+          {t(past ? "agenda.showUpcoming" : "agenda.showPast")}
+        </Link>
+      </div>
+      {days.length === 0 ? (
+        <Note>
+          {t(past ? "agenda.nonePast" : "agenda.none")}
+          {past ? null : (
+            <>
+              {" "}
+              <EmptyStateHelp of="agenda" />
+            </>
+          )}
+        </Note>
+      ) : (
+        <div className="agenda-days">
+          {days.map((day) => {
+            const titleId = `agenda-day-${day.day}`;
+            return (
+              <section key={day.day} className="agenda-day" aria-labelledby={titleId}>
+                <h3 id={titleId}>
+                  <time dateTime={day.day}>
+                    <span className="agenda-day-weekday">{formats.weekdayName(day.day)}</span> <span className="agenda-day-date">{formats.day.format(noonOf(day.day))}</span>
+                  </time>
+                </h3>
+                <Items items={day.items} withdrawable={withdrawable} formats={formats} t={t} />
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** « Précédent », « Aujourd'hui », « Suivant » for a week or a month. */
+function PeriodNav({ view, period, today, t }: { view: CalendarView; period: CalendarPeriod; today: string; t: T }) {
+  return (
+    <nav className="agenda-period-nav" aria-label={t(view === "semaine" ? "agenda.weekNavLabel" : "agenda.monthNavLabel")}>
+      <Link className={buttonClass()} href={routes.agendaCalendar(view, period.previous)}>
+        <span aria-hidden="true">←</span> {t("agenda.previous")}
+      </Link>
+      <Link className={buttonClass()} href={routes.agendaCalendar(view, today)}>
+        {t("agenda.today")}
+      </Link>
+      <Link className={buttonClass()} href={routes.agendaCalendar(view, period.next)}>
+        {t("agenda.next")} <span aria-hidden="true">→</span>
+      </Link>
+    </nav>
+  );
+}
+
+/** The week: Monday to Sunday, one column per day with its items and their time, no hourly grid; the days stacked on phones. */
+export function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; today: string; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  return (
+    <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
+      <div className="agenda-period-head">
+        <h2 id="agenda-period-title" className="agenda-period-title">
+          {t("agenda.weekTitle", { range: formats.range(period.first, period.last) })}
+        </h2>
+        <PeriodNav view={WEEK} period={period} today={today} t={t} />
+      </div>
+      <ol className="agenda-week">
+        {period.weeks[0]!.map((day) => {
+          const items = byDay.get(day) ?? [];
+          const titleId = `agenda-day-${day}`;
+          return (
+            <li key={day} className={day === today ? "agenda-week-day agenda-today" : "agenda-week-day"}>
+              <section aria-labelledby={titleId}>
+                <h3 id={titleId}>
+                  <time dateTime={day} aria-current={day === today ? "date" : undefined}>
+                    {formats.weekday(day)}
+                  </time>
+                </h3>
+                {items.length === 0 ? <p className="agenda-nothing">{t("agenda.nothing")}</p> : <Items items={items} withdrawable={withdrawable} formats={formats} t={t} />}
+              </section>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/**
+ * The month: a table of days, Monday first, with a marker per item (a disc for an Interview,
+ * a hollow diamond for a Coaching Session: told apart by shape, not colour alone). Each day is a
+ * button, reached by Tab, that names its date and its number of items; the day chosen (the
+ * address's date) lists its items below the grid. The buttons submit a GET form, so they work
+ * without JavaScript too.
+ */
+export function AgendaMonth({
+  period,
+  byDay,
+  selected,
+  today,
+  withdrawable,
+  formats,
+  t,
+}: {
+  period: CalendarPeriod;
+  byDay: Map<string, AgendaItem[]>;
+  selected: string;
+  today: string;
+  withdrawable: Withdrawable;
+  formats: Formats;
+  t: T;
+}) {
+  const chosen = byDay.get(selected) ?? [];
+  return (
+    <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
+      <div className="agenda-period-head">
+        <h2 id="agenda-period-title" className="agenda-period-title">
+          {formats.month(period.first)}
+        </h2>
+        <PeriodNav view={MONTH} period={period} today={today} t={t} />
+      </div>
+      <form method="get" action="/agenda">
+        <input type="hidden" name="vue" value={MONTH} />
+        <table className="agenda-month" aria-labelledby="agenda-period-title">
+          <thead>
+            <tr>
+              {period.weeks[0]!.map((day) => (
+                <th key={day} scope="col">
+                  <abbr title={formats.weekdayName(day)}>{formats.weekdayShort(day)}</abbr>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {period.weeks.map((week) => (
+              <tr key={week[0]}>
+                {week.map((day) => {
+                  if (day < period.first || day > period.last) return <td key={day} className="agenda-month-outside" />;
+                  const items = byDay.get(day) ?? [];
+                  return (
+                    <td key={day}>
+                      <AgendaDayButton
+                        day={day}
+                        href={routes.agendaCalendar(MONTH, day)}
+                        label={t("agenda.dayItems", { date: formats.weekday(day), count: items.length })}
+                        selected={day === selected}
+                        today={day === today}
+                        className={monthDayClass(day, today)}
+                      >
+                        <span className="agenda-month-number">{formats.dayNumber(day)}</span>
+                        {items.length > 0 ? (
+                          <span className="agenda-markers" aria-hidden="true">
+                            {items.slice(0, MARKERS).map((item) => (
+                              <span key={`${item.kind}-${item.id}`} className={`agenda-marker agenda-marker-${item.kind}`} />
+                            ))}
+                            {items.length > MARKERS ? <span className="agenda-markers-more">+{items.length - MARKERS}</span> : null}
+                          </span>
+                        ) : null}
+                      </AgendaDayButton>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </form>
+      <section className="agenda-day agenda-chosen-day" aria-labelledby="agenda-chosen-day-title" aria-live="polite">
+        <h3 id="agenda-chosen-day-title">
+          <time dateTime={selected}>{formats.fullDay(selected)}</time>
+        </h3>
+        {chosen.length === 0 ? <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p> : <Items items={chosen} withdrawable={withdrawable} formats={formats} t={t} />}
+      </section>
+    </section>
+  );
+}
+
+/** A day button of the month grid: dimmed before today, today ringed. */
+function monthDayClass(day: string, today: string): string {
+  return ["agenda-month-day", day < today ? "agenda-month-day-past" : "", day === today ? "agenda-today" : ""].filter(Boolean).join(" ");
+}
+
+/**
+ * « À planifier »: the Unscheduled Coaching Sessions, paid but with no date yet, or cancelled. Each names its
+ * Human Coach, leads to their Cal.com booking page and lets the Candidate enter the date booked; a cancelled
+ * one keeps its history.
+ */
+export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: UnscheduledCoachingSession[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  return (
+    <section className="agenda-to-schedule" aria-labelledby="agenda-to-schedule-title">
+      <h2 id="agenda-to-schedule-title">{t("agenda.toSchedule")}</h2>
+      <p>{t("agenda.toScheduleIntro")}</p>
+      <ul className="agenda-unscheduled-list">
+        {sessions.map((session) => (
+          <li key={session.id} className="agenda-unscheduled">
+            <span className="agenda-marker agenda-marker-coachingSession" aria-hidden="true" />
+            <div className="agenda-unscheduled-what">
+              <p className="agenda-item-title">{t("humanCoaches.sessionPaidOn", { name: session.coach.name, date: formats.day.format(session.paidAt) })}</p>
+              <RescheduleHistory reschedules={session.reschedules} coachName={session.coach.name} dateTime={formats.changedAt} t={t} />
+            </div>
+            <div className="agenda-unscheduled-actions">
+              <a className={buttonClass({ variant: "primary" })} href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
+                {t("humanCoaches.pickSlot", { name: session.coach.name })}
+              </a>
+              <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
+              {withdrawable.has(session.id) ? <WithdrawalLink sessionId={session.id} coachName={session.coach.name} t={t} /> : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** A day's Agenda Items, each with its time; the past ones dimmed. */
+function Items({ items, withdrawable, formats, t }: { items: AgendaItem[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  return (
+    <ul className="agenda-items">
+      {items.map((item) =>
+        item.kind === "interview" ? (
+          <InterviewItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formats={formats} t={t} />
+        ) : (
+          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} withdrawable={withdrawable.has(item.id)} formats={formats} t={t} />
+        ),
+      )}
+    </ul>
+  );
+}
+
+/**
+ * A dated Coaching Session: its time, its Human Coach and duration, and « modifié par le coach » when
+ * the Human Coach was the last to change its date, leading to them on the Human Coaches page;
+ * its Reschedule history, and its date can be edited, or the session cancelled, here.
+ */
+function CoachingSessionItem({ item, past, withdrawable, formats, t }: { item: CoachingSessionAgendaItem; past: boolean; withdrawable: boolean; formats: Formats; t: T }) {
+  return (
+    <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
+      <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
+        <time className="agenda-item-time" dateTime={item.scheduledAt.toISOString()}>
+          {formats.time(item.scheduledAt)}
+        </time>
+        <span className="agenda-item-what">
+          <span className="agenda-item-kind">
+            <span className="agenda-marker agenda-marker-coachingSession" aria-hidden="true" />
+            {t("agenda.coachingSession")}
+          </span>
+          <span className="agenda-item-title">{t("agenda.withCoach", { name: item.coach.name })}</span>
+          {item.durationMinutes ? <span className="agenda-item-employer">{t("agenda.duration", { count: item.durationMinutes })}</span> : null}
+          {item.changedBy === "coach" ? <span className="agenda-item-changed">{t("agenda.changedByCoach")}</span> : null}
+        </span>
+      </Link>
+      <CoachingSessionDialog
+        session={{ id: item.id, scheduledAt: interviewWallClock(item.scheduledAt), durationMinutes: item.durationMinutes ?? null, videoLink: item.videoLink ?? null, note: item.note ?? null }}
+        withName={item.coach.name}
+        className={buttonClass({ variant: "quiet" })}
+      />
+      {past ? null : <CalendarFileLink item={item} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />}
+      <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
+      <CancelAgendaItemButton
+        url={`/api/coaching/sessions/${item.id}/cancel`}
+        label={t("agendaChanges.cancelSession")}
+        name={t("agendaChanges.cancelSessionFor", { name: item.coach.name })}
+        question={t("agendaChanges.cancelSessionConfirm")}
+      />
+      {withdrawable ? <WithdrawalLink sessionId={item.id} coachName={item.coach.name} t={t} /> : null}
+    </li>
+  );
+}
+
+/** The ids of the Coaching Sessions the Candidate may still withdraw from (#511). */
+export type Withdrawable = ReadonlySet<string>;
+
+/** « Renoncer au contrat ici » for a Coaching Session (#511): to its Withdrawal form, named with its Human Coach. */
+function WithdrawalLink({ sessionId, coachName, t }: { sessionId: string; coachName: string; t: T }) {
+  return (
+    <Link className={buttonClass({ variant: "quiet" })} href={routes.withdrawal(`coaching-session:${sessionId}`)} aria-label={t("withdrawals.agenda.label", { name: coachName })}>
+      {t("withdrawals.page.title")}
+    </Link>
+  );
+}
+
+/**
+ * An Interview: its start and end times and the Job Offer's title and company, leading to
+ * its Application's Interviews Section; then its format and place, a link in it clickable,
+ * and its Reschedule history. A Cancelled Interview is struck through, with its date of cancellation.
+ */
+function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; past: boolean; formats: Formats; t: T }) {
+  const className = ["agenda-item", past ? "agenda-item-past" : "", item.cancelledAt ? "agenda-item-cancelled" : ""].filter(Boolean).join(" ");
+  return (
+    <li className={className} data-kind={item.kind}>
+      <Link className="agenda-item-link" href={routes.applicationSection(item.applicationId, INTERVIEWS)}>
+        <span className="agenda-item-time">
+          <InterviewTimes interview={item} time={formats.timeFormat} />
+        </span>
+        <span className="agenda-item-what">
+          <span className="agenda-item-kind">
+            <span className="agenda-marker agenda-marker-interview" aria-hidden="true" />
+            {t(item.cancelledAt ? "agendaChanges.cancelledInterview" : "agenda.interview")}
+          </span>
+          <span className="agenda-item-title">{item.jobTitle}</span>
+          {item.employer ? <span className="agenda-item-employer">{item.employer}</span> : null}
+        </span>
+      </Link>
+      {item.cancelledAt ? <p className="cancelled-on">{t("agendaChanges.cancelledOn", { date: formats.day.format(item.cancelledAt) })}</p> : null}
+      <InterviewFacts interview={item} t={t} />
+      {past ? null : <CalendarFileLink item={item} what={item.jobTitle} formats={formats} t={t} />}
+      <RescheduleHistory reschedules={item.reschedules} dateTime={formats.changedAt} t={t} />
+    </li>
+  );
+}
+
+/**
+ * « Ajouter à mon calendrier »: an upcoming Agenda Item's Calendar file (ADR-0029), with the hint that a
+ * later change needs a new download. None for a Cancelled Agenda Item. Its accessible name says which item
+ * (`what`) and when, since the Agenda lists several.
+ */
+function CalendarFileLink({ item, what, formats, t }: { item: AgendaItem; what: string; formats: Formats; t: T }) {
+  if (!hasCalendarFile(item)) return null;
+  const hintId = `calendar-file-hint-${item.kind}-${item.id}`;
+  return (
+    <p className="agenda-calendar-file">
+      <a
+        className={buttonClass({ variant: "quiet" })}
+        href={calendarFileUrl(item)}
+        download
+        aria-label={t("agenda.calendarFile.addFor", { what, date: formats.changedAt.format(item.scheduledAt) })}
+        aria-describedby={hintId}
+      >
+        {t("agenda.calendarFile.add")}
+      </a>
+      <span id={hintId} className="agenda-calendar-file-hint">
+        {t("agenda.calendarFile.hint")}
+      </span>
+    </p>
+  );
+}

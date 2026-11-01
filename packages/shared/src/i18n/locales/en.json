@@ -4866,6 +4866,35 @@
     "showArchived": "Show them",
     "hideArchived": "Hide archived applications"
   },
+  "jobSearchesMenu": {
+    "introduction": "Here are your job searches, by profile. Ask me which job offers to look at first or how to widen your criteria; to find new job offers, start a search.",
+    "title": "Your job searches by profile",
+    "tableLabel": "Job searches for “{{profile}}”",
+    "found": "Job offers found",
+    "stillSearching": "still searching",
+    "unseen": "New results",
+    "none": "No job search for this profile yet.",
+    "receivedByEmail": "See the job offers received by email",
+    "start": "Start a search",
+    "startFor": "Start a search · {{profile}}"
+  },
+  "jobDigestsMenu": {
+    "introduction": "Here are your Job Digests, by profile: the new job offers that match your criteria, sent by email. Ask me which ones to look at first; set how often they come here.",
+    "title": "Your Job Digests by profile",
+    "tableLabel": "Job Digests of “{{profile}}”",
+    "sentOn": "Sent on",
+    "count": "Job offers",
+    "none": "No Job Digest sent for this profile yet."
+  },
+  "agendaMenu": {
+    "introduction": "Here are your interviews and appointments. Ask me to prepare an interview or to remind you what is coming; the week and the month open beside our conversation.",
+    "title": "Interviews and appointments",
+    "addInterview": "Add an interview"
+  },
+  "humanCoachesMenu": {
+    "introduction": "Here are your human coaches and your coaching sessions. Ask me how to prepare a session; to book one, choose a coach below.",
+    "sessionsNone": "No coaching session yet."
+  },
   "conversationFirst": {
     "newConversation": "New conversation",
     "coach": "Coach",

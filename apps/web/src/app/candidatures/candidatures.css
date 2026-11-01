@@ -165,18 +165,3 @@ th[aria-sort] .applications-sort__mark {
   margin: var(--space-3) 0 0;
   color: var(--color-text-secondary);
 }
-
-/* Each line of the card opens its Application: its link covers the whole line, for the pointer. */
-table[data-row-links] tbody tr {
-  position: relative;
-}
-
-table[data-row-links] tbody tr:hover {
-  background: var(--color-hover);
-}
-
-table[data-row-links] tbody th a::after {
-  position: absolute;
-  inset: 0;
-  content: "";
-}

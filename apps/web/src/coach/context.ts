@@ -40,6 +40,7 @@ import type { JobDigest, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
 import type { JobSearch, JobSearches } from "../job-searches";
 import type { Profile, Profiles } from "../profiles";
+import { estimateTokens } from "./conversation";
 
 /** What the Candidate has in view while talking to the AI Coach. */
 export type CoachFocus =
@@ -91,8 +92,8 @@ export const DATA_RULE =
  */
 export const asData = (text: string, tag = "donnees") => `<${tag}>\n${text.replace(/</g, "‹").replace(/>/g, "›")}\n</${tag}>`;
 
-/** The context's size cap, in estimated tokens. */
-export const COACH_CONTEXT_MAX_TOKENS = 12_000;
+/** The context's size cap, in estimated tokens, and how it is estimated: kept with the conversation window, which the browser bundles too. */
+export { COACH_CONTEXT_MAX_TOKENS, estimateTokens } from "./conversation";
 
 /** How many items each summary holds at most. */
 export const SUMMARY_ITEMS = 5;
@@ -105,11 +106,6 @@ export const IN_VIEW_MATCH_SCORES = 30;
 
 /** How far ahead the Agenda In view reaches, in days. */
 export const AGENDA_IN_VIEW_DAYS = 30;
-
-/** A rough token count (about 4 characters per token), enough to keep the context under its cap. */
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
 
 /** A summarised part of the context: a heading and one line per item, the least useful last. */
 interface Summary {

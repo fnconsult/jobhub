@@ -3,7 +3,7 @@ kind: tutorial
 audience: candidate
 topic: extension
 title: Enregistrer une offre avec l'extension
-synonyms: [extension, navigateur, chrome, capturer, enregistrer une offre, ajouter une offre, analyser une offre, nouvelle candidature]
+synonyms: [extension, navigateur, chrome, capturer, enregistrer une offre, ajouter une offre, nouvelle candidature]
 ---
 L'extension Jobbbox enregistre dans vos candidatures l'offre d'emploi que vous lisez, sans la recopier.
 

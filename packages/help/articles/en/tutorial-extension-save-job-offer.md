@@ -3,7 +3,7 @@ kind: tutorial
 audience: candidate
 topic: extension
 title: Save a job offer with the extension
-synonyms: [extension, browser, chrome, capture, save a job offer, add a job offer, analyse an offer, new application]
+synonyms: [extension, browser, chrome, capture, save a job offer, add a job offer, new application]
 ---
 The Jobbbox extension saves the job offer you are reading to your applications, without copying it out.
 

@@ -835,7 +835,6 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "capturer",
         "enregistrer une offre",
         "ajouter une offre",
-        "analyser une offre",
         "nouvelle candidature"
       ],
       "route": null,
@@ -1669,7 +1668,6 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "capture",
         "save a job offer",
         "add a job offer",
-        "analyse an offer",
         "new application"
       ],
       "route": null,

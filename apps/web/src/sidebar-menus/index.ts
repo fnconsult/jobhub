@@ -27,3 +27,9 @@ export function unfoldMenu(objects: readonly MenuObject[]): UnfoldedMenu {
   }
   return { shown: objects.filter((object) => kept.has(object)), total: objects.length };
 }
+
+/** How a menu names the day of a dated object (a Job Search, a Job Digest), in French time: « 12 oct. » (#606). */
+export function objectDay(locale: string): (date: Date) => string {
+  const format = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "Europe/Paris" });
+  return (date) => format.format(date);
+}

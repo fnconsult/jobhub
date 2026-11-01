@@ -11,6 +11,7 @@ import { Table, type Column } from "@/design/Table";
 import { getFollowUps } from "@/follow-ups/server";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import "./MenuCards.css";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 

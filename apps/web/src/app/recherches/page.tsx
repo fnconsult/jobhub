@@ -13,6 +13,8 @@ import { Icons } from "@/components/icons";
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RefreshWhileSearching, StartAllJobSearchesButton, StartJobSearchButton } from "@/components/JobSearchControls";
 import { JobSearchTabs } from "@/components/JobSearchTabs";
+import { JobSearchesMenuPage } from "@/components/JobSearchesMenuPage";
+import { conversationFirst } from "@/conversation-first";
 import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
 import { searchCriteriaInWords } from "@/components/job-search-words";
 import { buttonClass } from "@/design/button-class";
@@ -79,10 +81,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * arrived this week, then « Non classées », the emails ignored this week and « Filtre trop large » when it is.
  * Drawn in the Design System's Confort Density (#467): the Profile and its Search Criteria on a card, a search under
  * way as its live Activity step, the Job Offers as cards, and empty states with their link to the help.
+ * Under « Conversation au centre » (#606, ADR-0070), the menu's conversation is the page instead, the Job Searches by
+ * Profile a card in its thread (see JobSearchesMenuPage); « recues=1 » in the address opens « Reçues par email » in the
+ * Work Pane.
  */
-export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profil?: string; vue?: string }> }) {
+export default async function JobSearchesPage({ searchParams }: { searchParams: Promise<{ profil?: string; vue?: string; recues?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
+  if (conversationFirst(getPlatformSettingsResolver().current())) {
+    const [t, params] = await Promise.all([getServerT(), searchParams]);
+    return (
+      <CandidateLayout candidateId={candidate.id} title={t("sidebar.jobSearches")}>
+        <JobSearchesMenuPage candidateId={candidate.id} received={params.recues !== undefined} />
+      </CandidateLayout>
+    );
+  }
   const [t, locale, profiles, params, industries] = await Promise.all([getServerT(), getRequestLocale(), getProfiles().list(candidate.id), searchParams, readIndustryReference()]);
   const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const first = active[0];

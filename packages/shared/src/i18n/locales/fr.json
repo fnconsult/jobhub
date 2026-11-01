@@ -4944,6 +4944,35 @@
     "showArchived": "Les afficher",
     "hideArchived": "Masquer les candidatures archivées"
   },
+  "jobSearchesMenu": {
+    "introduction": "Voici vos recherches d'offres, par profil. Demandez-moi quelles offres regarder en premier ou comment élargir vos critères ; pour trouver de nouvelles offres, lancez une recherche.",
+    "title": "Vos recherches par profil",
+    "tableLabel": "Recherches pour « {{profile}} »",
+    "found": "Offres trouvées",
+    "stillSearching": "recherche en cours",
+    "unseen": "Nouveaux résultats",
+    "none": "Aucune recherche pour ce profil pour l'instant.",
+    "receivedByEmail": "Voir les offres reçues par email",
+    "start": "Lancer une recherche",
+    "startFor": "Lancer une recherche · {{profile}}"
+  },
+  "jobDigestsMenu": {
+    "introduction": "Voici vos Job Digests, par profil : les nouvelles offres qui correspondent à vos critères, envoyées par email. Demandez-moi lesquelles regarder en premier ; leur fréquence se règle ici.",
+    "title": "Vos Job Digests par profil",
+    "tableLabel": "Job Digests de « {{profile}} »",
+    "sentOn": "Envoyé le",
+    "count": "Offres",
+    "none": "Aucun Job Digest envoyé pour ce profil pour l'instant."
+  },
+  "agendaMenu": {
+    "introduction": "Voici vos entretiens et rendez-vous. Demandez-moi de préparer un entretien ou de vous rappeler ce qui vient ; la semaine et le mois s'ouvrent à côté de notre conversation.",
+    "title": "Entretiens et rendez-vous",
+    "addInterview": "Ajouter un entretien"
+  },
+  "humanCoachesMenu": {
+    "introduction": "Voici vos coachs humains et vos séances de coaching. Demandez-moi comment préparer une séance ; pour en réserver une, choisissez un coach ci-dessous.",
+    "sessionsNone": "Aucune séance de coaching pour l'instant."
+  },
   "conversationFirst": {
     "newConversation": "Nouvelle conversation",
     "coach": "Coach",

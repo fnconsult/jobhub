@@ -106,6 +106,11 @@ export interface JobDigestSummary {
   count: number;
 }
 
+/** A Job Digest as the Job Digests menu lists it (#606): its Profile too. */
+export interface ListedJobDigest extends JobDigestSummary {
+  profile: { id: string; name: string };
+}
+
 export interface JobDigestSettings {
   /** Whether the Candidate receives the Job Digest of this Profile: opted in, and their Plan includes it. */
   subscribed: boolean;
@@ -170,6 +175,8 @@ export interface JobDigests {
   unsubscribe(candidateId: string, profileId: string): Promise<void>;
   /** Opts out with the token of an email's unsubscribe link. False when the token names no opt-in (any more). */
   unsubscribeByToken(token: string): Promise<boolean>;
+  /** Every Job Digest sent to the Candidate, of any Profile, newest first (#606). */
+  list(candidateId: string): Promise<ListedJobDigest[]>;
   /** One of the Candidate's Job Digests, its Job Offers scored now and ranked; null if it is not theirs. */
   get(candidateId: string, jobDigestId: string): Promise<JobDigest | null>;
   /**
@@ -527,6 +534,15 @@ export function createJobDigests(database: Pool, deps: JobDigestsDeps): JobDiges
       return (rowCount ?? 0) > 0;
     },
 
+    async list(candidateId) {
+      const { rows } = await database.query<{ id: string; profile_id: string; profile_name: string; sent_at: Date; count: number }>(
+        `SELECT d.id, d.profile_id, p.name AS profile_name, d.sent_at, cardinality(d.job_offer_ids) AS count
+           FROM job_digest d JOIN profile p ON p.id = d.profile_id
+          WHERE d.candidate_id = $1 ORDER BY d.sent_at DESC`,
+        [candidateId],
+      );
+      return rows.map((row) => ({ id: row.id, profile: { id: row.profile_id, name: row.profile_name }, sentAt: row.sent_at, count: row.count }));
+    },
     async get(candidateId, jobDigestId) {
       if (!UUID.test(jobDigestId)) return null;
       const { rows } = await database.query<DigestRow>(

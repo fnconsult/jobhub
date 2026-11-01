@@ -599,3 +599,13 @@
 .agenda-chosen-day h3::first-letter {
   text-transform: uppercase;
 }
+
+/* The week or the month in the Work Pane (#606): the pane's title names the period, so its own would say it twice. It
+   still names the view (aria-labelledby reads a hidden heading); « Précédent », « Aujourd'hui », « Suivant » stay. */
+.work-pane-addressed > .agenda > .agenda-period-head > .agenda-period-title {
+  display: none;
+}
+
+.work-pane-addressed > .agenda > .agenda-period-head {
+  justify-content: flex-end;
+}

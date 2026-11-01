@@ -86,8 +86,10 @@ const suggestions = (page: Page) => conversation(page).getByRole("group", { name
 const sidebar = (page: Page) => page.locator(".sidebar-docked").getByRole("navigation", { name: fr.sidebar.label });
 const workPane = (page: Page) => page.getByRole("complementary").filter({ has: page.getByRole("button", { name: texts.close, exact: true }) });
 
-async function noAxeViolations(page: Page) {
-  const axe = await new AxeBuilder({ page }).include(".page-conversation").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+/** axe on the page's conversation, and on the Work Pane beside it when `withPane` (duplicate-id-aria included: two views share the page). */
+async function noAxeViolations(page: Page, { withPane = false } = {}) {
+  const builder = new AxeBuilder({ page }).include(".page-conversation");
+  const axe = await (withPane ? builder.include(".work-pane") : builder).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(axe.violations.map(({ id }) => id)).toEqual([]);
 }
 
@@ -215,6 +217,9 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await expect(page).toHaveURL(/\/agenda\?vue=semaine/);
     await expect(workPane(page).getByRole("heading", { level: 2, name: new RegExp(`^${tr(fr.agenda.weekTitle, { range: "" })}`) })).toBeVisible();
     await expect(conversation(page)).toBeVisible();
+    // The list on the card and the week in the pane each have their own name: no id given twice.
+    await expect(page.getByRole("region", { name: new RegExp(`^${tr(fr.agenda.weekTitle, { range: "" })}`) })).toBeVisible();
+    await noAxeViolations(page, { withPane: true });
     await workPane(page).getByRole("button", { name: texts.close, exact: true }).click();
     await expect(page).toHaveURL(`${server.origin}/agenda`);
     await expect(workPane(page)).toHaveCount(0);
@@ -223,6 +228,7 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await conversation(page).getByRole("link", { name: fr.agenda.monthView, exact: true }).click();
     await expect(page).toHaveURL(/\/agenda\?vue=mois/);
     await expect(workPane(page).getByRole("table")).toBeVisible();
+    await noAxeViolations(page, { withPane: true });
     await workPane(page).getByRole("button", { name: texts.close, exact: true }).click();
     await expect(page).toHaveURL(`${server.origin}/agenda`);
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useId } from "react";
 import type { AgendaDay, AgendaItem, CoachingSessionAgendaItem, InterviewAgendaItem, UnscheduledCoachingSession } from "@/agenda";
 import { agendaPeriod } from "@/agenda";
 import { calendarFileUrl, hasCalendarFile } from "@/agenda/calendar-file";
@@ -31,6 +32,18 @@ const WEEK: CalendarView = "semaine";
 const MONTH: CalendarView = "mois";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
+
+/**
+ * The ids of one view's elements. Under « Conversation au centre » the list stays on the card while the week or the
+ * month opens in the Work Pane, so two views share a page: each view takes its own `scope` (useId), and every id it
+ * gives (its title, its days, its items' Calendar file hints) is under it. Never a fixed id, or `aria-labelledby`
+ * names the pane's view after the list (axe's duplicate-id-aria).
+ */
+const ids = (scope: string) => ({
+  title: `${scope}-title`,
+  day: (day: string) => `${scope}-day-${day}`,
+  chosenDay: `${scope}-chosen-day`,
+});
 
 /** How the page writes days and times: in French time, in the Interface Language. */
 export interface Formats {
@@ -117,10 +130,12 @@ export function Legend({ t }: { t: T }) {
 
 /** The list: upcoming Agenda Items by day, oldest first, or the past ones, newest first and dimmed. */
 export function AgendaList({ days, past, withdrawable, formats, t }: { days: AgendaDay[]; past: boolean; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  const scope = useId();
+  const id = ids(scope);
   return (
-    <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby="agenda-period-title">
+    <section className={past ? "agenda agenda-past" : "agenda"} aria-labelledby={id.title}>
       <div className="agenda-period-head">
-        <h2 id="agenda-period-title" className="agenda-period-title">
+        <h2 id={id.title} className="agenda-period-title">
           {t(past ? "agenda.pastTitle" : "agenda.upcomingTitle")}
         </h2>
         <Link className={buttonClass({ variant: "quiet" })} href={routes.agendaList(!past)}>
@@ -140,7 +155,7 @@ export function AgendaList({ days, past, withdrawable, formats, t }: { days: Age
       ) : (
         <div className="agenda-days">
           {days.map((day) => {
-            const titleId = `agenda-day-${day.day}`;
+            const titleId = id.day(day.day);
             return (
               <section key={day.day} className="agenda-day" aria-labelledby={titleId}>
                 <h3 id={titleId}>
@@ -148,7 +163,7 @@ export function AgendaList({ days, past, withdrawable, formats, t }: { days: Age
                     <span className="agenda-day-weekday">{formats.weekdayName(day.day)}</span> <span className="agenda-day-date">{formats.day.format(noonOf(day.day))}</span>
                   </time>
                 </h3>
-                <Items items={day.items} withdrawable={withdrawable} formats={formats} t={t} />
+                <Items items={day.items} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />
               </section>
             );
           })}
@@ -177,10 +192,12 @@ function PeriodNav({ view, period, today, t }: { view: CalendarView; period: Cal
 
 /** The week: Monday to Sunday, one column per day with its items and their time, no hourly grid; the days stacked on phones. */
 export function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: { period: CalendarPeriod; byDay: Map<string, AgendaItem[]>; today: string; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  const scope = useId();
+  const id = ids(scope);
   return (
-    <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
+    <section className="agenda agenda-calendar" aria-labelledby={id.title}>
       <div className="agenda-period-head">
-        <h2 id="agenda-period-title" className="agenda-period-title">
+        <h2 id={id.title} className="agenda-period-title">
           {t("agenda.weekTitle", { range: formats.range(period.first, period.last) })}
         </h2>
         <PeriodNav view={WEEK} period={period} today={today} t={t} />
@@ -188,7 +205,7 @@ export function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: {
       <ol className="agenda-week">
         {period.weeks[0]!.map((day) => {
           const items = byDay.get(day) ?? [];
-          const titleId = `agenda-day-${day}`;
+          const titleId = id.day(day);
           return (
             <li key={day} className={day === today ? "agenda-week-day agenda-today" : "agenda-week-day"}>
               <section aria-labelledby={titleId}>
@@ -197,7 +214,7 @@ export function AgendaWeek({ period, byDay, today, withdrawable, formats, t }: {
                     {formats.weekday(day)}
                   </time>
                 </h3>
-                {items.length === 0 ? <p className="agenda-nothing">{t("agenda.nothing")}</p> : <Items items={items} withdrawable={withdrawable} formats={formats} t={t} />}
+                {items.length === 0 ? <p className="agenda-nothing">{t("agenda.nothing")}</p> : <Items items={items} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />}
               </section>
             </li>
           );
@@ -232,17 +249,19 @@ export function AgendaMonth({
   t: T;
 }) {
   const chosen = byDay.get(selected) ?? [];
+  const scope = useId();
+  const id = ids(scope);
   return (
-    <section className="agenda agenda-calendar" aria-labelledby="agenda-period-title">
+    <section className="agenda agenda-calendar" aria-labelledby={id.title}>
       <div className="agenda-period-head">
-        <h2 id="agenda-period-title" className="agenda-period-title">
+        <h2 id={id.title} className="agenda-period-title">
           {formats.month(period.first)}
         </h2>
         <PeriodNav view={MONTH} period={period} today={today} t={t} />
       </div>
       <form method="get" action="/agenda">
         <input type="hidden" name="vue" value={MONTH} />
-        <table className="agenda-month" aria-labelledby="agenda-period-title">
+        <table className="agenda-month" aria-labelledby={id.title}>
           <thead>
             <tr>
               {period.weeks[0]!.map((day) => (
@@ -286,11 +305,11 @@ export function AgendaMonth({
           </tbody>
         </table>
       </form>
-      <section className="agenda-day agenda-chosen-day" aria-labelledby="agenda-chosen-day-title" aria-live="polite">
-        <h3 id="agenda-chosen-day-title">
+      <section className="agenda-day agenda-chosen-day" aria-labelledby={id.chosenDay} aria-live="polite">
+        <h3 id={id.chosenDay}>
           <time dateTime={selected}>{formats.fullDay(selected)}</time>
         </h3>
-        {chosen.length === 0 ? <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p> : <Items items={chosen} withdrawable={withdrawable} formats={formats} t={t} />}
+        {chosen.length === 0 ? <p className="agenda-nothing">{t("agenda.nothingThatDay")}</p> : <Items items={chosen} scope={scope} withdrawable={withdrawable} formats={formats} t={t} />}
       </section>
     </section>
   );
@@ -307,9 +326,10 @@ function monthDayClass(day: string, today: string): string {
  * one keeps its history.
  */
 export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: UnscheduledCoachingSession[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
+  const titleId = ids(useId()).title;
   return (
-    <section className="agenda-to-schedule" aria-labelledby="agenda-to-schedule-title">
-      <h2 id="agenda-to-schedule-title">{t("agenda.toSchedule")}</h2>
+    <section className="agenda-to-schedule" aria-labelledby={titleId}>
+      <h2 id={titleId}>{t("agenda.toSchedule")}</h2>
       <p>{t("agenda.toScheduleIntro")}</p>
       <ul className="agenda-unscheduled-list">
         {sessions.map((session) => (
@@ -333,15 +353,15 @@ export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: U
   );
 }
 
-/** A day's Agenda Items, each with its time; the past ones dimmed. */
-function Items({ items, withdrawable, formats, t }: { items: AgendaItem[]; withdrawable: Withdrawable; formats: Formats; t: T }) {
+/** A day's Agenda Items, each with its time; the past ones dimmed. `scope` is their view's, for their ids. */
+function Items({ items, scope, withdrawable, formats, t }: { items: AgendaItem[]; scope: string; withdrawable: Withdrawable; formats: Formats; t: T }) {
   return (
     <ul className="agenda-items">
       {items.map((item) =>
         item.kind === "interview" ? (
-          <InterviewItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} formats={formats} t={t} />
+          <InterviewItem key={`${item.kind}-${item.id}`} item={item} scope={scope} past={formats.isPast(item)} formats={formats} t={t} />
         ) : (
-          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} past={formats.isPast(item)} withdrawable={withdrawable.has(item.id)} formats={formats} t={t} />
+          <CoachingSessionItem key={`${item.kind}-${item.id}`} item={item} scope={scope} past={formats.isPast(item)} withdrawable={withdrawable.has(item.id)} formats={formats} t={t} />
         ),
       )}
     </ul>
@@ -353,7 +373,7 @@ function Items({ items, withdrawable, formats, t }: { items: AgendaItem[]; withd
  * the Human Coach was the last to change its date, leading to them on the Human Coaches page;
  * its Reschedule history, and its date can be edited, or the session cancelled, here.
  */
-function CoachingSessionItem({ item, past, withdrawable, formats, t }: { item: CoachingSessionAgendaItem; past: boolean; withdrawable: boolean; formats: Formats; t: T }) {
+function CoachingSessionItem({ item, scope, past, withdrawable, formats, t }: { item: CoachingSessionAgendaItem; scope: string; past: boolean; withdrawable: boolean; formats: Formats; t: T }) {
   return (
     <li className={past ? "agenda-item agenda-item-with-action agenda-item-past" : "agenda-item agenda-item-with-action"} data-kind={item.kind}>
       <Link className="agenda-item-link" href={routes.coachingSession(item.id)}>
@@ -375,7 +395,7 @@ function CoachingSessionItem({ item, past, withdrawable, formats, t }: { item: C
         withName={item.coach.name}
         className={buttonClass({ variant: "quiet" })}
       />
-      {past ? null : <CalendarFileLink item={item} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />}
+      {past ? null : <CalendarFileLink item={item} scope={scope} what={t("agenda.calendarFile.sessionTitle", { name: item.coach.name })} formats={formats} t={t} />}
       <RescheduleHistory reschedules={item.reschedules} coachName={item.coach.name} dateTime={formats.changedAt} t={t} />
       <CancelAgendaItemButton
         url={`/api/coaching/sessions/${item.id}/cancel`}
@@ -405,7 +425,7 @@ function WithdrawalLink({ sessionId, coachName, t }: { sessionId: string; coachN
  * its Application's Interviews Section; then its format and place, a link in it clickable,
  * and its Reschedule history. A Cancelled Interview is struck through, with its date of cancellation.
  */
-function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; past: boolean; formats: Formats; t: T }) {
+function InterviewItem({ item, scope, past, formats, t }: { item: InterviewAgendaItem; scope: string; past: boolean; formats: Formats; t: T }) {
   const className = ["agenda-item", past ? "agenda-item-past" : "", item.cancelledAt ? "agenda-item-cancelled" : ""].filter(Boolean).join(" ");
   return (
     <li className={className} data-kind={item.kind}>
@@ -424,7 +444,7 @@ function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; 
       </Link>
       {item.cancelledAt ? <p className="cancelled-on">{t("agendaChanges.cancelledOn", { date: formats.day.format(item.cancelledAt) })}</p> : null}
       <InterviewFacts interview={item} t={t} />
-      {past ? null : <CalendarFileLink item={item} what={item.jobTitle} formats={formats} t={t} />}
+      {past ? null : <CalendarFileLink item={item} scope={scope} what={item.jobTitle} formats={formats} t={t} />}
       <RescheduleHistory reschedules={item.reschedules} dateTime={formats.changedAt} t={t} />
     </li>
   );
@@ -435,9 +455,9 @@ function InterviewItem({ item, past, formats, t }: { item: InterviewAgendaItem; 
  * later change needs a new download. None for a Cancelled Agenda Item. Its accessible name says which item
  * (`what`) and when, since the Agenda lists several.
  */
-function CalendarFileLink({ item, what, formats, t }: { item: AgendaItem; what: string; formats: Formats; t: T }) {
+function CalendarFileLink({ item, scope, what, formats, t }: { item: AgendaItem; scope: string; what: string; formats: Formats; t: T }) {
   if (!hasCalendarFile(item)) return null;
-  const hintId = `calendar-file-hint-${item.kind}-${item.id}`;
+  const hintId = `${scope}-calendar-file-hint-${item.kind}-${item.id}`;
   return (
     <p className="agenda-calendar-file">
       <a

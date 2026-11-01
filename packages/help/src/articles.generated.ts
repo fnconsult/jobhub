@@ -179,7 +179,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "réserver"
       ],
       "route": "/coachs",
-      "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment."
+      "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment."
     },
     {
       "id": "page-subscription",
@@ -198,7 +198,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "résiliation"
       ],
       "route": "/abonnement",
-      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif et sans frais : votre abonnement est annulé tout de suite, vous repassez à l'offre Gratuite et le montant payé vous est remboursé en entier. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
+      "body": "Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.\n\n« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
     },
     {
       "id": "page-account",
@@ -267,7 +267,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "délai de rétractation"
       ],
       "route": "/abonnement/retractation",
-      "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif et sans frais : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement et tant qu'elle n'a pas eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse en entier sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés.\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
+      "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement. Une séance réservée avec la demande que le service commence immédiatement ne peut plus faire l'objet d'une rétractation une fois qu'elle a eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés. Le remboursement est entier, sauf pour un abonnement souscrit avec la demande que le service commence immédiatement : vous payez alors le service déjà fourni, et la page indique le montant « Remboursé si vous confirmez maintenant » (le montant payé, moins la part des jours écoulés depuis le début de la période).\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
     },
     {
       "id": "page-subscription-reduction",
@@ -316,6 +316,44 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/job-digests/[id]",
       "body": "Ce Job Digest rassemble les nouvelles offres trouvées pour un profil, classées par score de correspondance.\n\nOuvrez une offre pour la lire, puis enregistrez-la pour la suivre dans vos candidatures. Un Job Digest ne compte dans aucun quota."
+    },
+    {
+      "id": "page-order",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Votre commande",
+      "synonyms": [
+        "commande",
+        "commander",
+        "payer",
+        "paiement",
+        "cgv",
+        "conditions générales de vente",
+        "récapitulatif",
+        "exécution immédiate",
+        "demande expresse"
+      ],
+      "route": "/abonnement/commande",
+      "body": "Cette page s'affiche quand vous choisissez une offre, avant le paiement. Le récapitulatif rappelle l'offre, son prix TTC, sa périodicité et sa reconduction : l'abonnement est reconduit automatiquement jusqu'à sa résiliation.\n\nQuand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du JJ/MM/AAAA) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.\n\nLa deuxième case, « Je demande que le service commence immédiatement », est facultative. Sans elle, vous payez et votre offre commence de la même façon, mais une rétractation vous est remboursée en entier. Avec elle, une rétractation vous rembourse le montant payé, moins la part des jours écoulés depuis le début de la période.\n\n« Passer au paiement » ouvre la page sécurisée de Stripe, notre prestataire de paiement. Une fois le paiement confirmé, vous recevez par e-mail la confirmation de votre commande, avec le lien vers la version des CGV acceptée et l'emplacement de « Renoncer au contrat ici » : conservez-la.\n\nSi vous avez déjà une offre payante, vous changez d'offre sur la page de Stripe, depuis « Gérer mon abonnement », sans passer par cette page."
+    },
+    {
+      "id": "page-coaching-order",
+      "locale": "fr",
+      "kind": "page",
+      "title": "Votre commande de séance",
+      "synonyms": [
+        "commande",
+        "séance",
+        "coach humain",
+        "payer",
+        "paiement",
+        "cgv",
+        "conditions générales de vente",
+        "exécution immédiate",
+        "demande expresse"
+      ],
+      "route": "/coachs/commande",
+      "body": "Cette page s'affiche quand vous réservez une séance avec un coach humain, avant le paiement. Le récapitulatif rappelle le coach et le prix TTC de la séance, un paiement unique, sans reconduction.\n\nQuand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du JJ/MM/AAAA) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.\n\nLa deuxième case est facultative : « Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni et que je perds mon droit de rétractation une fois la séance réalisée. » Sans elle, vous payez et réservez votre séance de la même façon, et une rétractation dans les 14 jours vous est remboursée en entier, même si la séance a eu lieu. Avec elle, vous pouvez vous rétracter tant que la séance n'a pas eu lieu, remboursé en entier ; plus après.\n\n« Passer au paiement » ouvre la page sécurisée de Stripe, notre prestataire de paiement. Une fois le paiement confirmé, vous recevez par e-mail la confirmation de votre commande : conservez-la."
     },
     {
       "id": "glossary-ats-score",
@@ -478,7 +516,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "remboursement"
       ],
       "route": null,
-      "body": "Votre droit de renoncer, sans motif et sans frais, à un contrat conclu en ligne : pendant 14 jours après votre abonnement à une offre, ou après le paiement d'une séance avec un coach humain tant qu'elle n'a pas eu lieu.\n\nSur Jobbbox, utilisez « Renoncer au contrat ici », sur la page Mon abonnement ou sur la séance dans l'agenda. Le contrat s'arrête tout de suite, vous êtes remboursé en entier et vous recevez un accusé de réception par e-mail."
+      "body": "Votre droit de renoncer, sans motif, à un contrat conclu en ligne : pendant 14 jours après votre abonnement à une offre, ou après le paiement d'une séance avec un coach humain.\n\nSur Jobbbox, utilisez « Renoncer au contrat ici », sur la page Mon abonnement ou sur la séance dans l'agenda. Le contrat s'arrête tout de suite et vous recevez un accusé de réception par e-mail. Vous êtes remboursé en entier, sauf si, à la commande, vous avez demandé que le service commence immédiatement : un abonnement vous est alors remboursé moins la part des jours écoulés, et une séance qui a eu lieu ne peut plus faire l'objet d'une rétractation."
     },
     {
       "id": "glossary-match-score",
@@ -901,7 +939,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "book"
       ],
       "route": "/coachs",
-      "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time."
+      "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time."
     },
     {
       "id": "page-subscription",
@@ -920,7 +958,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "cancellation"
       ],
       "route": "/abonnement",
-      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason and at no cost: your subscription is cancelled at once, you are back on the Free plan and what you paid is refunded in full. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
+      "body": "This page shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: <plan> until <date> ».\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number.\n\n« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page.\n\nFor 14 days after you subscribe, « Renoncer au contrat ici » (withdraw from the contract here) lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
       "id": "page-acceptance",
@@ -953,7 +991,45 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "cooling-off period"
       ],
       "route": "/abonnement/retractation",
-      "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason and at no cost: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it and as long as it has not taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirmer la rétractation » (confirm the withdrawal) ends the contract at once and refunds you in full, to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days.\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
+      "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it. A session booked with the request for the service to start at once can no longer be withdrawn from once it has taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirmer la rétractation » (confirm the withdrawal) ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
+    },
+    {
+      "id": "page-order",
+      "locale": "en",
+      "kind": "page",
+      "title": "Your order",
+      "synonyms": [
+        "order",
+        "buy",
+        "pay",
+        "payment",
+        "terms of sale",
+        "cgv",
+        "summary",
+        "immediate performance",
+        "start at once"
+      ],
+      "route": "/abonnement/commande",
+      "body": "This page shows when you choose a plan, before payment. The summary gives the plan, its price including VAT, how often it is charged and that it renews: the subscription renews automatically until you cancel it.\n\nOnce our terms of sale are published, tick « I accept the terms of sale (version of …) » to go on; the link just above opens that version. The French text prevails. The box is never ticked for you.\n\nThe second box, « I ask for the service to start at once », is optional. Without it, you pay and your plan starts just the same, but a withdrawal is refunded in full. With it, a withdrawal refunds the amount paid, less the share of the days elapsed since the start of the period.\n\n« Go to payment » opens the secure page of Stripe, our payment provider. Once the payment is confirmed, you receive the confirmation of your order by email, with the link to the version of the terms of sale you accepted and where to find « Renoncer au contrat ici » (withdraw from the contract here): keep it.\n\nIf you already have a paid plan, you change plans on Stripe's page, from « Manage my subscription », without this page."
+    },
+    {
+      "id": "page-coaching-order",
+      "locale": "en",
+      "kind": "page",
+      "title": "Your session order",
+      "synonyms": [
+        "order",
+        "session",
+        "human coach",
+        "pay",
+        "payment",
+        "terms of sale",
+        "cgv",
+        "immediate performance",
+        "start at once"
+      ],
+      "route": "/coachs/commande",
+      "body": "This page shows when you book a session with a human coach, before payment. The summary gives the coach and the session's price including VAT, a one-off payment that does not renew.\n\nOnce our terms of sale are published, tick « I accept the terms of sale (version of …) » to go on; the link just above opens that version. The French text prevails. The box is never ticked for you.\n\nThe second box is optional: « I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided, and that I lose my right of withdrawal once the session has taken place. » Without it, you pay and book your session just the same, and a withdrawal within 14 days is refunded in full, even once the session has taken place. With it, you may withdraw as long as the session has not taken place, refunded in full; no longer afterwards.\n\n« Go to payment » opens the secure page of Stripe, our payment provider. Once the payment is confirmed, you receive the confirmation of your order by email: keep it."
     },
     {
       "id": "glossary-ats-score",
@@ -1114,7 +1190,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "refund"
       ],
       "route": null,
-      "body": "Your right to renounce a contract made online, without a reason and at no cost: for 14 days after you subscribe to a plan, or after you pay for a session with a human coach as long as it has not taken place.\n\nOn Jobbbox, use « Renoncer au contrat ici » (withdraw from the contract here), on the My subscription page or on the session in the agenda. The contract stops at once, you are refunded in full and you get an acknowledgement by email."
+      "body": "Your right to renounce a contract made online, without a reason: for 14 days after you subscribe to a plan, or after you pay for a session with a human coach.\n\nOn Jobbbox, use « Renoncer au contrat ici » (withdraw from the contract here), on the My subscription page or on the session in the agenda. The contract stops at once and you get an acknowledgement by email. You are refunded in full, unless you asked at the order for the service to start at once: a subscription is then refunded less the share of the days elapsed, and a session that has taken place can no longer be withdrawn from."
     },
     {
       "id": "glossary-proposals",

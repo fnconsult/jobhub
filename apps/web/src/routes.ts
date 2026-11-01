@@ -9,6 +9,15 @@ export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 export const APPLICATION_SECTIONS = ["propositions", "documents", "correspondance", "entretiens", "avis", "dossier", "contacts", "offre"] as const;
 export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
 
+/** The Order pages (#512), and what their address carries: the Plan or the Human Coach, a shared link's code, an error. */
+export const PLAN_ORDER = "/abonnement/commande";
+export const COACHING_ORDER = "/coachs/commande";
+export const ORDER_PARAMS = { plan: "offre", coach: "coach", code: "code", error: "erreur" } as const;
+/** Where each Order page's « Passer au paiement » posts. */
+export const ORDER_ACTIONS = { plan: "/api/billing/checkout", coachingSession: "/api/coaching/checkout" } as const;
+/** The error an Order page is sent back with when the CGV box was not ticked. */
+export const ORDER_CGV_ERROR = "cgv";
+
 /** Paths of the web app's pages. French, like the interface default. */
 export const routes = {
   home: "/",
@@ -71,6 +80,15 @@ export const routes = {
    */
   withdrawal: (contract: string) => `/abonnement/retractation?contrat=${encodeURIComponent(contract)}`,
   withdrawalDone: (id: string) => `/abonnement/retractation?faite=${encodeURIComponent(id)}`,
+  /**
+   * The Order page before Stripe Checkout for a paid Plan (#512): its summary, the CGV box and the Immediate Performance
+   * Request. `code`: a shared link's, carried to Checkout; `error`: sent back over the CGV box.
+   */
+  planOrder: (plan: string, options: { code?: string | null | undefined; error?: typeof ORDER_CGV_ERROR } = {}) =>
+    `${PLAN_ORDER}?${new URLSearchParams({ [ORDER_PARAMS.plan]: plan, ...(options.code ? { [ORDER_PARAMS.code]: options.code } : {}), ...(options.error ? { [ORDER_PARAMS.error]: options.error } : {}) })}`,
+  /** The Order page before Stripe Checkout for a Coaching Session with a Human Coach (#512). */
+  coachingOrder: (coachId: string, options: { error?: typeof ORDER_CGV_ERROR } = {}) =>
+    `${COACHING_ORDER}?${new URLSearchParams({ [ORDER_PARAMS.coach]: coachId, ...(options.error ? { [ORDER_PARAMS.error]: options.error } : {}) })}`,
   /** « Résilier votre contrat » (#513): what cancelling the paid Plan does, and « Confirmer la résiliation ». */
   subscriptionCancellation: "/abonnement/resiliation",
   /** Cancelling a subscription, refunded prorata, over a Quota Reduction the Candidate was told of (#514). */

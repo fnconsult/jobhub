@@ -9,7 +9,7 @@ import { Note } from "@/design/Note";
 import { Properties, Property } from "@/design/Properties";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
-import type { Withdrawal, WithdrawableContract } from "@/withdrawals";
+import type { ContractToWithdraw, Withdrawal } from "@/withdrawals";
 import { money } from "@/withdrawals/email";
 import { getWithdrawals } from "@/withdrawals/server";
 import "../abonnement.css";
@@ -38,7 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * « Renoncer au contrat ici » (#511, C. conso. L221-21 al. 3): the Withdrawal form of one contract (`contrat`: the
  * Plan's subscription or a Coaching Session), a page of Jobbbox's own: the contract named with its date and amount,
- * the Candidate's name, where the acknowledgement goes, and « Confirmer la rétractation ». With `faite`, the Withdrawal
+ * the Candidate's name, where the acknowledgement goes, and « Confirmer la rétractation ». A Plan bought with the
+ * Immediate Performance Request (#512) says what is refunded of it: the amount paid less the days elapsed. With `faite`, the Withdrawal
  * just recorded: when, what is refunded, where the acknowledgement went.
  */
 export default async function WithdrawalPage({ searchParams }: { searchParams: Promise<{ contrat?: string | string[]; faite?: string | string[]; erreur?: string }> }) {
@@ -75,10 +76,12 @@ function contractTitle(contract: { kind: "plan" | "coachingSession"; subject: { 
   return contract.kind === "plan" ? t("withdrawals.email.plan", { plan: contract.subject[locale] }) : t("withdrawals.email.coachingSession", { coach: contract.subject[locale] });
 }
 
-function WithdrawalForm({ contract, name, email, error, locale, t }: { contract: WithdrawableContract; name: string; email: string; error: FormError | null; locale: "fr" | "en"; t: T }) {
+function WithdrawalForm({ contract, name, email, error, locale, t }: { contract: ContractToWithdraw; name: string; email: string; error: FormError | null; locale: "fr" | "en"; t: T }) {
   const day = new Intl.DateTimeFormat(locale, { dateStyle: "long", ...ZONE });
   // The deadline is the first instant past the period: its last day is the day before.
   const lastDay = day.format(new Date(contract.deadline.getTime() - 1));
+  // A Plan bought with the Immediate Performance Request: the service already provided is paid for (L221-25).
+  const prorata = contract.kind === "plan" && contract.immediateExecutionRequested;
   const fieldError = (field: typeof NAME | typeof RECEIPT_EMAIL) => (error?.startsWith(`${field}_`) ? t(`withdrawals.page.errors.${error}`) : undefined);
   return (
     <>
@@ -87,12 +90,13 @@ function WithdrawalForm({ contract, name, email, error, locale, t }: { contract:
           {t(`withdrawals.page.errors.${error}`)}
         </Note>
       ) : null}
-      <p>{t("withdrawals.page.intro", { date: lastDay })}</p>
+      <p>{t(prorata ? "withdrawals.page.introProrata" : "withdrawals.page.intro", { date: lastDay })}</p>
       <Card title={t("withdrawals.page.contractTitle")} headingLevel={3}>
         <Properties>
           <Property term={t("withdrawals.page.contract")}>{contractTitle(contract, locale, t)}</Property>
           <Property term={t(contract.kind === "plan" ? "withdrawals.page.subscribedOn" : "withdrawals.page.paidOn")}>{day.format(contract.concludedAt)}</Property>
           <Property term={t("withdrawals.page.amount")}>{contract.paid ? money(contract.paid.amount, contract.paid.currency, locale) : t("withdrawals.page.amountUnknown")}</Property>
+          {prorata && contract.refund ? <Property term={t("withdrawals.page.refundNow")}>{money(contract.refund.amount, contract.refund.currency, locale)}</Property> : null}
         </Properties>
       </Card>
       <form className="withdrawal-form" method="post" action="/api/withdrawals">
@@ -108,7 +112,7 @@ function WithdrawalForm({ contract, name, email, error, locale, t }: { contract:
             <TextInput name="receiptEmail" type="email" maxLength={320} autoComplete="email" />
           </Field>
         </fieldset>
-        <p>{t(contract.kind === "plan" ? "withdrawals.page.whatHappensPlan" : "withdrawals.page.whatHappensSession")}</p>
+        <p>{t(prorata ? "withdrawals.page.whatHappensPlanProrata" : contract.kind === "plan" ? "withdrawals.page.whatHappensPlan" : "withdrawals.page.whatHappensSession")}</p>
         <div className="withdrawal-actions">
           <button className={buttonClass({ variant: "primary" })} type="submit">
             {t("withdrawals.page.confirm")}

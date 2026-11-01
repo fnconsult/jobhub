@@ -6,15 +6,8 @@ import { useTranslation } from "react-i18next";
 import { buttonClass } from "@/design/button-class";
 import { Checkbox } from "@/design/Field";
 import { Note } from "@/design/Note";
-import { writtenDay } from "@/public-pages/days";
+import { versionDay } from "@/public-pages/days";
 import { routes } from "@/routes";
-
-/** A CGU version's day as the box names it: « 01/12/2026 » in French, as the CGU write it; written out otherwise. */
-function versionDay(version: string, locale: string): string {
-  if (locale !== "fr") return writtenDay(version, locale);
-  const [year, month, day] = version.split("-");
-  return `${day}/${month}/${year}`;
-}
 
 /**
  * The Acceptance screen's form (ADR-0062, #510): the CGU version to accept, with a link to it, and a box the Candidate

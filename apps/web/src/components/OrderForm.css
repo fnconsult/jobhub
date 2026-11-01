@@ -1,0 +1,44 @@
+/* The Order page before Stripe Checkout (#512), a Plan's or a Coaching Session's: the summary Card, then the boxes,
+   each on its own line, then « Passer au paiement » beside the way back. */
+.order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.order h2 {
+  margin: 0;
+}
+
+.order .ds-note p {
+  margin: 0;
+}
+
+/* On the Candidate's pages, buttons reach the 44px target floor (ADR-0009). */
+.order .ds-button {
+  min-height: var(--control-height);
+}
+
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 44rem;
+}
+
+.order-cgv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.order-cgv p,
+.order-withdrawal {
+  margin: 0;
+}
+
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

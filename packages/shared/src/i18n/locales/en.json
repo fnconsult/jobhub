@@ -1151,6 +1151,67 @@
       "monthsOnly_other": "{{count}} months"
     }
   },
+  "orders": {
+    "page": {
+      "title": "Your order",
+      "intro": "Check your order, then go on to the secure payment page of our payment provider, Stripe.",
+      "summaryTitle": "Summary",
+      "item": "Order",
+      "price": "Price",
+      "priceUnknown": "Shown on the payment page",
+      "renewal": "Term",
+      "code": "Promotion code",
+      "codeCarried": "{{code}}, applied at payment if it is valid on this plan",
+      "readCgv": "Read the terms of sale (version of {{date}})",
+      "cgvBox": "I accept the terms of sale (version of {{date}})",
+      "immediatePlan": "I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided.",
+      "immediateSession": "I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided, and that I lose my right of withdrawal once the session has taken place.",
+      "immediateHint": "Optional: without this request, you pay and the service starts just the same, but a withdrawal is refunded in full.",
+      "withdrawal": "You may withdraw within 14 days, without giving a reason, from « Renoncer au contrat ici » (withdraw from the contract here). A confirmation of your order is emailed to you after payment.",
+      "submit": "Go to payment",
+      "back": "Back",
+      "cgvRequired": "Tick « I accept the terms of sale » to go to payment.",
+      "nothing": "This order is no longer possible: the plan or the coach is no longer offered, or online payment is not available."
+    },
+    "email": {
+      "subjectPlan": "Your order is confirmed: the {{plan}} plan",
+      "subjectSession": "Your order is confirmed: a coaching session with {{coach}}",
+      "title": "Your order is confirmed",
+      "intro": "Thank you! Your payment was recorded on {{at}}. Here is the summary of your order:",
+      "plan": "{{plan}} plan",
+      "coachingSession": "Coaching session with {{coach}}",
+      "price": "Price: {{price}}",
+      "paid": "Amount paid: {{amount}}",
+      "cgv": "You accepted our terms of sale (version of {{date}}); the French text prevails. They stay available at this permanent address: {{url}}",
+      "immediatePlan": "You asked for the service to start at once. If you withdraw, you will pay for the service already provided: the amount paid will be refunded, less the share of the days elapsed since the start of the period.",
+      "immediateSession": "You asked for the service to start at once. If you withdraw before the session, the amount paid will be refunded in full; once the session has taken place, you lose your right of withdrawal.",
+      "notImmediate": "You did not ask for the service to start at once: if you withdraw, the amount paid will be refunded in full.",
+      "withdrawalPlan": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the My subscription page: {{url}}",
+      "withdrawalSession": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the session, in your agenda: {{url}}",
+      "withdrawalForm": "The model withdrawal form is in our terms of sale, at this address: {{url}}",
+      "keep": "Keep this email: it confirms your order.",
+      "reason": "You are receiving this email because you placed an order on Jobbbox."
+    },
+    "renewal": {
+      "plan": "Subscription renewed automatically {{every}}, until it is cancelled",
+      "planUnknown": "Subscription renewed automatically, until it is cancelled",
+      "session": "One-off payment, not renewed"
+    },
+    "pricePer": "{{price}} incl. VAT {{per}}",
+    "priceOnce": "{{price}} incl. VAT",
+    "per": {
+      "day": "per day",
+      "week": "per week",
+      "month": "per month",
+      "year": "per year"
+    },
+    "every": {
+      "day": "every day",
+      "week": "every week",
+      "month": "every month",
+      "year": "every year"
+    }
+  },
   "admin": {
     "title": "Back office",
     "yourRoles": "Your roles: {{roles}}.",
@@ -4898,6 +4959,7 @@
       "sessionCancelled": "The session is cancelled, and {{coach}} has been told.",
       "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
       "nothingToRefund": "Nothing to refund: nothing was paid for this contract.",
+      "kept": "Amount kept for the service already provided, as you asked for it to start at once: {{amount}}.",
       "keep": "Keep this email: it records your withdrawal.",
       "reason": "You get this email because you withdrew from a contract made on Jobbbox."
     },
@@ -4907,6 +4969,7 @@
       "intro": "{{candidate}} withdrew from the Coaching Session paid on {{paidAt}}.",
       "scheduled": "It was planned for {{at}}: do not hold it, and free the slot on your Cal.com page.",
       "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
+      "held": "It took place on {{at}}: the Candidate had not asked for it to start before the end of their withdrawal period, so it is refunded to them.",
       "refunded": "Jobbbox refunds the session to the Candidate.",
       "someone": "A Candidate",
       "reason": "You get this email because you are a Human Coach on Jobbbox."
@@ -4914,12 +4977,14 @@
     "page": {
       "title": "Withdraw from the contract here",
       "intro": "You may withdraw from this contract without giving a reason and at no cost, until {{date}} included. Everything you paid for it is refunded.",
+      "introProrata": "You may withdraw from this contract without giving a reason until {{date}} included. As you asked for the service to start at once, you pay for the service already provided: the rest is refunded to you.",
       "contractTitle": "The contract",
       "contract": "Contract",
       "subscribedOn": "Subscribed on",
       "paidOn": "Paid on",
       "amount": "Amount paid",
       "amountUnknown": "As on your invoice",
+      "refundNow": "Refunded if you confirm now",
       "name": "Your name",
       "receipt": "Where should we send the acknowledgement?",
       "receiptAccount": "To my account's address ({{email}})",
@@ -4927,6 +4992,7 @@
       "receiptEmail": "Other email address",
       "receiptEmailHint": "Only if you chose another address.",
       "whatHappensPlan": "Your subscription will be cancelled at once: you will be on the Free Plan, and what you paid will be refunded in full.",
+      "whatHappensPlanProrata": "Your subscription will be cancelled at once: you will move to the Free plan, and the amount paid will be refunded to you, less the share of the days elapsed since the start of the period.",
       "whatHappensSession": "The session will be cancelled and the coach told; what you paid will be refunded in full.",
       "confirm": "Confirm the withdrawal",
       "cancel": "Back",

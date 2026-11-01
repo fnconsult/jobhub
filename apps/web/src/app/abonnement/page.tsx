@@ -21,7 +21,7 @@ import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getQuotaReductions } from "@/quota-reductions/server";
-import { routes } from "@/routes";
+import { ORDER_PARAMS, PLAN_ORDER, routes } from "@/routes";
 import { getWithdrawals } from "@/withdrawals/server";
 import "./abonnement.css";
 
@@ -111,8 +111,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <Note tone={notice.role === "status" ? "info" : "warn"} role={notice.role}>
             <p>{notice.text}</p>
             {refusal ? (
-              <form method="post" action="/api/billing/checkout">
-                <input type="hidden" name="plan" value={refusal.plan} />
+              <form method="get" action={PLAN_ORDER}>
+                <input type="hidden" name={ORDER_PARAMS.plan} value={refusal.plan} />
                 <button className={buttonClass({ variant: "primary" })} type="submit">
                   {t("billing.page.continueWithoutCode", { plan: plans.find((each) => each.key === refusal.plan)?.name[locale] ?? refusal.plan })}
                 </button>
@@ -238,7 +238,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 /**
  * One Plan of the comparison, on a card: its name, « Votre offre » on the Candidate's and « Conseillée » on the one
  * above it, its price, what it includes (each quota and what the Plan gives of it, the missing ones dimmed), and, from
- * Free, the button to Checkout, carrying a promotion code that may apply.
+ * Free, the button to its Order page (#512) and then Checkout, carrying a promotion code that may apply.
  */
 function PlanCardView({ card, carriedCode, t }: { card: PlanCard; carriedCode: string | null; t: T }) {
   const pill = card.current ? <Pill tone="accent">{t("billing.page.current")}</Pill> : card.recommended ? <Pill tone="accent">{t("billing.page.recommended")}</Pill> : null;
@@ -255,11 +255,12 @@ function PlanCardView({ card, carriedCode, t }: { card: PlanCard; carriedCode: s
           </li>
         ))}
       </ul>
+      {/* To the Order page (#512): its summary and boxes come before Stripe Checkout. */}
       {card.checkout ? (
-        <form method="post" action="/api/billing/checkout">
-          <input type="hidden" name="plan" value={card.key} />
+        <form method="get" action={PLAN_ORDER}>
+          <input type="hidden" name={ORDER_PARAMS.plan} value={card.key} />
           {/* Carried to Checkout even when unchecked here: billing applies it only where it can. */}
-          {carriedCode ? <input type="hidden" name="code" value={carriedCode} /> : null}
+          {carriedCode ? <input type="hidden" name={ORDER_PARAMS.code} value={carriedCode} /> : null}
           <button className={buttonClass({ variant: card.recommended ? "primary" : "secondary" })} type="submit">
             {t("billing.page.choose", { plan: card.name })}
           </button>

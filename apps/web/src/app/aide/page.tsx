@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { EmptyState } from "@/design/EmptyState";
 import { PublicSite } from "@/design/PublicSite";
 import { getServerT } from "@/i18n/server";
+import { publicMetadata } from "@/public-pages/indexing-server";
+import { routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
-  return { title: `${t("helpCentre.title")} · ${t("app.name")}` };
+  return { title: `${t("helpCentre.title")} · ${t("app.name")}`, ...(await publicMetadata(routes.help, ["fr", "en"])) };
 }
 
 /**

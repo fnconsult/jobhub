@@ -5,6 +5,8 @@ import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
+import { billingConfigFromEnv } from "@jobhub/web/billing/config";
+import { createQuotaReductions } from "@jobhub/web/quota-reductions";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
 import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
 import { workerGuardrails } from "@jobhub/web/guardrails/checks";
@@ -13,6 +15,7 @@ import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
 import { createJobDigests, jobDigestsConfigFromEnv } from "@jobhub/web/job-digests";
 import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
+import { createLegalTextNotices, sendsLegalTextNotices } from "@jobhub/web/legal-text-notices";
 import { mailerFromEnv } from "@jobhub/web/mailers";
 import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
@@ -29,7 +32,7 @@ import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
-import { createJobs, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
+import { createJobs, LEGAL_TEXT_NOTICES, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
 
 const connectionString = process.env.DATABASE_URL;
@@ -119,6 +122,15 @@ mailerFromEnv(secretsWithSettings(secrets, platformSettings.resolver).current().
 const mailer = worker.mailer;
 
 const billing = createBilling({ database, baseURL });
+/** Billing with Stripe, for what only Stripe does (a Quota Reduction's prorata refund, #514); without its keys, the one above. */
+const stripeBilling = () => {
+  try {
+    return createBilling({ ...billingConfigFromEnv(secrets.current().env), database, baseURL, externalApis });
+  } catch (error) {
+    console.warn("[worker] billing without Stripe: refunds wait until its keys are set", error instanceof Error ? error.message : error);
+    return billing;
+  }
+};
 // SECRETS_MASTER_KEYS: Apple's client secret is sealed under it, and so are the Received offer emails' texts.
 const secretCipher = secretCipherFromEnv(process.env);
 const digestApplications = createApplications(database, { jobOffers, profiles });
@@ -146,6 +158,11 @@ const jobs = createJobs({
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
+  // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
+  legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
+  // A Quota Reduction (#514) applies on its effective date; each subscriber gets its notice, in their Interface Language.
+  // Stripe asked again for prorata refunds it did not answer about: its keys as the web app has them (Provider Secrets over env).
+  quotaReductions: { run: () => createQuotaReductions(database, { billing: stripeBilling(), mailer, baseURL }).run() },
   providerSecrets: providerSecrets.reader,
   referenceData,
   signInProviders: signInProvidersWorker(database, { cipher: secretCipher, env: process.env }),
@@ -187,6 +204,8 @@ started.runner = runner;
 await runner.enqueue("system.heartbeat");
 // A master key added to SECRETS_MASTER_KEYS is used for every row soon after the deployment that adds it.
 await runner.enqueue(PROVIDER_SECRETS_REENCRYPT);
+// The Production deployment carrying a substantial Legal Text Version starts the worker: its notices go out now (#547).
+await runner.enqueue(LEGAL_TEXT_NOTICES);
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

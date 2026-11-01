@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // `npx … node` with exitWithParentEnv, piping its output, while the server keeps logging.
 // Like next-server (next/dist/server/lib/router-server.js), the server logs uncaught errors
 // instead of crashing: once its stdout has no reader, every log line is an EPIPE it logs again.
+// Like web-server.mjs, the launcher does not crash on writing to a stdout nobody reads any more:
+// were it to, that EPIPE, not its watchdog, would stop it once Playwright is killed, so the test
+// would pass with no watchdog at all, and print the crash (« syscall: 'write' ») in `npm test`.
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 const module = path.join(import.meta.dirname, "exit-with-parent.mjs");
 const server = `
@@ -18,6 +21,7 @@ setInterval(() => console.log("GET /api/health 200"), 20);
 const launcher = (command: string[]) => `
 import { spawn } from "node:child_process";
 import { exitWithParentEnv } from ${JSON.stringify(module)};
+process.stdout.on("error", () => {});
 const server = spawn("npx", ["--no-install", ...${JSON.stringify(command)}], {
   cwd: ${JSON.stringify(repoRoot)},
   env: exitWithParentEnv(process.env),

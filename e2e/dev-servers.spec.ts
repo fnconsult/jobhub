@@ -64,20 +64,44 @@ function start(args: string[], env: NodeJS.ProcessEnv): DevServer {
   return { proc, output: () => stripVTControlCharacters(out), closed: () => closed };
 }
 
-async function stop(server: DevServer | undefined) {
-  if (!server?.proc.pid || server.proc.exitCode !== null) return;
-  const exited = new Promise((resolve) => server.proc.once("exit", resolve));
+/** Whether any process of the group `pgid` is still alive. */
+function groupAlive(pgid: number): boolean {
   try {
-    process.kill(-server.proc.pid, "SIGTERM");
+    process.kill(-pgid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function groupGone(pgid: number, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (groupAlive(pgid)) {
+    if (Date.now() > deadline) return false;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return true;
+}
+
+/**
+ * Stops the whole group and waits until none of it is left. npm exits on SIGTERM at once, but the server underneath
+ * may not: Vite's dev server closes itself first, and holds its port until it has. The next test must not find it there.
+ */
+async function stop(server: DevServer | undefined) {
+  const pgid = server?.proc.pid;
+  if (!pgid || !groupAlive(pgid)) return;
+  try {
+    process.kill(-pgid, "SIGTERM");
   } catch {
     return;
   }
-  await Promise.race([exited, new Promise((r) => setTimeout(r, 10_000))]);
+  if (await groupGone(pgid, 10_000)) return;
   try {
-    process.kill(-server.proc.pid, "SIGKILL");
+    process.kill(-pgid, "SIGKILL");
   } catch {
-    // already gone
+    return;
   }
+  await groupGone(pgid, 10_000);
 }
 
 async function waitFor(server: DevServer, pattern: RegExp, what: string): Promise<RegExpMatchArray> {
@@ -113,9 +137,17 @@ async function startExtension(port?: number): Promise<{ server: DevServer; port:
   return { server, port: Number(started) };
 }
 
-/** Holds `port` on localhost, as another checkout's extension dev server would, unless something already does. */
+/**
+ * Holds `port` on localhost, as another checkout's extension dev server would, unless something already does for good.
+ * A server still closing (a previous test's) lets go of it a moment later, before the one under test binds: wait it out
+ * and hold the port ourselves, so it is taken when the extension's dev server starts.
+ */
 async function holdPort(port: number): Promise<() => Promise<void>> {
-  if (!(await canListen(port, "localhost"))) return async () => {};
+  const deadline = Date.now() + 15_000;
+  while (!(await canListen(port, "localhost"))) {
+    if (Date.now() > deadline) return async () => {};
+    await new Promise((r) => setTimeout(r, 250));
+  }
   const holder = net.createServer();
   await new Promise<void>((resolve) => holder.listen(port, "localhost", resolve));
   return () => new Promise((resolve) => holder.close(() => resolve()));

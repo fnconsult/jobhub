@@ -49,7 +49,7 @@ export function getEmailIntake(): EmailIntake {
 }
 
 /**
- * Email intake's door for Brevo Inbound Parsing (#442): the BREVO_INBOUND_SECRET in use (Clés, else env), Email intake's
+ * Email intake's door for the emails its MTA posts (#442, #580): the EMAIL_INTAKE_INBOUND_SECRET in use (Clés, else env), Email intake's
  * switch on the Sources tab (#448), its limits in use (Paramètres, else env), texts sealed under SECRETS_MASTER_KEYS, emails to read queued for the worker.
  */
 export function getEmailIntakeInbound(): EmailIntakeInbound {
@@ -59,8 +59,8 @@ export function getEmailIntakeInbound(): EmailIntakeInbound {
     cipher: () => (cipher ??= secretCipherFromEnv(process.env)),
     queue: getJobQueue(),
     settings: () => {
-      const { dailyCap, brevoIpRanges } = emailIntakeLimits(getPlatformSettingsResolver().current());
-      return { secret: getSecretResolver().current().env.BREVO_INBOUND_SECRET, brevoIpRanges, dailyCap };
+      const { dailyCap, mtaIpRanges } = emailIntakeLimits(getPlatformSettingsResolver().current());
+      return { secret: getSecretResolver().current().env.EMAIL_INTAKE_INBOUND_SECRET, mtaIpRanges, dailyCap };
     },
   });
   return inbound;

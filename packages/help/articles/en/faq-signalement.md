@@ -10,3 +10,5 @@ To ask a person a question, ask your AI coach first. If its reply doesn't help, 
 The Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.
 
 There is no support email address: feedback is how you reach a person.
+
+With the new layout, where each page is a conversation with your AI coach, « Report a problem » and « Suggest an idea » are under the message box, and the icon stays beside « My account ». The form opens beside the conversation, without hiding it; « Close » or the Escape key closes it and your draft is kept. « Ask the team » opens there too.

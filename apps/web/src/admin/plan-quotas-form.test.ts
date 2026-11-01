@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planQuotasFromForm } from "./plan-quotas-form";
+import { planQuotasFromForm, reductionNoticeFromForm } from "./plan-quotas-form";
 
 function form(fields: Record<string, string>) {
   const data = new FormData();
@@ -31,5 +31,17 @@ describe("the Plan Quotas form of the back office", () => {
     const fields = { plan: "free", profiles: "1", matchScores: "3", atsScores: "1", enrichedContacts: "0", jobSearches: "3", jobDigest: "none", ...override };
 
     expect(planQuotasFromForm(form(fields))).toBeNull();
+  });
+});
+
+describe("the notice of a Quota Reduction a Back Office form sends (#514)", () => {
+  it("reads its reason and effective date, trimmed", () => {
+    expect(reductionNoticeFromForm(form({ reductionReason: "  Coûts en hausse ", reductionEffectiveOn: "2026-11-14" }))).toEqual({ reason: "Coûts en hausse", effectiveOn: "2026-11-14" });
+    expect(reductionNoticeFromForm(form({ reductionReason: "Coûts en hausse" }))).toEqual({ reason: "Coûts en hausse", effectiveOn: "" });
+  });
+
+  it("is none when the form gives neither", () => {
+    expect(reductionNoticeFromForm(form({ reductionReason: " ", reductionEffectiveOn: "" }))).toBeNull();
+    expect(reductionNoticeFromForm(form({}))).toBeNull();
   });
 });

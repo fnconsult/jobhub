@@ -2,7 +2,7 @@
 
 The screenshot specs (`toHaveScreenshot`, first `e2e/design-system-page.spec.ts`, #463) compare screens with PNG baselines kept in `e2e/__screenshots__/<spec>/`. CI's `screenshots` job runs them in the Playwright image (`mcr.microsoft.com/playwright`, the version the repo pins) and fails when a screen differs from its baseline by more than 0.2 % of its pixels (`playwright.config.ts`). Each also runs axe, there and with the rest of the e2e suite.
 
-The baselines are drawn in that same image, so its fonts match. Elsewhere fonts render differently, so a run on your machine checks axe and skips the comparison (`e2e/support/screenshots.ts`; `E2E_SCREENSHOTS=1` forces it).
+The baselines are drawn in that same image, so its fonts match. Elsewhere fonts render differently, on another Linux machine too (a Chromium outside the image may draw text in grayscale where the baselines have colour fringes), so a run on your machine checks axe and skips the comparison (`e2e/support/screenshots.ts`; `E2E_SCREENSHOTS=1` forces it, and a browser in the Playwright container through `PW_TEST_CONNECT_WS_ENDPOINT` compares). Every spec with a `toHaveScreenshot` asks that module whether to compare, never the platform alone: `e2e/support/screenshots.test.ts` fails otherwise. The emails' baselines (`e2e/email-html.spec.ts`, #472) follow the same rule for their `-linux` PNGs, compared in the `screenshots` job's `emails` project; their `-darwin` ones are compared on a Mac.
 
 ## Update a baseline on purpose
 
@@ -16,4 +16,4 @@ Never update a baseline to make a failing CI run pass without looking at the dif
 
 ## Add a screen
 
-When a ticket migrates a key screen, add a spec that signs in as needed, sets each width from `SCREENSHOT_WIDTHS`, runs axe and calls `toHaveScreenshot` with a name of its own. Then draw its baselines with the script above and commit them.
+When a ticket migrates a key screen, add a spec that signs in as needed, sets each width from `SCREENSHOT_WIDTHS`, runs axe and calls `toHaveScreenshot` with a name of its own. Mask what changes from run to run (a date, a count) with locators inside the screenshot's target (`target.getByText(…)`, not `page.getByText(…)`): Playwright paints a mask over its element even where something covers it, so a page-wide mask under a sticky component (the Profile's save bar over a dated line, #511) leaks into that component's screenshot. A mask hides pixels, not the room the text under it takes: in a table, a masked day still sizes its column, and a shorter day (« 1 nov. » after « 31 oct. ») moves every line beside it. Set such a text to a fixed value before the shot (the playbooks section's `fixedDates` cells in `e2e/back-office-sections-screenshots.spec.ts`, #512). Then draw its baselines with the script above and commit them.

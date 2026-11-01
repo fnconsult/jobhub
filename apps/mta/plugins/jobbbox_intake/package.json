@@ -1,0 +1,7 @@
+{
+  "name": "haraka-plugin-jobbbox-intake",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Haraka hooks of Email intake's MTA: apps/mta/src/intake.js does the work.",
+  "main": "index.js"
+}

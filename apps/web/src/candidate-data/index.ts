@@ -5,14 +5,14 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), Plan and Plan Quota use, EU AI consent, Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent
- *    (never which Administrator handled them); the Job Offers private to them (ADR-0049). Profiles and Applications
+ *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049). Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -28,13 +28,14 @@
 import { failureReasonWording } from "@jobhub/shared/i18n";
 import { isFailureReason, readProvenance, type FailureReason, type Outcome, type Plan, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import type { Pool } from "pg";
+import { acceptancesOf, type ExportedAcceptance } from "../acceptances";
 import type { ActionCard } from "../action-cards";
 import type { Application, Applications } from "../applications";
 import type { KeptAtsScore } from "../ats-score";
 import type { AssistantMessage, ExplainedItem } from "../back-office-assistant";
 import { SAVED_ASSISTANT_REPLY_COLUMNS, savedAssistantReplyProvenance, type SavedAssistantReply } from "../back-office-assistant/conversations";
 import type { CoachMessage } from "../coach";
-import { SAVED_REPLY_COLUMNS, savedReplyProvenance, type SavedReply } from "../coach-conversations";
+import { attachedProfileFrom, SAVED_REPLY_COLUMNS, savedReplyProvenance, SUBJECT_COLUMNS, SUBJECT_JOINS, subjectFrom, type FocusKind, type SavedReply, type Subject, type SubjectRow } from "../coach-conversations";
 import type { CompanyDossier } from "../company-dossiers";
 import { discoveryRunsOf, type ExportedDiscoveryRun } from "../discovery-runs";
 import { emailIntakeOf, type ExportedEmailIntake } from "../email-intake";
@@ -43,10 +44,13 @@ import type { FollowUpDelays } from "../follow-ups";
 import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
+import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
 import { signalementsOf, type Signalement } from "../signalements";
+import { ordersOf, type ExportedOrder } from "../orders";
+import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
@@ -192,20 +196,22 @@ export interface ExportedEnrichedContact {
 export interface ExportedCoachConversation {
   id: string;
   title: string;
-  /** The Profile in view when it started, if any. */
+  /** What it is about (#600): an object or a Sidebar menu, by its kind, id and name; null for a Free conversation. */
+  subject: Subject | null;
+  /** The Profile it is attached to, if any. */
   profile: { id: string; name: string } | null;
   createdAt: Date;
   lastMessageAt: Date;
   /** Oldest first. */
   /**
    * `jobOfferId`: the Job Offer of a reply's Job Offer card. `provenance`: what served a reply (#327), when it is known.
-   * `focus`: the page's object in view when a reply was asked (an Application, a Job Offer or a Profile).
+   * `focus`: what a reply was about: the Subject's object or what was In view (one of six kinds, #600; the Agenda has no id).
    */
   messages: (Omit<CoachMessage, "jobOffer" | "at" | "provenance"> & {
     jobOfferId?: string;
     sentAt: Date;
     provenance?: Provenance;
-    focus?: { kind: "application" | "job_offer" | "profile"; id: string };
+    focus?: { kind: FocusKind; id?: string };
   })[];
 }
 
@@ -234,6 +240,8 @@ export interface CandidateDataExport {
   exportedAt: Date;
   /** Null once the account is deleted. */
   account: ExportedAccount | null;
+  /** Every CGU and CGV version the Candidate accepted (#510), oldest first: its permanent URL and fingerprint, when and how. */
+  acceptances: ExportedAcceptance[];
   /** The Candidate's Plan, from Stripe (its identifiers there are left out), or null on the Free Plan from the start. */
   plan: { plan: Plan; subscriptionStatus: string | null; endsAt: Date | null } | null;
   /**
@@ -241,8 +249,26 @@ export interface CandidateDataExport {
    * it starts on ("2026-10-12"), or the month ("2026-10") for uses counted monthly before ADR-0032.
    */
   quotaUsage: { quota: string; week: string; used: number }[];
+  /** Each Quota Reduction they were told of (#514), and whether they cancelled over it, refunded how much (in cents). */
+  quotaReductionNotices: {
+    plan: string;
+    quotas: unknown;
+    removedFeatures: string[];
+    reason: string;
+    effectiveOn: string;
+    sentAt: Date | null;
+    resolvedAt: Date | null;
+    /**
+     * The prorata refund when they cancelled over it (null when they did not): made by Stripe (`refunded`), refused by
+     * Stripe and still to make (`pending`), made in Stripe by the Jobbbox team afterwards (`settled_by_support`), or
+     * `none` when nothing was left to refund. The amount is in the currency's smallest unit (cents).
+     */
+    refund: { status: "refunded" | "pending" | "settled_by_support" | "none"; amount: number | null; currency: string | null } | null;
+  }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
+  /** The notice emails of substantial Legal Text Versions sent to the Candidate, and the privacy policy changes they closed (#547). */
+  legalTextNotices: ExportedLegalTextNotices;
   /** The Candidate's Email intake (ADR-0051, #441): every Forwarding address given to them, with its activation date, and the sending addresses they added. */
   emailIntake: ExportedEmailIntake;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -275,6 +301,16 @@ export interface CandidateDataExport {
    * context, status and the team's reply, with their dates; never which Administrator changed it or replied.
    */
   signalements: Signalement[];
+  /**
+   * Every Order the Candidate placed on the page before Stripe Checkout (#512), oldest first: what it was for, the CGV
+   * version accepted with it, the Immediate Performance Request, and when its confirmation went; no Stripe identifiers.
+   */
+  orders: ExportedOrder[];
+  /**
+   * Every Withdrawal the Candidate made (#511), newest first: the contract, when it was concluded and withdrawn from, the
+   * name and address given, when the acknowledgement went, and each refund with its status; no Stripe identifiers.
+   */
+  withdrawals: ExportedWithdrawal[];
   /** The Job Offers private to the Candidate (ADR-0049: a role a recruiter's message offered them), newest first. */
   privateJobOffers: ExportedPrivateJobOffer[];
   /** Oldest first, archived ones included. */
@@ -326,6 +362,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   administrator_role: "account.backOfficeRoles (not who granted them)",
   candidate_plan: "plan (no Stripe identifiers)",
   quota_usage: "quotaUsage",
+  plan_quota_reduction_notice: "quotaReductionNotices (each Quota Reduction they were told of: its Plan, what it lowers, reason and date; when the e-mail went, and their cancellation and refund over it, with whether the refund was made, waits or was made by the team; no Stripe identifiers or error codes)",
   eu_ai_consent: "euAiConsent",
   forwarding_address: "emailIntake.forwardingAddresses (replaced and switched off ones included, with their dates)",
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
@@ -336,6 +373,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",
+  legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
+  privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
@@ -354,7 +393,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier (with what served its last build)",
-  coach_conversation: "coachConversations",
+  coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
@@ -365,17 +404,24 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
   signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
+  checkout_order: "orders (what was ordered, the CGV version accepted, the Immediate Performance Request, when it was ordered and confirmed; no Stripe identifiers)",
+  withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",
+  withdrawal_refund: "withdrawals[].refunds (amount, currency and status; no Stripe identifiers)",
   job_offer: "privateJobOffers (only the Job Offers private to the Candidate, ADR-0049; shared ones are no one's and are kept)",
+  legal_acceptance: "acceptances (each CGU and CGV version accepted, when and how; never the pseudonym kept after deletion, nor Stripe's Checkout session id)",
 };
 
 /**
- * Tables naming a Candidate that are Jobbbox's own operations record, not the Candidate's data:
- * left out of their export and kept when their account is deleted, the Candidate's id set to
- * null. Each says what it keeps and for how long. The same test checks every other table tied
- * to a Candidate is exported and deleted with them.
+ * Tables naming a Candidate that are Jobbbox's own operations record, not only the Candidate's data:
+ * kept when their account is deleted, the Candidate's id set to null. Each says what it keeps, for how
+ * long, and whether it is in the export while the account lives (then EXPORTED_TABLES lists it too, ADR-0010's
+ * amendment and ADR-0073).
+ * The same test checks every other table tied to a Candidate is exported and deleted with them.
  */
 export const OPERATIONS_RECORD_TABLES: Readonly<Record<string, string>> = {
-  back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; purged after 3 years",
+  back_office_audit: "Back Office Audit (#203): the changes an Administrator made, with the email they had then; not exported; purged after 3 years",
+  legal_acceptance:
+    "Acceptances (#510, ADR-0062, ADR-0073): proof of each CGU and CGV version accepted, kept by a pseudonym (no email, no name); exported while the account lives; purged 5 years after the deletion (CGU), 10 years (CGV)",
 };
 
 export interface CandidateData {
@@ -580,16 +626,15 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   async function exportCoachConversations(candidateId: string): Promise<ExportedCoachConversation[]> {
     const [conversations, messagesOf] = await Promise.all([
-      rowsOf<Omit<ExportedCoachConversation, "messages">>(
-        `SELECT c.id, c.title, CASE WHEN p.id IS NULL THEN NULL ELSE json_build_object('id', p.id, 'name', p.name) END AS profile,
-                c.created_at AS "createdAt", c.last_message_at AS "lastMessageAt"
-           FROM coach_conversation c LEFT JOIN profile p ON p.id = c.profile_id
+      rowsOf<Pick<ExportedCoachConversation, "id" | "title" | "createdAt" | "lastMessageAt"> & SubjectRow>(
+        `SELECT c.id, c.title, c.created_at AS "createdAt", c.last_message_at AS "lastMessageAt", ${SUBJECT_COLUMNS}
+           FROM coach_conversation c ${SUBJECT_JOINS}
           WHERE c.candidate_id = $1 ORDER BY c.last_message_at DESC, c.id`,
         candidateId,
       ),
       grouped<
         Pick<ExportedCoachConversation["messages"][number], "from" | "text" | "sentAt"> &
-          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: "application" | "job_offer" | "profile" | null; focusId: string | null }
+          SavedReply & { blocked: true | null; jobOfferId: string | null; focusKind: FocusKind | null; focusId: string | null }
       >(
         `SELECT m.conversation_id AS key, m.author AS "from", m.text, CASE WHEN m.blocked THEN true END AS blocked, m.job_offer_id AS "jobOfferId", m.created_at AS "sentAt",
                 m.focus_kind AS "focusKind", m.focus_id AS "focusId", ${SAVED_REPLY_COLUMNS}
@@ -600,9 +645,14 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     ]);
     // A Blocked message (#228) says so, a reply with a Job Offer card names its Job Offer, a reply says what served it (#327)
     // and what was in view; the others carry no mark. Never what a reply cost.
-    return conversations.map((conversation) => ({
-      ...conversation,
-      messages: messagesOf(conversation.id).map((message) => {
+    return conversations.map(({ id, title, createdAt, lastMessageAt, ...row }) => ({
+      id,
+      title,
+      subject: subjectFrom(row),
+      profile: attachedProfileFrom(row),
+      createdAt,
+      lastMessageAt,
+      messages: messagesOf(id).map((message) => {
         const provenance = message.from === "coach" ? savedReplyProvenance(message) : null;
         return {
           from: message.from,
@@ -611,7 +661,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           ...(message.blocked ? { blocked: message.blocked } : {}),
           ...(message.jobOfferId ? { jobOfferId: message.jobOfferId } : {}),
           ...(provenance ? { provenance } : {}),
-          ...(message.focusKind && message.focusId ? { focus: { kind: message.focusKind, id: message.focusId } } : {}),
+          ...(message.focusKind ? { focus: { kind: message.focusKind, ...(message.focusId ? { id: message.focusId } : {}) } } : {}),
         };
       }),
     }));
@@ -657,14 +707,29 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
+        acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
           `SELECT plan, stripe_status AS "subscriptionStatus", ends_at AS "endsAt" FROM candidate_plan WHERE candidate_id = $1`,
           candidateId,
         ),
         rowsOf<CandidateDataExport["quotaUsage"][number]>(`SELECT quota, week, used FROM quota_usage WHERE candidate_id = $1 ORDER BY week DESC, quota`, candidateId),
+        rowsOf<CandidateDataExport["quotaReductionNotices"][number]>(
+          `SELECT r.plan, r.quotas, r.removed_features AS "removedFeatures", r.reason, to_char(r.effective_on, 'YYYY-MM-DD') AS "effectiveOn",
+                  n.sent_at AS "sentAt", n.resolved_at AS "resolvedAt",
+                  CASE WHEN n.resolved_at IS NULL THEN NULL ELSE json_build_object(
+                    'status', CASE WHEN n.refund_failure IS NOT NULL THEN 'pending'
+                                   WHEN n.refund_settled_at IS NOT NULL THEN 'settled_by_support'
+                                   WHEN n.refund_id IS NOT NULL THEN 'refunded'
+                                   ELSE 'none' END,
+                    'amount', NULLIF(n.refund_amount, 0), 'currency', n.refund_currency) END AS refund
+             FROM plan_quota_reduction_notice n JOIN plan_quota_reduction r ON r.id = n.reduction_id
+            WHERE n.candidate_id = $1 ORDER BY r.effective_on DESC, r.id DESC`,
+          candidateId,
+        ),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
+        legalTextNoticesOf(database, candidateId),
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
@@ -702,11 +767,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           })),
         ),
         signalementsOf(database, candidateId),
+        ordersOf(database, candidateId),
+        withdrawalsOf(database, candidateId),
         privateJobOffersOf(database, candidateId),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, plan, quotaUsage, euAiConsent, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

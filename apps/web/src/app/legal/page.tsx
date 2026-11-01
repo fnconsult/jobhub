@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { routes } from "@/routes";
 
-/** Légal (#470) opens on its first Legal Document. */
+/** Légal opens on its first Legal Text, the CGU. */
 export default function LegalPage() {
   redirect(routes.legal());
 }

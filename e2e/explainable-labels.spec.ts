@@ -68,16 +68,15 @@ test.describe("Explainable labels", () => {
 
   test("asked from the inbound domain's label on the Email intake sheet, the Assistant explains the MX setup (fake AI) (#448)", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await page.goto("/admin/parametres?tab=sources&fournisseur=brevo-inbound");
+    await page.goto("/admin/parametres?tab=sources&fournisseur=email-intake");
     const label = texts.labels.EMAIL_INTAKE_DOMAIN;
     await newConversation(page);
-    await page.locator('[data-sheet="brevo-inbound"] tr[data-setting="EMAIL_INTAKE_DOMAIN"]').getByRole("button", { name: label, exact: true }).click();
+    await page.locator('[data-sheet="email-intake"] tr[data-setting="EMAIL_INTAKE_DOMAIN"]').getByRole("button", { name: label, exact: true }).click();
     await expect(assistant(page)).toBeVisible();
     await expect(assistant(page).getByRole("list", { name: assistantTexts.messagesLabel })).toContainText(tr(assistantTexts.explain.question, { label }));
-    // The fake AI answers with the MX lines it was told: Brevo's two inbound servers, with their priorities.
+    // The fake AI answers with the MX lines it was told: the MTA host that receives the intake domain's mail.
     await expect(lastReply(page)).toContainText("MX");
-    await expect(lastReply(page)).toContainText("inbound1.sendinblue.com");
-    await expect(lastReply(page)).toContainText("inbound2.sendinblue.com");
+    await expect(lastReply(page)).toContainText("mx.jobbbox.ai");
   });
 
   test("an Explainable label is keyboard reachable, named by its label, and the page passes axe", async ({ page }) => {

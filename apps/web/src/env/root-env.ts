@@ -11,8 +11,11 @@ export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)
  * `apps/web`, so `next.config.ts` calls this for `next dev`, `next build` and `next start`.
  * Values already in `process.env` (shell, CI, container, `apps/web/.env*`) win.
  * A missing file is not an error: CI and containers inject the environment directly.
+ * JOBHUB_IGNORE_ROOT_ENV=1 skips the file: the e2e suite's server (playwright.config.ts) runs on the suite's settings
+ * alone, as in CI, not on whatever a developer's `.env` adds (a BEDROCK_REGION, a MAIL_FROM).
  */
 export function loadRootEnv(rootDir: string = repoRoot): void {
+  if (process.env.JOBHUB_IGNORE_ROOT_ENV === "1") return;
   let contents: string;
   try {
     contents = readFileSync(path.join(rootDir, ".env"), "utf8");

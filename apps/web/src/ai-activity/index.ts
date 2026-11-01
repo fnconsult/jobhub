@@ -3,8 +3,9 @@
  * each read from its stored Provenance, one loader per page type; the « Cette page » pane sums them (pane.ts).
  *
  *   await jobOfferPage(sources, candidateId, jobOffer)                 `/offres/[id]`
- *   await jobSearchPage(sources, searches)                             `/recherches` and `/recherches/[id]`
- *   await jobDigestPage(sources, jobDigest)                            `/job-digests/[id]`
+ *   await jobSearchPage(sources, searches, about?)                     `/recherches` and `/recherches/[id]` (`about`: its Job Search)
+ *   await jobDigestPage(sources, candidateId, jobDigest)               `/job-digests/[id]`
+ *   await agendaPage(sources, candidateId)                             `/agenda`
  *   await applicationPage(sources, candidateId, application, made)     `/candidatures/[id]/*`
  *   await profilePage(sources, candidateId, profile, made)             `/profils/[id]/*`
  *
@@ -68,32 +69,47 @@ const searchEnded = ({ status, failure }: SearchEnd): ActionEnded | undefined =>
 
 /**
  * `/recherches` and `/recherches/[id]`: each Job Search shown with its run's Provenance (null until kept) and how it ended
- * (a stopped or failed one keeps its Job Offers, #331), then the Job Offers it found.
+ * (a stopped or failed one keeps its Job Offers, #331), then the Job Offers it found; on `/recherches/[id]`, `about` its
+ * Job Search, then the Coach replies about it (#600).
  */
 export async function jobSearchPage(
   sources: PageSources,
   searches: readonly (SearchEnd & { startedAt: Date; provenance?: Provenance | null; results: readonly { jobOffer: OfferShown }[] })[],
+  about?: { candidateId: string; jobSearchId: string },
 ): Promise<ActivityElement[]> {
-  const found = await offers(
-    sources,
-    searches.flatMap((search) => search.results.map((result) => result.jobOffer)),
-  );
-  let next = 0;
-  return searches.flatMap((search) => [
-    activityElement("job_search", search.provenance ?? null, { at: search.startedAt.toISOString(), ...withEnded(searchEnded(search)) }),
-    ...found.slice(next, (next += search.results.length)),
+  const [found, replies] = await Promise.all([
+    offers(
+      sources,
+      searches.flatMap((search) => search.results.map((result) => result.jobOffer)),
+    ),
+    about ? repliesAbout(sources, about.candidateId, { kind: "job_search", id: about.jobSearchId }) : [],
   ]);
+  let next = 0;
+  return [
+    ...searches.flatMap((search) => [
+      activityElement("job_search", search.provenance ?? null, { at: search.startedAt.toISOString(), ...withEnded(searchEnded(search)) }),
+      ...found.slice(next, (next += search.results.length)),
+    ]),
+    ...replies,
+  ];
 }
 
-/** `/job-digests/[id]`: the Job Digest (its Match Scores and top-up run, once kept), then the Job Offers it brought. */
+/** `/job-digests/[id]`: the Job Digest (its Match Scores and top-up run, once kept), then the Job Offers it brought, and the Coach replies about it (#600). */
 export async function jobDigestPage(
   sources: PageSources,
-  jobDigest: { sentAt: Date; provenance?: Provenance | null; results: readonly { jobOffer: OfferShown }[] },
+  candidateId: string,
+  jobDigest: { id: string; sentAt: Date; provenance?: Provenance | null; results: readonly { jobOffer: OfferShown }[] },
 ): Promise<ActivityElement[]> {
-  return [
-    ...made([{ kind: "job_digest", at: jobDigest.sentAt, provenance: jobDigest.provenance }]),
-    ...(await offers(sources, jobDigest.results.map((result) => result.jobOffer))),
-  ];
+  const [found, replies] = await Promise.all([
+    offers(sources, jobDigest.results.map((result) => result.jobOffer)),
+    repliesAbout(sources, candidateId, { kind: "job_digest", id: jobDigest.id }),
+  ]);
+  return [...made([{ kind: "job_digest", at: jobDigest.sentAt, provenance: jobDigest.provenance }]), ...found, ...replies];
+}
+
+/** `/agenda`: the Coach replies given with the Agenda In view (#600); the Agenda shows nothing else AI made. */
+export function agendaPage(sources: PageSources, candidateId: string): Promise<ActivityElement[]> {
+  return repliesAbout(sources, candidateId, { kind: "agenda", id: "agenda" });
 }
 
 /** `/candidatures/[id]/*`, every Section: the Job Offer, what was made for the Application, and the Coach replies about it. */

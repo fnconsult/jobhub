@@ -6,7 +6,8 @@
  * tokens (La Bonne Boite first, which validates the client; each API's state is returned, #400),
  * Fantastic.jobs answers a search for no job (one API request, no Jobs credit),
  * Stripe its balance, Brevo its account (or its SMTP relay is verified), the contact-enrichment
- * provider answers its account call. Nothing is spent and nothing is stored.
+ * provider answers its account call. Email intake's inbound secret calls no one: only its length is checked.
+ * Nothing is spent and nothing is stored.
  *
  * The details returned may quote the provider's answer; the store scrubs them of
  * the keys before they go anywhere. Each test that calls its provider is recorded as one
@@ -30,8 +31,8 @@ export interface ConnectionTesterDeps {
   externalApis?: ExternalApiLog;
 }
 
-/** The Tool each provider's connection test calls (TOOLS), by the id its calls are recorded under; Brevo's SMTP relay apart. */
-const TOOL_OF: Record<SecretProvider, ExternalApiProvider> = {
+/** The Tool each provider's connection test calls (TOOLS), by the id its calls are recorded under; Brevo's SMTP relay apart; null: it calls none. */
+const TOOL_OF: Record<SecretProvider, ExternalApiProvider | null> = {
   mistral: "mistral",
   perplexity: "perplexity",
   brave: "brave",
@@ -45,7 +46,11 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider> = {
   apollo: "apollo",
   stripe: "stripe",
   brevo: "brevo",
+  "email-intake": null,
 };
+
+/** The shortest inbound secret taken: the MTA and the app share it, and it is the door's only key from the network. */
+const MIN_INBOUND_SECRET_LENGTH = 32;
 const CONNECTION_TEST = "connection_test";
 
 /**
@@ -106,7 +111,8 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
   /** The calls of `provider`'s test, each recorded when a log is given. */
   function io(provider: SecretProvider): Io {
     const { externalApis } = deps;
-    const fetch = externalApis ? recordingFetch(plainFetch, externalApis, { provider: TOOL_OF[provider], operation: () => CONNECTION_TEST }) : plainFetch;
+    const tool = TOOL_OF[provider];
+    const fetch = externalApis && tool ? recordingFetch(plainFetch, externalApis, { provider: tool, operation: () => CONNECTION_TEST }) : plainFetch;
     const smtp = { [CONNECTION_TEST]: plainVerifySmtp };
     const verifySmtp = externalApis ? recordingClient(smtp, externalApis, { provider: "brevo_smtp", answeredStatus: null })[CONNECTION_TEST] : plainVerifySmtp;
     const call = (url: string, init: RequestInit, accept?: (body: unknown) => string | null) => callWith(fetch, url, init, accept);
@@ -227,6 +233,11 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       } catch (error) {
         return failed(`SMTP: ${error instanceof Error ? error.message : String(error)}`);
       }
+    },
+    async "email-intake"(env) {
+      const found = keys(env, "EMAIL_INTAKE_INBOUND_SECRET");
+      if ("missing" in found) return failed(`missing ${found.missing}`);
+      return found.EMAIL_INTAKE_INBOUND_SECRET.length >= MIN_INBOUND_SECRET_LENGTH ? ok : failed(`EMAIL_INTAKE_INBOUND_SECRET must be at least ${MIN_INBOUND_SECRET_LENGTH} characters`);
     },
   };
 

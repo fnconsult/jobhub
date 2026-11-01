@@ -9,7 +9,10 @@ import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { FOLLOW_UP_CARD, type FollowUpNotice } from "@/follow-ups";
 import { getFollowUps } from "@/follow-ups/server";
 import { ApplicationStatusSelect } from "@/components/ApplicationControls";
+import { ApplicationsMenuPage } from "@/components/ApplicationsMenuPage";
 import { CandidateLayout } from "@/components/CandidateLayout";
+import { conversationFirst } from "@/conversation-first";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { EmptyStateHelp, HelpTerm } from "@/components/HelpTerm";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { getProfiles } from "@/profiles/server";
@@ -47,10 +50,20 @@ const SORT_LABELS = { offre: "applications.jobOffer", profil: "applications.prof
  * address. Archived Applications (an end state, or an archived Profile) are hidden until asked for.
  * Drawn in the Design System's Confort Density (#467): the filters as Fields, the list as a Table, the board's cards,
  * the follow-ups to do as a Note, and its empty state.
+ * Under « Conversation au centre » (#604, ADR-0070), the menu's conversation is the page instead, the list a card in its
+ * thread (see ApplicationsMenuPage); « archivees=1 » in the address still shows the Archived Applications.
  */
 export default async function ApplicationsPage({ searchParams }: { searchParams: Promise<{ vue?: string } & ApplicationListParams> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
+  if (conversationFirst(getPlatformSettingsResolver().current())) {
+    const [t, params] = await Promise.all([getServerT(), searchParams]);
+    return (
+      <CandidateLayout candidateId={candidate.id} title={t("applications.title")}>
+        <ApplicationsMenuPage candidateId={candidate.id} showArchived={applicationListView(params).showArchived} />
+      </CandidateLayout>
+    );
+  }
   const [t, locale, applications, notices, profiles, params] = await Promise.all([
     getServerT(),
     getRequestLocale(),

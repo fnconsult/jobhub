@@ -36,7 +36,7 @@ const STATUS_TONE = { searching: undefined, done: "success", failed: "danger", s
  */
 export default async function JobSearchPage({ params }: Params) {
   const { candidateId, jobSearch } = await requireOwnJobSearch((await params).id);
-  const [t, locale, industries, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), readIndustryReference(), loadAiActivity.jobSearches([jobSearch])]);
+  const [t, locale, industries, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), readIndustryReference(), loadAiActivity.jobSearches([jobSearch], { candidateId, jobSearchId: jobSearch.id })]);
   const { profile, status, results } = jobSearch;
   // This page shows how the Job Search ended: no need to notify the Candidate of it any more.
   if (status !== "searching") await getJobSearches().dismissNotification(candidateId, jobSearch.id);

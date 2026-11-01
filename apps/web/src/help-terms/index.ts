@@ -4,7 +4,8 @@
  *
  *   HELP_TERMS.matchScore                         // "glossary-match-score"
  *   EMPTY_STATE_HELP.proposals                    // "glossary-proposals"
- *   mentions.isFirst(pathname, "matchScore", id)  // true for the page's first mention only
+ *   mentions.isFirst(pathname, "matchScore", id)  // true for the page's first mention only (while rendering)
+ *   mentions.shown(pathname, "matchScore", id)    // the same, once it is on the page (in an effect)
  *   termsWithin("Votre quota se renouvelle…", { planQuota: "quota" }) // ["Votre ", { term: "planQuota", words: "quota" }, " se renouvelle…"]
  */
 
@@ -34,28 +35,50 @@ export type EmptyStateName = keyof typeof EMPTY_STATE_HELP;
 /**
  * Which mention of a term is the page's first, as the page is shown: the first one asked about, until it leaves the
  * page. A mention is any key that stays the same while it is shown (a React id). A new page starts afresh.
+ *
+ * Asked while rendering, a mention can take the place for a render that never reaches the page (React drops a render it
+ * was interrupted in, and gives the mention a new id when it renders it again), or before the mention it replaces has
+ * left (mounted anew in its place). So a mention asks again once it is on the page (`shown`): a place held by a mention
+ * that is not there is free.
  */
 export interface Mentions {
   /** Whether `mention` is the first mention of `term` on `page` (a pathname); the first asked about becomes it. */
   isFirst(page: string, term: HelpTermName, mention: string): boolean;
+  /**
+   * `mention` is on `page`: whether it is the first mention of `term` there, taking the place if the mention holding it
+   * is not on the page (yet, or any more).
+   */
+  shown(page: string, term: HelpTermName, mention: string): boolean;
   /** `mention` has left the page: the next mention of `term` shown can become the first. */
   forget(term: HelpTermName, mention: string): void;
 }
 
 export function createMentions(): Mentions {
-  let shown: string | null = null;
+  let current: string | null = null;
   const first = new Map<HelpTermName, string>();
+  /** The mentions on the page. */
+  const onPage = new Set<string>();
+  const onto = (page: string) => {
+    if (page === current) return;
+    current = page;
+    first.clear();
+  };
   return {
     isFirst(page, term, mention) {
-      if (page !== shown) {
-        shown = page;
-        first.clear();
-      }
+      onto(page);
       const claimed = first.get(term);
       if (claimed === undefined) first.set(term, mention);
       return (claimed ?? mention) === mention;
     },
+    shown(page, term, mention) {
+      onto(page);
+      onPage.add(mention);
+      const claimed = first.get(term);
+      if (claimed === undefined || !onPage.has(claimed)) first.set(term, mention);
+      return first.get(term) === mention;
+    },
     forget(term, mention) {
+      onPage.delete(mention);
       if (first.get(term) === mention) first.delete(term);
     },
   };

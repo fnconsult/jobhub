@@ -4,7 +4,7 @@ import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, signedEvent 
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
-import { submitToStripe } from "./support/stripe-checkout";
+import { orderToStripe } from "./support/stripe-checkout";
 
 // Issue #24: Human Coaches, added in the Back Office with their Cal.com booking
 // link; Coaching Sessions paid through Stripe Checkout at the single Coaching
@@ -105,7 +105,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(page.getByText(/Prix d'une séance : 90,00/)).toBeVisible();
     await expect(page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveCount(0);
 
-    const response = await submitToStripe(page, "/api/coaching/checkout", tr(hc.book, { name: coach.name }));
+    const response = await orderToStripe(page, "/api/coaching/checkout", tr(hc.book, { name: coach.name }));
     expect(response.status()).toBe(303);
     expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = await checkoutsFor(coachId);

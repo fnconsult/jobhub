@@ -68,7 +68,7 @@ export const PARAMETRES_TABS: readonly ParametresTab[] = [
   },
   { id: "sign_in", slug: "connexion", toolCategories: ["sign_in"], settings: [] },
   { id: "extension", slug: "extension", toolCategories: [], settings: namesOf(["extension"]) },
-  { id: "environment", slug: "environnement", toolCategories: [], settings: namesOf(["maintenance"]) },
+  { id: "environment", slug: "environnement", toolCategories: [], settings: namesOf(["maintenance", "candidate_pages"]) },
 ];
 
 /** What « + Ajouter » adds (#396): a provider (its key, on its sheet), a key, a model, a source, a Job discovery site, a Job Site or a Sign-in Provider. */
@@ -119,13 +119,13 @@ export function providerSheetHref(tool: Tool): string | undefined {
 export const pricesOfTool = (tool: Tool): readonly string[] => PRICE_SETTINGS.filter((price) => price.provider === tool.id).map((price) => price.name);
 
 /**
- * The settings changed on `tool`'s sheet rather than on its tab: Email intake's (#448), on the sheet of Brevo Inbound,
- * its Tool, beside its key and its Recognised senders. None for another Tool.
+ * The settings changed on `tool`'s sheet rather than on its tab: Email intake's (#448), on the sheet of its Tool (the
+ * MTA), beside its key and its Recognised senders. None for another Tool.
  */
 export const sheetSettingsOf = (tool: Tool): readonly string[] => (tool.id === EMAIL_INTAKE_TOOL ? namesOf(["email_intake"]) : []);
 
-/** Email intake's Tool (#442, #448): Brevo Inbound Parsing, whose sheet is the Email intake sheet. */
-export const EMAIL_INTAKE_TOOL = "brevo-inbound";
+/** Email intake's Tool (#442, #448, #580): its own MTA, whose sheet is the Email intake sheet. */
+export const EMAIL_INTAKE_TOOL = "email-intake";
 
 /** A setting's row on the tab that shows it: a Tool's price or own setting on its sheet, Environnement for one only env holds. */
 export function settingHref(name: string): string {

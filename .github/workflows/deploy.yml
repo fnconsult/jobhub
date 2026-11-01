@@ -9,7 +9,7 @@
 #   secrets    VPS_HOST, VPS_USER, VPS_SSH_KEY
 # Application secrets live in <JOBHUB_ROOT>/.env on the VPS, never in GitHub.
 #
-# The images (web, migrate, worker) are built here and pushed to GHCR, tagged with the
+# The images (web, migrate, worker, mta) are built here and pushed to GHCR, tagged with the
 # commit SHA; the VPS only pulls them, with this run's short-lived token.
 name: Deploy
 run-name: Deploy ${{ inputs.target }} (${{ github.ref_name }}) by ${{ github.actor }}
@@ -90,6 +90,8 @@ jobs:
           - { name: web, dockerfile: apps/web/Dockerfile, target: web }
           - { name: migrate, dockerfile: apps/web/Dockerfile, target: migrate }
           - { name: worker, dockerfile: apps/worker/Dockerfile, target: "" }
+          # Email intake's MTA (#580), run by the environment its .env names (deploy/mta/compose.yml).
+          - { name: mta, dockerfile: apps/mta/Dockerfile, target: "" }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

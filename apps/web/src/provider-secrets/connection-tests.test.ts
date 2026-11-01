@@ -219,6 +219,18 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
   });
 });
 
+describe("Email intake's inbound secret", () => {
+  it("calls no one: it only checks the secret is long enough to share with the MTA, and records nothing", async () => {
+    const calls: ExternalApiCall[] = [];
+    const tester = createConnectionTester({ fetch: fakeFetch(500).fetch, externalApis: { record: (call: ExternalApiCall) => void calls.push(call) } });
+
+    expect(await tester("email-intake", { EMAIL_INTAKE_INBOUND_SECRET: "x".repeat(32) })).toEqual({ ok: true });
+    expect(await tester("email-intake", { EMAIL_INTAKE_INBOUND_SECRET: "too-short" })).toEqual({ ok: false, detail: "EMAIL_INTAKE_INBOUND_SECRET must be at least 32 characters" });
+    expect(await tester("email-intake", {})).toEqual({ ok: false, detail: "missing EMAIL_INTAKE_INBOUND_SECRET" });
+    expect(calls).toEqual([]);
+  });
+});
+
 describe("a connection test, as recorded", () => {
   const recorder = () => {
     const calls: ExternalApiCall[] = [];

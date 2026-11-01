@@ -1,14 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
-import { alertEmail, authenticationResults, inboundPayload, unknownSenderEmail } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
+import { alertEmail, authenticationResults, inboundRequest, unknownSenderEmail, type InboundTestEmail } from "../apps/web/src/email-intake/fixtures/inbound-emails";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
-// Issue #449 / ADR-0051: Email intake in the Back Office. A Candidate switches Email intake on and Brevo delivers two
-// emails to their Forwarding address (fictional payloads from the fixtures); a third row stands for an email the worker
+// Issue #449 / ADR-0051: Email intake in the Back Office. A Candidate switches Email intake on and its MTA delivers two
+// emails to their Forwarding address (fictional emails from the fixtures); a third row stands for an email the worker
 // read (#445). Super-admins and Support read every row in Activité › Emails reçus, naming no Candidate; the Journal's
 // Boîtes reliées filter lists the Linked mailbox switched on, naming no one either.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -17,8 +17,14 @@ const received = admin.receivedEmails;
 const origin = process.env.E2E_WEB_ORIGIN!;
 // Its own permanent super-admin (ADMIN_EMAILS): two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "emails-recus-office@e2e.jobbbox.test";
-const SECRET = "e2e-brevo-inbound-secret";
-const BREVO_IP = "203.0.113.7"; // inside EMAIL_INTAKE_BREVO_IP_RANGES (playwright.config.ts)
+const SECRET = "e2e-email-intake-inbound-secret-0123456789";
+const MTA_IP = "203.0.113.7"; // inside EMAIL_INTAKE_MTA_IP_RANGES (playwright.config.ts)
+
+/** Posts one email as the MTA does: its raw message, its envelope and the MTA's stamp. */
+function deliver(request: APIRequestContext, email: InboundTestEmail) {
+  const { headers, body } = inboundRequest(email, SECRET);
+  return request.post("/api/email-intake/inbound", { headers: { ...headers, "x-forwarded-for": MTA_IP }, data: body });
+}
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 /** The sender's domain of the email the worker read: this run's own, so rows of other specs are told apart. */
 const READ_DOMAIN = `alertes-${tag}.example-jobs.test`;
@@ -56,11 +62,7 @@ test.describe("Back Office Activité › Emails reçus and the Journal's Boîtes
     const on = await candidate.request.put("/api/account/email-intake", { headers: { origin } });
     expect(on.status()).toBe(200);
     address = (await on.json()).address;
-    const delivered = await candidate.request.post("/api/email-intake/inbound", {
-      headers: { "x-forwarded-for": BREVO_IP, "x-inbound-secret": SECRET },
-      data: inboundPayload(alertEmail(address), unknownSenderEmail(address)),
-    });
-    expect(delivered.status()).toBe(200);
+    for (const email of [alertEmail(address), unknownSenderEmail(address)]) expect((await deliver(candidate.request, email)).status()).toBe(200);
     // An email the worker read (#445): its kind, offers, outcome and Guardrail verdict.
     await database.query(
       `INSERT INTO received_email_activity (received_at, sender_domain, kind, new_offers, already_stored, outcome, guardrail)
@@ -140,10 +142,7 @@ test.describe("Back Office Activité › Emails reçus and the Journal's Boîtes
     const on = await candidate.request.put("/api/account/email-intake", { headers: { origin } });
     expect(on.status()).toBe(200);
     const forwarding = (await on.json()).address as string;
-    const delivered = await candidate.request.post("/api/email-intake/inbound", {
-      headers: { "x-forwarded-for": BREVO_IP, "x-inbound-secret": SECRET },
-      data: inboundPayload(alertEmail(forwarding, { from: `offres@${domain}`, authentication: authenticationResults(domain) })),
-    });
+    const delivered = await deliver(candidate.request, alertEmail(forwarding, { from: `offres@${domain}`, authentication: authenticationResults(domain) }));
     expect(delivered.status()).toBe(200);
 
     const office = await personPage(browser, SUPER_ADMIN);

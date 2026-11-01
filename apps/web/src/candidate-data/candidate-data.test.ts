@@ -14,10 +14,12 @@ import { createBilling, STARTING_PLAN_QUOTAS } from "../billing";
 import { createCoachConversations } from "../coach-conversations";
 import { createHumanCoaches } from "../human-coaches";
 import { createEmailIntake } from "../email-intake";
-import { alertEmail, inboundPayload, unknownSenderEmail } from "../email-intake/fixtures/brevo-inbound";
+import { alertEmail, inboundRequest, unknownSenderEmail } from "../email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound } from "../email-intake/inbound";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
+import { createLegalTextNotices } from "../legal-text-notices";
+import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { migrateDatabase } from "../migrations";
@@ -264,6 +266,51 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect((await candidateData.export(candidateId)).euAiConsent).toEqual({ givenAt: new Date("2026-09-01T08:00:00Z") });
     expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
+  });
+
+  it("the export holds the Legal Text notices emailed to the Candidate and the privacy policy changes they closed (#547)", async () => {
+    expect((await candidateData.export(candidateId)).legalTextNotices).toEqual({ emailed: [], privacyChangesSeen: [] });
+    await database.query(`UPDATE candidate SET "createdAt" = '2026-01-15T10:00:00Z' WHERE id = $1`, [candidateId]);
+    const at = new Date("2026-10-30T09:00:00Z");
+    const policy = (effective: string) => ({ text: "confidentialite" as const, effective, title: "Politique", change: "substantielle" as const, approvedBy: "Camille Martin", summary: "Résumé.", inBrief: [], sections: [] });
+    const notices = createLegalTextNotices(database, {
+      mailer: { send: async () => {} },
+      baseURL: BASE_URL,
+      production: true,
+      now: () => at,
+      written: { fr: [{ ...policy("2026-10-01"), locale: "fr" }, { ...policy("2026-12-15"), locale: "fr" }], en: [] },
+    });
+    await notices.sendDue();
+    await notices.dismissPrivacyChange(candidateId, "2026-10-01");
+
+    expect((await candidateData.export(candidateId)).legalTextNotices).toEqual({
+      emailed: [{ text: "confidentialite", version: "2026-12-15", sentAt: at }],
+      privacyChangesSeen: [{ version: "2026-10-01", seenAt: at }],
+    });
+  });
+
+  it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {
+    expect((await candidateData.export(candidateId)).acceptances).toEqual([]);
+    const registry = () => [
+      { text: "cgu" as const, version: "2026-09-01", url: "/legal/cgu/2026-09-01", sha256: "a".repeat(64), change: "substantielle" as const },
+      { text: "cgv" as const, version: "2026-09-01", url: "/legal/cgv/2026-09-01", sha256: "b".repeat(64), change: "substantielle" as const },
+    ];
+    const acceptances = createAcceptances(database, { registry, secret: "test-secret-test-secret-test-secret-0123", now: () => new Date("2026-09-01T08:00:00Z") });
+    await acceptances.accept(candidateId, "2026-09-01");
+    await acceptances.acceptAtCheckout(candidateId, { channel: "paiement_plan", checkoutSessionId: "cs_test_42", immediateExecutionRequested: true });
+
+    const exported = await candidateData.export(candidateId);
+    expect(exported.acceptances).toEqual([
+      { text: "cgu", version: "2026-09-01", url: "/legal/cgu/2026-09-01", sha256: "a".repeat(64), channel: "premiere_connexion", acceptedAt: new Date("2026-09-01T08:00:00Z") },
+      { text: "cgv", version: "2026-09-01", url: "/legal/cgv/2026-09-01", sha256: "b".repeat(64), channel: "paiement_plan", acceptedAt: new Date("2026-09-01T08:00:00Z"), immediateExecutionRequested: true },
+    ]);
+    expect(JSON.stringify(exported)).not.toContain("cs_test_42");
+    expect(JSON.stringify(exported)).not.toContain(acceptances.holderOf("marie.dupont@example.fr"));
+
+    await candidateData.delete(candidateId);
+
+    const { rows } = await database.query<{ candidate_id: string | null }>(`SELECT candidate_id FROM legal_acceptance`);
+    expect(rows).toEqual([{ candidate_id: null }, { candidate_id: null }]);
   });
 
   it("the export holds the Follow-up Delays the Candidate set (null while they keep the defaults) and the Follow-ups sent on each Application", async () => {
@@ -553,7 +600,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain("daf|lyon");
   });
 
-  it("the export holds every Coach Conversation with all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), each reply's Provenance and focus (#327), but not what each reply cost", async () => {
+  it("the export holds every Coach Conversation with its Subject (#600) and all its messages, the Candidate's and the AI Coach's, blocked ones marked (#228), each reply's Provenance and focus (#327), but not what each reply cost", async () => {
     const profileId = await createProfile(candidateId, "DAF");
     let replies = 0;
     const cost = { provider: "mistral" as const, model: "secret-model-name", inputTokens: 10, outputTokens: 5, cachedInputTokens: 0, eur: 0.01 };
@@ -569,7 +616,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         reply: async () => ({
           ok: true,
           reply: `Réponse ${++replies}`,
-          outcome: replies === 3 ? "blocked_message" : "replied",
+          outcome: replies === 4 ? "blocked_message" : "replied",
           cost,
           playbooks: [],
           consultations: [{ playbookId: "interview-psychology", version: 1, ...cost, model: "secret-agent-model" }],
@@ -578,7 +625,9 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       },
       profiles,
     });
-    const first = await conversations.send(candidateId, { message: "Comment relancer Acme ?", focus: { kind: "profile", id: profileId } });
+    const menu = await conversations.send(candidateId, { subject: { kind: "menu", id: "agenda" }, message: "Mes entretiens ?" });
+    if (!menu.ok) throw new Error("fixture Coach Conversation refused");
+    const first = await conversations.send(candidateId, { subject: { kind: "profile", id: profileId }, message: "Comment relancer Acme ?" });
     if (!first.ok) throw new Error("fixture Coach Conversation refused");
     await conversations.send(candidateId, { conversationId: first.conversation.id, message: "Et après une semaine ?" });
     const second = await conversations.send(candidateId, { message: "Bonjour" });
@@ -590,22 +639,33 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       {
         id: second.conversation.id,
         title: "Bonjour",
+        subject: null,
         profile: null,
         createdAt: expect.any(Date),
         lastMessageAt: expect.any(Date),
         messages: [
           { from: "candidate", text: "Bonjour", blocked: true, sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 3", blocked: true, sentAt: expect.any(Date), provenance },
+          { from: "coach", text: "Réponse 4", blocked: true, sentAt: expect.any(Date), provenance },
         ],
       },
       expect.objectContaining({
         id: first.conversation.id,
+        subject: { kind: "profile", id: profileId, name: "DAF" },
         profile: { id: profileId, name: "DAF" },
         messages: [
           { from: "candidate", text: "Comment relancer Acme ?", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
+          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
           { from: "candidate", text: "Et après une semaine ?", sentAt: expect.any(Date) },
-          { from: "coach", text: "Réponse 2", sentAt: expect.any(Date), provenance },
+          { from: "coach", text: "Réponse 3", sentAt: expect.any(Date), provenance, focus: { kind: "profile", id: profileId } },
+        ],
+      }),
+      expect.objectContaining({
+        id: menu.conversation.id,
+        subject: { kind: "menu", id: "agenda", name: "Agenda" },
+        profile: null,
+        messages: [
+          { from: "candidate", text: "Mes entretiens ?", sentAt: expect.any(Date) },
+          { from: "coach", text: "Réponse 1", sentAt: expect.any(Date), provenance, focus: { kind: "agenda" } },
         ],
       }),
     ]);
@@ -788,6 +848,34 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toMatch(/cus_secret_customer|sub_secret_subscription/);
   });
 
+  it("the export holds each Quota Reduction the Candidate was told of, and whether its refund was made, waits or was made by Support, never a Stripe identifier", async () => {
+    // Three applied reductions of Standard (one waits per Plan at a time): refunded, refused by Stripe, settled by Support.
+    const { rows } = await database.query<{ id: string }>(
+      `INSERT INTO plan_quota_reduction (plan, quotas, reason, effective_on, effective_at, scheduled_by_email, applied_at)
+       SELECT 'standard', '{"jobSearches":{"before":7,"after":3}}', 'Coûts', d::date, d::timestamptz, 'claire@jobbbox.fr', now()
+       FROM unnest(ARRAY['2026-11-14', '2026-12-14', '2027-01-14']) AS d
+       RETURNING id::text AS id`,
+    );
+    const [refunded, refused, settled] = rows.map((row) => row.id);
+    await database.query(
+      `INSERT INTO plan_quota_reduction_notice (reduction_id, candidate_id, sent_at, resolved_at, subscription_id, refund_id, refund_amount, refund_currency, refund_failure, refund_settled_at) VALUES
+         ($2, $1, now(), now(), 'sub_secret_subscription', 're_secret_refund', 666, 'eur', NULL, NULL),
+         ($3, $1, now(), now(), 'sub_secret_subscription', NULL, 500, 'eur', 'charge_disputed', NULL),
+         ($4, $1, now(), now(), 'sub_secret_subscription', NULL, 400, 'eur', NULL, now())`,
+      [candidateId, refunded, refused, settled],
+    );
+
+    const exported = await candidateData.export(candidateId);
+
+    // Newest effective date first.
+    expect(exported.quotaReductionNotices.map(({ effectiveOn, refund }) => ({ effectiveOn, refund }))).toEqual([
+      { effectiveOn: "2027-01-14", refund: { status: "settled_by_support", amount: 400, currency: "eur" } },
+      { effectiveOn: "2026-12-14", refund: { status: "pending", amount: 500, currency: "eur" } },
+      { effectiveOn: "2026-11-14", refund: { status: "refunded", amount: 666, currency: "eur" } },
+    ]);
+    expect(JSON.stringify(exported)).not.toMatch(/sub_secret_subscription|re_secret_refund|charge_disputed/);
+  });
+
   it("the export holds how the Candidate signs in and their sign-in sessions, but no token or password", async () => {
     // Linked when the Candidate signs in with Google.
     await database.query(
@@ -903,16 +991,12 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       emailIntake,
       cipher: () => createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]])),
       queue: { send: async () => {} },
-      settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 10 }),
+      settings: () => ({ secret: "inbound-secret", mtaIpRanges: [], dailyCap: 10 }),
       now: () => now,
     });
-    await inbound.handle(
-      new Request("http://localhost:3000/api/email-intake/inbound", {
-        method: "POST",
-        headers: { "x-inbound-secret": "inbound-secret" },
-        body: JSON.stringify(inboundPayload(alertEmail(address), unknownSenderEmail(address))),
-      }),
-    );
+    for (const email of [alertEmail(address), unknownSenderEmail(address)]) {
+      await inbound.handle(new Request("http://localhost:3000/api/email-intake/inbound", { method: "POST", ...inboundRequest(email, "inbound-secret") }));
+    }
 
     const exported = (await candidateData.export(candidateId)).emailIntake.receivedOfferEmails;
 

@@ -513,6 +513,20 @@
     "withdraw": "Retirer mon accord",
     "error": "Une erreur est survenue. Réessayez."
   },
+  "acceptance": {
+    "title": "Nos conditions d'utilisation",
+    "intro": "Avant de continuer, lisez et acceptez les conditions générales d'utilisation de Jobbbox. Vous n'avez à le faire qu'une fois, puis à chaque version qui change vos droits.",
+    "read": "Lire les CGU (version du {{date}})",
+    "box": "J'accepte les CGU (version du {{date}})",
+    "submit": "Accepter et continuer",
+    "sending": "Enregistrement…",
+    "error": "Votre acceptation n'a pas pu être enregistrée. Réessayez.",
+    "meanwhile": "Sans accepter, vous pouvez toujours télécharger vos données ou supprimer votre compte dans",
+    "data": "Mes données",
+    "meanwhileSubscription": ", et gérer votre abonnement dans",
+    "subscription": "Abonnement",
+    "meanwhileEnd": "."
+  },
   "accountDeleted": {
     "title": "Votre compte est supprimé",
     "body": "Vos données ont été effacées. Merci d'avoir utilisé Jobbbox, et bonne continuation dans votre recherche.",
@@ -1050,7 +1064,7 @@
       "choose": "Choisir l'offre {{plan}}",
       "current": "Votre offre",
       "manage": "Gérer mon abonnement",
-      "manageHelp": "Changement d'offre ou résiliation : tout se fait sur la page sécurisée de notre prestataire de paiement, Stripe.",
+      "manageHelp": "Changement d'offre, moyen de paiement ou annulation d'une résiliation programmée : sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "invoices": "Factures et moyen de paiement",
       "invoicesHelp": "Téléchargez vos factures et changez de moyen de paiement sur la page sécurisée de notre prestataire de paiement, Stripe.",
       "unavailable": "Le paiement en ligne n'est pas disponible pour le moment. Réessayez plus tard.",
@@ -1076,6 +1090,35 @@
       "codeLabel": "Code promo",
       "codeHint": "Il s'applique à un nouvel abonnement, au paiement.",
       "applyCode": "Appliquer"
+    },
+    "cancellation": {
+      "action": "Résilier votre contrat",
+      "title": "Résilier votre contrat",
+      "intro": "Vous êtes sur le point de résilier votre abonnement. Vérifiez ce qui se passe ensuite, puis confirmez.",
+      "contractTitle": "Votre contrat",
+      "plan": "Offre",
+      "endsAt": "Fin du contrat",
+      "keep": "Vous gardez l'offre {{plan}} jusqu'au {{date}}, fin de la période déjà payée. Aucun prélèvement ne suivra ; vous passerez ensuite à l'offre {{free}}.",
+      "receipt": "Vous recevrez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat.",
+      "confirm": "Confirmer la résiliation",
+      "back": "Garder mon abonnement",
+      "nothing": "Vous n'avez pas d'abonnement à résilier : vous êtes sur l'offre Gratuite, ou la résiliation de votre abonnement est déjà programmée.",
+      "backToSubscription": "Retour à Mon abonnement",
+      "done": "Votre résiliation est enregistrée. Vous gardez l'offre {{plan}} jusqu'au {{date}} ; aucun prélèvement ne suivra.",
+      "receiptSent": "Un accusé de réception vous a été envoyé par e-mail.",
+      "receiptNotSent": "L'accusé de réception n'a pas pu vous être envoyé par e-mail ; votre résiliation est bien enregistrée.",
+      "email": {
+        "subject": "Accusé de réception de votre résiliation",
+        "title": "Votre résiliation est enregistrée",
+        "intro": "Nous avons bien reçu le {{at}} votre demande de résiliation de votre abonnement à l'offre {{plan}}.",
+        "contract": "Abonnement à l'offre {{plan}}",
+        "requestedAt": "Demande reçue le {{at}}",
+        "endsAt": "Fin du contrat : {{date}}",
+        "undo": "Vous changez d'avis ? Jusqu'à cette date, vous pouvez annuler la résiliation depuis Mon abonnement, avec « Gérer mon abonnement ».",
+        "action": "Voir mon abonnement",
+        "keepThis": "Conservez cet e-mail : il vaut accusé de réception de votre résiliation.",
+        "reason": "Vous recevez cet e-mail parce que vous avez résilié votre abonnement sur Jobbbox."
+      }
     },
     "quotas": {
       "profiles": "Profils",
@@ -1106,6 +1149,67 @@
       "off": "−{{off}}",
       "monthsOnly_one": "{{count}} mois",
       "monthsOnly_other": "{{count}} mois"
+    }
+  },
+  "orders": {
+    "page": {
+      "title": "Votre commande",
+      "intro": "Vérifiez votre commande, puis passez au paiement sécurisé sur la page de notre prestataire de paiement, Stripe.",
+      "summaryTitle": "Récapitulatif",
+      "item": "Commande",
+      "price": "Prix",
+      "priceUnknown": "Indiqué sur la page de paiement",
+      "renewal": "Durée",
+      "code": "Code promo",
+      "codeCarried": "{{code}}, appliqué au paiement s'il est valable sur cette offre",
+      "readCgv": "Lire les CGV (version du {{date}})",
+      "cgvBox": "J'accepte les CGV (version du {{date}})",
+      "immediatePlan": "Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni.",
+      "immediateSession": "Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni et que je perds mon droit de rétractation une fois la séance réalisée.",
+      "immediateHint": "Facultatif : sans cette demande, vous payez et le service commence de la même façon, mais une rétractation vous est remboursée en entier.",
+      "withdrawal": "Vous pourrez vous rétracter pendant 14 jours, sans motif, depuis « Renoncer au contrat ici ». Une confirmation de votre commande vous est envoyée par e-mail après le paiement.",
+      "submit": "Passer au paiement",
+      "back": "Retour",
+      "cgvRequired": "Cochez la case « J'accepte les CGV » pour passer au paiement.",
+      "nothing": "Cette commande n'est plus possible : l'offre ou le coach n'est plus proposé, ou le paiement en ligne n'est pas disponible."
+    },
+    "email": {
+      "subjectPlan": "Confirmation de votre commande : offre {{plan}}",
+      "subjectSession": "Confirmation de votre commande : séance de coaching avec {{coach}}",
+      "title": "Votre commande est confirmée",
+      "intro": "Merci ! Votre paiement est enregistré le {{at}}. Voici le récapitulatif de votre commande :",
+      "plan": "Offre {{plan}}",
+      "coachingSession": "Séance de coaching avec {{coach}}",
+      "price": "Prix : {{price}}",
+      "paid": "Montant payé : {{amount}}",
+      "cgv": "Vous avez accepté nos CGV (version du {{date}}). Elles restent consultables à cette adresse permanente : {{url}}",
+      "immediatePlan": "Vous avez demandé que le service commence immédiatement. En cas de rétractation, vous paierez le service déjà fourni : le montant payé vous sera remboursé, moins la part des jours écoulés depuis le début de la période.",
+      "immediateSession": "Vous avez demandé que le service commence immédiatement. En cas de rétractation avant la séance, le montant payé vous sera remboursé en entier ; une fois la séance réalisée, vous perdez votre droit de rétractation.",
+      "notImmediate": "Vous n'avez pas demandé que le service commence immédiatement : en cas de rétractation, le montant payé vous sera remboursé en entier.",
+      "withdrawalPlan": "Vous pouvez vous rétracter sans motif jusqu'au {{date}} inclus, depuis « Renoncer au contrat ici » sur la page Mon abonnement : {{url}}",
+      "withdrawalSession": "Vous pouvez vous rétracter sans motif jusqu'au {{date}} inclus, depuis « Renoncer au contrat ici » sur la séance, dans votre agenda : {{url}}",
+      "withdrawalForm": "Le formulaire type de rétractation figure dans nos CGV, à cette adresse : {{url}}",
+      "keep": "Conservez cet e-mail : il confirme votre commande.",
+      "reason": "Vous recevez cet e-mail parce que vous avez passé une commande sur Jobbbox."
+    },
+    "renewal": {
+      "plan": "Abonnement reconduit automatiquement {{every}}, jusqu'à sa résiliation",
+      "planUnknown": "Abonnement reconduit automatiquement, jusqu'à sa résiliation",
+      "session": "Paiement unique, sans reconduction"
+    },
+    "pricePer": "{{price}} TTC {{per}}",
+    "priceOnce": "{{price}} TTC",
+    "per": {
+      "day": "par jour",
+      "week": "par semaine",
+      "month": "par mois",
+      "year": "par an"
+    },
+    "every": {
+      "day": "chaque jour",
+      "week": "chaque semaine",
+      "month": "chaque mois",
+      "year": "chaque année"
     }
   },
   "admin": {
@@ -1229,7 +1333,8 @@
       "activity": "Activité",
       "discoveryRuns": "Recherches",
       "designSystem": "Design System",
-      "receivedEmails": "Emails reçus"
+      "receivedEmails": "Emails reçus",
+      "withdrawals": "Rétractations"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1395,13 +1500,18 @@
         "free_plan_built_in": "L'offre Gratuite ne peut être ni masquée, ni déplacée, ni liée à un produit Stripe.",
         "cannot_move": "Cette offre ne peut pas aller plus loin.",
         "product_frozen": "Le produit Stripe d'une offre payante ne change plus une fois choisi : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe.",
-        "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez."
+        "conflict": "Une autre modification des offres a été enregistrée au même moment. Réessayez.",
+        "notice_required": "Vous retirez une fonctionnalité d'une offre que des candidats paient : donnez la raison et la date d'effet de la baisse, au moins 30 jours plus tard.",
+        "invalid_effective_date": "La date d'effet n'est pas une date.",
+        "too_soon": "La date d'effet d'une baisse doit être au moins 30 jours plus tard.",
+        "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord, ou attendez sa date d'effet.",
+        "reason_too_long": "La raison d'une baisse fait au plus 500 caractères : elle figure dans l'e-mail de chaque abonné."
       }
     },
     "planQuotas": {
       "title": "Quotas des offres",
-      "subtitle": "Les quotas de chaque offre, appliqués immédiatement.",
-      "intro": "Les modifications s'appliquent immédiatement à tous les candidats de l'offre. Laissez un champ vide pour « illimité ».",
+      "subtitle": "Les quotas de chaque offre : une hausse tout de suite, une baisse à 30 jours.",
+      "intro": "Une hausse s'applique immédiatement à tous les candidats de l'offre. Une baisse d'une offre payante que des candidats paient s'applique à une date d'effet au moins 30 jours plus tard, annoncée à chaque abonné. Laissez un champ vide pour « illimité ».",
       "plan": "Offre {{plan}}",
       "limitHelp": "Nombre, ou vide pour illimité",
       "weekly": "par semaine",
@@ -1571,7 +1681,7 @@
           "fantastic_jobs": "API Fantastic.jobs (offres des ATS)",
           "web_search": "Recherche web (fournisseur de recherche)",
           "ats_apis": "API publiques des ATS (Greenhouse, Lever, Ashby)",
-          "email_intake": "Réception par email (Brevo Inbound)"
+          "email_intake": "Réception par email (MTA de Jobbbox)"
         },
         "awaitingAccess": "En attente d'accès",
         "accessRefused": "Indisponible : accès refusé par France Travail (API Offres d'emploi). Les recherches d'offres continuent sans elle."
@@ -1702,7 +1812,8 @@
         "kaspr": "Kaspr",
         "apollo": "Apollo",
         "stripe": "Stripe",
-        "brevo": "Brevo"
+        "brevo": "Brevo",
+        "email-intake": "Réception par email (MTA de Jobbbox)"
       },
       "replaceLegend": "Remplacer {{name}}",
       "newValue": "Nouvelle valeur de {{name}}",
@@ -1759,7 +1870,8 @@
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
-        "maintenance": "Maintenance"
+        "maintenance": "Maintenance",
+        "candidate_pages": "Pages du Candidate"
       },
       "setting": "Réglage",
       "value": "Valeur en vigueur",
@@ -1939,7 +2051,8 @@
           "caption": "Variables de l'environnement qui ne servent plus",
           "replacedBy": "Remplacée par",
           "by": {
-            "coaching_playbooks": "Les Coaching Playbooks, réglés dans Playbooks"
+            "coaching_playbooks": "Les Coaching Playbooks, réglés dans Playbooks",
+            "email_intake_mta": "Le MTA de Jobbbox pour la réception par email (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)"
           }
         }
       },
@@ -1983,7 +2096,7 @@
         "EMAIL_INTAKE_DOMAIN": "Domaine des adresses de transfert (Réception par email)",
         "EMAIL_INTAKE_DAILY_CAP": "Emails lus par jour et par boîte reliée, au plus (Réception par email)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
-        "EMAIL_INTAKE_BREVO_IP_RANGES": "Plages d'adresses IP du webhook de Brevo (CIDR)",
+        "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
@@ -1992,6 +2105,7 @@
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
         "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
+        "CONVERSATION_FIRST": "Conversation au centre (l'accueil du Candidate est une conversation avec le Coach IA)",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
       },
@@ -2148,7 +2262,8 @@
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
         "discovery_runs": "Activité › Recherches",
-        "received_emails": "Activité › Emails reçus"
+        "received_emails": "Activité › Emails reçus",
+        "withdrawals": "Rétractations"
       },
       "actions": {
         "added": "Ajout",
@@ -2166,7 +2281,10 @@
         "restored_to_default": "Rétablissement au défaut",
         "reset": "Remise à zéro",
         "refused": "Tentative refusée",
-        "denied": "Accès refusé"
+        "denied": "Accès refusé",
+        "scheduled": "Programmation",
+        "cancelled": "Annulation",
+        "applied": "Application"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -3159,6 +3277,104 @@
     },
     "pageIntro": {
       "more": "En savoir plus"
+    },
+    "withdrawals": {
+      "title": "Rétractations",
+      "subtitle": "Les rétractations des candidats, et le remboursement de chacune dans Stripe.",
+      "intro": "Chaque rétractation reçue par « Renoncer au contrat ici » : un abonnement à une offre ou une séance de coaching, dans les 14 jours qui suivent sa conclusion. L'abonnement est annulé tout de suite, la séance annulée et le coach prévenu, et tout ce qui a été payé est remboursé en entier dans Stripe. Un remboursement que Stripe refuse, ou qui échoue plus tard (carte expirée, banque), reste « Échoué » ici : il peut être relancé. Si la carte n'existe plus, remboursez par virement, hors Stripe.",
+      "caption": "Rétractations, de la plus récente à la plus ancienne",
+      "none": "Aucune rétractation pour l'instant.",
+      "withdrawnAt": "Reçue le",
+      "candidate": "Candidat",
+      "contract": "Contrat",
+      "concludedAt": "conclu le {{date}}",
+      "receipt": "Accusé de réception",
+      "receiptSent": "Envoyé à {{email}} le {{at}}",
+      "receiptNotSent": "Non envoyé ({{email}}) : à envoyer à la main",
+      "refunds": "Remboursement",
+      "nothingToRefund": "Rien à rembourser",
+      "states": {
+        "pending": "En cours",
+        "succeeded": "Remboursé",
+        "failed": "Échoué"
+      },
+      "failureReason": "Raison Stripe : {{reason}}",
+      "attempts_one": "{{count}} tentative",
+      "attempts_other": "{{count}} tentatives",
+      "retry": "Relancer le remboursement",
+      "failedCount_one": "{{count}} remboursement a échoué : relancez-le, ou remboursez par virement.",
+      "failedCount_other": "{{count}} remboursements ont échoué : relancez-les, ou remboursez par virement.",
+      "retried": {
+        "succeeded": "Le remboursement est fait.",
+        "pending": "Le remboursement est demandé à Stripe, qui le traite.",
+        "failed": "Stripe a refusé le remboursement encore une fois : voyez sa raison, ou remboursez par virement."
+      },
+      "errors": {
+        "not_found": "Ce remboursement n'existe pas.",
+        "not_failed": "Ce remboursement n'a pas échoué : il n'y a rien à relancer."
+      }
+    },
+    "quotaReductions": {
+      "title": "Baisses programmées",
+      "intro": "Une baisse d'une offre que des candidats paient attend sa date d'effet, au moins 30 jours plus tard. Chaque abonné reçoit un e-mail avec ce qui change, la raison, la date et son droit de résilier sans frais, remboursé au prorata, jusqu'à 30 jours après la date d'effet. Une baisse peut être annulée avant sa date d'effet.",
+      "none": "Aucune baisse programmée.",
+      "caption": "Baisses programmées, la plus proche d'abord",
+      "plan": "Offre",
+      "changes": "Ce qui baisse",
+      "effectiveOn": "Date d'effet",
+      "reason": "Raison",
+      "subscribers": "Abonnés prévenus",
+      "resolved": "Résiliations",
+      "refundsPending": "Remboursements à traiter",
+      "notified": "{{notified}} e-mail(s) envoyé(s) sur {{count}}",
+      "change": "{{label}} : {{before}} → {{after}}",
+      "cancel": "Annuler la baisse de l'offre {{plan}}",
+      "cancelled": "Baisse annulée : l'offre garde ce qu'elle comprend.",
+      "notCancelled": "Cette baisse ne peut plus être annulée : sa date d'effet est passée, ou elle a déjà été annulée.",
+      "noticeTitle": "Si vous baissez cette offre",
+      "noticeHelp": "Sur une offre que des candidats paient, une baisse (un nombre plus petit, un nombre à la place d'« illimité », un Job Digest moins fréquent, une fonctionnalité retirée) s'applique à sa date d'effet, au moins 30 jours plus tard. Une hausse s'applique tout de suite.",
+      "reasonLabel": "Raison de la baisse",
+      "reasonHelp": "Elle figure dans l'e-mail envoyé à chaque abonné.",
+      "effectiveOnLabel": "Date d'effet",
+      "scheduled_one": "Baisse de l'offre {{plan}} programmée au {{date}} : {{count}} abonné va recevoir un e-mail.",
+      "scheduled_other": "Baisse de l'offre {{plan}} programmée au {{date}} : {{count}} abonnés vont recevoir un e-mail.",
+      "seePending": "Voir les baisses programmées",
+      "errors": {
+        "notice_required": "Cette modification baisse une offre que des candidats paient : donnez la raison et la date d'effet, au moins 30 jours plus tard.",
+        "invalid_effective_date": "La date d'effet n'est pas une date.",
+        "too_soon": "La date d'effet d'une baisse doit être au moins 30 jours plus tard.",
+        "reduction_pending": "Une baisse est déjà programmée sur cette offre : annulez-la d'abord (Offres), ou attendez sa date d'effet.",
+        "unknown_plan": "Cette offre n'existe pas.",
+        "reason_too_long": "La raison d'une baisse fait au plus 500 caractères : elle figure dans l'e-mail de chaque abonné."
+      },
+      "journalFields": {
+        "quotas": "Quotas baissés",
+        "removedFeatures": "Fonctionnalités retirées",
+        "reason": "Raison",
+        "effectiveOn": "Date d'effet",
+        "subscribers": "Abonnés prévenus",
+        "reduction": "Baisse",
+        "refund": "Remboursement"
+      },
+      "cancelHeader": "Annuler",
+      "refunds": {
+        "title": "Remboursements à traiter",
+        "intro": "Les remboursements au prorata que Stripe n'a pas faits, après une résiliation sans frais pour une baisse. Stripe a répondu par un refus (un paiement contesté, par exemple) : remboursez dans Stripe, depuis l'abonnement indiqué, puis marquez-le remboursé. Stripe n'a pas répondu : Jobbbox redemande, rien à faire.",
+        "none": "Aucun remboursement à traiter.",
+        "caption": "Remboursements à traiter, le plus ancien d'abord",
+        "plan": "Offre",
+        "subscription": "Abonnement Stripe",
+        "failure": "Réponse de Stripe",
+        "resolvedAt": "Résilié le",
+        "action": "Action",
+        "retrying": "Stripe n'a pas répondu : Jobbbox redemande",
+        "settle": "Remboursé dans Stripe",
+        "settleLabel": "Marquer remboursé dans Stripe l'abonnement {{subscription}}",
+        "settled": "Remboursement marqué comme fait dans Stripe.",
+        "notSettled": "Ce remboursement n'est plus à traiter : il a déjà été marqué, ou Jobbbox le redemande à Stripe.",
+        "due": "À rembourser",
+        "dueUnknown": "Inconnu : à calculer dans Stripe"
+      }
     }
   },
   "backOfficeAssistant": {
@@ -4610,6 +4826,40 @@
     "scheduleInterview": "Planifier un entretien",
     "askCoach": "Demander au coach"
   },
+  "applicationsMenu": {
+    "introduction": "Voici vos candidatures en cours. Demandez-moi laquelle traiter en premier, une relance à rédiger ou un entretien à préparer ; pour en ajouter une, collez le lien de l'offre.",
+    "count_one": "{{count}} candidature",
+    "count_other": "{{count}} candidatures",
+    "toHandle": "{{count}} à traiter",
+    "toHandleColumn": "À traiter",
+    "matchScore": "Score de correspondance",
+    "noMatchScore": "non calculable",
+    "followUpReady": "Relance prête",
+    "noAnswer": "Toujours sans réponse",
+    "showArchived": "Les afficher",
+    "hideArchived": "Masquer les candidatures archivées"
+  },
+  "conversationFirst": {
+    "newConversation": "Nouvelle conversation",
+    "coach": "Coach",
+    "actions": "Actions pour « {{title}} »",
+    "nameLabel": "Nom de la conversation",
+    "deleteTitle": "Supprimer la conversation « {{title}} » ?",
+    "deleteText": "Tous ses messages seront supprimés. La Mémoire du coach reste.",
+    "clear": "Effacer",
+    "clearTitle": "Effacer cette conversation ?",
+    "clearText": "Tous les messages de cette conversation seront supprimés. La Mémoire du coach reste.",
+    "cleared": "Conversation effacée.",
+    "label": "Conversation avec le Coach IA",
+    "suggestions": "Suggestions",
+    "unfold": "Dérouler « {{menu}} »",
+    "toHandle": "à traiter",
+    "seeAll": "Tout voir ({{count}})",
+    "help": "Aide",
+    "howThisPageWorks": "Comment marche cette page ?",
+    "askCoach": "Demander au coach",
+    "close": "Fermer"
+  },
   "publicSite": {
     "nav": "Pages publiques",
     "nouveautes": "Nouveautés",
@@ -4617,25 +4867,57 @@
   },
   "legal": {
     "eyebrow": "Légal",
-    "documentsNav": "Documents légaux",
-    "documents": {
-      "conditions-utilisation": "Conditions d'utilisation",
+    "documentsNav": "Textes légaux",
+    "texts": {
+      "cgu": "Conditions générales d'utilisation",
+      "cgv": "Conditions générales de vente",
       "confidentialite": "Politique de confidentialité",
-      "cookies": "Cookies",
-      "sous-traitants-et-ia": "Sous-traitants et IA",
       "mentions-legales": "Mentions légales"
     },
     "effective": "En vigueur depuis le {{date}}",
-    "version": "Version {{version}}",
+    "effectiveFrom": "En vigueur à partir du {{date}}",
     "earlierVersions": "Versions précédentes",
-    "earlierVersion": "Version {{version}}, en vigueur depuis le {{date}}",
-    "readingEarlier": "Vous lisez une version précédente de ce texte.",
-    "backToCurrent": "Lire la version en vigueur",
+    "archived": "Version archivée :",
+    "upcoming": "Version à venir : elle entre en vigueur le {{date}}.",
+    "seeCurrent": "voir la version en vigueur",
+    "translation": "Traduction : le texte français fait foi.",
+    "readFrench": "Lire le texte français",
+    "approvedBy": "Approuvé par {{name}}, directeur de la publication, le {{date}}",
+    "history": "Historique des versions",
+    "historyIntro": "Chaque version de ce texte, la plus récente d'abord. Une version n'est jamais modifiée : une correction est une nouvelle version.",
+    "historyVersion": "Version du {{date}}",
+    "change": {
+      "substantielle": "Substantielle",
+      "mineure": "Mineure"
+    },
     "summary": "En bref",
     "toc": "Sur cette page",
     "pdf": "Télécharger en PDF",
     "notPublishedTitle": "Ce texte n'est pas encore publié",
     "notPublished": "L'équipe Jobbbox le rédige. Il paraîtra ici dès qu'il sera publié."
+  },
+  "legalTextNotice": {
+    "email": {
+      "subject": "{{text}} : nouvelle version le {{date}}",
+      "title": "Nouvelle version : {{text}}",
+      "intro": "Nous publions une nouvelle version d'un texte qui s'applique à votre compte Jobbbox : {{text}}. Elle entre en vigueur le {{date}}.",
+      "effective": "En vigueur à partir du {{date}}",
+      "summary": "Ce qui change : {{summary}}",
+      "then": {
+        "cgu": "À votre première connexion à partir du {{date}}, Jobbbox vous demandera d'accepter cette nouvelle version. D'ici là, rien ne change pour vous.",
+        "cgv": "Elle s'appliquera à vos achats à partir du {{date}}. Un achat déjà fait garde les conditions acceptées alors.",
+        "confidentialite": "Vous n'avez rien à accepter : elle s'applique à partir du {{date}}."
+      },
+      "read": "Lire la nouvelle version",
+      "history": "Historique des versions",
+      "reason": "Un e-mail de service : il vous prévient d'un changement des textes qui s'appliquent à votre compte Jobbbox, même si vous ne recevez pas nos actualités."
+    }
+  },
+  "privacyChange": {
+    "label": "Changement de la politique de confidentialité",
+    "message": "Notre politique de confidentialité a changé le {{date}}.",
+    "read": "Lire la politique de confidentialité",
+    "dismiss": "J'ai compris"
   },
   "nouveautes": {
     "eyebrow": "Nouveautés",
@@ -4665,5 +4947,113 @@
   },
   "release": {
     "line": "Version de Jobbbox : {{version}}"
+  },
+  "withdrawals": {
+    "email": {
+      "subject": "Accusé de réception de votre rétractation",
+      "title": "Votre rétractation est enregistrée",
+      "intro": "Nous avons bien reçu votre rétractation le {{at}}. Elle porte sur le contrat suivant :",
+      "plan": "Offre {{plan}}",
+      "coachingSession": "Séance de coaching avec {{coach}}",
+      "concludedAt": "Conclu le {{date}}",
+      "paid": "Montant payé : {{amount}}",
+      "declaredBy": "Rétractation déclarée par : {{name}}.",
+      "planEnded": "Votre abonnement est annulé dès maintenant : vous êtes passé à l'offre Gratuite.",
+      "sessionCancelled": "La séance est annulée, et {{coach}} en est informé.",
+      "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
+      "nothingToRefund": "Rien à rembourser : aucun montant n'a été payé pour ce contrat.",
+      "kept": "Montant retenu pour le service déjà fourni, comme vous avez demandé qu'il commence immédiatement : {{amount}}.",
+      "keep": "Conservez cet e-mail : il atteste de votre rétractation.",
+      "reason": "Vous recevez cet e-mail parce que vous vous êtes rétracté d'un contrat conclu sur Jobbbox."
+    },
+    "coachEmail": {
+      "subject": "Séance annulée : {{candidate}} s'est rétracté",
+      "title": "Une séance de coaching est annulée",
+      "intro": "{{candidate}} s'est rétracté de la séance de coaching payée le {{paidAt}}.",
+      "scheduled": "Elle était prévue le {{at}} : ne la tenez pas, et libérez le créneau sur votre page Cal.com.",
+      "unscheduled": "Elle n'était pas encore datée : si un créneau est réservé sur votre page Cal.com, libérez-le.",
+      "held": "Elle a eu lieu le {{at}} : le Candidat n'avait pas demandé qu'elle commence avant la fin de son délai de rétractation, elle lui est donc remboursée.",
+      "refunded": "Jobbbox rembourse la séance au Candidat.",
+      "someone": "Un Candidat",
+      "reason": "Vous recevez cet e-mail parce que vous êtes Human Coach sur Jobbbox."
+    },
+    "page": {
+      "title": "Renoncer au contrat ici",
+      "intro": "Vous pouvez vous rétracter de ce contrat sans donner de motif et sans frais, jusqu'au {{date}} inclus. Tout ce que vous avez payé pour lui vous est remboursé.",
+      "introProrata": "Vous pouvez vous rétracter de ce contrat sans donner de motif, jusqu'au {{date}} inclus. Comme vous avez demandé que le service commence immédiatement, vous payez le service déjà fourni : le reste vous est remboursé.",
+      "contractTitle": "Le contrat",
+      "contract": "Contrat",
+      "subscribedOn": "Souscrit le",
+      "paidOn": "Payé le",
+      "amount": "Montant payé",
+      "amountUnknown": "Indiqué sur votre facture",
+      "refundNow": "Remboursé si vous confirmez maintenant",
+      "name": "Votre nom",
+      "receipt": "Où envoyer l'accusé de réception ?",
+      "receiptAccount": "À l'adresse de mon compte ({{email}})",
+      "receiptOther": "À une autre adresse",
+      "receiptEmail": "Autre adresse e-mail",
+      "receiptEmailHint": "Seulement si vous avez choisi une autre adresse.",
+      "whatHappensPlan": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé en entier.",
+      "whatHappensPlanProrata": "Votre abonnement sera annulé tout de suite : vous passerez à l'offre Gratuite, et le montant payé vous sera remboursé, moins la part des jours écoulés depuis le début de la période.",
+      "whatHappensSession": "La séance sera annulée et le coach prévenu ; le montant payé vous sera remboursé en entier.",
+      "confirm": "Confirmer la rétractation",
+      "cancel": "Retour",
+      "done": "Votre rétractation ({{contract}}) est enregistrée le {{at}}.",
+      "refunded": "Montant remboursé : {{amount}}, sur le moyen de paiement utilisé pour payer. Selon votre banque, il apparaît sous 5 à 10 jours ouvrés.",
+      "receiptSent": "Un accusé de réception a été envoyé à {{email}}.",
+      "receiptNotSent": "L'accusé de réception n'a pas pu être envoyé : notre équipe vous l'enverra.",
+      "nothing": "Aucun contrat ne peut faire l'objet d'une rétractation ici : le délai de 14 jours est passé, la séance a eu lieu, ou vous vous êtes déjà rétracté.",
+      "back": "Retour à mon abonnement",
+      "backToAgenda": "Retour à l'agenda",
+      "errors": {
+        "name_required": "Indiquez votre nom.",
+        "name_too_long": "Votre nom est trop long.",
+        "receiptEmail_required": "Indiquez l'adresse où envoyer l'accusé de réception.",
+        "receiptEmail_invalid": "Cette adresse e-mail n'est pas valide.",
+        "not_withdrawable": "Ce contrat ne peut plus faire l'objet d'une rétractation : le délai est passé, ou vous vous êtes déjà rétracté.",
+        "stripe_unavailable": "Le paiement en ligne ne répond pas : rien n'a été modifié. Réessayez dans un instant."
+      }
+    },
+    "subscription": {
+      "offer": "Vous pouvez vous rétracter de cet abonnement, sans motif et sans frais, jusqu'au {{date}} inclus."
+    },
+    "agenda": {
+      "label": "Renoncer au contrat ici : séance avec {{name}}"
+    }
+  },
+  "quotaReduction": {
+    "features": {
+      "coachingSessionDiscount": "Séances de coaching à prix réduit"
+    },
+    "included": "Compris",
+    "before": "Aujourd'hui : {{value}}",
+    "after": "À partir du {{date}} : {{value}}",
+    "resolve": "Résilier sans frais",
+    "email": {
+      "subject": "Votre offre {{plan}} change le {{date}}",
+      "title": "Votre offre {{plan}} va changer",
+      "intro": "Le {{date}}, ce que comprend votre offre {{plan}} va baisser. Voici ce qui change :",
+      "reason": "Pourquoi : {{reason}}",
+      "right": "Si ce changement ne vous convient pas, vous pouvez résilier votre abonnement sans frais, avant le {{date}} ou jusqu'au {{until}} inclus. L'abonnement s'arrête alors tout de suite, et nous vous remboursons la part de la période déjà payée qui n'aura pas servi, au prorata.",
+      "nothingToDo": "Si vous gardez votre abonnement, vous n'avez rien à faire.",
+      "footer": "Vous recevez cet e-mail parce que votre abonnement à l'offre {{plan}} de Jobbbox est concerné."
+    },
+    "page": {
+      "title": "Votre offre {{plan}} change le {{date}}",
+      "intro": "Le {{date}}, ce que comprend votre offre baisse :",
+      "reason": "Pourquoi : {{reason}}",
+      "right": "Vous pouvez résilier sans frais jusqu'au {{until}} inclus : votre abonnement s'arrête tout de suite, et nous vous remboursons, au prorata, la part de la période payée qui n'aura pas servi.",
+      "confirmTitle": "Résilier sans frais",
+      "confirm": "Confirmer la résiliation",
+      "keep": "Garder mon abonnement",
+      "notOpen": "Aucune baisse de votre offre ne vous permet de résilier sans frais en ce moment.",
+      "done": "Votre abonnement est résilié. Nous vous remboursons {{amount}} : le remboursement apparaît sur votre relevé sous 5 à 10 jours.",
+      "doneNothing": "Votre abonnement est résilié. Il n'y avait rien à rembourser.",
+      "donePending": "Votre abonnement est résilié. Le remboursement n'a pas pu être fait tout de suite : notre équipe s'en occupe, vous n'avez rien à faire.",
+      "error": "La résiliation n'a pas pu être faite. Réessayez dans un instant.",
+      "doneSettled": "Votre abonnement est résilié, et notre équipe vous a remboursé au prorata la part de la période payée qui n'a pas servi."
+    },
+    "change": "{{label}} : {{before}} → {{after}}"
   }
 }

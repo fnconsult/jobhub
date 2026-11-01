@@ -5,7 +5,7 @@
  *  - always a short Candidate summary (first name, and per active Profile its
  *    target role, Search Criteria and seniority) and the Coach Memory when it has items;
  *  - the item In view in full: a Profile, an Application, a Job Offer, a Job Search
- *    or a Job Digest; only the Candidate's own (a Job Offer belongs to no one); on the
+ *    or a Job Digest (only its 30 best Match Scores); only the Candidate's own (a Job Offer belongs to no one); on the
  *    Agenda, the Agenda Items of the next 30 days, in French time (Europe/Paris);
  *  - summarised: the 5 latest Applications with their status, the top 5 Job Offers
  *    by Match Score (from each active Profile's latest Job Search and Job Digest),
@@ -99,6 +99,9 @@ export const SUMMARY_ITEMS = 5;
 
 /** How many of the next Agenda Items, from now on and not cancelled, the summaries hold. */
 export const NEXT_AGENDA_ITEMS = 3;
+
+/** How many Job Offers of a Job Search or Job Digest In view are sent: the best Match Scores (#600). */
+export const IN_VIEW_MATCH_SCORES = 30;
 
 /** How far ahead the Agenda In view reaches, in days. */
 export const AGENDA_IN_VIEW_DAYS = 30;
@@ -379,17 +382,24 @@ function applicationText(application: Application): string {
 
 const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "échouée", stopped: "arrêtée par le candidat" } as const;
 
+/** The IN_VIEW_MATCH_SCORES best results, best first, one line each, saying how many more were left out. */
+function bestResultLines(results: readonly Parameters<typeof resultLine>[0][]): string[] {
+  const best = [...results].sort((a, b) => b.matchScore.score - a.matchScore.score).slice(0, IN_VIEW_MATCH_SCORES);
+  const left = results.length - best.length;
+  return [...best.map((result) => `- ${resultLine(result)}`), ...(left > 0 ? [`(${left} autres offres, moins bien notées, ne sont pas montrées.)`] : [])];
+}
+
 function jobSearchText(jobSearch: JobSearch): string {
   return [
     `Le candidat consulte une recherche d'offres lancée le ${day(jobSearch.startedAt)} pour son profil « ${jobSearch.profile.name} » (${JOB_SEARCH_STATUS[jobSearch.status]}).`,
-    jobSearch.results.length ? ["Offres trouvées, meilleur score d'abord :", ...jobSearch.results.map((result) => `- ${resultLine(result)}`)].join("\n") : "Aucune offre trouvée pour l'instant.",
+    jobSearch.results.length ? ["Offres trouvées, meilleur score d'abord :", ...bestResultLines(jobSearch.results)].join("\n") : "Aucune offre trouvée pour l'instant.",
   ].join("\n");
 }
 
 function jobDigestText(jobDigest: JobDigest): string {
   return [
     `Le candidat consulte la sélection d'offres envoyée le ${day(jobDigest.sentAt)} pour son profil « ${jobDigest.profile.name} ».`,
-    ["Offres, meilleur score d'abord :", ...jobDigest.results.map((result) => `- ${resultLine(result)}`)].join("\n"),
+    ["Offres, meilleur score d'abord :", ...bestResultLines(jobDigest.results)].join("\n"),
   ].join("\n");
 }
 

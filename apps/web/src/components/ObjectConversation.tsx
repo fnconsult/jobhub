@@ -6,6 +6,11 @@ import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachConversationPage, type InView } from "@/components/CoachPanel";
 import { ConversationSuggestions, type ConversationSuggestion } from "@/components/ConversationSuggestions";
 import type { FicheContent } from "@/components/Fiche";
+import { conversationFirst } from "@/conversation-first";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
+
+/** Whether an object's page is its conversation (« Conversation au centre », ADR-0070), its Sections and Results in the Work Pane. */
+export const pagesAreConversations = () => conversationFirst(getPlatformSettingsResolver().current());
 
 /** The object a page is the conversation of (ADR-0070): an Application, a Profile, a Job Search or a Job Digest. */
 export type ObjectSubject = { kind: SubjectObjectKind; id: string };

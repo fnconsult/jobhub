@@ -80,6 +80,14 @@ describe.skipIf(!connectionString)("Billing for Withdrawals (needs Postgres: DAT
       expect(await t.billing.subscription(marie.id)).toBeNull();
     });
 
+    it("gives each payment with the period it paid for, when Stripe tells it (#512)", async () => {
+      const marie = await subscribed("standard", new Date("2026-10-12T09:30:00Z"));
+      const period = { start: new Date("2026-10-12T09:30:00Z"), end: new Date("2026-11-12T09:30:00Z") };
+      const paymentIntent = t.stripe.payInvoice(marie.subscriptionId, 1900, period);
+
+      expect(await t.billing.endSubscriptionNow(marie.id)).toEqual([{ id: paymentIntent, amount: 1900, currency: "eur", period }]);
+    });
+
     it("stays on Free when an older report of the subscription arrives late", async () => {
       const marie = await subscribed("standard", new Date("2026-10-12T09:30:00Z"));
       await t.billing.endSubscriptionNow(marie.id);
@@ -118,6 +126,16 @@ describe.skipIf(!connectionString)("Billing for Withdrawals (needs Postgres: DAT
       expect(t.stripe.callsTo("/v1/refunds")[0]!.params.get("reason")).toBe("requested_by_customer");
       expect(t.stripe.callsTo("/v1/refunds")[0]!.params.get("metadata[withdrawal_id]")).toBe("1");
       expect(t.stripe.callsTo("/v1/refunds")[0]!.params.has("amount")).toBe(false);
+    });
+
+    it("refund part of a payment when asked for less than it (a Plan's prorata, #512)", async () => {
+      const marie = await subscribed("standard", new Date("2026-10-12T09:30:00Z"));
+      const paymentIntent = t.stripe.payInvoice(marie.subscriptionId, 1900);
+
+      const refunded = await t.billing.refund({ id: paymentIntent, amount: 1900, currency: "eur" }, "withdrawal-2-refund-1", {}, 1716);
+
+      expect(refunded).toMatchObject({ ok: true, status: "succeeded" });
+      expect(t.stripe.refunds()).toEqual([expect.objectContaining({ payment_intent: paymentIntent, amount: 1716 })]);
     });
 
     it("say why Stripe refused one", async () => {

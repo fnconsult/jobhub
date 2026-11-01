@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { checkoutSessionEvent, FAKE_STRIPE_COACHING_SESSION_PRICES, FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, subscriptionEvent } from "./fake-stripe";
 import type { ExternalApiCall } from "@jobhub/shared";
-import { BillingError, createBilling, STARTING_PLAN_QUOTAS } from "./index";
+import { BillingError, createBilling, STARTING_PLAN_QUOTAS, type PaidCheckout } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
 const FREE = { fr: "Gratuite", en: "Free" };
@@ -243,9 +243,10 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
     it("sends a Free Candidate to a Stripe Checkout for the Standard subscription, in their language", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
 
-      const url = await t.billing.startCheckout(marie, "standard");
+      const { url, checkoutSessionId } = await t.billing.startCheckout(marie, "standard");
 
       expect(url).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+      expect(checkoutSessionId).toMatch(/^cs_fake/);
       const [customer] = t.stripe.callsTo("/v1/customers");
       expect(customer?.params.get("email")).toBe("marie.dupont@example.fr");
       expect(customer?.params.get("metadata[candidate_id]")).toBe(marie.id);
@@ -280,9 +281,10 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       await t.billing.startCheckout(marie, "standard");
       await deliver(subscriptionEvent("customer.subscription.created", { customer: fakeCustomerId(marie.email), price: FAKE_STRIPE_PRICES.standard, status: "active" }));
 
-      const url = await t.billing.startCheckout(marie, "premium");
+      const { url, checkoutSessionId } = await t.billing.startCheckout(marie, "premium");
 
       expect(url).toMatch(/^https:\/\/billing\.stripe\.test\//);
+      expect(checkoutSessionId).toBeNull();
       expect(t.stripe.callsTo("/v1/checkout/sessions")).toHaveLength(1);
     });
 
@@ -713,10 +715,11 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       const marie = await t.signUp("marie.dupont@example.fr");
       const lea = await onPlan("lea.moreau@example.fr", "premium");
 
-      const url = await t.billing.startCoachingSessionCheckout(marie, "coach-1", "en");
+      const { url, checkoutSessionId } = await t.billing.startCoachingSessionCheckout(marie, "coach-1", "en");
       await t.billing.startCoachingSessionCheckout(lea, "coach-1");
 
       expect(url).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+      expect(checkoutSessionId).toMatch(/^cs_fake/);
       const [regular, premium] = t.stripe.callsTo("/v1/checkout/sessions").filter((call) => call.params.get("mode") === "payment");
       expect(Object.fromEntries(regular!.params)).toMatchObject({
         mode: "payment",
@@ -748,6 +751,31 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
       expect(t.coachingSessionsPaid).toEqual([reported, reported]); // The Human Coaches module records it once.
     });
 
+    it("reports every paid Checkout, a Plan's with its subscription, from Stripe's signed webhook (#512)", async () => {
+      const paid: PaidCheckout[] = [];
+      const reporting = createBilling({ ...t.config, onCheckoutPaid: async (checkout) => void paid.push(checkout) });
+      const marie = await t.signUp("marie.dupont@example.fr");
+      const deliverTo = async (event: unknown) => {
+        const { payload, signature } = signedEvent(event);
+        await reporting.handleStripeWebhook(payload, signature);
+      };
+
+      await deliverTo(checkoutSessionEvent("checkout.session.completed", { id: "cs_unpaid", candidateId: marie.id, amount: 9000, currency: "eur", paymentStatus: "unpaid" }));
+      await deliverTo(checkoutSessionEvent("checkout.session.completed", { id: "cs_coaching", candidateId: marie.id, coachId: "coach-1", amount: 9000, currency: "eur", paymentStatus: "paid" }));
+      await deliverTo(
+        checkoutSessionEvent("checkout.session.completed", { id: "cs_plan", candidateId: marie.id, amount: 1900, currency: "eur", paymentStatus: "paid", mode: "subscription", subscription: "sub_1" }),
+      );
+      await deliverTo(
+        checkoutSessionEvent("checkout.session.completed", { id: "cs_free", candidateId: marie.id, amount: 0, currency: "eur", paymentStatus: "no_payment_required", mode: "subscription", subscription: "sub_2" }),
+      );
+
+      expect(paid).toEqual([
+        { checkoutSessionId: "cs_coaching", candidateId: marie.id, mode: "payment", subscriptionId: null, amount: 9000, currency: "eur" },
+        { checkoutSessionId: "cs_plan", candidateId: marie.id, mode: "subscription", subscriptionId: "sub_1", amount: 1900, currency: "eur" },
+        { checkoutSessionId: "cs_free", candidateId: marie.id, mode: "subscription", subscriptionId: "sub_2", amount: 0, currency: "eur" },
+      ]);
+    });
+
     it("ignores a completed checkout that is not for a Coaching Session", async () => {
       const marie = await t.signUp("marie.dupont@example.fr");
 
@@ -762,7 +790,7 @@ describe.skipIf(!connectionString)("Plans and Plan Quotas (needs Postgres: DATAB
 
       expect(await withoutPrices.coachingSessionPrice(marie.id)).toBeNull();
       await expect(withoutPrices.startCoachingSessionCheckout(marie, "coach-1")).rejects.toMatchObject({ code: "coaching_sessions_not_configured" });
-      expect(await withoutPrices.startCheckout(marie, "standard")).toMatch(/checkout\.stripe\.test/); // Plans still work.
+      expect((await withoutPrices.startCheckout(marie, "standard")).url).toMatch(/checkout\.stripe\.test/); // Plans still work.
     });
   });
 

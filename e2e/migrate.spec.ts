@@ -95,6 +95,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "candidate_recognised_sender", // issue #448: the Recognised senders a Candidate added for themselves (#450), proposed with no name
         "candidate_switched_off_sender", // issue #450: the platform's Recognised senders a Candidate switched off for themselves
+        "checkout_order", // issue #512: the Orders placed on the page before Stripe Checkout, with the Immediate Performance Request
         "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
         "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
@@ -212,6 +213,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "candidate_switched_off_sender", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_switched_off_sender", from_column: "value", to_table: "recognised_sender" },
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
+        // Orders (issue #512) go with their Candidate.
+        { from_table: "checkout_order", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
         // Coach Conversations (issue #124) go with their Candidate, and the Profile they are attached to; their messages with them.

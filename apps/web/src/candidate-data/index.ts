@@ -12,7 +12,7 @@
  *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent
- *    (never which Administrator handled them); their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049). Profiles and Applications
+ *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049). Profiles and Applications
  *    are read through the modules that own them, so they show what the app shows; the rest is
  *    read as stored. Secrets (sign-in tokens, the unsubscribe link), Stripe's and the contact
  *    data providers' identifiers, and what each AI reply cost are left out. EXPORTED_TABLES
@@ -49,6 +49,7 @@ import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
 import { signalementsOf, type Signalement } from "../signalements";
+import { ordersOf, type ExportedOrder } from "../orders";
 import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
@@ -301,6 +302,11 @@ export interface CandidateDataExport {
    */
   signalements: Signalement[];
   /**
+   * Every Order the Candidate placed on the page before Stripe Checkout (#512), oldest first: what it was for, the CGV
+   * version accepted with it, the Immediate Performance Request, and when its confirmation went; no Stripe identifiers.
+   */
+  orders: ExportedOrder[];
+  /**
    * Every Withdrawal the Candidate made (#511), newest first: the contract, when it was concluded and withdrawn from, the
    * name and address given, when the acknowledgement went, and each refund with its status; no Stripe identifiers.
    */
@@ -398,6 +404,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
   signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
+  checkout_order: "orders (what was ordered, the CGV version accepted, the Immediate Performance Request, when it was ordered and confirmed; no Stripe identifiers)",
   withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",
   withdrawal_refund: "withdrawals[].refunds (amount, currency and status; no Stripe identifiers)",
   job_offer: "privateJobOffers (only the Job Offers private to the Candidate, ADR-0049; shared ones are no one's and are kept)",
@@ -700,7 +707,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -760,12 +767,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           })),
         ),
         signalementsOf(database, candidateId),
+        ordersOf(database, candidateId),
         withdrawalsOf(database, candidateId),
         privateJobOffersOf(database, candidateId),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

@@ -33,6 +33,7 @@ import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateLegalTextNotices } from "./legal-text-notices/index";
+import { migrateOrders } from "./orders/index";
 import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
@@ -87,6 +88,7 @@ export async function migrateDatabase(
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
     ["Quota Reductions are up to date", () => migrateQuotaReductions(database)],
     ["Acceptances of the CGU and CGV are up to date", () => migrateAcceptances(database)],
+    ["Orders are up to date", () => migrateOrders(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],

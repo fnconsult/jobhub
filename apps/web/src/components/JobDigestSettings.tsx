@@ -16,23 +16,7 @@ export function JobDigestSettings({ profile, jobDigest, locale, t }: { profile: 
       <div className="section-head">
         <h2 id={`${titleId}-title`}>{profile.name}</h2>
       </div>
-      {jobDigest.planFrequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.planFrequency}`)}</p> : null}
-      {jobDigest.subscribed ? (
-        <>
-          <p className="notice" role="status">
-            {t("jobDigest.subscribed")}
-          </p>
-          {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.schedule.${jobDigest.frequency}`)}</p> : null}
-          {jobDigest.chosenFrequency !== jobDigest.frequency ? <p>{t("jobDigest.cappedToPlan")}</p> : null}
-        </>
-      ) : null}
-      <JobDigestControls
-        key={profile.id}
-        profileId={profile.id}
-        subscribed={jobDigest.subscribed}
-        chosenFrequency={jobDigest.chosenFrequency}
-        planFrequency={jobDigest.planFrequency}
-      />
+      <JobDigestFrequency profileId={profile.id} jobDigest={jobDigest} t={t} />
       {jobDigest.digests.length > 0 ? (
         <>
           <h3>{t("jobDigest.latestTitle")}</h3>
@@ -48,5 +32,33 @@ export function JobDigestSettings({ profile, jobDigest, locale, t }: { profile: 
         </>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * How often one Profile's Job Digest is sent, and the way to opt in, change it or opt out: on the Job Digests page, and
+ * on its menu's card under « Conversation au centre » (#606).
+ */
+export function JobDigestFrequency({ profileId, jobDigest, t }: { profileId: string; jobDigest: Settings; t: T }) {
+  return (
+    <>
+      {jobDigest.planFrequency !== "none" ? <p>{t(`jobDigest.frequency.${jobDigest.planFrequency}`)}</p> : null}
+      {jobDigest.subscribed ? (
+        <>
+          <p className="notice" role="status">
+            {t("jobDigest.subscribed")}
+          </p>
+          {jobDigest.frequency !== "none" ? <p>{t(`jobDigest.schedule.${jobDigest.frequency}`)}</p> : null}
+          {jobDigest.chosenFrequency !== jobDigest.frequency ? <p>{t("jobDigest.cappedToPlan")}</p> : null}
+        </>
+      ) : null}
+      <JobDigestControls
+        key={profileId}
+        profileId={profileId}
+        subscribed={jobDigest.subscribed}
+        chosenFrequency={jobDigest.chosenFrequency}
+        planFrequency={jobDigest.planFrequency}
+      />
+    </>
   );
 }

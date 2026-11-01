@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
-import { buttonClass, type ButtonVariant } from "@/design/button-class";
+import { buttonClass, type ButtonSize, type ButtonVariant } from "@/design/button-class";
 import { routes } from "@/routes";
 
 async function post(url: string, body: object): Promise<{ status: number; result: Record<string, unknown> }> {
@@ -22,17 +22,20 @@ type StartProblem = { prompt: Prompt } | { error: "archived" | "generic" };
 /**
  * Asks the AI Coach to search for Job Offers for a Profile, then opens the
  * Job Search's page. When the Plan Quota is used up, shows the Upgrade Prompt.
- * `icon` is decoration beside the label (see icons.tsx); `variant` the Design System button it is drawn as (primary unless told).
+ * `icon` is decoration beside the label (see icons.tsx); `variant` and `size` the Design System button it is drawn as
+ * (primary unless told; small for a menu's suggestion, #606).
  */
 export function StartJobSearchButton({
   profileId,
   label,
   variant = "primary",
+  size = "md",
   icon,
 }: {
   profileId: string;
   label?: string;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   icon?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -55,7 +58,7 @@ export function StartJobSearchButton({
 
   return (
     <div className="stack">
-      <button className={buttonClass({ variant })} type="button" onClick={start} disabled={working}>
+      <button className={buttonClass({ variant, size })} type="button" onClick={start} disabled={working}>
         {icon}
         {working ? t("jobSearch.starting") : (label ?? t("jobSearch.start"))}
       </button>

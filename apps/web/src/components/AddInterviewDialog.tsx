@@ -10,6 +10,7 @@ import { Drawer } from "@/design/Drawer";
 import { Checkbox, Field, Select } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { send } from "./ApplicationControls";
+import { useWorkPane } from "./work-pane";
 import { EMPTY_INTERVIEW_DRAFT, InterviewFields, interviewBody, type InterviewDraft } from "./InterviewFields";
 
 /** An ongoing Application, as the Application picker offers it. */
@@ -73,6 +74,19 @@ export function AddInterviewDialog({ applications }: { applications: Interviewab
       </p>
     </>
   );
+}
+
+/**
+ * « Ajouter un entretien » under « Conversation au centre » (#606, ADR-0070): its form in the Work Pane beside the Agenda's
+ * conversation (see InWorkPane). Once added, the pane closes, back to the
+ * Agenda's address, which lists it.
+ */
+export function AddInterviewForm({ applications }: { applications: InterviewableApplication[] }) {
+  const { t } = useTranslation();
+  const workPane = useWorkPane();
+  const firstField = useRef<HTMLSelectElement>(null);
+  if (applications.length === 0) return <Note>{t("agenda.addDialog.none")}</Note>;
+  return <AgendaInterviewForm applications={applications} firstField={firstField} onAdded={() => workPane?.close()} />;
 }
 
 /** The dialog's form: the Application, the Interview's fields and, for an Application not at "Entretien", the box moving it there. Mounted on each opening. */

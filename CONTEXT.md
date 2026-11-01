@@ -102,6 +102,12 @@ The Candidate's first name and, for each active Profile, its target role, Search
 A saved conversation between a Candidate and the AI Coach, and on the Candidate's pages the page itself (ADR-0070), with its box at the foot. Each has a Subject. An object or a Sidebar menu has at most one, created at its first message; until then the page shows the Introduction and suggestions. A Free conversation is attached to the active Profile and can be named. « Effacer », after a confirming Dialog, deletes every message of an object's or menu's conversation (the object and Coach Memory stay), and a Free conversation itself: the page becomes a new conversation and the Sidebar stops listing it. An archived object keeps its conversation; a deleted one takes it along. An object's conversation is attached to that object's Profile, a menu's to none. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message and its Subject, without the Coach Message Cost.
 _Avoid_: Chat, thread, session
 
+**À traiter**:
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there.
+
+**Menu card**:
+The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter). It stays in the thread whatever is sent.
+
 **Subject**:
 What a Coach Conversation is about, fixed when it starts: one object (an Application, a Profile, a Job Search or a Job Digest), one Sidebar menu (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains; one conversation per Candidate each), or none for a Free conversation. A Job Offer's page starts a Free conversation with the Job Offer In view.
 _Avoid_: Focus (that is per reply), owner, topic
@@ -624,7 +630,7 @@ The Candidate's choice of how large all interface text is shown, on a four-step 
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into its 5 to 10 most recent objects and « Tout voir »; at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into the objects **à traiter** (at most 10), filled up to 5 with the most recent others (latest saved), then « Tout voir (N) »; the open object is highlighted rather than its menu. Each menu's fold, « Coach » included, is remembered in that browser; at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
 
 **Fiche**:

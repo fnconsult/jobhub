@@ -11,7 +11,7 @@ import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
-import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, type FreeConversation } from "@/components/conversation-first";
+import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
@@ -42,7 +42,7 @@ const LABELS = {
  * `freeConversations`: under « Conversation au centre » (#601, ADR-0070), the Candidate's Free conversations; the Sidebar
  * then has « Nouvelle conversation » and « Coach » with them above its links, and the Top Bar « Effacer » in place of
  * « Aide et coach » (« Aide » on a page without a conversation), and the Work Pane opens beside the page (#602). Null
- * while the switch is off.
+ * while the switch is off. `menus`: then, what its menus with objects unfold into (#604).
  */
 export function SidebarLayout({
   profiles,
@@ -56,6 +56,7 @@ export function SidebarLayout({
   aiActivity = NO_AI_ACTIVITY,
   version,
   freeConversations = null,
+  menus,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -69,6 +70,7 @@ export function SidebarLayout({
   aiActivity?: readonly ActivityElement[];
   version: string;
   freeConversations?: readonly FreeConversation[] | null;
+  menus?: SidebarMenus | undefined;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -124,6 +126,8 @@ export function SidebarLayout({
             <ul>
               {items.map((item) => {
                 const NavIcon = Icons[item.key];
+                if (item.key === "applications" && freeConversations)
+                  return <SidebarMenu key={item.key} menu={item.key} href={item.href} current={item.current} icon={<NavIcon />} label={t(LABELS[item.key])} onNavigate={closeDrawer} />;
                 return (
                   <li key={item.key}>
                     <Link className="sidebar-link" href={item.href} aria-current={item.current ? CURRENT : undefined} onClick={closeDrawer}>
@@ -142,7 +146,7 @@ export function SidebarLayout({
     </AiActivityProvider>
   );
   return freeConversations ? (
-    <ConversationFirstProvider conversations={freeConversations}>
+    <ConversationFirstProvider conversations={freeConversations} {...(menus ? { menus } : {})}>
       <WorkPaneProvider version={version}>{shell}</WorkPaneProvider>
     </ConversationFirstProvider>
   ) : (

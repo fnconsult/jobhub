@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import type { CoachFocus } from "@/coach";
+import type { SubjectMenu } from "@/coach-conversations";
 import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { useConversationFirst } from "@/components/conversation-first";
@@ -265,11 +266,19 @@ const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? 
 
 /**
  * A Coach Conversation shown as the page itself (#601, ADR-0070), its box at the foot, rather than in the side panel:
- * `conversationId`, the saved one the page shows (null: a new Free conversation, as the home page is); `introduction`,
- * what the page says after the AI disclosure in its first message (the Introduction); `suggestions`, shown above the box
+ * `conversationId`, the saved one the page shows (null: a new one, as the home page is); `subject`, a Sidebar menu's
+ * (#604): every message goes to that menu's conversation, and the page keeps its address; none for a Free conversation;
+ * `introduction`, what the page says after the AI disclosure in its first message (the Introduction); `card`, the menu's
+ * content as a card in the thread after it (the list of Applications), which stays; `suggestions`, shown above the box
  * while nothing is sent (the Quick actions).
  */
-export type PagePlacement = { conversationId: string | null; introduction?: ReactNode; suggestions?: ReactNode };
+export type PagePlacement = {
+  conversationId: string | null;
+  subject?: { kind: "menu"; id: SubjectMenu };
+  introduction?: ReactNode;
+  card?: ReactNode;
+  suggestions?: ReactNode;
+};
 
 /**
  * Which panel it is: the Candidate's Coach Panel, with the AI Coach, or the
@@ -471,6 +480,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // Under « Conversation au centre » a Help Article and a Signalement's form open in the Work Pane (#602, ADR-0070).
   const workPane = useWorkPane();
   const pageConversationId = page?.conversationId ?? null;
+  // A menu's conversation (#604): its Subject, which every message goes to, and its page's address, which it keeps.
+  const pageSubject = page?.subject ?? null;
   const id = useId();
   const pathname = usePathname();
   // AI Activity shows the reply on its way too, with its steps and a stop icon (#333): on the Candidate's pages only.
@@ -572,13 +583,13 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         setConversation(summary);
         setAiDisclosure(disclosed);
         setMessages((opened) => [...saved, ...opened.filter(isHelpCard)]);
-      } else if (window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+      } else if (!pageSubject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
       setRestoring(false);
     });
     return () => {
       shown = false;
     };
-  }, [panel.conversations, pageConversationId]);
+  }, [panel.conversations, pageConversationId, pageSubject]);
 
   // A page that is a conversation lets « Effacer » in the Top Bar and the Sidebar act on it while it is shown (#601), and
   // « Demander au coach » in the Work Pane (#602).
@@ -608,11 +619,12 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       conversationId: conversationOnPage,
       replying,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
-      startNew: () => pageActions.current?.startNew(),
+      // A menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
+      startNew: pageSubject ? null : () => pageActions.current?.startNew(),
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [isPage, registerPage, conversationOnPage, replying]);
+  }, [isPage, registerPage, conversationOnPage, replying, pageSubject]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
   async function openPanel(): Promise<Conversation | null> {
@@ -733,20 +745,20 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
 
   /** A page that is a conversation takes the address of the conversation its first message saved, and the Sidebar lists it (#601). */
   function savedOnPage(saved: ConversationSummary) {
-    if (!isPage) return;
+    if (!isPage || pageSubject) return;
     conversationFirst?.saved({ id: saved.id, title: saved.title });
     const address = routes.conversation(saved.id);
     if (window.location.pathname !== address) window.history.replaceState(null, "", address);
   }
 
-  /** A page that is a conversation turns into a new Free conversation, the home page (#601). */
+  /** A page that is a conversation turns into a new Free conversation, the home page (#601); a menu's starts afresh in place (#604). */
   function startAfresh() {
     generation.current += 1;
     stopper.current?.abort();
     startNewConversation();
     setDraft("");
     setPageNotice(null);
-    if (window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+    if (!pageSubject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
   }
 
   /**
@@ -905,7 +917,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       setConversation(null);
       setAiDisclosure(true);
       remember(storageKey, null);
-      if (isPage && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+      if (isPage && !pageSubject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
       setMessages([]);
       setDraft(text);
       setStatus("unavailable");
@@ -931,7 +943,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         headers: { "content-type": "application/json", ...(panel.features.live ? { accept: "application/x-ndjson" } : {}) },
         // The server holds the conversation: only the new message goes.
         body: JSON.stringify({
-          ...(current ? { conversationId: current.id } : {}),
+          // A menu's page (#604): its Subject's conversation, started by this message if it has none.
+          ...(pageSubject ? { subject: pageSubject } : current ? { conversationId: current.id } : {}),
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
           ...(read ? { helpArticle: read } : {}),
@@ -1021,9 +1034,17 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
             <span className="visually-hidden">{t(texts.author)}</span>
             <p>{t(opening)}</p>
             {page?.introduction}
-            {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
+            {showIntro && !page?.card ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
           </li>
         )}
+        {/* A menu's content (#604), a card after the Introduction: it stays whatever is sent; the help comes after it. */}
+        {page?.card ? <li className="chat-message chat-card">{page.card}</li> : null}
+        {page?.card && showIntro ? (
+          <li className="chat-message chat-coach">
+            <span className="visually-hidden">{t(texts.author)}</span>
+            <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} />
+          </li>
+        ) : null}
         {messages.map((message, index) =>
           message.from === "help" ? (
             <li key={`help-${message.key}`} className="chat-message chat-help">

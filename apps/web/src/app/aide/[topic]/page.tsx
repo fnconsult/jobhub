@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { EmptyState } from "@/design/EmptyState";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { publicMetadata } from "@/public-pages/indexing-server";
+import { routes } from "@/routes";
 import { HelpArticleList, HelpBreadcrumb, HelpSearchForm, topicOrNotFound } from "../help-centre";
 
 type Params = { params: Promise<{ topic: string }> };
@@ -10,7 +12,7 @@ type Params = { params: Promise<{ topic: string }> };
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
   const topic = topicOrNotFound((await params).topic);
-  return { title: `${t(`helpCentre.topics.${topic}.title`)} · ${t("helpCentre.title")} · ${t("app.name")}` };
+  return { title: `${t(`helpCentre.topics.${topic}.title`)} · ${t("helpCentre.title")} · ${t("app.name")}`, ...(await publicMetadata(routes.helpTopic(topic), ["fr", "en"])) };
 }
 
 /**

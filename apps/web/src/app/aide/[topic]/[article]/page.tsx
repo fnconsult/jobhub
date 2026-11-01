@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { publicMetadata } from "@/public-pages/indexing-server";
+import { routes } from "@/routes";
 import { HelpArticleList, HelpBreadcrumb, topicOrNotFound } from "../../help-centre";
 
 type Params = { params: Promise<{ topic: string; article: string }> };
@@ -19,7 +21,8 @@ async function shown({ params }: Params) {
 
 export async function generateMetadata(props: Params): Promise<Metadata> {
   const t = await getServerT();
-  return { title: `${(await shown(props)).title} · ${t("helpCentre.title")} · ${t("app.name")}` };
+  const article = await shown(props);
+  return { title: `${article.title} · ${t("helpCentre.title")} · ${t("app.name")}`, ...(await publicMetadata(routes.helpArticle(article.topic, article.id), ["fr", "en"])) };
 }
 
 /**

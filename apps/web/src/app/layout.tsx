@@ -9,14 +9,16 @@ import { ScrollbarActivity } from "@/design/ScrollbarActivity";
 import { ThemedHtml } from "@/design/ThemedHtml";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { NOINDEX } from "@/public-pages/indexing";
 import { jobbboxVersion } from "@/signalements/server";
 // Inter, self-hosted: its files are bundled and served from our own origin, never a font CDN (ADR-0053).
 import "@fontsource-variable/inter";
 import "./app.css";
 
+/** Every page is `noindex` but the public ones indexed, whose own metadata says so (#545, see public-pages/indexing). */
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
-  return { title: t("app.name"), description: t("app.tagline") };
+  return { title: t("app.name"), description: t("app.tagline"), robots: NOINDEX };
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

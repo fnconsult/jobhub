@@ -60,12 +60,32 @@ function prMerge(args) {
   return merge;
 }
 
+/** How many files GitHub returns per page of a pull request's files: its maximum. */
+const PAGE_SIZE = 100;
+
 /** The files a pull request changes, from GitHub's REST API (`gh` resolves `{owner}/{repo}` from the checkout). */
 function filesOnGitHub({ owner, repo, pr, branch }) {
   const gh = (...args) => execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   const where = owner && repo ? `${owner}/${repo}` : "{owner}/{repo}";
   const number = pr ?? gh("pr", "view", ...(branch ? [branch] : []), ...(owner && repo ? ["--repo", where] : []), "--json", "number", "--jq", ".number");
-  return gh("api", "--paginate", `repos/${where}/pulls/${number}/files`, "--jq", ".[].filename").split("\n").filter(Boolean);
+  return pullRequestFiles(gh, where, number);
+}
+
+/**
+ * Every file of pull request `number`, page by page (`?per_page=100&page=N`) rather than through `gh api --paginate`,
+ * whose next pages are `repositories/<id>/…` links that some proxies refuse. Throws unless the count matches the pull
+ * request's `changed_files`, so a page missed never lets a merge through. `gh(...args)` runs `gh` and returns its output.
+ */
+export function pullRequestFiles(gh, where, number) {
+  const expected = Number(gh("api", `repos/${where}/pulls/${number}`, "--jq", ".changed_files"));
+  const files = [];
+  for (let page = 1; ; page++) {
+    const listed = gh("api", `repos/${where}/pulls/${number}/files?per_page=${PAGE_SIZE}&page=${page}`, "--jq", ".[].filename").split("\n").filter(Boolean);
+    files.push(...listed);
+    if (listed.length < PAGE_SIZE) break;
+  }
+  if (!Number.isInteger(expected) || files.length !== expected) throw new Error(`read ${files.length} files of pull request ${number}, which changes ${expected}`);
+  return files;
 }
 
 /** The hook's answer to a tool call: a refusal, or null to let it through. `filesOf` reads a pull request's files. */

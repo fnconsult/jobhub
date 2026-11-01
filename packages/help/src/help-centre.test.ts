@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { articles, helpCentreArticle, helpCentrePaths, helpCentreTopics, isPublic, relatedArticles, search } from "./index";
+import { articles, helpCentreArticle, helpCentreTopics, isPublic, relatedArticles, search } from "./index";
 import { PUBLIC_HELP_TOPICS, type HelpArticle } from "./types";
 
 // Issue #549 (ADR-0065): the public Help Centre's topics, articles, search and addresses, and the Coach Panel's scope.
-// An Administrator's article is never public: a test article of that audience is looked for everywhere.
+// An Administrator's article is never public: a test article of that audience is looked for everywhere (the sitemap's
+// side: apps/web/src/public-pages/indexing.test.ts).
 
 const entry = (fields: Partial<HelpArticle> & Pick<HelpArticle, "id" | "title">): HelpArticle => ({
   locale: "fr",
@@ -48,25 +49,6 @@ describe("helpCentreArticle — the article /aide/<topic>/<article> serves", () 
   it("never serves an Administrator's article, whatever topic its address names", () => {
     expect(isPublic(ADMIN)).toBe(false);
     for (const topic of [...PUBLIC_HELP_TOPICS, "parametres"]) expect(helpCentreArticle(topic, ADMIN.id, "fr", FIXTURE)).toBeNull();
-  });
-});
-
-describe("helpCentrePaths — what sitemap.xml lists of the help", () => {
-  it("lists /aide, each topic and each public article, in French then under /en, never an Administrator's", () => {
-    const paths = helpCentrePaths({ fr: FIXTURE, en: FIXTURE.map((found) => ({ ...found, locale: "en" })) });
-    expect(paths).toContain("/aide");
-    expect(paths).toContain("/aide/espace-coach");
-    expect(paths).toContain("/aide/extension/tutorial-extension");
-    expect(paths).toContain("/en/aide/extension/tutorial-extension");
-    expect(paths.filter((path) => path.includes(ADMIN.id) || path.includes(ADMIN.topic))).toEqual([]);
-  });
-
-  it("lists every public article this build carries, in both languages", () => {
-    const paths = helpCentrePaths();
-    for (const found of articles("fr").filter(isPublic)) {
-      expect(paths).toContain(`/aide/${found.topic}/${found.id}`);
-      expect(paths).toContain(`/en/aide/${found.topic}/${found.id}`);
-    }
   });
 });
 

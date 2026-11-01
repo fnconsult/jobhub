@@ -92,7 +92,7 @@ test.describe("the public shell on a desktop", () => {
         ["fr", fr],
         ["en", en],
       ] as const) {
-        await page.goto(`${path}?lang=${lang}`);
+        await page.goto(lang === "en" ? `/en${path}` : path); // English under /en (#545)
         await expect(page.locator("html"), path).toHaveAttribute("lang", lang);
         await expect(page.getByRole("heading", { level: 1 }), path).toHaveText(title(c));
         const nav = header(page).getByRole("navigation", { name: c.publicSite.nav });
@@ -129,20 +129,20 @@ test.describe("the public shell on a desktop", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
     await expect(header(page).getByRole("link", { name: "Français" })).toHaveAttribute("aria-current", "true");
     await header(page).getByRole("link", { name: "English" }).click();
-    await expect(page).toHaveURL(`${origin}/legal/mentions-legales?lang=en`);
+    await expect(page).toHaveURL(`${origin}/en/legal/mentions-legales`);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.legal.texts["mentions-legales"]);
     await expect(header(page).getByRole("link", { name: "English" })).toHaveAttribute("aria-current", "true");
 
     // A link of the shell keeps English.
     await header(page).getByRole("link", { name: en.publicSite.nouveautes }).click();
-    await expect(page).toHaveURL(`${origin}/nouveautes?lang=en`);
+    await expect(page).toHaveURL(`${origin}/en/nouveautes`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.nouveautes.title);
-    await expect(footer(page).getByRole("link", { name: en.publicFooter.legal.ia })).toHaveAttribute("href", "/legal/confidentialite?lang=en#ia");
+    await expect(footer(page).getByRole("link", { name: en.publicFooter.legal.ia })).toHaveAttribute("href", "/en/legal/confidentialite#ia");
 
     // Back to French from the footer's switch.
     await footer(page).getByRole("link", { name: "Français" }).click();
-    await expect(page).toHaveURL(`${origin}/nouveautes?lang=fr`);
+    await expect(page).toHaveURL(`${origin}/nouveautes`);
     await expect(page.locator("html")).toHaveAttribute("lang", "fr");
 
     // The text size chosen on one page is kept on the next.

@@ -2,13 +2,14 @@ import { helpCentreTopics, search } from "@jobhub/help";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicSite } from "@/design/PublicSite";
-import { getRequestLocale, getServerT, getUrlLocale } from "@/i18n/server";
+import { getRequestLocale, getServerT } from "@/i18n/server";
+import { publicMetadata } from "@/public-pages/indexing-server";
 import { routes } from "@/routes";
 import { helpCentreHref, HelpArticleList, HelpSearchForm } from "./help-centre";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
-  return { title: `${t("helpCentre.title")} · ${t("app.name")}` };
+  return { title: `${t("helpCentre.title")} · ${t("app.name")}`, ...(await publicMetadata(routes.help, ["fr", "en"])) };
 }
 
 /** How many public articles a search shows at most. */
@@ -22,10 +23,10 @@ const SEARCH_LIMIT = 20;
 export default async function HelpCentrePage({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const lang = await getUrlLocale();
   const asked = (await searchParams).q;
   const query = (Array.isArray(asked) ? asked[0] : asked)?.trim() ?? "";
   const found = query ? search(query, locale, { limit: SEARCH_LIMIT }) : [];
+  const topics = await Promise.all(helpCentreTopics(locale).map(async (entry) => ({ ...entry, href: await helpCentreHref(routes.helpTopic(entry.topic)) })));
   return (
     <PublicSite current="aide">
       <main id="main" className="ds-site__page">
@@ -46,11 +47,11 @@ export default async function HelpCentrePage({ searchParams }: { searchParams: P
         <section className="help-centre__section" aria-labelledby="help-topics">
           <h2 id="help-topics">{t("helpCentre.topicsTitle")}</h2>
           <ul className="help-centre__topics">
-            {helpCentreTopics(locale).map(({ topic, articles }) => (
+            {topics.map(({ topic, articles, href }) => (
               <li key={topic}>
                 <section className="help-centre__topic" aria-labelledby={`help-topic-${topic}`}>
                   <h3 id={`help-topic-${topic}`}>
-                    <Link href={helpCentreHref(routes.helpTopic(topic), lang)}>{t(`helpCentre.topics.${topic}.title`)}</Link>
+                    <Link href={href}>{t(`helpCentre.topics.${topic}.title`)}</Link>
                   </h3>
                   <p>{t(`helpCentre.topics.${topic}.description`)}</p>
                   <p className="help-centre__meta">{articles.length > 0 ? t("helpCentre.articleCount", { count: articles.length }) : t("helpCentre.emptyTopic")}</p>

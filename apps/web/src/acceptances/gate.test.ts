@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { acceptanceHref, acceptanceReturn, openWhilePending } from "./gate";
 
 describe("what a Candidate reaches before accepting the CGU (ADR-0062)", () => {
-  it.each(["/acceptation", "/compte/donnees", "/abonnement", "/abonnement?code=BIENVENUE", "/compte/supprime", "/legal/cgu", "/legal/cgu/2026-12-01", "/connexion"])("reaches %s", (path) => {
+  it.each(["/acceptation", "/compte/donnees", "/abonnement", "/abonnement?code=BIENVENUE", "/compte/supprime", "/legal/cgu", "/legal/cgu/2026-12-01", "/connexion", "/en/legal/cgu", "/en/connexion"])("reaches %s", (path) => {
     expect(openWhilePending(path)).toBe(true);
   });
 
-  it.each(["/", "/candidatures", "/profils/abc", "/compte", "/compte/profils", "/compte/donnees-perso", "/acceptations", "/abonnements", "/legalese"])("does not reach %s", (path) => {
+  it.each(["/", "/candidatures", "/profils/abc", "/compte", "/compte/profils", "/compte/donnees-perso", "/acceptations", "/abonnements", "/legalese", "/en", "/en/candidatures"])("does not reach %s", (path) => {
     expect(openWhilePending(path)).toBe(false);
   });
 

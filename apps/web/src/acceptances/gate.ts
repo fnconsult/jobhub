@@ -4,13 +4,14 @@
  * Texts and sign-in. Every other page of theirs sends them to the Acceptance screen, to come back afterwards.
  */
 import { RETURN_PARAM, safeReturnPath } from "../auth/sign-in-return";
+import { splitLocalePrefix } from "../i18n/locale-header";
 import { routes } from "../routes";
 
 const OPEN = [routes.acceptance, routes.accountData, routes.subscription, routes.accountDeleted, "/legal", routes.signIn];
 
-/** Whether `path` (with its query) stays open to a Candidate who has a CGU version to accept. */
+/** Whether `path` (with its query, under `/en` too, #545) stays open to a Candidate who has a CGU version to accept. */
 export function openWhilePending(path: string): boolean {
-  const pathname = pathnameOf(path);
+  const { pathname } = splitLocalePrefix(pathnameOf(path));
   return OPEN.some((open) => pathname === open || pathname.startsWith(`${open}/`));
 }
 

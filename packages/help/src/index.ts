@@ -15,7 +15,7 @@ import { LEGAL_TEXT_REGISTRY, LEGAL_TEXT_VERSIONS } from "./legal-texts.generate
 import type { ReleaseNote } from "./release-notes";
 import { RELEASE_NOTES } from "./release-notes.generated";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
-import { HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
+import { PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
 
 export {
   isLegalTextId,
@@ -92,23 +92,6 @@ export function helpCentreTopics(locale: HelpLocale, from: readonly HelpArticle[
 export function helpCentreArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpArticle | null {
   if (!isPublicHelpTopic(topic)) return null;
   return from.find((entry) => entry.id === id && entry.topic === topic && isPublic(entry)) ?? null;
-}
-
-/**
- * The Help Centre's addresses, in French then English: /aide, each topic, each public article (an Administrator's
- * never), the English ones under /en. What `sitemap.xml` lists of the help (#545).
- */
-export function helpCentrePaths(from: Readonly<Record<HelpLocale, readonly HelpArticle[]>> = ARTICLES): string[] {
-  return HELP_LOCALES.flatMap((locale) => {
-    const prefix = locale === "fr" ? "" : `/${locale}`;
-    return [
-      `${prefix}/aide`,
-      ...helpCentreTopics(locale, from[locale]).flatMap(({ topic, articles: listed }) => [
-        `${prefix}/aide/${topic}`,
-        ...listed.map((entry) => `${prefix}/aide/${topic}/${entry.id}`),
-      ]),
-    ];
-  });
 }
 
 /**

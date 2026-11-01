@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { decide, mergesIn } from "./no-legal-merge.mjs";
+import { decide, mergesIn, pullRequestFiles } from "./no-legal-merge.mjs";
 
 const bash = (command: string) => ({ tool_name: "Bash", tool_input: { command } });
 const legal = ["packages/help/legal/cgu/2026-12-01.fr.md", "packages/help/legal/cgu/2026-12-01.en.md"];
@@ -62,6 +62,38 @@ describe("decide — an agent never merges a Legal Text Version (#507)", () => {
       return code;
     });
     expect(asked).toEqual([{ owner: "fnconsult", repo: "jobhub", pr: "612" }]);
+  });
+});
+
+describe("pullRequestFiles — every file, page by page", () => {
+  /** A fake `gh` for a pull request of `count` files, recording what it is asked. */
+  function fakeGh(count: number, changedFiles = count) {
+    const asked: string[] = [];
+    const gh = (...args: string[]) => {
+      const route = args[1]!;
+      asked.push(route);
+      if (!route.includes("/files")) return String(changedFiles);
+      const page = Number(/[?&]page=(\d+)/.exec(route)![1]);
+      const from = (page - 1) * 100;
+      return Array.from({ length: Math.max(0, Math.min(100, count - from)) }, (_, at) => `file-${from + at}.ts`).join("\n");
+    };
+    return { gh, asked };
+  }
+
+  it("reads past the first page, 100 files at a time, without --paginate", () => {
+    const { gh, asked } = fakeGh(118);
+    const files = pullRequestFiles(gh, "fnconsult/jobhub", "630");
+    expect(files).toHaveLength(118);
+    expect(files.at(-1)).toBe("file-117.ts");
+    expect(asked).toEqual(["repos/fnconsult/jobhub/pulls/630", "repos/fnconsult/jobhub/pulls/630/files?per_page=100&page=1", "repos/fnconsult/jobhub/pulls/630/files?per_page=100&page=2"]);
+  });
+
+  it("stops after an exactly full last page, on the empty one", () => {
+    expect(pullRequestFiles(fakeGh(200).gh, "o/r", "1")).toHaveLength(200);
+  });
+
+  it("throws when it read fewer files than the pull request changes, so the hook refuses", () => {
+    expect(() => pullRequestFiles(fakeGh(118, 3200).gh, "o/r", "1")).toThrow(/read 118 files of pull request 1, which changes 3200/);
   });
 });
 

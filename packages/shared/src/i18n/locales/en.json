@@ -5237,5 +5237,11 @@
     },
     "noResults": "No results yet: what the coach makes here is added to this list.",
     "matchScore": "Match Score: {{score}}"
+  },
+  "contextBar": {
+    "title": "Conversation context",
+    "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
+    "nearlyFull": "The coach reads only the latest messages.",
+    "clear": "Clear the conversation"
   }
 }

@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { submitToStripe } from "./support/stripe-checkout";
+import { orderToStripe } from "./support/stripe-checkout";
 
 // Issue #207: Coupons, Stripe promotion codes created from the Back Office (Codes promo) in the fake
 // Stripe (E2E_STRIPE_URL). A shared link /abonnement?code=… tells the Candidate what the code gives and
@@ -33,9 +33,9 @@ async function choose(page: Page, plan: string) {
   await toCheckout(page, `Choisir l'offre ${plan}`);
 }
 
-/** Clicks a button that sends the browser to Stripe Checkout; Stripe's page is not loaded. */
+/** Clicks a button that opens a Plan's Order page (#512), then « Passer au paiement », to Stripe Checkout; Stripe's page is not loaded. */
 async function toCheckout(page: Page, button: string) {
-  const response = await submitToStripe(page, "/api/billing/checkout", button);
+  const response = await orderToStripe(page, "/api/billing/checkout", button);
   expect(response.status()).toBe(303);
   expect(response.headers().location).toMatch(/^https:\/\/checkout\.stripe\.test\//);
 }
@@ -90,6 +90,8 @@ test.describe("Coupons", () => {
     const checkouts = (await checkoutCalls(customer)).length;
     await candidate.goto("/abonnement?code=PRINTEMPS-E2E");
     await candidate.getByRole("button", { name: "Choisir l'offre Premium" }).click();
+    await expect(candidate).toHaveURL(/\/abonnement\/commande\?/);
+    await candidate.getByRole("button", { name: fr.orders.page.submit }).click();
     await expect(candidate).toHaveURL(/codeRefused=not_for_plan/);
     await expect(candidate.getByRole("alert").filter({ hasText: tr(fr.billing.page.codeRefused.not_for_plan, { plan: "Premium" }) })).toBeVisible();
     expect(await checkoutCalls(customer)).toHaveLength(checkouts);

@@ -5,7 +5,8 @@
  *  - what may this Candidate do?  `entitlements`, `use`, `allows`, `release`, `allowsAnother`
  *  - how do they change Plan?     `startCheckout`, `openCustomerPortal`, `handleStripeWebhook`
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
- *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
+ *    (the signed webhook reports it paid through `onCoachingSessionPaid`, and every paid Checkout, a Plan's included,
+ *    through `onCheckoutPaid`: the Order Confirmation of #512)
  *  - how do they stop paying?     `cancellationTerms`, `scheduleCancellation` (« Résilier votre contrat », #513),
  *                                 and `closeAccount` when they delete their account;
  *                                 `endSubscriptionWithProrataRefund` (`retryProrataRefund`) when they cancel over a
@@ -82,6 +83,12 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+  /**
+   * Told of each Checkout Stripe confirms as paid (or free, a 100 % code), a Plan's or a Coaching Session's, from its
+   * signed webhook (#512: the Orders module emails its confirmation). Stripe may report one more than once, even
+   * concurrently: it must be idempotent per Checkout Session. If it throws, the webhook fails and Stripe retries.
+   */
+  onCheckoutPaid?: (paid: PaidCheckout) => Promise<unknown>;
   /** Where each Stripe call, webhooks received included, is recorded (#234): its API method, never its parameters. Default: nowhere. */
   externalApis?: ExternalApiLog;
   /**
@@ -99,6 +106,8 @@ export interface Payment {
   id: string;
   amount: number;
   currency: string;
+  /** The period a subscription's payment paid for, when Stripe tells it (its invoice's first line). */
+  period?: { start: Date; end: Date };
 }
 
 /** Where a refund stands, as Stripe says. */
@@ -158,6 +167,24 @@ export interface CheckoutOptions {
    * Plan; otherwise Checkout goes on without it, and they may type one there.
    */
   promotionCode?: string | undefined;
+}
+
+/** Where a Checkout starts: Stripe's page, and its Checkout Session; or the customer portal (no Checkout Session) for a Candidate who already pays. */
+export interface CheckoutStart {
+  url: string;
+  checkoutSessionId: string | null;
+}
+
+/** A Checkout Stripe confirmed as paid (or as needing no payment), a Plan's (`subscription`) or a Coaching Session's (`payment`). */
+export interface PaidCheckout {
+  checkoutSessionId: string;
+  candidateId: string;
+  mode: "subscription" | "payment";
+  /** The subscription it started; null for a Coaching Session. */
+  subscriptionId: string | null;
+  /** What was paid, in the currency's smallest unit (cents): 0 when a 100 % code left nothing to pay. */
+  amount: number;
+  currency: string;
 }
 
 /** A Coaching Session payment Stripe confirmed. */
@@ -763,17 +790,28 @@ export function createBilling(config: BillingConfig) {
     return found.value.id;
   }
 
-  /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
+  /** Reports a paid Checkout from a checkout.session.* event, and a paid Coaching Session; ignores an unpaid one. */
   async function applyCheckout(session: Stripe.Checkout.Session) {
-    if (session.mode !== "payment" || session.metadata?.purpose !== "coaching_session") return;
     if (session.payment_status === "unpaid") return; // async payment methods: wait for async_payment_succeeded
-    const candidateId = session.metadata.candidate_id ?? session.client_reference_id;
-    const coachId = session.metadata.coach_id;
-    if (!candidateId || !coachId) return;
-    await config.onCoachingSessionPaid?.({
+    const mode: PaidCheckout["mode"] | null = session.mode === "payment" ? "payment" : session.mode === "subscription" ? "subscription" : null;
+    if (!mode) return;
+    const candidateId = session.metadata?.candidate_id ?? session.client_reference_id;
+    if (!candidateId) return;
+    const coachId = session.metadata?.coach_id;
+    if (mode === "payment" && session.metadata?.purpose === "coaching_session" && coachId) {
+      await config.onCoachingSessionPaid?.({
+        checkoutSessionId: session.id,
+        candidateId,
+        coachId,
+        amount: session.amount_total ?? 0,
+        currency: session.currency ?? "eur",
+      });
+    }
+    await config.onCheckoutPaid?.({
       checkoutSessionId: session.id,
       candidateId,
-      coachId,
+      mode,
+      subscriptionId: mode === "subscription" ? idOf(session.subscription) : null,
       amount: session.amount_total ?? 0,
       currency: session.currency ?? "eur",
     });
@@ -924,7 +962,9 @@ export function createBilling(config: BillingConfig) {
       (invoice.payments?.data ?? []).flatMap((paid) => {
         const id = idOf(paid.payment.payment_intent) ?? idOf(paid.payment.charge);
         const amount = paid.amount_paid ?? 0;
-        return paid.status === "paid" && id && amount > 0 ? [{ id, amount, currency: paid.currency }] : [];
+        const line = invoice.lines?.data[0]?.period;
+        const period = line && line.end > line.start ? { period: { start: new Date(line.start * 1000), end: new Date(line.end * 1000) } } : {};
+        return paid.status === "paid" && id && amount > 0 ? [{ id, amount, currency: paid.currency, ...period }] : [];
       }),
     );
   }
@@ -1212,7 +1252,7 @@ export function createBilling(config: BillingConfig) {
      * applied, or refused with a PromotionCodeRefused saying why: never dropped
      * silently, so they choose whether to go on without it.
      */
-    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr", options: CheckoutOptions = {}): Promise<string> {
+    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr", options: CheckoutOptions = {}): Promise<CheckoutStart> {
       if (plan === FREE_PLAN) throw new BillingError("no_checkout_for_free_plan");
       const { client } = stripe();
       await linkedIfPossible();
@@ -1221,7 +1261,7 @@ export function createBilling(config: BillingConfig) {
       const customer = await stripeCustomerFor(candidate);
       const account = await stripeAccountOf(candidate.id);
       if (account && account.plan !== FREE_PLAN && PAYING_STATUSES.has(account.stripe_status ?? "")) {
-        return portalFor(customer, locale);
+        return { url: await portalFor(customer, locale), checkoutSessionId: null };
       }
       const promotionCode = options.promotionCode ? await promotionCodeFor(options.promotionCode, plan, candidate.id) : null;
       const params: Stripe.Checkout.SessionCreateParams = {
@@ -1252,7 +1292,7 @@ export function createBilling(config: BillingConfig) {
         session = await client.checkout.sessions.create(withCodeField);
       }
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
-      return session.url;
+      return { url: session.url, checkoutSessionId: session.id };
     },
 
     /**
@@ -1316,7 +1356,7 @@ export function createBilling(config: BillingConfig) {
      * Coaching Session exists only once the signed webhook confirms the payment.
      * Throws a BillingError("coaching_sessions_not_configured") without the Prices.
      */
-    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<string> {
+    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<CheckoutStart> {
       const prices = coachingSessionPrices();
       const customer = await stripeCustomerFor(candidate);
       const discounted = await hasFeature(candidate.id, "coachingSessionDiscount");
@@ -1331,7 +1371,7 @@ export function createBilling(config: BillingConfig) {
         cancel_url: coachingPageURL(),
       });
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
-      return session.url;
+      return { url: session.url, checkoutSessionId: session.id };
     },
 
     /** The Stripe customer portal (invoices, payment method, change or cancel Plan), or null if they never subscribed. */
@@ -1450,14 +1490,15 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
-     * Refunds a payment in full (`requested_by_customer`), with `metadata` to find it again. `key` is the request's
-     * idempotency key: asked again with it (within Stripe's 24 hours), the same refund is answered, never a second one.
-     * Stripe's refusal, or no answer, is a result, not an error.
+     * Refunds a payment (`requested_by_customer`), in full, or `amount` of it (a Plan's prorata, #512), with `metadata`
+     * to find it again. `key` is the request's idempotency key: asked again with it (within Stripe's 24 hours), the same
+     * refund is answered, never a second one. Stripe's refusal, or no answer, is a result, not an error.
      */
-    async refund(payment: Payment, key: string, metadata: Record<string, string>): Promise<RefundResult> {
+    async refund(payment: Payment, key: string, metadata: Record<string, string>, amount?: number): Promise<RefundResult> {
       try {
         const target = payment.id.startsWith("ch_") ? { charge: payment.id } : { payment_intent: payment.id };
-        const refund = await stripe().client.refunds.create({ ...target, reason: "requested_by_customer", metadata }, { ...STRIPE_WRITE, idempotencyKey: key });
+        const part = amount === undefined ? {} : { amount };
+        const refund = await stripe().client.refunds.create({ ...target, ...part, reason: "requested_by_customer", metadata }, { ...STRIPE_WRITE, idempotencyKey: key });
         return { ok: true, id: refund.id, status: (refund.status ?? "pending") as RefundStatus };
       } catch (error) {
         console.error("[billing] Stripe refused or did not answer a refund", error);

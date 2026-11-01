@@ -1,14 +1,15 @@
 import { sharedPool } from "@/database/pool";
+import { currentRelease, shortCommit } from "@/release";
 import { createSignalements, type Signalements } from "./index";
 
 let instance: Signalements | undefined;
 
 /**
- * The Jobbbox version a Signalement keeps and its dialog shows (#374, #375): the deployed revision (JOBHUB_REVISION, set
- * by deploy/compose.yml), shortened as git does; « dev » when it is not set.
+ * The Jobbbox version a Signalement keeps and its dialog shows (#374, #375): the deployed commit (`@/release`, #559),
+ * shortened as git does; « dev » when it is not known.
  */
 export function jobbboxVersion(): string {
-  return process.env.JOBHUB_REVISION?.trim().slice(0, 7) || "dev";
+  return shortCommit(currentRelease().commit) ?? "dev";
 }
 
 /** The app's Signalements (#374), on the database named by DATABASE_URL, keeping jobbboxVersion(). */

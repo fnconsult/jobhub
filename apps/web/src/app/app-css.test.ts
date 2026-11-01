@@ -23,6 +23,7 @@ const METADATA_SIZE_SELECTORS = [
   ".live-action-spent, .chat-stopped-spent", // the spend line under a finished action
   ".provenance-line", // where a value came from
   ".sidebar-count", // a count beside a sidebar link
+  ".release-line", // « Version de Jobbbox » (#559)
   ".usage-meter-renews", // when the usage meter renews
   ".usage-meter-detail",
   ".signalement-tip", // a hint

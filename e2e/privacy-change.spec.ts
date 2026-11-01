@@ -29,6 +29,8 @@ const version = (locale: "fr" | "en") =>
     "change: substantielle",
     "approved_by: Camille Martin",
     `summary: ${locale === "fr" ? "Un nouveau destinataire hors UE." : "A new recipient outside the EU."}`,
+    // Every privacy policy version names its recipients outside the EU (#548); the build refuses one without.
+    "recipients_outside_eu: []",
     "---",
     locale === "fr" ? "## Qui traite vos données\nFN Consult.\n\n## Cookies {#cookies}\nAucun traceur.\n\n## IA dans Jobbbox {#ia}\nLes voies de l'IA.\n" : "## Who processes your data\nFN Consult.\n\n## Cookies {#cookies}\nNo tracker.\n\n## AI in Jobbbox {#ia}\nThe AI routes.\n",
   ].join("\n");

@@ -200,8 +200,8 @@ test.describe("local dev servers (#71)", () => {
 
     const web = await startWebApp(webPort);
     expect(web.port).toBe(webPort);
-    expect(await webAppHealth(webPort)).toEqual({ status: "ok" });
-    expect(await webAppHealth(extensionDevPort, 2_000)).not.toEqual({ status: "ok" });
+    expect(await webAppHealth(webPort)).toMatchObject({ status: "ok" });
+    expect(((await webAppHealth(extensionDevPort, 2_000)) as { status?: unknown } | undefined)?.status).not.toBe("ok");
   });
 
   test("web app first, then the extension dev server: the same ports", async () => {
@@ -209,12 +209,12 @@ test.describe("local dev servers (#71)", () => {
 
     const web = await startWebApp(webPort);
     expect(web.port).toBe(webPort);
-    expect(await webAppHealth(webPort)).toEqual({ status: "ok" });
+    expect(await webAppHealth(webPort)).toMatchObject({ status: "ok" });
 
     const extensionDevPort = await extensionPort();
     const extension = await startExtension(extensionDevPort);
     expect(extension.port).toBe(extensionDevPort);
-    expect(await webAppHealth(webPort)).toEqual({ status: "ok" });
+    expect(await webAppHealth(webPort)).toMatchObject({ status: "ok" });
   });
 
   test("its own port taken (another checkout's extension dev server): the extension dev server refuses to move", async () => {

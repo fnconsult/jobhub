@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import config from "../playwright.config";
@@ -23,6 +24,29 @@ test.describe("monorepo tooling", () => {
       expect(ci).toContain(`run: ${step}`);
     }
     expect(ci).toMatch(/pull_request/);
+  });
+
+  // Issue #559 (ADR-0063): one Version. CI fails when apps/web or apps/worker says another than the root package.json.
+  test("CI checks the one Version, and the check fails when an app's package.json differs from the root's", () => {
+    expect(read(".github/workflows/ci.yml")).toContain("run: npm run check:versions");
+    const checkIn = (dir: string) => spawnSync("npm", ["run", "--silent", "check:versions", "--", dir], { encoding: "utf8" });
+    expect(checkIn(".").status).toBe(0);
+
+    const dir = mkdtempSync(path.join(os.tmpdir(), "e2e-versions-"));
+    try {
+      const write = (file: string, version: string) => {
+        mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+        writeFileSync(path.join(dir, file), JSON.stringify({ version }));
+      };
+      write("package.json", "0.2.0");
+      write("apps/web/package.json", "0.2.0");
+      write("apps/worker/package.json", "0.1.0");
+      const result = checkIn(dir);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("apps/worker/package.json is at 0.1.0, not the root package.json's 0.2.0");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   // Issue #133 (ADR-0018): complex widgets sit on unstyled Radix primitives, styled with our tokens.

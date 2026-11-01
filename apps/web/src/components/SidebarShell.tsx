@@ -77,6 +77,7 @@ export function SidebarShell({
   title,
   wide = false,
   topBarEnd = <CoachPanelToggle />,
+  topBarActivity = <AiActivityButton />,
   beside,
   children,
 }: {
@@ -89,7 +90,9 @@ export function SidebarShell({
   wide?: boolean;
   /** The Top Bar's last button: the Coach Panel's, or « Effacer » under « Conversation au centre » (#601). */
   topBarEnd?: ReactNode;
-  /** The column beside the page, never over it: the Work Pane under « Conversation au centre » (#602). */
+  /** AI Activity's button, before `topBarEnd`; none on an object's page, whose Fiche shows its Activity (#603). */
+  topBarActivity?: ReactNode;
+  /** The columns beside the page, never over it: the Work Pane under « Conversation au centre » (#602), and an object's Fiche (#603). */
   beside?: ReactNode;
   children: ReactNode;
 }) {
@@ -320,7 +323,7 @@ export function SidebarShell({
                   </>
                 )}
               </div>
-              <AiActivityButton />
+              {topBarActivity}
               {topBarEnd}
             </header>
             <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"}>

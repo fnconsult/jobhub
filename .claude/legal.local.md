@@ -32,7 +32,7 @@ Décidé par #507 (circuit de relecture), livré par #525. Recherches : `docs/re
 | Ce qui s'accepte | CGU et CGV seulement ; la politique de confidentialité et les mentions légales ne s'acceptent jamais | ADR-0062 |
 | Traceurs | Uniquement exemptés de consentement : session d'authentification, préférences d'interface, Guest session. Aucun outil d'audience, publicité ni pixel. **Pas de bandeau** | #496 § 6 |
 | IA | Claude hors UE après Redaction ; Mistral dans l'UE (identité sous EU AI Consent, lecture des e-mails) ; recherche web hors UE sur requêtes seulement. Les noms vont dans la Recipient list `/legal/destinataires` | ADR-0064, ADR-0007 |
-| Fichiers | `packages/help/legal/<texte>/<AAAA-MM-JJ>.<fr|en>.md`, `<texte>` parmi `mentions-legales`, `cgu`, `cgv`, `confidentialite` ; frontmatter `title`, `effective`, `change: substantielle | mineure`, `approved_by`, `summary` | ADR-0062, #546 |
+| Fichiers | `packages/help/legal/<texte>/<AAAA-MM-JJ>.<fr|en>.md`, `<texte>` parmi `mentions-legales`, `cgu`, `cgv`, `confidentialite` ; frontmatter `title`, `effective`, `change: substantielle | mineure`, `approved_by`, `summary` ; pour `confidentialite`, aussi `recipients_outside_eu: [<id de Tool>, …]` (`[]` si aucun), les Tools hors UE (ou de résidence non établie) que la version couvre, chaque id existant dans `packages/shared/src/tools.ts` | ADR-0062, #546, ADR-0064, #548 |
 
 ## 2. Échelle de risque pour `legal-risk-assessment`
 
@@ -141,7 +141,7 @@ Information, jamais acceptée (ADR-0062). Une version substantielle (nouvelle fi
 
 | # | Point | Base |
 |---|---|---|
-| T1 | Fichier au format de #546 : `effective` égale au nom du fichier, `change`, `summary` FR et EN, `approved_by` laissé au product owner | ADR-0062, #546 |
+| T1 | Fichier au format de #546 : `effective` égale au nom du fichier, `change`, `summary` FR et EN, `approved_by` laissé au product owner ; pour la politique de confidentialité, `recipients_outside_eu` identique en FR et EN, et un destinataire hors UE ajouté rend la version substantielle | ADR-0062, #546, ADR-0064, #548 |
 | T2 | Le texte dit ce que le produit fait vraiment : chaque fonction citée (« Renoncer au contrat ici », « Résilier votre contrat », écran d'Acceptance, Data export) existe ou la PR est suspendue jusqu'à sa livraison | #507 |
 | T3 | Les libellés de l'interface sont cités mot pour mot | `docs/agents/documentation.md` |
 | T4 | Vouvoiement, français clair ; un « En bref » en tête n'a pas de valeur contractuelle et le dit | `docs/agents/documentation.md` |

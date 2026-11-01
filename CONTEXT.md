@@ -638,11 +638,11 @@ The column beside an object's Coach Conversation that shows the object: its card
 _Avoid_: Details panel, sidebar, record pane
 
 **Work Pane**:
-The column beside a Coach Conversation where one item opens to be acted on: a Result (shown in the Viewer when it is a document), a Section, a Help Article or a form (a Signalement, an Interview…). One item at a time, with its actions in its header (modify, download, send, stop, « Demander au coach ») and its ✕ to close it; never over the conversation. On phones it takes the whole screen.
+The column beside a Coach Conversation where one item opens to be acted on: a Result (shown in the Viewer when it is a document), a Section, a Help Article or a form (a Signalement, an Interview…). One item at a time, with its actions in its header (modify, download, send, stop, « Demander au coach ») and its ✕ to close it; never over the conversation. The item takes its address with it, and closing the pane goes back to the object's address. On phones it takes the whole screen.
 _Avoid_: Drawer (Back Office and the Sidebar on phones), document pane, modal
 
 **Result**:
-What an AI action of the Candidate produced and kept with its object: a Tailored CV, a Cover Letter, an Outreach or Follow-up message, an interview preparation. Listed in the Fiche's Results and in the reply that produced it; opened in the Work Pane.
+What an AI action of the Candidate produced and kept with its object: a Tailored CV, a Cover Letter, an Outreach or Follow-up message, an interview preparation. Listed in the Fiche's Results and in the reply that produced it; opened in the Work Pane at its own address (an Application's: `/candidatures/[id]/documents?resultat=cv-adapte|lettre|message`).
 _Avoid_: Output, artefact, deliverable
 
 **Context bar**:
@@ -912,6 +912,10 @@ _Avoid_: Integration, connector, service
 **Recipient list**:
 The public page, « Destinataires des données », that names each Tool switched on in production which receives personal data or queries drawn from it: what it is for, what it is sent, where it processes it (in the EU or outside it; not established counts as outside) and the safeguard of a transfer. Read from the Tool catalog, so it always matches AI Activity; the privacy policy and its « IA dans Jobbbox » section point to it rather than naming providers.
 _Avoid_: Processor list, sub-processor list (sign-in providers and Stripe are not all processors), vendor list
+
+**Recipient outside the EU**:
+A Tool that receives personal data, or queries drawn from it, and whose data residency is outside the EU or not established. When a change in Paramètres, Provider Secrets or Connexion newly switches one on (the Tool can be called, as the Outils page shows it) and the privacy policy in effect does not name it, the change is kept, a warning shows on the page and on the Tool's Outils page, and the Back Office Audit records it (section « Destinataires hors UE », action `switched_on`). Until the first privacy policy is published, none is covered. A privacy policy Legal Text Version names the ones it covers (`recipients_outside_eu`), FR and EN alike; the build refuses an unknown Tool.
+_Avoid_: Sub-processor outside the EU
 
 **Sign-in Provider**:
 An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.

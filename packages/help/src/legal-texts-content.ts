@@ -6,7 +6,8 @@
  *   writeFileSync(legalTextsModulePath, renderLegalTextsModule(readLegalTexts()));
  *
  * A version's file: front matter (`title`, `effective`, equal to the file's name, `change: substantielle | mineure`,
- * `approved_by`, `summary`, its line in the version history), then its sections, each under a `##` heading: an
+ * `approved_by`, `summary`, its line in the version history; for the privacy policy, `recipients_outside_eu`, the Tools
+ * outside the EU it names by catalog id, `[]` for none), then its sections, each under a `##` heading: an
  * optional first « En bref » (« In short ») list, then the numbered sections, numbered by their order. A section
  * names its stable anchor after its title (`## Cookies {#cookies}`); the others are `section-<n>`.
  */
@@ -14,6 +15,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TOOLS } from "@jobhub/shared";
 import { HelpContentError, parseFrontmatter } from "./content";
 import {
   isLegalTextId,
@@ -89,6 +91,9 @@ export function readLegalTexts(dir: string = legalDir): LegalTexts {
     const original = french.find((entry) => entry.file === file.replace(/\.en\.md$/, ".fr.md"))?.version;
     if (original && LEGAL_TEXT_CHANGES.includes(version.change) && original.change !== version.change)
       problems.push(`${file}: its change ${version.change} differs from the French one (${original.change})`);
+    const named = (recipients: string[] | undefined) => (recipients ?? []).join(", ");
+    if (original?.recipientsOutsideEu && version.recipientsOutsideEu && named(original.recipientsOutsideEu) !== named(version.recipientsOutsideEu))
+      problems.push(`${file}: its recipients_outside_eu (${named(version.recipientsOutsideEu)}) differ from the French one's (${named(original.recipientsOutsideEu)})`);
   }
 
   if (problems.length > 0) throw new HelpContentError(problems.join("\n"));
@@ -132,6 +137,7 @@ function parseLegalTextVersion(text: LegalTextId, locale: HelpLocale, named: str
   if (!approvedBy) problems.push("approved_by is missing: the product owner who signs the version");
   const summary = field("summary");
   if (!summary) problems.push("summary is missing: the version's line in the version history");
+  const recipients = recipientsOutsideEu(text, frontmatter.recipients_outside_eu, problems);
 
   const parts: { title: string; lines: string[] }[] = [];
   const before: string[] = [];
@@ -154,5 +160,28 @@ function parseLegalTextVersion(text: LegalTextId, locale: HelpLocale, named: str
   for (const id of new Set(ids)) if (ids.filter((other) => other === id).length > 1) problems.push(`#${id} anchors two sections`);
   if (parts.length > 0) for (const anchor of LEGAL_TEXT_ANCHORS[text]) if (!ids.includes(anchor)) problems.push(`no section is anchored #${anchor}`);
 
-  return { version: { text, locale, effective: named, title, change, approvedBy, summary, inBrief, sections }, problems };
+  return { version: { text, locale, effective: named, title, change, approvedBy, summary, ...(recipients ? { recipientsOutsideEu: recipients } : {}), inBrief, sections }, problems };
+}
+
+const TOOL_IDS: readonly string[] = TOOLS.map((tool) => tool.id);
+
+/**
+ * The privacy policy's `recipients_outside_eu` (#548): a list of Tool ids, each one of the catalog's; every version
+ * declares it, `[]` for none. No other Legal Text names recipients. Undefined outside the privacy policy.
+ */
+function recipientsOutsideEu(text: LegalTextId, declared: string | string[] | undefined, problems: string[]): string[] | undefined {
+  if (text !== "confidentialite") {
+    if (declared !== undefined) problems.push("only the privacy policy names recipients_outside_eu");
+    return undefined;
+  }
+  if (declared === undefined) {
+    problems.push("recipients_outside_eu is missing: the Tools outside the EU this version names, [] for none");
+    return [];
+  }
+  if (!Array.isArray(declared)) {
+    problems.push("recipients_outside_eu is a list: [anthropic, stripe]");
+    return [];
+  }
+  for (const id of declared) if (!TOOL_IDS.includes(id)) problems.push(`recipients_outside_eu names ${id}, which is no Tool of the catalog (packages/shared/src/tools.ts)`);
+  return declared;
 }

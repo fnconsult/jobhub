@@ -2263,6 +2263,7 @@
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
+        "recipients_outside_eu": "Destinataires hors UE",
         "discovery_runs": "Activité › Recherches",
         "received_emails": "Activité › Emails reçus",
         "withdrawals": "Rétractations"
@@ -2284,6 +2285,7 @@
         "reset": "Remise à zéro",
         "refused": "Tentative refusée",
         "denied": "Accès refusé",
+        "switched_on": "Activation",
         "scheduled": "Programmation",
         "cancelled": "Annulation",
         "applied": "Application"
@@ -3040,6 +3042,21 @@
         "outside_eu": "Hors UE",
         "unknown": "Non établi"
       },
+      "uncoveredRecipient": {
+        "title": "{{name}} : destinataire hors UE non couvert",
+        "warning": "Ce destinataire est hors UE et la politique de confidentialité en vigueur ne le couvre pas. Publiez une nouvelle version substantielle de la politique, avec son préavis de 30 jours, avant de l'activer en production.",
+        "policyInEffect": "Politique de confidentialité en vigueur : version du {{version}}.",
+        "noPolicy": "Aucune version de la politique de confidentialité n'est encore en vigueur.",
+        "journalFields": {
+          "residency": "Résidence",
+          "privacyPolicy": "Politique de confidentialité en vigueur",
+          "coverage": "Couverture"
+        },
+        "noPolicyValue": "aucune version en vigueur",
+        "coverage": {
+          "uncovered": "non couvert"
+        }
+      },
       "statuses": {
         "configured": "Configuré",
         "disabled": "Désactivé",
@@ -3545,7 +3562,34 @@
       "contacts": "Contacts",
       "offre": "L'offre"
     },
-    "seeInAgenda": "Voir dans l'agenda"
+    "seeInAgenda": "Voir dans l'agenda",
+    "conversation": {
+      "introduction": "Cette conversation porte sur votre candidature « {{title}} » : le coach l'a sous les yeux, avec son offre. Sa fiche est à droite, avec ses rubriques, son activité et ses résultats.",
+      "suggestions": {
+        "prepareInterview": {
+          "label": "Préparer l'entretien",
+          "message": "Aide-moi à préparer mon entretien pour cette candidature."
+        },
+        "followUp": {
+          "label": "Rédiger une relance",
+          "message": "Rédige une relance pour cette candidature."
+        },
+        "coverLetter": {
+          "label": "Rédiger la lettre de motivation",
+          "message": "Rédige ma lettre de motivation pour cette offre."
+        },
+        "matchScore": {
+          "label": "Pourquoi ce score ?",
+          "message": "Explique-moi mon score de correspondance avec cette offre."
+        }
+      }
+    },
+    "results": {
+      "savedOn": "Enregistré le {{date}}",
+      "toReview": "Proposition à relire",
+      "draftedOn": "Brouillon du {{date}}",
+      "draft": "Brouillon"
+    }
   },
   "jobOffer": {
     "details": "En bref",
@@ -5094,5 +5138,15 @@
       "doneSettled": "Votre abonnement est résilié, et notre équipe vous a remboursé au prorata la part de la période payée qui n'a pas servi."
     },
     "change": "{{label}} : {{before}} → {{after}}"
+  },
+  "fiche": {
+    "label": "Fiche",
+    "activity": "Activité",
+    "groups": {
+      "sections": "Sections",
+      "activity": "Activité",
+      "results": "Résultats"
+    },
+    "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste."
   }
 }

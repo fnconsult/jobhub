@@ -1091,6 +1091,209 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   }
 }
 
+/* ---------- An object's page (#603, ADR-0070): the Fiche, after the Work Pane, beside the conversation ----------
+   Columns push the conversation aside, never cover it, and no line separates them: each is a rounded card, a 1rem gutter
+   from its neighbours and from the screen's edge. The conversation keeps 1rem on either side, and its reading width
+   (46rem) centred in what is left, so its left and right margins stay equal whichever columns are open. */
+.fiche {
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-sizing: border-box;
+  padding: var(--space-4);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.fiche-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fiche-card :is(p, dd) {
+  max-width: none;
+}
+
+.application-card__facts {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* In the Fiche's width, each property's label sits above its value. */
+.fiche .props {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.fiche .props dt {
+  min-height: 0;
+  margin-top: var(--space-2);
+}
+
+.fiche-group-head {
+  margin: var(--space-3) 0 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.fiche-group-head button {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0;
+  font: inherit;
+  color: var(--color-text-secondary);
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.fiche-group-head .icon {
+  width: 1em;
+  height: 1em;
+  transition: transform 0.15s;
+}
+
+.fiche-group-head button[aria-expanded="false"] .icon {
+  transform: rotate(-90deg);
+}
+
+/* Sections and Results: each its own rounded card, a Result with what it is under its name. */
+.fiche-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.fiche-links a {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text);
+  text-decoration: none;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.fiche-links a:hover {
+  background: var(--color-hover);
+}
+
+.fiche-links a[aria-current="page"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.fiche-link-detail {
+  font-size: var(--font-size-meta);
+  color: var(--color-text-secondary);
+}
+
+.fiche-activity .ai-activity-section:first-child {
+  margin-top: 0;
+}
+
+/* A Section in the Work Pane: the pane's title names it, so its own heading would say it twice. It still names the
+   Section (aria-labelledby reads a hidden heading). */
+.work-pane-addressed > section:first-child > h2:first-child,
+.work-pane-addressed > section:first-child > :is(.section-head, .application-section-head) > h2:first-child {
+  display: none;
+}
+
+.work-pane-addressed > section:first-child > .application-section-head {
+  justify-content: flex-end;
+}
+
+/* A Result in the Work Pane: the document above what is said of it, the pane being too narrow for both side by side. */
+.work-pane-addressed .ds-document-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.work-pane-addressed .ds-document-layout__aside {
+  position: static;
+}
+
+/* In the Fiche's width, a long button's words wrap rather than overflow it. */
+.fiche-card .ds-button {
+  height: auto;
+  padding-block: var(--space-2);
+  white-space: normal;
+  text-align: start;
+}
+
+/* « Fiche » and « Activité » in the Top Bar: pressed while their column (or group) is shown. */
+.topbar :is(.topbar-fiche, .topbar-activity)[aria-expanded="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.topbar :is(.topbar-fiche, .topbar-activity) .icon {
+  width: 1.125em;
+  height: 1.125em;
+}
+
+@media (width >= 64rem) {
+  .workspace:has(> .fiche) {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: start;
+  }
+
+  .workspace:has(> .fiche):has(> .work-pane) {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .workspace:has(> .fiche) > .topbar {
+    grid-column: 1 / -1;
+  }
+
+  /* The conversation keeps 1rem on either side when a column stands beside it: the gutter. */
+  .workspace:has(> :is(.fiche, .work-pane)) > .page:has(> .page-conversation) {
+    padding-inline: var(--space-4);
+  }
+
+  .fiche {
+    position: sticky;
+    top: calc(var(--topbar-height, 3.5rem) + var(--space-4));
+    align-self: start;
+    width: 20rem;
+    max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-4));
+    margin: var(--space-4) var(--space-4) var(--space-4) 0;
+  }
+}
+
+/* Without room for both beside the conversation, the Work Pane takes the Fiche's place: FicheProvider decides (Fiche.tsx),
+   so that « Fiche » and « Activité » in the Top Bar know what is shown. */
+.fiche[hidden] {
+  display: none;
+}
+
+/* On a phone the Fiche takes the whole screen, under the Work Pane (#608 finishes the phone's layout). */
+@media (width < 64rem) {
+  .fiche {
+    position: fixed;
+    inset: var(--topbar-height, 3.5rem) 0 0;
+    z-index: 25;
+    border: 0;
+    border-radius: 0;
+  }
+}
+
 /* « Mémoire du coach » under « Coach », a button among the Free conversations' links, like « Coach » itself. */
 .sidebar-memory {
   width: 100%;
@@ -1901,7 +2104,7 @@ blockquote.signalement-text {
 }
 
 .button-quiet:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .visually-hidden {
@@ -3130,7 +3333,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 .inline-edit:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .inline-edit:focus {
@@ -3253,7 +3456,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 .tab:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .tab[data-state="active"] {
@@ -3454,7 +3657,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
   width: 6rem;
   height: 0.5rem;
   overflow: hidden;
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
   border-radius: 999px;
 }
 
@@ -3489,7 +3692,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 
 .row-actions .button:hover,
 .btn-row .button:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .row-actions .button-primary,
@@ -3529,7 +3732,7 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 /* The view shown: bold and shaded, as a menu's selected item (ADR-0024), not by colour alone. */
 .job-searches-groups .list-views [aria-current="page"] {
   font-weight: 600;
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .lane + .lane {
@@ -3979,7 +4182,7 @@ textarea.title-edit {
 }
 
 .place-chip-remove:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .place-chip-remove:focus-visible {
@@ -4038,7 +4241,7 @@ textarea.title-edit {
 
 .place-option:hover,
 .place-option[aria-selected="true"] {
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .place-option[aria-selected="true"] {
@@ -4430,7 +4633,7 @@ textarea.title-edit {
 
 .ai-activity-glyph {
   font-weight: 600;
-  background: var(--color-surface-hover);
+  background: var(--color-hover);
 }
 
 .ai-activity-site {

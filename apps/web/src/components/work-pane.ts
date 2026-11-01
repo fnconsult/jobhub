@@ -6,9 +6,17 @@ import type { SignalementStart } from "@/components/Signalement";
 
 /**
  * What opens in the Work Pane (#602, ADR-0070), one at a time: a Help Article (an Article card), a Signalement's form
- * (`start`, as the Drawer took it), or the Coach Memory. Results, Sections and other forms join with their own issues.
+ * (`start`, as the Drawer took it), the Coach Memory, or an object's Section or Result (#603), shown at its own address
+ * (`href`) under its `title` (see InWorkPane). Other forms join with their own issues.
  */
-export type WorkPaneItem = { kind: "help"; article: HelpArticle } | { kind: "signalement"; start: SignalementStart } | { kind: "memory" };
+export type WorkPaneItem =
+  | { kind: "help"; article: HelpArticle }
+  | { kind: "signalement"; start: SignalementStart }
+  | { kind: "memory" }
+  | { kind: AddressedKind; title: string; href: string };
+
+/** What opens in the Work Pane at its own address: an object's Section or Result (#603). */
+export type AddressedKind = "section" | "result";
 
 /**
  * The Work Pane of the Candidate's pages under « Conversation au centre »: `item`, what it shows (null: closed); `open`

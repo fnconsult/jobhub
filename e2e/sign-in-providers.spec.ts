@@ -136,6 +136,25 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
     await expect(superAdmin.getByRole("status")).toHaveText(tr(sp.saved, { name: SSO.name }));
     await expect(article(superAdmin, SSO.name).getByRole("heading")).toContainText(sp.enabled);
 
+    // Enabled, it switches on a recipient whose residency is not established, which no privacy policy in effect names (#548):
+    // warned of, never blocked, and written to the Back Office Audit. Its Outils page keeps the warning while it stays so.
+    const uncovered = fr.admin.tools.uncoveredRecipient;
+    const warning = superAdmin.getByRole("alert").filter({ hasText: tr(uncovered.title, { name: "OpenID Connect" }) });
+    await expect(warning).toContainText(uncovered.warning);
+    await expect(warning).toContainText(uncovered.noPolicy);
+    await superAdmin.goto(`${server.origin}/admin/outils/oidc`);
+    await expect(superAdmin.getByRole("alert").filter({ hasText: tr(uncovered.title, { name: "OpenID Connect" }) })).toContainText(uncovered.warning);
+    // A Tool that receives no personal data carries no such warning.
+    await superAdmin.goto(`${server.origin}/admin/outils/greenhouse`);
+    await expect(superAdmin.locator("[data-uncovered-recipient]")).toHaveCount(0);
+    await superAdmin.goto(`${server.origin}/admin/activite/actions?section=recipients_outside_eu`);
+    const switchedOn = superAdmin.getByRole("row").filter({ hasText: "OpenID Connect" }).filter({ hasText: SSO_SUPER_ADMIN });
+    await expect(switchedOn).toHaveCount(1);
+    await expect(switchedOn).toContainText(fr.admin.journal.actions.switched_on);
+    await expect(switchedOn).toContainText(tr(fr.admin.journal.set, { field: uncovered.journalFields.residency, after: fr.admin.tools.residencies.unknown }));
+    await expect(switchedOn).toContainText(tr(fr.admin.journal.set, { field: uncovered.journalFields.privacyPolicy, after: uncovered.noPolicyValue }));
+    await expect(switchedOn).toContainText(tr(fr.admin.journal.set, { field: uncovered.journalFields.coverage, after: uncovered.coverage.uncovered }));
+
     // In use at once: not on the Candidate sign-in page, on the Back Office's.
     const visitor = await personPage(browser);
     await visitor.goto(`${server.origin}/connexion`);

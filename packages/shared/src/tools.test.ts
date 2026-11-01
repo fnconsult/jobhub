@@ -60,7 +60,7 @@ describe("the Tools", () => {
       "stripe",
       "brevo-api",
       "brevo-smtp",
-      "brevo-inbound",
+      "email-intake",
       "google",
       "apple",
       "microsoft",

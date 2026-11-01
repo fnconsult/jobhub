@@ -80,6 +80,8 @@ export const routes = {
   agendaList: (past = false) => `/agenda?vue=liste${past ? "&periode=passes" : ""}`,
   /** The Agenda's week or month around `date` (a day in French time, "2026-10-20"), today's when left out (ADR-0028). */
   agendaCalendar: (view: CalendarView, date?: string) => `/agenda?vue=${view}${date ? `&date=${date}` : ""}`,
+  /** The form adding an Interview, in the Work Pane beside the Agenda's menu conversation (#606). */
+  agendaAddInterview: "/agenda?ajouter=entretien",
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
   /** A Section of an Application's page (ADR-0024); `application` itself shows the first one there is. */

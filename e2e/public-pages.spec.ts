@@ -11,6 +11,9 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const continueWithGoogle = fr.signIn.continueWith.replace("{{provider}}", "Google");
+// The e2e suite runs what `main` carries, the Beta: the root package.json's Version, its Release Note not yet published.
+const betaVersion: string = JSON.parse(readFileSync("package.json", "utf8")).version;
+const betaTitle = (locale: "fr" | "en") => /^title: (.+)$/m.exec(readFileSync(`packages/help/releases/${locale}/${betaVersion}.md`, "utf8"))![1]!;
 
 /** The Note holding `text`: a Design System Note, of `tone`. */
 const note = (page: Page, text: string) => page.locator(".ds-note").filter({ hasText: text });
@@ -156,11 +159,14 @@ test.describe("Légal", () => {
 });
 
 test.describe("Nouveautés", () => {
-  test("lists the Release Notes this build carries; with none yet, it shows that nothing is published, and has no email field", async ({ page }) => {
+  test("shows the Beta's next Version under « Version bêta, pas encore publiée », and has no email field", async ({ page }) => {
     await page.goto("/nouveautes");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.nouveautes.title);
     await expect(page.getByRole("navigation", { name: fr.publicSite.nav }).getByRole("link", { name: fr.publicSite.nouveautes })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("heading", { name: fr.nouveautes.emptyTitle })).toBeVisible();
+    const beta = page.getByRole("region", { name: fr.nouveautes.beta });
+    await expect(beta.getByRole("heading", { level: 3 })).toHaveText(betaTitle("fr"));
+    await expect(beta.getByText(fr.nouveautes.version.replace("{{version}}", betaVersion))).toBeVisible();
+    await expect(page.getByRole("heading", { name: fr.nouveautes.emptyTitle })).toHaveCount(0);
     await expect(page.getByRole("textbox")).toHaveCount(0);
     await expect(page.getByRole("link", { name: fr.nav.signIn })).toHaveAttribute("href", "/connexion");
     expect(await axeViolations(page)).toEqual([]);
@@ -170,6 +176,6 @@ test.describe("Nouveautés", () => {
     await page.goto("/nouveautes?lang=en");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.nouveautes.title);
-    await expect(page.getByRole("heading", { name: en.nouveautes.emptyTitle })).toBeVisible();
+    await expect(page.getByRole("region", { name: en.nouveautes.beta }).getByRole("heading", { level: 3 })).toHaveText(betaTitle("en"));
   });
 });

@@ -103,6 +103,8 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * the team at once; false (or absent) when it answered, wrote no reply, or did not say.
  * `stopped`: the Candidate stopped it (#328), `messagePassed` saying whether the Candidate's message had gone through the input
  * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
+ * `contextTokens`: the estimate (estimateTokens) of the context the reply was written from, its system text and the messages
+ * the AI Coach read (#607), what the Context bar counts; null (or absent) when the AI Coach wrote none (a Job Offer link's reply).
  * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  */
 export type CoachReply =
@@ -117,6 +119,7 @@ export type CoachReply =
       provenance: Provenance;
       aboutJobbbox?: boolean;
       couldNotAnswer?: boolean;
+      contextTokens?: number | null;
     }
   | { ok: false; error: "invalid" }
   | { ok: false; error: "stopped"; messagePassed: boolean }
@@ -377,6 +380,7 @@ export function createCoach(deps: CoachDeps): Coach {
           aboutJobbbox: !link && marks.aboutJobbbox,
           // Only a reply the AI Coach wrote and the Candidate sees: never a Guardrail message.
           couldNotAnswer: !link && guarded.outcome === "replied" && marks.couldNotAnswer,
+          contextTokens: prepared ? estimateTokens(prepared.system) + messages.reduce((sum, message) => sum + estimateTokens(message.content), 0) : null,
         };
       } catch (error) {
         if (signal?.aborted) return stopped();

@@ -15,6 +15,7 @@
     "dev": "npm run dev -w @jobhub/web",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
+    "check:versions": "tsx apps/web/scripts/check-versions.ts",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "db:up": "docker compose up -d postgres",

@@ -5,6 +5,7 @@ import { getSignalements } from "@/signalements/server";
 import { BackOfficeSidebarLayout } from "@/components/BackOfficeSidebarLayout";
 import { CoachPanel, type PanelKind } from "@/components/CoachPanel";
 import { OverlayScope } from "@/design/overlay";
+import { currentRelease, releaseLabel } from "@/release";
 
 const BACK_OFFICE_ASSISTANT: PanelKind = "backOfficeAssistant";
 /** The Back Office's Density (ADR-0053, ADR-0009's Compact amendment). */
@@ -16,7 +17,7 @@ const COMPACT = "compact";
  * opens the Back Office Assistant (#205) in place of the Candidate's Coach Panel, all in the Compact Density,
  * and shows the page's `title` (its `<h1>`). Next to Signalements, those who change them see how many are
  * « à traiter » (#376), read afresh on every page. Its Drawers open inside it (an OverlayScope), so they are in the
- * Compact Density too (#465).
+ * Compact Density too (#465). The sidebar's foot names the Version served (#559).
  */
 export async function BackOfficeLayout({ access, title, children }: { access: BackOfficeAccess; title?: ReactNode; children: ReactNode }) {
   const counts: BackOfficeCounts = showsCount(access, "signalements") ? { signalements: await getSignalements().countToHandle() } : {};
@@ -24,7 +25,7 @@ export async function BackOfficeLayout({ access, title, children }: { access: Ba
   return (
     <OverlayScope data-density={COMPACT} className="density-scope">
       <CoachPanel kind={BACK_OFFICE_ASSISTANT}>
-        <BackOfficeSidebarLayout groups={backOfficeNav(access, counts)} title={title}>
+        <BackOfficeSidebarLayout groups={backOfficeNav(access, counts)} title={title} release={releaseLabel(currentRelease())}>
           {children}
         </BackOfficeSidebarLayout>
       </CoachPanel>

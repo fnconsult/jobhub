@@ -214,10 +214,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "thème",
         "mode sombre",
         "connexion",
-        "rappels"
+        "rappels",
+        "version"
       ],
       "route": "/compte",
-      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nAvec la nouvelle présentation, « Aide », en haut de la page, ouvre cet article à côté de la page. « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
+      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nSous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple « 0.1.0 ». Sur la version bêta, elle est suivie de la modification exacte servie, par exemple « 0.1.0 (main·3f9c2a1) » : citez-la si vous signalez un problème.\n\nAvec la nouvelle présentation, « Aide », en haut de la page, ouvre cet article à côté de la page. « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
     },
     {
       "id": "page-acceptance",
@@ -933,10 +934,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "theme",
         "dark mode",
         "sign-in",
-        "reminders"
+        "reminders",
+        "version"
       ],
       "route": "/compte",
-      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account.\n\nWith the new layout, « Help », at the top of the page, opens this article beside the page. « Ask the coach » there starts a new conversation with your AI coach about My account."
+      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account.\n\nUnder each section, « Jobbbox version » gives the version you are using, for example « 0.1.0 ». On the beta, it is followed by the exact change served, for example « 0.1.0 (main·3f9c2a1) »: quote it if you report a problem.\n\nWith the new layout, « Help », at the top of the page, opens this article beside the page. « Ask the coach » there starts a new conversation with your AI coach about My account."
     },
     {
       "id": "page-applications",

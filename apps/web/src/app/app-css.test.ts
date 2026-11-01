@@ -24,6 +24,7 @@ const METADATA_SIZE_SELECTORS = [
   ".provenance-line", // where a value came from
   ".fiche-link-detail", // where a Result stands, under its name in the Fiche (#603)
   ".sidebar-count", // a count beside a sidebar link
+  ".release-line", // « Version de Jobbbox » (#559)
   ".usage-meter-renews", // when the usage meter renews
   ".usage-meter-detail",
   ".signalement-tip", // a hint

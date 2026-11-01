@@ -1,0 +1,5 @@
+/* Applied while a screenshot is taken (playwright.config.ts). « Version de Jobbbox » (#559) changes with every Version
+   and commit, so baselines leave it out; e2e/version.spec.ts checks what it says. */
+.release-line {
+  display: none !important;
+}

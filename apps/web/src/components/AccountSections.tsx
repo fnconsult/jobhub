@@ -2,12 +2,13 @@ import type { ReactNode } from "react";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { SectionsLayout } from "@/components/SectionsLayout";
 import { getServerT } from "@/i18n/server";
+import { currentRelease, releaseLabel } from "@/release";
 import { routes } from "@/routes";
 
 /**
  * Mon compte's frame: the sidebar layout titled Mon compte, around its Sections
  * (ADR-0024). The Subscription is one of them, though it keeps its own address
- * (/abonnement), which Stripe and shared promotion links lead to.
+ * (/abonnement), which Stripe and shared promotion links lead to. Under each Section, « Version de Jobbbox » (#559).
  */
 export async function AccountSections({ candidateId, children }: { candidateId: string; children: ReactNode }) {
   const t = await getServerT();
@@ -28,6 +29,7 @@ export async function AccountSections({ candidateId, children }: { candidateId: 
     <CandidateLayout candidateId={candidateId} title={t("account.title")}>
       <SectionsLayout base={routes.account} label={t("account.sections.sectionsLabel")} backLabel={t("account.sections.backToSections")} sections={sections}>
         {children}
+        <p className="release-line">{t("release.line", { version: releaseLabel(currentRelease()) })}</p>
       </SectionsLayout>
     </CandidateLayout>
   );

@@ -29,3 +29,11 @@ export function comparesEmailScreenshots(env: Env = process.env, platform: NodeJ
   if (platform === "darwin" && !env.E2E_SCREENSHOTS) return true;
   return comparesScreenshots(env);
 }
+
+/**
+ * Leaves « Version de Jobbbox » (#559) out of the page before a spec makes the window as tall as the page: it changes
+ * with every Version and commit. Every screenshot leaves it out too (screenshots.css, playwright.config.ts).
+ */
+export async function leaveOutRelease(page: { addStyleTag: (options: { path: string }) => Promise<unknown> }): Promise<void> {
+  await page.addStyleTag({ path: "e2e/support/screenshots.css" });
+}

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
-import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { comparesScreenshots, leaveOutRelease, SCREENSHOT_WIDTHS } from "./support/screenshots";
 import { expectTextContrast, showInTheme, themedName } from "./support/theme";
 
 // Issue #466 (ADR-0053): every other Back Office section in the Compact Density, on the components, with Paramètres
@@ -137,6 +137,7 @@ test.describe("every other Back Office section in the Design System (#466)", () 
       }
       // The page whole, its column drawn at once with nothing to scroll into view.
       const fitPage = async () => {
+        await leaveOutRelease(page);
         await page.setViewportSize({ width: DESKTOP.width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
         await settled(page);
       };

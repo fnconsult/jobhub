@@ -103,10 +103,10 @@ A saved conversation between a Candidate and the AI Coach, and on the Candidate'
 _Avoid_: Chat, thread, session
 
 **À traiter**:
-Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there.
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter.
 
 **Menu card**:
-The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter). It stays in the thread whatever is sent.
+The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter; Recherches d'offres: each active Profile's Job Searches with start date, status, Job Offers found and « Nouveaux résultats »; Job Digests: each active Profile's frequency and every Job Digest sent; Agenda: the list and « À planifier »; Mes coachs humains: Coaching Sessions and Human Coaches). It stays in the thread whatever is sent. An Archived Profile's Job Searches and Job Digests are left out of the cards and the Sidebar; Recherches d'offres is one conversation for all Profiles.
 
 **Subject**:
 What a Coach Conversation is about, fixed when it starts: one object (an Application, a Profile, a Job Search or a Job Digest), one Sidebar menu (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains; one conversation per Candidate each), or none for a Free conversation. A Job Offer's page starts a Free conversation with the Job Offer In view.

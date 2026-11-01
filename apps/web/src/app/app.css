@@ -2694,6 +2694,37 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 /* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------
    An icon alone, on Mon compte's row, to its right, a 44 px target (ADR-0009 amendment #375: never the only way in, the Coach
    Panel's foot keeps labelled links, #345). Named « Signalement », with that tooltip on hover and focus. */
+/* « Aide et légal » (#544): the public Aide, Légal and Nouveautés, on one row, at the top of the sidebar's foot. */
+.sidebar-help {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+
+.sidebar-help-title {
+  margin: 0;
+  color: var(--color-meta);
+}
+
+.sidebar-help ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+/* Each link at least 24px tall (WCAG 2.2, 2.5.8). */
+.sidebar-help a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: var(--color-secondary);
+}
+
+.sidebar-help a:hover {
+  color: var(--color-text);
+}
+
 .sidebar-account-row {
   display: flex;
   gap: var(--space-1);

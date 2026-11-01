@@ -1,12 +1,21 @@
 @layer base, components;
 
-/* The public pages' frame (#470): prototype `.site`, variant A. Its header's height places what sticks under it. */
+/*
+ * The public pages' frame (#470, #544): prototype `.site`, variant A. Its header's height places what sticks under it;
+ * the footer stays at the foot of a short page.
+ */
 @layer components {
   .ds-site {
     --site-head-height: 4rem;
 
+    display: flex;
+    flex-direction: column;
     min-height: 100vh;
     background: var(--color-background);
+  }
+
+  .ds-site > :not(.ds-site__head, .ds-site__foot) {
+    flex: 1 0 auto;
   }
 
   .ds-site__head {
@@ -37,7 +46,11 @@
     gap: var(--space-1) var(--space-6);
   }
 
+  /* Each link at least 24px tall (WCAG 2.2, 2.5.8). */
   .ds-site__nav > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
     color: var(--color-secondary);
     text-decoration: none;
   }
@@ -51,15 +64,127 @@
     color: var(--color-text);
   }
 
-  .ds-site__sign-in {
+  /* « Menu »: on a phone only, where the links fold under it. */
+  .ds-site__menu {
+    display: none;
+  }
+
+  /* The FR/EN switch and the text size, on the header's right. */
+  .ds-site__tools {
+    display: flex;
+    gap: var(--space-4);
+    align-items: center;
     margin-left: auto;
+  }
+
+  .ds-site__languages {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .ds-site__languages > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    padding: 0 var(--space-1);
+    color: var(--color-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+  }
+
+  .ds-site__languages > a:hover {
+    color: var(--color-text);
+  }
+
+  .ds-site__languages > a[aria-current="true"] {
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--color-hover);
+  }
+
+  /* The public footer (#544): three columns of links, then the language and « © Jobbbox ». */
+  .ds-site__foot {
+    padding: var(--space-8) var(--space-6);
+    color: var(--color-secondary);
+    background: var(--color-canvas);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .ds-site__foot-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: var(--space-6);
+    max-width: 80rem;
+    margin: 0 auto;
+  }
+
+  .ds-site__foot-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-body);
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .ds-site__foot-column ul {
+    display: grid;
+    gap: var(--space-1);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .ds-site__foot-column a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+    color: var(--color-secondary);
+  }
+
+  .ds-site__foot-column a:hover {
+    color: var(--color-text);
+  }
+
+  .ds-site__foot-end {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-6);
+    align-items: center;
+    justify-content: space-between;
+    max-width: 80rem;
+    padding-top: var(--space-6);
+    margin: var(--space-6) auto 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .ds-site__copyright {
+    margin: 0;
   }
 
   /* A public page's own content: Légal and Nouveautés. */
   .ds-site__page {
+    box-sizing: border-box;
+    width: 100%;
     max-width: 80rem;
     padding: var(--space-8) var(--space-6) var(--space-12);
     margin: 0 auto;
+  }
+
+  .ds-site__page.ds-site__narrow {
+    max-width: 44rem;
+  }
+
+  /* A short public page's column (the unsubscribe page, the deleted account's), and a form in it. */
+  .ds-site__narrow {
+    display: grid;
+    gap: var(--space-4);
+    align-content: start;
+    max-width: 40rem;
+  }
+
+  .ds-site__narrow > :is(h1, p) {
+    margin: 0;
   }
 
   .ds-site__intro {
@@ -89,10 +214,46 @@
     color: var(--color-secondary);
   }
 
+  /*
+   * On a phone: the wordmark and « Menu » on the first row, the links under them once « Menu » opens them, then the
+   * language, the text size and « Se connecter »: the order the keyboard follows.
+   */
   @media (max-width: 40rem) {
     .ds-site__head {
       flex-wrap: wrap;
       gap: var(--space-2) var(--space-4);
+      padding-inline: var(--space-4);
+    }
+
+    .ds-site__menu {
+      display: inline-flex;
+      margin-left: auto;
+    }
+
+    .ds-site__nav {
+      flex-direction: column;
+      flex-basis: 100%;
+      padding-block: var(--space-2);
+    }
+
+    .ds-site__nav:not([data-open]) {
+      display: none;
+    }
+
+    .ds-site__nav > a {
+      min-height: 2.75rem;
+    }
+
+    .ds-site__tools {
+      flex-wrap: wrap;
+      margin-left: 0;
+    }
+
+    .ds-site__sign-in {
+      margin-left: auto;
+    }
+
+    .ds-site__foot {
       padding-inline: var(--space-4);
     }
 

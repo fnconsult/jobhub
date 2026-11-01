@@ -191,7 +191,8 @@
     "jobDigests": "Job Digests",
     "subscription": "Subscription",
     "mainMenu": "Main menu",
-    "agenda": "Agenda"
+    "agenda": "Agenda",
+    "helpAndLegal": "Help and legal"
   },
   "usageMeter": {
     "title": "Weekly",
@@ -1309,7 +1310,8 @@
         "platform": "Platform",
         "team": "Team"
       },
-      "toHandle": "{{count}} to handle"
+      "toHandle": "{{count}} to handle",
+      "publicLegal": "Legal (public site)"
     },
     "sections": {
       "signalements": "Feedback",
@@ -4907,7 +4909,20 @@
   "publicSite": {
     "nav": "Public pages",
     "nouveautes": "What's new",
-    "legal": "Legal"
+    "legal": "Legal",
+    "help": "Help",
+    "menu": "Menu",
+    "language": "Language",
+    "languages": {
+      "fr": {
+        "short": "FR",
+        "name": "Français"
+      },
+      "en": {
+        "short": "EN",
+        "name": "English"
+      }
+    }
   },
   "legal": {
     "eyebrow": "Legal",
@@ -4988,6 +5003,30 @@
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
     "noneForTag": "No version has this topic yet."
+  },
+  "publicFooter": {
+    "legal": {
+      "title": "Legal",
+      "mentionsLegales": "Legal notice",
+      "cgu": "Terms of use",
+      "cgv": "Terms of sale",
+      "confidentialite": "Privacy and cookies",
+      "ia": "AI in Jobbbox"
+    },
+    "help": {
+      "title": "Help",
+      "helpCentre": "Help Centre",
+      "contact": "Contact us",
+      "extension": "Extension"
+    },
+    "language": "Site language",
+    "copyright": "© Jobbbox"
+  },
+  "helpCentre": {
+    "eyebrow": "Help",
+    "title": "Help Centre",
+    "comingSoonTitle": "The Help Centre is coming soon",
+    "comingSoon": "Its articles will answer your questions about Jobbbox here. Until then, the legal texts and what's new are at the foot of every page."
   },
   "release": {
     "line": "Jobbbox version: {{version}}"

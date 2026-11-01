@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CoachReviewList } from "@/components/CoachReviewList";
-import { CoachSpaceHeader } from "@/components/CoachSpaceHeader";
+import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MasterCvView } from "@/components/MasterCvView";
 import { MatchScoreView } from "@/components/MatchScoreView";
@@ -53,8 +53,7 @@ export default async function CoachedApplicationPage({ params, searchParams }: P
   const { application, tailoredCv, coverLetter, outreachMessage, reviews } = coached;
   const documents = writtenDocuments(coached);
   return (
-    <main className="page">
-      <CoachSpaceHeader />
+    <CoachSpaceShell>
       <p>
         <Link href={routes.coachSpaceCandidate(candidateId)}>{t("coachSpace.backToCandidate")}</Link>
       </p>
@@ -119,6 +118,6 @@ export default async function CoachedApplicationPage({ params, searchParams }: P
 
       <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />
       <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} />
-    </main>
+    </CoachSpaceShell>
   );
 }

@@ -7,10 +7,13 @@ import { getApplications } from "@/applications/server";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { AgendaViewMemory } from "@/components/AgendaControls";
 import { AddInterviewDialog, type InterviewableApplication } from "@/components/AddInterviewDialog";
+import { AgendaMenuPage } from "@/components/AgendaMenuPage";
 import { AgendaList, AgendaMonth, AgendaWeek, Legend, ToSchedule, ViewSwitch, formatsFor, type Withdrawable } from "@/components/AgendaViews";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
+import { conversationFirst } from "@/conversation-first";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getWithdrawals } from "@/withdrawals/server";
 
 /** What the AI Coach has In view here: the Agenda (its next 30 days, whichever period is shown). */
@@ -18,7 +21,7 @@ const AGENDA_IN_VIEW = { kind: "agenda", id: "agenda" } as const;
 /** The address's value for the past Agenda Items (see routes.agenda). */
 const PAST = "passes";
 
-type SearchParams = { vue?: string | string[]; date?: string | string[]; periode?: string | string[] };
+type SearchParams = { vue?: string | string[]; date?: string | string[]; periode?: string | string[]; ajouter?: string | string[] };
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -43,11 +46,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * cancellation; a Rescheduled item says when it was first planned, with an
  * « Historique » of every change; a dated Coaching Session can be cancelled.
  * The AI Coach has the Agenda In view: its Agenda Items of the next 30 days.
+ * Under « Conversation au centre » (#606, ADR-0070), the menu's conversation is the page instead, the list a card in its
+ * thread, the week, the month and the form adding an Interview in the Work Pane (see AgendaMenuPage).
  */
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
   const params = await searchParams;
+  if (conversationFirst(getPlatformSettingsResolver().current())) {
+    const [t, aiActivity] = await Promise.all([getServerT(), loadAiActivity.agenda(candidate.id)]);
+    return (
+      <CandidateLayout candidateId={candidate.id} title={t("agenda.title")} aiActivity={aiActivity}>
+        <AgendaMenuPage candidateId={candidate.id} params={params} />
+      </CandidateLayout>
+    );
+  }
   const now = new Date();
   const address = readAgendaAddress(params, now);
   const past = address.view === "liste" && params.periode === PAST;

@@ -277,16 +277,18 @@ const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? 
 /**
  * A Coach Conversation shown as the page itself (#601, ADR-0070), its box at the foot, rather than in the side panel:
  * `conversationId`, the saved one the page shows (null: a new one, the home page's Free conversation or an object's before
- * its first message); `subject`, the object the conversation is about (#603), whose page it is: its first message starts
- * it, and the page keeps its address; `inView`, what goes with each message as the page's object; `introduction`, what
- * the page says after the AI disclosure in its first message (the Introduction); `suggestions`, shown above the box while
- * nothing is sent (the Quick actions, an object's suggestions).
+ * its first message); `subject`, the object the conversation is about (#603) or a Sidebar menu's (#604), whose page it is:
+ * its page keeps its address, and an object's first message starts it; none for a Free conversation; `inView`, what goes
+ * with each message as the page's object; `introduction`, what the page says after the AI disclosure in its first message
+ * (the Introduction); `card`, the menu's content as a card in the thread after it (the list of Applications), which stays;
+ * `suggestions`, shown above the box while nothing is sent (the Quick actions, an object's suggestions).
  */
 export type PagePlacement = {
   conversationId: string | null;
   subject?: SubjectRef;
   inView?: InView;
   introduction?: ReactNode;
+  card?: ReactNode;
   suggestions?: ReactNode;
 };
 
@@ -490,7 +492,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // Under « Conversation au centre » a Help Article and a Signalement's form open in the Work Pane (#602, ADR-0070).
   const workPane = useWorkPane();
   const pageConversationId = page?.conversationId ?? null;
-  // An object's conversation (#603): its page keeps its address, and the Sidebar never lists it among the Free ones.
+  // An object's conversation (#603) or a menu's (#604): its page keeps its address, and the Sidebar never lists it among
+  // the Free ones.
   const subject = page?.subject ?? null;
   const id = useId();
   const pathname = usePathname();
@@ -621,21 +624,20 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const registerPage = conversationFirst?.setPage;
-  const hasSubject = subject !== null;
   const conversationOnPage = conversation?.id ?? null;
   const replying = status === "sending";
   useEffect(() => {
     if (!isPage || !registerPage) return;
     registerPage({
       conversationId: conversationOnPage,
-      free: !hasSubject,
       replying,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
-      startNew: () => pageActions.current?.startNew(),
+      // An object's or a menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
+      startNew: subject ? null : () => pageActions.current?.startNew(),
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [isPage, registerPage, conversationOnPage, replying, hasSubject]);
+  }, [isPage, registerPage, conversationOnPage, replying, subject]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
   async function openPanel(): Promise<Conversation | null> {
@@ -762,7 +764,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     if (window.location.pathname !== address) window.history.replaceState(null, "", address);
   }
 
-  /** A page that is a conversation turns into a new Free conversation, the home page (#601); an object's starts afresh in place (#603). */
+  /** A page that is a conversation turns into a new Free conversation, the home page (#601); an object's or a menu's starts afresh in place (#603, #604). */
   function startAfresh() {
     generation.current += 1;
     stopper.current?.abort();
@@ -954,8 +956,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         headers: { "content-type": "application/json", ...(panel.features.live ? { accept: "application/x-ndjson" } : {}) },
         // The server holds the conversation: only the new message goes.
         body: JSON.stringify({
-          // An object's conversation, before its first message: that message starts it (#603).
-          ...(current ? { conversationId: current.id } : subject ? { subject } : {}),
+          // A menu's page (#604): its Subject's conversation, started by this message if it has none. An object's, before
+          // its first message: that message starts it (#603).
+          ...(subject?.kind === "menu" ? { subject } : current ? { conversationId: current.id } : subject ? { subject } : {}),
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
           ...(read ? { helpArticle: read } : {}),
@@ -1046,9 +1049,17 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
             <span className="visually-hidden">{t(texts.author)}</span>
             <p>{t(opening)}</p>
             {page?.introduction}
-            {showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
+            {showIntro && !page?.card ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
           </li>
         )}
+        {/* A menu's content (#604), a card after the Introduction: it stays whatever is sent; the help comes after it. */}
+        {page?.card ? <li className="chat-message chat-card">{page.card}</li> : null}
+        {page?.card && showIntro ? (
+          <li className="chat-message chat-coach">
+            <span className="visually-hidden">{t(texts.author)}</span>
+            <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} />
+          </li>
+        ) : null}
         {messages.map((message, index) =>
           message.from === "help" ? (
             <li key={`help-${message.key}`} className="chat-message chat-help">

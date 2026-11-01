@@ -98,3 +98,112 @@ describe("« Effacer » on the home conversation while its first reply is on its
     expect(server.saved.has(CONVERSATION.id)).toBe(false);
   });
 });
+
+const MENU_CONVERSATION = {
+  id: "44444444-4444-4444-8444-444444444444",
+  title: "Mes candidatures",
+  subject: { kind: "menu", id: "applications", name: "Mes candidatures" },
+  profile: null,
+  lastMessageAt: "2026-10-31T10:00:00.000Z",
+};
+
+/** The server, for a menu's conversation: replies at once (not live), and gives back the one saved. */
+function menuServer({ saved = false }: { saved?: boolean } = {}) {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/coach" && init?.method === "POST")
+      return Response.json({ conversation: MENU_CONVERSATION, reply: "Commencez par la relance chez Acme.", blocked: { message: false, reply: false }, couldNotAnswer: false });
+    if (url === `/api/coach/conversations/${MENU_CONVERSATION.id}` && init?.method === "DELETE") return new Response(null, { status: 204 });
+    if (url === `/api/coach/conversations/${MENU_CONVERSATION.id}` && saved)
+      return Response.json({ conversation: { ...MENU_CONVERSATION, aiDisclosure: true, messages: [{ from: "candidate", text: "Par quoi commencer ?" }, { from: "coach", text: "Par la relance." }] } });
+    return new Response(null, { status: 404 });
+  });
+}
+
+function ApplicationsPage({ conversationId = null }: { conversationId?: string | null }) {
+  return (
+    <ConversationFirstProvider conversations={[]}>
+      <header>
+        <ClearConversationButton />
+      </header>
+      <CoachConversationPage
+        conversationId={conversationId}
+        subject={{ kind: "menu", id: "applications" }}
+        introduction={<p>Vos candidatures, et ce qui les attend.</p>}
+        card={<section aria-label="Liste des candidatures">2 candidatures</section>}
+        suggestions={<a href="/recherches">Chercher des offres</a>}
+      />
+    </ConversationFirstProvider>
+  );
+}
+
+const sentBodies = (fetch: ReturnType<typeof menuServer>) =>
+  fetch.mock.calls.filter(([url, init]) => url === "/api/coach" && init?.method === "POST").map(([, init]) => JSON.parse(String(init!.body)) as Record<string, unknown>);
+
+describe("a Sidebar menu's conversation as its page: Mes candidatures (ADR-0070, #604)", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/candidatures");
+    // A reply's glyph asks whether motion is reduced.
+    vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("shows its card in the thread, and its suggestions until the first message", async () => {
+    vi.stubGlobal("fetch", menuServer());
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationsPage />);
+    const thread = screen.getByRole("list", { name: "Vos échanges avec votre coach" });
+
+    expect(within(thread).getByRole("region", { name: "Liste des candidatures" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Chercher des offres" })).toBeTruthy();
+
+    await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Par quoi commencer ?{Enter}");
+    expect(await screen.findByText("Commencez par la relance chez Acme.")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Chercher des offres" })).toBeNull();
+    // The card stays in the thread, before the messages.
+    expect(within(thread).getByRole("region", { name: "Liste des candidatures" })).toBeTruthy();
+  });
+
+  it("sends each message to the menu's conversation, by its Subject, and stays at its own address", async () => {
+    const fetch = menuServer();
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationsPage />);
+
+    await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Par quoi commencer ?{Enter}");
+    await screen.findByText("Commencez par la relance chez Acme.");
+    await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Et ensuite ?{Enter}");
+    await waitFor(() => expect(sentBodies(fetch)).toHaveLength(2));
+
+    for (const body of sentBodies(fetch)) {
+      expect(body.subject).toEqual({ kind: "menu", id: "applications" });
+      expect(body.conversationId).toBeUndefined();
+    }
+    expect(window.location.pathname).toBe("/candidatures");
+  });
+
+  it("brings back the menu's saved conversation", async () => {
+    vi.stubGlobal("fetch", menuServer({ saved: true }));
+    renderInFrench(<ApplicationsPage conversationId={MENU_CONVERSATION.id} />);
+    expect(await screen.findByText("Par la relance.")).toBeTruthy();
+  });
+
+  it("clears it with « Effacer » and stays on the menu's page", async () => {
+    const fetch = menuServer({ saved: true });
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationsPage conversationId={MENU_CONVERSATION.id} />);
+    await screen.findByText("Par la relance.");
+
+    await user.click(screen.getByRole("button", { name: "Effacer" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
+
+    expect(await screen.findByText("Conversation effacée.")).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(`/api/coach/conversations/${MENU_CONVERSATION.id}`, { method: "DELETE" });
+    expect(screen.queryByText("Par la relance.")).toBeNull();
+    expect(window.location.pathname).toBe("/candidatures");
+    expect(screen.getByRole("region", { name: "Liste des candidatures" })).toBeTruthy();
+  });
+});

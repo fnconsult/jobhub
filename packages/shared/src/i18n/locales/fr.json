@@ -736,6 +736,9 @@
     "cards": {
       "summary": "Résumé",
       "skills": "Compétences"
+    },
+    "results": {
+      "export": "PDF ou Word, version {{version}}"
     }
   },
   "profileSwitcher": {
@@ -4237,7 +4240,8 @@
       "title": "Job Digest « {{profile}} »",
       "intro_one": "{{count}} nouvelle offre pour ce profil :",
       "intro_other": "{{count}} nouvelles offres pour ce profil, de la plus proche à la moins proche de votre CV de référence :",
-      "backToProfile": "Retour au profil"
+      "backToProfile": "Retour au profil",
+      "settings": "Réglages"
     },
     "email": {
       "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
@@ -5091,6 +5095,7 @@
       "activity": "Activité",
       "results": "Résultats"
     },
-    "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste."
+    "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
+    "matchScore": "Match Score : {{score}}"
   }
 }

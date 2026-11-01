@@ -91,12 +91,11 @@ async function noAxeViolations(page: Page) {
   expect(axe.violations.map(({ id }) => id)).toEqual([]);
 }
 
-/** Sends `text` in the page's conversation and waits for its reply. */
+/** Sends `text` in the page's conversation; the caller waits for the reply where it is saved. */
 async function send(page: Page, text: string) {
-  const before = await messages(page).count();
   await conversation(page).getByRole("textbox", { name: fr.coachPanel.messageLabel }).fill(text);
   await conversation(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
-  await expect(messages(page)).toHaveCount(before + 2);
+  await expect(messages(page).filter({ hasText: text })).toHaveCount(1);
 }
 
 test.describe.configure({ mode: "serial" });
@@ -238,7 +237,7 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await form.getByRole("button", { name: fr.agenda.addDialog.submit }).click();
     await expect(page).toHaveURL(`${server.origin}/agenda`);
     await expect(workPane(page)).toHaveCount(0);
-    await expect(conversation(page).getByRole("link", { name: /DAF H\/F/ })).toBeVisible();
+    await expect(conversation(page).locator(".agenda-item-link").filter({ hasText: "DAF H/F" })).toBeVisible();
 
     await send(page, "Comment préparer cet entretien ?");
     await expect.poll(() => menuConversationsOf(email)).toEqual([{ subject: "menu:agenda", messages: 2 }]);

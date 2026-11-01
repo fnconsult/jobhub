@@ -81,6 +81,11 @@ export interface Tool {
   /** Null while its calls are not recorded. */
   usage: ToolUsage | null;
   residency: ToolResidency;
+  /**
+   * It receives personal data, or queries drawn from it (web search): a recipient, as the Recipient list names it
+   * (ADR-0064). Outside the EU, or where its residency was not established, the privacy policy in effect must name it.
+   */
+  receivesPersonalData: boolean;
   /** What the residency depends on, when it does. */
   residencyNote?: Translated;
   /**
@@ -152,6 +157,7 @@ export const TOOLS = [
     settings: [{ name: "ANTHROPIC_ENDPOINT" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com", external: "anthropic" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "anthropic-bedrock",
@@ -167,6 +173,7 @@ export const TOOLS = [
     settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     residency: "eu",
+    receivesPersonalData: true,
     residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-north-1 par défaut).", en: "In the EU in an eu-* region (eu-north-1 by default)." },
   },
   {
@@ -183,6 +190,7 @@ export const TOOLS = [
     settings: [{ name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] }, { name: "VERTEX_REGION" }, { name: "VERTEX_PROJECT_ID", required: true }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "vertex " },
     residency: "eu",
+    receivesPersonalData: true,
     residencyNote: { fr: "Dans l'UE dans une région europe-* ou « eu » (europe-west1 par défaut).", en: "In the EU in a europe-* or \"eu\" region (europe-west1 by default)." },
   },
   {
@@ -199,6 +207,7 @@ export const TOOLS = [
     settings: [{ name: "AI_IDENTITY_MODEL" }],
     usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
     residency: "eu",
+    receivesPersonalData: true,
     residencyNote: { fr: "Dans l'UE (api.eu.mistral.ai, inférence régionale UE et AELE).", en: "In the EU (api.eu.mistral.ai, EU and EFTA regional inference)." },
   },
   {
@@ -215,6 +224,7 @@ export const TOOLS = [
     settings: [{ name: "OPENAI_DATA_RESIDENCY" }],
     usage: { table: "ai_usage", provider: "openai" },
     residency: "outside_eu",
+    receivesPersonalData: true,
     residencyNote: { fr: "Dans l'UE seulement avec un projet OpenAI en région UE.", en: "In the EU only with an OpenAI project in the EU region." },
   },
   {
@@ -228,6 +238,7 @@ export const TOOLS = [
     settings: WEB_SEARCH_SETTINGS("PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD"),
     usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "brave",
@@ -240,6 +251,7 @@ export const TOOLS = [
     settings: WEB_SEARCH_SETTINGS("BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD"),
     usage: { table: "ai_usage", provider: "brave", external: "brave" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "tavily",
@@ -252,6 +264,7 @@ export const TOOLS = [
     settings: WEB_SEARCH_SETTINGS("TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD"),
     usage: { table: "ai_usage", provider: "tavily", external: "tavily" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "france-travail",
@@ -267,6 +280,7 @@ export const TOOLS = [
     settings: JOB_DISCOVERY_BUDGET,
     usage: { table: "external_api_usage", provider: "france_travail" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; aucune donnée personnelle envoyée.", en: "French public service; no personal data sent." },
     // La Bonne Boite's terms ask for it where its companies are shown (#409); the owner's OK and its source are on #424.
     logo: "/logos/france-travail.svg",
@@ -284,6 +298,7 @@ export const TOOLS = [
     keys: ["FANTASTIC_JOBS_API_KEY"],
     usage: { table: "external_api_usage", provider: "fantastic_jobs" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Société néerlandaise ; aucune donnée personnelle envoyée.", en: "Dutch company; no personal data sent." },
   },
   {
@@ -296,6 +311,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "greenhouse" },
     residency: "outside_eu",
+    receivesPersonalData: false,
   },
   {
     id: "lever",
@@ -307,6 +323,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "lever" },
     residency: "outside_eu",
+    receivesPersonalData: false,
   },
   {
     id: "ashby",
@@ -318,6 +335,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "ashby" },
     residency: "outside_eu",
+    receivesPersonalData: false,
   },
   {
     id: "apec",
@@ -332,6 +350,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "apec" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Opérateur français ; aucune donnée personnelle envoyée.", en: "French operator; no personal data sent." },
   },
   {
@@ -348,6 +367,7 @@ export const TOOLS = [
     settings: JOB_DISCOVERY_BUDGET,
     usage: { table: "external_api_usage", provider: "job_site" },
     residency: "unknown",
+    receivesPersonalData: false,
     residencyNote: { fr: "Selon le site ; aucune donnée personnelle envoyée.", en: "Depends on the site; no personal data sent." },
   },
   {
@@ -363,6 +383,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "recherche_entreprises" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; ne reçoit que le nom d'un employeur.", en: "French public service; receives only an employer's name." },
   },
   {
@@ -376,6 +397,7 @@ export const TOOLS = [
     settings: ENRICHMENT_SETTINGS("lusha"),
     usage: { table: "external_api_usage", provider: "lusha" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "kaspr",
@@ -388,6 +410,7 @@ export const TOOLS = [
     settings: ENRICHMENT_SETTINGS("kaspr"),
     usage: { table: "external_api_usage", provider: "kaspr" },
     residency: "unknown",
+    receivesPersonalData: true,
   },
   {
     id: "apollo",
@@ -400,6 +423,7 @@ export const TOOLS = [
     settings: ENRICHMENT_SETTINGS("apollo"),
     usage: { table: "external_api_usage", provider: "apollo" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "stripe",
@@ -415,6 +439,7 @@ export const TOOLS = [
     settings: [{ name: "STRIPE_PRICE_STANDARD" }, { name: "STRIPE_PRICE_PREMIUM" }, { name: "STRIPE_PRICE_COACHING_SESSION" }, { name: "STRIPE_PRICE_COACHING_SESSION_PREMIUM" }],
     usage: { table: "external_api_usage", provider: "stripe" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "brevo-api",
@@ -430,6 +455,7 @@ export const TOOLS = [
     settings: MAIL_SETTINGS,
     usage: { table: "external_api_usage", provider: "brevo" },
     residency: "unknown",
+    receivesPersonalData: true,
   },
   {
     id: "brevo-smtp",
@@ -445,6 +471,7 @@ export const TOOLS = [
     settings: MAIL_SETTINGS,
     usage: { table: "external_api_usage", provider: "brevo_smtp" },
     residency: "unknown",
+    receivesPersonalData: true,
   },
   {
     // Email intake (#442, #580): Jobbbox's own MTA (Haraka, apps/mta, on the VPS) receives each email sent to a
@@ -464,6 +491,7 @@ export const TOOLS = [
     settings: [{ name: "EMAIL_INTAKE_DOMAIN" }, { name: "EMAIL_INTAKE_MTA_IP_RANGES" }, { name: "EMAIL_INTAKE_DAILY_CAP" }, { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD" }],
     usage: null,
     residency: "eu",
+    receivesPersonalData: true,
   },
   {
     id: "google",
@@ -476,6 +504,7 @@ export const TOOLS = [
     signIn: "google",
     usage: { table: "external_api_usage", provider: "google" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "apple",
@@ -488,6 +517,7 @@ export const TOOLS = [
     signIn: "apple",
     usage: { table: "external_api_usage", provider: "apple" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "microsoft",
@@ -500,6 +530,7 @@ export const TOOLS = [
     signIn: "microsoft",
     usage: { table: "external_api_usage", provider: "microsoft" },
     residency: "outside_eu",
+    receivesPersonalData: true,
   },
   {
     id: "oidc",
@@ -515,6 +546,7 @@ export const TOOLS = [
     signIn: "oidc",
     usage: { table: "external_api_usage", provider: "oidc" },
     residency: "unknown",
+    receivesPersonalData: true,
     residencyNote: { fr: "Selon l'émetteur configuré.", en: "Depends on the configured issuer." },
   },
   {
@@ -530,6 +562,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "geo-api-gouv" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; ne reçoit qu'un nom de lieu ou un code postal.", en: "French public service; receives only a place name or postcode." },
   },
   {
@@ -545,6 +578,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "insee-naf" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; ne reçoit aucune donnée.", en: "French public service; receives no data." },
   },
   {
@@ -560,6 +594,7 @@ export const TOOLS = [
     keys: [],
     usage: { table: "external_api_usage", provider: "rome-open-data" },
     residency: "eu",
+    receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; ne reçoit aucune donnée.", en: "French public service; receives no data." },
   },
 ] as const satisfies readonly Tool[];
@@ -581,6 +616,14 @@ export function externalApiProvidersOf(tool: Tool): string[] {
 
 /** The providers recorded in `ai_usage`: every AI provider id must be one. */
 export type AiUsageProvider = Extract<(typeof TOOLS)[number]["usage"], { table: "ai_usage" }>["provider"];
+
+/**
+ * Whether `tool` is a recipient outside the EU (ADR-0064): it receives personal data, or queries drawn from it, outside
+ * the EU or where that was not established, which counts as outside. The privacy policy in effect must name it (#548).
+ */
+export function isRecipientOutsideEu(tool: Tool): boolean {
+  return tool.receivesPersonalData && tool.residency !== "eu";
+}
 
 /** The Tool with this id; none for any other. */
 export function toolById(id: string): Tool | undefined {

@@ -78,3 +78,9 @@ export const SENDER_NOTICE_PARAM = "expediteurs";
 /** A Provider Secret's errors, as admin.providerSecrets.errors names them. */
 export const SECRET_ERRORS = ["test_failed", "empty", "too_long", "unknown_secret", "no_master_key"] as const;
 export type SecretError = (typeof SECRET_ERRORS)[number];
+
+/**
+ * The address parameter naming the recipients outside the EU a change just switched on that the privacy policy in effect
+ * does not name (#548): their Tool ids, comma-separated. The page warns of each one that is such a recipient.
+ */
+export const UNCOVERED_PARAM = "horsUe";

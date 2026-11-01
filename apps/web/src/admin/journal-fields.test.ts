@@ -42,6 +42,19 @@ describe("journalFieldName", () => {
     expect(journalFieldName(t, "signalements", "reply")).toBe("Réponse");
   });
 
+  it("names what a recipient outside the EU switched on uncovered records (#548), in fr and en", () => {
+    expect(["residency", "privacyPolicy", "coverage"].map((field) => journalFieldName(createI18n("fr").t, "recipients_outside_eu", field))).toEqual([
+      "Résidence",
+      "Politique de confidentialité en vigueur",
+      "Couverture",
+    ]);
+    expect(["residency", "privacyPolicy", "coverage"].map((field) => journalFieldName(onlyIn("en"), "recipients_outside_eu", field))).toEqual([
+      "Residency",
+      "Privacy policy in effect",
+      "Coverage",
+    ]);
+  });
+
   it("is given only the fields declared for its section by a failure", () => {
     const declared: BackOfficeFailure = { section: "roles", target: "a@b.fr", tried: "added", reason: "unknown_account", field: "email" };
     // @ts-expect-error a field not declared in FAILURE_FIELDS for the section would have no label.

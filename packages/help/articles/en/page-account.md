@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: My account
 synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version]
 route: /compte

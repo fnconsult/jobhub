@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: A job offer's page
 synonyms: [job offer, posting, job, save, follow]
 route: /offres/[id]

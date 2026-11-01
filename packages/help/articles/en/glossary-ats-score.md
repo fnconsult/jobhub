@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: ATS Score
 synonyms: [ats, applicant tracking system, recruitment software, robot, readability, keywords]
 ---

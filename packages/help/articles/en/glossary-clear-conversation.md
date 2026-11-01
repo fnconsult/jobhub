@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Clear the conversation
 synonyms: [clear, empty the conversation, delete the messages, start the conversation over]
 ---

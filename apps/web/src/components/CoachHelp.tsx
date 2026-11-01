@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
-import { helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpLocale } from "@/coach-help";
+import { helpCentreAddress, helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpLocale } from "@/coach-help";
 
 /**
  * The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, written by the Jobbbox team and found
@@ -56,9 +56,24 @@ export function focusFirstSuggestion(from: HTMLElement): boolean {
   return !!first;
 }
 
+/** « Ouvrir dans le centre d'aide » (#549): the article's page in the public Help Centre; nothing for an article that is not public. */
+export function OpenInHelpCentre({ article }: { article: HelpArticle }) {
+  const { t } = useTranslation();
+  const href = helpCentreAddress(article);
+  if (!href) return null;
+  return (
+    <p className="help-card-open">
+      <a href={href} aria-label={t("coachPanel.help.openInHelpCentreAbout", { title: article.title })}>
+        {t("coachPanel.help.openInHelpCentre")}
+      </a>
+    </p>
+  );
+}
+
 /**
  * A Help Article opened in the conversation, as a card: never saved with the Coach Conversation, never sent to the
- * AI Coach (only its title, if the Candidate then asks). « Non, demander au coach » starts a question about it.
+ * AI Coach (only its title, if the Candidate then asks). « Ouvrir dans le centre d'aide » leads to its public page;
+ * « Non, demander au coach » starts a question about it.
  */
 export function HelpArticleCard({
   article,
@@ -81,6 +96,7 @@ export function HelpArticleCard({
         {article.title}
       </h3>
       <CoachReplyText text={article.body} />
+      <OpenInHelpCentre article={article} />
       {answered ? (
         <p role="status" className="help-card-thanks">
           {t("coachPanel.help.thanks")}

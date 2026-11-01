@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Mes coachs humains
 synonyms: [coach humain, séance, visio, professionnel, rh, accès coach, réserver]
 route: /coachs

@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: My applications
 synonyms: [applications, tracking, saved offers, board, list, status, archived, to handle, see all]
 route: /candidatures

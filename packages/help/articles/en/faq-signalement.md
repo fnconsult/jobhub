@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: How do I report a problem or reach the team?
 synonyms: [feedback, report, bug, problem, idea, support, team, person, reach, talk to someone]
 ---

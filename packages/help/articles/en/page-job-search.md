@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: A job search's results
 synonyms: [results, job offers found, finished search]
 route: /recherches/[id]

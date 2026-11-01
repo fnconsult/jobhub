@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Job searches
 synonyms: [search, look for, find, new job offers, start]
 route: /recherches

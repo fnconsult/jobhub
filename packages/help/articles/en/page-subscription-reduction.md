@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Cancel at no cost
 synonyms: [reduction, reduced plan, plan change, refund, prorata, cancel, cancellation]
 route: /abonnement/baisse

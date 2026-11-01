@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Fiche
 synonyms: [fiche, fiche de la candidature, colonne de droite, sections, rubriques, panneau de droite]
 ---

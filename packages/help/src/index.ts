@@ -1,10 +1,12 @@
 /**
- * The Help Articles (ADR-0035): short texts written by the Jobbbox team, never by an AI, in French and English,
- * and their search. Nothing here calls an AI model or reads a file: it runs in the browser as well as on the server.
+ * The Help Articles (ADR-0035, amended by ADR-0065): short texts in French and English for every audience, drafted
+ * by an agent or a person and served only once a person has reviewed and merged them, signed « l'équipe Jobbbox »;
+ * their search, and the public Help Centre's topics (an Administrator's article is never public). Nothing here calls an AI model or reads a file: it runs in the browser as well as on the server.
  *
  *   articleFor("/candidatures/abc/documents", "fr"); // the article of the Application's page
  *   search("comment relancer le recruteur", "fr");    // [the « Comment relancer un recruteur ? » question, …]
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
+ *   helpCentreTopics("fr");                             // the four topics of /aide, each with its public articles
  */
 import { ARTICLES } from "./articles.generated";
 import { isNoticed } from "./legal-notices";
@@ -13,7 +15,7 @@ import { LEGAL_TEXT_REGISTRY, LEGAL_TEXT_VERSIONS } from "./legal-texts.generate
 import type { ReleaseNote } from "./release-notes";
 import { RELEASE_NOTES } from "./release-notes.generated";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
-import type { HelpArticle, HelpLocale } from "./types";
+import { HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
 
 export {
   isLegalTextId,
@@ -39,21 +41,105 @@ export {
   type ReleaseNoteChangeKind,
   type ReleaseNoteTag,
 } from "./release-notes";
-export { HELP_ARTICLE_KINDS, HELP_LOCALES, type HelpArticle, type HelpArticleKind, type HelpLocale } from "./types";
+export {
+  HELP_ARTICLE_KINDS,
+  HELP_AUDIENCES,
+  HELP_LOCALES,
+  PUBLIC_HELP_TOPICS,
+  type HelpArticle,
+  type HelpArticleKind,
+  type HelpAudience,
+  type HelpLocale,
+  type PublicHelpTopic,
+} from "./types";
 
-/** Every Help Article in `locale`: the page articles, then the glossary, then the frequent questions, each by title. */
+/**
+ * Which Help Articles a reader's search covers (ADR-0065): `public`, every article but the Administrators' (the Help
+ * Centre and its search, `sitemap.xml`); `coachPanel`, the Candidate's articles and those of the « extension » topic
+ * (the Coach Panel). The Back Office's scope is #551's.
+ */
+export type HelpScope = "public" | "coachPanel";
+
+const IN_SCOPE: Record<HelpScope, (article: HelpArticle) => boolean> = {
+  public: (article) => isPublic(article),
+  coachPanel: (article) => article.audience === "candidate" || (isPublic(article) && article.topic === "extension"),
+};
+
+/** Whether the Help Centre may serve `article`: never an Administrator's (ADR-0065). */
+export function isPublic(article: HelpArticle): boolean {
+  return article.audience !== "administrator";
+}
+
+export function isPublicHelpTopic(topic: string): topic is PublicHelpTopic {
+  return (PUBLIC_HELP_TOPICS as readonly string[]).includes(topic);
+}
+
+/** One topic of the Help Centre and its public articles, in `articles`' order; none for a topic still empty. */
+export interface HelpCentreTopic {
+  topic: PublicHelpTopic;
+  articles: HelpArticle[];
+}
+
+/**
+ * The Help Centre's four topics, in PUBLIC_HELP_TOPICS' order, each with its public articles in `locale` (an
+ * Administrator's never). `from` defaults to the articles this build carries.
+ */
+export function helpCentreTopics(locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpCentreTopic[] {
+  return PUBLIC_HELP_TOPICS.map((topic) => ({ topic, articles: from.filter((entry) => isPublic(entry) && entry.topic === topic) }));
+}
+
+/** The public article `id` of `topic`, as /aide/<topic>/<id> serves it; null for any other, an Administrator's above all. */
+export function helpCentreArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpArticle | null {
+  if (!isPublicHelpTopic(topic)) return null;
+  return from.find((entry) => entry.id === id && entry.topic === topic && isPublic(entry)) ?? null;
+}
+
+/**
+ * The Help Centre's addresses, in French then English: /aide, each topic, each public article (an Administrator's
+ * never), the English ones under /en. What `sitemap.xml` lists of the help (#545).
+ */
+export function helpCentrePaths(from: Readonly<Record<HelpLocale, readonly HelpArticle[]>> = ARTICLES): string[] {
+  return HELP_LOCALES.flatMap((locale) => {
+    const prefix = locale === "fr" ? "" : `/${locale}`;
+    return [
+      `${prefix}/aide`,
+      ...helpCentreTopics(locale, from[locale]).flatMap(({ topic, articles: listed }) => [
+        `${prefix}/aide/${topic}`,
+        ...listed.map((entry) => `${prefix}/aide/${topic}/${entry.id}`),
+      ]),
+    ];
+  });
+}
+
+/**
+ * The articles a reader of `article` may want next, 3 at most: the public ones its title and words find, then those of
+ * its topic, never itself. Found without AI, like the search.
+ */
+export function relatedArticles(article: HelpArticle, { limit = 3, from = ARTICLES[article.locale] }: { limit?: number; from?: readonly HelpArticle[] } = {}): HelpArticle[] {
+  const others = from.filter((entry) => entry.id !== article.id && isPublic(entry));
+  const found = searchIndex(others.map(indexArticle), `${article.title} ${article.synonyms.join(" ")}`, limit);
+  const sameTopic = others.filter((entry) => entry.topic === article.topic && !found.includes(entry));
+  return [...found, ...sameTopic].slice(0, limit);
+}
+
+/** Every Help Article in `locale`, the Administrators' too: the page articles, the glossary, the frequent questions, then the tutorials, each by title. */
 export function articles(locale: HelpLocale): readonly HelpArticle[] {
   return ARTICLES[locale];
 }
 
 /**
- * The Help Articles matching a Candidate's words, best first, `limit` (4) at most; none for a question no article
- * answers. Calls no AI model and counts against nothing: accents and case make no difference, stop-words (French
- * and English) and words of 2 letters or fewer are dropped, and each word's stem is looked for in the articles'
- * titles and synonyms (3 points) or bodies (1 point). Only articles scoring 2 or more are returned.
+ * The Help Articles of `scope` (the public ones unless told) matching a reader's words, best first, `limit` (4) at
+ * most; none for a question no article answers. Calls no AI model and counts against nothing: accents and case make no
+ * difference, stop-words (French and English) and words of 2 letters or fewer are dropped, and each word's stem is
+ * looked for in the articles' titles and synonyms (3 points) or bodies (1 point). Only articles scoring 2 or more are
+ * returned. An Administrator's article is in no scope here (ADR-0065). `from` (tests) replaces this build's articles.
  */
-export function search(query: string, locale: HelpLocale, { limit = 4 }: { limit?: number } = {}): HelpArticle[] {
-  return searchIndex(indexed(locale), query, limit);
+export function search(
+  query: string,
+  locale: HelpLocale,
+  { limit = 4, scope = "public", from }: { limit?: number; scope?: HelpScope; from?: readonly HelpArticle[] } = {},
+): HelpArticle[] {
+  return searchIndex(from ? from.filter(IN_SCOPE[scope]).map(indexArticle) : indexed(locale, scope), query, limit);
 }
 
 /**
@@ -158,11 +244,12 @@ export function legalTextVersionInEffect(text: LegalTextId, on: string, registry
   );
 }
 
-const indexes = new Map<HelpLocale, IndexedArticle[]>();
+const indexes = new Map<string, IndexedArticle[]>();
 
-function indexed(locale: HelpLocale): IndexedArticle[] {
-  let index = indexes.get(locale);
-  if (!index) indexes.set(locale, (index = ARTICLES[locale].map(indexArticle)));
+function indexed(locale: HelpLocale, scope: HelpScope): IndexedArticle[] {
+  const key = `${locale} ${scope}`;
+  let index = indexes.get(key);
+  if (!index) indexes.set(key, (index = ARTICLES[locale].filter(IN_SCOPE[scope]).map(indexArticle)));
   return index;
 }
 

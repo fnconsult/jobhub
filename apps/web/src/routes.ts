@@ -123,8 +123,17 @@ export const routes = {
   acceptance: "/acceptation",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
-  /** The Help Centre (#544): « Le centre d'aide arrive bientôt » until #549 brings its Help Articles; public. */
+  /** The Help Centre (#549, ADR-0065): its four topics and its search (`?q=`); public. */
   help: "/aide",
+  /** The Help Centre's search for `query`: what « Chercher » sends. */
+  helpSearch: (query: string) => `/aide?q=${encodeURIComponent(query)}`,
+  /** A topic of the Help Centre: its public articles, or « Bientôt des articles ici ». */
+  helpTopic: (topic: string) => `/aide/${encodeURIComponent(topic)}`,
+  /**
+   * A public Help Article in the Help Centre (#549); with `locale` English, its English address under /en (#545),
+   * whoever opens it.
+   */
+  helpArticle: (topic: string, id: string, locale?: "fr" | "en") => `${locale === "en" ? "/en" : ""}/aide/${encodeURIComponent(topic)}/${encodeURIComponent(id)}`,
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
   nouveautes: "/nouveautes",
   /**

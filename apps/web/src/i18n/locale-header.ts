@@ -26,3 +26,13 @@ export function urlLocale(pathname: string, lang: string | null): { chosen?: Loc
   if (!isSupportedLocale(lang)) return {};
   return LANG_IN_URL.test(pathname) ? { chosen: lang } : { visitor: lang };
 }
+
+/**
+ * The Help Centre in English (#549): `/en/aide`, `/en/aide/<topic>` and `/en/aide/<topic>/<article>` serve the French
+ * address's page in English. The French path for such a `pathname`, or null for any other. The `/en` prefix of the
+ * whole public site is #545's.
+ */
+export function englishHelpCentrePath(pathname: string): string | null {
+  const english = /^\/en(\/aide(?:\/.*)?)$/.exec(pathname);
+  return english ? english[1]! : null;
+}

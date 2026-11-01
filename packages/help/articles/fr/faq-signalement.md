@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Comment signaler un problème ou joindre l'équipe ?
 synonyms: [signalement, signaler, bug, problème, idée, support, équipe, personne, joindre, "parler à quelqu'un"]
 ---

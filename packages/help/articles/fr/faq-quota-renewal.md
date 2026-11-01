@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Quand mon quota se renouvelle-t-il ?
 synonyms: [renouvellement, renouvelle, lundi, limite atteinte, remise à zéro, utilisation]
 ---

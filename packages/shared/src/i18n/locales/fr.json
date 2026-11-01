@@ -929,8 +929,11 @@
       "kinds": {
         "page": "Page",
         "glossary": "Mot à connaître",
-        "faq": "Question fréquente"
-      }
+        "faq": "Question fréquente",
+        "tutorial": "Tutoriel"
+      },
+      "openInHelpCentre": "Ouvrir dans le centre d'aide",
+      "openInHelpCentreAbout": "Ouvrir dans le centre d'aide : {{title}}"
     },
     "team": {
       "answered": "Cela répond à votre question ?",
@@ -5025,8 +5028,39 @@
   "helpCentre": {
     "eyebrow": "Aide",
     "title": "Centre d'aide",
-    "comingSoonTitle": "Le centre d'aide arrive bientôt",
-    "comingSoon": "Ses articles répondront ici à vos questions sur Jobbbox. D'ici là, les textes légaux et les nouveautés sont en bas de chaque page."
+    "subtitle": "Des réponses écrites par l'équipe Jobbbox, rangées par tâche. La recherche ne fait appel à aucune IA.",
+    "searchLabel": "Chercher dans l'aide",
+    "searchSubmit": "Chercher",
+    "results_one": "{{count}} article pour « {{query}} »",
+    "results_other": "{{count}} articles pour « {{query}} »",
+    "noResults": "Aucun article ne correspond à « {{query}} ». Essayez avec d'autres mots, ou parcourez les rubriques.",
+    "topicsTitle": "Rubriques",
+    "topics": {
+      "decouvrir": {
+        "title": "Découvrir Jobbbox",
+        "description": "Ce que fait Jobbbox, et où trouver de l'aide."
+      },
+      "extension": {
+        "title": "L'extension",
+        "description": "Enregistrer et analyser une offre depuis votre navigateur."
+      },
+      "utiliser": {
+        "title": "Utiliser Jobbbox",
+        "description": "Vos profils, vos candidatures, votre coach et votre compte, page par page."
+      },
+      "espace-coach": {
+        "title": "Espace coach",
+        "description": "Pour les coachs humains : vos séances et vos candidats."
+      }
+    },
+    "articleCount_one": "{{count}} article",
+    "articleCount_other": "{{count}} articles",
+    "emptyTopic": "Bientôt des articles ici",
+    "emptyTopicText": "L'équipe Jobbbox écrit les articles de cette rubrique. En attendant, la recherche parcourt toute l'aide.",
+    "writtenBy": "Écrit par l'équipe Jobbbox",
+    "related": "Articles liés",
+    "breadcrumb": "Fil d'Ariane",
+    "inTopic": "Les articles de la rubrique"
   },
   "release": {
     "line": "Version de Jobbbox : {{version}}"

@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Quota
 synonyms: [limit, usage, credits, allowance, usage this week]
 ---

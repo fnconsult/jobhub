@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Résilier sans frais
 synonyms: [baisse, offre réduite, changement d'offre, remboursement, prorata, résilier, résiliation]
 route: /abonnement/baisse

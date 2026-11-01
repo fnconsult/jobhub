@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: How do I get or delete my data?
 synonyms: [data, gdpr, delete, erase, export, download, privacy, close my account]
 ---

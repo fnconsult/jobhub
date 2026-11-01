@@ -1,0 +1,117 @@
+@layer components {
+  /* The Help Centre (#549): its search, its topics, an article's page. */
+  .help-centre__search {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: end;
+    max-width: 44rem;
+    padding-bottom: var(--space-8);
+  }
+
+  .help-centre__search > .ds-field {
+    flex: 1 1 18rem;
+  }
+
+  .help-centre__section {
+    display: grid;
+    gap: var(--space-4);
+    padding-bottom: var(--space-8);
+  }
+
+  .help-centre__section > h2 {
+    margin: 0;
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+  }
+
+  .help-centre__section > p {
+    margin: 0;
+  }
+
+  .help-centre__topics {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: var(--space-4);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .help-centre__topic {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+    height: 100%;
+    box-sizing: border-box;
+    padding: var(--space-6);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .help-centre__topic h3 {
+    margin: 0;
+    font-size: var(--font-size-h3);
+    font-weight: 500;
+  }
+
+  .help-centre__topic p {
+    margin: 0;
+  }
+
+  .help-centre__meta {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  .help-centre__articles {
+    display: grid;
+    gap: var(--space-3);
+    max-width: 52rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .help-centre__articles > li {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .help-centre__breadcrumb ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: 0;
+    margin: 0;
+    font-size: var(--font-size-meta);
+    list-style: none;
+  }
+
+  .help-centre__breadcrumb li + li::before {
+    margin-right: var(--space-2);
+    color: var(--color-meta);
+    content: "›";
+  }
+
+  .help-centre__article {
+    display: grid;
+    gap: var(--space-4);
+    max-width: 44rem;
+    padding-bottom: var(--space-8);
+  }
+
+  .help-centre__body {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .help-centre__body :is(p, ol, ul) {
+    margin: 0;
+  }
+
+  .help-centre__body li + li {
+    margin-top: var(--space-2);
+  }
+}

@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { HelpArticle } from "@/coach-help";
 import { CoachMemoryView } from "@/components/CoachMemory";
+import { OpenInHelpCentre } from "@/components/CoachHelp";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
@@ -167,6 +168,7 @@ function HelpArticleBody({ article }: { article: HelpArticle }) {
     <article className="work-pane-article">
       <p className="help-card-label">{t("coachPanel.help.cardLabel")}</p>
       <CoachReplyText text={article.body} />
+      <OpenInHelpCentre article={article} />
     </article>
   );
 }

@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Comment relancer un recruteur ?
 synonyms: [relance, relancer, rappeler, sans réponse, sans nouvelles, recontacter, e-mail]
 ---

@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Score de correspondance
 synonyms: [match score, correspondance, compatibilité, note, pourcentage, adéquation]
 ---

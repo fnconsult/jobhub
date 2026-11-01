@@ -7,6 +7,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-home",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Accueil",
       "synonyms": [
         "accueil",
@@ -23,6 +25,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-conversation",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Conversation avec le coach",
       "synonyms": [
         "conversation",
@@ -39,6 +43,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-new-profile",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Créer un profil",
       "synonyms": [
         "nouveau profil",
@@ -54,6 +60,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-agenda",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Entretiens et rendez-vous",
       "synonyms": [
         "agenda",
@@ -71,6 +79,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-digests",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Job Digests",
       "synonyms": [
         "digest",
@@ -87,6 +97,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-profile",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "La page d'un profil",
       "synonyms": [
         "profil",
@@ -104,6 +116,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-application",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "La page d'une candidature",
       "synonyms": [
         "candidature",
@@ -121,6 +135,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-offer",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "La page d'une offre",
       "synonyms": [
         "offre",
@@ -136,6 +152,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-search",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Le résultat d'une recherche",
       "synonyms": [
         "résultat",
@@ -149,6 +167,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-applications",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Mes candidatures",
       "synonyms": [
         "candidatures",
@@ -168,6 +188,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-human-coaches",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Mes coachs humains",
       "synonyms": [
         "coach humain",
@@ -185,6 +207,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-subscription",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Mon abonnement",
       "synonyms": [
         "abonnement",
@@ -204,6 +228,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-account",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Mon compte",
       "synonyms": [
         "compte",
@@ -224,6 +250,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-acceptance",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Nos conditions d'utilisation",
       "synonyms": [
         "CGU",
@@ -241,6 +269,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-searches",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Recherches d'offres",
       "synonyms": [
         "recherche",
@@ -256,6 +286,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-withdrawal",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Renoncer au contrat ici",
       "synonyms": [
         "rétractation",
@@ -274,6 +306,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-subscription-reduction",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Résilier sans frais",
       "synonyms": [
         "baisse",
@@ -291,6 +325,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-subscription-cancellation",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Résilier votre contrat",
       "synonyms": [
         "résilier",
@@ -309,6 +345,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-digest",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Un Job Digest",
       "synonyms": [
         "digest",
@@ -322,6 +360,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-order",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Votre commande",
       "synonyms": [
         "commande",
@@ -341,6 +381,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-coaching-order",
       "locale": "fr",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Votre commande de séance",
       "synonyms": [
         "commande",
@@ -360,6 +402,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-ats-score",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "ATS Score",
       "synonyms": [
         "score ats",
@@ -376,6 +420,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-tailored-cv",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "CV adapté",
       "synonyms": [
         "cv personnalisé",
@@ -390,6 +436,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-master-cv",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "CV de référence",
       "synonyms": [
         "cv principal",
@@ -404,6 +452,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-clear-conversation",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Effacer la conversation",
       "synonyms": [
         "effacer",
@@ -418,6 +468,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-fiche",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Fiche",
       "synonyms": [
         "fiche",
@@ -434,6 +486,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-job-digest",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Job Digest",
       "synonyms": [
         "digest",
@@ -449,6 +503,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-coach-memory",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Mémoire du coach",
       "synonyms": [
         "mémoire",
@@ -465,6 +521,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-proposals",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Propositions de votre coach",
       "synonyms": [
         "proposition",
@@ -481,6 +539,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-plan-quota",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Quota",
       "synonyms": [
         "limite",
@@ -496,6 +556,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-job-search",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Recherche d'offres",
       "synonyms": [
         "recherche",
@@ -510,6 +572,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-follow-up",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Relance",
       "synonyms": [
         "relancer",
@@ -524,6 +588,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-results",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Résultats",
       "synonyms": [
         "résultats",
@@ -541,6 +607,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-withdrawal",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Rétractation",
       "synonyms": [
         "rétracter",
@@ -556,6 +624,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-match-score",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Score de correspondance",
       "synonyms": [
         "match score",
@@ -572,6 +642,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-text-size",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Comment agrandir le texte ?",
       "synonyms": [
         "taille du texte",
@@ -589,6 +661,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-data-export-deletion",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Comment récupérer ou supprimer mes données ?",
       "synonyms": [
         "données",
@@ -607,6 +681,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-follow-up-recruiter",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Comment relancer un recruteur ?",
       "synonyms": [
         "relance",
@@ -624,6 +700,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-signalement",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Comment signaler un problème ou joindre l'équipe ?",
       "synonyms": [
         "signalement",
@@ -644,6 +722,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-help-and-ai",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Est-ce que l'aide utilise l'IA ?",
       "synonyms": [
         "intelligence artificielle",
@@ -651,15 +731,18 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "humain",
         "écrit par",
         "aide",
-        "coach ia"
+        "coach ia",
+        "centre d'aide"
       ],
       "route": null,
-      "body": "Non. L'aide est écrite et relue par l'équipe Jobbbox. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
+      "body": "Non. L'aide ne fait appel à aucune IA pour vous répondre : ses articles sont relus et publiés par l'équipe Jobbbox, et la recherche les trouve à partir de vos mots. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nToute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Aide et légal », en bas du menu, puis « Aide ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
     },
     {
       "id": "faq-legal-texts",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Où lire les conditions et la politique de confidentialité ?",
       "synonyms": [
         "CGU",
@@ -678,9 +761,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. Chaque texte se télécharge avec « Télécharger en PDF ».\n\nChaque texte porte sa date d'entrée en vigueur. Une version n'est jamais modifiée : une correction donne une nouvelle version. Le lien « Versions précédentes » mène à l'« Historique des versions » : chaque version, sa date, « Substantielle » ou « Mineure », et une ligne qui résume le changement.\n\nUne ancienne version reste lisible à son adresse datée, marquée « Version archivée : voir la version en vigueur ». Une version substantielle à venir s'y lit déjà, marquée « Version à venir » avec sa date d'entrée en vigueur : l'e-mail qui vous en prévient y mène. Le texte français fait foi ; la traduction anglaise le rappelle en tête."
     },
     {
+      "id": "faq-where-to-find-help",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Où trouver l'aide de Jobbbox ?",
+      "synonyms": [
+        "aide",
+        "centre d'aide",
+        "tutoriel",
+        "mode d'emploi",
+        "documentation",
+        "question",
+        "rubrique",
+        "chercher dans l'aide"
+      ],
+      "route": null,
+      "body": "Toute l'aide de Jobbbox est dans le centre d'aide, ouvert à tous, sans compte : « Aide » en haut de chaque page publique, ou « Centre d'aide » en bas de page.\n\nSes articles sont rangés en quatre rubriques : « Découvrir Jobbbox », « L'extension », « Utiliser Jobbbox » et « Espace coach ». Le champ de recherche, en haut du centre d'aide, les parcourt toutes, sans IA. Les tutoriels y décrivent une tâche étape par étape.\n\nUne fois connecté, « Aide et légal », en bas du menu, mène au centre d'aide. Quand vous écrivez à votre coach, les articles qui correspondent s'affichent d'abord, « Dans l'aide, sans IA » ; un article ouvert là propose « Ouvrir dans le centre d'aide ».\n\nLes articles sont écrits par l'équipe Jobbbox, en français et en anglais."
+    },
+    {
       "id": "faq-legal-text-notice",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Pourquoi ai-je reçu un e-mail sur les conditions ?",
       "synonyms": [
         "e-mail",
@@ -702,6 +807,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-quota-renewal",
       "locale": "fr",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Quand mon quota se renouvelle-t-il ?",
       "synonyms": [
         "renouvellement",
@@ -713,6 +820,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Chaque lundi à 0 h (heure de Paris). La barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes.\n\nParler à votre coach ne compte pas dans le quota. Une recherche d'offres qui échoue, ou que vous arrêtez avant qu'elle ait trouvé une offre, ne compte pas non plus.\n\nPour en avoir plus chaque semaine, changez d'offre depuis Mon abonnement."
+    },
+    {
+      "id": "tutorial-extension-save-job-offer",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "extension",
+      "title": "Enregistrer une offre avec l'extension",
+      "synonyms": [
+        "extension",
+        "navigateur",
+        "chrome",
+        "capturer",
+        "enregistrer une offre",
+        "ajouter une offre",
+        "analyser une offre",
+        "nouvelle candidature"
+      ],
+      "route": null,
+      "body": "L'extension Jobbbox enregistre dans vos candidatures l'offre d'emploi que vous lisez, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi.\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur et cliquez sur « Capturer cette page ».\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature.\n5. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
     }
   ],
   "en": [
@@ -720,6 +847,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-digest",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "A Job Digest",
       "synonyms": [
         "digest",
@@ -733,6 +862,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-offer",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "A job offer's page",
       "synonyms": [
         "job offer",
@@ -748,6 +879,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-search",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "A job search's results",
       "synonyms": [
         "results",
@@ -761,6 +894,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-profile",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "A profile's page",
       "synonyms": [
         "profile",
@@ -778,6 +913,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-application",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "An application's page",
       "synonyms": [
         "application",
@@ -795,6 +932,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-subscription-reduction",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Cancel at no cost",
       "synonyms": [
         "reduction",
@@ -812,6 +951,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-subscription-cancellation",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Cancel your contract",
       "synonyms": [
         "cancel",
@@ -830,6 +971,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-conversation",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Conversation with the coach",
       "synonyms": [
         "conversation",
@@ -846,6 +989,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-new-profile",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Create a profile",
       "synonyms": [
         "new profile",
@@ -861,6 +1006,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-home",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Home",
       "synonyms": [
         "home",
@@ -877,6 +1024,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-agenda",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Interviews and appointments",
       "synonyms": [
         "agenda",
@@ -894,6 +1043,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-digests",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Job Digests",
       "synonyms": [
         "digest",
@@ -910,6 +1061,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-job-searches",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Job searches",
       "synonyms": [
         "search",
@@ -925,6 +1078,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-account",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "My account",
       "synonyms": [
         "account",
@@ -944,6 +1099,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-applications",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "My applications",
       "synonyms": [
         "applications",
@@ -963,6 +1120,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-human-coaches",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "My human coaches",
       "synonyms": [
         "human coach",
@@ -980,6 +1139,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-subscription",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "My subscription",
       "synonyms": [
         "subscription",
@@ -999,6 +1160,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-acceptance",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Our terms of use",
       "synonyms": [
         "terms of use",
@@ -1015,6 +1178,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-withdrawal",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Withdraw from the contract here",
       "synonyms": [
         "withdrawal",
@@ -1032,6 +1197,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-order",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Your order",
       "synonyms": [
         "order",
@@ -1051,6 +1218,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-coaching-order",
       "locale": "en",
       "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Your session order",
       "synonyms": [
         "order",
@@ -1070,6 +1239,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-ats-score",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "ATS Score",
       "synonyms": [
         "ats",
@@ -1086,6 +1257,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-clear-conversation",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Clear the conversation",
       "synonyms": [
         "clear",
@@ -1100,6 +1273,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-coach-memory",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Coach memory",
       "synonyms": [
         "memory",
@@ -1115,6 +1290,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-fiche",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Fiche",
       "synonyms": [
         "fiche",
@@ -1131,6 +1308,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-follow-up",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Follow-up",
       "synonyms": [
         "follow up",
@@ -1146,6 +1325,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-job-digest",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Job Digest",
       "synonyms": [
         "digest",
@@ -1161,6 +1342,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-job-search",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Job search",
       "synonyms": [
         "search",
@@ -1174,6 +1357,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-master-cv",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Master CV",
       "synonyms": [
         "main cv",
@@ -1188,6 +1373,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-match-score",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Match Score",
       "synonyms": [
         "match",
@@ -1203,6 +1390,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-plan-quota",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Quota",
       "synonyms": [
         "limit",
@@ -1218,6 +1407,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-results",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Results",
       "synonyms": [
         "results",
@@ -1235,6 +1426,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-tailored-cv",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Tailored CV",
       "synonyms": [
         "custom cv",
@@ -1249,6 +1442,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-withdrawal",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Withdrawal",
       "synonyms": [
         "withdraw",
@@ -1264,6 +1459,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-proposals",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Your coach's proposals",
       "synonyms": [
         "proposal",
@@ -1280,6 +1477,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-help-and-ai",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Does the help use AI?",
       "synonyms": [
         "artificial intelligence",
@@ -1287,15 +1486,18 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "human",
         "written by",
         "help",
-        "ai coach"
+        "ai coach",
+        "help centre"
       ],
       "route": null,
-      "body": "No. The help is written and checked by the Jobbbox team. It works even when the AI is unavailable and never counts against a quota.\n\nOnly your coach answers with AI, and its replies say so. When the help has no answer, « Send to the coach » asks it your question.\n\nIf your coach had to answer a question about using Jobbbox, the question is noted, without your name, so the team can write the missing article."
+      "body": "No. The help calls on no AI to answer you: its articles are checked and published by the Jobbbox team, and the search finds them from your own words. It works even when the AI is unavailable and never counts against a quota.\n\nOnly your coach answers with AI, and its replies say so. When the help has no answer, « Send to the coach » asks it your question.\n\nAll the help is also in the Help Centre, open without an account: « Help and legal », at the foot of the menu, then « Help ». An article opened beside the conversation offers « Open in the Help Centre ».\n\nIf your coach had to answer a question about using Jobbbox, the question is noted, without your name, so the team can write the missing article."
     },
     {
       "id": "faq-follow-up-recruiter",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "How do I follow up with a recruiter?",
       "synonyms": [
         "follow-up",
@@ -1313,6 +1515,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-data-export-deletion",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "How do I get or delete my data?",
       "synonyms": [
         "data",
@@ -1331,6 +1535,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-text-size",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "How do I make the text larger?",
       "synonyms": [
         "text size",
@@ -1348,6 +1554,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-signalement",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "How do I report a problem or reach the team?",
       "synonyms": [
         "feedback",
@@ -1368,6 +1576,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-quota-renewal",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "When does my quota renew?",
       "synonyms": [
         "renewal",
@@ -1384,6 +1594,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "faq-legal-texts",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Where can I read the terms and the privacy policy?",
       "synonyms": [
         "terms of use",
@@ -1400,9 +1612,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "On the Legal page, open to everyone, with no account: the Terms of use, the Terms of sale, the Privacy policy (with its sections on cookies and on AI in Jobbbox) and the Legal notice. Each text downloads with « Download as PDF ».\n\nEach text shows the date it took effect. A version is never changed: a correction makes a new version. The « Previous versions » link leads to the « Version history »: each version, its date, « Substantial » or « Minor », and a line that sums up the change.\n\nAn earlier version stays readable at its dated address, marked « Archived version: see the version in effect ». An upcoming substantial version can already be read there, marked « Upcoming version » with the date it takes effect: the email telling you of it leads there. The French text prevails; the English translation says so at the top."
     },
     {
+      "id": "faq-where-to-find-help",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Where do I find Jobbbox's help?",
+      "synonyms": [
+        "help",
+        "help centre",
+        "help center",
+        "tutorial",
+        "how to",
+        "documentation",
+        "question",
+        "topic",
+        "search the help"
+      ],
+      "route": null,
+      "body": "All of Jobbbox's help is in the Help Centre, open to everyone, no account needed: « Help » at the top of every public page, or « Help Centre » at the foot of the page.\n\nIts articles are sorted into four topics: « Discover Jobbbox », « The extension », « Using Jobbbox » and « Coach space ». The search field, at the top of the Help Centre, looks through all of them, without AI. Tutorials there walk you through a task step by step.\n\nOnce signed in, « Help and legal », at the foot of the menu, leads to the Help Centre. When you write to your coach, the matching articles show first, « In the help, without AI »; an article opened there offers « Open in the Help Centre ».\n\nThe articles are written by the Jobbbox team, in French and in English."
+    },
+    {
       "id": "faq-legal-text-notice",
       "locale": "en",
       "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Why did I get an email about the terms?",
       "synonyms": [
         "email",
@@ -1419,6 +1654,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Jobbbox writes to you when it publishes a substantial version of the Terms of use, the Terms of sale or the Privacy policy: at least 30 days before it takes effect. The email names the text, the date it takes effect and what changes, with « Read the new version » and the « Version history ». A minor version, a typo corrected for instance, gets no email.\n\nIt is a service email: you get it even if you do not receive our news. It has no image and no tracking link, and you get it only once per version.\n\nFor the Terms of use, Jobbbox will ask you to accept the new version the first time you sign in from the date it takes effect. For the Terms of sale, it will apply to your next purchases. The Privacy policy is not accepted: after it takes effect, a notice « Our privacy policy changed on … » shows once in your workspace, and « Got it » closes it."
+    },
+    {
+      "id": "tutorial-extension-save-job-offer",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "extension",
+      "title": "Save a job offer with the extension",
+      "synonyms": [
+        "extension",
+        "browser",
+        "chrome",
+        "capture",
+        "save a job offer",
+        "add a job offer",
+        "analyse an offer",
+        "new application"
+      ],
+      "route": null,
+      "body": "The Jobbbox extension saves the job offer you are reading to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page.\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar and click « Capture this page ».\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. At the foot of the panel, choose the profile for this application in « Profile used for this application ».\n5. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
     }
   ]
 };

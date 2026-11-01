@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Votre commande
 synonyms: [commande, commander, payer, paiement, cgv, conditions générales de vente, récapitulatif, exécution immédiate, demande expresse]
 route: /abonnement/commande

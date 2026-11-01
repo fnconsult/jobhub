@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Résultats
 synonyms: [résultats, résultat, documents produits, cv adapté, lettre de motivation, message d'approche, relance]
 ---

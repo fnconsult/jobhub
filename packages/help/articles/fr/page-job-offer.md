@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: La page d'une offre
 synonyms: [offre, annonce, poste, enregistrer, suivre]
 route: /offres/[id]

@@ -16,8 +16,20 @@ const isUnder = (pathname: string, path: string) => pathname === path || pathnam
  * the sections an Administrator's roles cover, by group, each group named; the
  * Back Office Assistant in the top bar, on every page. `groups` holds only what they may see; the Dashboard, the
  * Back Office's home, comes first for everyone (#408). Last, Mon compte and the public Légal (#544).
+ * Its foot names the Version served, `release` (#559).
  */
-export function BackOfficeSidebarLayout({ groups, title, children }: { groups: ReadonlyArray<BackOfficeNavGroup>; title?: ReactNode; children: ReactNode }) {
+export function BackOfficeSidebarLayout({
+  groups,
+  title,
+  release,
+  children,
+}: {
+  groups: ReadonlyArray<BackOfficeNavGroup>;
+  title?: ReactNode;
+  /** The Version as shown (`releaseLabel`): « X.Y.Z (main·sha) » on the Beta, « X.Y.Z » in Production. */
+  release: string;
+  children: ReactNode;
+}) {
   const { t } = useTranslation();
   const pathname = usePathname();
 
@@ -25,6 +37,7 @@ export function BackOfficeSidebarLayout({ groups, title, children }: { groups: R
     <SidebarShell
       brand={{ href: routes.admin, label: `${t("app.name")} · ${t("admin.title")}` }}
       title={title}
+      foot={() => <p className="release-line">{t("release.line", { version: release })}</p>}
       nav={(closeDrawer) => (
         <nav className="sidebar-nav" aria-label={t("admin.nav.label")}>
           {/* The Back Office Dashboard, its home (#408): every Administrator's first entry. */}

@@ -29,6 +29,9 @@ RUN npm run build --workspace @jobhub/web
 FROM node:22-alpine AS web
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# The commit and the target .github/workflows/deploy.yml builds for (#559); deploy/compose.yml names the target again.
+ARG JOBHUB_COMMIT="" JOBHUB_TARGET=""
+ENV JOBHUB_COMMIT=$JOBHUB_COMMIT JOBHUB_TARGET=$JOBHUB_TARGET
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build --chown=node:node /app/apps/web/public ./apps/web/public

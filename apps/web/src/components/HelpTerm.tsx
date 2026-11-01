@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Fragment, useEffect, useId } from "react";
+import { Fragment, useEffect, useId, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageHelp } from "@/components/CoachPanel";
 import { EMPTY_STATE_HELP, HELP_TERMS, termsWithin, type EmptyStateName, type HelpTermName } from "@/help-terms";
@@ -24,12 +24,15 @@ export function HelpTerm({ term, children }: { term: HelpTermName; children: str
   const mention = useId();
   // Asked while rendering, so the server and the browser agree on which mention is the first.
   const first = mentions ? mentions.isFirst(pathname, term, mention) : false;
+  const [, showAgain] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     if (!mentions) return;
-    // Mounted again (React's strict mode, or a mention shown anew): it takes its place back if it is still free.
-    mentions.isFirst(pathname, term, mention);
+    // On the page, it asks again (help-terms' Mentions): it takes the place if the mention holding it is not on the page,
+    // one in a render React dropped, or the one it replaces, not gone yet; and it is shown again if that changes what it
+    // is. Otherwise it stayed plain text until something else rendered it again (#343, after #602).
+    if (mentions.shown(pathname, term, mention) !== first) showAgain();
     return () => mentions.forget(term, mention);
-  }, [mentions, pathname, term, mention]);
+  }, [mentions, pathname, term, mention, first]);
 
   if (!help || !first) return children;
   return (

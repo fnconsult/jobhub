@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icons } from "@/components/icons";
 import { ObjectConversation } from "@/components/ObjectConversation";
-import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
+import { ProfileTitle } from "@/components/ProfileInlineEdits";
+import { SearchCriteriaDialog } from "@/components/SearchCriteriaDialog";
+import { searchCriteriaInWords } from "@/components/job-search-words";
 import { buttonClass } from "@/design/button-class";
 import { Pill } from "@/design/Pill";
 import { Ring } from "@/design/Ring";
@@ -10,7 +12,7 @@ import { profileFicheLinks } from "@/fiches";
 import { getServerT } from "@/i18n/server";
 import { readIndustryReference } from "@/reference-data/server";
 import { routes, type ProfileSection } from "@/routes";
-import { ArchivedCriteria, loadProfileAside, loadProfilePage } from "./(sections)/profile-page";
+import { loadProfileAside, loadProfilePage } from "./(sections)/profile-page";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
 
@@ -51,13 +53,13 @@ export async function ProfileConversation({ id, children }: { id: string; childr
 
 /**
  * The Profile at a glance, first in its Fiche: what the page's head showed. Whether it is active or archived (and how to
- * restore it), « Chercher des offres » while it is active, its Search Criteria (changed in place, read-only while
- * archived), and its ATS Score, leading to its Section.
+ * restore it), « Chercher des offres » while it is active, its Search Criteria in words (changed in a dialog, as on a Job
+ * Search's page, read-only while archived: the Fiche is too narrow for them as properties), and its ATS Score, leading
+ * to its Section.
  */
 async function ProfileCard({ id, atsScore, t }: { id: string; atsScore: number | null; t: T }) {
   const { profile, locale } = await loadProfilePage(id);
-  // An archived Profile's Sectors and Domains are read by their labels (#236); an active one's inputs fetch them.
-  const industries = profile.archived ? await readIndustryReference() : null;
+  const industries = await readIndustryReference();
   return (
     <div className="profile-card">
       <p className="profile-card__status">
@@ -70,11 +72,15 @@ async function ProfileCard({ id, atsScore, t }: { id: string; atsScore: number |
           {t("profilePage.actions.searchOffers")}
         </Link>
       )}
-      {profile.archived ? (
-        <ArchivedCriteria criteria={profile.searchCriteria} locale={locale} t={t} industries={industries ?? { sectors: [], subsectors: [], domains: [] }} />
-      ) : (
-        <SearchCriteriaProperties key={`criteria-${profile.id}`} profileId={profile.id} searchCriteria={profile.searchCriteria} />
-      )}
+      <dl className="props">
+        <div className="prop">
+          <dt>{t("jobSearch.criteria")}</dt>
+          <dd>
+            <span>{searchCriteriaInWords(profile.searchCriteria, t, locale, industries)}</span>{" "}
+            {profile.archived ? null : <SearchCriteriaDialog profileId={profile.id} profileName={profile.name} searchCriteria={profile.searchCriteria} />}
+          </dd>
+        </div>
+      </dl>
       <div className="profile-ats">
         {atsScore === null ? null : <Ring label={t("atsScore.title")} value={atsScore} />}
         <p className="profile-ats-text">{t(atsScore === null ? "profilePage.ats.none" : "profilePage.ats.computed")}</p>

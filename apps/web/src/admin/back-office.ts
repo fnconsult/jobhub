@@ -66,6 +66,8 @@ export const BACK_OFFICE_SECTIONS = [
   "guardrails",
   "unanswered_questions",
   "signalements",
+  // A recipient outside the EU switched on in Paramètres that the privacy policy in effect does not name (#548), by its Tool's id.
+  "recipients_outside_eu",
   // A failed refund of a Withdrawal tried again (#511).
   "withdrawals",
   // Sections only an Administrator denied entry is in (#264): the pages that change nothing.
@@ -103,7 +105,8 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * usage of every Candidate was forgotten (ADR-0032). `scheduled`, `cancelled` and `applied`: a Quota Reduction
  * was scheduled, cancelled before its effective date, or applied on it by the worker (#514). `restored_to_default`: a Platform Setting's Back Office value was cleared
  * (« Rétablir »), env's or the code's default in use again (#299). `refused`: an attempt refused or failed (#263); `denied`: an
- * Administrator opened a section outside their Back Office Roles (#264).
+ * Administrator opened a section outside their Back Office Roles (#264). `switched_on`: a recipient outside the EU the privacy
+ * policy in effect does not name was switched on in Paramètres (#548).
  */
 export type BackOfficeAction =
   | "added"
@@ -122,6 +125,7 @@ export type BackOfficeAction =
   | "applied"
   | "refused"
   | "denied"
+  | "switched_on"
   | SecretAction;
 
 /** How a Back Office attempt ended (the Outcome, CONTEXT.md): the Back Office Audit only uses these two. */

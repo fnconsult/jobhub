@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { externalApiProvidersOf, TOOL_CATEGORIES, TOOLS, toolById, toolOfUsage, toolsByCategory } from "./tools";
+import { externalApiProvidersOf, isRecipientOutsideEu, TOOL_CATEGORIES, TOOLS, toolById, toolOfUsage, toolsByCategory } from "./tools";
 
 describe("the Tools", () => {
   it("are every external tool the app calls, grouped by category in the Back Office's order", () => {
@@ -41,6 +41,47 @@ describe("the Tools", () => {
     // Email intake's reading of an email runs in the EU (ADR-0052): Brevo receives it on its EU servers.
     expect(toolById("email-intake")?.residency).toBe("eu");
     expect(toolById("oidc")?.residency).toBe("unknown");
+  });
+
+  it("say whether they receive personal data, or queries drawn from it: a recipient (ADR-0064)", () => {
+    const recipients = TOOLS.filter((tool) => tool.receivesPersonalData).map((tool) => tool.id);
+    expect(recipients).toEqual([
+      "anthropic",
+      "anthropic-bedrock",
+      "anthropic-vertex",
+      "mistral",
+      "openai",
+      "perplexity",
+      "brave",
+      "tavily",
+      "lusha",
+      "kaspr",
+      "apollo",
+      "stripe",
+      "brevo-api",
+      "brevo-smtp",
+      "email-intake",
+      "google",
+      "apple",
+      "microsoft",
+      "oidc",
+    ]);
+  });
+
+  it("are a recipient outside the EU when they receive personal data outside it, or where it was not established (#548)", () => {
+    const outside = (id: string) => isRecipientOutsideEu(toolById(id)!);
+    expect(outside("anthropic")).toBe(true);
+    expect(outside("perplexity")).toBe(true);
+    expect(outside("stripe")).toBe(true);
+    // Not established counts as outside the EU.
+    expect(outside("brevo-api")).toBe(true);
+    expect(outside("kaspr")).toBe(true);
+    // In the EU.
+    expect(outside("mistral")).toBe(false);
+    expect(outside("anthropic-bedrock")).toBe(false);
+    // Outside the EU or not established, but sent no personal data.
+    expect(outside("greenhouse")).toBe(false);
+    expect(outside("job-site")).toBe(false);
   });
 
   it("name the keys they need, none for the public APIs", () => {

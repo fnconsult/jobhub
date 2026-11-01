@@ -157,6 +157,19 @@ export interface JobSearchNotification {
     | { status: "failed"; failure: JobSearchFailure; at: string; step: Activity | null; found: number };
 }
 
+/**
+ * A Job Search as Recherches d'offres lists it (#606): its Profile, where it stands, how many Job Offers its page shows
+ * (not the Expired ones), and whether its outcome is still unseen (its Job Search Notification not dismissed): à traiter.
+ */
+export interface JobSearchSummary {
+  id: string;
+  profile: { id: string; name: string };
+  status: JobSearchStatus;
+  startedAt: Date;
+  found: number;
+  unseen: boolean;
+}
+
 export interface JobSearches {
   /** Starts a Job Search. `input`: { profileId }. */
   start(candidateId: string, input: unknown): Promise<StartJobSearchResult>;
@@ -164,6 +177,8 @@ export interface JobSearches {
   get(candidateId: string, jobSearchId: string): Promise<JobSearch | null>;
   /** The Profile's latest done Job Search, with its results (as `get` gives them), or null. */
   latest(candidateId: string, profileId: string): Promise<JobSearch | null>;
+  /** Every Job Search of the Candidate, of any Profile, most recent first (#606). One past its time is failed first. */
+  list(candidateId: string): Promise<JobSearchSummary[]>;
   /** The Profile's Job Search still searching (the latest one, if several), or null. One past its time is failed first, so not given. */
   searching(candidateId: string, profileId: string): Promise<JobSearch | null>;
   /**
@@ -436,6 +451,25 @@ export function createJobSearches(database: Pool, deps: JobSearchesDeps): JobSea
         [candidateId, profileId],
       );
       return rows[0] ? jobSearchFrom(candidateId, rows[0]) : null;
+    },
+    async list(candidateId) {
+      await expireTimedOut(database, { quotas: deps.quotas, now }, candidateId);
+      const { rows } = await database.query<{ id: string; profile_id: string; profile_name: string; status: JobSearchStatus; started_at: Date; found: number; unseen: boolean }>(
+        `SELECT s.id, s.profile_id, p.name AS profile_name, s.status, s.started_at, s.notification_pending AND s.status <> 'searching' AS unseen,
+                (SELECT count(*)::int FROM job_offer o WHERE o.id = ANY (s.job_offer_ids) AND o.expired_at IS NULL AND ${visibleTo("$1", "o")}) AS found
+         FROM job_search s JOIN profile p ON p.id = s.profile_id
+         WHERE s.candidate_id = $1
+         ORDER BY s.started_at DESC`,
+        [candidateId],
+      );
+      return rows.map((row) => ({
+        id: row.id,
+        profile: { id: row.profile_id, name: row.profile_name },
+        status: row.status,
+        startedAt: row.started_at,
+        found: row.status === "searching" ? 0 : row.found,
+        unseen: row.unseen,
+      }));
     },
     async searching(candidateId, profileId) {
       if (!UUID.test(profileId)) return null;

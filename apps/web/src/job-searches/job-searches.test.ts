@@ -214,6 +214,32 @@ describe.skipIf(!connectionString)("Job Searches (needs Postgres: DATABASE_URL)"
     expect(await jobSearches.get(candidateId, forgotten.id)).toMatchObject({ status: "failed", failure: "timeout" });
   });
 
+  it("lists the Candidate's Job Searches, most recent first, each with its Profile, outcome, Job Offers found and whether it is still unseen (#606)", async () => {
+    expect(await jobSearches.list(candidateId)).toEqual([]);
+    const done = await started();
+    await jobSearches.record(done.id, { jobOfferIds: [await capture("DAF H/F", { location: "Lyon" }), await capture("Contrôleur de gestion", { location: "Lyon" })] });
+    clock.now = new Date("2026-10-16T10:00:00+02:00");
+    const seen = await started();
+    await jobSearches.record(seen.id, { jobOfferIds: [] });
+    await jobSearches.dismissNotification(candidateId, seen.id);
+    clock.now = new Date("2026-10-17T10:00:00+02:00");
+    const running = await started();
+    await started(otherCandidateId, await createProfile(otherCandidateId));
+
+    expect(await jobSearches.list(candidateId)).toEqual([
+      { id: running.id, profile: { id: profileId, name: "DAF" }, status: "searching", startedAt: new Date("2026-10-17T10:00:00+02:00"), found: 0, unseen: false },
+      { id: seen.id, profile: { id: profileId, name: "DAF" }, status: "done", startedAt: new Date("2026-10-16T10:00:00+02:00"), found: 0, unseen: false },
+      { id: done.id, profile: { id: profileId, name: "DAF" }, status: "done", startedAt: new Date("2026-10-15T10:00:00+02:00"), found: 2, unseen: true },
+    ]);
+  });
+
+  it("lists a Job Search nobody finished in time as failed (#606)", async () => {
+    const forgotten = await started();
+    clock.now = new Date(clock.now.getTime() + 16 * 60 * 1000);
+
+    expect(await jobSearches.list(candidateId)).toMatchObject([{ id: forgotten.id, status: "failed", unseen: true }]);
+  });
+
   it("only searches for the Candidate's own, active Profiles", async () => {
     const othersProfile = await createProfile(otherCandidateId);
     expect(await jobSearches.start(candidateId, { profileId: othersProfile })).toEqual({ ok: false, error: "not_found" });

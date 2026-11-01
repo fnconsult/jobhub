@@ -191,9 +191,13 @@ test.describe("CI and agent guards (#546)", () => {
   test("the hook refuses gh pr merge on a pull request that touches packages/help/legal/, and lets any other through", () => {
     const bin = mkdtempSync(path.join(tmpdir(), "legal-hook-"));
     try {
-      // A stand-in `gh`: pull request 901 changes a Legal Text Version, 902 does not.
+      // A stand-in `gh`: pull request 901 changes a Legal Text Version, 902 does not; each changes one file
+      // (`changed_files`, which the hook checks it read in full).
       const gh = path.join(bin, "gh");
-      writeFileSync(gh, `#!/bin/sh\ncase "$*" in\n  *pulls/901/files*) echo packages/help/legal/cgu/2026-12-01.fr.md;;\n  *pulls/902/files*) echo apps/web/src/page.tsx;;\n  *) exit 1;;\nesac\n`);
+      writeFileSync(
+        gh,
+        `#!/bin/sh\ncase "$*" in\n  *pulls/901/files*) echo packages/help/legal/cgu/2026-12-01.fr.md;;\n  *pulls/902/files*) echo apps/web/src/page.tsx;;\n  *pulls/90[12]\\ *) echo 1;;\n  *) exit 1;;\nesac\n`,
+      );
       chmodSync(gh, 0o755);
       const hook = (command: string) => {
         const result = spawnSync("node", ["scripts/hooks/no-legal-merge.mjs"], {

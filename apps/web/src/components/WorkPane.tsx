@@ -127,6 +127,7 @@ function ItemTitle({ item }: { item: WorkPaneItem }) {
       return t(signalementTitle(item.start));
     case "section":
     case "result":
+    case "form":
       return item.title;
   }
 }
@@ -151,6 +152,7 @@ function ItemBody({
   switch (item.kind) {
     case "section":
     case "result":
+    case "form":
       return <div ref={setSlot} className="work-pane-slot" />;
     case "help":
       return <HelpArticleBody article={item.article} />;

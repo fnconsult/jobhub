@@ -4,13 +4,16 @@ import { notFound } from "next/navigation";
 import { LegalTextView } from "@/design/LegalTextView";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { legalTextMetadata } from "@/public-pages/indexing-server";
 
 type Params = { params: Promise<{ text: string }> };
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
   const { text } = await params;
-  return { title: `${isLegalTextId(text) ? t(`legal.texts.${text}`) : t("publicSite.legal")} · ${t("app.name")}` };
+  if (!isLegalTextId(text)) return { title: `${t("publicSite.legal")} · ${t("app.name")}` };
+  // Indexed in the languages it has a version in effect in; « pas encore publié » is not (#545).
+  return { title: `${t(`legal.texts.${text}`)} · ${t("app.name")}`, ...(await legalTextMetadata(text)) };
 }
 
 /**

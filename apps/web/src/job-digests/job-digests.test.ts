@@ -548,6 +548,27 @@ describe.skipIf(!connectionString)("Job Digests (needs Postgres: DATABASE_URL)",
   });
 
   describe("the Job Digest", () => {
+    it("lists every Job Digest of the Candidate, of any Profile, newest first, with how many Job Offers each lists (#606)", async () => {
+      expect(await jobDigests.list(candidateId)).toEqual([]);
+      const secondProfile = await createProfile(candidateId, "Contrôleur de gestion");
+      await subscribed();
+      await subscribed("weekly", candidateId, secondProfile);
+      await strong("DAF H/F");
+      const first = (await jobDigests.deliver(candidateId, profileId, async () => discovered())).digest!;
+      later(24);
+      await strong("DAF adjoint H/F");
+      const second = (await jobDigests.deliver(candidateId, secondProfile, async () => discovered())).digest!;
+      const othersProfile = await createProfile(otherCandidateId);
+      await onPlan(otherCandidateId, "standard");
+      await subscribed("weekly", otherCandidateId, othersProfile);
+      await jobDigests.deliver(otherCandidateId, othersProfile, async () => discovered());
+
+      expect(await jobDigests.list(candidateId)).toEqual([
+        { id: second.id, profile: { id: secondProfile, name: expect.any(String) }, sentAt: second.sentAt, count: second.results.length },
+        { id: first.id, profile: { id: profileId, name: expect.any(String) }, sentAt: first.sentAt, count: 1 },
+      ]);
+    });
+
     it("is a page of its Job Offers ranked by Match Score, linked from the email and listed on the Profile", async () => {
       const best = await strong("DAF H/F");
       const second = await capture("Responsable financier", { location: "Lyon", contractType: "cdd", skills: ["IFRS", "SAP", "Excel"] });

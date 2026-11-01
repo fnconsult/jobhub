@@ -17,8 +17,15 @@ import type { UnfoldedMenu } from "@/sidebar-menus";
 /** A Free conversation as the Sidebar lists it (ADR-0070): a Coach Conversation with no Subject. */
 export type FreeConversation = { id: string; title: string };
 
-/** The Sidebar's menus with objects (#604), by their Sidebar key, and what each unfolds into: Mes candidatures for now. */
-export type SidebarMenus = Partial<Record<"applications", UnfoldedMenu>>;
+/** The Sidebar's menus with objects, by their Sidebar key, and what each unfolds into: Mes candidatures (#604), Recherches d'offres and Job Digests (#606). */
+export type SidebarMenus = Partial<Record<SidebarMenuKey, UnfoldedMenu>>;
+
+/** The Sidebar menus that unfold into their objects (ADR-0070). */
+export const SIDEBAR_MENUS_WITH_OBJECTS = ["applications", "jobSearches", "jobDigests"] as const;
+export type SidebarMenuKey = (typeof SIDEBAR_MENUS_WITH_OBJECTS)[number];
+
+/** Whether the Sidebar's link `key` is a menu with objects. */
+export const hasObjects = (key: string): key is SidebarMenuKey => (SIDEBAR_MENUS_WITH_OBJECTS as readonly string[]).includes(key);
 
 /**
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
@@ -217,8 +224,8 @@ function useUnfolded(menu: string): [boolean, (open: boolean) => void] {
 }
 
 /**
- * One of the Sidebar's menus (#604): its link, to its page; with objects (Mes candidatures, under « Conversation au
- * centre »), the button that unfolds it into them, each to its page, the one open highlighted rather than the menu, those
+ * One of the Sidebar's menus (#604): its link, to its page; with objects (Mes candidatures, Recherches d'offres and Job
+ * Digests (#606), under « Conversation au centre »), the button that unfolds it into them, each to its page, the one open highlighted rather than the menu, those
  * à traiter marked with a dot, then « Tout voir (N) ». Its fold is remembered in this browser. `current`: the page shown is
  * the menu's or one under it. `onNavigate`: closes the Sidebar's drawer on phones.
  */

@@ -737,6 +737,30 @@
     "cards": {
       "summary": "Summary",
       "skills": "Skills"
+    },
+    "results": {
+      "export": "PDF or Word, version {{version}}"
+    },
+    "conversation": {
+      "introduction": "This conversation is about your profile “{{name}}”: the coach has its master CV and search criteria in view. Its fiche is on the right, with its sections, its activity and its results.",
+      "suggestions": {
+        "improveCv": {
+          "label": "Improve my CV",
+          "message": "Read my master CV and tell me what I can improve."
+        },
+        "atsScore": {
+          "label": "Understand my ATS Score",
+          "message": "Explain my ATS Score and how to improve it."
+        },
+        "criteria": {
+          "label": "Refine my criteria",
+          "message": "Help me refine this profile's search criteria."
+        },
+        "targetCompanies": {
+          "label": "Which companies to target?",
+          "message": "Which companies should I target with this profile?"
+        }
+      }
     }
   },
   "profileSwitcher": {
@@ -3752,7 +3776,24 @@
       "dismiss": "Close"
     },
     "matchScoreCaption": "Match Score",
-    "partialCaption": "Partial"
+    "partialCaption": "Partial",
+    "conversation": {
+      "introduction": "This conversation is about your job search of {{date}} for the profile “{{profile}}”: the coach has the job offers found and their match scores in view. Its fiche is on the right, with its status, its criteria and its results.",
+      "suggestions": {
+        "bestOffers": {
+          "label": "Which offers to pick?",
+          "message": "Of the job offers found, which suit me best, and why?"
+        },
+        "widenCriteria": {
+          "label": "Widen my criteria",
+          "message": "How can I widen my criteria to find more job offers?"
+        },
+        "searchAgain": {
+          "label": "Search again",
+          "message": "Search for job offers again for this profile."
+        }
+      }
+    }
   },
   "companyDossier": {
     "title": "Company dossier",
@@ -4259,7 +4300,12 @@
       "title": "Job Digest “{{profile}}”",
       "intro_one": "{{count}} new job offer for this profile:",
       "intro_other": "{{count}} new job offers for this profile, closest to your master CV first:",
-      "backToProfile": "Back to the profile"
+      "backToProfile": "Back to the profile",
+      "settings": "Settings",
+      "profileLabel": "Profile",
+      "sentOnLabel": "Sent on",
+      "offersLabel": "Job offers",
+      "archived": "This profile is archived: it no longer gets a Job Digest. Restore it to get it again."
     },
     "email": {
       "subject_one": "Job Digest “{{profile}}”: {{count}} new job offer",
@@ -4283,6 +4329,19 @@
       "action": "Unsubscribe",
       "done": "Done: you will no longer receive this Job Digest.",
       "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile page."
+    },
+    "conversation": {
+      "introduction": "This conversation is about your Job Digest of {{date}} for the profile “{{profile}}”: the coach has its job offers and their match scores in view. Its fiche is on the right, with its results and its settings.",
+      "suggestions": {
+        "bestOffers": {
+          "label": "Which offers to pick?",
+          "message": "Of the job offers in this Job Digest, which suit me best, and why?"
+        },
+        "criteria": {
+          "label": "Refine my criteria",
+          "message": "Do these job offers match my criteria? What should I adjust?"
+        }
+      }
     }
   },
   "jobSearchesPage": {
@@ -4888,6 +4947,35 @@
     "showArchived": "Show them",
     "hideArchived": "Hide archived applications"
   },
+  "jobSearchesMenu": {
+    "introduction": "Here are your job searches, by profile. Ask me which job offers to look at first or how to widen your criteria; to find new job offers, start a search.",
+    "title": "Your job searches by profile",
+    "tableLabel": "Job searches for “{{profile}}”",
+    "found": "Job offers found",
+    "stillSearching": "still searching",
+    "unseen": "New results",
+    "none": "No job search for this profile yet.",
+    "receivedByEmail": "See the job offers received by email",
+    "start": "Start a search",
+    "startFor": "Start a search · {{profile}}"
+  },
+  "jobDigestsMenu": {
+    "introduction": "Here are your Job Digests, by profile: the new job offers that match your criteria, sent by email. Ask me which ones to look at first; set how often they come here.",
+    "title": "Your Job Digests by profile",
+    "tableLabel": "Job Digests of “{{profile}}”",
+    "sentOn": "Sent on",
+    "count": "Job offers",
+    "none": "No Job Digest sent for this profile yet."
+  },
+  "agendaMenu": {
+    "introduction": "Here are your interviews and appointments. Ask me to prepare an interview or to remind you what is coming; the week and the month open beside our conversation.",
+    "title": "Interviews and appointments",
+    "addInterview": "Add an interview"
+  },
+  "humanCoachesMenu": {
+    "introduction": "Here are your human coaches and your coaching sessions. Ask me how to prepare a session; to book one, choose a coach below.",
+    "sessionsNone": "No coaching session yet."
+  },
   "conversationFirst": {
     "newConversation": "New conversation",
     "coach": "Coach",
@@ -5181,6 +5269,7 @@
       "activity": "Activity",
       "results": "Results"
     },
-    "noResults": "No results yet: what the coach makes here is added to this list."
+    "noResults": "No results yet: what the coach makes here is added to this list.",
+    "matchScore": "Match Score: {{score}}"
   }
 }

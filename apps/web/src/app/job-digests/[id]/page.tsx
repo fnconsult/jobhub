@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { loadAiActivity } from "@/ai-activity/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { JobOfferResults } from "@/components/JobOfferResults";
-import { getRequestLocale, getServerT } from "@/i18n/server";
+import { pagesAreConversations } from "@/components/ObjectConversation";
+import { getServerT } from "@/i18n/server";
 import { requireOwnJobDigest } from "@/job-digests/server";
 import { routes } from "@/routes";
-
-type Params = { params: Promise<{ id: string }> };
+import { loadJobDigestPage, type Params } from "./job-digest-page";
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const t = await getServerT();
@@ -20,12 +19,12 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * One Job Digest, linked from its email and from the Profile page: the Job
  * Offers it brought, best Match Score first (the Job Search results view),
  * each one a click away from becoming an Application with the Profile.
+ * Under « Conversation au centre » (#605, ADR-0070), the page is the Job Digest's conversation instead (layout.tsx).
  */
 export default async function JobDigestPage({ params }: Params) {
-  const { candidateId, jobDigest } = await requireOwnJobDigest((await params).id);
-  const [t, locale, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), loadAiActivity.jobDigest(candidateId, jobDigest)]);
+  if (pagesAreConversations()) return null;
+  const { candidateId, jobDigest, t, locale, aiActivity, inView } = await loadJobDigestPage((await params).id);
   const { profile, results } = jobDigest;
-  const inView = { kind: "job_digest", id: jobDigest.id, name: profile.name, profileId: profile.id } as const;
   const sentAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobDigest.sentAt);
   return (
     <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("jobDigest.page.title", { profile: profile.name })} aiActivity={aiActivity}>

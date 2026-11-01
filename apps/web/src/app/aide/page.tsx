@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT, getUrlLocale } from "@/i18n/server";
+import { publicMetadata } from "@/public-pages/indexing-server";
 import { routes } from "@/routes";
 import { helpCentreHref, HelpArticleList, HelpSearchForm } from "./help-centre";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
-  return { title: `${t("helpCentre.title")} · ${t("app.name")}` };
+  return { title: `${t("helpCentre.title")} · ${t("app.name")}`, ...(await publicMetadata(routes.help, ["fr", "en"])) };
 }
 
 /** How many public articles a search shows at most. */

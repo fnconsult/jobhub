@@ -24,6 +24,14 @@ export function applicationResultOf(value: string | string[] | undefined): Appli
   return found ? (found[0] as ApplicationResult) : null;
 }
 
+/** The Sections of a Job Search's page under « Conversation au centre » (#605): the Job Offers it found. */
+export const JOB_SEARCH_SECTIONS = ["offres"] as const;
+export type JobSearchSection = (typeof JOB_SEARCH_SECTIONS)[number];
+
+/** The Sections of a Job Digest's page under « Conversation au centre » (#605): its Job Offers, and its Profile's Job Digest settings. */
+export const JOB_DIGEST_SECTIONS = ["offres", "reglages"] as const;
+export type JobDigestSection = (typeof JOB_DIGEST_SECTIONS)[number];
+
 /** The Order pages (#512), and what their address carries: the Plan or the Human Coach, a shared link's code, an error. */
 export const PLAN_ORDER = "/abonnement/commande";
 export const COACHING_ORDER = "/coachs/commande";
@@ -62,6 +70,8 @@ export const routes = {
   jobSearches: (profileId?: string) => (profileId ? `/recherches?profil=${encodeURIComponent(profileId)}` : "/recherches"),
   /** The Recherches d'offres page for all active Profiles at once, their results in tabs or, with `lanes`, in swimlanes. */
   allJobSearches: (lanes = false) => `/recherches?profil=tous${lanes ? "&vue=couloirs" : ""}`,
+  /** « Reçues par email » under « Conversation au centre » (#606): Recherches d'offres' conversation, the Work Pane showing them. */
+  receivedByEmail: "/recherches?recues=1",
   /** The Job Digests page (ADR-0024). */
   jobDigests: "/job-digests",
   /** A Section of a Profile's page (ADR-0024); `profile` itself shows the first one there is. */
@@ -78,6 +88,8 @@ export const routes = {
   agendaList: (past = false) => `/agenda?vue=liste${past ? "&periode=passes" : ""}`,
   /** The Agenda's week or month around `date` (a day in French time, "2026-10-20"), today's when left out (ADR-0028). */
   agendaCalendar: (view: CalendarView, date?: string) => `/agenda?vue=${view}${date ? `&date=${date}` : ""}`,
+  /** The form adding an Interview, in the Work Pane beside the Agenda's menu conversation (#606). */
+  agendaAddInterview: "/agenda?ajouter=entretien",
   applicationsBoard: "/candidatures?vue=tableau",
   application: (id: string) => `/candidatures/${id}`,
   /** A Section of an Application's page (ADR-0024); `application` itself shows the first one there is. */
@@ -87,8 +99,16 @@ export const routes = {
   /** A Job Offer's page; with `profileId`, its Match Score preselects that Profile (the one a Job Search or Job Digest is for). */
   jobOffer: (id: string, profileId?: string) => (profileId ? `/offres/${id}?profil=${encodeURIComponent(profileId)}` : `/offres/${id}`),
   jobSearch: (id: string) => `/recherches/${id}`,
+  /** A Section of a Job Search's page (#605), in the Work Pane beside its conversation. */
+  jobSearchSection: (id: string, section: JobSearchSection) => `/recherches/${id}/${section}`,
+  /** A Job Offer a Job Search found (#605), one of its Results, in the Work Pane beside its conversation. */
+  jobSearchOffer: (id: string, jobOfferId: string) => `/recherches/${id}/offres/${jobOfferId}`,
   /** One Job Digest: its Job Offers ranked by Match Score. */
   jobDigest: (id: string) => `/job-digests/${id}`,
+  /** A Section of a Job Digest's page (#605), in the Work Pane beside its conversation. */
+  jobDigestSection: (id: string, section: JobDigestSection) => `/job-digests/${id}/${section}`,
+  /** A Job Offer a Job Digest brought (#605), one of its Results, in the Work Pane beside its conversation. */
+  jobDigestOffer: (id: string, jobOfferId: string) => `/job-digests/${id}/offres/${jobOfferId}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
   /**

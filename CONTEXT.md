@@ -103,10 +103,10 @@ A saved conversation between a Candidate and the AI Coach, and on the Candidate'
 _Avoid_: Chat, thread, session
 
 **À traiter**:
-Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there.
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there. Said of a Job Search when it has finished and its Job Search Notification has not been dismissed; nothing in a Job Digest is ever à traiter.
 
 **Menu card**:
-The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter). It stays in the thread whatever is sent.
+The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter; Recherches d'offres: each active Profile's Job Searches with start date, status, Job Offers found and « Nouveaux résultats »; Job Digests: each active Profile's frequency and every Job Digest sent; Agenda: the list and « À planifier »; Mes coachs humains: Coaching Sessions and Human Coaches). It stays in the thread whatever is sent. An Archived Profile's Job Searches and Job Digests are left out of the cards and the Sidebar; Recherches d'offres is one conversation for all Profiles.
 
 **Subject**:
 What a Coach Conversation is about, fixed when it starts: one object (an Application, a Profile, a Job Search or a Job Digest), one Sidebar menu (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains; one conversation per Candidate each), or none for a Free conversation. A Job Offer's page starts a Free conversation with the Job Offer In view.
@@ -642,7 +642,7 @@ The column beside a Coach Conversation where one item opens to be acted on: a Re
 _Avoid_: Drawer (Back Office and the Sidebar on phones), document pane, modal
 
 **Result**:
-What an AI action of the Candidate produced and kept with its object: a Tailored CV, a Cover Letter, an Outreach or Follow-up message, an interview preparation. Listed in the Fiche's Results and in the reply that produced it; opened in the Work Pane at its own address (an Application's: `/candidatures/[id]/documents?resultat=cv-adapte|lettre|message`).
+What an object keeps for the Candidate and lists in its Fiche's Results: an Application's Tailored CV, Cover Letter, Outreach or Follow-up message and interview preparation (what an AI action produced, also listed in the reply that produced it); a Profile's Master CV Versions (newest first, the current one marked) and its CV export; a Job Search's or a Job Digest's Job Offers with their Match Score. Opened in the Work Pane at its own address (an Application's: `/candidatures/[id]/documents?resultat=cv-adapte|lettre|message`; a Job Search's: `/recherches/[id]/offres/[offre]`; a Job Digest's: `/job-digests/[id]/offres/[offre]`).
 _Avoid_: Output, artefact, deliverable
 
 **Context bar**:
@@ -654,7 +654,7 @@ The bar above every page beside the Sidebar: the page's title, the Menu button w
 _Avoid_: Header, navbar
 
 **Section**:
-One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels, Mes signalements or Mes données, a Profile's or an Application's parts, a Back Office section. An object's Sections are listed in its Fiche and each opens in the Work Pane (ADR-0070). On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
+One part of a long page, with its own address: Mon compte's Profils, Abonnement, Relances, Rappels, Mes signalements or Mes données, a Profile's or an Application's parts, a Job Search's « Offres trouvées », a Job Digest's « Offres trouvées » and « Réglages » (its Profile's Job Digest frequency), a Back Office section. An object's Sections are listed in its Fiche and each opens in the Work Pane (ADR-0070). On wide screens a page's Sections are listed beside it, or in the Sidebar in place of its links when the page has no room (the main menu one arrow away); on phones the list is the page and each Section opens as a drawer, its title in the Top Bar leading back to the list.
 _Avoid_: Tab, sub-page, panel
 
 **Design System**:

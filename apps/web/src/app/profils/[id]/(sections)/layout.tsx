@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Made } from "@/ai-activity";
-import { loadAiActivity } from "@/ai-activity/server";
-import { getAtsScoring } from "@/ats-score/server";
-import { getProfiles } from "@/profiles/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachInView } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
@@ -13,11 +9,12 @@ import { Card } from "@/design/Card";
 import { Pill } from "@/design/Pill";
 import { Ring } from "@/design/Ring";
 import { ProfileTitle, SearchCriteriaProperties } from "@/components/ProfileInlineEdits";
+import { pagesAreConversations } from "@/components/ObjectConversation";
 import { SectionsLayout } from "@/components/SectionsLayout";
 import { getServerT } from "@/i18n/server";
 import { readIndustryReference } from "@/reference-data/server";
 import { routes, type ProfileSection } from "@/routes";
-import { ArchivedCriteria, loadProfilePage } from "./profile-page";
+import { ArchivedCriteria, loadProfileAside, loadProfilePage } from "./profile-page";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -43,19 +40,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  * what can be done with it, each a page of its own under /profils/<id>.
  * Its Job Searches start from Recherches d'offres and the Coach Panel, its
  * Job Digest is on the Job Digests page: neither is offered here (#238).
+ * Under « Conversation au centre » (#605, ADR-0070), the page is the Profile's conversation instead (../layout.tsx), each
+ * Section opening in the Work Pane beside it.
  */
-export default async function ProfileLayout({ params, children }: Params & { children: ReactNode }) {
-  const { candidateId, profile, inView, locale, sections, cards } = await loadProfilePage((await params).id);
-  const [atsScore, versions] = await Promise.all([getAtsScoring().latest(candidateId, profile.id), getProfiles().masterCvVersions(candidateId, profile.id)]);
-  // The Master CV, when the AI Coach read it from the Candidate's file (#335), then the ATS Score and the Action Cards
-  // (ATS Fixes among them), each with what made it (#336).
-  const read = versions?.find((version) => version.provenance);
-  const made: Made[] = [
-    ...(read ? [{ kind: "master_cv" as const, at: read.savedAt, provenance: read.provenance }] : []),
-    ...(atsScore ? [{ kind: "ats_score" as const, at: atsScore.computedAt, provenance: atsScore.provenance }] : []),
-    ...cards.map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
-  ];
-  const [t, aiActivity] = await Promise.all([getServerT(), loadAiActivity.profile(candidateId, { id: profile.id }, made)]);
+export default async function ProfileSectionsLayout({ params, children }: Params & { children: ReactNode }) {
+  if (pagesAreConversations()) return children;
+  const id = (await params).id;
+  const { candidateId, profile, inView, locale, sections } = await loadProfilePage(id);
+  const [{ atsScore, aiActivity }, t] = await Promise.all([loadProfileAside(id), getServerT()]);
   const criteria = profile.searchCriteria;
   // An archived Profile's Sectors and Domains are read by their labels (#236); an active one's inputs fetch them.
   const industries = profile.archived ? await readIndustryReference() : null;

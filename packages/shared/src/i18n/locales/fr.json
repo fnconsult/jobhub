@@ -737,6 +737,30 @@
     "cards": {
       "summary": "Résumé",
       "skills": "Compétences"
+    },
+    "results": {
+      "export": "PDF ou Word, version {{version}}"
+    },
+    "conversation": {
+      "introduction": "Cette conversation porte sur votre profil « {{name}} » : le coach a sous les yeux son CV de référence et ses critères de recherche. Sa fiche est à droite, avec ses rubriques, son activité et ses résultats.",
+      "suggestions": {
+        "improveCv": {
+          "label": "Améliorer mon CV",
+          "message": "Relis mon CV de référence et dis-moi ce que je peux améliorer."
+        },
+        "atsScore": {
+          "label": "Comprendre mon ATS Score",
+          "message": "Explique-moi mon ATS Score et comment l'améliorer."
+        },
+        "criteria": {
+          "label": "Affiner mes critères",
+          "message": "Aide-moi à affiner les critères de recherche de ce profil."
+        },
+        "targetCompanies": {
+          "label": "Quelles entreprises cibler ?",
+          "message": "Quelles entreprises devrais-je cibler avec ce profil ?"
+        }
+      }
     }
   },
   "profileSwitcher": {
@@ -3752,7 +3776,24 @@
       "dismiss": "Fermer"
     },
     "matchScoreCaption": "Match Score",
-    "partialCaption": "Partiel"
+    "partialCaption": "Partiel",
+    "conversation": {
+      "introduction": "Cette conversation porte sur votre recherche d'offres du {{date}} pour le profil « {{profile}} » : le coach a sous les yeux les offres trouvées et leur score de correspondance. Sa fiche est à droite, avec son statut, ses critères et ses résultats.",
+      "suggestions": {
+        "bestOffers": {
+          "label": "Quelles offres choisir ?",
+          "message": "Parmi les offres trouvées, lesquelles me correspondent le mieux, et pourquoi ?"
+        },
+        "widenCriteria": {
+          "label": "Élargir mes critères",
+          "message": "Comment élargir mes critères pour trouver plus d'offres ?"
+        },
+        "searchAgain": {
+          "label": "Relancer une recherche",
+          "message": "Relance une recherche d'offres pour ce profil."
+        }
+      }
+    }
   },
   "companyDossier": {
     "title": "Dossier entreprise",
@@ -4259,7 +4300,12 @@
       "title": "Job Digest « {{profile}} »",
       "intro_one": "{{count}} nouvelle offre pour ce profil :",
       "intro_other": "{{count}} nouvelles offres pour ce profil, de la plus proche à la moins proche de votre CV de référence :",
-      "backToProfile": "Retour au profil"
+      "backToProfile": "Retour au profil",
+      "settings": "Réglages",
+      "profileLabel": "Profil",
+      "sentOnLabel": "Envoyé le",
+      "offersLabel": "Offres",
+      "archived": "Ce profil est archivé : il ne reçoit plus de Job Digest. Restaurez-le pour le recevoir à nouveau."
     },
     "email": {
       "subject_one": "Job Digest « {{profile}} » : {{count}} nouvelle offre",
@@ -4283,6 +4329,19 @@
       "action": "Me désabonner",
       "done": "C'est fait : vous ne recevrez plus ce Job Digest.",
       "invalid": "Ce lien de désabonnement n'est plus valable. Vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
+    },
+    "conversation": {
+      "introduction": "Cette conversation porte sur votre Job Digest du {{date}} pour le profil « {{profile}} » : le coach a sous les yeux ses offres et leur score de correspondance. Sa fiche est à droite, avec ses résultats et ses réglages.",
+      "suggestions": {
+        "bestOffers": {
+          "label": "Quelles offres choisir ?",
+          "message": "Parmi les offres de ce Job Digest, lesquelles me correspondent le mieux, et pourquoi ?"
+        },
+        "criteria": {
+          "label": "Affiner mes critères",
+          "message": "Ces offres correspondent-elles à mes critères ? Que devrais-je ajuster ?"
+        }
+      }
     }
   },
   "jobSearchesPage": {
@@ -4888,6 +4947,35 @@
     "showArchived": "Les afficher",
     "hideArchived": "Masquer les candidatures archivées"
   },
+  "jobSearchesMenu": {
+    "introduction": "Voici vos recherches d'offres, par profil. Demandez-moi quelles offres regarder en premier ou comment élargir vos critères ; pour trouver de nouvelles offres, lancez une recherche.",
+    "title": "Vos recherches par profil",
+    "tableLabel": "Recherches pour « {{profile}} »",
+    "found": "Offres trouvées",
+    "stillSearching": "recherche en cours",
+    "unseen": "Nouveaux résultats",
+    "none": "Aucune recherche pour ce profil pour l'instant.",
+    "receivedByEmail": "Voir les offres reçues par email",
+    "start": "Lancer une recherche",
+    "startFor": "Lancer une recherche · {{profile}}"
+  },
+  "jobDigestsMenu": {
+    "introduction": "Voici vos Job Digests, par profil : les nouvelles offres qui correspondent à vos critères, envoyées par email. Demandez-moi lesquelles regarder en premier ; leur fréquence se règle ici.",
+    "title": "Vos Job Digests par profil",
+    "tableLabel": "Job Digests de « {{profile}} »",
+    "sentOn": "Envoyé le",
+    "count": "Offres",
+    "none": "Aucun Job Digest envoyé pour ce profil pour l'instant."
+  },
+  "agendaMenu": {
+    "introduction": "Voici vos entretiens et rendez-vous. Demandez-moi de préparer un entretien ou de vous rappeler ce qui vient ; la semaine et le mois s'ouvrent à côté de notre conversation.",
+    "title": "Entretiens et rendez-vous",
+    "addInterview": "Ajouter un entretien"
+  },
+  "humanCoachesMenu": {
+    "introduction": "Voici vos coachs humains et vos séances de coaching. Demandez-moi comment préparer une séance ; pour en réserver une, choisissez un coach ci-dessous.",
+    "sessionsNone": "Aucune séance de coaching pour l'instant."
+  },
   "conversationFirst": {
     "newConversation": "Nouvelle conversation",
     "coach": "Coach",
@@ -5181,6 +5269,7 @@
       "activity": "Activité",
       "results": "Résultats"
     },
-    "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste."
+    "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
+    "matchScore": "Match Score : {{score}}"
   }
 }

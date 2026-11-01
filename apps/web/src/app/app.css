@@ -1120,6 +1120,26 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   max-width: none;
 }
 
+/* A Profile's, a Job Search's card in its Fiche (#605): its parts one under the other, its buttons their own width. */
+.profile-card,
+.job-search-card,
+.job-offer-in-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.profile-card > *,
+.job-search-card > :is(dl, .page-head-status),
+.job-offer-in-pane > :not(.btn-row) {
+  align-self: stretch;
+}
+
+.profile-card__status {
+  margin: 0;
+}
+
 .application-card__facts {
   margin: 0;
   color: var(--color-text-secondary);

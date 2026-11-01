@@ -70,10 +70,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rendez-vous",
         "semaine",
         "mois",
-        "séance"
+        "séance",
+        "à planifier"
       ],
       "route": "/agenda",
-      "body": "L'agenda montre vos entretiens et vos séances avec un coach humain. Affichez-le en liste (les prochains rendez-vous, jour par jour), par semaine ou par mois.\n\nAjoutez un entretien avec « Ajouter un entretien », ou depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ».\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu."
+      "body": "L'agenda montre vos entretiens et vos séances avec un coach humain. Affichez-le en liste (les prochains rendez-vous, jour par jour), par semaine ou par mois.\n\nAjoutez un entretien avec « Ajouter un entretien », ou depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ».\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu.\n\nAvec la nouvelle présentation, l'agenda est une conversation avec votre coach IA, la même à chaque visite. La liste y est une carte : vos prochains rendez-vous jour par jour, et les séances « À planifier ». « Semaine » et « Mois » ouvrent le calendrier à côté de la conversation ; « Ajouter un entretien » y ouvre son formulaire, qui se ferme une fois l'entretien ajouté. Demandez au coach de préparer un entretien ou de vous rappeler ce qui vient."
     },
     {
       "id": "page-job-digests",
@@ -88,10 +89,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "offres par e-mail",
         "recevoir",
         "fréquence",
-        "alerte"
+        "alerte",
+        "tout voir"
       ],
       "route": "/job-digests",
-      "body": "Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil. Vous le recevez par e-mail et le retrouvez sur cette page.\n\nPour chaque profil, choisissez de le recevoir et à quelle fréquence, dans la limite de votre offre : chaque semaine le lundi à 7 h, ou chaque jour à 7 h (heure de Paris).\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé."
+      "body": "Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil. Vous le recevez par e-mail et le retrouvez sur cette page.\n\nPour chaque profil, choisissez de le recevoir et à quelle fréquence, dans la limite de votre offre : chaque semaine le lundi à 7 h, ou chaque jour à 7 h (heure de Paris).\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nAvec la nouvelle présentation, « Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Vos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-profile",
@@ -110,7 +112,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "dupliquer"
       ],
       "route": "/profils/[id]",
-      "body": "Un profil rassemble votre CV de référence et vos critères de recherche pour un métier. Ses rubriques : Propositions, CV de référence, ATS Score, Télécharger et Gérer.\n\nCommencez par l'ATS Score : il dit si les logiciels de recrutement liront bien votre CV. Les corrections que propose votre coach apparaissent dans « Propositions » ; acceptez-les ou ignorez-les une par une.\n\nChaque enregistrement du CV de référence crée une nouvelle version, et vous pouvez revenir à une version précédente. « Gérer » permet de renommer, dupliquer ou archiver le profil."
+      "body": "Un profil rassemble votre CV de référence et vos critères de recherche pour un métier. Ses rubriques : Propositions, CV de référence, ATS Score, Télécharger et Gérer.\n\nCommencez par l'ATS Score : il dit si les logiciels de recrutement liront bien votre CV. Les corrections que propose votre coach apparaissent dans « Propositions » ; acceptez-les ou ignorez-les une par une.\n\nChaque enregistrement du CV de référence crée une nouvelle version, et vous pouvez revenir à une version précédente. « Gérer » permet de renommer, dupliquer ou archiver le profil.\n\nAvec la nouvelle présentation, la page d'un profil est sa conversation avec votre coach IA : il a sous les yeux son CV de référence et ses critères de recherche. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Améliorer mon CV », « Comprendre mon ATS Score », « Affiner mes critères », « Quelles entreprises cibler ? ». La conversation est gardée avec le profil et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, le profil et son CV restent.\n\nÀ droite, la fiche du profil : s'il est actif ou archivé, « Chercher des offres », ses critères de recherche, que vous modifiez sur place, et son ATS Score, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». Les résultats d'un profil sont les versions de son CV de référence, la plus récente en premier, et son téléchargement en PDF ou Word. « Fiche », en haut de la page, l'ouvre ou la ferme.\n\nUne rubrique (CV de référence, ATS Score, Entreprises cibles, Télécharger, Gérer), une version du CV de référence, son historique ou l'éditeur complet du CV s'ouvrent à côté de la conversation, sans la cacher : vous y modifiez, restaurez ou téléchargez comme avant. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse."
     },
     {
       "id": "page-application",
@@ -161,7 +163,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "recherche terminée"
       ],
       "route": "/recherches/[id]",
-      "body": "Cette page montre une recherche d'offres et les offres qu'elle a trouvées, classées par score de correspondance avec le profil.\n\nOuvrez une offre pour la lire en entier, puis enregistrez-la pour la suivre dans vos candidatures. « Relancer une recherche » en lance une nouvelle pour le même profil."
+      "body": "Cette page montre une recherche d'offres et les offres qu'elle a trouvées, classées par score de correspondance avec le profil.\n\nOuvrez une offre pour la lire en entier, puis enregistrez-la pour la suivre dans vos candidatures. « Relancer une recherche » en lance une nouvelle pour le même profil.\n\nAvec la nouvelle présentation, la page d'une recherche est sa conversation avec votre coach IA : il a sous les yeux les offres trouvées et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Élargir mes critères », « Relancer une recherche ».\n\nÀ droite, la fiche de la recherche : son statut, sa date de lancement et les critères de recherche du profil, que « Modifier les critères » ouvre, puis « Relancer une recherche », ou « Arrêter la recherche » tant qu'elle cherche. Dans « Résultats », chaque offre trouvée avec son score de correspondance ; « Offres trouvées », dans « Sections », les liste toutes. Une offre s'ouvre à côté de la conversation, sans la cacher, avec son score, ce qui l'explique, et « Enregistrer en candidature ». « Fermer » ou la touche Échap la referme."
     },
     {
       "id": "page-applications",
@@ -198,10 +200,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "professionnel",
         "rh",
         "accès coach",
-        "réserver"
+        "réserver",
+        "séances payées"
       ],
       "route": "/coachs",
-      "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment."
+      "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment.\n\nAvec la nouvelle présentation, « Mes coachs humains » est une conversation avec votre coach IA, la même à chaque visite. Vos séances et les coachs humains y sont deux cartes : réservez, choisissez votre créneau ou gérez l'accès d'un coach comme avant. Demandez au coach IA comment préparer une séance."
     },
     {
       "id": "page-subscription",
@@ -277,10 +280,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "chercher",
         "trouver",
         "nouvelles offres",
-        "lancer"
+        "lancer",
+        "lancer une recherche",
+        "reçues par email",
+        "tout voir"
       ],
       "route": "/recherches",
-      "body": "Votre coach cherche des offres d'emploi selon les critères de recherche d'un profil. Choisissez le profil, ou tous vos profils actifs, puis lancez la recherche.\n\nLa page se met à jour toute seule pendant la recherche, et vous pouvez l'arrêter. Les dernières offres trouvées s'affichent avec leur score de correspondance.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas."
+      "body": "Votre coach cherche des offres d'emploi selon les critères de recherche d'un profil. Choisissez le profil, ou tous vos profils actifs, puis lancez la recherche.\n\nLa page se met à jour toute seule pendant la recherche, et vous pouvez l'arrêter. Les dernières offres trouvées s'affichent avec leur score de correspondance.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nAvec la nouvelle présentation, « Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Vos recherches y sont listées dans une carte, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email » les ouvre à côté de la conversation.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -354,7 +360,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "offres reçues"
       ],
       "route": "/job-digests/[id]",
-      "body": "Ce Job Digest rassemble les nouvelles offres trouvées pour un profil, classées par score de correspondance.\n\nOuvrez une offre pour la lire, puis enregistrez-la pour la suivre dans vos candidatures. Un Job Digest ne compte dans aucun quota."
+      "body": "Ce Job Digest rassemble les nouvelles offres trouvées pour un profil, classées par score de correspondance.\n\nOuvrez une offre pour la lire, puis enregistrez-la pour la suivre dans vos candidatures. Un Job Digest ne compte dans aucun quota.\n\nAvec la nouvelle présentation, la page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux ses offres et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ».\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés. Une offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher. « Fermer » ou la touche Échap les referme."
     },
     {
       "id": "page-order",
@@ -855,7 +861,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "offers received"
       ],
       "route": "/job-digests/[id]",
-      "body": "This Job Digest gathers the new job offers found for a profile, ranked by Match Score.\n\nOpen a job offer to read it, then save it to follow it in your applications. A Job Digest never counts against a quota."
+      "body": "This Job Digest gathers the new job offers found for a profile, ranked by Match Score.\n\nOpen a job offer to read it, then save it to follow it in your applications. A Job Digest never counts against a quota.\n\nWith the new layout, a Job Digest's page is its conversation with your AI coach: it has its job offers and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ».\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent. A job offer or the settings open beside the conversation, without hiding it. « Close » or the Escape key closes them."
     },
     {
       "id": "page-job-offer",
@@ -887,7 +893,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "finished search"
       ],
       "route": "/recherches/[id]",
-      "body": "This page shows one job search and the job offers it found, ranked by Match Score with the profile.\n\nOpen a job offer to read it in full, then save it to follow it in your applications. « Search again » starts a new search for the same profile."
+      "body": "This page shows one job search and the job offers it found, ranked by Match Score with the profile.\n\nOpen a job offer to read it in full, then save it to follow it in your applications. « Search again » starts a new search for the same profile.\n\nWith the new layout, a job search's page is its conversation with your AI coach: it has the job offers found and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Widen my criteria », « Search again ».\n\nOn the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all. A job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application ». « Close » or the Escape key closes it."
     },
     {
       "id": "page-profile",
@@ -906,7 +912,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "duplicate"
       ],
       "route": "/profils/[id]",
-      "body": "A profile gathers your Master CV and your search criteria for one role. Its sections: Suggestions, Master CV, ATS Score, Download and Manage.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one.\n\nEach time you save the Master CV, a new version is created, and you can go back to an earlier one. « Manage » lets you rename, duplicate or archive the profile."
+      "body": "A profile gathers your Master CV and your search criteria for one role. Its sections: Suggestions, Master CV, ATS Score, Download and Manage.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one.\n\nEach time you save the Master CV, a new version is created, and you can go back to an earlier one. « Manage » lets you rename, duplicate or archive the profile.\n\nWith the new layout, a profile's page is its conversation with your AI coach: it has the profile's Master CV and search criteria in view. Until you have written anything, suggestions wait above the message box: « Improve my CV », « Understand my ATS Score », « Refine my criteria », « Which companies to target? ». The conversation is kept with the profile and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the profile and its CV stay.\n\nOn the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.\n\nA section (Master CV, ATS Score, Target companies, Download, Manage), a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it: you edit, restore or download there as before. « Close » or the Escape key closes it. Each section keeps its address."
     },
     {
       "id": "page-application",
@@ -1033,10 +1039,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "appointment",
         "week",
         "month",
-        "session"
+        "session",
+        "to schedule"
       ],
       "route": "/agenda",
-      "body": "The agenda shows your interviews and your sessions with a human coach. Show it as a list (upcoming appointments, day by day), by week or by month.\n\nAdd an interview with « Add an interview », or from the « Interviews » section of an application at the « Interview » stage.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.\n\nFor 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Renoncer au contrat ici » (withdraw from the contract here) cancels it and refunds it in full; the coach is told."
+      "body": "The agenda shows your interviews and your sessions with a human coach. Show it as a list (upcoming appointments, day by day), by week or by month.\n\nAdd an interview with « Add an interview », or from the « Interviews » section of an application at the « Interview » stage.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.\n\nFor 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Renoncer au contrat ici » (withdraw from the contract here) cancels it and refunds it in full; the coach is told.\n\nWith the new layout, the agenda is a conversation with your AI coach, the same one every visit. The list is a card there: your upcoming appointments day by day, and the sessions « To schedule ». « Week » and « Month » open the calendar beside the conversation; « Add an interview » opens its form there, which closes once the interview is added. Ask the coach to prepare an interview or to remind you what is coming."
     },
     {
       "id": "page-job-digests",
@@ -1051,10 +1058,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "offers by email",
         "receive",
         "frequency",
-        "alert"
+        "alert",
+        "see all"
       ],
       "route": "/job-digests",
-      "body": "A Job Digest is a selection of new job offers matching a profile's search criteria. You get it by email and find it on this page too.\n\nFor each profile, choose whether to receive it and how often, within your plan: every week on Monday at 7 am, or every day at 7 am (Paris time).\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent."
+      "body": "A Job Digest is a selection of new job offers matching a profile's search criteria. You get it by email and find it on this page too.\n\nFor each profile, choose whether to receive it and how often, within your plan: every week on Monday at 7 am, or every day at 7 am (Paris time).\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nWith the new layout, « Job Digests » is a conversation with your AI coach, the same one every visit. Your Job Digests are listed there in a card, by profile: how often it comes, which you set there, then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
     },
     {
       "id": "page-job-searches",
@@ -1068,10 +1076,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "look for",
         "find",
         "new job offers",
-        "start"
+        "start",
+        "start a search",
+        "received by email",
+        "see all"
       ],
       "route": "/recherches",
-      "body": "Your coach searches for job offers that meet a profile's search criteria. Choose the profile, or all your active profiles, then start the search.\n\nThe page updates by itself while the search runs, and you can stop it. The latest job offers found are shown with their Match Score.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count."
+      "body": "Your coach searches for job offers that meet a profile's search criteria. Choose the profile, or all your active profiles, then start the search.\n\nThe page updates by itself while the search runs, and you can stop it. The latest job offers found are shown with their Match Score.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nWith the new layout, « Job searches » is a conversation with your AI coach, the same one every visit. Your searches are listed there in a card, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email » opens them beside the conversation.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -1129,10 +1140,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "professional",
         "hr",
         "coach access",
-        "book"
+        "book",
+        "paid sessions"
       ],
       "route": "/coachs",
-      "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time."
+      "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time.\n\nWith the new layout, « My human coaches » is a conversation with your AI coach, the same one every visit. Your sessions and the human coaches are two cards there: book, pick your time or manage a coach's access as before. Ask the AI coach how to prepare a session."
     },
     {
       "id": "page-subscription",

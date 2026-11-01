@@ -2125,6 +2125,18 @@ html[data-sidebar="closed"] .sidebar-docked {
   border-top: 1px solid var(--color-border);
 }
 
+/* « Version de Jobbbox » (#559): in the Back Office's sidebar foot and under Mon compte's Sections. */
+.release-line {
+  margin: 0;
+  font-size: var(--font-size-meta);
+  color: var(--color-meta);
+  overflow-wrap: anywhere;
+}
+
+.sidebar-foot .release-line {
+  padding: var(--space-1) var(--space-2);
+}
+
 /* The Usage Meter (ADR-0032): the week's Plan Quotas as one bar, when they renew under it, its detail
    a small card opened above it (#321), so the sidebar's foot never moves. */
 .usage-meter {

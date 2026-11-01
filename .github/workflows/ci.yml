@@ -41,6 +41,8 @@ jobs:
       # so one merged late, with no new push since its pull request was checked, turns main red and cannot be deployed.
       - run: npx tsx packages/help/scripts/check-legal-immutability.ts HEAD^1
       - run: npm run lint
+      # One Version for the web app and the worker (#559): apps/web and apps/worker repeat the root package.json's.
+      - run: npm run check:versions
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

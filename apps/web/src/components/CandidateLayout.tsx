@@ -17,11 +17,15 @@ import { getFollowUps } from "@/follow-ups/server";
 import { conversationFirst } from "@/conversation-first";
 import { getRequestLocale } from "@/i18n/server";
 import { currentHumanCoach } from "@/human-coaches/server";
+import { jobDigestsMenu } from "@/job-digests/menu";
+import { getJobDigests } from "@/job-digests/server";
+import { jobSearchesMenu } from "@/job-searches/menu";
 import { getJobSearches } from "@/job-searches/server";
 import { PrivacyChangeNotice } from "@/components/PrivacyChangeNotice";
 import { getLegalTextNotices } from "@/legal-text-notices/server";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
+import { objectDay } from "@/sidebar-menus";
 import { getSignalements, jobbboxVersion } from "@/signalements/server";
 
 /** The privacy policy's change to show the Candidate once (#547); never fails the page: without it, there is none. */
@@ -61,14 +65,28 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
 }
 
 /**
- * What the Sidebar's menus with objects unfold into, while « Conversation au centre » is on (#604): Mes candidatures'
- * Applications. Never fails the page: without them, the menus are plain links.
+ * What the Sidebar's menus with objects unfold into, while « Conversation au centre » is on: Mes candidatures'
+ * Applications (#604), Recherches d'offres' Job Searches and the Job Digests (#606), the active Profiles' only. Never
+ * fails the page: without them, the menus are plain links.
  */
 async function sidebarMenus(candidateId: string, on: boolean): Promise<SidebarMenus | undefined> {
   if (!on) return undefined;
   try {
-    const [applications, notices] = await Promise.all([getApplications().list(candidateId), getFollowUps().notices(candidateId)]);
-    return { applications: applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar };
+    const [applications, notices, profiles, searches, digests, locale] = await Promise.all([
+      getApplications().list(candidateId),
+      getFollowUps().notices(candidateId),
+      getProfiles().list(candidateId),
+      getJobSearches().list(candidateId),
+      getJobDigests().list(candidateId),
+      getRequestLocale(),
+    ]);
+    const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
+    const dateLabel = objectDay(locale);
+    return {
+      applications: applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar,
+      jobSearches: jobSearchesMenu({ profiles: active, searches, dateLabel }).sidebar,
+      jobDigests: jobDigestsMenu({ profiles: active, digests, dateLabel }).sidebar,
+    };
   } catch (error) {
     console.error("[sidebar] could not read the menus' objects", error);
     return {};
@@ -87,7 +105,7 @@ async function sidebarMenus(candidateId: string, on: boolean): Promise<SidebarMe
  * `wide` gives the page room for a board. `aiActivity`: the page's elements for
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
  * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations,
- * Mes candidatures unfolds into its Applications (#604), and `fiche`, an object's Fiche, stands beside its conversation (#603).
+ * Mes candidatures, Recherches d'offres and Job Digests unfold into their objects (#604, #606), and `fiche`, an object's Fiche, stands beside its conversation (#603).
  * While a CGU version waits for the Candidate's Acceptance (ADR-0062), only their data and
  * subscription pages render: the others send them to the Acceptance screen (acceptances/gate.ts).
  */

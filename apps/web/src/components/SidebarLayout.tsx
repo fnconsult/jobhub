@@ -11,7 +11,7 @@ import { UsageMeter } from "@/components/UsageMeter";
 import { AiActivityProvider } from "@/components/AiActivity";
 import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
-import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
+import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { Fiche, FicheButtons, FicheProvider, type FicheContent } from "@/components/Fiche";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
@@ -43,7 +43,7 @@ const LABELS = {
  * `freeConversations`: under « Conversation au centre » (#601, ADR-0070), the Candidate's Free conversations; the Sidebar
  * then has « Nouvelle conversation » and « Coach » with them above its links, and the Top Bar « Effacer » in place of
  * « Aide et coach » (« Aide » on a page without a conversation), and the Work Pane opens beside the page (#602). Null
- * while the switch is off. `menus`: then, what its menus with objects unfold into (#604). `fiche`: an object's page (an
+ * while the switch is off. `menus`: then, what its menus with objects unfold into (#604, #606). `fiche`: an object's page (an
  * Application's, #603): the Fiche beside the conversation, after the Work Pane, and « Fiche » and « Activité » in the Top
  * Bar in place of AI Activity's button, which the Fiche shows; ignored while the switch is off.
  */
@@ -138,8 +138,19 @@ export function SidebarLayout({
             <ul>
               {items.map((item) => {
                 const NavIcon = Icons[item.key];
-                if (item.key === "applications" && freeConversations)
-                  return <SidebarMenu key={item.key} menu={item.key} href={item.href} current={item.current} icon={<NavIcon />} label={t(LABELS[item.key])} onNavigate={closeDrawer} />;
+                if (hasObjects(item.key) && freeConversations)
+                  return (
+                    <SidebarMenu
+                      key={item.key}
+                      menu={item.key}
+                      // Recherches d'offres' menu is one conversation for every Profile (#606): its page, not one Profile's.
+                      href={item.key === "jobSearches" ? routes.jobSearches() : item.href}
+                      current={item.current}
+                      icon={<NavIcon />}
+                      label={t(LABELS[item.key])}
+                      onNavigate={closeDrawer}
+                    />
+                  );
                 return (
                   <li key={item.key}>
                     <Link className="sidebar-link" href={item.href} aria-current={item.current ? CURRENT : undefined} onClick={closeDrawer}>

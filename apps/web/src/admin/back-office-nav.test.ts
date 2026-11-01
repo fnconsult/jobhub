@@ -5,9 +5,15 @@ import { BACK_OFFICE_PAGES, backOfficeNav } from "./back-office-nav";
 const sections = (nav: ReturnType<typeof backOfficeNav>) => nav.map((group) => [group.key, group.sections.map((section) => [section.key, section.href])]);
 
 describe("the Back Office navigation", () => {
-  it("shows a super-admin every section, grouped, Signalements first under Candidats, Plans, their Quotas and Coupons under Offre, Paramètres (with the former Clés, Connexion and Sites de recherche, #396), AI consumption and Activité (#404) under Plateforme", () => {
+  it("shows a super-admin every section, grouped, Signalements first under Candidats then the Withdrawals (#511), Plans, their Quotas and Coupons under Offre, Paramètres (with the former Clés, Connexion and Sites de recherche, #396), AI consumption and Activité (#404) under Plateforme", () => {
     expect(sections(backOfficeNav(backOfficeAccess(["super-admin"])))).toEqual([
-      ["candidates", [["signalements", "/admin/signalements"]]],
+      [
+        "candidates",
+        [
+          ["signalements", "/admin/signalements"],
+          ["withdrawals", "/admin/retractations"],
+        ],
+      ],
       [
         "offer",
         [

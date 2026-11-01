@@ -1,23 +1,23 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFileSync } from "node:fs";
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
-import { alertEmail, inboundPayload } from "../apps/web/src/email-intake/fixtures/brevo-inbound";
+import { alertEmail, inboundRequest } from "../apps/web/src/email-intake/fixtures/inbound-emails";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #450: a Candidate recognises a sender for themselves alone, from an « expéditeur non reconnu » row (one click)
 // or by pasting its sending address on « Réception par email »; it counts from their next email, and still not for
 // another Candidate. Each addition is proposed to Administrators (domain and number of Candidates, no names); accepting
-// one adds it to the platform's list, for all. Emails are delivered over HTTP as Brevo would (fictional payloads); in
+// one adds it to the platform's list, for all. Emails are delivered over HTTP as the MTA would (fictional emails); in
 // the worker project because the emails it delivers are queued for reading, and no worker must read them meanwhile.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const recognised = fr.emailIntake.recognised;
 const proposed = fr.admin.emailIntake.proposed;
 const origin = process.env.E2E_WEB_ORIGIN!;
-const SECRET = "e2e-brevo-inbound-secret";
-const BREVO_IP = "203.0.113.7"; // inside EMAIL_INTAKE_BREVO_IP_RANGES (playwright.config.ts)
+const SECRET = "e2e-email-intake-inbound-secret-0123456789";
+const MTA_IP = "203.0.113.7"; // inside EMAIL_INTAKE_MTA_IP_RANGES (playwright.config.ts)
 const SUPER_ADMIN = "email-intake-office@e2e.jobbbox.test";
-const SHEET = "/admin/parametres?tab=sources&fournisseur=brevo-inbound";
+const SHEET = "/admin/parametres?tab=sources&fournisseur=email-intake";
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 
@@ -35,10 +35,8 @@ const masterCv = {
 };
 
 function deliver(request: APIRequestContext, to: string, from: string, messageId: string) {
-  return request.post("/api/email-intake/inbound", {
-    headers: { "x-forwarded-for": BREVO_IP, "x-inbound-secret": SECRET },
-    data: inboundPayload(alertEmail(to, { from, messageId })),
-  });
+  const { headers, body } = inboundRequest(alertEmail(to, { from, messageId }), SECRET);
+  return request.post("/api/email-intake/inbound", { headers: { ...headers, "x-forwarded-for": MTA_IP }, data: body });
 }
 
 /** A Candidate signed in on a page of their own, with Email intake switched on: their Forwarding address. */

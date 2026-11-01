@@ -205,6 +205,23 @@ test.describe("what the AI Coach is told", () => {
     expect(context).toMatch(/- Sélection B chez Acme Industrie \(Lyon\) : score \d+\/100/);
   });
 
+  test("sends only the 30 best Match Scores of a Job Search or Job Digest In view, saying how many were left out (#600)", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("ctx-best-30"));
+    const profileId = await createProfile(page, "Directrice financière");
+    const offers: string[] = [];
+    for (let n = 1; n <= 33; n++) offers.push(await captureOffer(page, `Offre numéro ${n}`, n % 2 ? SKILLS : ["Cuisine"]));
+    const searchId = await storeResults("job_search", await candidateId(page), profileId, offers);
+    const digestId = await storeResults("job_digest", await candidateId(page), profileId, offers);
+
+    for (const focus of [{ kind: "job_search", id: searchId }, { kind: "job_digest", id: digestId }]) {
+      const context = await contextOf(page, focus);
+      // The In-view item's own list (the summaries elsewhere also list the best offers): from its heading to the note on what was left out.
+      const inView = /meilleur score d'abord :\n((?:- .*\n)+)\(3 autres offres/.exec(context)?.[1];
+      expect(inView, `${focus.kind} lists its best offers, then says 3 were left out`).toBeDefined();
+      expect(inView!.trim().split("\n"), focus.kind).toHaveLength(30);
+    }
+  });
+
   test("puts the Agenda in view (#254): the Candidate's own Agenda Items of the next 30 days, with their notes", async ({ page, browser }) => {
     const other = await browser.newPage();
     await signInWithMagicLink(other, newAddress("ctx-agenda-other"));

@@ -3,6 +3,7 @@
  * run repeatedly. `npm run db:migrate` runs it; tests use it to check rules that
  * hold across all tables (e.g. what deleting a Candidate removes, ADR-0010).
  */
+import { migrateAcceptances } from "./acceptances/index";
 import { migrateActionCards } from "./action-cards/index";
 import { migrateAdministratorRoles } from "./admin/administrators";
 import { migrateBackOfficeAudit } from "./admin/back-office";
@@ -31,9 +32,12 @@ import { migrateHumanCoaches } from "./human-coaches/index";
 import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
+import { migrateLegalTextNotices } from "./legal-text-notices/index";
+import { migrateOrders } from "./orders/index";
 import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
+import { migrateQuotaReductions } from "./quota-reductions/index";
 import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
@@ -43,6 +47,7 @@ import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateTargetCompanies } from "./target-companies/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
 import { migrateWebSearchAlerts } from "./web-search-alert/index";
+import { migrateWithdrawals } from "./withdrawals/index";
 
 /**
  * Migrates every table; `onMigrated` hears what is up to date after each step ("Profiles are up to date").
@@ -75,11 +80,15 @@ export async function migrateDatabase(
     ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
+    ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],
+    ["Quota Reductions are up to date", () => migrateQuotaReductions(database)],
+    ["Acceptances of the CGU and CGV are up to date", () => migrateAcceptances(database)],
+    ["Orders are up to date", () => migrateOrders(database)],
     ["Back Office Roles are up to date", () => migrateAdministratorRoles(database)],
     ["Provider Secrets are up to date", () => migrateProviderSecrets(database)],
     ["Platform Settings are up to date", () => migratePlatformSettings(database)],
@@ -94,6 +103,7 @@ export async function migrateDatabase(
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
     ["Signalements are up to date", () => migrateSignalements(database)],
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
+    ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],
     ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
   ];
   for (const [done, migrate] of steps) {

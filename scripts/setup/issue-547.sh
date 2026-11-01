@@ -180,45 +180,29 @@ finish() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# STAGES: Email intake through Brevo Inbound Parsing (#442). Brevo posts each
-# forwarded email to /api/email-intake/inbound, authenticated by a shared
-# secret (BREVO_INBOUND_SECRET, a Provider Secret entered in Clés, Brevo).
-# None of these values are GitHub secrets or .env values: this only walks the
-# human through the Back Office and the Brevo and DNS dashboards.
+# STAGES: issue #547, Brevo tracking off for the Legal Text notice email.
 # ──────────────────────────────────────────────────────────────────────────
 
-TOTAL_STAGES=4
+TOTAL_STAGES=2
 
-banner "Email intake: Brevo Inbound Parsing (#442)"
+banner "Issue #547: Brevo sends the Legal Text notice without tracking"
 
-stage "Generate the inbound shared secret"
-say "Brevo sends this secret with every inbound email; the app refuses any post without it."
-step "A new random value is generated below. Copy it; it is shown once."
-INBOUND_SECRET=$(openssl rand -hex 32)
-note "$INBOUND_SECRET"
-step "In the Back Office, open Clés (Brevo) and paste it as BREVO_INBOUND_SECRET for this environment."
-confirm "Saved in Clés (Brevo) for this environment?" || SKIPPED+=("Save BREVO_INBOUND_SECRET in Clés (Brevo)")
-unset INBOUND_SECRET
+stage "Brevo: open and click tracking"
+say "The notice email must carry no pixel and no tracked link (docs/privacy/register.md)."
+open_url "https://app.brevo.com/senders/list"
+step "Brevo → Transactional → Settings → Configuration (or Settings → Transactional)."
+step "Find the open tracking and click tracking options for transactional emails."
+step "Turn both OFF. If Brevo only offers a per-message option, note it below."
+note "The exact menu name was not verified (docs/research/issue-547.md, item 3)."
+confirm "Both tracking options are off for transactional emails?"
 
-stage "Point Brevo Inbound Parsing at the app"
-ask APP_HOST "Host of this environment (e.g. jobbbox.ai or staging.jobbbox.ai):"
-open_url "https://app.brevo.com/"
-step "Open Inbound Parsing (Transactional, then Inbound parsing) and add a webhook."
-step "URL: https://${APP_HOST}/api/email-intake/inbound"
-step "Under the webhook's headers, add x-inbound-secret with the value from the previous stage."
-confirm "Webhook saved with that URL and header?" || SKIPPED+=("Create the Brevo inbound webhook for https://${APP_HOST}/api/email-intake/inbound")
-
-stage "Point the forwarding domain's MX at Brevo"
-say "Candidates forward their mail to addresses on the email-intake domain (default alertes.jobbbox.ai)."
-step "In Brevo's Inbound Parsing settings, copy the MX record it shows for your inbound domain."
-step "In your DNS provider, add that MX record for the inbound domain, exactly as Brevo states it."
-note "Do not invent the MX value: use the one Brevo displays for your account."
-confirm "MX record added and visible from a DNS lookup?" || SKIPPED+=("Add the Brevo inbound MX record for the email-intake domain")
-
-stage "Check Brevo's IP ranges"
-say "The webhook refuses posts from outside Brevo's IP ranges (Paramètres, default 1.179.112.0/20 and 172.246.240.0/20)."
-step "Compare them with the ranges Brevo publishes for Inbound Parsing."
-step "If they differ, set them in Paramètres (Email intake), not in .env."
-confirm "Ranges in Paramètres match Brevo's published list?" || SKIPPED+=("Check EMAIL_INTAKE_BREVO_IP_RANGES in Paramètres against Brevo's list")
+stage "Product owner: legal references"
+say "Confirm the points left open in docs/research/issue-547.md, items 1, 2 and 4:"
+step "Code de la consommation L215-1-1: 30 days, and which contracts."
+step "RGPD art. 12-13: is an email required, or does an in-app notice suffice?"
+step "Service email without marketing opt-in (ePrivacy art. 13, CNIL)."
+note "Nothing is written to .env or CI: this wizard only records your confirmation."
+confirm "Points 1, 2 and 4 confirmed, or the register wording adjusted?"
+# ──────────────────────────────────────────────────────────────────────────
 
 finish

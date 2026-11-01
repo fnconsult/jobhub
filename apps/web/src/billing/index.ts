@@ -5,8 +5,16 @@
  *  - what may this Candidate do?  `entitlements`, `use`, `allows`, `release`, `allowsAnother`
  *  - how do they change Plan?     `startCheckout`, `openCustomerPortal`, `handleStripeWebhook`
  *  - how do they pay a Coaching Session?  `coachingSessionPrice`, `startCoachingSessionCheckout`
- *    (the signed webhook reports it paid through `onCoachingSessionPaid`)
- *  - how do they stop paying?     `closeAccount`, when they delete their account
+ *    (the signed webhook reports it paid through `onCoachingSessionPaid`, and every paid Checkout, a Plan's included,
+ *    through `onCheckoutPaid`: the Order Confirmation of #512)
+ *  - how do they stop paying?     `cancellationTerms`, `scheduleCancellation` (« Résilier votre contrat », #513),
+ *                                 and `closeAccount` when they delete their account;
+ *                                 `endSubscriptionWithProrataRefund` (`retryProrataRefund`) when they cancel over a
+ *                                 Quota Reduction (#514)
+ *  - how do they withdraw (#511)?  `subscription` (since when), `paidOnSubscription`, `endSubscriptionNow`,
+ *    `coachingSessionPayment`, `refund`
+ *    (the signed webhook reports each refund's fate through `onRefundChanged`)
+ *  - who pays for a Plan?         `subscribersOf`
  *  - which Plans are there?       `plans`, and in the Back Office `createPlan`, `updatePlan`, `movePlan`
  *  - what do the Plans allow?     `planQuotas`, `setPlanQuotas` (back office), `upgradeFor`
  *  - what do the Plans cost?      `planPrices`
@@ -32,6 +40,7 @@ import type { Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import { recordingClient, type ExternalApiLog } from "@jobhub/shared";
 import Stripe from "stripe";
+import type { Mailer } from "../auth/index";
 import type { Queryable } from "../database/pool";
 import * as z from "zod";
 import { routes } from "../routes";
@@ -50,7 +59,9 @@ import {
   type PlanDefinition,
   type PlanName,
 } from "./plans";
+import { cancellationReceiptEmail } from "./cancellation-email";
 import { createCodeLookups } from "./code-lookups";
+import { type StripeWebhookEvent } from "./webhook-events";
 import { couponOf, couponParams, COUPON_CURRENCY, listedCouponOf, termsOf, type ActiveDiscount, type Coupon, type CouponResult, type ListedCoupon } from "./coupons";
 
 export type { PlanDefinition, PlanName } from "./plans";
@@ -72,9 +83,82 @@ export interface BillingConfig {
    * throws, the webhook fails and Stripe retries the delivery.
    */
   onCoachingSessionPaid?: (paid: PaidCoachingSession) => Promise<unknown>;
+  /**
+   * Told of each Checkout Stripe confirms as paid (or free, a 100 % code), a Plan's or a Coaching Session's, from its
+   * signed webhook (#512: the Orders module emails its confirmation). Stripe may report one more than once, even
+   * concurrently: it must be idempotent per Checkout Session. If it throws, the webhook fails and Stripe retries.
+   */
+  onCheckoutPaid?: (paid: PaidCheckout) => Promise<unknown>;
   /** Where each Stripe call, webhooks received included, is recorded (#234): its API method, never its parameters. Default: nowhere. */
   externalApis?: ExternalApiLog;
+  /**
+   * Told of each refund whose status Stripe reports from its signed webhook (`refund.updated`, `refund.failed`): a refund
+   * can fail days after it was made (#511). Stripe may report one more than once: it must be idempotent. If it throws,
+   * the webhook fails and Stripe retries the delivery.
+   */
+  onRefundChanged?: (change: RefundChange) => Promise<unknown>;
+  /** Sends the acknowledgement of a cancellation (Brevo). Without one, nothing is sent. */
+  mailer?: Pick<Mailer, "send">;
 }
+
+/** A payment Stripe took (a PaymentIntent, or a charge without one), in the currency's smallest unit (cents). */
+export interface Payment {
+  id: string;
+  amount: number;
+  currency: string;
+  /** The period a subscription's payment paid for, when Stripe tells it (its invoice's first line). */
+  period?: { start: Date; end: Date };
+}
+
+/** Where a refund stands, as Stripe says. */
+export type RefundStatus = "pending" | "requires_action" | "succeeded" | "failed" | "canceled";
+
+/** A refund Stripe took (with its status), or why it refused it: Stripe's error code, or `stripe_unavailable`. */
+export type RefundResult = { ok: true; id: string; status: RefundStatus } | { ok: false; reason: string };
+
+/** A refund's status as Stripe reported it later, with why it failed (Stripe's `failure_reason`). */
+export interface RefundChange {
+  id: string;
+  status: RefundStatus;
+  failureReason: string | null;
+}
+
+/** The Candidate's paid subscription: its Plan, and since when it runs (when the contract was concluded). */
+export interface CurrentSubscription {
+  id: string;
+  plan: Plan;
+  planName: PlanName;
+  startedAt: Date;
+}
+
+/** A paid Plan the Candidate may cancel from Jobbbox, as the confirmation page shows it. */
+export interface CancellationTerms {
+  plan: Plan;
+  planName: PlanName;
+  /** The end of the paid period: the Candidate keeps the Plan until then, and is not charged again. */
+  endsAt: Date;
+}
+
+/**
+ * What confirming a cancellation did: scheduled it in Stripe at `endsAt` (and `acknowledged` says whether its
+ * acknowledgement was emailed), or nothing, the Candidate having no paid Plan whose cancellation is not scheduled yet.
+ */
+export type CancellationResult = { ok: true; plan: Plan; requestedAt: Date; endsAt: Date; acknowledged: boolean } | { ok: false; error: "not_cancellable" };
+
+/**
+ * How a subscription ended over a Quota Reduction (#514) was refunded: the refund Stripe made (null when nothing was
+ * left to refund, or nothing was paid), or why it was not: Stripe's error code, or `stripe_unavailable`. The
+ * subscription is ended either way; a refund that was not made can be asked again with `retryProrataRefund`.
+ */
+export type ProrataRefundResult =
+  | { ok: true; refund: { id: string; amount: number; currency: string } | null }
+  | {
+      ok: false;
+      reason: string;
+      subscription: string;
+      /** What was to be refunded, when Stripe refused it after it was worked out (null when Stripe could not tell it). */
+      due: { amount: number; currency: string } | null;
+    };
 
 /** How a Candidate checks out. */
 export interface CheckoutOptions {
@@ -83,6 +167,24 @@ export interface CheckoutOptions {
    * Plan; otherwise Checkout goes on without it, and they may type one there.
    */
   promotionCode?: string | undefined;
+}
+
+/** Where a Checkout starts: Stripe's page, and its Checkout Session; or the customer portal (no Checkout Session) for a Candidate who already pays. */
+export interface CheckoutStart {
+  url: string;
+  checkoutSessionId: string | null;
+}
+
+/** A Checkout Stripe confirmed as paid (or as needing no payment), a Plan's (`subscription`) or a Coaching Session's (`payment`). */
+export interface PaidCheckout {
+  checkoutSessionId: string;
+  candidateId: string;
+  mode: "subscription" | "payment";
+  /** The subscription it started; null for a Coaching Session. */
+  subscriptionId: string | null;
+  /** What was paid, in the currency's smallest unit (cents): 0 when a 100 % code left nothing to pay. */
+  amount: number;
+  currency: string;
 }
 
 /** A Coaching Session payment Stripe confirmed. */
@@ -222,6 +324,8 @@ export async function migrateBilling(database: Pool): Promise<void> {
   }
   // Databases from before scheduled cancellations were kept (#169): Stripe tells again on the next change.
   await database.query("ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS ends_at timestamptz");
+  // When the current subscription started (#511): its Withdrawal period runs from then. Before, it is asked of Stripe once.
+  await database.query("ALTER TABLE candidate_plan ADD COLUMN IF NOT EXISTS subscription_started_at timestamptz");
   // Databases from before Plans lived in the database (#206): a CHECK named the three Plans; now a Plan is a row of `plan`.
   // Candidates' Plans are untouched: `candidate_plan` still references `plan_quota`.
   await database.query("ALTER TABLE plan_quota DROP CONSTRAINT IF EXISTS plan_quota_plan_check");
@@ -686,17 +790,28 @@ export function createBilling(config: BillingConfig) {
     return found.value.id;
   }
 
-  /** Reports a paid Coaching Session from a checkout.session.* event; ignores any other checkout. */
+  /** Reports a paid Checkout from a checkout.session.* event, and a paid Coaching Session; ignores an unpaid one. */
   async function applyCheckout(session: Stripe.Checkout.Session) {
-    if (session.mode !== "payment" || session.metadata?.purpose !== "coaching_session") return;
     if (session.payment_status === "unpaid") return; // async payment methods: wait for async_payment_succeeded
-    const candidateId = session.metadata.candidate_id ?? session.client_reference_id;
-    const coachId = session.metadata.coach_id;
-    if (!candidateId || !coachId) return;
-    await config.onCoachingSessionPaid?.({
+    const mode: PaidCheckout["mode"] | null = session.mode === "payment" ? "payment" : session.mode === "subscription" ? "subscription" : null;
+    if (!mode) return;
+    const candidateId = session.metadata?.candidate_id ?? session.client_reference_id;
+    if (!candidateId) return;
+    const coachId = session.metadata?.coach_id;
+    if (mode === "payment" && session.metadata?.purpose === "coaching_session" && coachId) {
+      await config.onCoachingSessionPaid?.({
+        checkoutSessionId: session.id,
+        candidateId,
+        coachId,
+        amount: session.amount_total ?? 0,
+        currency: session.currency ?? "eur",
+      });
+    }
+    await config.onCheckoutPaid?.({
       checkoutSessionId: session.id,
       candidateId,
-      coachId,
+      mode,
+      subscriptionId: mode === "subscription" ? idOf(session.subscription) : null,
       amount: session.amount_total ?? 0,
       currency: session.currency ?? "eur",
     });
@@ -704,10 +819,10 @@ export function createBilling(config: BillingConfig) {
 
   async function stripeAccountOf(candidateId: string) {
     const { rows } = await database.query(
-      "SELECT plan, stripe_customer_id, stripe_status, ends_at FROM candidate_plan WHERE candidate_id = $1",
+      "SELECT plan, stripe_customer_id, stripe_subscription_id, stripe_status, ends_at FROM candidate_plan WHERE candidate_id = $1",
       [candidateId],
     );
-    return rows[0] as { plan: Plan; stripe_customer_id: string | null; stripe_status: string | null; ends_at: Date | null } | undefined;
+    return rows[0] as { plan: Plan; stripe_customer_id: string | null; stripe_subscription_id: string | null; stripe_status: string | null; ends_at: Date | null } | undefined;
   }
 
   /** The Candidate's Stripe customer, created on their first checkout. */
@@ -741,10 +856,19 @@ export function createBilling(config: BillingConfig) {
   function scheduledEndOf(subscription: Stripe.Subscription): number | null {
     if (subscription.cancel_at) return subscription.cancel_at;
     if (!subscription.cancel_at_period_end) return null;
+    return periodEndOf(subscription);
+  }
+
+  /** When the subscription's paid period ends. */
+  function periodEndOf(subscription: Stripe.Subscription): number | null {
     // A webhook endpoint pinned to an older API version still has it on the subscription.
     const legacy = (subscription as { current_period_end?: number }).current_period_end;
     return subscription.items.data[0]?.current_period_end ?? legacy ?? null;
   }
+
+  /** The Candidate's subscription, when they are on a paid Plan whose cancellation is not scheduled. */
+  const cancellable = (account: { plan: Plan; stripe_subscription_id: string | null; ends_at: Date | null } | undefined) =>
+    account && account.plan !== FREE_PLAN && account.stripe_subscription_id && !account.ends_at ? account.stripe_subscription_id : null;
 
   function productOf(price: Stripe.Price): string {
     return typeof price.product === "string" ? price.product : price.product.id;
@@ -783,7 +907,9 @@ export function createBilling(config: BillingConfig) {
     }
     await database.query(
       `UPDATE candidate_plan
-       SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5), ends_at = to_timestamp($8)
+       SET plan = $2, stripe_subscription_id = $3, stripe_status = $4, stripe_event_at = to_timestamp($5), ends_at = to_timestamp($8),
+           -- a report without its start keeps the one known for the same subscription
+           subscription_started_at = COALESCE(to_timestamp($9::double precision), CASE WHEN stripe_subscription_id IS NOT DISTINCT FROM $3 THEN subscription_started_at END)
        WHERE stripe_customer_id = $1
          AND (
            stripe_event_at IS NULL
@@ -803,8 +929,75 @@ export function createBilling(config: BillingConfig) {
         ended,
         event.type === "customer.subscription.deleted" ? STATUS_STAGES.canceled : stageOf(subscription.status),
         ended ? null : scheduledEndOf(subscription),
+        // A webhook endpoint pinned to an older API version may leave it out.
+        (subscription as { start_date?: number }).start_date ?? null,
       ],
     );
+  }
+
+  /**
+   * What the signed webhook does with each event it acts on: one handler for each of STRIPE_WEBHOOK_EVENTS, the list
+   * the setup instructions give the operator, so no handler waits for an event the destination was never subscribed to.
+   */
+  const webhookHandlers: { [Type in StripeWebhookEvent]: (event: Extract<Stripe.Event, { type: Type }>) => Promise<void> } = {
+    "customer.subscription.created": (event) => applySubscription(event, event.data.object),
+    "customer.subscription.updated": (event) => applySubscription(event, event.data.object),
+    "customer.subscription.deleted": (event) => applySubscription(event, event.data.object),
+    "checkout.session.completed": (event) => applyCheckout(event.data.object),
+    "checkout.session.async_payment_succeeded": (event) => applyCheckout(event.data.object),
+    "refund.updated": (event) => applyRefund(event.data.object),
+    "refund.failed": (event) => applyRefund(event.data.object),
+  };
+
+  async function applyRefund(refund: Stripe.Refund) {
+    await config.onRefundChanged?.({ id: refund.id, status: refund.status as RefundStatus, failureReason: refund.failure_reason ?? null });
+  }
+
+  /** Each payment taken on a subscription's paid invoices; an invoice a 100 % code left at 0 took none. */
+  async function paymentsOn(subscriptionId: string, options: Stripe.RequestOptions = STRIPE_WRITE): Promise<Payment[]> {
+    const invoices = await stripe()
+      .client.invoices.list({ subscription: subscriptionId, status: "paid", limit: 100, expand: ["data.payments"] }, options)
+      .autoPagingToArray({ limit: 1_000 });
+    return invoices.flatMap((invoice) =>
+      (invoice.payments?.data ?? []).flatMap((paid) => {
+        const id = idOf(paid.payment.payment_intent) ?? idOf(paid.payment.charge);
+        const amount = paid.amount_paid ?? 0;
+        const line = invoice.lines?.data[0]?.period;
+        const period = line && line.end > line.start ? { period: { start: new Date(line.start * 1000), end: new Date(line.end * 1000) } } : {};
+        return paid.status === "paid" && id && amount > 0 ? [{ id, amount, currency: paid.currency, ...period }] : [];
+      }),
+    );
+  }
+
+  /**
+   * Refunds the part of a subscription's latest paid period still to run at `at`, prorata of its length, on the
+   * payment that paid it. `key` makes Stripe refund once however often it is asked.
+   */
+  async function prorataRefund(subscriptionId: string, key: string, at: Date): Promise<ProrataRefundResult> {
+    let due: { amount: number; currency: string } | null = null;
+    try {
+      const { client } = stripe();
+      const subscription = await client.subscriptions.retrieve(subscriptionId, { expand: ["latest_invoice.payments"] }, STRIPE_WRITE);
+      const invoice = subscription.latest_invoice;
+      if (!invoice || typeof invoice === "string") return { ok: true, refund: null };
+      const period = invoice.lines.data[0]?.period;
+      const payment = invoice.payments?.data.find((each) => each.status === "paid")?.payment.payment_intent;
+      const paymentIntent = typeof payment === "string" ? payment : payment?.id;
+      if (!period || !paymentIntent || invoice.amount_paid <= 0 || period.end <= period.start) return { ok: true, refund: null };
+      const unused = Math.min(1, Math.max(0, (period.end * 1000 - at.getTime()) / ((period.end - period.start) * 1000)));
+      const amount = Math.round(invoice.amount_paid * unused);
+      if (amount <= 0) return { ok: true, refund: null };
+      due = { amount, currency: invoice.currency };
+      const refund = await client.refunds.create(
+        { payment_intent: paymentIntent, amount, metadata: { purpose: "plan_quota_reduction", subscription: subscriptionId } },
+        { ...STRIPE_WRITE, idempotencyKey: key },
+      );
+      return { ok: true, refund: { id: refund.id, amount: refund.amount, currency: refund.currency } };
+    } catch (error) {
+      console.error("[billing] could not refund a subscription prorata", error);
+      const reason = error instanceof Stripe.errors.StripeInvalidRequestError ? (error.code ?? "stripe_refused") : "stripe_unavailable";
+      return { ok: false, reason, subscription: subscriptionId, due };
+    }
   }
 
   async function planOf(candidateId: string): Promise<Plan> {
@@ -889,6 +1082,117 @@ export function createBilling(config: BillingConfig) {
     },
 
     /**
+     * What « Résilier votre contrat » would cancel (#513): the Candidate's paid Plan and the end of its paid period,
+     * read from Stripe. Null on Free, once a cancellation is scheduled (here or in the customer portal), and for a
+     * subscription Stripe gives no period end for. Throws when Stripe cannot be reached.
+     */
+    async cancellationTerms(candidateId: string): Promise<CancellationTerms | null> {
+      const account = await stripeAccountOf(candidateId);
+      const subscriptionId = cancellable(account);
+      if (!account || !subscriptionId) return null;
+      const subscription = await stripe().client.subscriptions.retrieve(subscriptionId);
+      const end = subscription.cancel_at || subscription.cancel_at_period_end ? null : periodEndOf(subscription);
+      return end === null ? null : { plan: account.plan, planName: await nameOf(account.plan), endsAt: new Date(end * 1000) };
+    },
+
+    /**
+     * « Confirmer la résiliation » (#513, C. conso. L215-1-1): schedules the cancellation of the Candidate's paid Plan
+     * in Stripe at the end of the paid period (`cancel_at_period_end`), keeps its end date at once (Stripe's webhook
+     * then reports the same), and emails the acknowledgement D215-2 asks for: when the request was received, when the
+     * contract ends. The Candidate's row is locked meanwhile, each Stripe call bounded to a few seconds, so a cancellation
+     * confirmed twice is scheduled and acknowledged once; one already scheduled in the customer portal, its webhook not
+     * arrived yet, is left as Stripe has it. Throws when Stripe could not schedule it; a failed email does not undo it.
+     */
+    async scheduleCancellation(candidate: { id: string; email: string }, locale: Locale = "fr"): Promise<CancellationResult> {
+      const requestedAt = now();
+      const client = await database.connect();
+      let scheduled: { plan: Plan; endsAt: Date };
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query("SELECT plan, stripe_subscription_id, ends_at FROM candidate_plan WHERE candidate_id = $1 FOR UPDATE", [candidate.id]);
+        const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null; ends_at: Date | null } | undefined;
+        const subscriptionId = cancellable(account);
+        if (!account || !subscriptionId) {
+          await client.query("ROLLBACK");
+          return { ok: false, error: "not_cancellable" };
+        }
+        // Scheduled already in the customer portal, its webhook not here yet: keep Stripe's date, change nothing there.
+        const current = await stripe().client.subscriptions.retrieve(subscriptionId, {}, STRIPE_WRITE);
+        const scheduledEnd = scheduledEndOf(current);
+        if (scheduledEnd !== null) {
+          await client.query("UPDATE candidate_plan SET ends_at = to_timestamp($2) WHERE candidate_id = $1", [candidate.id, scheduledEnd]);
+          await client.query("COMMIT");
+          return { ok: false, error: "not_cancellable" };
+        }
+        const subscription = await stripe().client.subscriptions.update(subscriptionId, { cancel_at_period_end: true }, STRIPE_WRITE);
+        const end = scheduledEndOf(subscription);
+        if (end === null) throw new Error(`Stripe gave no end date for the cancellation of ${subscriptionId}`);
+        await client.query("UPDATE candidate_plan SET ends_at = to_timestamp($2) WHERE candidate_id = $1", [candidate.id, end]);
+        await client.query("COMMIT");
+        scheduled = { plan: account.plan, endsAt: new Date(end * 1000) };
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+      let acknowledged = false;
+      if (config.mailer) {
+        try {
+          const names = { plan: await nameOf(scheduled.plan), free: await nameOf(FREE_PLAN) };
+          const email = cancellationReceiptEmail({ planName: names.plan[locale], freePlanName: names.free[locale], requestedAt, endsAt: scheduled.endsAt, subscriptionUrl: pageURL() }, locale);
+          await config.mailer.send({ to: candidate.email, ...email });
+          acknowledged = true;
+        } catch (error) {
+          console.error("[billing] the acknowledgement of a cancellation could not be sent", error);
+        }
+      }
+      return { ok: true, ...scheduled, requestedAt, acknowledged };
+    },
+
+    /**
+     * Ends the Candidate's subscription at once, over a Quota Reduction they were told of (#514, L224-25-26): cancelled
+     * in Stripe now, the Candidate on Free here without waiting for the webhook, and the part of the paid period not used
+     * refunded (see ProrataRefundResult). `key` makes Stripe refund once. Null when they have no subscription to end.
+     * Throws when Stripe could not cancel it: nothing has changed then.
+     */
+    async endSubscriptionWithProrataRefund(candidateId: string, key: string): Promise<ProrataRefundResult | null> {
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      const subscriptionId = account.stripe_subscription_id;
+      const at = now();
+      try {
+        await stripe().client.subscriptions.cancel(subscriptionId, { cancellation_details: { comment: "plan_quota_reduction" } }, STRIPE_WRITE);
+      } catch (error) {
+        // Already cancelled (a second click, Stripe's own cancellation): what was to be done is done.
+        if (!(error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing")) throw error;
+      }
+      // Stamped now, so a report of the subscription Stripe sent before does not bring the Plan back.
+      await database.query(
+        `UPDATE candidate_plan SET plan = $3, stripe_status = 'canceled', ends_at = NULL, stripe_event_at = GREATEST(stripe_event_at, $4)
+         WHERE candidate_id = $1 AND stripe_subscription_id = $2`,
+        [candidateId, subscriptionId, FREE_PLAN, at],
+      );
+      return prorataRefund(subscriptionId, key, at);
+    },
+
+    /** Asks again for the prorata refund of a subscription ended at `at` whose refund was not made; same `key`, same refund. */
+    retryProrataRefund(subscriptionId: string, key: string, at: Date): Promise<ProrataRefundResult> {
+      return prorataRefund(subscriptionId, key, at);
+    },
+
+    /** The Candidates paying for `plan` now (Stripe reports their subscription active, trialing or past due); none on Free. */
+    async subscribersOf(plan: Plan, within: Queryable = database): Promise<string[]> {
+      if (plan === FREE_PLAN) return [];
+      const { rows } = await within.query<{ candidate_id: string }>(
+        `SELECT candidate_id FROM candidate_plan WHERE plan = $1 AND stripe_status IN (${[...PAYING_STATUSES].map((status) => `'${status}'`).join(", ")}) ORDER BY candidate_id`,
+        [plan],
+      );
+      return rows.map((row) => row.candidate_id);
+    },
+
+    /**
      * Whether `use` would allow one more of a weekly quota now. Records nothing:
      * for asking before work whose cost is only known once done (see `release`).
      */
@@ -948,7 +1252,7 @@ export function createBilling(config: BillingConfig) {
      * applied, or refused with a PromotionCodeRefused saying why: never dropped
      * silently, so they choose whether to go on without it.
      */
-    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr", options: CheckoutOptions = {}): Promise<string> {
+    async startCheckout(candidate: { id: string; email: string }, plan: Plan, locale: Locale = "fr", options: CheckoutOptions = {}): Promise<CheckoutStart> {
       if (plan === FREE_PLAN) throw new BillingError("no_checkout_for_free_plan");
       const { client } = stripe();
       await linkedIfPossible();
@@ -957,7 +1261,7 @@ export function createBilling(config: BillingConfig) {
       const customer = await stripeCustomerFor(candidate);
       const account = await stripeAccountOf(candidate.id);
       if (account && account.plan !== FREE_PLAN && PAYING_STATUSES.has(account.stripe_status ?? "")) {
-        return portalFor(customer, locale);
+        return { url: await portalFor(customer, locale), checkoutSessionId: null };
       }
       const promotionCode = options.promotionCode ? await promotionCodeFor(options.promotionCode, plan, candidate.id) : null;
       const params: Stripe.Checkout.SessionCreateParams = {
@@ -988,7 +1292,7 @@ export function createBilling(config: BillingConfig) {
         session = await client.checkout.sessions.create(withCodeField);
       }
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
-      return session.url;
+      return { url: session.url, checkoutSessionId: session.id };
     },
 
     /**
@@ -1052,7 +1356,7 @@ export function createBilling(config: BillingConfig) {
      * Coaching Session exists only once the signed webhook confirms the payment.
      * Throws a BillingError("coaching_sessions_not_configured") without the Prices.
      */
-    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<string> {
+    async startCoachingSessionCheckout(candidate: { id: string; email: string }, coachId: string, locale: Locale = "fr"): Promise<CheckoutStart> {
       const prices = coachingSessionPrices();
       const customer = await stripeCustomerFor(candidate);
       const discounted = await hasFeature(candidate.id, "coachingSessionDiscount");
@@ -1067,7 +1371,7 @@ export function createBilling(config: BillingConfig) {
         cancel_url: coachingPageURL(),
       });
       if (!session.url) throw new Error("Stripe returned a checkout session without a URL");
-      return session.url;
+      return { url: session.url, checkoutSessionId: session.id };
     },
 
     /** The Stripe customer portal (invoices, payment method, change or cancel Plan), or null if they never subscribed. */
@@ -1099,15 +1403,107 @@ export function createBilling(config: BillingConfig) {
       } catch (error) {
         throw new BillingError("invalid_webhook_signature", error instanceof Error ? error.message : undefined);
       }
-      if (
-        event.type === "customer.subscription.created" ||
-        event.type === "customer.subscription.updated" ||
-        event.type === "customer.subscription.deleted"
-      ) {
-        await applySubscription(event, event.data.object);
+      if (!Object.hasOwn(webhookHandlers, event.type)) return;
+      await (webhookHandlers[event.type as StripeWebhookEvent] as (event: Stripe.Event) => Promise<void>)(event);
+    },
+
+    /**
+     * The Candidate's paid subscription, with when Stripe started it: a Plan changed in the customer portal keeps
+     * it (no new contract). Null on Free. A subscription reported before its start was kept is asked of Stripe once;
+     * null when Stripe cannot tell.
+     */
+    async subscription(candidateId: string): Promise<CurrentSubscription | null> {
+      const { rows } = await database.query(
+        "SELECT plan, stripe_subscription_id, stripe_status, subscription_started_at FROM candidate_plan WHERE candidate_id = $1",
+        [candidateId],
+      );
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null; stripe_status: string | null; subscription_started_at: Date | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      let startedAt = account.subscription_started_at;
+      if (!startedAt && config.stripe) {
+        try {
+          const started = (await stripe().client.subscriptions.retrieve(account.stripe_subscription_id, {}, QUICK)).start_date;
+          if (started) {
+            startedAt = new Date(started * 1000);
+            await database.query("UPDATE candidate_plan SET subscription_started_at = $3 WHERE candidate_id = $1 AND stripe_subscription_id = $2", [
+              candidateId,
+              account.stripe_subscription_id,
+              startedAt,
+            ]);
+          }
+        } catch (error) {
+          console.error("[billing] could not ask Stripe when a subscription started", error);
+        }
       }
-      if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
-        await applyCheckout(event.data.object);
+      if (!startedAt) return null;
+      return { id: account.stripe_subscription_id, plan: account.plan, planName: await nameOf(account.plan), startedAt };
+    },
+
+    /**
+     * What was paid so far on the Candidate's subscription (each payment), for the Withdrawal form; null on Free, or when
+     * Stripe does not answer quickly.
+     */
+    async paidOnSubscription(candidateId: string): Promise<Payment[] | null> {
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN || !config.stripe) return null;
+      try {
+        return await paymentsOn(account.stripe_subscription_id, QUICK);
+      } catch (error) {
+        console.error("[billing] could not read what was paid on a subscription", error);
+        return null;
+      }
+    },
+
+    /**
+     * Ends the Candidate's subscription at once (a Withdrawal, #511): cancelled in Stripe now, not at the end of the
+     * period, without proration or final invoice, and the Candidate on Free here without waiting for the webhook.
+     * Returns each payment taken on it, for a full refund (none for a subscription a 100 % code made free); null when
+     * they have none to end. Throws when Stripe could not be reached: nothing has changed then.
+     */
+    async endSubscriptionNow(candidateId: string): Promise<Payment[] | null> {
+      const { rows } = await database.query("SELECT plan, stripe_subscription_id FROM candidate_plan WHERE candidate_id = $1", [candidateId]);
+      const account = rows[0] as { plan: Plan; stripe_subscription_id: string | null } | undefined;
+      if (!account?.stripe_subscription_id || account.plan === FREE_PLAN) return null;
+      const subscriptionId = account.stripe_subscription_id;
+      const payments = await paymentsOn(subscriptionId);
+      try {
+        await stripe().client.subscriptions.cancel(subscriptionId, { cancellation_details: { comment: "withdrawal" } }, STRIPE_WRITE);
+      } catch (error) {
+        // Already cancelled (a second click, Stripe's own cancellation): what was to be done is done.
+        if (!(error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing")) throw error;
+      }
+      // Stamped now, so a report of the subscription Stripe sent before does not bring the Plan back.
+      await database.query(
+        `UPDATE candidate_plan SET plan = $3, stripe_status = 'canceled', ends_at = NULL, stripe_event_at = GREATEST(stripe_event_at, $4)
+         WHERE candidate_id = $1 AND stripe_subscription_id = $2`,
+        [candidateId, subscriptionId, FREE_PLAN, now()],
+      );
+      return payments;
+    },
+
+    /** What a Coaching Session was paid with, from its Checkout Session; null when it took no payment. Throws when Stripe could not be reached. */
+    async coachingSessionPayment(checkoutSessionId: string): Promise<Payment | null> {
+      const session = await stripe().client.checkout.sessions.retrieve(checkoutSessionId, {}, STRIPE_WRITE);
+      const id = idOf(session.payment_intent);
+      return id && session.amount_total ? { id, amount: session.amount_total, currency: session.currency ?? "eur" } : null;
+    },
+
+    /**
+     * Refunds a payment (`requested_by_customer`), in full, or `amount` of it (a Plan's prorata, #512), with `metadata`
+     * to find it again. `key` is the request's idempotency key: asked again with it (within Stripe's 24 hours), the same
+     * refund is answered, never a second one. Stripe's refusal, or no answer, is a result, not an error.
+     */
+    async refund(payment: Payment, key: string, metadata: Record<string, string>, amount?: number): Promise<RefundResult> {
+      try {
+        const target = payment.id.startsWith("ch_") ? { charge: payment.id } : { payment_intent: payment.id };
+        const part = amount === undefined ? {} : { amount };
+        const refund = await stripe().client.refunds.create({ ...target, ...part, reason: "requested_by_customer", metadata }, { ...STRIPE_WRITE, idempotencyKey: key });
+        return { ok: true, id: refund.id, status: (refund.status ?? "pending") as RefundStatus };
+      } catch (error) {
+        console.error("[billing] Stripe refused or did not answer a refund", error);
+        const code = error instanceof Stripe.errors.StripeError && error.statusCode !== undefined && error.statusCode < 500 ? error.code : undefined;
+        return { ok: false, reason: code ?? "stripe_unavailable" };
       }
     },
 
@@ -1355,7 +1751,8 @@ export function createBilling(config: BillingConfig) {
 
     /**
      * Replaces one Plan's quotas (Back Office) and returns the ones it replaced; null for an unknown
-     * Plan. Applies at once to every Candidate on that Plan. `within` runs it in the caller's transaction.
+     * Plan. Applies at once to every Candidate on that Plan: a reduction on a paid Plan is scheduled
+     * first, by the Quota Reductions module (#514), which calls this on its effective date. `within` runs it in the caller's transaction.
      */
     async setPlanQuotas(plan: Plan, quotas: PlanQuotas, within: Queryable = database): Promise<PlanQuotas | null> {
       const keys = Object.keys(COLUMNS) as (keyof PlanQuotas)[];
@@ -1367,6 +1764,21 @@ export function createBilling(config: BillingConfig) {
         [plan, ...keys.map((key) => quotas[key])],
       );
       return rows[0] ? quotasFromRow(rows[0]) : null;
+    },
+
+    /** One Plan's quotas, its row locked until `within`'s transaction ends (a Quota Reduction is weighed against them); null for an unknown Plan. */
+    async lockPlanQuotas(plan: Plan, within: Queryable): Promise<PlanQuotas | null> {
+      const { rows } = await within.query("SELECT * FROM plan_quota WHERE plan = $1 FOR UPDATE", [plan]);
+      return rows[0] ? quotasFromRow(rows[0]) : null;
+    },
+
+    /** Takes Plan Features off a Plan (a Quota Reduction, #514, on its effective date); returns its Plan Features before and after, or null for an unknown Plan. */
+    async removePlanFeatures(plan: Plan, features: readonly PlanFeature[], within: Queryable = database): Promise<{ before: PlanFeature[]; after: PlanFeature[] } | null> {
+      const current = await lockedPlan(within, plan);
+      if (!current) return null;
+      const after = current.features.filter((feature) => !features.includes(feature));
+      await savePlan(within, { ...current, features: after });
+      return { before: current.features, after };
     },
 
     /**

@@ -9,9 +9,20 @@ export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 export const APPLICATION_SECTIONS = ["propositions", "documents", "correspondance", "entretiens", "avis", "dossier", "contacts", "offre"] as const;
 export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
 
+/** The Order pages (#512), and what their address carries: the Plan or the Human Coach, a shared link's code, an error. */
+export const PLAN_ORDER = "/abonnement/commande";
+export const COACHING_ORDER = "/coachs/commande";
+export const ORDER_PARAMS = { plan: "offre", coach: "coach", code: "code", error: "erreur" } as const;
+/** Where each Order page's « Passer au paiement » posts. */
+export const ORDER_ACTIONS = { plan: "/api/billing/checkout", coachingSession: "/api/coaching/checkout" } as const;
+/** The error an Order page is sent back with when the CGV box was not ticked. */
+export const ORDER_CGV_ERROR = "cgv";
+
 /** Paths of the web app's pages. French, like the interface default. */
 export const routes = {
   home: "/",
+  /** A Free conversation (ADR-0070), under « Conversation au centre » (#601): the page is the conversation. */
+  conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,
   signIn: "/connexion",
   /** The Back Office sign-in: the providers allowed for Administrators; where Require SSO sends an Administrator. */
   backOfficeSignIn: "/connexion/back-office",
@@ -63,6 +74,25 @@ export const routes = {
   jobDigest: (id: string) => `/job-digests/${id}`,
   masterCvVersion: (id: string, version: number) => `/profils/${id}/versions/${version}`,
   subscription: "/abonnement",
+  /**
+   * « Renoncer au contrat ici » (#511): the Withdrawal form for one contract (`contract`: "plan", or
+   * "coaching-session:<id>"), or, with `done`, the Withdrawal just recorded.
+   */
+  withdrawal: (contract: string) => `/abonnement/retractation?contrat=${encodeURIComponent(contract)}`,
+  withdrawalDone: (id: string) => `/abonnement/retractation?faite=${encodeURIComponent(id)}`,
+  /**
+   * The Order page before Stripe Checkout for a paid Plan (#512): its summary, the CGV box and the Immediate Performance
+   * Request. `code`: a shared link's, carried to Checkout; `error`: sent back over the CGV box.
+   */
+  planOrder: (plan: string, options: { code?: string | null | undefined; error?: typeof ORDER_CGV_ERROR } = {}) =>
+    `${PLAN_ORDER}?${new URLSearchParams({ [ORDER_PARAMS.plan]: plan, ...(options.code ? { [ORDER_PARAMS.code]: options.code } : {}), ...(options.error ? { [ORDER_PARAMS.error]: options.error } : {}) })}`,
+  /** The Order page before Stripe Checkout for a Coaching Session with a Human Coach (#512). */
+  coachingOrder: (coachId: string, options: { error?: typeof ORDER_CGV_ERROR } = {}) =>
+    `${COACHING_ORDER}?${new URLSearchParams({ [ORDER_PARAMS.coach]: coachId, ...(options.error ? { [ORDER_PARAMS.error]: options.error } : {}) })}`,
+  /** « Résilier votre contrat » (#513): what cancelling the paid Plan does, and « Confirmer la résiliation ». */
+  subscriptionCancellation: "/abonnement/resiliation",
+  /** Cancelling a subscription, refunded prorata, over a Quota Reduction the Candidate was told of (#514). */
+  subscriptionQuotaReduction: "/abonnement/baisse",
   /** The Candidate's Human Coaches: Coaching Sessions and Coach Access. */
   coaching: "/coachs",
   /** One of the Candidate's Coaching Sessions, on the Human Coaches page: where an Agenda Item for it leads. */
@@ -72,6 +102,8 @@ export const routes = {
   coachSpaceCandidate: (candidateId: string) => `/espace-coach/${encodeURIComponent(candidateId)}`,
   coachSpaceApplication: (candidateId: string, applicationId: string) => `/espace-coach/${encodeURIComponent(candidateId)}/candidatures/${applicationId}`,
   accountDeleted: "/compte/supprime",
+  /** The Acceptance screen (ADR-0062, #510): the CGU version to accept after sign-in, before anything else. */
+  acceptance: "/acceptation",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
@@ -92,6 +124,8 @@ export const routes = {
   adminPlanQuotas: "/admin/quotas",
   /** Coupons (Codes promo): Stripe promotion codes, Plans managers. */
   adminCoupons: "/admin/codes-promo",
+  /** The Withdrawals (Rétractations, #511): every one and its refunds, a failed refund tried again; super-admins and Support. */
+  adminWithdrawals: "/admin/retractations",
   adminHumanCoaches: "/admin/coachs",
   /** The AI Coach's cost per reply, per day: median and p90 against the target. */
   adminCoachCost: "/admin/cout-coach",

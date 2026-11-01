@@ -99,12 +99,21 @@ What the AI Coach is told before each reply: always the Candidate summary and th
 The Candidate's first name and, for each active Profile, its target role, Search Criteria and seniority (from years of experience). Never the rest of the Identity block.
 
 **Coach Conversation**:
-A saved conversation between a Candidate and the AI Coach, and on the Candidate's pages the page itself (ADR-0070), with its box at the foot. Each has a Subject. An object or a Sidebar menu has at most one, created at its first message; until then the page shows the Introduction and suggestions. A Free conversation is attached to the active Profile and can be named. « Effacer », after a confirming Dialog, deletes every message of the page's conversation; the object and Coach Memory stay. An archived object keeps its conversation. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message and its Subject, without the Coach Message Cost.
+A saved conversation between a Candidate and the AI Coach, and on the Candidate's pages the page itself (ADR-0070), with its box at the foot. Each has a Subject. An object or a Sidebar menu has at most one, created at its first message; until then the page shows the Introduction and suggestions. A Free conversation is attached to the active Profile and can be named. « Effacer », after a confirming Dialog, deletes every message of an object's or menu's conversation (the object and Coach Memory stay), and a Free conversation itself: the page becomes a new conversation and the Sidebar stops listing it. An archived object keeps its conversation; a deleted one takes it along. An object's conversation is attached to that object's Profile, a menu's to none. Kept 12 months after its last message, then purged; deleted with the account. Human Coaches never see it. In the Data export with every message and its Subject, without the Coach Message Cost.
 _Avoid_: Chat, thread, session
+
+**À traiter**:
+Said of an Application when a Follow-up card or an « Abandonnée » suggestion waits for the Candidate. It gets a dot in the Sidebar and counts in the « k à traiter » pill on Mes candidatures' card. Archived Applications are never listed there.
+
+**Menu card**:
+The card a Sidebar menu's Coach Conversation shows in its thread, after the Introduction and before the empty-conversation help (Mes candidatures: the table of Applications with status, Match Score and à traiter). It stays in the thread whatever is sent.
 
 **Subject**:
 What a Coach Conversation is about, fixed when it starts: one object (an Application, a Profile, a Job Search or a Job Digest), one Sidebar menu (Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains; one conversation per Candidate each), or none for a Free conversation. A Job Offer's page starts a Free conversation with the Job Offer In view.
 _Avoid_: Focus (that is per reply), owner, topic
+
+**Introduction**:
+The first message of a conversation page, shown until the Candidate sends one: the AI disclosure, the page's own text and, while it applies, the note that the page is under construction.
 
 **Free conversation**:
 A Coach Conversation with no object or menu as its Subject, started from « Nouvelle conversation » or « Coach » in the Sidebar, where it is listed. The home page is a new Free conversation.
@@ -386,6 +395,16 @@ _Avoid_: Email import, mail scraping, inbox source
 A sender of offer emails whose emails Email intake reads (« Expéditeur reconnu »): a job board's or a careers site's alert address, recognised by its authenticated domain, or by its full address when the domain sends for many (a shared sending platform such as `jobs2web.com`). Administrators keep the platform's list on the Email intake sheet of Paramètres, each with a label naming the job board or company and its site for reading only; they can disable one (it stays listed but is not read) or remove it, and each change is recorded in the Back Office Audit (section « Expéditeurs reconnus »). A Candidate can add one for themselves alone, from an email set aside as unrecognised or by pasting the address in the setup wizard; it then counts from their next email, and is proposed to Administrators (domain and number of Candidates, no names), who alone add it to the platform's list. The Email intake sheet lists them under « Expéditeurs proposés » (Proposed senders). A Candidate's own sender is kept by the domain of its « De : » address, or by the full address on a shared sending platform (the fixed list `jobs2web.com`, `mjt.lu`, `sendgrid.net`; pasting only the platform's domain is refused); it is recognised only when it passes DMARC, up to 50 per Candidate, and one the platform list already reads is refused as « already recognised ». A Candidate can also add a sender Administrators disabled (read for them alone) and switch a platform sender off for themselves only (and back on); that choice goes in their Data export. Nothing a Candidate does changes what another Candidate's emails read.
 _Avoid_: Whitelist, allowed sender, trusted source
 
+**Email intake MTA**:
+Jobbbox's own receiving server for Email intake (« MTA Jobbbox », Tool `email-intake`): one for every environment, it accepts mail only for the Email intake domains of its Routes, checks SPF, DKIM and DMARC, and hands each email to the right environment's app without keeping it (ADR-0069).
+_Avoid_: Mail server, inbound parser
+
+**Route**:
+One Email intake domain mapped to one environment's app and its shared secret, in the Email intake MTA's configuration. A recipient on any other domain is refused.
+
+**MTA stamp**:
+The Authentication-Results the Email intake MTA writes on each email it passes on: the only authentication Email intake trusts. One found inside the message itself is ignored.
+
 **Linked mailbox**:
 A Candidate's own mailbox Jobbbox reads for Email intake (« Boîte reliée »): reached either by connecting it, or by the Candidate forwarding its offer emails to their Forwarding address. The Candidate can unlink it at any time.
 _Avoid_: Inbox, email account, mail connector
@@ -611,7 +630,7 @@ The Candidate's choice of how large all interface text is shown, on a four-step 
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
-The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into its 5 to 10 most recent objects and « Tout voir »; at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
+The menu down the side of the Candidate's pages: Profile switcher, « Nouvelle conversation », « Coach » with the Free conversations and « Mémoire du coach », then links to their pages, each a Coach Conversation that unfolds into the objects **à traiter** (at most 10), filled up to 5 with the most recent others (latest saved), then « Tout voir (N) »; the open object is highlighted rather than its menu. Each menu's fold, « Coach » included, is remembered in that browser; at its foot the Usage Meter, Mon compte and signing out. The Candidate can hide it, and the choice is remembered in that browser. On narrow screens it becomes a drawer opened from the Top Bar's Menu button.
 _Avoid_: Navigation bar, workspace header
 
 **Fiche**:
@@ -631,7 +650,7 @@ The bar in Activity showing how much of a Coach Conversation the AI Coach reads:
 _Avoid_: Memory gauge, quota bar (that is the Usage Meter)
 
 **Top Bar**:
-The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte) has « Aide », which opens its Help Article in the Work Pane. Nothing else for help or Signalements goes there.
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte, and the pages not yet converted to conversations) has « Aide », which opens its Help Article in the Work Pane; never on the home page nor a Free conversation. Nothing else for help or Signalements goes there.
 _Avoid_: Header, navbar
 
 **Section**:
@@ -768,7 +787,7 @@ Whether a Candidate has ever been charged for a Plan, even if they are back on F
 _Avoid_: Billing history, customer status
 
 **Scheduled Cancellation**:
-A paid Plan the Candidate cancelled in the Stripe customer portal for a later date, usually the end of the paid period. The Candidate keeps the Plan until then, the subscription page shows "<Plan> jusqu'au <date>", and renewing removes the date. An immediate cancellation drops to Free at once.
+A paid Plan the Candidate cancelled for a later date, usually the end of the paid period: with « Résilier votre contrat » on the subscription page, which emails an acknowledgement with the date of the request and the end date (#513), or in the Stripe customer portal. The Candidate keeps the Plan until then, the subscription page shows "<Plan> jusqu'au <date>", and renewing (in the portal) removes the date. An immediate cancellation drops to Free at once.
 _Avoid_: Pending cancellation, expiry
 
 **Plan Price**:
@@ -776,8 +795,12 @@ What a Plan costs each billing interval, shown in the plan comparison: the defau
 _Avoid_: Tariff, fee
 
 **Plan Quota**:
-A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores, Job Searches and Enriched Contacts per week (from Monday 00:00, French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; a change applies at once to every Candidate on the Plan. Administrators who may change them can also reset the week's usage of every Candidate, giving a reason the Back Office Audit records.
+A configurable usage limit attached to a Plan: Profiles held at once, Match Scores, ATS Scores, Job Searches and Enriched Contacts per week (from Monday 00:00, French time), and the Job Digest frequency. A quota can be unlimited or not included at all. Changed by Administrators; an increase applies at once to every Candidate on the Plan, a reduction of a Plan Candidates pay for is a Quota Reduction. Administrators who may change them can also reset the week's usage of every Candidate, giving a reason the Back Office Audit records.
 _Avoid_: Limit, allowance, credits, monthly quota
+
+**Quota Reduction**:
+Lowering a paid Plan's Plan Quotas or Plan Features while Candidates pay for it (a lower number, a number where it was unlimited, a rarer Job Digest, a Plan Feature taken off). It waits for an effective date at least 30 days ahead, with a reason; each paying subscriber is told by e-mail and may cancel at no cost until 30 days after that date, the unused part of the paid period refunded prorata (« Résilier sans frais »). Listed on Offres, where it can be cancelled before its date. On Free, or on a Plan nobody pays for, a reduction applies at once.
+_Avoid_: Downgrade (that is a Candidate changing Plan), quota cut, plan change
 
 **Usage Meter**:
 The bar at the foot of the Sidebar showing how much of the week's Plan Quotas the Candidate has used: every use over every use the Plan grants, so each quota weighs what the Plan grants of it; unlimited and not-included quotas weigh nothing. Titled « Hebdomadaire » ("Weekly"), with a line under the bar saying the quota renews Monday at midnight. Its button opens a card above the meter (Escape closes it) showing each quota's use and the Job Digest frequency, and leading to the subscription page.
@@ -796,6 +819,26 @@ _Avoid_: Paywall, upsell, upgrade popup
 What a Candidate is shown while their subscription is past due: Stripe is retrying a failed payment and the Plan is kept. It sends them to the Stripe customer portal to update their payment method, and disappears once payment succeeds. Shown only in the Candidate's sidebar layout.
 _Avoid_: Dunning banner, billing alert
 
+**Order**:
+What a Candidate confirms on Jobbbox's own page, « Votre commande », before Stripe Checkout, for a paid Plan (`/abonnement/commande`) or a Coaching Session (`/coachs/commande`): the summary (what is bought, its price all taxes included, how often a Plan is charged), the CGV box « J'accepte les CGV (version du …) » with its link to that version, the Immediate Performance Request, and where to withdraw. « Passer au paiement » is checked on the server: while a CGV version is in effect, no Checkout Session is created without its box ticked, and the page is shown again saying so. The Order is then kept with its Checkout Session, and the CGV Acceptance written with that Checkout Session and the Immediate Performance Request. A Candidate who already pays a Plan is sent to the Stripe customer portal instead, with no Order. An Order is the Candidate's: in their Data export without Stripe's identifiers, deleted with their account; the proof that outlives the account is the Acceptance.
+_Avoid_: Cart, basket, checkout (that is Stripe's page), purchase
+
+**Immediate Performance Request**:
+The Candidate's express request, on the Order page, that the service start at once, with their acknowledgement that a Withdrawal then pays for what was already provided (« Je demande que le service commence immédiatement… », C. conso. L221-25); for a Coaching Session, also that the right of withdrawal is lost once the session is held (L221-28 1°). Optional and never ticked for the Candidate: without it the Candidate pays and the service starts just the same, but a Withdrawal is refunded in full. Kept with the Order and the CGV Acceptance, and stated in the Order Confirmation.
+_Avoid_: Waiver, immediate execution consent, opt-out of withdrawal
+
+**Order Confirmation**:
+The email that confirms an Order on a durable medium (L221-13), sent once per paid Checkout Session when Stripe's signed webhook reports the payment: the summary and the amount paid, the CGV version accepted with its permanent link, whether the Immediate Performance Request was made and what it means for a Withdrawal, the last day of the Withdrawal period, where « Renoncer au contrat ici » is, and a link to the model withdrawal form in the CGV. With no CGV version in effect, it names none. Not a Stripe receipt or invoice.
+_Avoid_: Receipt, invoice, order email
+
+**Withdrawal**:
+A Candidate renouncing a contract concluded online, without a reason (« rétractation », C. conso. L221-18): a Plan's subscription, or a paid Coaching Session. A Coaching Session bought with the Immediate Performance Request can no longer be withdrawn once held (L221-28 1°); one bought without it can, held or not. Made on Jobbbox's own page, « Renoncer au contrat ici » (`/abonnement/retractation`), reached from the subscription page and from the Coaching Session in the Agenda, never from the Stripe customer portal. « Confirmer la rétractation » ends the contract at once (a subscription is cancelled now, never a Scheduled Cancellation; a Coaching Session is cancelled and its Human Coach told) and refunds it through Stripe, automatically (ADR-0071): in full, except a Plan bought with the Immediate Performance Request, whose payments are refunded less the prorata of the service already provided (whole days elapsed since the start of the period each one paid for, the day begun not counted; a payment whose period Stripe did not tell is refunded in full) (L221-25). A Coaching Session is always refunded in full. The acknowledgement (« accusé de réception ») is emailed with its date and time and the amount refunded, whatever happens to the refund. A refund that fails, at once or days later, shows as « Échoué » in the Back Office's « Rétractations », where Support retries it. A contract a 100 % Coupon left free is withdrawn all the same, with nothing to refund. Each Withdrawal is the Candidate's: in their Data export, deleted with their account.
+_Avoid_: Cancellation (that is a Scheduled Cancellation or an immediate one, with no refund), refund request, renunciation
+
+**Withdrawal period**:
+How long a contract can be withdrawn from: 14 days from the day after it was concluded (a subscription's start, a Coaching Session's payment), to the end of the 14th day, French time. A period whose 14th day is a Saturday, a Sunday or a public holiday of metropolitan France runs on to the end of the next working day (L221-19): the 15th day is then still in it. A Plan changed in the customer portal is the same contract and opens no new period.
+_Avoid_: Cooling-off period, grace period, 14-day window
+
 ### Legal texts
 
 **Legal Text**:
@@ -803,21 +846,29 @@ One of Jobbbox's public legal documents: the CGU, the CGV (with the withdrawal f
 _Avoid_: Terms page, policy page, legal page
 
 **Legal Text Version**:
-One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served before its effective date; once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
+One dated, immutable wording of a Legal Text, named by its effective date and marked substantial or minor, with the product owner who approved it and its line in the version history. Its id is its effective date, the same in French and English; its permanent address is `/legal/<text>/<date>`. Never served as the one in effect before its effective date: a substantial version of the CGU, the CGV or the privacy policy still to come is readable only at its permanent address, marked « Version à venir », where the email telling Candidates of it links (#547); a minor one is not served before its effective date. Once in effect, never edited: a correction is a new version, and earlier versions stay readable, marked « Version archivée ». A Legal Text with no version in effect shows « Ce texte n'est pas encore publié ».
 _Avoid_: Revision, edition, draft
+
+**Préavis**:
+The email telling a Candidate, 30 days before it takes effect, that a substantial version of the CGU, the CGV or the privacy policy is coming. Sent once per Candidate and version, in Production only, to a verified address; it names the text, its effective date and the next step, and links to the version still to come. Never sent for the legal notice.
+_Avoid_: Legal Notice (already means mentions légales), notification, newsletter
+
+**Privacy change notice**:
+The one-time line atop a Candidate's workspace announcing the privacy policy's latest substantial version in effect, closed with « J'ai compris ». It blocks nothing and is not shown to a Candidate who signed up on or after that version's effective date.
+_Avoid_: Banner, consent, Acceptance
 
 **Legal Review**:
 The legal AI's evaluation of one Legal Text Version, recorded with it, before the product owner signs its effective date. A minor version is reviewed on its changes only; the English translation is checked for fidelity, not reviewed. There is no lawyer at this stage: a lawyer is called only on a listed trigger.
 _Avoid_: Counsel review, lawyer review, validation
 
 **Acceptance**:
-A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof. Only the CGU and the CGV are accepted: the privacy policy and the legal notice are information, never accepted. A Guest ticks the short CGU in the extension, held only in the Guest session.
+A Candidate agreeing to one Legal Text Version of the CGU or the CGV, kept as proof. Only the CGU and the CGV are accepted: the privacy policy and the legal notice are information, never accepted. A Guest ticks the short CGU in the extension, held only in the Guest session. The CGV are accepted on the Order page, kept with the Order's Checkout Session and its Immediate Performance Request. In the Data export while the account lives; after the Account deletion, kept under a pseudonym with no email and no name, 5 years (CGU) or 10 years (CGV) from the day of deletion (ADR-0073).
 _Avoid_: Consent (that is the EU AI Consent), agreement, opt-in
 
 ### Operations
 
 **Back Office**:
-The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Platform Settings, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites, the Unanswered Questions, the Candidates' Signalements (in the « Candidats » group, with the count of those « à traiter ») and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools; its home page is the Back Office Dashboard and what happened is on its Back Office Activity page.
+The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Human Coaches, Coaching Playbooks, Core Digest and Sources, Guardrails, Provider Secrets, Platform Settings, Sign-in Providers, Job Sites, Job discovery sources and Job discovery sites, the Unanswered Questions, the Candidates' Signalements (in the « Candidats » group, with the count of those « à traiter »), the Candidates' Withdrawals and their refunds (« Rétractations ») and the team's Back Office Roles, and follow AI Usage, Guardrail Triggers and the state of the Tools; its home page is the Back Office Dashboard and what happened is on its Back Office Activity page.
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Dashboard**:
@@ -841,7 +892,7 @@ A third-party key (an AI provider's, France Travail's, Fantastic.jobs', the cont
 _Avoid_: API key setting, credential, config secret
 
 **Platform Setting**:
-A non-secret setting of the platform that the code gives a default and the environment can override: where Claude is reached and in which region, each AI task's provider and model, the identity model, OpenAI's data residency, the web search provider and model, `MAIL_FROM`, the Job Digest's thresholds, the Job discovery budget, the contact-enrichment provider and whether its DPA is signed, and the extension's store page. Super-admins change it in the Back Office's Paramètres section (under Plateforme), which wins over the environment variable of the same name, which wins over the code's default; « Rétablir » clears the Back Office's value. So far only AI routing, the email sender (`MAIL_FROM`), the Job Digest's thresholds, the Job discovery budget, Enriched Contacts' provider and DPA (marking it signed asks for a confirmation) and the extension's store page (an https URL) can be changed there; the other groups stay read-only until their own issue. A change takes effect within seconds in the web app and the worker, without a restart. An AI routing change, « Rétablir » included, is checked as the AI layer would build it and refused if wrong: a route missing, a personal-data task or the identity route reaching an endpoint outside the EU, or a model it newly names failing its **test call** (one request of a single token, or one search, no retry). A problem the configuration already had does not block it. The refusal is recorded in the Back Office Audit with its Failure Reason (`route_missing`, `data_residency` or `test_failed`). Paramètres shows every one with its effective value, source and code default, and flags a value from the environment that differs from the default; it also shows, read-only, the bootstrap settings that only the environment holds (`DATABASE_URL` without its password, `AUTH_SECRET` and `SECRETS_MASTER_KEYS` only as set or missing, `APP_URL`, `ADMIN_EMAILS`, `JOBHUB_TARGET`, `AI_FAKE`, `MAIL_TRANSPORT`) and links the settings that have their own section (Plan Quotas, Guardrails, Coach Message Cost, Provider Secrets). Not a Provider Secret: its value is shown and recorded in the Back Office Audit. Paramètres is laid out in tabs, one per kind of Tool (web search, AI, Sources, contact enrichment, email, payment, sign-in), then Extension and, last, Environnement (what only the environment holds, read-only, each with why): each tab shows the active provider and its settings, then every possible provider with its Provider Secrets, connection test, tools and prices, linked to its Outils page; one « + Ajouter » adds any of them. Technique and super-admins change it; a provider with no key can be chosen, with a warning (a text task routed to one fails only its own calls, recorded `key_missing`, and its model is not test-called). A provider's **sheet** (side panel, `&fournisseur=`) shows its keys with their last connection test and lets a super-admin replace, clear or test them; « Rendre actif » makes it the tab's active provider. Environnement also lists the environment variables the code no longer reads that an environment still sets.
+A non-secret setting of the platform that the code gives a default and the environment can override: where Claude is reached and in which region, each AI task's provider and model, the identity model, OpenAI's data residency, the web search provider and model, `MAIL_FROM`, the Job Digest's thresholds, the Job discovery budget, the contact-enrichment provider and whether its DPA is signed, and the extension's store page, and « Conversation au centre » (`CONVERSATION_FIRST`, a true/false value, off by default: when on, the Candidate's home page is a new Free conversation; changed on Paramètres' Environnement tab). Super-admins change it in the Back Office's Paramètres section (under Plateforme), which wins over the environment variable of the same name, which wins over the code's default; « Rétablir » clears the Back Office's value. So far only AI routing, the email sender (`MAIL_FROM`), the Job Digest's thresholds, the Job discovery budget, Enriched Contacts' provider and DPA (marking it signed asks for a confirmation) and the extension's store page (an https URL) can be changed there; the other groups stay read-only until their own issue. A change takes effect within seconds in the web app and the worker, without a restart. An AI routing change, « Rétablir » included, is checked as the AI layer would build it and refused if wrong: a route missing, a personal-data task or the identity route reaching an endpoint outside the EU, or a model it newly names failing its **test call** (one request of a single token, or one search, no retry). A problem the configuration already had does not block it. The refusal is recorded in the Back Office Audit with its Failure Reason (`route_missing`, `data_residency` or `test_failed`). Paramètres shows every one with its effective value, source and code default, and flags a value from the environment that differs from the default; it also shows, read-only, the bootstrap settings that only the environment holds (`DATABASE_URL` without its password, `AUTH_SECRET` and `SECRETS_MASTER_KEYS` only as set or missing, `APP_URL`, `ADMIN_EMAILS`, `JOBHUB_TARGET`, `AI_FAKE`, `MAIL_TRANSPORT`) and links the settings that have their own section (Plan Quotas, Guardrails, Coach Message Cost, Provider Secrets). Not a Provider Secret: its value is shown and recorded in the Back Office Audit. Paramètres is laid out in tabs, one per kind of Tool (web search, AI, Sources, contact enrichment, email, payment, sign-in), then Extension and, last, Environnement (what only the environment holds, read-only, each with why): each tab shows the active provider and its settings, then every possible provider with its Provider Secrets, connection test, tools and prices, linked to its Outils page; one « + Ajouter » adds any of them. Technique and super-admins change it; a provider with no key can be chosen, with a warning (a text task routed to one fails only its own calls, recorded `key_missing`, and its model is not test-called). A provider's **sheet** (side panel, `&fournisseur=`) shows its keys with their last connection test and lets a super-admin replace, clear or test them; « Rendre actif » makes it the tab's active provider. Environnement also lists the environment variables the code no longer reads that an environment still sets.
 _Avoid_: Config, env var, default, setting override
 
 **Web search settings**:
@@ -925,7 +976,7 @@ The quiet line under each saved AI Coach or Back Office Assistant reply: the mod
 _Avoid_: Footer, metadata line, usage line
 
 **Focus**:
-The object a Coach reply was about: the Subject's object, or the item In view when it was asked: an Application, a Job Offer, a Profile, a Job Search, a Job Digest or the Agenda. Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
+The object a Coach reply was about: the Subject's object, else the Agenda for the Agenda menu, else the item In view when it was asked: an Application, a Job Offer, a Profile, a Job Search, a Job Digest or the Agenda (which has no id). Kept with the reply so AI Activity can count the reply with that page, and in the Data export.
 _Avoid_: Context, subject, target
 
 **Joined Provenance**:
@@ -1017,10 +1068,10 @@ The public part of the site that lists every public Help Article (not the Admini
 _Avoid_: KB, support site, help desk
 
 **Article card**:
-A Help Article opened in the Work Pane beside a Coach Conversation (ADR-0070; a card in the Coach Panel's conversation before), from the box's suggestions « Dans l'aide, sans IA », « Comment marche cette page ? » or a HelpTerm. Kept only in the browser: never in a Coach Conversation nor in the Data export. When the Candidate asks the AI Coach next, it is told only the article's title, as the help gives it, never its text.
+A Help Article opened in the Work Pane beside a Coach Conversation (ADR-0070; a card in the Coach Panel's conversation before), from the box's suggestions « Dans l'aide, sans IA », « Comment marche cette page ? » or a HelpTerm. Kept only in the browser: never in a Coach Conversation nor in the Data export. While it is open, every message the Candidate sends to the AI Coach carries only the article's title, as the help gives it, never its text; an article the Candidate asked about through « Demander au coach » takes precedence. From a page without a conversation (Mon compte), « Demander au coach » leads to a new Free conversation with the box prefilled « À propos de « <titre> » : ».
 
 **Souvent demandé**:
-The three FAQ Help Articles an empty Coach Conversation offers, beside « Sur cette page », the page's article.
+The three FAQ Help Articles an empty Coach Conversation offers, beside « Comment marche cette page ? », which opens the page's article.
 
 **HelpTerm**:
 The first mention of a glossary term (Match Score, ATS Score, Propositions, CV de référence, CV adapté, Relance, Plan Quota) in a visible sentence of a page, shown with a dotted underline; it opens that term's Help Article in the Work Pane. Later mentions on the same page are plain text. Never in a Section's heading, which is visually hidden, and absent in the Back Office, which has Explainable labels instead.
@@ -1038,7 +1089,7 @@ A question about using Jobbbox that a Candidate asked the AI Coach, or an Admini
 _Avoid_: FAQ gap, feedback, ticket
 
 **Signalement**:
-What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The dialog keeps an unsent draft for the visit (closing it does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
+What a signed-in Candidate sends the Jobbbox team: a Bug (« Signaler un problème ») or an Idée (« Proposer une idée ») from under the box of a Coach Conversation or the icon beside « Mon compte » in the Sidebar (EN « Feedback »), or a Question (« Poser la question à l'équipe »), with a message of 10 to 2,000 characters. A Question is only an escalation, offered in a Coach Conversation when help or the AI Coach did not satisfy the Candidate: after « Non » to « Cela répond à votre question ? » under an AI Coach reply, in the AI Coach's unavailable message, or at once when the AI Coach's reply marks a question it could not answer (`couldNotAnswer`). The form's type switch never offers it; its form, in the Work Pane (a Drawer before ADR-0070), is titled « Poser la question à l'équipe », its text prefilled with the Candidate's question and editable. Its context is attached automatically: the page's path (never its query string or `#…`), the Jobbbox version, the browser as name, major version and operating system (« Chrome 141, Mac », never the raw user agent), the Interface Language and the Text Size. A Question also carries a copy of the Candidate's question and the AI Coach's reply, not a link to the Coach Conversation, and is never linked to an Unanswered Question. The form keeps an unsent draft for the visit (closing the Work Pane does not lose it). At most 10 per Candidate in a rolling 24 hours. Read by people only: never sent to an AI, never redacted. Its status goes « nouveau », « vu », « traité », and the team can reply once (at most 2,000 characters), signed « L'équipe Jobbbox ». The Candidate reads theirs, newest first, in Mon compte's « Mes signalements » Section, with the team's reply (« Réponse de l'équipe Jobbbox », dated, « modifiée le … » once changed) and, for a Question, what was attached, collapsed; no thread. They can delete one there after confirming, never edit it: it is gone for the team too, and the Back Office Audit keeps only what it already held. Purged 12 months after it was marked « traité »; deleted with the account; in the Data export without which Administrator changed its status or replied.
 _Avoid_: Ticket, support request, Retour
 
 **Signalement notification**:

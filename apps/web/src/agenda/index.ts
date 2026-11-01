@@ -240,7 +240,7 @@ export function createAgenda(database: Pool): Agenda {
         `SELECT s.id, s.paid_at, h.id AS coach_id, h.name AS coach_name, h.booking_url
            FROM coaching_session s
            JOIN human_coach h ON h.id = s.coach_id
-          WHERE s.candidate_id = $1 AND s.scheduled_at IS NULL
+          WHERE s.candidate_id = $1 AND s.scheduled_at IS NULL AND s.withdrawn_at IS NULL
           ORDER BY s.paid_at, s.id`,
         [candidateId],
       );

@@ -7,4 +7,4 @@ On the Legal page, open to everyone, with no account: the Terms of use, the Term
 
 Each text shows the date it took effect. A version is never changed: a correction makes a new version. The « Previous versions » link leads to the « Version history »: each version, its date, « Substantial » or « Minor », and a line that sums up the change.
 
-An earlier version stays readable at its dated address, marked « Archived version: see the version in effect ». The French text prevails; the English translation says so at the top.
+An earlier version stays readable at its dated address, marked « Archived version: see the version in effect ». An upcoming substantial version can already be read there, marked « Upcoming version » with the date it takes effect: the email telling you of it leads there. The French text prevails; the English translation says so at the top.

@@ -5,6 +5,7 @@ import { createJobOffers, migrateJobOffers } from "@jobhub/web/job-offers";
 import { createProfiles, migrateProfiles } from "@jobhub/web/profiles";
 import { createApplications, migrateApplications } from "../../web/src/applications";
 import { createCoachConversations, migrateCoachConversations } from "@jobhub/web/coach-conversations";
+import { createAcceptances, migrateAcceptances } from "@jobhub/web/acceptances";
 import { createBackOffice, migrateBackOfficeAudit } from "@jobhub/web/back-office";
 import { createAssistantConversations, migrateAssistantConversations } from "@jobhub/web/back-office-assistant";
 import { createBilling, migrateBilling, STARTING_PLAN_QUOTAS } from "@jobhub/web/billing";
@@ -18,14 +19,14 @@ import { JobDiscoveryError, type DiscoverRequest, type DiscoveryReport } from ".
 import type { JobSearchOutcome } from "@jobhub/web/job-searches";
 import { createDiscoveryRuns, migrateDiscoveryRuns, type DiscoveryRunRecord } from "@jobhub/web/discovery-runs";
 import { migrateJobSearches } from "@jobhub/web/job-searches";
-import type { DueJobDigest, JobDigestResult } from "@jobhub/web/job-digests";
+import { migrateJobDigests, type DueJobDigest, type JobDigestResult } from "@jobhub/web/job-digests";
 import { createSecretKey, randomBytes } from "node:crypto";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake } from "../../web/src/email-intake";
 import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
-import { alertEmail, inboundPayload } from "../../web/src/email-intake/fixtures/brevo-inbound";
+import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -739,6 +740,31 @@ describe("the Appointment Reminders job", () => {
   });
 });
 
+describe("the Legal Text notices job (#547)", () => {
+  it("emails the notices due every day, and is tried again while some could not be sent, saying how many", async () => {
+    const logs: string[] = [];
+    const sendDue = vi.fn(async () => ({ emails: 3, failed: 0 }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, legalTextNotices: { sendDue }, log: (line) => logs.push(line) })[LEGAL_TEXT_NOTICES]!;
+
+    expect(job.cron).toMatch(/^\d+ \d+ \* \* \*$/);
+    expect(job.retry).toMatchObject({ limit: expect.any(Number), backoff: true });
+    await job.handler({});
+    sendDue.mockResolvedValueOnce({ emails: 0, failed: 0 });
+    await job.handler({});
+    sendDue.mockResolvedValueOnce({ emails: 1, failed: 2 });
+    await expect(job.handler({})).rejects.toThrow("2 Legal Text notice(s) could not be sent");
+
+    expect(logs).toEqual(["[legal-text-notices] 3 notice email(s) sent", "[legal-text-notices] 1 notice email(s) sent; 2 could not be sent, left to the next try"]);
+  });
+
+  it("does nothing without Legal Text notices, or before the web app has created their tables", async () => {
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[LEGAL_TEXT_NOTICES]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    const sendDue = vi.fn(async () => Promise.reject(missingTable));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, legalTextNotices: { sendDue } })[LEGAL_TEXT_NOTICES]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
 describe("the Provider Secrets re-encryption job", () => {
   it("re-encrypts, every night and when asked, the Provider Secrets not under the newest master key, saying how many", async () => {
     const logs: string[] = [];
@@ -926,6 +952,8 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       await migrateProfiles(database);
       await migrateJobOffers(database);
       await migrateApplications(database);
+      await migrateJobSearches(database);
+      await migrateJobDigests(database);
       await migrateCoachConversations(database);
       const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
       const session = (await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } };
@@ -1036,6 +1064,48 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
     }
   });
 
+  it("purges, every night, the Acceptances of deleted accounts: the CGU ones 5 years after the deletion, the CGV ones 10 years after (#510)", async () => {
+    const testAuth = await startTestAuth();
+    try {
+      const database = testAuth.database;
+      await migrateAcceptances(database);
+      const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+      const candidateId = ((await (await testAuth.request("/api/auth/get-session", { cookie })).json()) as { user: { id: string } }).user.id;
+      const registry = () => [
+        { text: "cgu" as const, version: "2026-01-01", url: "/legal/cgu/2026-01-01", sha256: "a".repeat(64), change: "substantielle" as const },
+        { text: "cgv" as const, version: "2026-01-01", url: "/legal/cgv/2026-01-01", sha256: "b".repeat(64), change: "substantielle" as const },
+      ];
+      const acceptances = createAcceptances(database, { registry, secret: "test-secret-test-secret-test-secret-0123" });
+      await acceptances.accept(candidateId, "2026-01-01");
+      await acceptances.acceptAtCheckout(candidateId, { channel: "paiement_plan", checkoutSessionId: "cs_test_1", immediateExecutionRequested: true });
+      await database.query(`DELETE FROM candidate WHERE id = $1`, [candidateId]);
+      const logs: string[] = [];
+      const jobAt = (days: number) =>
+        createJobs({ ...otherDeps, database, now: () => new Date(Date.now() + days * 86_400_000), log: (line) => logs.push(line) })[ACCEPTANCES_PURGE]!;
+      const kept = async () => (await database.query<{ text: string }>(`SELECT text FROM legal_acceptance ORDER BY id`)).rows.map((row) => row.text);
+
+      expect(jobAt(0).cron).toBe("10 4 * * *");
+      await jobAt(5 * 365 - 5).handler({});
+      expect(await kept()).toEqual(["cgu", "cgv"]);
+      await jobAt(5 * 365 + 5).handler({});
+      expect(await kept()).toEqual(["cgv"]);
+      await jobAt(10 * 365 + 5).handler({});
+      expect(await kept()).toEqual([]);
+      expect(logs).toEqual([
+        "[acceptances] 1 Acceptance(s) of deleted accounts purged (CGU 5 years, CGV 10 years after the deletion)",
+        "[acceptances] 1 Acceptance(s) of deleted accounts purged (CGU 5 years, CGV 10 years after the deletion)",
+      ]);
+      const empty = await createThrowawayDatabase("test_worker_jobs_empty");
+      try {
+        await expect(createJobs({ ...otherDeps, database: empty.pool })[ACCEPTANCES_PURGE]!.handler({})).resolves.toBeUndefined();
+      } finally {
+        await empty.drop();
+      }
+    } finally {
+      await testAuth.stop();
+    }
+  });
+
   it("purges, every night, the Job discovery runs' query texts 30 days old, keeping their figures, and the runs 24 months old (#404)", async () => {
     const testAuth = await startTestAuth();
     try {
@@ -1096,10 +1166,10 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
         emailIntake,
         cipher: () => cipher,
         queue: { send: async () => {} },
-        settings: () => ({ secret: "inbound-secret", brevoIpRanges: [], dailyCap: 10 }),
+        settings: () => ({ secret: "inbound-secret", mtaIpRanges: [], dailyCap: 10 }),
         now: () => arrived,
       });
-      await inbound.handle(new Request("http://localhost/api/email-intake/inbound", { method: "POST", headers: { "x-inbound-secret": "inbound-secret" }, body: JSON.stringify(inboundPayload(alertEmail(address))) }));
+      await inbound.handle(new Request("http://localhost/api/email-intake/inbound", { method: "POST", ...inboundRequest(alertEmail(address), "inbound-secret") }));
       const [email] = (await emailIntakeOf(database, candidateId)).receivedOfferEmails;
       const logs: string[] = [];
       const jobAt = (hours: number) => createJobs({ ...otherDeps, database, now: () => new Date(arrived.getTime() + hours * 3_600_000), log: (line) => logs.push(line) })[EMAIL_INTAKE_PURGE]!;

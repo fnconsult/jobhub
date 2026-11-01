@@ -1,0 +1,6 @@
+# Email intake's MTA (#580), in hook order: STARTTLS offered, SPF checked at MAIL FROM, DKIM verified after DATA,
+# then jobbbox_intake (its recipients, DMARC, the post to the app). Nothing else: no relay, no outbound queue.
+tls
+spf
+dkim
+jobbbox_intake

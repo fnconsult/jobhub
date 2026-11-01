@@ -513,6 +513,20 @@
     "withdraw": "Withdraw my consent",
     "error": "Something went wrong. Please try again."
   },
+  "acceptance": {
+    "title": "Our terms of use",
+    "intro": "Before you go on, read and accept Jobbbox's terms of use. You only do this once, then for each version that changes your rights.",
+    "read": "Read the Terms of use (version of {{date}})",
+    "box": "I accept the Terms of use (version of {{date}})",
+    "submit": "Accept and continue",
+    "sending": "Saving…",
+    "error": "Your acceptance could not be saved. Please try again.",
+    "meanwhile": "Without accepting, you can still download your data or delete your account in",
+    "data": "My data",
+    "meanwhileSubscription": ", and manage your subscription in",
+    "subscription": "Subscription",
+    "meanwhileEnd": "."
+  },
   "accountDeleted": {
     "title": "Your account is deleted",
     "body": "Your data has been erased. Thank you for using Jobbbox, and good luck with your job search.",
@@ -1050,7 +1064,7 @@
       "choose": "Choose the {{plan}} Plan",
       "current": "Your Plan",
       "manage": "Manage my subscription",
-      "manageHelp": "Changing or cancelling your Plan happens on the secure page of our payment provider, Stripe.",
+      "manageHelp": "Changing your Plan or payment method, or undoing a scheduled cancellation, happens on the secure page of our payment provider, Stripe.",
       "invoices": "Invoices and payment method",
       "invoicesHelp": "Download your invoices and update your payment method on the secure page of our payment provider, Stripe.",
       "unavailable": "Online payment is not available at the moment. Please try again later.",
@@ -1076,6 +1090,35 @@
       "codeLabel": "Promotion code",
       "codeHint": "It applies to a new subscription, at checkout.",
       "applyCode": "Apply"
+    },
+    "cancellation": {
+      "action": "Cancel your contract",
+      "title": "Cancel your contract",
+      "intro": "You are about to cancel your subscription. Check what happens next, then confirm.",
+      "contractTitle": "Your contract",
+      "plan": "Plan",
+      "endsAt": "End of the contract",
+      "keep": "You keep the {{plan}} Plan until {{date}}, the end of the period already paid for. You will not be charged again; you then move to the {{free}} Plan.",
+      "receipt": "You will at once receive an acknowledgement by email, with the date of your request and the date the contract ends.",
+      "confirm": "Confirm the cancellation",
+      "back": "Keep my subscription",
+      "nothing": "You have no subscription to cancel: you are on the Free Plan, or the cancellation of your subscription is already scheduled.",
+      "backToSubscription": "Back to My subscription",
+      "done": "Your cancellation is recorded. You keep the {{plan}} Plan until {{date}}; you will not be charged again.",
+      "receiptSent": "An acknowledgement has been sent to you by email.",
+      "receiptNotSent": "The acknowledgement could not be sent to you by email; your cancellation is recorded all the same.",
+      "email": {
+        "subject": "Acknowledgement of your cancellation",
+        "title": "Your cancellation is recorded",
+        "intro": "We received your request to cancel your subscription to the {{plan}} Plan on {{at}}.",
+        "contract": "Subscription to the {{plan}} Plan",
+        "requestedAt": "Request received on {{at}}",
+        "endsAt": "End of the contract: {{date}}",
+        "undo": "Changed your mind? Until that date, you can undo the cancellation from My subscription, with « Manage my subscription ».",
+        "action": "See my subscription",
+        "keepThis": "Keep this email: it is the acknowledgement of your cancellation.",
+        "reason": "You are receiving this email because you cancelled your subscription on Jobbbox."
+      }
     },
     "quotas": {
       "profiles": "Profiles",
@@ -1106,6 +1149,67 @@
       "off": "{{off}} off",
       "monthsOnly_one": "{{count}} month",
       "monthsOnly_other": "{{count}} months"
+    }
+  },
+  "orders": {
+    "page": {
+      "title": "Your order",
+      "intro": "Check your order, then go on to the secure payment page of our payment provider, Stripe.",
+      "summaryTitle": "Summary",
+      "item": "Order",
+      "price": "Price",
+      "priceUnknown": "Shown on the payment page",
+      "renewal": "Term",
+      "code": "Promotion code",
+      "codeCarried": "{{code}}, applied at payment if it is valid on this plan",
+      "readCgv": "Read the terms of sale (version of {{date}})",
+      "cgvBox": "I accept the terms of sale (version of {{date}})",
+      "immediatePlan": "I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided.",
+      "immediateSession": "I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided, and that I lose my right of withdrawal once the session has taken place.",
+      "immediateHint": "Optional: without this request, you pay and the service starts just the same, but a withdrawal is refunded in full.",
+      "withdrawal": "You may withdraw within 14 days, without giving a reason, from « Renoncer au contrat ici » (withdraw from the contract here). A confirmation of your order is emailed to you after payment.",
+      "submit": "Go to payment",
+      "back": "Back",
+      "cgvRequired": "Tick « I accept the terms of sale » to go to payment.",
+      "nothing": "This order is no longer possible: the plan or the coach is no longer offered, or online payment is not available."
+    },
+    "email": {
+      "subjectPlan": "Your order is confirmed: the {{plan}} plan",
+      "subjectSession": "Your order is confirmed: a coaching session with {{coach}}",
+      "title": "Your order is confirmed",
+      "intro": "Thank you! Your payment was recorded on {{at}}. Here is the summary of your order:",
+      "plan": "{{plan}} plan",
+      "coachingSession": "Coaching session with {{coach}}",
+      "price": "Price: {{price}}",
+      "paid": "Amount paid: {{amount}}",
+      "cgv": "You accepted our terms of sale (version of {{date}}); the French text prevails. They stay available at this permanent address: {{url}}",
+      "immediatePlan": "You asked for the service to start at once. If you withdraw, you will pay for the service already provided: the amount paid will be refunded, less the share of the days elapsed since the start of the period.",
+      "immediateSession": "You asked for the service to start at once. If you withdraw before the session, the amount paid will be refunded in full; once the session has taken place, you lose your right of withdrawal.",
+      "notImmediate": "You did not ask for the service to start at once: if you withdraw, the amount paid will be refunded in full.",
+      "withdrawalPlan": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the My subscription page: {{url}}",
+      "withdrawalSession": "You may withdraw without giving a reason until {{date}} included, from « Renoncer au contrat ici » on the session, in your agenda: {{url}}",
+      "withdrawalForm": "The model withdrawal form is in our terms of sale, at this address: {{url}}",
+      "keep": "Keep this email: it confirms your order.",
+      "reason": "You are receiving this email because you placed an order on Jobbbox."
+    },
+    "renewal": {
+      "plan": "Subscription renewed automatically {{every}}, until it is cancelled",
+      "planUnknown": "Subscription renewed automatically, until it is cancelled",
+      "session": "One-off payment, not renewed"
+    },
+    "pricePer": "{{price}} incl. VAT {{per}}",
+    "priceOnce": "{{price}} incl. VAT",
+    "per": {
+      "day": "per day",
+      "week": "per week",
+      "month": "per month",
+      "year": "per year"
+    },
+    "every": {
+      "day": "every day",
+      "week": "every week",
+      "month": "every month",
+      "year": "every year"
     }
   },
   "admin": {
@@ -1229,7 +1333,8 @@
       "activity": "Activity",
       "discoveryRuns": "Searches",
       "designSystem": "Design System",
-      "receivedEmails": "Received emails"
+      "receivedEmails": "Received emails",
+      "withdrawals": "Withdrawals"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1395,13 +1500,18 @@
         "free_plan_built_in": "The Free Plan cannot be hidden, moved or tied to a Stripe product.",
         "cannot_move": "This Plan cannot go any further.",
         "product_frozen": "A paid Plan's Stripe product no longer changes once chosen: its subscribers stay on it. To move them to another Plan, use Stripe.",
-        "conflict": "Another change to the Plans was saved at the same moment. Try again."
+        "conflict": "Another change to the Plans was saved at the same moment. Try again.",
+        "notice_required": "You are removing a feature from a plan Candidates pay for: give the reason and the effective date of the reduction, at least 30 days ahead.",
+        "invalid_effective_date": "The effective date is not a date.",
+        "too_soon": "A reduction's effective date must be at least 30 days ahead.",
+        "reduction_pending": "A reduction is already scheduled on this plan: cancel it first, or wait for its effective date.",
+        "reason_too_long": "A reduction's reason is at most 500 characters: it is quoted in each subscriber's email."
       }
     },
     "planQuotas": {
       "title": "Plan Quotas",
-      "subtitle": "Each Plan's quotas, applied at once.",
-      "intro": "Changes apply at once to every Candidate on the Plan. Leave a field empty for “unlimited”.",
+      "subtitle": "Each plan's quotas: an increase at once, a reduction 30 days ahead.",
+      "intro": "An increase applies at once to every Candidate on the plan. A reduction of a paid plan Candidates pay for applies on an effective date at least 30 days ahead, announced to each subscriber. Leave a field empty for “unlimited”.",
       "plan": "{{plan}} Plan",
       "limitHelp": "A number, or empty for unlimited",
       "weekly": "a week",
@@ -1571,7 +1681,7 @@
           "fantastic_jobs": "Fantastic.jobs API (ATS postings)",
           "web_search": "Web search (search provider)",
           "ats_apis": "Public ATS APIs (Greenhouse, Lever, Ashby)",
-          "email_intake": "Email intake (Brevo Inbound)"
+          "email_intake": "Email intake (Jobbbox's MTA)"
         },
         "awaitingAccess": "Awaiting access",
         "accessRefused": "Unavailable: access refused by France Travail (Offres d'emploi API). Job searches go on without it."
@@ -1702,7 +1812,8 @@
         "kaspr": "Kaspr",
         "apollo": "Apollo",
         "stripe": "Stripe",
-        "brevo": "Brevo"
+        "brevo": "Brevo",
+        "email-intake": "Email intake (Jobbbox's MTA)"
       },
       "replaceLegend": "Replace {{name}}",
       "newValue": "New value of {{name}}",
@@ -1759,7 +1870,8 @@
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
-        "maintenance": "Maintenance"
+        "maintenance": "Maintenance",
+        "candidate_pages": "Candidate's pages"
       },
       "setting": "Setting",
       "value": "Value in use",
@@ -1939,7 +2051,8 @@
           "caption": "Environment variables no longer used",
           "replacedBy": "Replaced by",
           "by": {
-            "coaching_playbooks": "Coaching Playbooks, set in Playbooks"
+            "coaching_playbooks": "Coaching Playbooks, set in Playbooks",
+            "email_intake_mta": "Jobbbox's own MTA for Email intake (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)"
           }
         }
       },
@@ -1983,7 +2096,7 @@
         "EMAIL_INTAKE_DOMAIN": "Forwarding addresses' domain (Email intake)",
         "EMAIL_INTAKE_DAILY_CAP": "Emails read a day per Linked mailbox, at most (Email intake)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails a day from which the filter is « too broad »",
-        "EMAIL_INTAKE_BREVO_IP_RANGES": "Brevo webhook's IP ranges (CIDR)",
+        "EMAIL_INTAKE_MTA_IP_RANGES": "Networks the receiving MTA posts emails from (CIDR)",
         "MAIL_TRANSPORT": "Email sending",
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
@@ -1992,6 +2105,7 @@
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
+        "CONVERSATION_FIRST": "Conversation first (the Candidate's home page is a conversation with the AI Coach)",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
       },
@@ -2149,7 +2263,8 @@
         "signalements": "Feedback",
         "recipients_outside_eu": "Recipients outside the EU",
         "discovery_runs": "Activity › Searches",
-        "received_emails": "Activity › Received emails"
+        "received_emails": "Activity › Received emails",
+        "withdrawals": "Withdrawals"
       },
       "actions": {
         "added": "Added",
@@ -2168,7 +2283,10 @@
         "reset": "Reset",
         "refused": "Attempt refused",
         "denied": "Access denied",
-        "switched_on": "Switched on"
+        "switched_on": "Switched on",
+        "scheduled": "Scheduling",
+        "cancelled": "Cancellation",
+        "applied": "Application"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -3176,6 +3294,104 @@
     },
     "pageIntro": {
       "more": "Learn more"
+    },
+    "withdrawals": {
+      "title": "Withdrawals",
+      "subtitle": "Candidates' withdrawals, and the refund of each in Stripe.",
+      "intro": "Every withdrawal received through « Renoncer au contrat ici »: a Plan's subscription or a Coaching Session, within 14 days of its conclusion. The subscription is cancelled at once, the session cancelled and its coach told, and everything paid is refunded in full in Stripe. A refund Stripe refuses, or that fails later (expired card, bank), stays « Failed » here: it can be tried again. If the card no longer exists, refund by bank transfer, outside Stripe.",
+      "caption": "Withdrawals, newest first",
+      "none": "No withdrawal yet.",
+      "withdrawnAt": "Received on",
+      "candidate": "Candidate",
+      "contract": "Contract",
+      "concludedAt": "concluded on {{date}}",
+      "receipt": "Acknowledgement",
+      "receiptSent": "Sent to {{email}} on {{at}}",
+      "receiptNotSent": "Not sent ({{email}}): send it by hand",
+      "refunds": "Refund",
+      "nothingToRefund": "Nothing to refund",
+      "states": {
+        "pending": "Pending",
+        "succeeded": "Refunded",
+        "failed": "Failed"
+      },
+      "failureReason": "Stripe's reason: {{reason}}",
+      "attempts_one": "{{count}} attempt",
+      "attempts_other": "{{count}} attempts",
+      "retry": "Try the refund again",
+      "failedCount_one": "{{count}} refund failed: try it again, or refund by bank transfer.",
+      "failedCount_other": "{{count}} refunds failed: try them again, or refund by bank transfer.",
+      "retried": {
+        "succeeded": "The refund is done.",
+        "pending": "The refund is asked of Stripe, which is processing it.",
+        "failed": "Stripe refused the refund again: see its reason, or refund by bank transfer."
+      },
+      "errors": {
+        "not_found": "This refund does not exist.",
+        "not_failed": "This refund did not fail: there is nothing to try again."
+      }
+    },
+    "quotaReductions": {
+      "title": "Scheduled reductions",
+      "intro": "A reduction of a plan Candidates pay for waits for its effective date, at least 30 days ahead. Each subscriber gets an email with what changes, the reason, the date and their right to cancel at no cost, refunded prorata, until 30 days after the effective date. A reduction can be cancelled before its effective date.",
+      "none": "No reduction scheduled.",
+      "caption": "Scheduled reductions, soonest first",
+      "plan": "Plan",
+      "changes": "What goes down",
+      "effectiveOn": "Effective date",
+      "reason": "Reason",
+      "subscribers": "Subscribers told",
+      "resolved": "Cancellations",
+      "refundsPending": "Refunds to handle",
+      "notified": "{{notified}} of {{count}} email(s) sent",
+      "change": "{{label}}: {{before}} → {{after}}",
+      "cancel": "Cancel the reduction of the {{plan}} plan",
+      "cancelled": "Reduction cancelled: the plan keeps what it includes.",
+      "notCancelled": "This reduction can no longer be cancelled: its effective date has passed, or it was cancelled already.",
+      "noticeTitle": "If you reduce this plan",
+      "noticeHelp": "On a plan Candidates pay for, a reduction (a smaller number, a number instead of “unlimited”, a less frequent Job Digest, a feature removed) applies on its effective date, at least 30 days ahead. An increase applies at once.",
+      "reasonLabel": "Reason for the reduction",
+      "reasonHelp": "It appears in the email sent to each subscriber.",
+      "effectiveOnLabel": "Effective date",
+      "scheduled_one": "Reduction of the {{plan}} plan scheduled for {{date}}: {{count}} subscriber will get an email.",
+      "scheduled_other": "Reduction of the {{plan}} plan scheduled for {{date}}: {{count}} subscribers will get an email.",
+      "seePending": "See the scheduled reductions",
+      "errors": {
+        "notice_required": "This change reduces a plan Candidates pay for: give the reason and the effective date, at least 30 days ahead.",
+        "invalid_effective_date": "The effective date is not a date.",
+        "too_soon": "A reduction's effective date must be at least 30 days ahead.",
+        "reduction_pending": "A reduction is already scheduled on this plan: cancel it first (Plans), or wait for its effective date.",
+        "unknown_plan": "This plan does not exist.",
+        "reason_too_long": "A reduction's reason is at most 500 characters: it is quoted in each subscriber's email."
+      },
+      "journalFields": {
+        "quotas": "Quotas reduced",
+        "removedFeatures": "Features removed",
+        "reason": "Reason",
+        "effectiveOn": "Effective date",
+        "subscribers": "Subscribers told",
+        "reduction": "Reduction",
+        "refund": "Refund"
+      },
+      "cancelHeader": "Cancel",
+      "refunds": {
+        "title": "Refunds to handle",
+        "intro": "The prorata refunds Stripe did not make after a no-cost cancellation over a reduction. Stripe refused (a disputed payment, say): refund in Stripe, from the subscription shown, then mark it refunded. Stripe did not answer: Jobbbox asks again, nothing to do.",
+        "none": "No refund to handle.",
+        "caption": "Refunds to handle, oldest first",
+        "plan": "Plan",
+        "subscription": "Stripe subscription",
+        "failure": "Stripe's answer",
+        "resolvedAt": "Cancelled on",
+        "action": "Action",
+        "retrying": "Stripe did not answer: Jobbbox asks again",
+        "settle": "Refunded in Stripe",
+        "settleLabel": "Mark the subscription {{subscription}} as refunded in Stripe",
+        "settled": "Refund marked as made in Stripe.",
+        "notSettled": "This refund is no longer to handle: it was marked already, or Jobbbox is asking Stripe again.",
+        "due": "To refund",
+        "dueUnknown": "Unknown: work it out in Stripe"
+      }
     }
   },
   "backOfficeAssistant": {
@@ -4627,6 +4843,40 @@
     "scheduleInterview": "Schedule an interview",
     "askCoach": "Ask the coach"
   },
+  "applicationsMenu": {
+    "introduction": "Here are your applications in progress. Ask me which one to handle first, a follow-up to write or an interview to prepare; to add one, paste the job offer's link.",
+    "count_one": "{{count}} application",
+    "count_other": "{{count}} applications",
+    "toHandle": "{{count}} to handle",
+    "toHandleColumn": "To handle",
+    "matchScore": "Match Score",
+    "noMatchScore": "not computable",
+    "followUpReady": "Follow-up ready",
+    "noAnswer": "Still no answer",
+    "showArchived": "Show them",
+    "hideArchived": "Hide archived applications"
+  },
+  "conversationFirst": {
+    "newConversation": "New conversation",
+    "coach": "Coach",
+    "actions": "Actions for “{{title}}”",
+    "nameLabel": "Conversation name",
+    "deleteTitle": "Delete the conversation “{{title}}”?",
+    "deleteText": "All its messages will be deleted. The coach's memory stays.",
+    "clear": "Clear",
+    "clearTitle": "Clear this conversation?",
+    "clearText": "All the messages of this conversation will be deleted. The coach's memory stays.",
+    "cleared": "Conversation cleared.",
+    "label": "Conversation with the AI Coach",
+    "suggestions": "Suggestions",
+    "unfold": "Unfold “{{menu}}”",
+    "toHandle": "to handle",
+    "seeAll": "See all ({{count}})",
+    "help": "Help",
+    "howThisPageWorks": "How does this page work?",
+    "askCoach": "Ask the coach",
+    "close": "Close"
+  },
   "publicSite": {
     "nav": "Public pages",
     "nouveautes": "What's new",
@@ -4642,8 +4892,10 @@
       "mentions-legales": "Legal notice"
     },
     "effective": "In effect since {{date}}",
+    "effectiveFrom": "In effect from {{date}}",
     "earlierVersions": "Previous versions",
     "archived": "Archived version:",
+    "upcoming": "Upcoming version: it takes effect on {{date}}.",
     "seeCurrent": "see the version in effect",
     "translation": "Translation: the French text prevails.",
     "readFrench": "Read the French text",
@@ -4660,6 +4912,29 @@
     "pdf": "Download as PDF",
     "notPublishedTitle": "This text is not published yet",
     "notPublished": "The Jobbbox team is writing it. It will appear here once it is published."
+  },
+  "legalTextNotice": {
+    "email": {
+      "subject": "{{text}}: new version on {{date}}",
+      "title": "New version: {{text}}",
+      "intro": "We are publishing a new version of a text that applies to your Jobbbox account: {{text}}. It takes effect on {{date}}.",
+      "effective": "In effect from {{date}}",
+      "summary": "What changes: {{summary}}",
+      "then": {
+        "cgu": "The first time you sign in from {{date}}, Jobbbox will ask you to accept this new version. Until then, nothing changes for you.",
+        "cgv": "It will apply to your purchases from {{date}}. A purchase already made keeps the terms accepted then.",
+        "confidentialite": "You have nothing to accept: it applies from {{date}}."
+      },
+      "read": "Read the new version",
+      "history": "Version history",
+      "reason": "A service email: it tells you of a change to the texts that apply to your Jobbbox account, even if you do not receive our news."
+    }
+  },
+  "privacyChange": {
+    "label": "Change to the privacy policy",
+    "message": "Our privacy policy changed on {{date}}.",
+    "read": "Read the privacy policy",
+    "dismiss": "Got it"
   },
   "nouveautes": {
     "eyebrow": "What's new",
@@ -4686,5 +4961,113 @@
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
     "noneForTag": "No version has this topic yet."
+  },
+  "withdrawals": {
+    "email": {
+      "subject": "Acknowledgement of your withdrawal",
+      "title": "Your withdrawal is recorded",
+      "intro": "We received your withdrawal on {{at}}. It concerns the following contract:",
+      "plan": "{{plan}} Plan",
+      "coachingSession": "Coaching Session with {{coach}}",
+      "concludedAt": "Concluded on {{date}}",
+      "paid": "Amount paid: {{amount}}",
+      "declaredBy": "Withdrawal declared by: {{name}}.",
+      "planEnded": "Your subscription is cancelled now: you are on the Free Plan.",
+      "sessionCancelled": "The session is cancelled, and {{coach}} has been told.",
+      "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
+      "nothingToRefund": "Nothing to refund: nothing was paid for this contract.",
+      "kept": "Amount kept for the service already provided, as you asked for it to start at once: {{amount}}.",
+      "keep": "Keep this email: it records your withdrawal.",
+      "reason": "You get this email because you withdrew from a contract made on Jobbbox."
+    },
+    "coachEmail": {
+      "subject": "Session cancelled: {{candidate}} withdrew",
+      "title": "A Coaching Session is cancelled",
+      "intro": "{{candidate}} withdrew from the Coaching Session paid on {{paidAt}}.",
+      "scheduled": "It was planned for {{at}}: do not hold it, and free the slot on your Cal.com page.",
+      "unscheduled": "It had no date yet: if a slot is booked on your Cal.com page, free it.",
+      "held": "It took place on {{at}}: the Candidate had not asked for it to start before the end of their withdrawal period, so it is refunded to them.",
+      "refunded": "Jobbbox refunds the session to the Candidate.",
+      "someone": "A Candidate",
+      "reason": "You get this email because you are a Human Coach on Jobbbox."
+    },
+    "page": {
+      "title": "Withdraw from the contract here",
+      "intro": "You may withdraw from this contract without giving a reason and at no cost, until {{date}} included. Everything you paid for it is refunded.",
+      "introProrata": "You may withdraw from this contract without giving a reason until {{date}} included. As you asked for the service to start at once, you pay for the service already provided: the rest is refunded to you.",
+      "contractTitle": "The contract",
+      "contract": "Contract",
+      "subscribedOn": "Subscribed on",
+      "paidOn": "Paid on",
+      "amount": "Amount paid",
+      "amountUnknown": "As on your invoice",
+      "refundNow": "Refunded if you confirm now",
+      "name": "Your name",
+      "receipt": "Where should we send the acknowledgement?",
+      "receiptAccount": "To my account's address ({{email}})",
+      "receiptOther": "To another address",
+      "receiptEmail": "Other email address",
+      "receiptEmailHint": "Only if you chose another address.",
+      "whatHappensPlan": "Your subscription will be cancelled at once: you will be on the Free Plan, and what you paid will be refunded in full.",
+      "whatHappensPlanProrata": "Your subscription will be cancelled at once: you will move to the Free plan, and the amount paid will be refunded to you, less the share of the days elapsed since the start of the period.",
+      "whatHappensSession": "The session will be cancelled and the coach told; what you paid will be refunded in full.",
+      "confirm": "Confirm the withdrawal",
+      "cancel": "Back",
+      "done": "Your withdrawal ({{contract}}) was recorded on {{at}}.",
+      "refunded": "Amount refunded: {{amount}}, to the payment method you paid with. Depending on your bank, it shows within 5 to 10 business days.",
+      "receiptSent": "An acknowledgement was sent to {{email}}.",
+      "receiptNotSent": "The acknowledgement could not be sent: our team will send it to you.",
+      "nothing": "No contract can be withdrawn from here: the 14 days are over, the session took place, or you already withdrew.",
+      "back": "Back to my subscription",
+      "backToAgenda": "Back to the Agenda",
+      "errors": {
+        "name_required": "Enter your name.",
+        "name_too_long": "Your name is too long.",
+        "receiptEmail_required": "Enter the address to send the acknowledgement to.",
+        "receiptEmail_invalid": "This email address is not valid.",
+        "not_withdrawable": "This contract can no longer be withdrawn from: the period is over, or you already withdrew.",
+        "stripe_unavailable": "Online payment is not answering: nothing was changed. Try again in a moment."
+      }
+    },
+    "subscription": {
+      "offer": "You may withdraw from this subscription, without a reason and at no cost, until {{date}} included."
+    },
+    "agenda": {
+      "label": "Withdraw from the contract here: session with {{name}}"
+    }
+  },
+  "quotaReduction": {
+    "features": {
+      "coachingSessionDiscount": "Coaching sessions at a reduced price"
+    },
+    "included": "Included",
+    "before": "Today: {{value}}",
+    "after": "From {{date}}: {{value}}",
+    "resolve": "Cancel at no cost",
+    "email": {
+      "subject": "Your {{plan}} plan changes on {{date}}",
+      "title": "Your {{plan}} plan is about to change",
+      "intro": "On {{date}}, what your {{plan}} plan includes will go down. Here is what changes:",
+      "reason": "Why: {{reason}}",
+      "right": "If this change does not suit you, you can cancel your subscription at no cost, before {{date}} or up to and including {{until}}. Your subscription then stops at once, and we refund the part of the period you have paid for that will not have been used, prorata.",
+      "nothingToDo": "If you keep your subscription, there is nothing to do.",
+      "footer": "You are receiving this email because your Jobbbox {{plan}} subscription is affected."
+    },
+    "page": {
+      "title": "Your {{plan}} plan changes on {{date}}",
+      "intro": "On {{date}}, what your plan includes goes down:",
+      "reason": "Why: {{reason}}",
+      "right": "You can cancel at no cost up to and including {{until}}: your subscription stops at once, and we refund, prorata, the part of the paid period that will not have been used.",
+      "confirmTitle": "Cancel at no cost",
+      "confirm": "Confirm the cancellation",
+      "keep": "Keep my subscription",
+      "notOpen": "No reduction of your plan lets you cancel at no cost right now.",
+      "done": "Your subscription is cancelled. We are refunding {{amount}}: the refund shows on your statement within 5 to 10 days.",
+      "doneNothing": "Your subscription is cancelled. There was nothing to refund.",
+      "donePending": "Your subscription is cancelled. The refund could not be made right away: our team is handling it, there is nothing for you to do.",
+      "error": "The cancellation could not be made. Try again in a moment.",
+      "doneSettled": "Your subscription is cancelled, and our team refunded you prorata the part of the paid period that was not used."
+    },
+    "change": "{{label}}: {{before}} → {{after}}"
   }
 }

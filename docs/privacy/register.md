@@ -19,6 +19,21 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | Not part of a Candidate's account data export (it is Jobbbox's operations record, see `OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`). An Administrator or Human Coach who asks for access to, or erasure of, what it holds about them is answered by the Jobbbox team directly; a request to erase is weighed against the legitimate interest above (GDPR art. 17(1)(c) and 21) within the 3 years. |
 | Security | Back Office pages and writes check the Administrator on every request. Entries cannot be edited from the app; they are only added, read and purged. |
 
+## Acceptances of the CGU and CGV (#510)
+
+| | |
+| --- | --- |
+| Purpose | Keep proof that a Candidate accepted a given version of the CGU (on the Acceptance screen after sign-in, ADR-0062) or of the CGV (at a payment, #512): which version, its permanent URL and fingerprint, when, and how. It lets Jobbbox show which terms applied to a Candidate, including after their account is deleted. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)) for the CGV of a contract of 120 EUR or more (C. conso. L213-1, D213-1: kept 10 years); legitimate interest (GDPR art. 6(1)(f)) in the proof of the CGU accepted and of the CGV under that threshold. Durations assumed without a lawyer (#510); to confirm in the Legal Review. |
+| People concerned | Candidates. |
+| Data | Per Acceptance: the Candidate's id (while the account lives); a pseudonym (HMAC-SHA256 of their email address under the app's secret, AUTH_SECRET: not derivable from the email without that secret, never a plain hash); the text (CGU or CGV), the version id (its effective date), its permanent URL and the SHA-256 of its French text; the date and time; the channel (`premiere_connexion`, `nouvelle_acceptation`, `paiement_plan`, `paiement_coaching`); for a payment, the Stripe Checkout session id and whether the Candidate asked for immediate performance. After the Account deletion, the day of the deletion. No IP address, no user agent, no name, no email address. A pseudonymised record is still personal data (GDPR recital 26, art. 4(5)). |
+| Source | Written by the web app when the Candidate ticks the box and confirms (`POST /api/account/acceptances`), or at a payment. |
+| Who can read it | No page shows it; the Jobbbox team reads it in the database to answer a dispute, finding a former Candidate's rows from the email they give, with the secret. |
+| Storage | The `legal_acceptance` table in the app's Postgres database (EU). The key that links the pseudonym to an email (AUTH_SECRET) is kept apart, in the hosting's secret manager. Changing AUTH_SECRET leaves earlier rows unlinkable. |
+| Retention | While the account lives. At the Account deletion the Candidate's id is set to null and the day recorded; the worker's nightly job `acceptances.purge` deletes the CGU rows 5 years after the deletion and the CGV rows 10 years after (the deletion ends any paid Plan). |
+| Rights | In the Candidate's Data export (`acceptances`: version, URL, fingerprint, channel, date, immediate performance; never the pseudonym nor Stripe's id). It is Jobbbox's operations record (`OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`): an erasure request is weighed against the legal obligation and the proof (GDPR art. 17(3)(b) and (e)). |
+| Security | Rows are only added, read for the export and purged; the app never edits them. |
+
 ## Provider Secrets (#208)
 
 | | |
@@ -111,3 +126,83 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | The last 30 days' runs are in the Candidate's Data export (`profiles[].jobDiscoveryRuns`: when, trigger, Search Criteria and each search's query texts) and are deleted with their account. The figures kept afterwards name no one. |
 | Security | Back Office pages check the Administrator's Back Office Roles on every request. Runs cannot be edited from the app; they are only added, read and purged. |
 
+
+## Coach Conversations (#124, #600)
+
+| | |
+| --- | --- |
+| Purpose | Let a Candidate talk with the AI Coach about their job search and find each conversation again: each Coach Conversation is attached to the object or the menu it is about (its Subject: an Application, a Profile, a Job Search, a Job Digest, or one of the Sidebar menus Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), or to the active Profile for a Free conversation (ADR-0070). |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)): the AI Coach is part of the service the Candidate signed up for. |
+| People concerned | Candidates. Third parties only as far as the Candidate names them in what they write, or a Job Offer read from a link names its employer. |
+| Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
+| Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory). |
+| Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Candidate's EU AI consent, what carries identity goes to Mistral (#121). |
+| Who can read it | The Candidate, in their conversations. Never Human Coaches (Coach Access covers Profiles and Applications only). Administrators see only each day's cost figures, never a conversation; the text of a call, if needed, is in the AI Message Log. |
+| Storage | The `coach_conversation` and `coach_message` tables in the app's Postgres database (EU). |
+| Retention | 12 months after the conversation's last message (the worker's nightly job `coach-conversations.purge`); deleted at once with the Candidate's account, when they delete it, or with its object if the object itself is deleted. An archived object keeps its conversation. The conversations saved before Subjects existed (only on staging) were deleted when #600 shipped; the Coach Memory was kept. |
+| Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs). |
+| Security | Every read and change is scoped to the Candidate: another Candidate's conversation, or a Subject that is not theirs, is « not found ». |
+
+## Préavis des Legal Text Versions (#547)
+
+| | |
+| --- | --- |
+| Purpose | Tell each Candidate, at least 30 days ahead, of a substantial version of the CGU, the CGV or the privacy policy (ADR-0062): an email naming the text, its effective date, its line in the version history, what happens then, and links to the new version and the version history. Then show once in the app, from its effective date, that the privacy policy changed, and remember that the Candidate closed it. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)) to inform the Candidate of a change to the contract and to the information on processing, as the issue decided: Code de la consommation L215-1-1 and GDPR art. 12-13. These references are not verified against their primary sources yet (`docs/research/issue-547.md`): the Legal Review of the first noticed version confirms or corrects them. A service email: it goes without any marketing opt-in. |
+| People concerned | Candidates with a verified email address. |
+| Data | Per notice sent: the Candidate's id, the text and version (its effective date) it told of, when it was sent. Per privacy policy change closed: the Candidate's id, the version, when it was closed. The email itself goes to the Candidate's account address, in their Interface Language; its text is not kept. |
+| Source | Written by the worker when it sends each notice (`legal-text-notices.send`: when it starts, then daily, Production only, never the Beta), and by the web app when the Candidate clicks « J'ai compris » (`DELETE /api/privacy-change/<version>`). |
+| Processors | Brevo (EU, ADR-0007), which sends the email. The email carries no image and no tracked link: Brevo's open and click tracking must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). |
+| Who can read it | The Candidate, through their Data export. No Back Office screen shows it. |
+| Storage | The `legal_text_notice` and `privacy_change_seen` tables in the app's Postgres database (EU). |
+| Retention | As long as the account: deleted with it (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`legalTextNotices.emailed` and `legalTextNotices.privacyChangesSeen`); erased with the account. |
+| Security | One notice per Candidate and per version, claimed in the transaction that sends it. Closing checks the signed-in Candidate and the request's origin, and only the version shown can be closed. |
+
+## Withdrawals (#511)
+
+| | |
+| --- | --- |
+| Purpose | Let a Candidate withdraw online from a contract concluded on Jobbbox (a Plan's subscription, a Coaching Session) within its withdrawal period, through « Renoncer au contrat ici » (C. conso. L221-18, L221-21 al. 3), refund them, acknowledge the withdrawal on a durable medium, and let Support follow refunds that fail. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)): the Code de la consommation's withdrawal right, its acknowledgement (D221-5) and the refund within 14 days (L221-24). The contract itself (art. 6(1)(b)) for cancelling it. |
+| People concerned | Candidates who withdraw. Human Coaches, told by email that a Coaching Session is cancelled. A third person, when the Candidate has the acknowledgement sent to another address. |
+| Data | Per Withdrawal: the Candidate's id, the contract (Plan or Coaching Session, its name or the Human Coach's, when it was concluded), the name the Candidate typed, the address the acknowledgement went to, when the withdrawal was received and when the acknowledgement was sent. Per refund: amount, the part kept for the service already provided (a Plan bought with the Immediate Performance Request, #512), currency, status, Stripe's failure reason, how many attempts; Stripe's identifiers of the subscription, payment, Checkout Session and refund. Whether the contract was bought with the Immediate Performance Request is read from its Order (below). The Coaching Session gets the date it was withdrawn. The Human Coach is sent the Candidate's first name and last initial, the day the session was paid and the date it was planned for. |
+| Source | The Candidate, on the Withdrawal form (`/abonnement/retractation`); Stripe, for what was paid and each refund's fate (its signed `refund.updated` and `refund.failed` webhooks). |
+| Processors | Stripe (subscription cancelled at once, refund `requested_by_customer`; already a processor for payments); Brevo, which sends the acknowledgement and the Human Coach's notice (already a processor for emails). No new processor, no recipient outside the EU beyond those already listed for them. |
+| Who can read it | The Candidate, on the confirmation page and in their acknowledgement. Super-admins and Support, on the Back Office's Rétractations section (`/admin/retractations`), with the Candidate's email; Support tries a failed refund again, recorded in the Back Office Audit. Anyone else gets a 404. |
+| Storage | The `withdrawal` and `withdrawal_refund` tables, and `coaching_session.withdrawn_at`, in the app's Postgres database (EU). |
+| Retention | Until the account is deleted (ON DELETE CASCADE, ADR-0010). Whether to keep withdrawals longer, as evidence or for accounting, is a question for the Juriste (see the « Légal : » issue). |
+| Rights | In the Candidate's Data export (`withdrawals`, with their refunds, without Stripe's identifiers); deleted with their account. |
+| Security | The form and its API check the signed-in Candidate and the request's origin; one Withdrawal per contract (a double click records one); each refund is sent to Stripe with an idempotency key, a retry with a new one. |
+
+## Orders (#512)
+
+| | |
+| --- | --- |
+| Purpose | Conclude a contract online on Jobbbox's own page before Stripe Checkout (C. civ. 1127-1, 1127-2): show the summary, record the Acceptance of the CGV version in effect and the Candidate's Immediate Performance Request (« demande expresse », C. conso. L221-25, L221-28 1°); confirm the contract on a durable medium once Stripe confirms the payment (L221-13); and, at a Withdrawal, tell whether the service already provided is paid for. |
+| Legal basis | The contract (GDPR art. 6(1)(b)) for the Order; legal obligation (art. 6(1)(c)) for the confirmation on a durable medium and the Immediate Performance Request the Withdrawal reads. |
+| People concerned | Candidates who choose a paid Plan or book a Coaching Session. |
+| Data | Per Order: the Candidate's id; what was ordered (a Plan or a Coaching Session, with the Plan's name or the Human Coach's), its price, currency and billing interval as the page showed them; the CGV version accepted and its URL (none while no version is in effect); whether the Immediate Performance Request was made; the Interface Language; when it was ordered and when its confirmation was emailed; Stripe's identifiers of the Checkout Session and of the subscription it started. The CGV Acceptance itself is in the Acceptances (above). The confirmation goes to the account's email address. |
+| Source | The Candidate, on the Order pages (`/abonnement/commande`, `/coachs/commande`); Stripe's signed `checkout.session.completed` and `checkout.session.async_payment_succeeded` webhooks, for the payment and the subscription. |
+| Processors | Stripe (Checkout, already a processor for payments); Brevo, which sends the Order Confirmation (already a processor for emails). No new processor, no recipient outside the EU beyond those already listed for them. |
+| Who can read it | The Candidate, on the Order page and in their confirmation. No Back Office page shows it. |
+| Storage | The `checkout_order` table in the app's Postgres database (EU). |
+| Retention | Until the account is deleted (ON DELETE CASCADE, ADR-0010). The proof that outlives the account is the CGV Acceptance (above, 10 years after the deletion). |
+| Rights | In the Candidate's Data export (`orders`: what was ordered, the CGV version, the Immediate Performance Request, when it was ordered and confirmed; without Stripe's identifiers); deleted with their account. |
+| Security | The boxes are checked by the server, never only the browser; the form's API checks the signed-in Candidate and the request's origin. One Order per Checkout Session, and one confirmation each, claimed before it is sent. |
+
+## Quota Reduction notices (#514)
+
+| | |
+| --- | --- |
+| Purpose | Tell each Candidate paying for a Plan, in advance and on a durable medium, that what their Plan includes goes down (what, why, from when), and let them end their subscription at no cost with a prorata refund (C. conso. L224-25-26); keep the proof that they were told and how their cancellation was refunded. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c)): L224-25-26 of the French Consumer Code; and the performance of the subscription contract (art. 6(1)(b)). |
+| People concerned | Candidates paying for a paid Plan when an Administrator schedules a Quota Reduction on it. |
+| Data | The Candidate's id, the Quota Reduction they were told of (Plan, what it lowers, reason, effective date), when the e-mail was claimed and sent; if they cancelled over it: when, the Stripe subscription ended, the refund's Stripe id, amount and currency, or why Stripe did not make it and when Support made it in Stripe instead. The e-mail goes to their account's address, in their Interface Language. The Quota Reduction itself names the Administrator who scheduled it (their id and the email they had then). |
+| Source | Written by the web app when an Administrator schedules a Quota Reduction (one row per paying subscriber) and when the Candidate cancels over it; the worker's job `quota-reductions.run` sends the e-mails and records them. |
+| Recipients | Brevo (e-mail delivery, existing sub-processor, EU); Stripe (cancellation and refund, existing sub-processor). No new sub-processor, no transfer outside the EU beyond the existing ones. |
+| Who can read it | The Candidate, on `/abonnement` and `/abonnement/baisse` while the reduction is open to them. Plans managers and super-admins on Offres: counts (subscribers told, e-mails sent, cancellations), and each refund Stripe did not make by its Stripe subscription id, cancellation date, Stripe's error code and the amount to refund, for Support to refund in Stripe; never the Candidate's name or e-mail. |
+| Storage | The `plan_quota_reduction` and `plan_quota_reduction_notice` tables in the app's Postgres database (EU). |
+| Retention | As long as the Candidate's account: deleted with it (`ON DELETE CASCADE`). A Quota Reduction (no personal data but the Administrator's id and email) is kept with the Plan's history. |
+| Rights | In the Candidate's data export (`quotaReductionNotices`: each refund with its status, made, still to make or made by the team, and its amount; without Stripe identifiers or error codes); erased with the account. |
+| Security | Scheduling and cancelling a Quota Reduction check the Administrator's Back Office Roles and are written to the Back Office Audit; cancelling over one checks the signed-in Candidate. |

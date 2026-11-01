@@ -100,14 +100,34 @@ export function HelpArticleCard({
   );
 }
 
-/** An empty conversation's help: help comes first, the page in view's article (« Sur cette page »), three frequent questions. */
-export function HelpIntro({ pathname, locale, onOpen }: { pathname: string; locale: HelpLocale; onOpen: (article: HelpArticle) => void }) {
+/**
+ * An empty conversation's help: help comes first, the page in view's article (« Sur cette page »), three frequent questions.
+ * `howThisPageWorks`: on a page that is a conversation, whose Work Pane shows articles whole (#602), the page's article is
+ * only offered, as « Comment marche cette page ? ».
+ */
+export function HelpIntro({
+  pathname,
+  locale,
+  onOpen,
+  howThisPageWorks = false,
+}: {
+  pathname: string;
+  locale: HelpLocale;
+  onOpen: (article: HelpArticle) => void;
+  howThisPageWorks?: boolean;
+}) {
   const { t } = useTranslation();
   const here = onThisPage(pathname, locale);
   return (
     <div className="help-intro" data-help>
       <p>{t("coachPanel.help.greeting")}</p>
-      {here ? (
+      {here && howThisPageWorks ? (
+        <p>
+          <button type="button" className="link-action" onClick={() => onOpen(here.article)}>
+            {t("conversationFirst.howThisPageWorks")}
+          </button>
+        </p>
+      ) : here ? (
         <section className="help-intro-section">
           <h3>{t("coachPanel.help.onThisPage")}</h3>
           <p>

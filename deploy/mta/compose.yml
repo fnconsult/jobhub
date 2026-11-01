@@ -1,0 +1,35 @@
+# Email intake's MTA (#580): one Haraka for the whole VPS, since only one can listen on port 25. It takes mail for
+# each environment's Email intake domain only (alertes.staging.jobbbox.ai, alertes.jobbbox.ai: their MX is
+# mx.jobbbox.ai, this VPS) and posts each email to that environment's web container over the Traefik network
+# (alias <JOBHUB_SLUG>-web, deploy/compose.yml), never through the public proxy.
+#
+# Run by deploy/deploy.sh, as compose project `jobbbox-mta`, by the environment its .env names in MTA_DEPLOYED_BY.
+# Its configuration is <MTA_ROOT>/.env on the VPS (/opt/jobbbox/mta/.env, mode 600; layout: docs/ops/hosting.md):
+#   MTA_DEPLOYED_BY=staging
+#   INTAKE_ROUTE_1_DOMAIN=alertes.staging.jobbbox.ai
+#   INTAKE_ROUTE_1_URL=http://jobbbox-staging-web:3000/api/email-intake/inbound
+#   INTAKE_ROUTE_1_SECRET=<staging's EMAIL_INTAKE_INBOUND_SECRET, as entered in Clés>
+#   (INTAKE_ROUTE_2_… for production, with #457)
+# Nothing is written to disk: the container's filesystem is read-only, emails stay in memory until the app has them.
+
+services:
+  mta:
+    image: ${JOBHUB_IMAGES:?JOBHUB_IMAGES is required}/mta:${JOBHUB_REVISION:?JOBHUB_REVISION is required}
+    env_file:
+      - path: ${JOBHUB_MTA_ENV_FILE:?JOBHUB_MTA_ENV_FILE is required}
+    ports:
+      # IPv4 only: mx.jobbbox.ai has no AAAA record, and Docker's NAT keeps an IPv4 sender's address (SPF needs it).
+      - "0.0.0.0:25:2525"
+    networks: [traefik]
+    read_only: true
+    tmpfs:
+      - /run/haraka-tls:uid=1000,gid=1000,mode=0700
+      - /haraka/queue:uid=1000,gid=1000,mode=0700
+      - /tmp
+    mem_limit: 256m
+    restart: unless-stopped
+
+networks:
+  traefik:
+    name: n8n_default
+    external: true

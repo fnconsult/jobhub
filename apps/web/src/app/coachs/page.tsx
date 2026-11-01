@@ -11,7 +11,7 @@ import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
+import { COACHING_ORDER, ORDER_PARAMS, routes } from "@/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -149,8 +149,9 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
                 <h3>{coach.name}</h3>
                 {coach.bio ? <p>{coach.bio}</p> : null}
                 {price !== null ? (
-                  <form method="post" action="/api/coaching/checkout">
-                    <input type="hidden" name="coachId" value={coach.id} />
+                  // To the Order page (#512): its summary and boxes come before Stripe Checkout.
+                  <form method="get" action={COACHING_ORDER}>
+                    <input type="hidden" name={ORDER_PARAMS.coach} value={coach.id} />
                     <button className="button button-primary" type="submit">
                       {t("humanCoaches.book", { name: coach.name })}
                     </button>

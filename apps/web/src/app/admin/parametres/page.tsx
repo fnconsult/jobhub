@@ -38,7 +38,9 @@ import { restoreSetting, saveSetting } from "./actions";
 import { AddPanel, addableTypes } from "./AddPanel";
 import { AiTasksSection, PlaybookAgentPanel, RoutePanel, SearchTasksSection, type ModelChoices } from "./AiTasksSection";
 import { Here, type Ctx } from "./context";
+import { Card } from "@/design/Card";
 import { EnvironmentSection } from "./EnvironmentSection";
+import { SettingsTable } from "./SettingsTable";
 import {
   AI_FORM,
   CONFIRMED,
@@ -376,7 +378,13 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
             </p>
           ) : null}
           {tab.id === "environment" ? (
-            <EnvironmentSection ctx={ctx} rows={envOnly} retired={retiredSettingsSet(process.env)} />
+            <>
+              {/* Its own settings, which super-admins change: maintenance (#542), « Conversation au centre » (#601). */}
+              <Card title={t("admin.platformSettings.active.settingsTitle")}>
+                <SettingsTable ctx={ctx} caption={t("admin.platformSettings.active.settingsCaption", { tab: t("admin.platformSettings.tabs.environment") })} names={tab.settings} settings={settings} envOnly={[]} />
+              </Card>
+              <EnvironmentSection ctx={ctx} rows={envOnly} retired={retiredSettingsSet(process.env)} />
+            </>
           ) : (
             <ProvidersSection ctx={ctx} rows={rows} settings={settings} envOnly={envOnly} />
           )}

@@ -382,6 +382,19 @@ describe.skipIf(!connectionString)("Agenda (needs Postgres: DATABASE_URL)", () =
       expect(await agenda.unscheduled(candidateId)).toMatchObject([{ id: sessionId, reschedules: [{ previousAt: new Date("2026-10-22T12:00:00.000Z"), newAt: null, by: "candidate" }] }]);
     });
 
+    it("a Coaching Session the Candidate withdrew from leaves the Agenda, dated or not (#511)", async () => {
+      const sophie = await addCoach("Sophie Martin");
+      const dated = await paySession(candidateId, sophie.id);
+      await coaches.scheduleSession(candidateId, dated, { scheduledAt: "2099-10-22T14:00" });
+      const unscheduled = await paySession(candidateId, sophie.id);
+
+      await coaches.withdrawSession(candidateId, dated);
+      await coaches.withdrawSession(candidateId, unscheduled);
+
+      expect(await agenda.days(candidateId, { period: "upcoming", now: NOW })).toEqual([]);
+      expect(await agenda.unscheduled(candidateId)).toEqual([]);
+    });
+
     it("shows only the Candidate's own Coaching Sessions", async () => {
       const sophie = await addCoach("Sophie Martin");
       const theirs = await paySession(otherCandidateId, sophie.id);

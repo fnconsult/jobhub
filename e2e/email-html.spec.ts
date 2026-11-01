@@ -5,7 +5,7 @@ import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { comparesEmailScreenshots } from "./support/screenshots";
 
-// Issue #472: the seven emails' HTML, as a mail client shows it. Each is rendered from its sample (the one the
+// Issue #472: the eight emails' HTML (the Quota Reduction notice since #514), as a mail client shows it. Each is rendered from its sample (the one the
 // both-languages unit test renders) with the sender's address a mailer writes in (e2e/support/email-samples.ts),
 // then compared with its screenshot baseline in the light theme and in a client that follows
 // `prefers-color-scheme: dark`, and checked with axe.
@@ -17,7 +17,7 @@ import { comparesEmailScreenshots } from "./support/screenshots";
 // After a deliberate change, refresh the baselines with --update-snapshots, on macOS and in Linux (CI's): in
 // mcr.microsoft.com/playwright:v1.63.0-noble, with its own `npm ci` and E2E_SCREENSHOTS=1 (native: Chromium does not
 // run emulated on Apple silicon), then copy e2e/email-html.spec.ts-snapshots/*-linux.png back.
-const EMAILS = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert"];
+const EMAILS = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert", "quotaReduction"];
 
 function renderedEmails(): Record<string, string> {
   const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/email-samples.ts", "fr"], { encoding: "utf8" });
@@ -35,7 +35,7 @@ const inter = ["latin", "latin-ext"]
   })
   .join("\n");
 
-test("the seven emails are rendered", () => {
+test("the eight emails are rendered", () => {
   expect(Object.keys(emails).sort()).toEqual([...EMAILS].sort());
 });
 

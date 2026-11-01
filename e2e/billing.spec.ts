@@ -5,7 +5,7 @@ import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
-import { submitToStripe } from "./support/stripe-checkout";
+import { orderToStripe, submitToStripe } from "./support/stripe-checkout";
 
 // Issue #22: Plans, Stripe billing (checkout, customer portal, webhooks) and
 // Plan Quotas edited in the back office. Stripe is the fake API on E2E_STRIPE_URL.
@@ -13,6 +13,7 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const stripeUrl = process.env.E2E_STRIPE_URL!;
 const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
+const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 
 async function stripeCalls(path: string): Promise<{ params: Record<string, string> }[]> {
   const calls = await (await fetch(`${stripeUrl}/__calls`)).json();
@@ -22,6 +23,13 @@ async function stripeCalls(path: string): Promise<{ params: Record<string, strin
 /** Submits a form by its button; returns where the server sends the browser (Stripe's pages are not loaded). */
 async function formRedirect(page: Page, path: string, button: string) {
   const response = await submitToStripe(page, path, button);
+  expect(response.status()).toBe(303);
+  return response.headers().location;
+}
+
+/** Chooses a Plan, then « Passer au paiement » on its Order page (#512): where the server sends the browser. */
+async function orderRedirect(page: Page, button: string) {
+  const response = await orderToStripe(page, "/api/billing/checkout", button);
   expect(response.status()).toBe(303);
   return response.headers().location;
 }
@@ -68,7 +76,7 @@ test.describe("Plans and Stripe billing", () => {
     await expect(page.getByText("Votre offre actuelle : Gratuite")).toBeVisible();
     expect((await planRow(page, "Match Scores"))[0]).toBe("1 par semaine");
 
-    expect(await formRedirect(page, "/api/billing/checkout", "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+    expect(await orderRedirect(page, "Choisir l'offre Standard")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = (await stripeCalls("/v1/checkout/sessions")).filter((call) => call.params.customer === fakeCustomerId(email));
     expect(checkout?.params).toMatchObject({ mode: "subscription", "line_items[0][price]": FAKE_STRIPE_PRICES.standard, locale: "fr" });
 
@@ -173,7 +181,7 @@ test.describe("Plans and Stripe billing", () => {
     const customer = fakeCustomerId(email);
     await signInWithMagicLink(page, email);
     await page.goto("/abonnement");
-    expect(await formRedirect(page, "/api/billing/checkout", "Choisir l'offre Premium")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
+    expect(await orderRedirect(page, "Choisir l'offre Premium")).toMatch(/^https:\/\/checkout\.stripe\.test\//);
     const [checkout] = (await stripeCalls("/v1/checkout/sessions")).filter((call) => call.params.customer === customer);
     expect(checkout?.params).toMatchObject({ mode: "subscription", "line_items[0][price]": FAKE_STRIPE_PRICES.premium });
 
@@ -518,21 +526,48 @@ test.describe("back office", () => {
     expect(await values("Standard")).toEqual({ profiles: "3", matchScores: "", atsScores: "", enrichedContacts: "0", jobDigest: "weekly" });
     expect(await values("Premium")).toEqual({ profiles: "", matchScores: "", atsScores: "", enrichedContacts: "5", jobDigest: "daily" });
 
-    await plan("Standard").getByLabel("Profils").fill("");
-    await plan("Standard").getByLabel("Job Digest").selectOption("daily");
-    await plan("Standard").getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
-    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Standard enregistrés.");
+    // On Free: a change there applies at once, a reduction too, so the test can put it back. Lowering Standard, which
+    // Candidates of other tests pay for, would be a Quota Reduction, scheduled 30 days ahead (#514, quota-reduction.spec.ts).
+    await plan("Gratuite").getByLabel("Profils").fill("");
+    await plan("Gratuite").getByLabel("Job Digest").selectOption("daily");
+    await plan("Gratuite").getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
     await page.goto("/abonnement");
-    expect(await planRow(page, "Profils")).toEqual(["1", "Illimité", "Illimité"]);
-    expect(await planRow(page, "Job Digest")).toEqual(["Non compris", "Chaque jour", "Chaque jour"]);
+    expect(await planRow(page, "Profils")).toEqual(["Illimité", "3", "Illimité"]);
+    expect(await planRow(page, "Job Digest")).toEqual(["Chaque jour", "Chaque semaine", "Chaque jour"]);
 
     // Put the starting quotas back for the other tests.
     await page.goto("/admin/quotas");
-    await plan("Standard").getByLabel("Profils").fill("3");
-    await plan("Standard").getByLabel("Job Digest").selectOption("weekly");
-    await plan("Standard").getByRole("button", { name: "Enregistrer l'offre Standard" }).click();
+    await plan("Gratuite").getByLabel("Profils").fill("1");
+    await plan("Gratuite").getByLabel("Job Digest").selectOption("none");
+    await plan("Gratuite").getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
     await expect(page.getByRole("status")).toBeVisible();
-    expect(await values("Standard")).toEqual({ profiles: "3", matchScores: "", atsScores: "", enrichedContacts: "0", jobDigest: "weekly" });
+    expect(await values("Gratuite")).toEqual({ profiles: "1", matchScores: "1", atsScores: "1", enrichedContacts: "0", jobDigest: "none" });
+  });
+
+  test("records a Plan Quota edit with its before and after, and who made it", async ({ page }) => {
+    // Here, beside the other tests that change Free's quotas, so it never runs beside « the Plans start with the agreed
+    // quotas »: on Free, where putting it back applies at once (on Standard, which Candidates of other tests pay for,
+    // lowering it back would be a Quota Reduction, scheduled 30 days ahead, #514).
+    await signInWithMagicLink(page, ADMINISTRATOR);
+    await page.goto("/admin/quotas");
+    const free = page.locator("form").filter({ has: page.getByRole("heading", { name: "Offre Gratuite" }) });
+    await free.getByLabel("Profils").fill("5");
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await expect(page.getByRole("status")).toHaveText("Quotas de l'offre Gratuite enregistrés.");
+    // Put the starting quota back for the other tests.
+    await page.goto("/admin/quotas");
+    await free.getByLabel("Profils").fill("1");
+    await free.getByRole("button", { name: "Enregistrer l'offre Gratuite" }).click();
+    await expect(page.getByRole("status")).toBeVisible();
+
+    await page.goto("/admin/journal?section=plan_quotas");
+    const rows = page.getByRole("row").filter({ hasText: ADMINISTRATOR }).filter({ hasText: fr.billing.plans.free });
+    // Free is edited by other tests too: each change is found by what it says.
+    const back = rows.filter({ hasText: tr(fr.admin.journal.changed, { field: fr.billing.quotas.profiles, before: "5", after: "1" }) }).first();
+    await expect(back).toBeVisible();
+    await expect(rows.filter({ hasText: tr(fr.admin.journal.changed, { field: fr.billing.quotas.profiles, before: "1", after: "5" }) }).first()).toBeVisible();
+    await expect(back).toContainText(fr.admin.journal.actions.updated);
   });
 
   test("refuses invalid quotas", async ({ page }) => {

@@ -32,10 +32,21 @@ describe("legalText — one Legal Text as /legal shows it", () => {
     expect(legalText("cgu", "fr", { on: today, version: "2026-10-12" }, written)?.inEffect).toBe(true);
   });
 
-  it("never serves a version before its effective date, and serves it from that day on", () => {
-    expect(legalText("cgu", "fr", { on: today, version: "2027-01-01" }, written)).toBeNull();
+  it("never serves a version as the one in effect before its effective date, and serves it from that day on", () => {
+    expect(legalText("cgu", "fr", { on: today }, written)?.version.effective).toBe("2026-10-12");
     expect(legalText("cgu", "fr", { on: today }, written)?.history.map((entry) => entry.effective)).not.toContain("2027-01-01");
     expect(legalText("cgu", "fr", { on: "2027-01-01" }, written)?.version.effective).toBe("2027-01-01");
+  });
+
+  it("serves a substantial version still to come at its dated address, marked upcoming, for its notice to link to (#547); never a minor one", () => {
+    const upcoming = legalText("cgu", "fr", { on: today, version: "2027-01-01" }, written);
+    expect(upcoming?.version.summary).toBe("Nouveaux Plans.");
+    expect(upcoming?.inEffect).toBe(false);
+    expect(upcoming?.upcoming).toBe(true);
+    expect(upcoming?.history.map((entry) => entry.effective)).toEqual(["2026-10-12", "2026-06-01"]);
+    expect(legalText("cgu", "fr", { on: today, version: "2026-06-01" }, written)?.upcoming).toBeUndefined();
+    const minor = [...written, cgu("2027-02-01", "mineure", "Une coquille.")];
+    expect(legalText("cgu", "fr", { on: today, version: "2027-02-01" }, minor)).toBeNull();
   });
 
   it("is null for a text the team has not written yet, for a date that is no version, and before the first version", () => {

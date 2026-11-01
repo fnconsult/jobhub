@@ -57,6 +57,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
     expect(first.stdout).toContain("Coach Memory is up to date");
     expect(first.stdout).toContain("Job Sites, Job discovery sources and Job discovery sites are up to date");
     expect(first.stdout).toContain("Back Office Audit is up to date");
+    expect(first.stdout).toContain("Quota Reductions are up to date");
     expect(first.stdout).toContain("Back Office Roles are up to date");
     expect(first.stdout).toContain("Sign-in Providers are up to date");
     expect(first.stdout).toContain("Back Office Assistant conversations are up to date");
@@ -94,6 +95,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "candidate_plan", // issue #22: Plans and Plan Quotas
         "candidate_recognised_sender", // issue #448: the Recognised senders a Candidate added for themselves (#450), proposed with no name
         "candidate_switched_off_sender", // issue #450: the platform's Recognised senders a Candidate switched off for themselves
+        "checkout_order", // issue #512: the Orders placed on the page before Stripe Checkout, with the Immediate Performance Request
         "coach_access", // issue #24: the Human Coaches each Candidate granted Coach Access to
         "coach_conversation", // issue #124: the Candidate's saved Coach Conversations
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
@@ -127,12 +129,17 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "job_discovery_source", // issue #188: the Job discovery sources, each enabled or not
         "job_offer",
         "job_search", // issue #14: on-demand AI Coach job search
+        "legal_acceptance", // issue #510: the Acceptances of the CGU and CGV, kept by pseudonym after the Account deletion
+        "legal_text_notice", // issue #547: the notice of a substantial Legal Text Version sent to each Candidate
         "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
         "master_cv_version",
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
+        "plan_quota_reduction", // issue #514: Quota Reductions, and the notice each paying subscriber is sent
+        "plan_quota_reduction_notice",
         "platform_setting", // issue #298: Platform Settings set in the Back Office, over env
         "playbook_version", // issue #225: every Playbook Version, kept forever
+        "privacy_change_seen", // issue #547: the Candidates who closed the one-time privacy policy notice
         "profile",
         "provider_api_access", // issue #400: what each France Travail API answered its latest connection test
         "provider_secret", // issue #208: Provider Secrets, encrypted
@@ -154,6 +161,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
         "web_search_alert", // issue #403: the month's web search alert, once sent; no Candidate
+        "withdrawal", // issue #511: each Withdrawal from a Plan or a Coaching Session
+        "withdrawal_refund", // issue #511: its Stripe refunds, a failed one tried again
         "workflow_agent_run",
       ]);
 
@@ -204,10 +213,16 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "candidate_switched_off_sender", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "candidate_switched_off_sender", from_column: "value", to_table: "recognised_sender" },
         // Coach Access, Coach Reviews and Coaching Sessions (issue #24) go with their Candidate (and Application).
+        // Orders (issue #512) go with their Candidate.
+        { from_table: "checkout_order", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_access", from_column: "coach_id", to_table: "human_coach" },
-        // Coach Conversations (issue #124) go with their Candidate, and the Profile they started on; their messages with them.
+        // Coach Conversations (issue #124) go with their Candidate, and the Profile they are attached to; their messages with them.
+        // Their Subject (issue #600, ADR-0070): an Application, a Job Search or a Job Digest takes its conversation along.
+        { from_table: "coach_conversation", from_column: "application_id", to_table: "application" },
         { from_table: "coach_conversation", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "coach_conversation", from_column: "job_digest_id", to_table: "job_digest" },
+        { from_table: "coach_conversation", from_column: "job_search_id", to_table: "job_search" },
         { from_table: "coach_conversation", from_column: "profile_id", to_table: "profile" },
         // Coach Memory (issue #125) goes with its Candidate.
         { from_table: "coach_memory_item", from_column: "candidate_id", to_table: "candidate" },
@@ -251,11 +266,20 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
+        // Acceptances (issue #510) are Jobbbox's proof: the Account deletion sets the Candidate to null, the row stays.
+        { from_table: "legal_acceptance", from_column: "candidate_id", to_table: "candidate" },
+        // The Legal Text notices (issue #547) follow their Candidate.
+        { from_table: "legal_text_notice", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
+        { from_table: "plan_quota_reduction", from_column: "plan", to_table: "plan" },
+        { from_table: "plan_quota_reduction_notice", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "plan_quota_reduction_notice", from_column: "reduction_id", to_table: "plan_quota_reduction" },
         // Playbook Versions (issue #225) belong to their Coaching Playbook, neither ever deleted; no Candidate is named.
         { from_table: "playbook_version", from_column: "playbook_id", to_table: "coaching_playbook" },
+        // The one-time privacy policy notice (issue #547) follows its Candidate.
+        { from_table: "privacy_change_seen", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "profile", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "quota_usage", from_column: "candidate_id", to_table: "candidate" },
         // Email intake (issue #442): the Received offer emails go with their Candidate; each points to its row of
@@ -279,6 +303,10 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "target_company", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "target_company", from_column: "profile_id", to_table: "profile" },
         { from_table: "target_company_refresh", from_column: "profile_id", to_table: "profile" },
+        // A Withdrawal (issue #511) goes with its Candidate's account, and with the Coaching Session it withdrew from; its refunds with it.
+        { from_table: "withdrawal", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "withdrawal", from_column: "coaching_session_id", to_table: "coaching_session" },
+        { from_table: "withdrawal_refund", from_column: "withdrawal_id", to_table: "withdrawal" },
       ]);
       // The Plans start with the quotas of issue #22, plus Job Searches (issue #14), counted per week (ADR-0032); re-running keeps them.
       const startingQuotas = [
@@ -306,6 +334,39 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(upgraded.status, upgraded.stderr).toBe(0);
       expect(await usageColumns()).toEqual(["candidate_id", "quota", "used", "week"]);
       expect((await quotas()).rows).toEqual(startingQuotas.map((row) => (row.plan === "premium" ? { ...row, enriched_contacts: 12 } : row)));
+    } finally {
+      await db.end();
+    }
+  });
+
+  // Issue #600 / ADR-0070: Coach Conversations gain a Subject. The ones saved before are deleted, once, with their messages;
+  // the Coach Memory is kept.
+  test("deletes the Coach Conversations saved before Subjects, once, and keeps the Coach Memory (#600)", async () => {
+    const db = new pg.Client({ connectionString: databaseUrl.toString() });
+    await db.connect();
+    try {
+      const candidate = "migrate-subject";
+      await db.query(`INSERT INTO candidate (id, name, email, "emailVerified", "interfaceLanguage") VALUES ($1, 'Marie', 'migrate-subject@example.fr', true, 'fr')`, [candidate]);
+      await db.query(`INSERT INTO coach_memory_item (candidate_id, kind, text) VALUES ($1, 'goal', 'Devenir DAF à Lyon')`, [candidate]);
+      const talk = async (title: string) => {
+        const { rows } = await db.query(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, $2) RETURNING id`, [candidate, title]);
+        await db.query(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'candidate', 'Bonjour')`, [rows[0].id]);
+      };
+      await talk("Avant");
+      // The table as it was before: no Subject.
+      await db.query("ALTER TABLE coach_conversation DROP COLUMN subject_kind CASCADE");
+
+      const migrated = migrate();
+      expect(migrated.status, migrated.stderr).toBe(0);
+      expect((await db.query("SELECT count(*)::int AS n FROM coach_conversation")).rows).toEqual([{ n: 0 }]);
+      expect((await db.query("SELECT count(*)::int AS n FROM coach_message")).rows).toEqual([{ n: 0 }]);
+      expect((await db.query("SELECT text FROM coach_memory_item WHERE candidate_id = $1", [candidate])).rows).toEqual([{ text: "Devenir DAF à Lyon" }]);
+
+      // Once: what is said afterwards stays, however often the migration runs again.
+      await talk("Après");
+      const again = migrate();
+      expect(again.status, again.stderr).toBe(0);
+      expect((await db.query("SELECT title FROM coach_conversation")).rows).toEqual([{ title: "Après" }]);
     } finally {
       await db.end();
     }

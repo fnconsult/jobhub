@@ -67,6 +67,14 @@ describe("LegalTextView — a Legal Text on Légal (ADR-0062)", () => {
     expect(within(banner as HTMLElement).getByRole("link", { name: "voir la version en vigueur" }).getAttribute("href")).toBe("/legal/cgu");
   });
 
+  it("marks a substantial version still to come as upcoming, with its effective date, and leads to the one in effect (#547)", () => {
+    renderInFrench(<LegalTextView text="cgu" shown={legalText("cgu", "fr", { on, version: "2027-01-01" }, written)} />);
+    expect(screen.getByText("En vigueur à partir du 1 janvier 2027")).toBeTruthy();
+    expect(screen.queryByText("Version archivée :")).toBeNull();
+    const banner = screen.getByText("Version à venir : elle entre en vigueur le 1 janvier 2027.").closest(".ds-note") as HTMLElement;
+    expect(within(banner).getByRole("link", { name: "voir la version en vigueur" }).getAttribute("href")).toBe("/legal/cgu");
+  });
+
   it("says, in English, that the French text prevails, with a link to it", () => {
     const english = written.map((version) => ({ ...version, locale: "en" as const, title: "Terms of use" }));
     renderInFrench(<LegalTextView text="cgu" shown={legalText("cgu", "en", { on, version: "2026-06-01" }, english)} />);

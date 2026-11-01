@@ -2,12 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ActivityElement } from "@/ai-activity/pane";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
-import { getCoachConversations } from "@/coach-conversations/server";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
-import { CandidateLayout } from "@/components/CandidateLayout";
-import { CoachConversationPage } from "@/components/CoachPanel";
-import { ConversationSuggestions } from "@/components/ConversationSuggestions";
 import type { FicheContent, FicheLink } from "@/components/Fiche";
+import { ObjectConversation } from "@/components/ObjectConversation";
 import { ExpiredJobOfferNotice, jobOfferSite } from "@/components/JobOfferView";
 import { matchScoreFigure, matchScoreInWords } from "@/components/job-search-words";
 import { Note } from "@/design/Note";
@@ -21,17 +18,6 @@ const SUGGESTIONS = ["prepareInterview", "followUp", "coverLetter", "matchScore"
 /** The Subject of an Application's conversation (ADR-0070). */
 const APPLICATION = "application";
 
-/** The Application's conversation, null before its first message; never fails the page: without it, the page starts one. */
-async function savedConversation(candidateId: string, applicationId: string): Promise<string | null> {
-  try {
-    const found = await getCoachConversations().ofSubject(candidateId, { kind: APPLICATION, id: applicationId });
-    return found.ok ? (found.conversation?.id ?? null) : null;
-  } catch (error) {
-    console.error("[coach-conversations] could not read an Application's conversation", error);
-    return null;
-  }
-}
-
 /**
  * An Application's page under « Conversation au centre » (#603, ADR-0070): its Coach Conversation, whose Subject it is,
  * with the Introduction and the Application's suggestions until its first message; and the Fiche beside it, the
@@ -39,28 +25,24 @@ async function savedConversation(candidateId: string, applicationId: string): Pr
  * the offer is expired or Reported Unavailable), its Sections and its Results, each opened in the Work Pane at its own
  * address (`children`, the Section or Result the address names: see sections.tsx).
  */
-export async function ApplicationConversation({ data, aiActivity, children }: { data: ApplicationPageData; aiActivity: readonly ActivityElement[]; children: ReactNode }) {
+export function ApplicationConversation({ data, aiActivity, children }: { data: ApplicationPageData; aiActivity: readonly ActivityElement[]; children: ReactNode }) {
   const { candidateId, application, t, inView } = data;
-  const conversationId = await savedConversation(candidateId, application.id);
   return (
-    <CandidateLayout candidateId={candidateId} title={application.jobOffer.title} aiActivity={aiActivity} fiche={ficheOf(data)}>
-      <CoachConversationPage
-        key={application.id}
-        conversationId={conversationId}
-        subject={{ kind: APPLICATION, id: application.id }}
-        inView={inView}
-        introduction={<p>{t("application.conversation.introduction", { title: application.jobOffer.title })}</p>}
-        suggestions={
-          <ConversationSuggestions
-            suggestions={SUGGESTIONS.map((suggestion) => ({
-              label: t(`application.conversation.suggestions.${suggestion}.label`),
-              message: t(`application.conversation.suggestions.${suggestion}.message`),
-            }))}
-          />
-        }
-      />
+    <ObjectConversation
+      candidateId={candidateId}
+      subject={{ kind: APPLICATION, id: application.id }}
+      inView={inView}
+      title={application.jobOffer.title}
+      aiActivity={aiActivity}
+      fiche={ficheOf(data)}
+      introduction={<p>{t("application.conversation.introduction", { title: application.jobOffer.title })}</p>}
+      suggestions={SUGGESTIONS.map((suggestion) => ({
+        label: t(`application.conversation.suggestions.${suggestion}.label`),
+        message: t(`application.conversation.suggestions.${suggestion}.message`),
+      }))}
+    >
       {children}
-    </CandidateLayout>
+    </ObjectConversation>
   );
 }
 

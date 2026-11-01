@@ -19,6 +19,8 @@ const admin = fr.admin;
 // Its own permanent super-admin (playwright.config.ts): two sign-ins of one address at once can pick up each other's link.
 const SUPER_ADMIN = "sections-office@e2e.jobbbox.test";
 const origin = process.env.E2E_WEB_ORIGIN!;
+/** The day the baselines were drawn, as the Back Office writes a date (fr, Europe/Paris). */
+const BASELINES_DAY = "30 oct. 2026";
 const DESKTOP = SCREENSHOT_WIDTHS.find((width) => width.name === "desktop")!;
 
 type Section = {
@@ -30,6 +32,12 @@ type Section = {
   target?: (page: Page) => Locator;
   /** What changes with the day or with the other specs, masked. */
   mask?: string[];
+  /**
+   * What is dated the day the suite runs (the Playbooks are imported validated that day), dated the day the baselines were
+   * drawn before the page is shot: a mask hides a text, not its width, and « 1 nov. 2026 », narrower than « 30 oct. 2026 »,
+   * gave the table's other columns more room and wrapped their text otherwise.
+   */
+  dated?: string;
   /** What the other specs lengthen above the target, left out of the page before it is shot, so the target lands where it did. */
   leaveOut?: string[];
 };
@@ -41,7 +49,7 @@ const SECTIONS: Section[] = [
   { name: "codes-promo", path: "/admin/codes-promo", ready: (page) => page.getByRole("heading", { name: admin.coupons.createTitle }) },
   { name: "coachs", path: "/admin/coachs", ready: (page) => page.getByRole("heading", { name: admin.humanCoaches.addTitle }) },
   { name: "cout-coach", path: "/admin/cout-coach", ready: (page) => page.getByRole("heading", { name: admin.coachCost.agents.title }) },
-  { name: "playbooks", path: "/admin/playbooks", ready: (page) => page.getByRole("table", { name: admin.coachingPlaybooks.caption }), mask: ["main tbody td:nth-child(2)"] },
+  { name: "playbooks", path: "/admin/playbooks", ready: (page) => page.getByRole("table", { name: admin.coachingPlaybooks.caption }), mask: ["main tbody td:nth-child(2)"], dated: "main tbody td:nth-child(2)" },
   { name: "garde-fous", path: "/admin/garde-fous", ready: (page) => page.getByRole("table", { name: admin.guardrails.caption }) },
   {
     name: "questions-sans-reponse",
@@ -112,6 +120,11 @@ test.describe("every other Back Office section in the Design System (#466)", () 
       // Nothing runs off the side: a wide table scrolls in its own frame.
       expect(await page.evaluate(() => document.documentElement.scrollWidth), "the page's width").toBeLessThanOrEqual(DESKTOP.width);
       await expectNoAxeViolations(page);
+      if (section.dated) {
+        await page.locator(section.dated).evaluateAll((elements, day) => {
+          for (const element of elements) element.textContent = element.textContent!.replace(/\d{1,2} \S+ \d{4}/g, day);
+        }, BASELINES_DAY);
+      }
       if (section.leaveOut) await page.addStyleTag({ content: `${section.leaveOut.join(", ")} { display: none !important; }` });
       // The page whole, its column drawn at once with nothing to scroll into view.
       const fitPage = async () => {

@@ -45,6 +45,7 @@ import {
   PanelRight,
   Plus,
   RefreshCw,
+  Scale,
   Search,
   SearchCheck,
   ServerCrash,
@@ -153,6 +154,8 @@ const LUCIDE = {
   download: Download,
   upload: Upload,
   minus: Minus,
+  /** The public Légal, from the Back Office (#544). */
+  legal: Scale,
   // « Nouvelle conversation », a conversation's actions and « Effacer » (#601).
   newConversation: SquarePen,
   more: Ellipsis,

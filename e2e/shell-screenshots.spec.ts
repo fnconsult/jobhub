@@ -12,11 +12,14 @@ import { expectTextContrast, themedName, THEMES } from "./support/theme";
 // page (Compact), light and dark (#473), at three widths, and on a phone its drawer too. Only the shell is compared: the page in
 // `<main>` is masked, each page's ticket brings its own baseline (#465 to #469).
 //
-// Baselines are Linux renders, as CI makes them (`{arg}.png`, no platform suffix, see playwright.config.ts). To make
-// or update them on a Mac, run the browser in the Playwright container, the suite on the Mac:
+// Baselines are drawn in the Playwright image CI's `screenshots` job compares in (`{arg}.png`, no platform suffix, see
+// playwright.config.ts): anywhere else, a Linux machine included, fonts render otherwise, so the comparison runs only
+// where comparesScreenshots() says (e2e/support/screenshots.ts); elsewhere the shell is still opened, contrasted and
+// checked with axe. To redraw them: scripts/update-screenshot-baselines.sh e2e/shell-screenshots.spec.ts
+// (docs/agents/screenshot-baselines.md). On a Mac, the browser can also run in the Playwright container:
 //   docker run --rm --init -p 3464:3464 mcr.microsoft.com/playwright:v1.63.0-noble \
 //     npx -y playwright@1.63.0 run-server --port 3464 --host 0.0.0.0
-//   PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:3464/ PW_TEST_CONNECT_EXPOSE_NETWORK='<loopback>' \
+//   E2E_SCREENSHOTS=1 PW_TEST_CONNECT_WS_ENDPOINT=ws://127.0.0.1:3464/ PW_TEST_CONNECT_EXPOSE_NETWORK='<loopback>' \
 //     npx playwright test e2e/shell-screenshots.spec.ts --update-snapshots
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;

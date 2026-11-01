@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
-import { CoachSpaceHeader } from "@/components/CoachSpaceHeader";
+import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import type { CoachedSession, SessionEditor } from "@/human-coaches";
 import { getHumanCoaches, requireHumanCoach } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -32,8 +32,7 @@ export default async function CoachSpacePage() {
     date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE }),
   };
   return (
-    <main className="page">
-      <CoachSpaceHeader />
+    <CoachSpaceShell>
       <h1>{t("coachSpace.title")}</h1>
       <section className="stack" aria-labelledby="coach-space-sessions-title">
         <h2 id="coach-space-sessions-title">{t("coachSpace.sessionsTitle")}</h2>
@@ -63,7 +62,7 @@ export default async function CoachSpacePage() {
           </ul>
         )}
       </section>
-    </main>
+    </CoachSpaceShell>
   );
 }
 

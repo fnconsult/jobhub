@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CoachSpaceHeader } from "@/components/CoachSpaceHeader";
+import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
 import { MasterCvView } from "@/components/MasterCvView";
 import { getHumanCoaches, requireHumanCoach } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -29,8 +29,7 @@ export default async function CoachedCandidatePage({ params }: Params) {
   const [t, locale] = await Promise.all([getServerT(), getRequestLocale()]);
   const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" });
   return (
-    <main className="page">
-      <CoachSpaceHeader />
+    <CoachSpaceShell>
       <p>
         <Link href={routes.coachSpace}>{t("coachSpace.back")}</Link>
       </p>
@@ -67,6 +66,6 @@ export default async function CoachedCandidatePage({ params }: Params) {
           </article>
         ))}
       </section>
-    </main>
+    </CoachSpaceShell>
   );
 }

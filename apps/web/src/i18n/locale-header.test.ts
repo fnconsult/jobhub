@@ -31,7 +31,9 @@ describe("urlLocale", () => {
   });
 
   it("lets `lang` choose the language of every public page, whoever reads it (#544)", () => {
-    for (const path of PUBLIC) expect(urlLocale(path, "en"), path).toEqual({ chosen: "en", url: "en" });
+    for (const path of PUBLIC.filter((page) => page !== "/")) expect(urlLocale(path, "en"), path).toEqual({ chosen: "en", url: "en" });
+    // The home page is a signed-in Candidate's own: there `lang` is only a Visitor's.
+    expect(urlLocale("/", "en")).toEqual({ visitor: "en", url: "en" });
     expect(urlLocale("/en/legal/cgu", "fr")).toEqual({ rewrite: "/legal/cgu", visitor: "en", chosen: "fr", url: "fr" });
   });
 

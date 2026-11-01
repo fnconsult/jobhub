@@ -43,10 +43,11 @@ export function proxy(request: NextRequest) {
   return noindexOnBeta(NextResponse.rewrite(target, { request: { headers } }));
 }
 
-/** On the Beta (anything but Production), the answer says `X-Robots-Tag: noindex`. */
+const BETA_ROBOTS = betaRobotsHeader(currentRelease(process.env).beta);
+
+/** On the Beta (anything but Production), the answer says `X-Robots-Tag: noindex` (maintenance's 503 says it too). */
 function noindexOnBeta(response: NextResponse): NextResponse {
-  const robots = betaRobotsHeader(currentRelease(process.env).beta);
-  if (robots) response.headers.set("X-Robots-Tag", robots);
+  if (BETA_ROBOTS) response.headers.set("X-Robots-Tag", BETA_ROBOTS);
   return response;
 }
 

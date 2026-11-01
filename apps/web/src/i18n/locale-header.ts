@@ -48,7 +48,8 @@ export function splitLocalePrefix(pathname: string): { locale: Locale; pathname:
 /**
  * What the URL chooses on `pathname` (as asked, `/en` included) with its `lang`:
  * - `rewrite`: the page to serve, for a public page under `/en`;
- * - `chosen`: the page's language whoever reads it, from `lang` on a public page;
+ * - `chosen`: the page's language whoever reads it, from `lang` on a public page but the home page, which is a
+ *   signed-in Candidate's own (there `lang` is a Visitor's, as off the public site);
  * - `visitor`: a Visitor's language, from `/en` on a public page, or from `lang` elsewhere;
  * - `url`: the language of the URL itself: on a public page, French without `/en` or `lang`; elsewhere, only the one
  *   `/en` or `lang` names. `/en` before a page that is not public serves nothing (404), in English for a Visitor.
@@ -61,5 +62,6 @@ export function urlLocale(pathname: string, lang: string | null): { rewrite?: st
     return visitor ? { visitor, url: visitor } : {};
   }
   const rewrite = prefixed.pathname === pathname ? {} : { rewrite: prefixed.pathname, visitor: prefixed.locale };
-  return { ...rewrite, ...(asked ? { chosen: asked } : {}), url: asked ?? prefixed.locale };
+  const choice = !asked ? {} : prefixed.pathname === "/" ? { visitor: asked } : { chosen: asked };
+  return { ...rewrite, ...choice, url: asked ?? prefixed.locale };
 }

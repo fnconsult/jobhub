@@ -97,6 +97,8 @@ describe("localePath and shellHref (#545)", () => {
     expect(localePath("/aide", "fr")).toBe("/aide");
     expect(localePath("/aide")).toBe("/aide");
     expect(localePath("mailto:contact@jobbbox.fr", "en")).toBe("mailto:contact@jobbbox.fr");
+    // Only the public pages are served under /en: « Mon compte » keeps its address.
+    expect(localePath("/compte", "en")).toBe("/compte");
   });
 
   it("keeps the URL's language from page to page, and its `lang` when it had one", () => {

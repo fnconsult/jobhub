@@ -28,13 +28,11 @@ export function betaRobotsHeader(beta: boolean): string | null {
 
 /**
  * The site's origin, which `canonical`, `hreflang` and the sitemap's URLs start with: APP_URL (set by
- * deploy/compose.yml for each environment), else the request's host.
+ * deploy/compose.yml for each environment), else a developer's machine. Never the request's host, which a client
+ * chooses.
  */
-export function siteOrigin(env: Env, request: { host?: string | null; proto?: string | null } = {}): string {
-  const configured = env.APP_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
-  const host = request.host?.split(",")[0]?.trim();
-  return host ? `${request.proto?.split(",")[0]?.trim() || "http"}://${host}` : "http://localhost:3000";
+export function siteOrigin(env: Env): string {
+  return env.APP_URL?.trim().replace(/\/+$/, "") || "http://localhost:3000";
 }
 
 /**

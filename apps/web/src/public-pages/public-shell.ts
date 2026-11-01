@@ -1,6 +1,6 @@
 import { SUPPORTED_LOCALES, type Locale } from "@jobhub/shared/i18n";
 import type { ParseKeys } from "i18next";
-import { ENGLISH_PREFIX, splitLocalePrefix } from "@/i18n/locale-header";
+import { ENGLISH_PREFIX, isPublicPage, splitLocalePrefix } from "@/i18n/locale-header";
 import { routes } from "@/routes";
 
 /** A link of the public shell: `label` is its catalogue key. */
@@ -8,11 +8,13 @@ export type ShellLink = { key: string; href: string; label: ParseKeys };
 
 /**
  * `href` (a path of this site, its query and anchor included) at its address in `locale` (#545): under `/en` in English
- * (`/en` for the home page), unprefixed in French. Unchanged without a locale, for a link out of the site, or for a
- * path already under `/en`.
+ * (`/en` for the home page), unprefixed in French. Unchanged without a locale, for a link out of the site, for a page
+ * that is not public (« Mon compte »: only the public pages are served under `/en`), or for a path already under `/en`.
  */
 export function localePath(href: string, locale?: Locale): string {
-  if (locale !== "en" || !href.startsWith("/") || splitLocalePrefix(href.split(/[?#]/, 1)[0]!).locale === "en") return href;
+  if (locale !== "en" || !href.startsWith("/")) return href;
+  const { pathname } = parts(href);
+  if (splitLocalePrefix(pathname).locale === "en" || !isPublicPage(pathname)) return href;
   return href === "/" ? ENGLISH_PREFIX : /^\/[?#]/.test(href) ? `${ENGLISH_PREFIX}${href.slice(1)}` : `${ENGLISH_PREFIX}${href}`;
 }
 

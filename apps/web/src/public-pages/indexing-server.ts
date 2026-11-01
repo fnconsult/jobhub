@@ -1,15 +1,15 @@
 import { articles, legalText, parisDay, type LegalTextId } from "@jobhub/help";
 import type { Locale } from "@jobhub/shared/i18n";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { connection } from "next/server";
 import { getUrlLocale } from "@/i18n/server";
 import { currentRelease } from "@/release";
 import { legalTextIndexedIn, publicPageMetadata, siteOrigin, type IndexSources } from "./indexing";
 
-/** The site's origin for this request (see siteOrigin). */
+/** The site's origin (see siteOrigin). Reading the request makes robots.txt and the sitemap answer at each request. */
 export async function requestOrigin(): Promise<string> {
-  const all = await headers();
-  return siteOrigin(process.env, { host: all.get("x-forwarded-host") ?? all.get("host"), proto: all.get("x-forwarded-proto") });
+  await connection();
+  return siteOrigin(process.env);
 }
 
 /** The sources of the indexed pages, as this build carries them, on today's date in France. */

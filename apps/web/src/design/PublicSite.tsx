@@ -1,4 +1,3 @@
-import { getSessionCookie } from "better-auth/cookies";
 import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -43,11 +42,11 @@ export async function PublicSite({ current, signInLink = true, children }: { cur
           ))}
         </PublicSiteMenu>
         <div className="ds-site__tools">
-          <LanguageSwitch label={t("publicSite.language")} />
+          <LanguageSwitch label={t("publicSite.language")} signedIn={candidate !== null} />
           <TextSizeControl />
         </div>
         {signInLink ? (
-          <Link className={`${buttonClass({ size: "sm" })} ds-site__sign-in`} href={candidate ? routes.account : shellHref(routes.signIn, url)}>
+          <Link className={`${buttonClass({ size: "sm" })} ds-site__sign-in`} href={shellHref(candidate ? routes.account : routes.signIn, url)}>
             {candidate ? t("nav.account") : t("nav.signIn")}
           </Link>
         ) : null}
@@ -62,13 +61,10 @@ export async function PublicSite({ current, signInLink = true, children }: { cur
  * The FR/EN switch (#544): the page asked, at its address in each language (#545, see languageLinks); the page's own
  * marked as current. Each reads out its language's name, in itself (the same in both catalogues).
  */
-async function LanguageSwitch({ label }: { label: string }) {
+async function LanguageSwitch({ label, signedIn }: { label: string; signedIn: boolean }) {
   const t = await getServerT();
   const locale = await getRequestLocale();
-  const requestHeaders = await headers();
-  const path = requestHeaders.get(REQUEST_PATH_HEADER) ?? routes.home;
-  // A session cookie is enough to say `lang`: no session lookup for each switch.
-  const signedIn = Boolean(getSessionCookie(requestHeaders));
+  const path = (await headers()).get(REQUEST_PATH_HEADER) ?? routes.home;
   return (
     <nav className="ds-site__languages" aria-label={label}>
       {languageLinks(path, { signedIn }).map(({ locale: language, href }) => (
@@ -109,7 +105,7 @@ export async function PublicFooter({ signInLink = true }: { signInLink?: boolean
         ))}
       </div>
       <div className="ds-site__foot-end">
-        <LanguageSwitch label={t("publicFooter.language")} />
+        <LanguageSwitch label={t("publicFooter.language")} signedIn={account === "account"} />
         <p className="ds-site__copyright">{t("publicFooter.copyright")}</p>
       </div>
     </footer>

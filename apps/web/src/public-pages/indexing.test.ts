@@ -103,9 +103,8 @@ describe("robots.txt (#545)", () => {
 });
 
 describe("siteOrigin", () => {
-  it("is APP_URL, else the request's host", () => {
+  it("is APP_URL, else a developer's machine", () => {
     expect(siteOrigin({ APP_URL: "https://app.jobbbox.fr/" })).toBe(ORIGIN);
-    expect(siteOrigin({}, { host: "beta.jobbbox.fr", proto: "https" })).toBe("https://beta.jobbbox.fr");
-    expect(siteOrigin({}, { host: "localhost:3000" })).toBe("http://localhost:3000");
+    expect(siteOrigin({})).toBe("http://localhost:3000");
   });
 });

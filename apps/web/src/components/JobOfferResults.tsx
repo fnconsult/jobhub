@@ -29,7 +29,8 @@ export interface JobOfferResult {
  * The results view of Job Searches and Job Digests. Each title is a level-2
  * heading, or `headingLevel` under a heading of the page's own (results grouped by Profile);
  * `label` names the list (default "Offres trouvées"); `idScope` keeps its titles' ids apart from another list of the
- * same Profile's Job Offers on the page (« Reçues par email », #447).
+ * same Profile's Job Offers on the page (« Reçues par email », #447). `offerHref`: where a Job Offer's title and « Lire
+ * l'offre » lead, its page by default; under « Conversation au centre », the Work Pane beside the conversation (#605).
  */
 export function JobOfferResults({
   results,
@@ -39,6 +40,7 @@ export function JobOfferResults({
   headingLevel = 2,
   label,
   idScope = "search-result",
+  offerHref,
 }: {
   results: JobOfferResult[];
   profileId: string;
@@ -47,11 +49,21 @@ export function JobOfferResults({
   headingLevel?: 2 | 3 | 4 | 5;
   label?: string;
   idScope?: string;
+  offerHref?: (jobOfferId: string) => string;
 }) {
   return (
     <ol className="job-offer-results" aria-label={label ?? t("jobSearch.resultsLabel")}>
       {results.map((result) => (
-        <JobOfferCard key={result.jobOffer.id} result={result} profileId={profileId} t={t} locale={locale} headingLevel={headingLevel} idScope={idScope} />
+        <JobOfferCard
+          key={result.jobOffer.id}
+          result={result}
+          profileId={profileId}
+          t={t}
+          locale={locale}
+          headingLevel={headingLevel}
+          idScope={idScope}
+          href={offerHref ? offerHref(result.jobOffer.id) : routes.jobOffer(result.jobOffer.id, profileId)}
+        />
       ))}
     </ol>
   );
@@ -64,6 +76,7 @@ function JobOfferCard({
   locale,
   headingLevel,
   idScope,
+  href,
 }: {
   result: JobOfferResult;
   profileId: string;
@@ -71,6 +84,7 @@ function JobOfferCard({
   locale: string;
   headingLevel: 2 | 3 | 4 | 5;
   idScope: string;
+  href: string;
 }) {
   const Heading = (["h2", "h3", "h4", "h5"] as const)[headingLevel - 2]!;
   const { jobOffer, matchScore, applicationId } = result;
@@ -97,7 +111,7 @@ function JobOfferCard({
     <li className="job-offer-result">
       <div className="job-offer-result__main">
         <Heading className="job-offer-result__title" id={titleId}>
-          <Link href={routes.jobOffer(jobOffer.id, profileId)}>{jobOffer.title}</Link>
+          <Link href={href}>{jobOffer.title}</Link>
         </Heading>
         <p className="job-offer-result__meta">
           {facts.map(([key, fact]) => (fact ? <span key={key}>{fact}</span> : null))}
@@ -136,7 +150,7 @@ function JobOfferCard({
         ) : (
           <>
             <SaveSearchResultButton jobOfferId={jobOffer.id} profileId={profileId} describedBy={titleId} />
-            <Link className={buttonClass({ size: "sm" })} href={routes.jobOffer(jobOffer.id, profileId)} aria-describedby={titleId}>
+            <Link className={buttonClass({ size: "sm" })} href={href} aria-describedby={titleId}>
               {t("jobSearch.seeJobOffer")}
             </Link>
           </>

@@ -1,5 +1,5 @@
 /**
- * The seven emails, each built by its own module from fixed sample data: what the both-languages test
+ * The eight emails, each built by its own module from fixed sample data: what the both-languages test
  * (seven-emails.test.ts) and the screenshot baselines (e2e/email-html.spec.ts) render.
  */
 import type { Locale } from "@jobhub/shared/i18n";
@@ -9,15 +9,16 @@ import { appleFailureEmail } from "../sign-in-providers/alerts";
 import { webSearchAlertEmail } from "../web-search-alert";
 import { followUpEmail } from "../follow-ups/email";
 import { jobDigestEmail } from "../job-digests/email";
+import { quotaReductionEmail } from "../quota-reductions/email";
 import type { RenderedEmail } from "./index";
 
-export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert"] as const;
+export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert", "quotaReduction"] as const;
 export type EmailName = (typeof EMAIL_NAMES)[number];
 
 const APP_URL = "https://app.jobbbox.fr";
 const application = { jobTitle: "DAF H/F", applicationUrl: `${APP_URL}/candidatures/application-1`, settingsUrl: `${APP_URL}/compte/relances` };
 
-/** Each of the seven emails in `language`, from sample data. */
+/** Each of the eight emails in `language`, from sample data. */
 export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail> {
   return {
     signIn: signInEmail({ url: `${APP_URL}/api/auth/magic-link/verify?token=abc`, minutes: 15 }, language),
@@ -49,5 +50,17 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
     ),
     appleFailureAlert: appleFailureEmail([{ id: "apple", reason: "invalid_apple_key" }], APP_URL, language),
     webSearchSpendAlert: webSearchAlertEmail({ month: "2026-10", spendEur: 2.4, thresholdEur: 2 }, APP_URL, language),
+    quotaReduction: quotaReductionEmail(
+      {
+        planName: "Standard",
+        quotas: { jobSearches: { before: 7, after: 3 }, profiles: { before: null, after: 3 } },
+        removedFeatures: ["coachingSessionDiscount"],
+        reason: "Les recherches d'offres coûtent plus cher à nos fournisseurs.",
+        effectiveOn: "2026-11-14",
+        resolvableUntil: "2026-12-14",
+        resolveUrl: `${APP_URL}/abonnement/baisse`,
+      },
+      language,
+    ),
   };
 }

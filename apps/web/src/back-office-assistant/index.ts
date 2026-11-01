@@ -37,6 +37,7 @@ import type { Administrator } from "../admin/administrators";
 import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
 import type { AiUsageReport } from "../ai-usage";
 import type { Coupon, ListedCoupon, PlanDefinition, PlanName } from "../billing";
+import { STRIPE_WEBHOOK_EVENTS } from "../billing/webhook-events";
 import type { CoachMessageCost } from "../coach";
 import { providerSheetHref } from "../platform-settings/parametres";
 import { COACH_MESSAGE_COST_TARGET_EUR, type CoachCostDay } from "../coach-conversations";
@@ -173,6 +174,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   unansweredQuestions: { name: "Questions sans réponse (Unanswered Questions) : ce que l'aide n'a pas couvert", page: routes.adminUnansweredQuestions() },
   // Read by people only (#283): no Signalement is ever given to the assistant, only where they are.
   signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe seulement, jamais par une IA", page: routes.adminSignalements() },
+  withdrawals: { name: "Rétractations (Withdrawals) des Candidats et leurs remboursements Stripe, un remboursement échoué relancé", page: routes.adminWithdrawals },
 };
 
 /** Where the Stripe webhook's signing secret is entered: the Stripe provider's sheet, on Paramètres' Paiement tab (#396). */
@@ -239,7 +241,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     );
     return [
       heading("planQuotas"),
-      "Limites d'usage de chaque offre. Les quotas hebdomadaires se comptent par semaine, du lundi 0 h (heure de Paris). Une modification s'applique immédiatement à tous les candidats de l'offre. Un candidat qui atteint un quota voit une invitation à passer à l'offre supérieure (Upgrade Prompt).",
+      "Limites d'usage de chaque offre. Les quotas hebdomadaires se comptent par semaine, du lundi 0 h (heure de Paris). Une hausse s'applique immédiatement à tous les candidats de l'offre ; une baisse d'une offre que des candidats paient s'applique à une date d'effet au moins 30 jours plus tard, annoncée à chaque abonné par e-mail avec son droit de résilier sans frais (Baisses programmées, sur Offres). Un candidat qui atteint un quota voit une invitation à passer à l'offre supérieure (Upgrade Prompt).",
       ...lines,
     ].join("\n");
   },
@@ -248,7 +250,7 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     return [
       heading("providerSecrets"),
       "Les clés des services tiers (IA, France Travail, Fantastic.jobs, enrichissement de contacts, Stripe, envoi d'e-mails par Brevo), saisies par les super-admins sur la fiche de chaque fournisseur, dans Paramètres (l'onglet de son type d'outil, liste « Fournisseurs possibles »), et chiffrées. Elles sont en écriture seule : on les remplace, on ne les relit jamais ; une empreinte permet de vérifier laquelle est en place, et chaque remplacement est inscrit dans Activité › Actions des administrateurs, sans la valeur. Sans clé saisie, l'application prend celle de son environnement. Vous ne connaissez aucune valeur, même masquée.",
-      `Webhook Stripe : Stripe ne prévient Jobbbox d'un abonnement (nouveau, changé, résilié) que par son webhook. Sans lui, le paiement passe dans Stripe mais l'offre du candidat ne change pas dans Jobbbox. Pour le configurer, dans le tableau de bord Stripe (en mode test hors production) : Workbench > Webhooks > Ajouter une destination ; périmètre « Votre compte », payload « Instantanée » (pas « Allégée »), version de l'API proposée ; événements customer.subscription.created, customer.subscription.updated, customer.subscription.deleted, checkout.session.completed et checkout.session.async_payment_succeeded (ces deux derniers pour les séances de coaching) ; type « Endpoint webhook » ; URL {adresse de l'application}/api/billing/webhook (https://staging.jobbbox.ai/api/billing/webhook en staging). Copier ensuite le secret de signature (whsec_…) de cette destination dans la clé STRIPE_WEBHOOK_SECRET, sur la fiche du fournisseur Stripe, dans l'onglet Paiement de Paramètres (${STRIPE_SHEET}) : il s'applique sans redéploiement. Un secret qui n'est pas celui de cette destination fait refuser chaque événement. Les paiements faits avant restent sans effet tant que leurs événements ne sont pas renvoyés depuis Stripe (bouton Renvoyer sur l'événement). Si Stripe montre des envois réussis sans effet, vérifier que le produit Stripe de l'abonnement est bien celui de l'offre dans le Back Office.`,
+      `Webhook Stripe : Stripe ne prévient Jobbbox d'un abonnement (nouveau, changé, résilié) que par son webhook. Sans lui, le paiement passe dans Stripe mais l'offre du candidat ne change pas dans Jobbbox. Pour le configurer, dans le tableau de bord Stripe (en mode test hors production) : Workbench > Webhooks > Ajouter une destination ; périmètre « Votre compte », payload « Instantanée » (pas « Allégée »), version de l'API proposée ; événements ${STRIPE_WEBHOOK_EVENTS.join(", ")} (les customer.subscription.* pour les offres, les checkout.session.* pour les séances de coaching, les refund.* pour les remboursements des rétractations : sans eux, un remboursement qui échoue plus tard n'apparaît pas dans Rétractations) ; type « Endpoint webhook » ; URL {adresse de l'application}/api/billing/webhook (https://staging.jobbbox.ai/api/billing/webhook en staging). Copier ensuite le secret de signature (whsec_…) de cette destination dans la clé STRIPE_WEBHOOK_SECRET, sur la fiche du fournisseur Stripe, dans l'onglet Paiement de Paramètres (${STRIPE_SHEET}) : il s'applique sans redéploiement. Un secret qui n'est pas celui de cette destination fait refuser chaque événement. Les paiements faits avant restent sans effet tant que leurs événements ne sont pas renvoyés depuis Stripe (bouton Renvoyer sur l'événement). Si Stripe montre des envois réussis sans effet, vérifier que le produit Stripe de l'abonnement est bien celui de l'offre dans le Back Office.`,
     ].join("\n");
   },
 
@@ -414,6 +416,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   guardrails: "garde-fous",
   unanswered_questions: "questions sans réponse",
   signalements: "signalements",
+  withdrawals: "rétractations",
   eval_runs: "Eval Runs",
   coach_message_cost: "coût coach",
   ai_usage: "consommation IA",
@@ -437,6 +440,9 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   restored: "rétablissement",
   restored_to_default: "rétablissement au défaut",
   reset: "remise à zéro",
+  scheduled: "baisse programmée",
+  cancelled: "baisse annulée",
+  applied: "baisse appliquée",
   refused: "tentative refusée",
   denied: "accès refusé",
 };

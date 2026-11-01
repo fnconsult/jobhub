@@ -6,10 +6,14 @@ import { linkIn, newAddress, waitForEmail } from "./support/mailbox";
 
 // Issue #470: the public pages in the Design System. The sign-in pages on their stage, their states as Notes; Légal,
 // its side columns in view to the end of a long text; Nouveautés, the Release Notes this build carries.
+// Issue #546: Légal's Legal Texts, their dated versions and version history, and the addresses that moved.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const continueWithGoogle = fr.signIn.continueWith.replace("{{provider}}", "Google");
+// The e2e suite runs what `main` carries, the Beta: the root package.json's Version, its Release Note not yet published.
+const betaVersion: string = JSON.parse(readFileSync("package.json", "utf8")).version;
+const betaTitle = (locale: "fr" | "en") => /^title: (.+)$/m.exec(readFileSync(`packages/help/releases/${locale}/${betaVersion}.md`, "utf8"))![1]!;
 
 /** The Note holding `text`: a Design System Note, of `tone`. */
 const note = (page: Page, text: string) => page.locator(".ds-note").filter({ hasText: text });
@@ -67,7 +71,7 @@ test.describe("sign-in on the public pages' stage", () => {
     await expect(legal).toHaveText(`${fr.signIn.legalLine.before} ${fr.signIn.legalLine.terms} ${fr.signIn.legalLine.between} ${fr.signIn.legalLine.privacy}${fr.signIn.legalLine.after}`);
     await legal.getByRole("link", { name: fr.signIn.legalLine.privacy }).click();
     await expect(page).toHaveURL(`${origin}/legal/confidentialite`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.documents.confidentialite);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.texts.confidentialite);
   });
 });
 
@@ -109,27 +113,60 @@ test.describe("Légal", () => {
     expect(await axeViolations(page)).toEqual([]);
   });
 
-  test("a text the team has not written yet shows that it is not published; Légal opens on its first document", async ({ page }) => {
+  test("a text the team has not written yet shows that it is not published; Légal opens on its first text", async ({ page }) => {
     await page.goto("/legal");
-    await expect(page).toHaveURL(`${origin}/legal/conditions-utilisation`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.documents["conditions-utilisation"]);
+    await expect(page).toHaveURL(`${origin}/legal/cgu`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.texts.cgu);
     await expect(page.getByRole("heading", { name: fr.legal.notPublishedTitle })).toBeVisible();
     const documents = page.getByRole("navigation", { name: fr.legal.documentsNav });
-    await expect(documents.getByRole("link")).toHaveText(Object.values(fr.legal.documents) as string[]);
-    await expect(documents.getByRole("link", { name: fr.legal.documents["conditions-utilisation"] })).toHaveAttribute("aria-current", "page");
+    await expect(documents.getByRole("link")).toHaveText(Object.values(fr.legal.texts) as string[]);
+    await expect(documents.getByRole("link", { name: fr.legal.texts.cgu })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: fr.publicSite.nav }).getByRole("link", { name: fr.publicSite.legal })).toHaveAttribute("aria-current", "page");
     expect(await axeViolations(page)).toEqual([]);
-    expect((await page.request.get("/api/legal/conditions-utilisation/pdf")).status()).toBe(404);
+    expect((await page.request.get("/api/legal/cgu/pdf")).status()).toBe(404);
     expect((await page.goto("/legal/blog"))?.status()).toBe(404);
+  });
+
+  test("the version history of a text not written yet shows that it is not published; a date that is no version is not found", async ({ page }) => {
+    await page.goto("/legal/cgv/versions");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.history);
+    await expect(page.getByRole("heading", { name: fr.legal.notPublishedTitle })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: fr.legal.documentsNav }).getByRole("link", { name: fr.legal.texts.cgv })).toHaveAttribute("aria-current", "page");
+    expect(await axeViolations(page)).toEqual([]);
+    expect((await page.goto("/legal/cgu/2026-01-01"))?.status()).toBe(404);
+    expect((await page.goto("/legal/cgu/demain"))?.status()).toBe(404);
+  });
+
+  test("the addresses that moved redirect for good: « IA dans Jobbbox », #470's documents and ?version=", async ({ page }) => {
+    const moves = [
+      ["/legal/ia", "/legal/confidentialite#ia"],
+      ["/legal/conditions-utilisation", "/legal/cgu"],
+      ["/legal/cookies", "/legal/confidentialite#cookies"],
+      ["/legal/sous-traitants-et-ia", "/legal/confidentialite#ia"],
+      ["/legal/cgu?version=2026-12-01", "/legal/cgu/2026-12-01"],
+      ["/legal/conditions-utilisation?version=2026-12-01&lang=en", "/legal/cgu/2026-12-01?lang=en"],
+    ];
+    for (const [from, to] of moves) {
+      const response = await page.request.get(from, { maxRedirects: 0 });
+      expect(response.status(), from).toBe(308);
+      expect(new URL(response.headers().location!, origin).href, from).toBe(`${origin}${to}`);
+    }
+    // In the browser, the redirected page opens at its section.
+    await page.goto("/legal/ia");
+    await expect(page).toHaveURL(`${origin}/legal/confidentialite#ia`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.texts.confidentialite);
   });
 });
 
 test.describe("Nouveautés", () => {
-  test("lists the Release Notes this build carries; with none yet, it shows that nothing is published, and has no email field", async ({ page }) => {
+  test("shows the Beta's next Version under « Version bêta, pas encore publiée », and has no email field", async ({ page }) => {
     await page.goto("/nouveautes");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.nouveautes.title);
     await expect(page.getByRole("navigation", { name: fr.publicSite.nav }).getByRole("link", { name: fr.publicSite.nouveautes })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("heading", { name: fr.nouveautes.emptyTitle })).toBeVisible();
+    const beta = page.getByRole("region", { name: fr.nouveautes.beta });
+    await expect(beta.getByRole("heading", { level: 3 })).toHaveText(betaTitle("fr"));
+    await expect(beta.getByText(fr.nouveautes.version.replace("{{version}}", betaVersion))).toBeVisible();
+    await expect(page.getByRole("heading", { name: fr.nouveautes.emptyTitle })).toHaveCount(0);
     await expect(page.getByRole("textbox")).toHaveCount(0);
     await expect(page.getByRole("banner").getByRole("link", { name: fr.nav.signIn })).toHaveAttribute("href", "/connexion");
     expect(await axeViolations(page)).toEqual([]);
@@ -139,6 +176,6 @@ test.describe("Nouveautés", () => {
     await page.goto("/nouveautes?lang=en");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.nouveautes.title);
-    await expect(page.getByRole("heading", { name: en.nouveautes.emptyTitle })).toBeVisible();
+    await expect(page.getByRole("region", { name: en.nouveautes.beta }).getByRole("heading", { level: 3 })).toHaveText(betaTitle("en"));
   });
 });

@@ -1,12 +1,15 @@
 /**
- * Email intake's door (#442, ADR-0050, ADR-0051): the emails Brevo Inbound Parsing posts to
- * `POST /api/email-intake/inbound`, each one a Received offer email of the Candidate whose Forwarding address it reached.
+ * Email intake's door (#442, #580, ADR-0051): the emails Email intake's own MTA (apps/mta) accepts and posts to
+ * `POST /api/email-intake/inbound`, one request each (inbound-headers.ts: the raw message, the envelope's recipients
+ * and the MTA's Authentication-Results), each one a Received offer email of the Candidate whose Forwarding address it
+ * reached.
  *
  *   const inbound = createEmailIntakeInbound(database, { emailIntake, switchedOn, cipher, queue, settings });
  *   return inbound.handle(request); // the route's whole work
  *
- * A delivery is taken only with Brevo's shared secret (BREVO_INBOUND_SECRET: header `x-inbound-secret`, or a bearer
- * token; else 401) and from Brevo's IP ranges when some are set (else 403). While Email intake is switched off on the
+ * A delivery is taken only with the shared secret (EMAIL_INTAKE_INBOUND_SECRET: header `x-inbound-secret`, or a
+ * bearer token; else 401), from the MTA's own network when ranges are set (EMAIL_INTAKE_MTA_IP_RANGES, else 403: a
+ * request through the public proxy carries the caller's address), and up to MAX_MESSAGE_BYTES (else 413). While Email intake is switched off on the
  * Sources tab of Paramètres (#448), every email is discarded unread: no row, nothing queued. Else each email:
  *  - to no Forwarding address in use (unknown, replaced or switched off): discarded unread, no row;
  *  - from a sender Email intake does not read for that Candidate (recognised-senders.ts; the platform's list, less those
@@ -15,8 +18,8 @@
  *  - else: a row awaiting reading, its text encrypted (AES-GCM under SECRETS_MASTER_KEYS, bound to its row), and a job
  *    on EMAIL_INTAKE_READ_QUEUE for the worker; Gmail's forwarding confirmation is kept the same way for the setup
  *    wizard, but neither queued nor counted.
- * One email delivered twice (its MessageId) is received once. A failure answers 5xx and keeps nothing of the email,
- * so Brevo can deliver it again. Rows keep the outcome, the sender's domain and the dates; the text goes at most
+ * One email delivered twice (its Message-ID) is received once. A failure answers 5xx and keeps nothing of the email:
+ * the MTA then answers its sender with a temporary failure (4xx), and the sender delivers it again. Rows keep the outcome, the sender's domain and the dates; the text goes at most
  * 72 hours after it arrived, the row 12 months after (`purgeReceivedOfferEmails`, nightly in the worker). Each row also
  * gets its row of Activité › Emails reçus, naming no Candidate (activity.ts, #449), and the first email past the cap of
  * the day a Linked mailbox event for the Journal.
@@ -27,7 +30,8 @@ import { inTransaction } from "../database/pool";
 import type { SealedSecret, SecretCipher } from "../provider-secrets/cipher";
 import { recordLinkedMailboxEvent, recordReceivedEmail } from "./activity";
 import type { EmailIntake } from "./index";
-import { readInboundEmails, type InboundEmail } from "./inbound-email";
+import { readInboundEmail, type InboundEmail } from "./inbound-email";
+import { INBOUND_SECRET_HEADER, RAW_MESSAGE_TYPE } from "./inbound-headers";
 import { recognisedSendersFor } from "./candidate-senders";
 import { senderStanding } from "./recognised-senders";
 
@@ -37,16 +41,17 @@ export { ACTIVITY_RETENTION_MONTHS, purgeEmailIntakeActivity } from "./activity"
 /** The worker's queue of Received offer emails to read: `{ receivedOfferEmailId }`. */
 export const EMAIL_INTAKE_READ_QUEUE = "email-intake.read";
 
-/** The header Brevo's webhook sends the shared secret in (its custom `headers`). */
-export const INBOUND_SECRET_HEADER = "x-inbound-secret";
 
 /** How long a Received offer email's text may be kept, at most (to read it again after a failure). */
 export const TEXT_RETENTION_HOURS = 72;
 /** How long a Received offer email is kept. */
 export const RETENTION_MONTHS = 12;
 
-/** The largest body read: Brevo sends the text and HTML parts, never the attachments themselves. */
-const MAX_BODY_BYTES = 10 * 1024 * 1024;
+/**
+ * The largest raw message taken: the MTA's own cap (apps/mta, 10 MB) and the headers it adds. An offer alert is a few
+ * hundred kilobytes.
+ */
+export const MAX_MESSAGE_BYTES = 11 * 1024 * 1024;
 const DAY_TIME_ZONE = "Europe/Paris";
 
 /**
@@ -67,10 +72,10 @@ export type ReceivedOfferEmailOutcome =
 
 /** What the inbound route reads at each delivery: Provider Secrets and Platform Settings in use. */
 export interface InboundSettings {
-  /** BREVO_INBOUND_SECRET; while none, every delivery is refused. */
+  /** EMAIL_INTAKE_INBOUND_SECRET; while none, every delivery is refused. */
   secret: string | undefined;
-  /** Brevo's IP ranges (CIDR, IPv4); none: no check. */
-  brevoIpRanges: readonly string[];
+  /** The MTA's own network (CIDR, IPv4); none: no check. */
+  mtaIpRanges: readonly string[];
   /** How many emails one Candidate's Linked mailbox may have read a day. */
   dailyCap: number;
 }
@@ -87,7 +92,7 @@ export interface EmailIntakeInboundOptions {
 }
 
 export interface EmailIntakeInbound {
-  /** Answers one delivery of Brevo's inbound webhook. */
+  /** Answers one email the MTA posts. */
   handle(request: Request): Promise<Response>;
 }
 
@@ -208,7 +213,7 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
           activityId,
         ],
       );
-      // Last, inside the transaction: an email that cannot be queued is not kept, and Brevo delivers it again.
+      // Last, inside the transaction: an email that cannot be queued is not kept, and its sender delivers it again.
       if (outcome === "awaiting_reading") await options.queue.send(EMAIL_INTAKE_READ_QUEUE, { receivedOfferEmailId: id });
     });
   }
@@ -217,25 +222,20 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
     async handle(request) {
       const settings = options.settings();
       if (!sameSecret(givenSecret(request), settings.secret)) return Response.json({ error: "unauthorized" }, { status: 401 });
-      if (settings.brevoIpRanges.length > 0 && !inIpRanges(sourceIpOf(request), settings.brevoIpRanges)) {
+      if (settings.mtaIpRanges.length > 0 && !inIpRanges(sourceIpOf(request), settings.mtaIpRanges)) {
         return Response.json({ error: "forbidden" }, { status: 403 });
       }
-      if (Number(request.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) return Response.json({ error: "too_large" }, { status: 413 });
+      if (Number(request.headers.get("content-length") ?? 0) > MAX_MESSAGE_BYTES) return Response.json({ error: "too_large" }, { status: 413 });
       const cipher = options.cipher();
       if (!cipher) return Response.json({ error: "no_master_key" }, { status: 503 });
+      if (request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== RAW_MESSAGE_TYPE) return Response.json({ error: "invalid_body" }, { status: 400 });
 
-      let body: unknown;
-      try {
-        body = JSON.parse(await request.text());
-      } catch {
-        return Response.json({ error: "invalid_body" }, { status: 400 });
-      }
-      const emails = readInboundEmails(body);
-      if (!emails) return Response.json({ error: "invalid_body" }, { status: 400 });
-      // Switched off: taken (Brevo does not deliver it again) and discarded unread.
-      if (!(await options.switchedOn())) return Response.json({ received: emails.length });
-      for (const email of emails) await receive(email, cipher, settings.dailyCap);
-      return Response.json({ received: emails.length });
+      const email = await readInboundEmail(request);
+      if (!email) return Response.json({ error: "invalid_body" }, { status: 400 });
+      // Switched off: taken (its sender does not deliver it again) and discarded unread.
+      if (!(await options.switchedOn())) return Response.json({ received: 1 });
+      await receive(email, cipher, settings.dailyCap);
+      return Response.json({ received: 1 });
     },
   };
 }

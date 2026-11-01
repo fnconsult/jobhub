@@ -3,6 +3,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BookOpen,
+  Brain,
   Briefcase,
   Calendar,
   ChartLine,
@@ -13,14 +14,16 @@ import {
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
+  CircleHelp,
   CircleUser,
-  Copy,
   ClipboardList,
+  Copy,
   CreditCard,
   Download,
-  Upload,
-  FileSearch,
+  Ellipsis,
+  Eraser,
   FileQuestionMark,
+  FileSearch,
   Flag,
   Globe,
   Info,
@@ -33,11 +36,11 @@ import {
   LogOut,
   Mail,
   Menu,
-  Minus,
-  Palette,
   MessageCircleQuestion,
   MessageSquare,
+  Minus,
   NotebookText,
+  Palette,
   PanelLeftClose,
   Plus,
   RefreshCw,
@@ -49,8 +52,11 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Square,
+  SquarePen,
   Tag,
   TriangleAlert,
+  Undo2,
+  Upload,
   User,
   Users,
   Wrench,
@@ -94,6 +100,8 @@ const LUCIDE = {
   searchAgain: RefreshCw,
   // The Back Office's sections (#204). A flag on its pole: the Signalements (#376).
   signalements: Flag,
+  // An arrow turning back: the Withdrawals (#511).
+  withdrawals: Undo2,
   // Stacked layers: the Plans (#206).
   plans: Layers,
   planQuotas: ChartNoAxesColumn,
@@ -147,6 +155,13 @@ const LUCIDE = {
   minus: Minus,
   /** The public Légal, from the Back Office (#544). */
   legal: Scale,
+  // « Nouvelle conversation », a conversation's actions and « Effacer » (#601).
+  newConversation: SquarePen,
+  more: Ellipsis,
+  clear: Eraser,
+  // « Mémoire du coach » in the Sidebar and « Aide » in the Top Bar (#602).
+  memory: Brain,
+  help: CircleHelp,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof LUCIDE;

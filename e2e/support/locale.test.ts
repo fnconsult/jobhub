@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { utf8LocaleFor } from "./locale";
+import { utf8Locale } from "./locale";
 
-// #544: under a POSIX locale (a bare Linux container's), Chromium names a download whose name goes beyond ASCII
-// « download », as it cannot write that name in the locale's charset: export.spec.ts then read a PDF as a Word file.
-describe("utf8LocaleFor: the locale the suite's browsers name their downloads in", () => {
-  it("sets UTF-8 on a Linux machine with no locale, or a POSIX one", () => {
-    expect(utf8LocaleFor({}, "linux")).toEqual({ LC_ALL: "C.UTF-8" });
-    expect(utf8LocaleFor({ LANG: "C" }, "linux")).toEqual({ LC_ALL: "C.UTF-8" });
-    expect(utf8LocaleFor({ LANG: "fr_FR.UTF-8", LC_ALL: "POSIX" }, "linux")).toEqual({ LC_ALL: "C.UTF-8" });
+// Chromium on Linux names a download in the machine's character set: under the POSIX locale (no LANG, as in a bare
+// container) a file called « CV-結城-花子.pdf » is saved as « download », and export.spec.ts reads a PDF as a Word file.
+describe("utf8Locale: the locale the suite's browsers and servers get", () => {
+  it("adds a UTF-8 character type when the machine sets no locale (POSIX)", () => {
+    expect(utf8Locale({})).toEqual({ LC_CTYPE: "C.UTF-8" });
+    expect(utf8Locale({ LANG: "C" })).toEqual({ LC_CTYPE: "C.UTF-8" });
+    expect(utf8Locale({ LANG: "fr_FR.ISO-8859-1" })).toEqual({ LC_CTYPE: "C.UTF-8" });
   });
 
-  it("keeps a UTF-8 locale the machine already has, whatever variable says it", () => {
-    expect(utf8LocaleFor({ LANG: "C.UTF-8" }, "linux")).toEqual({});
-    expect(utf8LocaleFor({ LANG: "C", LC_CTYPE: "fr_FR.utf8" }, "linux")).toEqual({});
-    expect(utf8LocaleFor({ LC_ALL: "en_US.UTF-8" }, "linux")).toEqual({});
+  it("replaces LC_ALL when it holds a locale that is not UTF-8: it wins over LC_CTYPE", () => {
+    expect(utf8Locale({ LC_ALL: "POSIX", LANG: "en_US.UTF-8" })).toEqual({ LC_ALL: "C.UTF-8" });
   });
 
-  it("leaves a Mac alone: its Chromium does not name files in the locale's charset", () => {
-    expect(utf8LocaleFor({}, "darwin")).toEqual({});
+  it("leaves a UTF-8 locale alone, however it is set (CI's runners, a developer's machine)", () => {
+    expect(utf8Locale({ LANG: "C.UTF-8" })).toEqual({});
+    expect(utf8Locale({ LANG: "fr_FR.utf8" })).toEqual({});
+    expect(utf8Locale({ LC_CTYPE: "en_US.UTF-8" })).toEqual({});
+    expect(utf8Locale({ LC_ALL: "en_GB.UTF-8", LANG: "C" })).toEqual({});
   });
 });

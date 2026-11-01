@@ -59,7 +59,7 @@ export function footerColumns({
       label: "publicFooter.legal.title",
       links: [
         { key: "mentionsLegales", href: routes.legal("mentions-legales"), label: "publicFooter.legal.mentionsLegales" },
-        { key: "cgu", href: routes.legal("conditions-utilisation"), label: "publicFooter.legal.cgu" },
+        { key: "cgu", href: routes.legal("cgu"), label: "publicFooter.legal.cgu" },
         { key: "cgv", href: routes.legal("cgv"), label: "publicFooter.legal.cgv" },
         { key: "confidentialite", href: routes.legal("confidentialite"), label: "publicFooter.legal.confidentialite" },
         { key: "ia", href: `${routes.legal("confidentialite")}#ia`, label: "publicFooter.legal.ia" },

@@ -10,3 +10,5 @@ Pour poser une question à une personne, demandez d'abord à votre coach IA. Si 
 L'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Jobbbox.
 
 Il n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne.
+
+Avec la nouvelle présentation, où chaque page est une conversation avec votre coach IA, « Signaler un problème » et « Proposer une idée » sont sous la zone de message, et l'icône reste à côté de « Mon compte ». Le formulaire s'ouvre à côté de la conversation, sans la cacher ; « Fermer » ou la touche Échap le referme et votre brouillon est gardé. « Poser la question à l'équipe » s'y ouvre aussi.

@@ -5,7 +5,9 @@ import { backOfficeAccess } from "../admin/access";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { migrateApplications } from "../applications";
 import { migrateCoachConversations } from "../coach-conversations";
+import { migrateJobDigests } from "../job-digests";
 import { migrateJobOffers } from "../job-offers";
+import { migrateJobSearches } from "../job-searches";
 import { migrateProfiles } from "../profiles";
 import type { AskingAdministrator, AssistantReply } from "./index";
 import { createAssistantConversations, migrateAssistantConversations, OUT_OF_ROLE_REPLY, purgeStaleAssistantConversations, type AssistantConversations } from "./conversations";
@@ -58,6 +60,8 @@ describe.skipIf(!connectionString)("Back Office Assistant conversations (needs P
     await migrateProfiles(database);
     await migrateJobOffers(database);
     await migrateApplications(database);
+    await migrateJobSearches(database);
+    await migrateJobDigests(database);
     await migrateCoachConversations(database);
     await migrateAssistantConversations(database);
     await migrateAssistantConversations(database); // safe to run twice

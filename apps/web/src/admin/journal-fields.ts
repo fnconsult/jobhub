@@ -47,6 +47,10 @@ type GuardrailField = (typeof GUARDRAIL_FIELDS)[number];
 const COUPON_FIELDS = ["code", "discount", "duration", "plans", "expiresAt", "maxRedemptions", "firstPaymentOnly", "active"] as const;
 type CouponField = (typeof COUPON_FIELDS)[number];
 
+/** A Quota Reduction's recorded fields (#514), on the Quotas and Offres pages. */
+const REDUCTION_FIELDS = ["quotas", "removedFeatures", "effectiveOn", "subscribers", "reduction", "refund"] as const;
+type ReductionField = (typeof REDUCTION_FIELDS)[number];
+
 /**
  * A recorded field of a `section` entry (a change, or the field at fault in a failure), named as the
  * Back Office page it was changed on names it. A field no page names stays as recorded.
@@ -55,6 +59,8 @@ export function journalFieldName(t: TFunction, section: BackOfficeSection, field
   if (section === "plan_quotas" && (LIMITED_QUOTAS.includes(field as LimitedQuota) || field === "jobDigest")) {
     return t(`billing.quotas.${field as LimitedQuota | "jobDigest"}`);
   }
+  if ((section === "plan_quotas" || section === "plans") && REDUCTION_FIELDS.includes(field as ReductionField)) return t(`admin.quotaReductions.journalFields.${field as ReductionField}`);
+  if (section === "plans" && field === "reason") return t("admin.quotaReductions.journalFields.reason");
   if (section === "plan_quotas" && (field === "reason" || field === "candidates")) return t(`admin.planQuotas.reset.journalFields.${field}`);
   if (section === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
   if (section === "roles" && field === "roles") return t("admin.administrators.roles");

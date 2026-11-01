@@ -1,0 +1,22 @@
+import type { TFunction } from "i18next";
+import { Field, Textarea, TextInput } from "@/design/Field";
+import { MAX_REASON_LENGTH } from "@/quota-reductions/reduction";
+
+/**
+ * The notice a Back Office Plan form sends when it lowers a paid Plan (#514): the reason the subscribers read and the
+ * effective date, `earliest` at the soonest. Optional: a change that lowers nothing, or a Plan nobody pays for, needs none.
+ */
+export function ReductionNoticeFields({ t, earliest }: { t: TFunction; earliest: string }) {
+  return (
+    <fieldset>
+      <legend>{t("admin.quotaReductions.noticeTitle")}</legend>
+      <p>{t("admin.quotaReductions.noticeHelp")}</p>
+      <Field label={t("admin.quotaReductions.reasonLabel")} hint={t("admin.quotaReductions.reasonHelp")}>
+        <Textarea name="reductionReason" maxLength={MAX_REASON_LENGTH} />
+      </Field>
+      <Field label={t("admin.quotaReductions.effectiveOnLabel")}>
+        <TextInput name="reductionEffectiveOn" type="date" min={earliest} />
+      </Field>
+    </fieldset>
+  );
+}

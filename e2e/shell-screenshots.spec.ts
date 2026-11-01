@@ -26,6 +26,13 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 // Its own permanent super-admin (ADMIN_EMAILS): two sign-ins of one address at once can pick up each other's link.
 const BACK_OFFICE = "shell-office@e2e.jobbbox.test";
 
+/**
+ * Whether the shots are compared: where the baselines are drawn, CI's Playwright image or the Playwright container through
+ * PW_TEST_CONNECT_WS_ENDPOINT, not on any Linux machine, whose Chromium may draw text otherwise (e2e/support/screenshots.ts).
+ * Elsewhere the shell is still drawn, its drawer opened, its contrast and axe checked.
+ */
+const COMPARES = comparesScreenshots();
+
 const WIDTHS = [
   { name: "desktop", width: 1440, height: 900 },
   // The narrowest width with the Sidebar beside the page (64rem).
@@ -62,14 +69,13 @@ async function shellScreenshot(page: Page, name: string, phone: boolean) {
     // A loaded machine takes a while to draw two stable shots in a row.
     timeout: 20_000,
   };
-  const compares = comparesScreenshots();
-  if (compares) await expect(page).toHaveScreenshot(`${name}.png`, { ...options, mask: [...options.mask, page.locator("#main")] });
+  if (COMPARES) await expect(page).toHaveScreenshot(`${name}.png`, { ...options, mask: [...options.mask, page.locator("#main")] });
   if (!phone) return;
   await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
   const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
   await expect(drawer).toBeVisible();
   await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
-  if (compares) await expect(drawer).toHaveScreenshot(`${name}-menu.png`, options);
+  if (COMPARES) await expect(drawer).toHaveScreenshot(`${name}-menu.png`, options);
 }
 
 /** axe on the shell, the page left out (its own ticket checks it). */

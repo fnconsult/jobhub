@@ -36,6 +36,23 @@ describe("a term mentioned twice on a page is a button only the first time (#343
     expect(mentions.isFirst("/profils/p", "atsScore", "m2")).toBe(true);
   });
 
+  it("a mention on the page takes the place held by one rendered in a render that never reached the page", () => {
+    const mentions = createMentions();
+    // React dropped the render « m1 » was in, and rendered the mention again as « m2 ».
+    mentions.isFirst("/profils/p/propositions", "proposals", "m1");
+    expect(mentions.isFirst("/profils/p/propositions", "proposals", "m2")).toBe(false);
+    expect(mentions.shown("/profils/p/propositions", "proposals", "m2")).toBe(true);
+    expect(mentions.isFirst("/profils/p/propositions", "proposals", "m2")).toBe(true);
+  });
+
+  it("a mention on the page keeps its place from a later one, on the page or not", () => {
+    const mentions = createMentions();
+    mentions.isFirst("/profils/p", "atsScore", "m1");
+    mentions.isFirst("/profils/p", "atsScore", "m2");
+    expect(mentions.shown("/profils/p", "atsScore", "m1")).toBe(true);
+    expect(mentions.shown("/profils/p", "atsScore", "m2")).toBe(false);
+  });
+
   it("forgetting a mention that is not the first changes nothing", () => {
     const mentions = createMentions();
     mentions.isFirst("/profils/p", "atsScore", "m1");

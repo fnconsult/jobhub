@@ -24,6 +24,7 @@ const VALUES: Record<IntroPage, Record<string, string>> = {
   tools: {},
   administrators: {},
   aiUsage: {},
+  withdrawals: {},
 };
 
 describe("a Back Office page's intro in the Compact Density (#465, #466)", () => {

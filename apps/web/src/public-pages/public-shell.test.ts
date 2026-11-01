@@ -25,7 +25,7 @@ describe("the public header (#544)", () => {
     expect(HEADER_LINKS.map(({ key, href }) => [key, href])).toEqual([
       ["nouveautes", "/nouveautes"],
       ["aide", "/aide"],
-      ["legal", "/legal/conditions-utilisation"],
+      ["legal", "/legal/cgu"],
     ]);
   });
 });
@@ -40,7 +40,7 @@ describe("the public footer (#544)", () => {
   it("Légal: Mentions légales, CGU, CGV, Confidentialité et cookies, IA dans Jobbbox at its anchor in the privacy policy", () => {
     const legal = columns[0]!.links;
     expect(legal.map((link) => link.key)).toEqual(["mentionsLegales", "cgu", "cgv", "confidentialite", "ia"]);
-    expect(hrefs(legal)).toEqual(["/legal/mentions-legales", "/legal/conditions-utilisation", "/legal/cgv", "/legal/confidentialite", "/legal/confidentialite#ia"]);
+    expect(hrefs(legal)).toEqual(["/legal/mentions-legales", "/legal/cgu", "/legal/cgv", "/legal/confidentialite", "/legal/confidentialite#ia"]);
   });
 
   it("Aide: the Help Centre, an email to the team, the extension's store page", () => {
@@ -77,7 +77,7 @@ describe("« Aide et légal » in the Candidate's Sidebar (#544)", () => {
   it("leads to Aide, Légal and Nouveautés", () => {
     expect(AIDE_ET_LEGAL.map(({ key, href }) => [key, href])).toEqual([
       ["aide", "/aide"],
-      ["legal", "/legal/conditions-utilisation"],
+      ["legal", "/legal/cgu"],
       ["nouveautes", "/nouveautes"],
     ]);
   });

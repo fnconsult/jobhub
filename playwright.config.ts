@@ -2,8 +2,9 @@ import os from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { e2eExtensionDir, unpackedExtensionId } from "./e2e/support/extension";
-import { utf8LocaleFor } from "./e2e/support/locale";
+import { utf8Locale } from "./e2e/support/locale";
 import { webPort as e2eWebPort } from "./e2e/support/ports";
+import { utf8CharacterType } from "./e2e/support/utf8-locale";
 
 // End-to-end suite (`npm run test:e2e`). Exercises each public entry point:
 // the built web app over HTTP, the built Chrome extension, the local docker
@@ -33,14 +34,18 @@ const webPort = e2eWebPort();
 const webOrigin = `http://localhost:${webPort}`;
 const stripePort = Number(process.env.E2E_STRIPE_PORT ?? webPort + 9000);
 
-// Set once in the main process; Playwright workers inherit them.
+// Set once in the main process; Playwright workers inherit them, and the browsers and servers they start.
+// A UTF-8 locale whatever the machine's: under POSIX, Chromium saves a download named in another script as « download »
+// (e2e/support/locale.ts).
+Object.assign(process.env, utf8Locale(process.env));
 process.env.E2E_WEB_PORT = String(webPort);
 process.env.E2E_WEB_ORIGIN = webOrigin;
 process.env.E2E_STRIPE_PORT = String(stripePort);
 process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
+// A UTF-8 character type, whatever the shell has: under none, Chromium names a download « download » when its name is
+// not ASCII, « CV-Zoë-Łukasz.pdf » (e2e/support/utf8-locale.ts, e2e/export.spec.ts).
+Object.assign(process.env, utf8CharacterType());
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
-// A UTF-8 locale, or Chromium on Linux names a download beyond ASCII « download » (e2e/support/locale.ts, #544).
-Object.assign(process.env, utf8LocaleFor(process.env, process.platform));
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");
   url.pathname = `/jobhub_e2e_${webPort}`;
@@ -66,19 +71,25 @@ export default defineConfig({
   projects: [
     {
       name: "web",
-      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|email-intake|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer)\.spec\.ts/,
+      testMatch: /(web|ai-activity|database-connections|auth|agenda|account-data|back-office-audit|back-office-roles|back-office-assistant|ai-consumption|provider-secrets|sign-in-providers|profiles|master-cv|match-score|ats-score|coach|coach-ai-disclosure|coach-provenance-line|coach-live-steps|coach-panel-reply|coach-panel-reply|coach-job-offer-link|coach-job-offer-link-provenance|coach-context|coach-subject|conversation-first|coach-memory|coach-playbooks|billing|plans|coupons|applications|company-dossier|enriched-contacts|export|tailored-documents|tailored-cv|tailored-live-steps|human-coaches|eu-ai-consent|email-intake|appointment-reminders|cv-draft-ai-config|stripe-price-ids|plan-prices|sidebar-layout|application-page|profile-page|coaching-playbooks-back-office|guardrails|eval-runs|tools|platform-settings|parametres-tabs|parametres-ai-tasks|text-size-preferences|usage-meter|stripe-checkout|ai-warnings|ai-activity-digest-cards|ai-activity-dossier-cv|ai-activity-ended|ai-activity-failure-reason|coach-help|help-terms|unanswered-questions|signalements|signalement-dialog|signalements-back-office|coach-panel-signalement|mes-signalements|tool-prices|explainable-labels|back-office-dashboard|target-companies-profile|private-job-offers|agenda-account-screenshots|dark-mode|design-system-tokens|design-system-components|design-system-page|design-system-access|shell-screenshots|back-office-pages-screenshots|received-by-email|public-pages|public-shell|back-office-sections-screenshots|candidate-pages-screenshots|file-upload|document-viewer|withdrawal|withdrawal-coaching|subscription-cancellation|conversation-applications)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },
+    // Quota Reductions (#514) change Standard's and Free's quotas for real for a few seconds, and put them back: run after
+    // every web spec (they read those quotas: the plan comparison, Upgrade Prompts), never beside them. Skipped when a web
+    // spec failed, as Playwright does with a dependency.
+    { name: "plan-quotas", testMatch: /quota-reduction\.spec\.ts/, dependencies: ["web"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" } },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
-    { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|help-content-package)\.spec\.ts/ },
+    // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
+    { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
+    { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
     { name: "ai", testMatch: /(ai|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
     // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.
     // Needs no web app: run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=prototype.
     { name: "prototype", testMatch: /notion-layout-prototype\.spec\.ts/, use: { ...devices["Desktop Chrome"], locale: "fr-FR" } },
-    // The seven emails' HTML (#472): screenshot baselines, light and dark, rendered from their samples with no web app.
+    // The eight emails' HTML (#472): screenshot baselines, light and dark, rendered from their samples with no web app.
     // Run it alone with E2E_NO_WEB_SERVER=1 npx playwright test --project=emails. Its baselines stay per platform, next to the spec.
     { name: "emails", testMatch: /email-html\.spec\.ts/, snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}", use: { ...devices["Desktop Chrome"], viewport: { width: 680, height: 800 }, locale: "fr-FR" } },
     // The worker's background jobs, run by `tsx src/main.ts` against the web server's database.
@@ -90,9 +101,13 @@ export default defineConfig({
     // One spec at a time: root-env and worker-env both write the repo-root .env (the compose
     // worker reads it, #64); root-env and dev-servers (the web app's and the extension's dev
     // servers started in either order, #71) both run `npm run dev`, plan-prices-dev (#103) runs
-    // `next dev`, and Next.js refuses a second `next dev` in apps/web. Projects run in parallel
-    // with each other, so they share this one.
-    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev)\.spec\.ts/, workers: 1 },
+    // `next dev`, and Next.js refuses a second `next dev` in apps/web. legal-shell (#546) and acceptances (#510) write
+    // fixture Legal Text Versions into packages/help/legal and rebuilds @jobhub/help, which
+    // help-content-package also builds and tests (#347), hiding an article meanwhile; privacy-change
+    // (#547) writes a fixture version of the privacy policy, rebuilds it and serves it with `next dev`; order (#512) does
+    // the same with a CGV version, for the Order page's CGV box.
+    // Projects run in parallel with each other, so they share this one.
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|acceptances|order|help-content-package|privacy-change)\.spec\.ts/, workers: 1 },
   ],
   webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",
@@ -104,9 +119,10 @@ export default defineConfig({
       // The e2e environment serves the latest Playbook Versions, validated or not: a production build
       // naming no target serves only Human-validated ones (ADR-0021, #225).
       JOBHUB_TARGET: "e2e",
-      // Its whole environment is this one, as CI's: a developer's root .env (apps/web/src/env/root-env.ts) is left out,
-      // or its values (BEDROCK_REGION, MAIL_FROM…) replace the code's defaults the specs expect (#544).
-      JOBHUB_ROOT_ENV: "ignore",
+      // A developer's repo-root .env stays unread (apps/web/src/env/root-env.ts): the server runs on these settings
+      // alone, as in CI, which has none. A copy of .env.example would set BEDROCK_REGION and MAIL_FROM, which the
+      // Outils and Paramètres specs expect at their code default.
+      JOBHUB_IGNORE_ROOT_ENV: "1",
       // Candidate accounts in a local production build: sign-in links go to the server log.
       APP_URL: webOrigin,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",
@@ -148,7 +164,7 @@ export default defineConfig({
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test,search-keys-office@e2e.jobbbox.test,web-search-settings-office@e2e.jobbbox.test,ai-tasks-office@e2e.jobbbox.test,prices-office@e2e.jobbbox.test,activite-office@e2e.jobbbox.test,explain-office@e2e.jobbbox.test,dashboard-office@e2e.jobbbox.test,design-system-office@e2e.jobbbox.test,email-intake-office@e2e.jobbbox.test,design-system-page-office@e2e.jobbbox.test,design-system-access-office@e2e.jobbbox.test,design-system-screens-office@e2e.jobbbox.test,shell-office@e2e.jobbbox.test,emails-recus-office@e2e.jobbbox.test,pilot-pages-office@e2e.jobbbox.test,sections-office@e2e.jobbbox.test,public-shell-office@e2e.jobbbox.test",
+      ADMIN_EMAILS: "back-office@e2e.jobbbox.test,coach-office@e2e.jobbbox.test,account-office@e2e.jobbbox.test,cost-office@e2e.jobbbox.test,playbook-office@e2e.jobbbox.test,playbook-validator-office@e2e.jobbbox.test,journal-office@e2e.jobbbox.test,audit-departing-office@e2e.jobbbox.test,roles-office@e2e.jobbbox.test,keys-office@e2e.jobbbox.test,assistant-office@e2e.jobbbox.test,ai-office@e2e.jobbbox.test,guardrails-office@e2e.jobbbox.test,guardrails-validator-office@e2e.jobbbox.test,eval-runs-office@e2e.jobbbox.test,tools-office@e2e.jobbbox.test,ai-warnings-office@e2e.jobbbox.test,fantastic-office@e2e.jobbbox.test,settings-office@e2e.jobbbox.test,digest-threshold-office@e2e.jobbbox.test,contacts-settings-office@e2e.jobbbox.test,provenance-office@e2e.jobbbox.test,ai-activity-office@e2e.jobbbox.test,help-office@e2e.jobbbox.test,france-travail-office@e2e.jobbbox.test,signalements-office@e2e.jobbbox.test,mes-signalements-office@e2e.jobbbox.test,parametres-office@e2e.jobbbox.test,search-keys-office@e2e.jobbbox.test,web-search-settings-office@e2e.jobbbox.test,ai-tasks-office@e2e.jobbbox.test,prices-office@e2e.jobbbox.test,activite-office@e2e.jobbbox.test,explain-office@e2e.jobbbox.test,dashboard-office@e2e.jobbbox.test,design-system-office@e2e.jobbbox.test,email-intake-office@e2e.jobbbox.test,design-system-page-office@e2e.jobbbox.test,design-system-access-office@e2e.jobbbox.test,design-system-screens-office@e2e.jobbbox.test,shell-office@e2e.jobbbox.test,emails-recus-office@e2e.jobbbox.test,pilot-pages-office@e2e.jobbbox.test,sections-office@e2e.jobbbox.test,withdrawals-office@e2e.jobbbox.test,quota-reduction-office@e2e.jobbbox.test,public-shell-office@e2e.jobbbox.test",
       // Provider Secrets (#208): an obviously fake master key, for the providers' sheets in Paramètres (#396).
       SECRETS_MASTER_KEYS: "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=",
       // Enriched Contacts (#23) on Apollo, faked; the DPA flag stands for the signed agreement.
@@ -167,9 +183,9 @@ export default defineConfig({
       BRAVE_SEARCH_API_KEY: "",
       TAVILY_API_KEY: "",
       CONTACT_ENRICHMENT_DPA_SIGNED: "true",
-      // Email intake's inbound webhook (#442): Brevo's shared secret, and its IP ranges (TEST-NET-3: e2e/email-intake-inbound.spec.ts sends X-Forwarded-For).
-      BREVO_INBOUND_SECRET: "e2e-brevo-inbound-secret",
-      EMAIL_INTAKE_BREVO_IP_RANGES: "203.0.113.0/24",
+      // Email intake's inbound door (#442, #580): the secret its MTA sends, and the MTA's network (TEST-NET-3: the e2e specs send X-Forwarded-For).
+      EMAIL_INTAKE_INBOUND_SECRET: "e2e-email-intake-inbound-secret-0123456789",
+      EMAIL_INTAKE_MTA_IP_RANGES: "203.0.113.0/24",
     },
   },
 });

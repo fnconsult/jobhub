@@ -59,7 +59,7 @@ export const TOOL_STEPS = {
   "brevo-api": "not_a_step",
   "brevo-smtp": "not_a_step",
   /** Email intake: receiving the email is the first step of the Job Offers it gives (CONTEXT.md, Received offer email). */
-  "brevo-inbound": "read",
+  "email-intake": "read",
   google: "not_a_step",
   apple: "not_a_step",
   microsoft: "not_a_step",

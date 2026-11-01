@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function JobDigestPage({ params }: Params) {
   const { candidateId, jobDigest } = await requireOwnJobDigest((await params).id);
-  const [t, locale, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), loadAiActivity.jobDigest(jobDigest)]);
+  const [t, locale, aiActivity] = await Promise.all([getServerT(), getRequestLocale(), loadAiActivity.jobDigest(candidateId, jobDigest)]);
   const { profile, results } = jobDigest;
   const inView = { kind: "job_digest", id: jobDigest.id, name: profile.name, profileId: profile.id } as const;
   const sentAt = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(jobDigest.sentAt);

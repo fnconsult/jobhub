@@ -3,15 +3,15 @@
  * shapes and traps a real email shows, invented offers, companies and people. Never a real email. Each comes with the
  * reply a model following « Lire un email d'offres d'emploi » gives for it, for a stubbed AI.
  *
- *   inboundPayload(linkedInDigest.email(address))          as Brevo posts it
+ *   inboundRequest(linkedInDigest.email(address), SECRET)  as the MTA posts it
  *   createFakeProvider({ id: "mistral", reply: replyToOfferEmail })   the stubbed AI's reply to each
  */
-import { inboundItem, type BrevoInboundItem } from "./brevo-inbound";
+import { inboundEmail, type InboundTestEmail } from "./inbound-emails";
 
 /** One fictional email, the words that tell it apart in its text, and the reply the AI gives it. */
 export interface OfferEmailFixture {
-  /** The email as Brevo posts it to `to`; `from` replaces the sender (a manual forward's is the Candidate's own address). */
-  email(to: string, options?: { from?: string; messageId?: string; sentAt?: string }): BrevoInboundItem;
+  /** The email as the MTA posts it to `to`; `from` replaces the sender (a manual forward's is the Candidate's own address). */
+  email(to: string, options?: { from?: string; messageId?: string; sentAt?: string }): InboundTestEmail;
   /** Words only this email's text holds. */
   marker: string;
   /** The JSON reply, as the model writes it. */
@@ -33,7 +33,7 @@ const linkedInLink = (id: string) => `https://www.linkedin.com/comm/jobs/view/${
 export const linkedInDigest: OfferEmailFixture = {
   marker: "Votre alerte emploi pour « directeur financier »",
   email: (to, options = {}) =>
-    inboundItem({
+    inboundEmail({
       from: options.from ?? "jobalerts-noreply@linkedin.com",
       to,
       messageId: options.messageId,
@@ -63,7 +63,7 @@ const cadremploiLink = (id: string) => `https://www.cadremploi.fr/emploi/detail_
 export const cadremploiAlert: OfferEmailFixture = {
   marker: "Nouvelles offres correspondant à votre recherche",
   email: (to, options = {}) =>
-    inboundItem({
+    inboundEmail({
       from: options.from ?? "offres@alertes.cadremploi.fr",
       to,
       messageId: options.messageId,
@@ -93,7 +93,7 @@ export const cadremploiAlert: OfferEmailFixture = {
 export const jobijobaPromo: OfferEmailFixture = {
   marker: "Ces entreprises recrutent près de chez vous",
   email: (to, options = {}) =>
-    inboundItem({
+    inboundEmail({
       from: options.from ?? "newsletter@jobijoba.com",
       to,
       messageId: options.messageId,
@@ -112,7 +112,7 @@ export const jobijobaPromo: OfferEmailFixture = {
 export const recruiterMessage: OfferEmailFixture = {
   marker: "Je me permets de vous contacter au sujet d'un poste",
   email: (to, options = {}) =>
-    inboundItem({
+    inboundEmail({
       from: options.from ?? "marie.dupont@example.fr",
       to,
       messageId: options.messageId,
@@ -149,7 +149,7 @@ export const recruiterMessage: OfferEmailFixture = {
 export const newsletter: OfferEmailFixture = {
   marker: "Les tendances du recrutement cette semaine",
   email: (to, options = {}) =>
-    inboundItem({
+    inboundEmail({
       from: options.from ?? "newsletter@welcometothejungle.com",
       to,
       messageId: options.messageId,

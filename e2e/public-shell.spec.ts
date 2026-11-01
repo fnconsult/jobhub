@@ -19,7 +19,7 @@ const DESKTOP = { width: 1280, height: 800 };
 
 /** The public pages (#544), each with its `<h1>` in each language. */
 const PUBLIC_PAGES = [
-  { path: "/legal/cgv", title: (c: typeof fr) => c.legal.documents.cgv },
+  { path: "/legal/cgv", title: (c: typeof fr) => c.legal.texts.cgv },
   { path: "/nouveautes", title: (c: typeof fr) => c.nouveautes.title },
   { path: "/aide", title: (c: typeof fr) => c.helpCentre.title },
   { path: "/connexion", title: (c: typeof fr) => c.signIn.title },
@@ -117,7 +117,7 @@ test.describe("the public shell on a desktop", () => {
     await expect(ai).toHaveAttribute("href", "/legal/confidentialite#ia");
     await ai.click();
     await expect(page).toHaveURL(`${origin}/legal/confidentialite#ia`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.documents.confidentialite);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.texts.confidentialite);
     // The CGV: not written yet, never a 404.
     const response = await page.goto("/legal/cgv");
     expect(response?.status()).toBe(200);
@@ -131,7 +131,7 @@ test.describe("the public shell on a desktop", () => {
     await header(page).getByRole("link", { name: "English" }).click();
     await expect(page).toHaveURL(`${origin}/legal/mentions-legales?lang=en`);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.legal.documents["mentions-legales"]);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.legal.texts["mentions-legales"]);
     await expect(header(page).getByRole("link", { name: "English" })).toHaveAttribute("aria-current", "true");
 
     // A link of the shell keeps English.
@@ -243,7 +243,7 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
       await page.goto("/compte");
       const block = page.locator(".sidebar-docked").getByRole("navigation", { name: fr.sidebar.helpAndLegal });
       await expect(block.getByRole("link")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes]);
-      await expect(block.getByRole("link", { name: fr.publicSite.legal })).toHaveAttribute("href", "/legal/conditions-utilisation");
+      await expect(block.getByRole("link", { name: fr.publicSite.legal })).toHaveAttribute("href", "/legal/cgu");
       await targetsAtLeast24px(block);
 
       await page.setViewportSize(PHONE);
@@ -267,7 +267,7 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
     try {
       await admin.goto("/admin");
       const legal = admin.locator(".sidebar-docked").getByRole("link", { name: fr.admin.nav.publicLegal });
-      await expect(legal).toHaveAttribute("href", "/legal/conditions-utilisation");
+      await expect(legal).toHaveAttribute("href", "/legal/cgu");
 
       // A Human Coach, added in the Back Office.
       const name = `Sophie Martin ${Date.now()}`;

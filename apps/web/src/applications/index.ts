@@ -8,6 +8,7 @@
  *    - `save` a Job Offer with one of the Candidate's Profiles. A Candidate has at
  *      most one Application per Job Offer: saving it again returns the one they have.
  *    - `list` the Candidate's Applications (newest first) for the list and board views;
+ *    - `matchScores` the Match Score of each, for Mes candidatures' list;
  *    - `get` one Application with its Job Offer, Profile, Interviews and the Match
  *      Score of the Profile's current Master CV against the Job Offer;
  *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses,
@@ -112,6 +113,8 @@ export interface Applications {
   get(candidateId: string, applicationId: string): Promise<Application | null>;
   /** Every Application of the Candidate, newest first. */
   list(candidateId: string): Promise<ApplicationSummary[]>;
+  /** The Match Score of each of the Candidate's Applications, by its id, as `get` gives it: for Mes candidatures (#604). */
+  matchScores(candidateId: string): Promise<Map<string, MatchScore>>;
   /**
    * Changes the Application Status or the Profile used, or reports its Job Offer
    * no longer published (true) and undoes it (false).
@@ -434,6 +437,28 @@ export function createApplications(
         if (row.reported_unavailable_at !== null) summary.reportedUnavailableAt = row.reported_unavailable_at;
         return summary;
       });
+    },
+
+    async matchScores(candidateId) {
+      const { rows } = await database.query<{ id: string; job_offer_id: string; profile_id: string }>(
+        `SELECT id, job_offer_id, profile_id FROM application WHERE candidate_id = $1`,
+        [candidateId],
+      );
+      // Each Profile and Job Offer read once, however many Applications share it.
+      const once = <T>(read: (id: string) => Promise<T>) => {
+        const reads = new Map<string, Promise<T>>();
+        return (id: string) => reads.get(id) ?? reads.set(id, read(id)).get(id)!;
+      };
+      const profileOf = once((profileId) => profiles.get(candidateId, profileId));
+      const jobOfferOf = once((jobOfferId) => jobOffers.get(jobOfferId, candidateId));
+      const scores = new Map<string, MatchScore>();
+      await Promise.all(
+        rows.map(async (row) => {
+          const [profile, jobOffer] = await Promise.all([profileOf(row.profile_id), jobOfferOf(row.job_offer_id)]);
+          if (profile && jobOffer) scores.set(row.id, scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }));
+        }),
+      );
+      return scores;
     },
 
     async change(candidateId, applicationId, input) {

@@ -1,5 +1,6 @@
 import { FREE_PLAN, WEEKLY_QUOTAS } from "@jobhub/shared";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { PROMOTION_CODE_REFUSALS, type PromotionCodeRefusal } from "@/billing";
 import { codeNotice } from "@/billing/code-notice";
@@ -11,6 +12,7 @@ import { getBilling } from "@/billing/server";
 import { quotaBar } from "@/billing/usage-meter";
 import { AccountSections } from "@/components/AccountSections";
 import { PaymentFailedNotice } from "@/components/PaymentFailedNotice";
+import { QuotaReductionNotice } from "@/components/QuotaReductionNotice";
 import { RefreshUntilPlanConfirmed } from "@/components/RefreshUntilPlanConfirmed";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
@@ -18,7 +20,9 @@ import { Field, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { routes } from "@/routes";
+import { getQuotaReductions } from "@/quota-reductions/server";
+import { ORDER_PARAMS, PLAN_ORDER, routes } from "@/routes";
+import { getWithdrawals } from "@/withdrawals/server";
 import "./abonnement.css";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -40,27 +44,33 @@ const MAX_CODE_LENGTH = 40;
 /**
  * Mon compte's Subscription Section (ADR-0024), at its own address, in the Design System (#469): the Candidate's Plan
  * (and the discount their subscription gets) with the way to Stripe (and their invoices there), this week's usage as
- * bars, red once used up, the failed-payment Note, the offered Plans as comparison cards in rank order with their
- * prices (« Votre offre », « Conseillée »), and, on Free, a promotion code to check.
+ * bars, red once used up, the failed-payment Note, a Quota Reduction they may cancel over (#514), the offered Plans as comparison cards in rank order with their
+ * prices (« Votre offre », « Conseillée »), and, on Free, a promotion code to check. A paid Plan whose cancellation is
+ * not scheduled has « Résilier votre contrat » beside the way to Stripe (#513); back from confirming it, a Note says it
+ * is recorded until when, and whether its acknowledgement was emailed.
  * A hidden Plan is not compared, even the Candidate's. A shared link's `?code=` is checked and carried
  * to Checkout, where it applies to the Plans it is for; checkout works without it all the same.
  */
-export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string }> }) {
+export default async function SubscriptionPage({ searchParams }: { searchParams: Promise<{ checkout?: string; error?: string; code?: string | string[]; codeRefused?: string; plan?: string; resiliation?: string }> }) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
   const locale = await getRequestLocale();
   const t = await getServerT(locale);
-  const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan } = await searchParams;
+  const { checkout, error, code: codeParam, codeRefused, plan: refusedPlan, resiliation } = await searchParams;
   const code = typeof codeParam === "string" ? codeParam.trim().slice(0, MAX_CODE_LENGTH) : "";
   const billing = getBilling();
-  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount] = await Promise.all([
+  const [{ plan, stripeStatus, endsAt, quotas, usedThisWeek }, plans, allQuotas, prices, hasInvoices, discount, withdrawable, reduction] = await Promise.all([
     billing.entitlements(candidate.id),
     billing.plans(),
     billing.planQuotas(),
     billing.planPrices(),
     billing.hasInvoices(candidate.id),
     billing.activeDiscount(candidate.id),
+    getWithdrawals().contracts(candidate.id),
+    getQuotaReductions().openFor(candidate.id),
   ]);
+  // « Renoncer au contrat ici » (#511): for 14 days after the subscription started.
+  const planWithdrawal = withdrawable.find((contract) => contract.kind === "plan");
   const offeredKeys = plans.filter((each) => each.status === "offered" && each.key !== FREE_PLAN).map((each) => each.key);
   // Sent back from Checkout, which refused the code for that Plan: say why, and offer to go on without it.
   const refusal =
@@ -74,6 +84,9 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
   const carriedCode = code && plan === FREE_PLAN && !refusal && (promotion === null || notice?.role === "status") ? code : null;
   const planName = plans.find((each) => each.key === plan)?.name ?? { fr: plan, en: plan };
   const paymentFailed = paymentFailedNotice(stripeStatus, locale);
+  // « Résilier votre contrat » (#513): on a paid Plan, until its cancellation is scheduled (here or in Stripe's portal).
+  const cancellable = plan !== FREE_PLAN && !endsAt;
+  const cancelled = endsAt && (resiliation === "enregistree" || resiliation === "sans-accuse") ? { endsAt, acknowledged: resiliation === "enregistree" } : null;
 
   const cards = planCards({ plans, current: plan, quotas: allQuotas, prices, locale });
   const shownWeekly = WEEKLY_QUOTAS.filter((quota) => quotas[quota] !== 0);
@@ -98,8 +111,8 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
           <Note tone={notice.role === "status" ? "info" : "warn"} role={notice.role}>
             <p>{notice.text}</p>
             {refusal ? (
-              <form method="post" action="/api/billing/checkout">
-                <input type="hidden" name="plan" value={refusal.plan} />
+              <form method="get" action={PLAN_ORDER}>
+                <input type="hidden" name={ORDER_PARAMS.plan} value={refusal.plan} />
                 <button className={buttonClass({ variant: "primary" })} type="submit">
                   {t("billing.page.continueWithoutCode", { plan: plans.find((each) => each.key === refusal.plan)?.name[locale] ?? refusal.plan })}
                 </button>
@@ -107,7 +120,21 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             ) : null}
           </Note>
         ) : null}
+        {cancelled ? (
+          <Note tone="success" role="status">
+            <p>{t("billing.cancellation.done", { plan: planName[locale], date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(cancelled.endsAt) })}</p>
+            <p>{t(cancelled.acknowledged ? "billing.cancellation.receiptSent" : "billing.cancellation.receiptNotSent")}</p>
+          </Note>
+        ) : null}
         {paymentFailed ? <PaymentFailedNotice notice={paymentFailed} /> : null}
+        {/* A Quota Reduction they were told of (#514): they may cancel at no cost over it, refunded prorata. */}
+        {reduction ? (
+          <QuotaReductionNotice reduction={reduction} locale={locale} t={t}>
+            <a className={buttonClass()} href={routes.subscriptionQuotaReduction}>
+              {t("quotaReduction.resolve")}
+            </a>
+          </QuotaReductionNotice>
+        ) : null}
 
         <div className="subscription-summary">
           <Card>
@@ -122,6 +149,11 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
                     </button>
                   </form>
                 ) : null}
+                {cancellable ? (
+                  <Link className={buttonClass()} href={routes.subscriptionCancellation}>
+                    {t("billing.cancellation.action")}
+                  </Link>
+                ) : null}
                 {hasInvoices ? (
                   <form method="post" action="/api/billing/portal">
                     <button className={buttonClass()} type="submit">
@@ -133,6 +165,14 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
             ) : null}
             {plan !== FREE_PLAN ? <p className="subscription-help">{t("billing.page.manageHelp")}</p> : null}
             {hasInvoices ? <p className="subscription-help">{t("billing.page.invoicesHelp")}</p> : null}
+            {planWithdrawal ? (
+              <div className="subscription-withdrawal">
+                <p>{t("withdrawals.subscription.offer", { date: new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(planWithdrawal.deadline.getTime() - 1)) })}</p>
+                <Link className={buttonClass()} href={routes.withdrawal(planWithdrawal.ref)}>
+                  {t("withdrawals.page.title")}
+                </Link>
+              </div>
+            ) : null}
           </Card>
 
           <Card title={t("billing.page.usageTitle")} headingLevel={3}>
@@ -198,7 +238,7 @@ export default async function SubscriptionPage({ searchParams }: { searchParams:
 /**
  * One Plan of the comparison, on a card: its name, « Votre offre » on the Candidate's and « Conseillée » on the one
  * above it, its price, what it includes (each quota and what the Plan gives of it, the missing ones dimmed), and, from
- * Free, the button to Checkout, carrying a promotion code that may apply.
+ * Free, the button to its Order page (#512) and then Checkout, carrying a promotion code that may apply.
  */
 function PlanCardView({ card, carriedCode, t }: { card: PlanCard; carriedCode: string | null; t: T }) {
   const pill = card.current ? <Pill tone="accent">{t("billing.page.current")}</Pill> : card.recommended ? <Pill tone="accent">{t("billing.page.recommended")}</Pill> : null;
@@ -215,11 +255,12 @@ function PlanCardView({ card, carriedCode, t }: { card: PlanCard; carriedCode: s
           </li>
         ))}
       </ul>
+      {/* To the Order page (#512): its summary and boxes come before Stripe Checkout. */}
       {card.checkout ? (
-        <form method="post" action="/api/billing/checkout">
-          <input type="hidden" name="plan" value={card.key} />
+        <form method="get" action={PLAN_ORDER}>
+          <input type="hidden" name={ORDER_PARAMS.plan} value={card.key} />
           {/* Carried to Checkout even when unchecked here: billing applies it only where it can. */}
-          {carriedCode ? <input type="hidden" name="code" value={carriedCode} /> : null}
+          {carriedCode ? <input type="hidden" name={ORDER_PARAMS.code} value={carriedCode} /> : null}
           <button className={buttonClass({ variant: card.recommended ? "primary" : "secondary" })} type="submit">
             {t("billing.page.choose", { plan: card.name })}
           </button>

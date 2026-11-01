@@ -24,7 +24,7 @@ export type SidebarMenus = Partial<Record<"applications", UnfoldedMenu>>;
  * The conversation a page shows as itself (ADR-0070: the home page's, for now), while it is shown: `conversationId`
  * once its first message saved it; `replying` while a reply is on its way, when it cannot be cleared; `clear` deletes every
  * message of it (« Effacer ») and resolves whether it did; `startNew` turns the page into a new Free conversation, as the
- * home page is, null on a menu's page (#604), which « Nouvelle conversation » leaves for the home page; `askAbout` starts,
+ * home page is, null on a menu's page (#604) or an object's (#603), which « Nouvelle conversation » leaves for the home page; `askAbout` starts,
  * in its box, a question about a Help Article, whose title goes with it (« Demander au coach » in the Work Pane, #602).
  */
 export type PageConversation = {
@@ -106,6 +106,7 @@ export function SidebarConversations({ onNavigate, closeDrawerThen }: { onNaviga
         href={routes.home}
         onClick={(event) => {
           // The page already shows a Free conversation: it starts afresh in place, as a reload of the home page would.
+          // An object's page, and a menu's, lead to the home page.
           if (page?.startNew) {
             event.preventDefault();
             page.startNew();

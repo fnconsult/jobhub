@@ -7,8 +7,8 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import type { CoachFocus } from "@/coach";
-import type { SubjectMenu } from "@/coach-conversations";
 import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
+import type { SubjectRef } from "@/coach-conversations";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { useConversationFirst } from "@/components/conversation-first";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
@@ -58,6 +58,8 @@ type Control = {
   ask: ((question: string, explained: ExplainedItem) => void) | null;
   /** Puts the focus in the message box. */
   focusBox: () => void;
+  /** Sends `text` in the page's conversation (a suggestion, #603); null in the side panel. */
+  say: ((text: string) => void) | null;
 };
 
 const CoachPanelControl = createContext<Control | null>(null);
@@ -135,6 +137,14 @@ export function useOpenCoachPanel(): (() => void) | null {
     if (!control.open) control.toggle();
     else control.focusBox();
   };
+}
+
+/**
+ * Sends a message to the AI Coach in the conversation the page is (#603): an object's suggestion. Null outside a page
+ * that is a conversation. Does nothing while a reply is on its way or the conversation is coming back.
+ */
+export function useAskCoach(): ((text: string) => void) | null {
+  return useContext(CoachPanelControl)?.say ?? null;
 }
 
 /** The AI Coach replies given in this browser about the object of the page in view; none outside a Coach Panel. */
@@ -266,15 +276,17 @@ const tokensOf = (step: ProvenanceStep) => (step.kind === "ai" && step.tokens ? 
 
 /**
  * A Coach Conversation shown as the page itself (#601, ADR-0070), its box at the foot, rather than in the side panel:
- * `conversationId`, the saved one the page shows (null: a new one, as the home page is); `subject`, a Sidebar menu's
- * (#604): every message goes to that menu's conversation, and the page keeps its address; none for a Free conversation;
- * `introduction`, what the page says after the AI disclosure in its first message (the Introduction); `card`, the menu's
- * content as a card in the thread after it (the list of Applications), which stays; `suggestions`, shown above the box
- * while nothing is sent (the Quick actions).
+ * `conversationId`, the saved one the page shows (null: a new one, the home page's Free conversation or an object's before
+ * its first message); `subject`, the object the conversation is about (#603) or a Sidebar menu's (#604), whose page it is:
+ * its page keeps its address, and an object's first message starts it; none for a Free conversation; `inView`, what goes
+ * with each message as the page's object; `introduction`, what the page says after the AI disclosure in its first message
+ * (the Introduction); `card`, the menu's content as a card in the thread after it (the list of Applications), which stays;
+ * `suggestions`, shown above the box while nothing is sent (the Quick actions, an object's suggestions).
  */
 export type PagePlacement = {
   conversationId: string | null;
-  subject?: { kind: "menu"; id: SubjectMenu };
+  subject?: SubjectRef;
+  inView?: InView;
   introduction?: ReactNode;
   card?: ReactNode;
   suggestions?: ReactNode;
@@ -480,15 +492,16 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // Under « Conversation au centre » a Help Article and a Signalement's form open in the Work Pane (#602, ADR-0070).
   const workPane = useWorkPane();
   const pageConversationId = page?.conversationId ?? null;
-  // A menu's conversation (#604): its Subject, which every message goes to, and its page's address, which it keeps.
-  const pageSubject = page?.subject ?? null;
+  // An object's conversation (#603) or a menu's (#604): its page keeps its address, and the Sidebar never lists it among
+  // the Free ones.
+  const subject = page?.subject ?? null;
   const id = useId();
   const pathname = usePathname();
   // AI Activity shows the reply on its way too, with its steps and a stop icon (#333): on the Candidate's pages only.
   const aiActivity = useAiActivityLive();
   // A page that is a conversation is always open.
   const [open, setOpen] = useState(isPage);
-  const [inView, setInViewState] = useState<InView | null>(null);
+  const [inView, setInViewState] = useState<InView | null>(page?.inView ?? null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   // Whether the conversation in view opened with the AI disclosure: a new one does, until it is saved.
   const [aiDisclosure, setAiDisclosure] = useState(true);
@@ -583,13 +596,13 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         setConversation(summary);
         setAiDisclosure(disclosed);
         setMessages((opened) => [...saved, ...opened.filter(isHelpCard)]);
-      } else if (!pageSubject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+      } else if (!subject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
       setRestoring(false);
     });
     return () => {
       shown = false;
     };
-  }, [panel.conversations, pageConversationId, pageSubject]);
+  }, [panel.conversations, pageConversationId, subject]);
 
   // A page that is a conversation lets « Effacer » in the Top Bar and the Sidebar act on it while it is shown (#601), and
   // « Demander au coach » in the Work Pane (#602).
@@ -619,12 +632,12 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       conversationId: conversationOnPage,
       replying,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
-      // A menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
-      startNew: pageSubject ? null : () => pageActions.current?.startNew(),
+      // An object's or a menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
+      startNew: subject ? null : () => pageActions.current?.startNew(),
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [isPage, registerPage, conversationOnPage, replying, pageSubject]);
+  }, [isPage, registerPage, conversationOnPage, replying, subject]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
   async function openPanel(): Promise<Conversation | null> {
@@ -745,20 +758,20 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
 
   /** A page that is a conversation takes the address of the conversation its first message saved, and the Sidebar lists it (#601). */
   function savedOnPage(saved: ConversationSummary) {
-    if (!isPage || pageSubject) return;
+    if (!isPage || subject) return;
     conversationFirst?.saved({ id: saved.id, title: saved.title });
     const address = routes.conversation(saved.id);
     if (window.location.pathname !== address) window.history.replaceState(null, "", address);
   }
 
-  /** A page that is a conversation turns into a new Free conversation, the home page (#601); a menu's starts afresh in place (#604). */
+  /** A page that is a conversation turns into a new Free conversation, the home page (#601); an object's or a menu's starts afresh in place (#603, #604). */
   function startAfresh() {
     generation.current += 1;
     stopper.current?.abort();
     startNewConversation();
     setDraft("");
     setPageNotice(null);
-    if (!pageSubject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+    if (!subject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
   }
 
   /**
@@ -917,7 +930,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       setConversation(null);
       setAiDisclosure(true);
       remember(storageKey, null);
-      if (isPage && !pageSubject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
+      if (isPage && !subject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
       setMessages([]);
       setDraft(text);
       setStatus("unavailable");
@@ -943,8 +956,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         headers: { "content-type": "application/json", ...(panel.features.live ? { accept: "application/x-ndjson" } : {}) },
         // The server holds the conversation: only the new message goes.
         body: JSON.stringify({
-          // A menu's page (#604): its Subject's conversation, started by this message if it has none.
-          ...(pageSubject ? { subject: pageSubject } : current ? { conversationId: current.id } : {}),
+          // A menu's page (#604): its Subject's conversation, started by this message if it has none. An object's, before
+          // its first message: that message starts it (#603).
+          ...(subject?.kind === "menu" ? { subject } : current ? { conversationId: current.id } : subject ? { subject } : {}),
           message: text,
           ...(inView && panel.features.inView ? { focus: { kind: inView.kind, id: inView.id, ...(inView.profileId ? { profileId: inView.profileId } : {}) } } : {}),
           ...(read ? { helpArticle: read } : {}),
@@ -1017,6 +1031,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     repliesInView,
     ask: panel.features.explain ? ask : null,
     focusBox: () => setFocusInput((n) => n + 1),
+    say: isPage ? (text: string) => void sendMessage(text) : null,
   };
   // An empty conversation opens on the help (#342): only Help Articles opened so far, nothing sent.
   const showIntro = help && !restoring && messages.every(isHelpCard);

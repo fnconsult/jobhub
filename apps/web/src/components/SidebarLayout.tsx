@@ -13,6 +13,7 @@ import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
+import { Fiche, FicheButtons, FicheProvider, type FicheContent } from "@/components/Fiche";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
@@ -42,7 +43,9 @@ const LABELS = {
  * `freeConversations`: under « Conversation au centre » (#601, ADR-0070), the Candidate's Free conversations; the Sidebar
  * then has « Nouvelle conversation » and « Coach » with them above its links, and the Top Bar « Effacer » in place of
  * « Aide et coach » (« Aide » on a page without a conversation), and the Work Pane opens beside the page (#602). Null
- * while the switch is off. `menus`: then, what its menus with objects unfold into (#604).
+ * while the switch is off. `menus`: then, what its menus with objects unfold into (#604). `fiche`: an object's page (an
+ * Application's, #603): the Fiche beside the conversation, after the Work Pane, and « Fiche » and « Activité » in the Top
+ * Bar in place of AI Activity's button, which the Fiche shows; ignored while the switch is off.
  */
 export function SidebarLayout({
   profiles,
@@ -57,6 +60,7 @@ export function SidebarLayout({
   version,
   freeConversations = null,
   menus,
+  fiche = null,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -71,6 +75,7 @@ export function SidebarLayout({
   version: string;
   freeConversations?: readonly FreeConversation[] | null;
   menus?: SidebarMenus | undefined;
+  fiche?: FicheContent | null;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -90,11 +95,18 @@ export function SidebarLayout({
           ? {
               topBarEnd: (
                 <>
+                  {fiche ? <FicheButtons /> : null}
                   <ClearConversationButton />
-                  <PageHelpButton />
+                  {fiche ? null : <PageHelpButton />}
                 </>
               ),
-              beside: <WorkPane />,
+              beside: (
+                <>
+                  <WorkPane />
+                  {fiche ? <Fiche content={fiche} /> : null}
+                </>
+              ),
+              ...(fiche ? { topBarActivity: null } : {}),
             }
           : {})}
         foot={(closeDrawer, closeDrawerThen) => (
@@ -147,7 +159,7 @@ export function SidebarLayout({
   );
   return freeConversations ? (
     <ConversationFirstProvider conversations={freeConversations} {...(menus ? { menus } : {})}>
-      <WorkPaneProvider version={version}>{shell}</WorkPaneProvider>
+      <WorkPaneProvider version={version}>{fiche ? <FicheProvider>{shell}</FicheProvider> : shell}</WorkPaneProvider>
     </ConversationFirstProvider>
   ) : (
     shell

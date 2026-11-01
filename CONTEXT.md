@@ -638,11 +638,11 @@ The column beside an object's Coach Conversation that shows the object: its card
 _Avoid_: Details panel, sidebar, record pane
 
 **Work Pane**:
-The column beside a Coach Conversation where one item opens to be acted on: a Result (shown in the Viewer when it is a document), a Section, a Help Article or a form (a Signalement, an Interview…). One item at a time, with its actions in its header (modify, download, send, stop, « Demander au coach ») and its ✕ to close it; never over the conversation. On phones it takes the whole screen.
+The column beside a Coach Conversation where one item opens to be acted on: a Result (shown in the Viewer when it is a document), a Section, a Help Article or a form (a Signalement, an Interview…). One item at a time, with its actions in its header (modify, download, send, stop, « Demander au coach ») and its ✕ to close it; never over the conversation. The item takes its address with it, and closing the pane goes back to the object's address. On phones it takes the whole screen.
 _Avoid_: Drawer (Back Office and the Sidebar on phones), document pane, modal
 
 **Result**:
-What an AI action of the Candidate produced and kept with its object: a Tailored CV, a Cover Letter, an Outreach or Follow-up message, an interview preparation. Listed in the Fiche's Results and in the reply that produced it; opened in the Work Pane.
+What an AI action of the Candidate produced and kept with its object: a Tailored CV, a Cover Letter, an Outreach or Follow-up message, an interview preparation. Listed in the Fiche's Results and in the reply that produced it; opened in the Work Pane at its own address (an Application's: `/candidatures/[id]/documents?resultat=cv-adapte|lettre|message`).
 _Avoid_: Output, artefact, deliverable
 
 **Context bar**:

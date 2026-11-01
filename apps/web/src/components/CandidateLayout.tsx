@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { requireAcceptedTerms } from "@/acceptances/server";
 import type { ActivityElement } from "@/ai-activity/pane";
+import type { FicheContent } from "@/components/Fiche";
 import { currentIsAdministrator } from "@/admin/server";
 import { getBilling, getPaymentFailedNotice } from "@/billing/server";
 import { usageMeter, type UsageMeter } from "@/billing/usage-meter";
@@ -85,8 +86,8 @@ async function sidebarMenus(candidateId: string, on: boolean): Promise<SidebarMe
  * `title` is the page's `<h1>`, shown in the Top Bar (see SidebarShell).
  * `wide` gives the page room for a board. `aiActivity`: the page's elements for
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
- * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations, and
- * Mes candidatures unfolds into its Applications (#604).
+ * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations,
+ * Mes candidatures unfolds into its Applications (#604), and `fiche`, an object's Fiche, stands beside its conversation (#603).
  * While a CGU version waits for the Candidate's Acceptance (ADR-0062), only their data and
  * subscription pages render: the others send them to the Acceptance screen (acceptances/gate.ts).
  */
@@ -96,6 +97,7 @@ export async function CandidateLayout({
   title,
   wide,
   aiActivity,
+  fiche,
   children,
 }: {
   candidateId: string;
@@ -103,6 +105,7 @@ export async function CandidateLayout({
   title?: ReactNode;
   wide?: boolean;
   aiActivity?: readonly ActivityElement[];
+  fiche?: FicheContent;
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
@@ -133,6 +136,7 @@ export async function CandidateLayout({
       aiActivity={aiActivity}
       version={jobbboxVersion()}
       freeConversations={free}
+      fiche={fiche ?? null}
       menus={menus}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}

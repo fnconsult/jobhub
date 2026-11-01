@@ -3543,7 +3543,34 @@
       "contacts": "Contacts",
       "offre": "The job offer"
     },
-    "seeInAgenda": "See in the agenda"
+    "seeInAgenda": "See in the agenda",
+    "conversation": {
+      "introduction": "This conversation is about your application “{{title}}”: the coach has it in view, with its job offer. Its fiche is on the right, with its sections, its activity and its results.",
+      "suggestions": {
+        "prepareInterview": {
+          "label": "Prepare the interview",
+          "message": "Help me prepare my interview for this application."
+        },
+        "followUp": {
+          "label": "Write a follow-up",
+          "message": "Write a follow-up for this application."
+        },
+        "coverLetter": {
+          "label": "Write the cover letter",
+          "message": "Write my cover letter for this job offer."
+        },
+        "matchScore": {
+          "label": "Why this score?",
+          "message": "Explain my match score with this job offer."
+        }
+      }
+    },
+    "results": {
+      "savedOn": "Saved on {{date}}",
+      "toReview": "Proposal to review",
+      "draftedOn": "Draft of {{date}}",
+      "draft": "Draft"
+    }
   },
   "jobOffer": {
     "details": "At a glance",
@@ -5055,5 +5082,15 @@
       "doneSettled": "Your subscription is cancelled, and our team refunded you prorata the part of the paid period that was not used."
     },
     "change": "{{label}}: {{before}} → {{after}}"
+  },
+  "fiche": {
+    "label": "Fiche",
+    "activity": "Activity",
+    "groups": {
+      "sections": "Sections",
+      "activity": "Activity",
+      "results": "Results"
+    },
+    "noResults": "No results yet: what the coach makes here is added to this list."
   }
 }

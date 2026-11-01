@@ -324,7 +324,6 @@ export function AiActivityPane() {
 
   if (!control || !open) return null;
   const { pane, paneId, close, live, stop } = control;
-  const anyLive = live.here.length > 0 || live.elsewhere.length > 0;
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || event.defaultPrevented) return;
     event.stopPropagation();
@@ -343,11 +342,42 @@ export function AiActivityPane() {
         </button>
       </div>
       <div ref={body} className="ai-activity-body">
-        <LiveSections live={live} stop={stop} />
-        {pane.elements.length > 0 ? <PaneSections pane={pane} /> : anyLive ? null : <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>}
+        <ActivityContent pane={pane} live={live} stop={stop} />
       </div>
     </aside>
   );
+}
+
+/** What AI Activity shows of the page: the live actions, then its sections, or that the page has no AI content. */
+function ActivityContent({ pane, live, stop }: { pane: AiActivityPane; live: LiveView; stop: (key: string) => void }) {
+  const { t } = useTranslation();
+  const anyLive = live.here.length > 0 || live.elsewhere.length > 0;
+  return (
+    <>
+      <LiveSections live={live} stop={stop} />
+      {pane.elements.length > 0 ? <PaneSections pane={pane} /> : anyLive ? null : <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>}
+    </>
+  );
+}
+
+/**
+ * The page's AI Activity where the Fiche shows it, in its Activity group (#603, ADR-0070): the pane's body, with no title
+ * nor ✕. Says the page has no AI content outside an AiActivityProvider.
+ */
+export function AiActivityContent() {
+  const { t } = useTranslation();
+  const control = useContext(AiActivityControl);
+  if (!control) return <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>;
+  return (
+    <div className="fiche-activity">
+      <ActivityContent pane={control.pane} live={control.live} stop={control.stop} />
+    </div>
+  );
+}
+
+/** Whether one of the Candidate's AI actions is under way on this page: « Activité » in the Top Bar shows it (#603). */
+export function useAiActivityUnderWay(): boolean {
+  return Boolean(useContext(AiActivityControl)?.live.underWay);
 }
 
 function PaneSections({ pane }: { pane: AiActivityPane }) {

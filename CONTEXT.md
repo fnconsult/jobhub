@@ -646,11 +646,15 @@ What an object keeps for the Candidate and lists in its Fiche's Results: an Appl
 _Avoid_: Output, artefact, deliverable
 
 **Context bar**:
-The bar in Activity showing how much of a Coach Conversation the AI Coach reads: its messages out of the 40 it reads and the jetons of its context out of the ceiling. From 80 % it says that the AI Coach reads only the latest messages and offers « Effacer la conversation ».
+The bar in Activity showing how much of a Coach Conversation the AI Coach reads: its messages (all those the conversation has saved) out of the 40 it reads and the jetons of its context out of the ceiling: the estimated tokens of what the AI Coach was sent for its latest reply (its system text plus the messages it read), kept with that reply, so showing it needs no AI and no extra reads (0 before the first reply and after « Effacer »). From 80 % it says that the AI Coach reads only the latest messages and offers « Effacer la conversation ».
 _Avoid_: Memory gauge, quota bar (that is the Usage Meter)
 
+**Activité column**:
+The column that the Top Bar's « Activité » opens beside the home page and the menus, where there is no object and so no Fiche: the Context bar, then AI Activity. Closed when the page loads; gives way to the Work Pane as the Fiche does; never over the conversation.
+_Avoid_: Activity pane
+
 **Top Bar**:
-The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte, and the pages not yet converted to conversations) has « Aide », which opens its Help Article in the Work Pane; never on the home page nor a Free conversation. Nothing else for help or Signalements goes there.
+The bar above every page beside the Sidebar: the page's title, the Menu button when the Sidebar is hidden, and on the Candidate's pages « Fiche » and « Activité », which alone open and close those columns beside the conversation, and « Effacer » for the page's Coach Conversation; a page without a conversation (Mon compte, and the pages not yet converted to conversations) has « Aide », which opens its Help Article in the Work Pane; on the home page and the menus (no object) only « Activité », which opens the Activité column; never « Fiche » there nor on a Free conversation. Nothing else for help or Signalements goes there.
 _Avoid_: Header, navbar
 
 **Section**:

@@ -35,3 +35,8 @@ table[data-row-links] tbody th a::after {
 .menu-card-foot {
   margin-top: var(--space-4);
 }
+
+/* A menu with two cards in its thread (Mes coachs humains: the Coaching Sessions, then the Human Coaches). */
+.chat-card > .ds-card + .ds-card {
+  margin-top: var(--space-4);
+}

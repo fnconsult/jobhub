@@ -62,10 +62,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rendez-vous",
         "semaine",
         "mois",
-        "séance"
+        "séance",
+        "à planifier"
       ],
       "route": "/agenda",
-      "body": "L'agenda montre vos entretiens et vos séances avec un coach humain. Affichez-le en liste (les prochains rendez-vous, jour par jour), par semaine ou par mois.\n\nAjoutez un entretien avec « Ajouter un entretien », ou depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ».\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu."
+      "body": "L'agenda montre vos entretiens et vos séances avec un coach humain. Affichez-le en liste (les prochains rendez-vous, jour par jour), par semaine ou par mois.\n\nAjoutez un entretien avec « Ajouter un entretien », ou depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ».\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu.\n\nAvec la nouvelle présentation, l'agenda est une conversation avec votre coach IA, la même à chaque visite. La liste y est une carte : vos prochains rendez-vous jour par jour, et les séances « À planifier ». « Semaine » et « Mois » ouvrent le calendrier à côté de la conversation ; « Ajouter un entretien » y ouvre son formulaire, qui se ferme une fois l'entretien ajouté. Demandez au coach de préparer un entretien ou de vous rappeler ce qui vient."
     },
     {
       "id": "page-job-digests",
@@ -78,10 +79,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "offres par e-mail",
         "recevoir",
         "fréquence",
-        "alerte"
+        "alerte",
+        "tout voir"
       ],
       "route": "/job-digests",
-      "body": "Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil. Vous le recevez par e-mail et le retrouvez sur cette page.\n\nPour chaque profil, choisissez de le recevoir et à quelle fréquence, dans la limite de votre offre : chaque semaine le lundi à 7 h, ou chaque jour à 7 h (heure de Paris).\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé."
+      "body": "Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil. Vous le recevez par e-mail et le retrouvez sur cette page.\n\nPour chaque profil, choisissez de le recevoir et à quelle fréquence, dans la limite de votre offre : chaque semaine le lundi à 7 h, ou chaque jour à 7 h (heure de Paris).\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nAvec la nouvelle présentation, « Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Vos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-profile",
@@ -176,10 +178,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "professionnel",
         "rh",
         "accès coach",
-        "réserver"
+        "réserver",
+        "séances payées"
       ],
       "route": "/coachs",
-      "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment."
+      "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment.\n\nAvec la nouvelle présentation, « Mes coachs humains » est une conversation avec votre coach IA, la même à chaque visite. Vos séances et les coachs humains y sont deux cartes : réservez, choisissez votre créneau ou gérez l'accès d'un coach comme avant. Demandez au coach IA comment préparer une séance."
     },
     {
       "id": "page-subscription",
@@ -247,10 +250,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "chercher",
         "trouver",
         "nouvelles offres",
-        "lancer"
+        "lancer",
+        "lancer une recherche",
+        "reçues par email",
+        "tout voir"
       ],
       "route": "/recherches",
-      "body": "Votre coach cherche des offres d'emploi selon les critères de recherche d'un profil. Choisissez le profil, ou tous vos profils actifs, puis lancez la recherche.\n\nLa page se met à jour toute seule pendant la recherche, et vous pouvez l'arrêter. Les dernières offres trouvées s'affichent avec leur score de correspondance.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas."
+      "body": "Votre coach cherche des offres d'emploi selon les critères de recherche d'un profil. Choisissez le profil, ou tous vos profils actifs, puis lancez la recherche.\n\nLa page se met à jour toute seule pendant la recherche, et vous pouvez l'arrêter. Les dernières offres trouvées s'affichent avec leur score de correspondance.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nAvec la nouvelle présentation, « Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Vos recherches y sont listées dans une carte, par profil : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email » les ouvre à côté de la conversation.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -885,10 +891,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "appointment",
         "week",
         "month",
-        "session"
+        "session",
+        "to schedule"
       ],
       "route": "/agenda",
-      "body": "The agenda shows your interviews and your sessions with a human coach. Show it as a list (upcoming appointments, day by day), by week or by month.\n\nAdd an interview with « Add an interview », or from the « Interviews » section of an application at the « Interview » stage.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.\n\nFor 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Renoncer au contrat ici » (withdraw from the contract here) cancels it and refunds it in full; the coach is told."
+      "body": "The agenda shows your interviews and your sessions with a human coach. Show it as a list (upcoming appointments, day by day), by week or by month.\n\nAdd an interview with « Add an interview », or from the « Interviews » section of an application at the « Interview » stage.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.\n\nFor 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Renoncer au contrat ici » (withdraw from the contract here) cancels it and refunds it in full; the coach is told.\n\nWith the new layout, the agenda is a conversation with your AI coach, the same one every visit. The list is a card there: your upcoming appointments day by day, and the sessions « To schedule ». « Week » and « Month » open the calendar beside the conversation; « Add an interview » opens its form there, which closes once the interview is added. Ask the coach to prepare an interview or to remind you what is coming."
     },
     {
       "id": "page-job-digests",
@@ -901,10 +908,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "offers by email",
         "receive",
         "frequency",
-        "alert"
+        "alert",
+        "see all"
       ],
       "route": "/job-digests",
-      "body": "A Job Digest is a selection of new job offers matching a profile's search criteria. You get it by email and find it on this page too.\n\nFor each profile, choose whether to receive it and how often, within your plan: every week on Monday at 7 am, or every day at 7 am (Paris time).\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent."
+      "body": "A Job Digest is a selection of new job offers matching a profile's search criteria. You get it by email and find it on this page too.\n\nFor each profile, choose whether to receive it and how often, within your plan: every week on Monday at 7 am, or every day at 7 am (Paris time).\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nWith the new layout, « Job Digests » is a conversation with your AI coach, the same one every visit. Your Job Digests are listed there in a card, by profile: how often it comes, which you set there, then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
     },
     {
       "id": "page-job-searches",
@@ -916,10 +924,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "look for",
         "find",
         "new job offers",
-        "start"
+        "start",
+        "start a search",
+        "received by email",
+        "see all"
       ],
       "route": "/recherches",
-      "body": "Your coach searches for job offers that meet a profile's search criteria. Choose the profile, or all your active profiles, then start the search.\n\nThe page updates by itself while the search runs, and you can stop it. The latest job offers found are shown with their Match Score.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count."
+      "body": "Your coach searches for job offers that meet a profile's search criteria. Choose the profile, or all your active profiles, then start the search.\n\nThe page updates by itself while the search runs, and you can stop it. The latest job offers found are shown with their Match Score.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nWith the new layout, « Job searches » is a conversation with your AI coach, the same one every visit. Your searches are listed there in a card, by profile: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email » opens them beside the conversation.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -971,10 +982,11 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "professional",
         "hr",
         "coach access",
-        "book"
+        "book",
+        "paid sessions"
       ],
       "route": "/coachs",
-      "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time."
+      "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time.\n\nWith the new layout, « My human coaches » is a conversation with your AI coach, the same one every visit. Your sessions and the human coaches are two cards there: book, pick your time or manage a coach's access as before. Ask the AI coach how to prepare a session."
     },
     {
       "id": "page-subscription",

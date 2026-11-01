@@ -258,6 +258,18 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     await expect.poll(() => menuConversationsOf(email)).toEqual([{ subject: "menu:humanCoaches", messages: 2 }]);
   });
 
+  test("Mes coachs humains: booking stays as it is, from the Human Coach's card to the Order page", async ({ browser }) => {
+    const email = newAddress("conversation-human-coaches-booking");
+    const page = await signedIn(browser, email);
+    const name = `Sophie Martin ${Date.now()}`;
+    await query("INSERT INTO human_coach (name, email, booking_url, bio) VALUES ($1, $2, $3, $4)", [name, newAddress("coach"), `https://cal.com/sophie-${Date.now()}/seance`, "Ancienne DRH."]);
+
+    await page.goto("/coachs");
+    const card = conversation(page).getByRole("region", { name: fr.humanCoaches.listTitle });
+    await expect(card).toContainText(name);
+    await Promise.all([page.waitForURL(/\/commande\?/), card.getByRole("button", { name: tr(fr.humanCoaches.book, { name }) }).click()]);
+  });
+
   test("the Help Articles of /recherches, /job-digests, /agenda and /coachs exist in French and English, and the Release Note fragment announces them", async () => {
     const pages = { "page-job-searches": "/recherches", "page-job-digests": "/job-digests", "page-agenda": "/agenda", "page-human-coaches": "/coachs" };
     for (const locale of ["fr", "en"] as const) {

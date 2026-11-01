@@ -37,9 +37,9 @@ export default async function HelpCentrePage({ searchParams }: { searchParams: P
         <HelpSearchForm query={query} />
         {query ? (
           <section className="help-centre__section" aria-labelledby="help-results">
-            <h2 id="help-results" role="status">
-              {found.length > 0 ? t("helpCentre.results", { count: found.length, query }) : t("helpCentre.noResults", { query })}
-            </h2>
+            <div role="status">
+              <h2 id="help-results">{found.length > 0 ? t("helpCentre.results", { count: found.length, query }) : t("helpCentre.noResults", { query })}</h2>
+            </div>
             {found.length > 0 ? <HelpArticleList articles={found} topics /> : null}
           </section>
         ) : null}

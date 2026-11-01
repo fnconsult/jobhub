@@ -19,7 +19,7 @@
     padding-bottom: var(--space-8);
   }
 
-  .help-centre__section > h2 {
+  .help-centre__section h2 {
     margin: 0;
     font-size: var(--font-size-h2);
     font-weight: 500;

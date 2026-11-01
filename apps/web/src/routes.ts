@@ -125,8 +125,6 @@ export const routes = {
   jobDigestUnsubscribe: "/desabonnement",
   /** The Help Centre (#549, ADR-0065): its four topics and its search (`?q=`); public. */
   help: "/aide",
-  /** The Help Centre's search for `query`: what « Chercher » sends. */
-  helpSearch: (query: string) => `/aide?q=${encodeURIComponent(query)}`,
   /** A topic of the Help Centre: its public articles, or « Bientôt des articles ici ». */
   helpTopic: (topic: string) => `/aide/${encodeURIComponent(topic)}`,
   /**

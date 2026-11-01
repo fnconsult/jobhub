@@ -12,7 +12,7 @@
  * Administrator's. Runs in the browser: it reads the bundled Help Articles and calls no AI model, so nothing here costs anything.
  */
 import { article, articleFor, isPublic, search, type HelpArticle, type HelpLocale } from "@jobhub/help";
-import { routes } from "@/routes";
+import { routes } from "../routes";
 
 export type { HelpArticle, HelpLocale } from "@jobhub/help";
 

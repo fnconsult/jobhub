@@ -61,7 +61,7 @@ export {
 export type HelpScope = "public" | "coachPanel";
 
 const IN_SCOPE: Record<HelpScope, (article: HelpArticle) => boolean> = {
-  public: (article) => isPublic(article),
+  public: isPublic,
   coachPanel: (article) => article.audience === "candidate" || (isPublic(article) && article.topic === "extension"),
 };
 
@@ -115,9 +115,10 @@ export function helpCentrePaths(from: Readonly<Record<HelpLocale, readonly HelpA
  * The articles a reader of `article` may want next, 3 at most: the public ones its title and words find, then those of
  * its topic, never itself. Found without AI, like the search.
  */
-export function relatedArticles(article: HelpArticle, { limit = 3, from = ARTICLES[article.locale] }: { limit?: number; from?: readonly HelpArticle[] } = {}): HelpArticle[] {
-  const others = from.filter((entry) => entry.id !== article.id && isPublic(entry));
-  const found = searchIndex(others.map(indexArticle), `${article.title} ${article.synonyms.join(" ")}`, limit);
+export function relatedArticles(article: HelpArticle, { limit = 3, from }: { limit?: number; from?: readonly HelpArticle[] } = {}): HelpArticle[] {
+  const index = (from ? from.filter(isPublic).map(indexArticle) : indexed(article.locale, "public")).filter((entry) => entry.article.id !== article.id);
+  const others = index.map((entry) => entry.article);
+  const found = searchIndex(index, `${article.title} ${article.synonyms.join(" ")}`, limit);
   const sameTopic = others.filter((entry) => entry.topic === article.topic && !found.includes(entry));
   return [...found, ...sameTopic].slice(0, limit);
 }

@@ -89,6 +89,8 @@ async function expectSections(page: Page, allowed: Section[], tabs: ActivityTab[
     admin.nav.dashboard,
     ...allowed.map((section) => (section === "signalements" ? new RegExp(`^${admin.sections[section]}`) : admin.sections[section])),
     admin.nav.account,
+    // The public Légal (#544).
+    admin.nav.publicLegal,
   ]);
   for (const [section, path] of Object.entries(SECTIONS) as [Section, string][]) {
     const response = await page.goto(path);

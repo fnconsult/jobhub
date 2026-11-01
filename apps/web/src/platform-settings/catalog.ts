@@ -257,7 +257,7 @@ export type EnvOnlyKind =
   | "secret"
   /** Set by the runtime or the deployment, not by an Administrator: never shown. */
   | "deployment"
-  /** Another API origin for the e2e suite's fakes: never shown. */
+  /** Another API origin for the e2e suite's fakes, or a switch only the e2e suite sets: never shown. */
   | "test";
 
 /** How Paramètres shows a variable only env holds: its value, a URL without its password, only whether it is set, or a keyring's versions. */

@@ -65,6 +65,8 @@ test.describe("the Back Office's Coaching Playbooks", () => {
       admin.sections.coachingPlaybooks,
       admin.sections.designSystem,
       admin.nav.account,
+      // The public Légal (#544).
+      admin.nav.publicLegal,
     ]);
     await editor.goto("/admin/playbooks");
     await expect(editor.getByRole("heading", { level: 1 })).toHaveText(playbooks.title);

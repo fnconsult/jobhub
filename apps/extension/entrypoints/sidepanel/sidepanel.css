@@ -291,3 +291,21 @@ p[role="status"]:empty {
 .option .ds-field__hint {
   margin: 0;
 }
+
+/* The Guest's box (#550): its sentence, with its two links, wraps beside the box, which stays at its first line. */
+.guest-terms {
+  align-items: start;
+}
+
+.guest-terms > input {
+  flex: none;
+  margin-top: 0.3em;
+}
+
+/* The foot's links (#550): Aide, Confidentialité, CGU, on one line while they fit. */
+.panel-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  justify-content: center;
+}

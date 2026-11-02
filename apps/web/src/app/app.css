@@ -1009,6 +1009,18 @@ textarea.input {
   height: 1.125em;
 }
 
+/* What a Section holds stays within the pane: a long button or Pill (« Modifier l'entretien du … ») wraps (#608). */
+.work-pane-body :is(.ds-button, .ds-pill) {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: start;
+}
+
+.work-pane-body .ds-button {
+  padding-block: var(--space-2);
+}
+
 /* Its ✕ and its actions, and the Fiche's ✕ on a phone, reach the 44px target floor of the Candidate's pages (ADR-0009). */
 :is(.work-pane-head, .fiche-head) .ds-button {
   min-height: var(--control-height);

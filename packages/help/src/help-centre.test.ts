@@ -14,6 +14,7 @@ const entry = (fields: Partial<HelpArticle> & Pick<HelpArticle, "id" | "title">)
   synonyms: [],
   route: null,
   motion: null,
+  microAnimations: [],
   body: "Un texte.",
   ...fields,
 });

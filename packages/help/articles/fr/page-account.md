@@ -12,4 +12,4 @@ Mes données permet de télécharger toutes vos données ou de supprimer votre c
 
 Sous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple « 0.1.0 ». Sur la version bêta, elle est suivie de la modification exacte servie, par exemple « 0.1.0 (main·3f9c2a1) » : citez-la si vous signalez un problème.
 
-Avec la nouvelle présentation, « Aide », en haut de la page, ouvre cet article à côté de la page. « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.
+Mon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.

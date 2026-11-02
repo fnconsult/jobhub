@@ -190,6 +190,22 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | In the Candidate's Data export (`legalTextNotices.emailed` and `legalTextNotices.privacyChangesSeen`); erased with the account. |
 | Security | One notice per Candidate and per version, claimed in the transaction that sends it. Closing checks the signed-in Candidate and the request's origin, and only the version shown can be closed. |
 
+## Nouveautés email (#566)
+
+| | |
+| --- | --- |
+| Purpose | Tell the Candidates who asked for it, by email, about a Release Note marked to be announced (`announce: true`): its title, introduction and « Nouveau » lines, with a link to its page on Nouveautés (ADR-0063). At most one email per Candidate in any 7 days, once per Version, only from Production. |
+| Legal basis | Consent (GDPR art. 6(1)(a)): the box « Recevoir un e-mail quand Jobbbox annonce une nouveauté » in Mon compte, Préférences, never ticked by default, for new and existing Candidates alike; ticking it records its date. Withdrawn at any time by unticking it or through the email's unsubscribe link (no sign-in, and the one-click List-Unsubscribe header, RFC 8058). |
+| People concerned | Candidates with a verified email address who ticked the box. Visitors cannot subscribe: the public Nouveautés page has no form. |
+| Data | Per subscription: the Candidate's id, the date of the consent and the unsubscribe link's token. Per email sent: the Candidate's id, the Version it told of and when it was sent. The email goes to the Candidate's account address, in their Interface Language; its text is not kept. |
+| Source | The Candidate, in Mon compte (`PUT /api/account/nouveautes-email`); the worker when it sends each email (`nouveautes-emails.send`: when it starts, then daily, Production only, never the Beta). |
+| Processors | Brevo (EU, ADR-0007), which sends the email; already a processor for emails. The email carries no image and no tracked link: every link leads straight to Jobbbox. Brevo has no per-message switch for its open and click tracking: it must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). No new processor, no recipient outside the EU. |
+| Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it. |
+| Storage | The `nouveautes_email_subscription` and `nouveautes_email_sent` tables in the app's Postgres database (EU). |
+| Retention | The subscription until it is withdrawn (its row is deleted) or the account is deleted. The emails sent as long as the account, so none is sent twice: deleted with it (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`nouveautesEmail`: the choice, its date and the Versions emailed, never the unsubscribe token); erased with the account. |
+| Security | The unsubscribe token is random (256 bits), replaced at each new subscription, and names one subscription only. Ticking or unticking checks the signed-in Candidate and the request's origin. Each email is claimed in the transaction that sends it, the subscription locked, so two workers never send two. |
+
 ## Withdrawals (#511)
 
 | | |

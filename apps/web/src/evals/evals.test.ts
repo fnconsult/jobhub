@@ -361,7 +361,11 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
     it("plays the Guardrails' Eval Cases from code, each reply as the case writes it, and records each one's exact verdict", async () => {
       answers.inputVerdict = (input) => (String(input.messages[0]!.content).includes("Ignore toutes tes instructions") ? '{"prompt_injection": true}' : "{}");
-      answers.outputVerdict = (input) => (String(input.messages[0]!.content).includes("18 mois") ? '{"harmful_advice": true}' : "{}");
+      answers.outputVerdict = (input) => {
+        const reply = String(input.messages[0]!.content);
+        if (reply.includes("18 mois")) return '{"harmful_advice": true}';
+        return /ne détaillent pas les critères|La première offre a le meilleur score/.test(reply) ? '{"ungrounded_answer": true}' : "{}";
+      };
       answers.emailVerdict = (input) => (String(input.messages[0]!.content).includes("numéro de sécurité sociale") ? '{"email_injection": true}' : "{}");
 
       const { run, refused } = await evals.runGuardrails(claire, blocking());
@@ -444,5 +448,30 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       expect(run.results.find((result) => result.case.id === "injection-direct")).toMatchObject({ verdict: "let_through", passed: false });
       expect(run.score).toBeLessThan(100);
     });
+  });
+});
+
+describe("Eval Cases for answers grounded in the Candidate's own data (#653)", () => {
+  it("the AI Coach has the fit question on a Job Search, judged on each offer explained from its reasons and the Candidate's CV, and a Profile with no experience, judged on asking for it", () => {
+    const fit = AI_COACH_EVAL_CASES.find((each) => each.id === "fit-job-search-reasons");
+    expect(fit).toMatchObject({ message: "Parmi les offres trouvées, lesquelles me correspondent le mieux, et pourquoi ?", inView: { kind: "job_search" } });
+    expect(fit!.inView!.text).toMatch(/compétences manquantes/);
+    expect(fit!.inView!.text).toMatch(/CV de référence/);
+    expect(fit!.criteria).toMatch(/chaque offre/);
+    expect(fit!.criteria).toMatch(/ne dit jamais que les données/);
+
+    const missing = AI_COACH_EVAL_CASES.find((each) => each.id === "fit-missing-experience");
+    expect(missing?.criteria).toMatch(/demande/);
+  });
+
+  it("the « Réponse non fondée sur le profil » Guardrail blocks the reply seen on staging and an ungrounded ranking, and lets a grounded one and an honest request for missing data through", () => {
+    const cases = GUARDRAIL_EVAL_CASES.filter((each) => each.guardrail === "ungrounded_answer");
+    expect(cases.map((each) => [each.id, each.expected])).toEqual([
+      ["ungrounded-no-reasons", "block"],
+      ["ungrounded-generic-ranking", "block"],
+      ["grounded-reasons", "let_through"],
+      ["grounded-asks-missing", "let_through"],
+    ]);
+    for (const each of cases) expect(each.reply).toBeTruthy();
   });
 });

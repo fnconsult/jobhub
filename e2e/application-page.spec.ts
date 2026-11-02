@@ -116,15 +116,15 @@ test.describe("the Application page", () => {
     const props = propList.getByRole("definition");
     await expect(propList.getByRole("term")).toHaveText([
       fr.application.statusLabel,
-      fr.application.profileLabel,
-      fr.application.matchLabel,
       fr.application.savedOnLabel,
+      fr.application.matchLabel,
+      fr.application.profileLabel,
       fr.application.offerLabel,
     ]);
     await expect(props.nth(0).getByRole("combobox", { name: fr.application.statusLabel })).toHaveValue("to_apply");
-    await expect(props.nth(1).getByRole("combobox", { name: fr.application.profileLabel })).toHaveAccessibleDescription(fr.application.profileHint);
+    await expect(props.nth(1)).toHaveText(new Intl.DateTimeFormat("fr", { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date()));
     await expect(props.nth(2).getByText(/^\d{1,3} \/ 100$/)).toBeVisible();
-    await expect(props.nth(3)).toHaveText(new Intl.DateTimeFormat("fr", { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date()));
+    await expect(props.nth(3).getByRole("combobox", { name: fr.application.profileLabel })).toHaveAccessibleDescription(fr.application.profileHint);
     await expect(props.nth(4).getByRole("link", { name: "Voir l'offre sur apec.fr" })).toHaveAttribute("href", sourceUrl);
 
     // The status is changed in place, and kept.

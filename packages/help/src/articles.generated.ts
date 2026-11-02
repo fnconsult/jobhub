@@ -463,11 +463,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "mode sombre",
         "connexion",
         "rappels",
-        "version"
+        "version",
+        "nouveautés",
+        "e-mail de nouveautés"
       ],
       "route": "/compte",
       "motion": null,
-      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nSous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple « 0.1.0 ». Sur la version bêta, elle est suivie de la modification exacte servie, par exemple « 0.1.0 (main·3f9c2a1) » : citez-la si vous signalez un problème.\n\nMon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
+      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nSous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple « 0.1.0 ». Sur la version bêta, elle est suivie de la modification exacte servie, par exemple « 0.1.0 (main·3f9c2a1) » : citez-la si vous signalez un problème.\n\nMon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
     },
     {
       "id": "page-acceptance",
@@ -800,7 +802,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
-      "body": "Le contexte de la conversation, c'est ce que votre coach IA relit avant chaque réponse : les derniers messages de la conversation et ce qu'il sait de vous et de la page. « Activité », en haut de la page, le montre dans une barre : le nombre de messages de la conversation sur les 40 que le coach lit, et les jetons de son contexte sur le plafond de 12k. Un jeton est un petit morceau de texte, environ quatre caractères ; ce n'est pas votre quota.\n\nCes chiffres viennent de Jobbbox : ce sont ceux du contexte envoyé au coach pour sa dernière réponse. À partir de 80 %, la barre vous dit que le coach ne lit que les messages les plus récents et propose « Effacer la conversation » : après confirmation, tous les messages de la conversation sont supprimés, et la mémoire du coach reste."
+      "body": "Le contexte de la conversation, c'est ce que votre coach IA relit avant chaque réponse : les derniers messages de la conversation et ce qu'il sait de vous et de la page. « Activité », en haut de la page, le montre dans une barre : le nombre de messages de la conversation sur les 40 que le coach lit, et les jetons de son contexte sur le plafond de 12k. Un jeton est un petit morceau de texte, environ quatre caractères ; ce n'est pas votre quota.\n\nSur une recherche d'offres, une sélection d'offres, une candidature ou une offre, le coach lit aussi le CV de référence du profil contre lequel les offres sont notées, sans votre nom ni vos coordonnées, et les raisons de chaque score de correspondance : compétences présentes et manquantes, séniorité, lieu, salaire et contrat. Quand vous lui demandez quelles offres vous correspondent, il s'appuie sur vos expériences et vos compétences ; s'il lui manque une information, comme vos expériences ou ce qui compte pour vous, il vous la demande.\n\nCes chiffres viennent de Jobbbox : ce sont ceux du contexte envoyé au coach pour sa dernière réponse. À partir de 80 %, la barre vous dit que le coach ne lit que les messages les plus récents et propose « Effacer la conversation » : après confirmation, tous les messages de la conversation sont supprimés, et la mémoire du coach reste."
     },
     {
       "id": "glossary-tailored-cv",
@@ -1538,6 +1540,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota.\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
     },
     {
+      "id": "faq-nouveautes-email-unsubscribe",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Se désabonner des e-mails de nouveautés",
+      "synonyms": [
+        "désabonner",
+        "désabonnement",
+        "se désinscrire",
+        "ne plus recevoir",
+        "arrêter les e-mails",
+        "nouveautés",
+        "nouvelle version",
+        "newsletter",
+        "annonce"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Dans un e-mail de nouveautés, cliquez sur « Ne plus recevoir les nouveautés par e-mail ». La page « Se désabonner des e-mails de nouveautés » s'ouvre, sans vous connecter : cliquez sur « Me désabonner ». Elle confirme « C'est fait : vous ne recevrez plus les e-mails de nouveautés. »\n\nVous pouvez aussi, une fois connecté, décocher « Recevoir un e-mail quand Jobbbox annonce une nouveauté » dans Mon compte, rubrique Préférences. Vos autres e-mails, comme le Job Digest ou les rappels de rendez-vous, ne changent pas.\n\nSi la page affiche « Ce lien de désabonnement n'est plus valable », vous êtes peut-être déjà désabonné ; sinon, connectez-vous et décochez la case dans Mon compte, rubrique Préférences. Les nouveautés restent toujours lisibles sur la page Nouveautés."
+    },
+    {
       "id": "tutorial-admin-accept-sender",
       "locale": "fr",
       "kind": "tutorial",
@@ -2208,11 +2232,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "dark mode",
         "sign-in",
         "reminders",
-        "version"
+        "version",
+        "what's new",
+        "what's-new email"
       ],
       "route": "/compte",
       "motion": null,
-      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account.\n\nUnder each section, « Jobbbox version » gives the version you are using, for example « 0.1.0 ». On the beta, it is followed by the exact change served, for example « 0.1.0 (main·3f9c2a1) »: quote it if you report a problem.\n\nMy account is not a conversation: « Help », at the top of the page, opens this article beside the page (over it, full screen, on a phone). « Ask the coach » there starts a new conversation with your AI coach about My account."
+      "body": "My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nMy data lets you download all your data or delete your account.\n\nUnder each section, « Jobbbox version » gives the version you are using, for example « 0.1.0 ». On the beta, it is followed by the exact change served, for example « 0.1.0 (main·3f9c2a1) »: quote it if you report a problem.\n\nMy account is not a conversation: « Help », at the top of the page, opens this article beside the page (over it, full screen, on a phone). « Ask the coach » there starts a new conversation with your AI coach about My account."
     },
     {
       "id": "page-applications",
@@ -2585,7 +2611,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
-      "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of the 40 the coach reads, and the tokens of its context out of the 12k ceiling. A token is a small piece of text, about four characters; it is not your quota.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays."
+      "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of the 40 the coach reads, and the tokens of its context out of the 12k ceiling. A token is a small piece of text, about four characters; it is not your quota.\n\nOn a job search, a job digest, an application or a job offer, the coach also reads the reference CV of the profile the offers are scored against, without your name or contact details, and the reasons behind each match score: skills present and missing, seniority, location, salary and contract. When you ask which offers suit you, it relies on your experience and skills; if it lacks something, such as your experience or what matters to you, it asks you for it.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays."
     },
     {
       "id": "glossary-admin-failure-reason",
@@ -3090,6 +3116,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "**Internal note dated 2 November 2026. Internal, never published. This is not legal advice.**\n\n**Conclusion.** No current Jobbbox feature falls within Annex III of the AI Act. The obligations of high-risk systems therefore do not apply, nor does Article 6(4), which only covers a system within Annex III.\n\n**Why.** Annex III, point 4(a), covers AI systems intended for the recruitment or selection of people, notably to place targeted job advertisements, filter applications and evaluate candidates. Point 4(b) covers decisions on an ongoing work relationship. Jobbbox is a service for the candidate, started and controlled by them, outside the employer's process.\n- Tailored CV, cover letter, ATS Score: example 14 of the Commission's Service Desk (tailoring one's CV to a job offer) is out of scope.\n- Job discovery, Target Companies, Match Score, Job Digest, Email intake: example 15 (helping the candidate find the right job, ranking job offers for them alone) is out of scope.\n- AI Coach, playbooks, Company Dossier, outreach message: advice to the candidate; no output goes to an employer to select them.\n- Human Coach: no AI ranks the candidate for a third party.\n\nJobbbox remains the provider of its AI systems (AI Coach, documents written, Back Office Assistant), and the deployer of the assistant. It owes the information at the point of use of Article 50 and the AI literacy of Article 4.\n\n**When to review this note.** Before any feature, before it is designed, that would bring Jobbbox into scope:\n- an Organisation role, a B2B offer or an outplacement service where AI ranks, shortlists, scores or recommends candidates to an employer or a recruiter (examples 1, 2 and 8);\n- job offers sponsored by employers and targeted at candidates by AI (example 7);\n- the publication of the Commission's final guidelines on classification, expected at the end of 2026;\n- at the latest before 2 December 2027, when the Annex III obligations apply.\n\nEvery review gives this note a new date.\n\n**To be confirmed by a lawyer.** The « out of scope » finding once the final guidelines are out, and before any B2B or Organisation feature; the text of Article 6(4) after the Digital Omnibus, to be read on EUR-Lex.\n\n**Sources.**\n- AI Act, Regulation (EU) 2024/1689: Articles 3, 4, 6 and 50, Annex III point 4.\n- Digital Omnibus on AI, Regulation (EU) 2026/1744, in force on 27 July 2026.\n- The Commission's AI Act Service Desk, « Employment » page: examples 1, 2, 7, 8, 14 and 15.\n- Commission, draft guidelines on the classification of high-risk systems, 19 May 2026.\n- Internal research of issue #497 (`docs/research/issue-497.md`, checked on 29 October 2026), decision of issue #503."
+    },
+    {
+      "id": "faq-nouveautes-email-unsubscribe",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Unsubscribe from what's-new emails",
+      "synonyms": [
+        "unsubscribe",
+        "opt out",
+        "stop receiving",
+        "stop the emails",
+        "what's new",
+        "new version",
+        "newsletter",
+        "announcement"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "In a what's-new email, click « Stop receiving what's new by email ». The page « Unsubscribe from what's-new emails » opens, without signing in: click « Unsubscribe ». It confirms « Done: you will no longer receive what's-new emails. »\n\nYou can also, once signed in, untick « Get an email when Jobbbox announces something new » in My account, under Preferences. Your other emails, such as the Job Digest or appointment reminders, do not change.\n\nIf the page shows « This unsubscribe link is no longer valid », you may already be unsubscribed; otherwise, sign in and untick the box in My account, under Preferences. What's new can always be read on the What's new page."
     },
     {
       "id": "faq-plans-and-quotas",

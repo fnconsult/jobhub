@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import path from "node:path";
+import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { chromium, expect, test, type BrowserContext, type Page, type Worker } from "@playwright/test";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { catalogueStrings, renderedTexts } from "./support/accessibility";
@@ -37,6 +38,8 @@ test.describe("browser extension", () => {
       locale: "en-US",
       args: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`],
     });
+    // This is the public listing's build, tied to Production (#563): CI never calls jobbbox.ai, it finds it unreachable.
+    await context.route("https://jobbbox.ai/**", (route) => route.abort());
   });
 
   test.afterAll(async () => {
@@ -51,6 +54,25 @@ test.describe("browser extension", () => {
     const fr = JSON.parse(readFileSync(path.join(extensionDir, "_locales/fr/messages.json"), "utf8"));
     expect(fr.extName.message).toBe("Jobbbox");
     expect(fr.extDescription.message).toMatch(/offre d'emploi/);
+  });
+
+  // `npm run build` makes the public listing's build (#563): tied to Production, with the Extension Version and its icon.
+  test("is the public listing's build: tied to jobbbox.ai, at the Extension Version, with its icon", () => {
+    const manifest = JSON.parse(readFileSync(path.join(extensionDir, "manifest.json"), "utf8"));
+    const extensionVersion = JSON.parse(readFileSync("apps/extension/package.json", "utf8")).version;
+    expect(manifest.version).toBe(extensionVersion);
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(manifest.host_permissions[0]).toBe("https://jobbbox.ai/*");
+    expect(manifest.icons["128"]).toBe("icon/128.png");
+    expect(existsSync(path.join(extensionDir, "icon/128.png"))).toBe(true);
+  });
+
+  test("loads in Chrome under its name and Extension Version", async () => {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
+    const manifest = await page.evaluate(() => (globalThis as unknown as { chrome: { runtime: { getManifest(): { name: string; version: string } } } }).chrome.runtime.getManifest());
+    expect(manifest.version).toBe(JSON.parse(readFileSync("apps/extension/package.json", "utf8")).version);
+    expect(await page.evaluate(() => (globalThis as unknown as { chrome: { i18n: { getMessage(name: string): string } } }).chrome.i18n.getMessage("extName"))).toBe("Jobbbox");
   });
 
   test("declares the Side Panel and no popup (ADR-0054)", () => {
@@ -778,9 +800,9 @@ test.describe("Guest Capture and Match Score", () => {
     // given a posting, it keeps what the browser read and still fetches nothing.
     const capture = (body: object) =>
       analysis.evaluate(
-        async ([webOrigin, json]) =>
-          (await fetch(`${webOrigin}/api/job-offers`, { method: "POST", headers: { "content-type": "application/json" }, body: json })).status,
-        [origin, JSON.stringify(body)] as const,
+        async ([webOrigin, json, header, version]) =>
+          (await fetch(`${webOrigin}/api/job-offers`, { method: "POST", headers: { "content-type": "application/json", [header]: version }, body: json })).status,
+        [origin, JSON.stringify(body), API_VERSION_HEADER, String(API_VERSION)] as const,
       );
     expect(await capture({ source: { url: `${careerSiteUrl}?ref=address-only` } })).toBe(400);
     expect(await capture({ source: { url: `${careerSiteUrl}?ref=with-text` }, title: "Contrôleur financier H/F", content: "Poste à Lyon." })).toBe(200);
@@ -788,6 +810,61 @@ test.describe("Guest Capture and Match Score", () => {
     // The career site was read once, by the person's browser, when they opened the page.
     expect(careerSiteVisits).toHaveLength(1);
     expect(careerSiteVisits[0]!.headers["user-agent"]).toMatch(/Chrome\//);
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+  });
+
+  // Issue #564: the web app serves the extension's API Version and the one before; an older one, or none, is answered
+  // 426, and the Side Panel asks for the update, keeping the Guest session.
+  test("an extension the web app no longer serves is asked to update, its Guest session kept (#564)", async () => {
+    const jobPage = await context.newPage();
+    await jobPage.goto(postingUrl);
+    const analysis = await panelFromBadge(jobPage);
+    await expect(analysis.getByText(posting.title, { exact: true })).toBeVisible();
+
+    // The web app itself, called by the extension (a GET: no Origin, Sec-Fetch-Site none): without an API Version, or
+    // with one no longer served, 426.
+    const call = (version: string | null) =>
+      analysis.evaluate(
+        async ([webOrigin, header, value]) => {
+          const response = await fetch(`${webOrigin}/api/profiles`, { headers: value === null ? {} : { [header]: value } });
+          return { status: response.status, body: (await response.json()) as Record<string, unknown> };
+        },
+        [origin, API_VERSION_HEADER, version] as const,
+      );
+    const refused = await call(null);
+    expect(refused.status).toBe(426);
+    expect(refused.body).toMatchObject({ error: "extension_outdated", apiVersion: API_VERSION });
+    expect((await call(String(API_VERSION - 1))).status).toBe(426);
+    // The current one is served: a Guest has no Profiles to list.
+    expect((await call(String(API_VERSION))).status).toBe(401);
+
+    // As when this build's API Version is no longer served: reading the CV is answered 426.
+    const store = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+    const outdated = `${origin}/api/cv/draft`;
+    await context.route(outdated, (route) => route.fulfill({ status: 426, json: { error: "extension_outdated", storeUrl: store, apiVersion: API_VERSION + 2 } }));
+    try {
+      await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+      await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+      const notice = analysis.getByRole("alert").filter({ hasText: fr.updateRequired.title });
+      await expect(notice).toBeVisible();
+      await expect(notice).toContainText(fr.updateRequired.text);
+      await expect(notice.getByRole("link", { name: fr.updateRequired.action })).toHaveAttribute("href", store);
+      // The Job Offer is still shown, and the Guest session kept; reopened, the panel still asks for the update.
+      await expect(analysis.getByText(posting.title, { exact: true })).toBeVisible();
+      expect((await guestSession(analysis)).guestSession?.jobOffer.id).toBeTruthy();
+      await analysis.reload();
+      await expect(notice).toBeVisible();
+      await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toHaveCount(0);
+    } finally {
+      await context.unroute(outdated);
+    }
+
+    // Updated (here: served again), « Réessayer » brings the panel back, with the same Job Offer.
+    await analysis.getByRole("button", { name: fr.updateRequired.retry }).click();
+    await expect(analysis.getByRole("alert").filter({ hasText: fr.updateRequired.title })).toHaveCount(0);
+    await expect(analysis.getByText(posting.title, { exact: true })).toBeVisible();
+    await expect(analysis.getByRole("button", { name: fr.analysis.submit })).toBeVisible();
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });

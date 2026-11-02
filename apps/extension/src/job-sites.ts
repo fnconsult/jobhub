@@ -18,6 +18,7 @@
  */
 import { jobSitePattern, type ExtensionJobSite, type ExtensionJobSiteList } from "@jobhub/shared";
 import { MatchPattern } from "wxt/utils/match-patterns";
+import { API_VERSION_HEADERS } from "./extension-update";
 import { JOB_SITES, readJobPage, type PageSnapshot } from "./job-page";
 
 /** The list before the web app ever answered: the built-in sites, all enabled. */
@@ -114,7 +115,7 @@ export function createJobSites(options: { origin: string; fetch: typeof globalTh
     if (last?.list && time - last.readAt < JOB_SITES_MAX_AGE_MS) return last.list;
     if (last?.failedAt !== undefined && time - last.failedAt < JOB_SITES_RETRY_MS) return last.list ?? BUILT_IN_JOB_SITE_LIST;
     try {
-      const response = await options.fetch(`${options.origin}/api/job-sites`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+      const response = await options.fetch(`${options.origin}/api/job-sites`, { headers: API_VERSION_HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       const list = response.ok ? jobSiteListFrom(await response.json()) : null;
       if (!list) throw new Error(`the web app answered ${response.status} without a list of Job Sites`);
       await options.storage.set({ [STORAGE_KEY]: { list, readAt: time } }).catch(() => undefined);

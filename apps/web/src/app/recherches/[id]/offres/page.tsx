@@ -10,8 +10,8 @@ const OFFERS: JobSearchSection = "offres";
 
 /**
  * The Job Offers a Job Search found, best Match Score first, each saved as an Application in one click (#605): its
- * Section, in the Work Pane beside its conversation, each Job Offer opening there in its place. Without « Conversation
- * au centre », the Job Search's page lists them.
+ * Section, in the Work Pane beside its conversation, each Job Offer opening there in its place. The Job Search's own
+ * address lists them only as Results, in its Fiche.
  */
 export default async function JobSearchOffersPage({ params }: Params) {
   const { jobSearch, t, locale } = await loadJobSearchPage((await params).id);

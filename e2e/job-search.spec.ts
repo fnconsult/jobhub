@@ -538,6 +538,10 @@ test.describe("On-demand AI Coach job search", () => {
       const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
       expect(started.status(), await started.text()).toBe(201);
       const jobSearchId = (await started.json()).id as string;
+      // Finished first, so its Fiche is measured whole, its AI Activity's tokens and time with the rest, however fast the worker.
+      await expect
+        .poll(async () => (await (await page.request.get(`/recherches/${jobSearchId}`)).text()).includes("Votre coach cherche des offres"), { timeout: 90_000, message: workerOutput })
+        .toBe(false);
       // With JOB_SEARCH_SCREENSHOTS_DIR set, the dialog is also captured at each width.
       const screenshots = process.env.JOB_SEARCH_SCREENSHOTS_DIR;
       if (screenshots) mkdirSync(screenshots, { recursive: true });

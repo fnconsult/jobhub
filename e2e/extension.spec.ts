@@ -115,6 +115,20 @@ test.describe("browser extension", () => {
     expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("20px");
   });
 
+  test("the Side Panel's foot leads to the web app in the browser's English, under /en (#550)", async () => {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
+    const foot = page.getByRole("navigation", { name: frCatalogue.extension.links.label });
+    await expect(foot.getByRole("link")).toHaveCount(3);
+    // The web app this build talks to, whichever it is: the paths and the new tab are what the browser's language decides.
+    const links = await foot.getByRole("link").evaluateAll((all) => all.map((link) => [new URL(link.getAttribute("href")!).pathname, link.getAttribute("target")]));
+    expect(links).toEqual([
+      ["/en/aide/extension", "_blank"],
+      ["/en/legal/confidentialite", "_blank"],
+      ["/en/legal/cgu", "_blank"],
+    ]);
+  });
+
   test("the Side Panel follows the device's dark theme (#473), at AA, and switches with it", async () => {
     const page = await context.newPage();
     await page.emulateMedia({ colorScheme: "dark" });
@@ -703,6 +717,95 @@ test.describe("Guest Capture and Match Score", () => {
     await analysis.getByRole("button", { name: fr.analysis.forgetCv }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
     await web.request.post(`${origin}/api/auth/sign-out`, { headers: { origin }, data: {} });
+  });
+
+  // Issue #550 (ADR-0062): the Guest's box before their session's first CV. The suite's server carries no CGU version
+  // (e2e/acceptances.spec.ts): the version in effect is answered here, by routing the web app's reply.
+  test("with a CGU version in effect, a Guest sends no CV until they tick the box, never ticked for them, which stays in the Guest session only (#550)", async () => {
+    const inEffectUrl = `${origin}/api/legal/cgu/in-effect`;
+    // Without a version in effect, the web app says so and the panel shows no box (the other tests send CVs that way).
+    const none = await (await context.newPage()).request.get(inEffectUrl);
+    expect(await none.json()).toEqual({ version: null });
+
+    const version = "2025-03-17";
+    await context.route(inEffectUrl, (route) => route.fulfill({ json: { version, url: `/legal/cgu/${version}` } }));
+    // Every request the extension makes from now on, the browser's Side Panel's included.
+    const sent: { url: string; postData?: string }[] = [];
+    const listener = (request: { url(): string; postData(): string | null }) => sent.push({ url: request.url(), postData: request.postData() ?? undefined });
+    context.on("request", listener);
+    const stopPanel = sidePanel.onRequest((request) => sent.push(request));
+    try {
+      const analysis = await captureFromBadge(postingUrl);
+      const box = analysis.getByRole("checkbox", { name: /^J'accepte les conditions d'utilisation pour les invités \(version du 17\/03\/2025\) et j'ai lu l'information sur mes données$/ });
+      await expect(box).toBeVisible();
+      await expect(box).not.toBeChecked();
+      await expect(analysis.getByRole("link", { name: fr.guestTerms.terms })).toHaveAttribute("href", `${origin}/legal/cgu#invite`);
+      await expect(analysis.getByRole("link", { name: fr.guestTerms.privacy })).toHaveAttribute("href", `${origin}/legal/confidentialite`);
+      await expect(analysis.getByRole("link", { name: fr.guestTerms.terms })).toHaveAttribute("target", "_blank");
+
+      // Unticked, the CV is not sent.
+      await analysis.getByLabel(frCatalogue.cvUpload.fileLabel).setInputFiles(cvFile);
+      await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+      await expect(analysis.getByRole("alert").filter({ hasText: fr.guestTerms.required })).toBeVisible();
+      await expect(box).toBeFocused();
+      expect(sent.filter(({ url }) => new URL(url).pathname === "/api/cv/draft")).toEqual([]);
+      expect((await guestSession(analysis)).guestSession).not.toHaveProperty("guestTerms");
+
+      // Ticked, it is: the version accepted and when are kept in the Guest session.
+      await box.check();
+      await analysis.getByRole("button", { name: fr.analysis.submit }).click();
+      await expect(analysis.getByText(scoreLine)).toBeVisible();
+      const { guestSession: stored } = (await guestSession(analysis)) as unknown as { guestSession: { guestTerms: { version: string; acceptedAt: number } } };
+      expect(stored.guestTerms.version).toBe(version);
+      expect(Date.now() - stored.guestTerms.acceptedAt).toBeLessThan(120_000);
+
+      // Accepted once for the session: another CV goes without the box.
+      await analysis.getByRole("button", { name: fr.analysis.changeCv }).click();
+      await expect(analysis.getByLabel(frCatalogue.cvUpload.fileLabel)).toBeAttached();
+      await expect(analysis.getByRole("checkbox", { name: /^J'accepte les conditions/ })).toHaveCount(0);
+
+      // No request carries the Acceptance: not the version, not the Guest session's field.
+      const toWebApp = sent.filter(({ url }) => url.startsWith(origin));
+      expect(toWebApp.some(({ url }) => new URL(url).pathname === "/api/cv/draft")).toBe(true);
+      for (const { url, postData } of toWebApp) {
+        expect(`${url} ${postData ?? ""}`, url).not.toContain(version);
+        expect(postData ?? "", url).not.toContain("guestTerms");
+      }
+
+      // Forgotten with the Guest session: the next session's first CV asks again.
+      await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+      await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+      expect(await guestSession(analysis)).toEqual({});
+      const next = await captureFromBadge(postingUrl);
+      await expect(next.getByRole("checkbox", { name: /^J'accepte les conditions/ })).not.toBeChecked();
+      await next.getByRole("button", { name: fr.analysis.forget }).click();
+      await expect(next.getByText(fr.analysis.forgotten)).toBeVisible();
+    } finally {
+      context.off("request", listener);
+      stopPanel();
+      await context.unroute(inEffectUrl);
+    }
+  });
+
+  test("the Side Panel's foot opens Aide (« L'extension »), Confidentialité and CGU on the web app, in a new tab, in the browser's French (#550)", async () => {
+    const analysis = await openPanel();
+    const foot = analysis.getByRole("navigation", { name: fr.links.label });
+    for (const [name, path] of [
+      [fr.links.help, "/aide/extension"],
+      [fr.links.privacy, "/legal/confidentialite"],
+      [fr.links.terms, "/legal/cgu"],
+    ] as const) {
+      const link = foot.getByRole("link", { name, exact: true });
+      await expect(link).toHaveAttribute("href", `${origin}${path}`);
+      const opened = context.waitForEvent("page");
+      await link.click();
+      const tab = await opened;
+      await tab.waitForLoadState();
+      expect(tab.url()).toBe(`${origin}${path}`);
+      await tab.close();
+    }
+    // Every text of the foot from the catalogue.
+    expect(await foot.getByRole("link").allTextContents()).toEqual([fr.links.help, fr.links.privacy, fr.links.terms]);
   });
 
   test("shows no badge on a page that is not a job posting, where Capture is still possible by hand", async () => {

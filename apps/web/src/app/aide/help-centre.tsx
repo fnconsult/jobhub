@@ -1,6 +1,7 @@
 import { isPublicHelpTopic, type HelpArticle, type PublicHelpTopic } from "@jobhub/help";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { LinkPolicy } from "@/coach/reply-text";
 import { buttonClass } from "@/design/button-class";
 import { Field, TextInput } from "@/design/Field";
 import { getChosenLocale, getServerT, getUrlLocale } from "@/i18n/server";
@@ -14,6 +15,15 @@ import "./help-centre.css";
  */
 export async function helpCentreHref(path: string): Promise<string> {
   return shellHref(path, { url: await getUrlLocale(), lang: await getChosenLocale() });
+}
+
+/**
+ * The links a Help Article keeps in the Help Centre (#552): a path of this site, at its address in the page's language
+ * (`/legal/confidentialite#ia`), and a `mailto:` (« Nous contacter »'s address); any other is shown as its text.
+ */
+export async function helpArticleLinks(): Promise<LinkPolicy> {
+  const page = { url: await getUrlLocale(), lang: await getChosenLocale() };
+  return (href) => (href.startsWith("mailto:") ? href : /^\/(?!\/)/.test(href) ? shellHref(href, page) : null);
 }
 
 /** The topic of an address, or a 404: /aide/<anything else> is no page. */

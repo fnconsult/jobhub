@@ -61,20 +61,22 @@ export const AIDE_ET_LEGAL = [
   { key: "nouveautes", href: routes.nouveautes, label: "publicSite.nouveautes" },
 ] as const satisfies ReadonlyArray<ShellLink>;
 
+/** « Nous contacter »'s Help Article (#552), which the public footer leads to. */
+export const CONTACT_ARTICLE = routes.helpArticle("decouvrir", "faq-contact-us");
+
 export type FooterColumn = { key: "legal" | "help" | "jobbbox"; label: ParseKeys; links: ShellLink[] };
 
 /**
  * The public footer's three columns (#544, decided by #501): Légal, Aide and Jobbbox. « IA dans Jobbbox » is a
- * section of the privacy policy (#503). « Nous contacter » writes to `contactEmail`, « Extension » opens its store
- * page (`extensionStore`); while either is unset, it leads to the Help Centre. Jobbbox's last link is « Se connecter »,
+ * section of the privacy policy (#503). « Nous contacter » opens its Help Article (#552: signed in, the help then a
+ * Question; without an account, the legal notice's address), « Extension » opens its store page (`extensionStore`), the
+ * Help Centre while it is unset. Jobbbox's last link is « Se connecter »,
  * « Mon compte » for a signed-in Candidate (`account`), none on a sign-in page (`null`), like the header's.
  */
 export function footerColumns({
-  contactEmail,
   extensionStore,
   account = "signIn",
 }: {
-  contactEmail?: string | undefined;
   extensionStore?: string | null | undefined;
   account?: "signIn" | "account" | null;
 }): FooterColumn[] {
@@ -95,7 +97,7 @@ export function footerColumns({
       label: "publicFooter.help.title",
       links: [
         { key: "helpCentre", href: routes.help, label: "publicFooter.help.helpCentre" },
-        { key: "contact", href: contactEmail ? `mailto:${contactEmail}` : routes.help, label: "publicFooter.help.contact" },
+        { key: "contact", href: CONTACT_ARTICLE, label: "publicFooter.help.contact" },
         { key: "extension", href: extensionStore ?? routes.help, label: "publicFooter.help.extension" },
       ],
     },

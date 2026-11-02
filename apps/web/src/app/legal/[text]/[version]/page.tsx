@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { LegalTextView } from "@/design/LegalTextView";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { withPublicContactEmail } from "@/public-pages/contact-email";
 
 type Params = { params: Promise<{ text: string; version: string }> };
 
@@ -28,7 +29,7 @@ export default async function LegalTextVersionPage({ params }: Params) {
   return (
     <PublicSite current="legal">
       <main id="main" className="ds-site__page">
-        <LegalTextView text={text} shown={shown} />
+        <LegalTextView text={text} shown={withPublicContactEmail(shown)} />
       </main>
     </PublicSite>
   );

@@ -82,13 +82,24 @@ describe("relatedArticles — under an article's page", () => {
   });
 });
 
+/** #552's articles of « Découvrir Jobbbox ». */
+const DECOUVRIR_PAGES = ["page-what-is-jobbbox", "page-install-extension"];
+const DECOUVRIR_FAQ = ["faq-sign-in-link", "faq-plans-and-quotas", "faq-text-size-site", "faq-job-digest-unsubscribe", "faq-contact-us", "faq-data-and-ai"];
+
 describe("this build's Help Articles (#549)", () => {
   it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`", () => {
     const english = new Map(articles("en").map((found) => [found.id, found]));
     for (const found of articles("fr")) {
       expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
-      if (/^(page|glossary)-/.test(found.id)) expect([found.id, found.audience]).toEqual([found.id, "candidate"]);
+      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id)) expect([found.id, found.audience]).toEqual([found.id, "candidate"]);
     }
+  });
+
+  it("has the « Découvrir Jobbbox » articles for a Visitor (#552): 2 pages, 6 questions and 1 tutorial, in French and English", () => {
+    const ids = { page: DECOUVRIR_PAGES, faq: DECOUVRIR_FAQ, tutorial: ["tutorial-getting-started"] };
+    for (const locale of ["fr", "en"] as const)
+      for (const [kind, expected] of Object.entries(ids))
+        for (const id of expected) expect([id, helpCentreArticle("decouvrir", id, locale)?.kind, helpCentreArticle("decouvrir", id, locale)?.audience]).toEqual([id, kind, "visitor"]);
   });
 
   it("has tutorials in French and English, each of two numbered steps or more", () => {

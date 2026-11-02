@@ -87,4 +87,14 @@ describe("an AI Coach reply, as the Coach Panel shows it (#164)", () => {
       { kind: "paragraph", lines: [[plain("Tapez Directrice sur l'Apec.")]] },
     ]);
   });
+
+  it("keeps the links `links` allows, and only those: a Help Article in the Help Centre (#552)", () => {
+    const links = (href: string) => (href.startsWith("/") ? `/en${href}` : null);
+    expect(coachReplyBlocks("Voyez [**IA dans Jobbbox**](/legal/confidentialite#ia), pas [l'Apec](https://www.apec.fr).", { links })).toEqual([
+      {
+        kind: "paragraph",
+        lines: [[plain("Voyez "), { text: "IA dans Jobbbox", strong: true, emphasis: false, href: "/en/legal/confidentialite#ia" }, plain(", pas l'Apec.")]],
+      },
+    ]);
+  });
 });

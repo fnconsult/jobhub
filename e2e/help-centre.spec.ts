@@ -112,3 +112,73 @@ test.describe("the Coach Panel and the Help Centre", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(titleOf("fr", TUTORIAL));
   });
 });
+
+// Issue #552: the « Découvrir Jobbbox » articles for a Visitor, signed out: listed under their topic, found by the
+// public search, « Nous contacter » in the public footer leading to its article, which gives the legal notice's
+// address (never its token), and the data and AI question linking to the privacy policy's AI section, under /en in English.
+test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
+  const DECOUVRIR = [
+    "page-what-is-jobbbox",
+    "page-install-extension",
+    "faq-sign-in-link",
+    "faq-plans-and-quotas",
+    "faq-text-size-site",
+    "faq-job-digest-unsubscribe",
+    "faq-contact-us",
+    "faq-data-and-ai",
+    "tutorial-getting-started",
+  ];
+  const CONTACT = "faq-contact-us";
+
+  test("/aide/decouvrir lists its 9 articles; the public search finds them", async ({ page }) => {
+    await page.goto("/aide/decouvrir");
+    const list = main(page).getByRole("list", { name: fr.helpCentre.inTopic });
+    for (const id of DECOUVRIR) await expect(list.getByRole("link", { name: titleOf("fr", id), exact: true })).toHaveAttribute("href", `/aide/decouvrir/${id}`);
+
+    for (const [query, id] of [
+      ["mot de passe oublié", "faq-sign-in-link"],
+      ["se désabonner du job digest", "faq-job-digest-unsubscribe"],
+      ["créer un compte et mon premier profil", "tutorial-getting-started"],
+    ] as const) {
+      await page.goto(`/aide?q=${encodeURIComponent(query)}`);
+      await expect(main(page).getByRole("link", { name: titleOf("fr", id), exact: true }).first(), query).toBeVisible();
+    }
+  });
+
+  test("the tutorial « Commencer » is a numbered list of the interface's labels", async ({ page }) => {
+    await page.goto("/aide/decouvrir/tutorial-getting-started");
+    const steps = main(page).locator(".help-centre__body ol > li");
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(0)).toContainText(`« ${fr.signIn.submit} »`);
+    await expect(steps.nth(3)).toContainText(`« ${fr.profiles.create} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.cvReview.save} »`);
+    expect(await axeViolations(page)).toEqual([]);
+  });
+
+  test("« Nous contacter » in the public footer opens its article, which gives the legal notice's address", async ({ page }) => {
+    await page.goto("/aide");
+    await page.getByRole("contentinfo").getByRole("link", { name: fr.publicFooter.help.contact }).click();
+    await expect(page).toHaveURL(`${origin}/aide/decouvrir/${CONTACT}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(titleOf("fr", CONTACT));
+    const body = main(page).locator(".help-centre__body");
+    await expect(body).toContainText(`« ${fr.signalement.question.title} »`);
+    await expect(body).not.toContainText("{{contact-email}}");
+    // The address the app sends from (MAIL_FROM), as a mailto link; while it is a development one, the legal notice's.
+    const mailto = body.locator("a[href^='mailto:']");
+    if ((await mailto.count()) > 0) await expect(mailto).toHaveText(/@/);
+    else await expect(body).toContainText("l'adresse indiquée dans les mentions légales");
+    expect(await axeViolations(page)).toEqual([]);
+
+    await page.goto("/en/aide");
+    await page.getByRole("contentinfo").getByRole("link", { name: en.publicFooter.help.contact }).click();
+    await expect(page).toHaveURL(`${origin}/en/aide/decouvrir/${CONTACT}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(titleOf("en", CONTACT));
+  });
+
+  test("the data and AI question links to the privacy policy's AI section, in the page's language", async ({ page }) => {
+    await page.goto("/aide/decouvrir/faq-data-and-ai");
+    await expect(main(page).locator(".help-centre__body").getByRole("link", { name: fr.publicFooter.legal.ia })).toHaveAttribute("href", "/legal/confidentialite#ia");
+    await page.goto("/en/aide/decouvrir/faq-data-and-ai");
+    await expect(main(page).locator(".help-centre__body").getByRole("link", { name: en.publicFooter.legal.ia })).toHaveAttribute("href", "/en/legal/confidentialite#ia");
+  });
+});

@@ -65,6 +65,8 @@ test.describe("the Back Office's Coaching Playbooks", () => {
       admin.sections.coachingPlaybooks,
       admin.sections.designSystem,
       admin.nav.account,
+      // The Back Office's own help, every Administrator's (#551).
+      admin.nav.help,
       // The public Légal (#544).
       admin.nav.publicLegal,
     ]);

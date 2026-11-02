@@ -195,11 +195,26 @@ export const routes = {
     return `/admin/signalements${query ? `?${query}` : ""}`;
   },
   adminSignalement: (id: string) => `/admin/signalements/${encodeURIComponent(id)}`,
-  /** « Questions sans réponse » (#344): the open Unanswered Questions, of one page (`route`, a route pattern) or language, or all. */
-  adminUnansweredQuestions: (filter: { route?: string; language?: string } = {}) => {
-    const query = new URLSearchParams({ ...(filter.route ? { page: filter.route } : {}), ...(filter.language ? { langue: filter.language } : {}) }).toString();
+  /**
+   * « Questions sans réponse » (#344): the open Unanswered Questions, of one page (`route`, a route pattern), language or
+   * audience (`public`, #551), or all.
+   */
+  adminUnansweredQuestions: (filter: { route?: string; language?: string; audience?: string } = {}) => {
+    const query = new URLSearchParams({
+      ...(filter.audience ? { public: filter.audience } : {}),
+      ...(filter.route ? { page: filter.route } : {}),
+      ...(filter.language ? { langue: filter.language } : {}),
+    }).toString();
     return `/admin/questions-sans-reponse${query ? `?${query}` : ""}`;
   },
+  /** The Back Office's help (#551, ADR-0065): its topics and its search (`?q=`); Administrators only, never indexed. */
+  adminHelp: "/admin/aide",
+  /** A topic of the Back Office's help: its Administrator articles. */
+  adminHelpTopic: (topic: string) => `/admin/aide/${encodeURIComponent(topic)}`,
+  /** An Administrator's Help Article in the Back Office's help. */
+  adminHelpArticle: (topic: string, id: string) => `/admin/aide/${encodeURIComponent(topic)}/${encodeURIComponent(id)}`,
+  /** « Demander un tutoriel » (#551): an Administrator's question the help missed, kept as an Unanswered Question without them. */
+  adminTutorialRequest: "/api/admin/aide/demande",
   /** The Job discovery sources: Paramètres' Sources tab (#396); Job discovery sites are on Recherche web, Job Sites on Extension. */
   adminSearchSites: "/admin/parametres?tab=sources",
   /** The Tools (Outils, #233): every external tool the app calls, and one Tool's latest calls; super-admins and Support. */

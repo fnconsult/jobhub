@@ -7,6 +7,7 @@
  *   search("comment relancer le recruteur", "fr");    // [the « Comment relancer un recruteur ? » question, …]
  *   questionKey("Pourquoi suis-je bloqué ?");          // "bloque": the words the search reads, to group a question
  *   helpCentreTopics("fr");                             // the four topics of /aide, each with its public articles
+ *   backOfficeHelpTopics("fr");                         // the Back Office's topics of /admin/aide, with the Administrators' articles
  */
 import { ARTICLES } from "./articles.generated";
 import { isNoticed } from "./legal-notices";
@@ -18,7 +19,7 @@ import { MOTION_SCRIPTS } from "./motions.generated";
 import { RELEASE_NOTES } from "./release-notes.generated";
 import { routeMatches as routeMatchesPath } from "./motion-scripts";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
-import { PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
+import { BACK_OFFICE_HELP_TOPICS, PUBLIC_HELP_TOPICS, type BackOfficeHelpTopic, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
 
 export {
   isLegalTextId,
@@ -64,10 +65,12 @@ export {
   type ReleaseNoteTag,
 } from "./release-notes";
 export {
+  BACK_OFFICE_HELP_TOPICS,
   HELP_ARTICLE_KINDS,
   HELP_AUDIENCES,
   HELP_LOCALES,
   PUBLIC_HELP_TOPICS,
+  type BackOfficeHelpTopic,
   type HelpArticle,
   type HelpArticleKind,
   type HelpAudience,
@@ -88,14 +91,17 @@ export function motionScriptsFilming(path: string): readonly MotionScript[] {
 /**
  * Which Help Articles a reader's search covers (ADR-0065): `public`, every article but the Administrators' (the Help
  * Centre and its search, `sitemap.xml`); `coachPanel`, the Candidate's articles and those of the « extension » topic
- * (the Coach Panel). The Back Office's scope is #551's.
+ * (the Coach Panel); `backOffice`, the Administrators' articles only (the Back Office Assistant and /admin/aide, #551),
+ * never another audience's.
  */
-export type HelpScope = "public" | "coachPanel";
+export type HelpScope = "public" | "coachPanel" | "backOffice";
 
 const IN_SCOPE: Record<HelpScope, (article: HelpArticle) => boolean> = {
   public: isPublic,
   coachPanel: (article) => article.audience === "candidate" || (isPublic(article) && article.topic === "extension"),
+  backOffice: (article) => article.audience === "administrator",
 };
+
 
 /** Whether the Help Centre may serve `article`: never an Administrator's (ADR-0065). */
 export function isPublic(article: HelpArticle): boolean {
@@ -136,6 +142,30 @@ export function relatedArticles(article: HelpArticle, { limit = 3, from }: { lim
   const found = searchIndex(index, `${article.title} ${article.synonyms.join(" ")}`, limit);
   const sameTopic = others.filter((entry) => entry.topic === article.topic && !found.includes(entry));
   return [...found, ...sameTopic].slice(0, limit);
+}
+
+export function isBackOfficeHelpTopic(topic: string): topic is BackOfficeHelpTopic {
+  return (BACK_OFFICE_HELP_TOPICS as readonly string[]).includes(topic);
+}
+
+/** One topic of /admin/aide and its Administrator articles; none for a topic still empty. */
+export interface BackOfficeHelpTopicArticles {
+  topic: BackOfficeHelpTopic;
+  articles: HelpArticle[];
+}
+
+/**
+ * The Back Office's help topics (#551), in BACK_OFFICE_HELP_TOPICS' order (« Fournisseurs et Tools » first, « IA et
+ * conformité » last), each with its Administrator articles in `locale`, never another audience's.
+ */
+export function backOfficeHelpTopics(locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): BackOfficeHelpTopicArticles[] {
+  return BACK_OFFICE_HELP_TOPICS.map((topic) => ({ topic, articles: from.filter((entry) => entry.audience === "administrator" && entry.topic === topic) }));
+}
+
+/** The Administrator article `id` of `topic`, as /admin/aide/<topic>/<id> serves it; null for any other, a public one above all. */
+export function backOfficeHelpArticle(topic: string, id: string, locale: HelpLocale, from: readonly HelpArticle[] = ARTICLES[locale]): HelpArticle | null {
+  if (!isBackOfficeHelpTopic(topic)) return null;
+  return from.find((entry) => entry.id === id && entry.topic === topic && entry.audience === "administrator") ?? null;
 }
 
 /** Every Help Article in `locale`, the Administrators' too: the page articles, the glossary, the frequent questions, then the tutorials, each by title. */
@@ -278,13 +308,14 @@ export function article(id: string, locale: HelpLocale): HelpArticle | null {
  * The page article of `route`: a route pattern (`/candidatures/[id]`) or the address of a page in view
  * (`/candidatures/0b6c…/documents?vue=liste`). A page's Sections get the article of their page; when two
  * patterns match, the one with more segments, then more fixed ones, wins (`/profils/nouveau` over `/profils/[id]`).
+ * With `scope`, only an article of that scope (`backOffice`: an Administrator's, « Sur cette page » in the Back Office).
  * Null for a page without an article.
  */
-export function articleFor(route: string, locale: HelpLocale): HelpArticle | null {
+export function articleFor(route: string, locale: HelpLocale, { scope, from = ARTICLES[locale] }: { scope?: HelpScope; from?: readonly HelpArticle[] } = {}): HelpArticle | null {
   const path = segments(route.split(/[?#]/)[0]!);
   let best: { entry: HelpArticle; rank: [number, number] } | null = null;
-  for (const entry of ARTICLES[locale]) {
-    if (!entry.route) continue;
+  for (const entry of from) {
+    if (!entry.route || (scope && !IN_SCOPE[scope](entry))) continue;
     const pattern = segments(entry.route);
     if (!patternMatches(pattern, path)) continue;
     const rank: [number, number] = [pattern.length, pattern.filter((segment) => !isDynamic(segment)).length];

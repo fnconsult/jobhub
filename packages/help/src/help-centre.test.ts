@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { articles, helpCentreArticle, helpCentreTopics, isPublic, relatedArticles, search } from "./index";
+import { articleFor, articles, backOfficeHelpArticle, backOfficeHelpTopics, helpCentreArticle, helpCentreTopics, isPublic, relatedArticles, search } from "./index";
 import { PUBLIC_HELP_TOPICS, type HelpArticle } from "./types";
 
 // Issue #549 (ADR-0065): the public Help Centre's topics, articles, search and addresses, and the Coach Panel's scope.
@@ -18,7 +18,7 @@ const entry = (fields: Partial<HelpArticle> & Pick<HelpArticle, "id" | "title">)
   ...fields,
 });
 
-const ADMIN = entry({ id: "faq-admin-reglages", title: "Changer les réglages de la plateforme", audience: "administrator", topic: "parametres", synonyms: ["réglages", "plateforme"] });
+const ADMIN = entry({ id: "faq-admin-reglages", title: "Changer les réglages de la plateforme", audience: "administrator", topic: "plateforme", synonyms: ["réglages", "plateforme"] });
 const FIXTURE: HelpArticle[] = [
   entry({ id: "faq-reglages", title: "Où changer mes réglages ?", synonyms: ["réglages"] }),
   entry({ id: "tutorial-extension", kind: "tutorial", title: "Enregistrer une offre avec l'extension", topic: "extension", synonyms: ["extension", "offre"], body: "1. Ouvrez.\n2. Cliquez." }),
@@ -88,11 +88,12 @@ const DECOUVRIR_PAGES = ["page-what-is-jobbbox", "page-install-extension"];
 const DECOUVRIR_FAQ = ["faq-sign-in-link", "faq-plans-and-quotas", "faq-text-size-site", "faq-job-digest-unsubscribe", "faq-contact-us", "faq-data-and-ai"];
 
 describe("this build's Help Articles (#549)", () => {
-  it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`", () => {
+  it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`, a Back Office page's is an Administrator's", () => {
     const english = new Map(articles("en").map((found) => [found.id, found]));
     for (const found of articles("fr")) {
       expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
-      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id)) expect([found.id, found.audience]).toEqual([found.id, "candidate"]);
+      const backOffice = found.route?.startsWith("/admin") === true;
+      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id)) expect([found.id, found.audience]).toEqual([found.id, backOffice ? "administrator" : "candidate"]);
     }
   });
 
@@ -114,5 +115,36 @@ describe("this build's Help Articles (#549)", () => {
   it("answers « Où trouver l'aide de Jobbbox ? » for a Visitor, in the « decouvrir » topic", () => {
     const found = helpCentreArticle("decouvrir", "faq-where-to-find-help", "fr");
     expect([found?.title, found?.audience]).toEqual(["Où trouver l'aide de Jobbbox ?", "visitor"]);
+  });
+});
+
+describe("the Back Office's help (#551): the Administrators' articles, in the Back Office only", () => {
+  const PROVIDERS = entry({ id: "page-admin-outils", kind: "page", title: "Outils", audience: "administrator", topic: "fournisseurs-et-tools", route: "/admin/outils", synonyms: ["outil"] });
+  const AI = entry({ id: "faq-admin-ia", title: "Ce que fait l'IA", audience: "administrator", topic: "ia-et-conformite", synonyms: ["réglages"] });
+  const BACK_OFFICE = [...FIXTURE, AI, PROVIDERS];
+
+  it("lists its topics « Fournisseurs et Tools » first and « IA et conformité » last, each with its Administrator articles only", () => {
+    const topics = backOfficeHelpTopics("fr", BACK_OFFICE);
+    expect(topics[0]).toEqual({ topic: "fournisseurs-et-tools", articles: [PROVIDERS] });
+    expect(topics.at(-1)).toEqual({ topic: "ia-et-conformite", articles: [AI] });
+    expect(topics.flatMap((topic) => topic.articles).every((found) => found.audience === "administrator")).toBe(true);
+    expect(topics.find((topic) => topic.topic === "plateforme")?.articles).toEqual([ADMIN]);
+  });
+
+  it("serves an Administrator's article at /admin/aide/<topic>/<id>, never a public one", () => {
+    expect(backOfficeHelpArticle("plateforme", "faq-admin-reglages", "fr", BACK_OFFICE)).toBe(ADMIN);
+    expect(backOfficeHelpArticle("utiliser", "faq-reglages", "fr", BACK_OFFICE)).toBeNull();
+    expect(backOfficeHelpArticle("ia-et-conformite", "faq-admin-reglages", "fr", BACK_OFFICE)).toBeNull();
+  });
+
+  it("searches the Administrators' articles only in the `backOffice` scope, and never them elsewhere", () => {
+    expect(search("réglages", "fr", { scope: "backOffice", from: BACK_OFFICE })).toEqual([ADMIN, AI]);
+    expect(search("réglages", "fr", { from: BACK_OFFICE })).not.toContain(ADMIN);
+    expect(search("réglages", "fr", { scope: "coachPanel", from: BACK_OFFICE })).not.toContain(AI);
+  });
+
+  it("finds a Back Office section's article « Sur cette page » in its scope only", () => {
+    expect(articleFor("/admin/outils/brevo", "fr", { scope: "backOffice", from: BACK_OFFICE })).toBe(PROVIDERS);
+    expect(articleFor("/admin/outils", "fr", { scope: "public", from: BACK_OFFICE })).toBeNull();
   });
 });

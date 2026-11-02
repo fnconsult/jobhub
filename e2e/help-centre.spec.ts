@@ -12,7 +12,9 @@ import { newAddress } from "./support/mailbox";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const en = JSON.parse(readFileSync("packages/shared/src/i18n/locales/en.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
-const titleOf = (locale: "fr" | "en", id: string) => /^title: (.+)$/m.exec(readFileSync(`packages/help/articles/${locale}/${id}.md`, "utf8"))![1]!;
+/** An article's title, as its front matter gives it, quotes around it dropped (« "L'extension : l'installer" »). */
+const titleOf = (locale: "fr" | "en", id: string) =>
+  /^title: (.+)$/m.exec(readFileSync(`packages/help/articles/${locale}/${id}.md`, "utf8"))![1]!.replace(/^(["'])(.*)\1$/, "$2");
 const TUTORIAL = "tutorial-extension-save-job-offer";
 const WHERE = "faq-where-to-find-help";
 const TOPICS = ["decouvrir", "extension", "utiliser", "espace-coach"] as const;
@@ -160,6 +162,8 @@ test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
     await page.getByRole("contentinfo").getByRole("link", { name: fr.publicFooter.help.contact }).click();
     await expect(page).toHaveURL(`${origin}/aide/decouvrir/${CONTACT}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(titleOf("fr", CONTACT));
+    // Its metadata comes after a client-side navigation: wait for the page's title before axe reads it.
+    await expect(page).toHaveTitle(new RegExp(`^${titleOf("fr", CONTACT).replace(/[?]/g, "\\?")}`));
     const body = main(page).locator(".help-centre__body");
     await expect(body).toContainText(`« ${fr.signalement.question.title} »`);
     await expect(body).not.toContainText("{{contact-email}}");

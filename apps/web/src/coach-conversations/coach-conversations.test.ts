@@ -127,6 +127,55 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     ]);
   });
 
+  describe("its Context bar's figures (#607): its messages, and the jetons of the context its latest reply was sent", () => {
+    it("says them with each reply, and when the conversation reopens", async () => {
+      coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], contextTokens: 1_000 * n });
+      const first = await conversations.send(marie, { message: "Bonjour" });
+      if (!first.ok) throw new Error("refused");
+      const second = await conversations.send(marie, { conversationId: first.conversation.id, message: "Par où commencer ?" });
+
+      expect(first).toMatchObject({ context: { messages: 2, tokens: 1_000 } });
+      expect(second).toMatchObject({ context: { messages: 4, tokens: 2_000 } });
+      expect(await conversations.open(marie, first.conversation.id)).toMatchObject({ context: { messages: 4, tokens: 2_000 } });
+    });
+
+    it("keeps the latest reply's that was sent a context: a Job Offer link's reply was sent none", async () => {
+      coachReply = () => ({ ok: true, reply: "Réponse", outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], contextTokens: 3_100 });
+      const first = await conversations.send(marie, { message: "Bonjour" });
+      if (!first.ok) throw new Error("refused");
+      coachReply = () => ({ ok: true, reply: "J'ai lu l'offre.", outcome: "replied", cost: null, provenance: PROVENANCE, playbooks: [], consultations: [], contextTokens: null });
+
+      const linked = await conversations.send(marie, { conversationId: first.conversation.id, message: "https://example.fr/offre/42" });
+
+      expect(linked).toMatchObject({ context: { messages: 4, tokens: 3_100 } });
+    });
+
+    it("counts a question stopped before its reply, and says it when it was stopped", async () => {
+      coachReply = () => ({ ok: true, reply: "Réponse", outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], contextTokens: 2_500 });
+      const first = await conversations.send(marie, { message: "Bonjour" });
+      if (!first.ok) throw new Error("refused");
+      coachReply = () => ({ ok: false, error: "stopped", messagePassed: true });
+
+      const stopped = await conversations.send(marie, { conversationId: first.conversation.id, message: "Et ensuite ?" });
+
+      expect(stopped).toMatchObject({ ok: false, error: "stopped", context: { messages: 3, tokens: 2_500 } });
+    });
+
+    it("says them of a Subject's conversation too", async () => {
+      coachReply = () => ({ ok: true, reply: "Réponse", outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], contextTokens: 4_200 });
+      await conversations.send(marie, { subject: { kind: "menu", id: "agenda" }, message: "Mon agenda ?" });
+
+      expect(await conversations.ofSubject(marie, { kind: "menu", id: "agenda" })).toMatchObject({ ok: true, conversation: { context: { messages: 2, tokens: 4_200 } } });
+    });
+
+    it("has no jetons for a conversation whose replies were sent no context", async () => {
+      const first = await conversations.send(marie, { message: "Bonjour" });
+      if (!first.ok) throw new Error("refused");
+
+      expect(first).toMatchObject({ context: { messages: 2, tokens: 0 } });
+    });
+  });
+
   it("says when the AI Coach could not answer, so the Coach Panel offers the team at once (#345); never saved", async () => {
     coachReply = () => ({ ok: true, reply: "Je n'ai pas accès à vos paiements.", outcome: "replied", couldNotAnswer: true, cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [] });
     const unanswered = await conversations.send(marie, { message: "Pourquoi ai-je été prélevé deux fois ?" });

@@ -379,6 +379,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Les recruteurs utilisent des logiciels de recrutement (ATS) qui lisent votre CV avant une personne. L'ATS Score, sur 100, dit si ces logiciels liront bien votre CV de référence pour le métier visé.\n\nIl combine la lisibilité (coordonnées, titre, expériences datées…) et les mots-clés du métier. Il se calcule sans IA, par des règles fixes, et ne dépend d'aucune offre.\n\nLes corrections pour l'améliorer, elles, viennent de votre coach : vous les retrouvez dans les Propositions du profil."
     },
     {
+      "id": "glossary-conversation-context",
+      "locale": "fr",
+      "kind": "glossary",
+      "title": "Contexte de la conversation",
+      "synonyms": [
+        "contexte",
+        "contexte de la conversation",
+        "jetons",
+        "barre de contexte",
+        "le coach oublie",
+        "messages lus"
+      ],
+      "route": null,
+      "body": "Le contexte de la conversation, c'est ce que votre coach IA relit avant chaque réponse : les derniers messages de la conversation et ce qu'il sait de vous et de la page. « Activité », en haut de la page, le montre dans une barre : le nombre de messages de la conversation sur les 40 que le coach lit, et les jetons de son contexte sur le plafond de 12k. Un jeton est un petit morceau de texte, environ quatre caractères ; ce n'est pas votre quota.\n\nCes chiffres viennent de Jobbbox : ce sont ceux du contexte envoyé au coach pour sa dernière réponse. À partir de 80 %, la barre vous dit que le coach ne lit que les messages les plus récents et propose « Effacer la conversation » : après confirmation, tous les messages de la conversation sont supprimés, et la mémoire du coach reste."
+    },
+    {
       "id": "glossary-tailored-cv",
       "locale": "fr",
       "kind": "glossary",
@@ -1122,6 +1138,22 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\nWith the new layout, « Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
+    },
+    {
+      "id": "glossary-conversation-context",
+      "locale": "en",
+      "kind": "glossary",
+      "title": "Conversation context",
+      "synonyms": [
+        "context",
+        "conversation context",
+        "tokens",
+        "context bar",
+        "the coach forgets",
+        "messages read"
+      ],
+      "route": null,
+      "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of the 40 the coach reads, and the tokens of its context out of the 12k ceiling. A token is a small piece of text, about four characters; it is not your quota.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays."
     },
     {
       "id": "glossary-fiche",

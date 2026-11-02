@@ -17,6 +17,8 @@
  *  - `list` the Candidate's conversations, most recently active first;
  *  - `open` one with its messages; `rename` it; `delete` it;
  *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
+ * A conversation opened, and each `send`, say its Context bar's figures (#607, ADR-0070): its messages, and the jetons of the
+ * context its latest reply was sent, as the AI Coach estimated them (kept with each reply; none for a reply sent no context).
  * Every new conversation opens with the AI disclosure (#324, AI Act art. 50(1)): the AI Coach's fixed
  * first message saying it is an AI, not a person. It is fixed text, not an AI reply (no AI call, no
  * Plan Quota, no Coach Message Cost), so only the conversation records that it opened with it.
@@ -51,7 +53,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
-import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage, type JobOfferCard } from "../coach/conversation";
+import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage, type ConversationContext, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
@@ -91,6 +93,8 @@ export interface CoachConversation extends CoachConversationSummary {
    */
   aiDisclosure: boolean;
   messages: CoachMessage[];
+  /** Its Context bar's figures (#607). */
+  context: ConversationContext;
 }
 
 /**
@@ -98,6 +102,7 @@ export interface CoachConversation extends CoachConversationSummary {
  * `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date.
  * `couldNotAnswer`: the AI Coach marked the question as one it could not answer (#345), so the Coach Panel offers the team at
  * once; never saved, so a reopened conversation no longer says it.
+ * `context`: the conversation's Context bar's figures once the message is saved (#607).
  * `stopped` (#328): the Candidate stopped the reply; their message is saved in `conversation`, with no reply.
  * `unavailable`: the AI Coach could not answer, `reason` its Failure Reason; nothing is saved.
  */
@@ -111,8 +116,9 @@ export type SendResult =
       provenance: Provenance;
       at: string;
       couldNotAnswer: boolean;
+      context: ConversationContext;
     }
-  | { ok: false; error: "stopped"; conversation: CoachConversationSummary }
+  | { ok: false; error: "stopped"; conversation: CoachConversationSummary; context: ConversationContext }
   | { ok: false; error: "unavailable"; reason: FailureReason }
   | { ok: false; error: "invalid" | "not_found" };
 
@@ -369,6 +375,16 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     const row = await findRow(candidateId, conversationId);
     return row ? summaryFrom(row) : null;
   }
+  /** Its Context bar's figures: its messages, and the jetons of the context its latest reply was sent (0 when none was kept). */
+  async function contextOf(conversationId: string): Promise<ConversationContext> {
+    const { rows } = await database.query<ConversationContext>(
+      `SELECT count(*)::int AS messages,
+              coalesce((SELECT context_tokens FROM coach_message WHERE conversation_id = $1 AND context_tokens IS NOT NULL ORDER BY seq DESC LIMIT 1), 0) AS tokens
+         FROM coach_message WHERE conversation_id = $1`,
+      [conversationId],
+    );
+    return rows[0] ?? { messages: 0, tokens: 0 };
+  }
   async function findOfSubject(candidateId: string, subject: SubjectRef): Promise<ConversationRow | null> {
     const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.candidate_id = $1 AND c.subject_kind = $2 AND c.${SUBJECT_COLUMN[subject.kind]} = $3`, [
       candidateId,
@@ -483,7 +499,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           const passed = answer.ok ? answer.outcome === "replied" || answer.outcome === "blocked_reply" : answer.messagePassed;
           await save(candidateId, conversation, !existing, { message, blocked: false, unchecked: !passed }, null, now());
           const saved = await find(candidateId, conversation.id);
-          return saved ? { ok: false, error: "stopped", conversation: saved } : { ok: false, error: "not_found" };
+          return saved ? { ok: false, error: "stopped", conversation: saved, context: await contextOf(saved.id) } : { ok: false, error: "not_found" };
         }
 
         const sentAt = now();
@@ -508,6 +524,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           provenance: answer.provenance,
           at: sentAt.toISOString(),
           couldNotAnswer: answer.couldNotAnswer === true,
+          context: await contextOf(saved.id),
         };
       });
     },
@@ -522,7 +539,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async open(candidateId, conversationId) {
       const row = await findRow(candidateId, conversationId);
       if (!row) return null;
-      return { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null) };
+      return { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null), context: await contextOf(row.id) };
     },
 
     async ofSubject(candidateId, input) {
@@ -531,7 +548,10 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       if (!(await ownSubject(candidateId, parsed.data))) return { ok: false, error: "not_found" };
       const row = await findOfSubject(candidateId, parsed.data);
       if (!row) return { ok: true, conversation: null };
-      return { ok: true, conversation: { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null) } };
+      return {
+        ok: true,
+        conversation: { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null), context: await contextOf(row.id) },
+      };
     },
 
     async rename(candidateId, conversationId, title) {
@@ -603,8 +623,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const { cost } = answer;
         await client.query(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
-                                     provenance, focus_kind, focus_id)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                                     provenance, focus_kind, focus_id, context_tokens)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
           [
             id,
             answer.reply,
@@ -622,6 +642,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             JSON.stringify(answer.provenance),
             reply.focus?.kind ?? null,
             reply.focus && reply.focus.kind !== "agenda" ? reply.focus.id : null,
+            answer.contextTokens ?? null,
           ],
         );
       }
@@ -808,6 +829,9 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS coach_message_focus_idx ON coach_message (focus_kind, focus_id) WHERE focus_id IS NOT NULL;
     -- A question the Candidate stopped before the input Guardrails let it through (#328): shown, never sent to the AI Coach.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS unchecked boolean NOT NULL DEFAULT false;
+    -- The jetons of the context an AI Coach reply was sent, as the AI Coach estimated them (#607): its Context bar's; null
+    -- on the Candidate's messages, on a reply sent no context (a Job Offer link's) and on replies saved before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS context_tokens integer;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
     -- The conversations saved before they had a Subject are deleted, once, as it ships (ADR-0070): attached to a Profile with mixed

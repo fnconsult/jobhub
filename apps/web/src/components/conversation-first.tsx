@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { helpLocale, onThisPage } from "@/coach-help";
+import type { ConversationContext } from "@/coach/conversation";
 import { Icons } from "@/components/icons";
 import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
@@ -32,11 +33,13 @@ export const hasObjects = (key: string): key is SidebarMenuKey => (SIDEBAR_MENUS
  * once its first message saved it; `replying` while a reply is on its way, when it cannot be cleared; `clear` deletes every
  * message of it (« Effacer ») and resolves whether it did; `startNew` turns the page into a new Free conversation, as the
  * home page is, null on a menu's page (#604) or an object's (#603), which « Nouvelle conversation » leaves for the home page; `askAbout` starts,
- * in its box, a question about a Help Article, whose title goes with it (« Demander au coach » in the Work Pane, #602).
+ * in its box, a question about a Help Article, whose title goes with it (« Demander au coach » in the Work Pane, #602);
+ * `context`, its Context bar's figures as the server last said them (#607), null until it is saved.
  */
 export type PageConversation = {
   conversationId: string | null;
   replying: boolean;
+  context: ConversationContext | null;
   clear: () => Promise<boolean>;
   startNew: (() => void) | null;
   askAbout: (article: { id: string; title: string }) => void;
@@ -410,8 +413,9 @@ function FreeConversationItem({ conversation, current, onNavigate }: { conversat
  * « Annuler »), deletes every message of the page's conversation; Coach Memory stays. The page starts afresh, and the
  * Sidebar no longer lists it. Unavailable while a reply is on its way: the server saves the Candidate's message when the
  * reply ends or is stopped, which would leave it saved after clearing; « Arrêter » first, then « Effacer ».
+ * `inContextBar`: the same, offered by the Context bar once it is nearly full (#607), « Effacer la conversation ».
  */
-export function ClearConversationButton() {
+export function ClearConversationButton({ inContextBar = false }: { inContextBar?: boolean }) {
   const { t } = useTranslation();
   const conversationFirst = useConversationFirst();
   const page = conversationFirst?.page;
@@ -423,10 +427,16 @@ export function ClearConversationButton() {
   return (
     <ConfirmDialog
       trigger={
-        <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
-          <Icons.clear />
-          {t("conversationFirst.clear")}
-        </button>
+        inContextBar ? (
+          <button className={`${buttonClass({ variant: "quiet", size: "sm" })} context-bar-clear`} type="button" disabled={page.replying}>
+            {t("contextBar.clear")}
+          </button>
+        ) : (
+          <button className={`${buttonClass()} topbar-clear`} type="button" disabled={page.replying}>
+            <Icons.clear />
+            {t("conversationFirst.clear")}
+          </button>
+        )
       }
       title={t("conversationFirst.clearTitle")}
       confirmLabel={t("conversationFirst.clear")}

@@ -1305,7 +1305,7 @@ describe.skipIf(!connectionString)("worker jobs (needs Postgres: DATABASE_URL)",
       const database = throwaway.pool;
       await migrateUnansweredQuestions(database);
       await createUnansweredQuestions(database, { identityOf: async () => null }).notice("marie", {
-        question: "Où est passé le bouton vert ?",
+        question: "Où est passé le losange vert ?",
         reply: { text: "En haut à droite.", outcome: "replied", aboutJobbbox: true },
         language: "fr",
       });

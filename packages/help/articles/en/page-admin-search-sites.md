@@ -4,7 +4,7 @@ audience: administrator
 topic: fournisseurs-et-tools
 title: Sites and web search
 synonyms: [sites, search sites, sources, job discovery, web search, extension site, job site, badge, domain, enable a source, france travail, fantastic.jobs, email intake]
-route: /admin/parametres?tab=sources
+route: /admin/parametres?tab=sources|recherche-web|extension
 ---
 The sites Jobbbox goes through to find offers, and those where the extension shows its badge, are in three tabs of Settings. A change applies without a release: at the next search for the worker, within minutes to hours for the extension.
 

@@ -4,7 +4,7 @@ audience: administrator
 topic: fournisseurs-et-tools
 title: Sites et recherche web
 synonyms: [sites, sites de recherche, sources, recherche d'offres, job discovery, recherche web, site de l'extension, job site, badge, domaine, activer une source, france travail, fantastic.jobs, réception par email]
-route: /admin/parametres?tab=sources
+route: /admin/parametres?tab=sources|recherche-web|extension
 ---
 Les sites que Jobbbox parcourt pour trouver des offres, et ceux où l'extension affiche son badge, sont dans trois onglets de Paramètres. Une modification s'applique sans mise en production : à la prochaine recherche pour le worker, en quelques minutes à quelques heures pour l'extension.
 

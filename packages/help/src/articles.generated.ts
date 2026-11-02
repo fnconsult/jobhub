@@ -550,7 +550,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "fantastic.jobs",
         "réception par email"
       ],
-      "route": "/admin/parametres?tab=sources",
+      "route": "/admin/parametres?tab=sources|recherche-web|extension",
       "motion": null,
       "body": "Les sites que Jobbbox parcourt pour trouver des offres, et ceux où l'extension affiche son badge, sont dans trois onglets de Paramètres. Une modification s'applique sans mise en production : à la prochaine recherche pour le worker, en quelques minutes à quelques heures pour l'extension.\n\nL'onglet « Sources » liste les « Sources de la recherche d'offres » : l'API France Travail, l'API Fantastic.jobs, la recherche web, les API publiques des ATS et la réception par email. Chacune a son interrupteur (« Activer … », « Désactiver … ») et sa « Disponibilité » : une source désactivée est ignorée, une source sans sa clé ou son fournisseur est indisponible.\n\nL'onglet « Recherche web » choisit le « Fournisseur de recherche web » et son « Fournisseur de secours », montre les « Tâches IA de la recherche » et la liste « Sites de la recherche d'offres » : un site activé est cherché exprès, un site désactivé est ignoré quand il apparaît dans les résultats. Les sites qui interdisent l'exploration ne peuvent pas être ajoutés.\n\nL'onglet « Extension » liste les « Sites de l'extension », où le badge « Analyser cette offre » s'affiche. Un site intégré à l'extension se désactive mais ne se retire pas.\n\nLes super-admins et « Technique » changent les sources et les sites ; le Support les lit."
     },
@@ -2016,7 +2016,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "fantastic.jobs",
         "email intake"
       ],
-      "route": "/admin/parametres?tab=sources",
+      "route": "/admin/parametres?tab=sources|recherche-web|extension",
       "motion": null,
       "body": "The sites Jobbbox goes through to find offers, and those where the extension shows its badge, are in three tabs of Settings. A change applies without a release: at the next search for the worker, within minutes to hours for the extension.\n\nThe « Sources » tab lists the « Job discovery sources »: the France Travail API, the Fantastic.jobs API, web search, the public ATS APIs and Email intake. Each has its switch (« Enable … », « Disable … ») and its « Availability »: a disabled source is skipped, a source without its key or provider is unavailable.\n\nThe « Web search » tab chooses the « Web search provider » and its « Fallback provider », shows the « Search AI tasks » and the « Job discovery sites » list: an enabled site is searched on purpose, a disabled one is skipped when it shows up in the results. Sites that forbid crawling cannot be added.\n\nThe « Extension » tab lists the « Extension sites », where the « Analyse this offer » badge shows. A site built into the extension can be disabled, not removed.\n\nSuper-admins and « Technique » change the sources and the sites; Support reads them."
     },

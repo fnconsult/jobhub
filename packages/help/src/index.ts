@@ -36,6 +36,7 @@ export {
   type LegalTextVersionRecord,
 } from "./legal-texts";
 export { CONTACT_EMAIL_TOKEN, fillContactEmail } from "./contact";
+export { routeAddresses } from "./route-addresses";
 export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
   MOTION_FILES,
@@ -308,7 +309,8 @@ export function article(id: string, locale: HelpLocale): HelpArticle | null {
  * (`/candidatures/0b6c…/documents?vue=liste`). A page's Sections get the article of their page; when two
  * patterns match, the one with more segments, then more fixed ones, wins (`/profils/nouveau` over `/profils/[id]`).
  * A pattern may name query parameters (`/admin/parametres?tab=connexion`, a tab of Paramètres, #557): it matches only an
- * address holding each of them with that value, and wins over the same pattern without them.
+ * address holding each of them with that value, or one of the values `|` separates (`?tab=sources|extension`), and
+ * wins over the same pattern without them.
  * With `scope`, only an article of that scope (`backOffice`: an Administrator's, « Sur cette page » in the Back Office).
  * Null for a page without an article.
  */
@@ -322,7 +324,7 @@ export function articleFor(route: string, locale: HelpLocale, { scope, from = AR
     const [patternAddress = "", patternQuery = ""] = entry.route.split("?");
     const pattern = segments(patternAddress);
     const wanted = [...new URLSearchParams(patternQuery)];
-    if (!patternMatches(pattern, path) || !wanted.every(([name, value]) => params.get(name) === value)) continue;
+    if (!patternMatches(pattern, path) || !wanted.every(([name, values]) => values.split("|").includes(params.get(name) ?? ""))) continue;
     const rank = [pattern.length, pattern.filter((segment) => !isDynamic(segment)).length, wanted.length];
     if (!best || outranks(rank, best.rank)) best = { entry, rank };
   }

@@ -170,7 +170,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     await candidate.context().close();
   });
 
-  test("« Fournisseurs et Tools » (#557): Paramètres, its Connexion and Sources tabs and Outils show their article « Sur cette page »; its 16 articles lead /admin/aide, never public", async ({ page, browser }) => {
+  test("« Fournisseurs et Tools » (#557): Paramètres, its Connexion, Sources and Extension tabs and Outils show their article « Sur cette page »; its 16 articles lead /admin/aide, never public", async ({ page, browser }) => {
     // Its own super-admin: a fresh conversation, so the assistant opens on its help.
     await signInWithMagicLink(page, "providers-help-office@e2e.jobbbox.test");
     const onThisPage = async (path: string, title: string) => {
@@ -183,6 +183,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     await onThisPage("/admin/parametres", "Paramètres");
     await onThisPage("/admin/parametres?tab=connexion", "Connexion");
     await onThisPage("/admin/parametres?tab=sources", "Sites et recherche web");
+    await onThisPage("/admin/parametres?tab=extension", "Sites et recherche web");
     await onThisPage("/admin/outils", "Outils");
 
     // Suggested while typing, without AI, and opened as a card.
@@ -198,9 +199,25 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     // /admin/aide: the topic comes first and lists its 16 articles.
     await page.goto("/admin/aide/fournisseurs-et-tools");
     const main = page.getByRole("main");
-    for (const title of ["Paramètres", "Outils", "Connexion", "Sites et recherche web", "Activer un destinataire hors UE", "Configurer Stripe et Brevo", "Comment lire une raison d'échec ?"]) {
-      await expect(main.getByRole("link", { name: title, exact: true })).toBeVisible();
-    }
+    const titles = [
+      "Paramètres",
+      "Outils",
+      "Connexion",
+      "Sites et recherche web",
+      "Ajouter un fournisseur et le rendre actif",
+      "Remplacer ou effacer une clé de fournisseur",
+      "Changer le fournisseur ou le modèle d'une tâche IA",
+      "Activer un destinataire hors UE",
+      "Configurer un fournisseur de connexion, puis exiger le SSO",
+      "Ajouter un site de l'extension ou une source de la recherche d'offres",
+      "Activer l'enrichissement de contacts et son DPA",
+      "Configurer Stripe et Brevo",
+      "Pourquoi un outil est-il « En attente d'accès » ?",
+      "Comment lire une raison d'échec ?",
+      "Quel rôle change quoi dans les fournisseurs et les outils ?",
+      "Que faire d'une variable d'environnement qui n'est plus lue ?",
+    ];
+    for (const title of titles) await expect(main.getByRole("link", { name: title, exact: true })).toBeVisible();
     await main.getByRole("link", { name: "Changer le fournisseur ou le modèle d'une tâche IA", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Changer le fournisseur ou le modèle d'une tâche IA");
     await expect(page.getByRole("main")).toContainText("Règle de résidence des données");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { article, articleFor, articles } from "./index";
+import { article, articleFor, articles, routeAddresses } from "./index";
 
 describe("articles — every Help Article in one language", () => {
   it("returns the page articles, then the glossary, then the frequent questions, all in that language", () => {
@@ -86,6 +86,17 @@ describe("articleFor — the Help Article of the page in view", () => {
     expect(articleFor("/admin/parametres?tab=sources", "fr", { from })?.id).toBe("settings");
     expect(articleFor("/admin/parametres?vue=liste&tab=sources", "fr", { from })?.id).toBe("both");
     expect(articleFor("/admin/parametres/autre?tab=connexion", "fr", { from })?.id).toBe("sign-in");
+    // One of the values `|` separates.
+    const sites = [...from, page("sites", "/admin/parametres?tab=recherche-web|extension")];
+    expect(articleFor("/admin/parametres?tab=extension", "fr", { from: sites })?.id).toBe("sites");
+    expect(articleFor("/admin/parametres?tab=recherche-web", "fr", { from: sites })?.id).toBe("sites");
+    expect(articleFor("/admin/parametres?tab=recherche-web|extension", "fr", { from: sites })?.id).toBe("settings");
+  });
+
+  it("names each address a route explains, its parameters in order, so two articles never explain one (#557)", () => {
+    expect(routeAddresses("/admin/parametres")).toEqual(["/admin/parametres"]);
+    expect(routeAddresses("/admin/parametres?vue=liste&tab=sources|extension")).toEqual(["/admin/parametres?tab=sources&vue=liste", "/admin/parametres?tab=extension&vue=liste"]);
+    expect(routeAddresses("/admin/parametres?tab=sources&vue=liste")).toEqual(routeAddresses("/admin/parametres?vue=liste&tab=sources"));
   });
 
   it("explains the sign-in page and Mon compte's Outils to a Visitor (#552)", () => {

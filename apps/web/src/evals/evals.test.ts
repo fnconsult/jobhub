@@ -361,7 +361,11 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
     it("plays the Guardrails' Eval Cases from code, each reply as the case writes it, and records each one's exact verdict", async () => {
       answers.inputVerdict = (input) => (String(input.messages[0]!.content).includes("Ignore toutes tes instructions") ? '{"prompt_injection": true}' : "{}");
-      answers.outputVerdict = (input) => (String(input.messages[0]!.content).includes("18 mois") ? '{"harmful_advice": true}' : "{}");
+      answers.outputVerdict = (input) => {
+        const reply = String(input.messages[0]!.content);
+        if (reply.includes("18 mois")) return '{"harmful_advice": true}';
+        return /ne détaillent pas les critères|La première offre a le meilleur score/.test(reply) ? '{"ungrounded_answer": true}' : "{}";
+      };
       answers.emailVerdict = (input) => (String(input.messages[0]!.content).includes("numéro de sécurité sociale") ? '{"email_injection": true}' : "{}");
 
       const { run, refused } = await evals.runGuardrails(claire, blocking());

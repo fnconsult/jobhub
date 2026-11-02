@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { publishReleases, renderRelease, type Release, RELEASES_DIR, versionTags } from "./publish-releases";
+import { PULL_REQUESTS_MARK, publishedPullRequests, publishReleases, renderRelease, type Release, RELEASES_DIR, versionTags } from "./publish-releases";
 
 const fixture = (locale: string) => readFileSync(path.resolve(RELEASES_DIR, locale, "0.1.0.md"), "utf8");
 const note = (title: string, text: string) => `---\nversion: 0.0.0\ndate: 2026-11-02\ntitle: ${title}\ntags: [candidature]\n---\n${text}\n\n## Nouveau\n- **Une ligne** : ${text}\n`;
@@ -27,7 +27,7 @@ describe("renderRelease — what a Version's GitHub Release says (#561)", () => 
     expect(renderRelease("v0.1.1", { fr: null, en: null }, "## What's Changed\n* Fix by @someone in #700\n")).toEqual({
       tag: "v0.1.1",
       name: "v0.1.1 (technique)",
-      body: "## What's Changed\n* Fix by @someone in #700\n",
+      body: `${PULL_REQUESTS_MARK}\n## What's Changed\n* Fix by @someone in #700\n`,
       technical: true,
     });
     expect(renderRelease("v0.1.1", { fr: null, en: null }, "").body).toMatch(/Aucune pull request/);
@@ -120,15 +120,26 @@ describe("publishReleases — on a real git repo, with a fake GitHub (#561)", ()
     expect(body.indexOf("# Première version")).toBe(0);
     expect(body.indexOf("# First version")).toBeGreaterThan(0);
     expect(body.indexOf("* Changes up to v0.1.0")).toBeGreaterThan(body.indexOf("# First version"));
-    expect(writes[1]!.payload.body).toBe("## What's Changed\n* Changes up to v0.1.1\n");
+    expect(writes[1]!.payload.body).toBe(`${PULL_REQUESTS_MARK}\n## What's Changed\n* Changes up to v0.1.1\n`);
     expect(JSON.stringify(writes)).not.toContain("0.1.2");
   });
 
   it("creates no duplicate when run again, and updates a Release that differs", () => {
     publishReleases(deps, options);
     writes = [];
+    generated = [];
     expect(publishReleases(deps, options).actions.map((action) => action.kind)).toEqual(["unchanged", "unchanged"]);
     expect(writes).toEqual([]);
+    // A published Release keeps its list of pull requests: it is not generated again.
+    expect(generated).toEqual([]);
+    expect(publishedPullRequests(releases[1])).toBe("## What's Changed\n* Changes up to v0.1.1");
+
+    releases[1]!.name = "renamed by hand";
+    releases[1]!.draft = true;
+    expect(publishReleases(deps, options).actions.map((action) => action.kind)).toEqual(["unchanged", "update"]);
+    expect(writes).toEqual([{ method: "PATCH", endpoint: "repos/fnconsult/jobhub/releases/2", payload: { name: "v0.1.1 (technique)", body: expect.stringContaining("Changes up to v0.1.1"), draft: false } }]);
+    expect(generated).toEqual([]);
+    writes = [];
 
     releases[0]!.body = "edited by hand";
     expect(publishReleases(deps, options).actions.map((action) => action.kind)).toEqual(["update", "unchanged"]);
@@ -136,9 +147,28 @@ describe("publishReleases — on a real git repo, with a fake GitHub (#561)", ()
     expect(releases).toHaveLength(2);
   });
 
-  it("in dry-run, says what it would publish and writes nothing", () => {
+  it("in dry-run, says what it would publish and writes nothing, even when GitHub refuses it the list of pull requests", () => {
     expect(publishReleases(deps, { ...options, dryRun: true }).actions.map((action) => action.kind)).toEqual(["create", "create"]);
     expect(writes).toEqual([]);
+
+    const readOnly = { ...deps, run: (command: "git" | "gh", args: string[], input?: string) => {
+      if (args.some((arg) => arg.endsWith("/generate-notes"))) throw new Error("HTTP 403: Resource not accessible by integration");
+      return deps.run(command, args, input);
+    } };
+    const outcome = publishReleases(readOnly, { ...options, dryRun: true });
+    expect(outcome.actions.map((action) => action.kind)).toEqual(["create", "create"]);
+    expect(outcome.actions[1]!.wanted.body).toContain("non lue en dry-run");
+    expect(() => publishReleases(readOnly, options)).toThrow(/403/);
+  });
+
+  it("run on an older ref, checks only the tags it descends from", () => {
+    write(`${RELEASES_DIR}/fr/0.1.2.md`, note("Suivante", "Publiée"));
+    commit("0.1.2");
+    git("tag", "-a", "v0.1.2", "-m", "Version 0.1.2");
+    git("checkout", "-q", "v0.1.1");
+    const outcome = publishReleases(deps, { ...options, dryRun: true });
+    expect(outcome.problems).toEqual([]);
+    expect(outcome.actions.map((action) => action.wanted.name)).toEqual(["v0.1.0 — Première version", "v0.1.1 (technique)", "v0.1.2 — Suivante"]);
   });
 
   it("fails, and publishes nothing, when a tagged Version's Release Note is edited, removed or added", () => {

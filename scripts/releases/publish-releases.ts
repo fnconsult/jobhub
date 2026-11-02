@@ -6,11 +6,13 @@
  *   Release says the French text, then the English, then the pull requests since the previous tag.
  * - A tag with no Release Note: a technical Release, « vX.Y.Z (technique) », with the list of pull requests alone.
  * - A Release Note with no tag (the next Version, on the Beta): nothing.
- * - A Release that already says what it should is left alone, so running it again creates no duplicate.
+ * - A Release that already says what it should is left alone, so running it again creates no duplicate; one that differs
+ *   is corrected, keeping the list of pull requests it was published with, and a draft is published.
  * - A Release Note is never changed after its Promotion: when the checked-out tree's note of a tagged Version differs
  *   from the tag's, it publishes nothing and fails.
  */
 import { parseFrontmatter } from "../../packages/help/src/content";
+import { compareVersions } from "../../packages/help/src/release-notes";
 
 export const RELEASES_DIR = "packages/help/releases";
 const LOCALES = ["fr", "en"] as const;
@@ -29,20 +31,27 @@ export type Options = {
   dryRun: boolean;
 };
 
-export type Release = { id: number; tag_name: string; name: string | null; body: string | null };
+export type Release = { id: number; tag_name: string; name: string | null; body: string | null; draft?: boolean };
 export type Wanted = { tag: string; name: string; body: string; technical: boolean };
 export type Action = { kind: "create" | "update" | "unchanged"; wanted: Wanted; release?: Release };
 export type Outcome = { problems: string[]; actions: Action[] };
 
 /** The Version tags `vX.Y.Z`, oldest Version first. */
 export function versionTags(tags: string[]): string[] {
-  const parts = (tag: string) => VERSION_TAG.exec(tag)!.slice(1).map(Number);
-  return tags
-    .filter((tag) => VERSION_TAG.test(tag))
-    .sort((a, b) => {
-      const [x, y] = [parts(a), parts(b)];
-      return x[0]! - y[0]! || x[1]! - y[1]! || x[2]! - y[2]!;
-    });
+  return tags.filter((tag) => VERSION_TAG.test(tag)).sort((a, b) => compareVersions(a.slice(1), b.slice(1)));
+}
+
+/**
+ * Starts the list of pull requests in a Release's body. Once published, a Release keeps the list it was given: GitHub
+ * would generate it differently later (an edited title, a new category), and an old Release is not rewritten for that.
+ */
+export const PULL_REQUESTS_MARK = "<!-- pull-requests -->";
+
+/** The list of pull requests a published Release already carries, after its mark; null without one. */
+export function publishedPullRequests(release: Release | undefined): string | null {
+  const body = (release?.body ?? "").replace(/\r\n/g, "\n");
+  const at = body.lastIndexOf(PULL_REQUESTS_MARK);
+  return at < 0 ? null : body.slice(at + PULL_REQUESTS_MARK.length).trim();
 }
 
 const notePath = (locale: string, version: string) => `${RELEASES_DIR}/${locale}/${version}.md`;
@@ -59,7 +68,7 @@ function noteSection(markdown: string): string {
  * when the tag has none); `pullRequests` is GitHub's generated list of what was merged since the previous tag.
  */
 export function renderRelease(tag: string, notes: { fr: string | null; en: string | null }, pullRequests: string): Wanted {
-  const list = pullRequests.trim() || "_Aucune pull request depuis la Version précédente. / No pull request since the previous Version._";
+  const list = `${PULL_REQUESTS_MARK}\n${pullRequests.trim() || "_Aucune pull request depuis la Version précédente. / No pull request since the previous Version._"}`;
   if (!notes.fr && !notes.en) return { tag, name: `${tag} (technique)`, body: `${list}\n`, technical: true };
   const sections = LOCALES.map((locale) => notes[locale]).filter((note): note is string => Boolean(note)).map(noteSection);
   const title = parseFrontmatter(notes.fr ?? notes.en!).frontmatter.title;
@@ -73,9 +82,9 @@ export function renderRelease(tag: string, notes: { fr: string | null; en: strin
 
 const normalise = (text: string | null | undefined) => (text ?? "").replace(/\r\n/g, "\n").trim();
 
-/** Whether `release` already says what `wanted` says. */
+/** Whether `release` already says what `wanted` says, published (a draft is not). */
 export function upToDate(release: Release, wanted: Wanted): boolean {
-  return normalise(release.name) === normalise(wanted.name) && normalise(release.body) === normalise(wanted.body);
+  return !release.draft && normalise(release.name) === normalise(wanted.name) && normalise(release.body) === normalise(wanted.body);
 }
 
 /** Tries `run`; null when it throws. */
@@ -110,12 +119,13 @@ export function changedPublishedNotes(deps: Deps, tags: string[]): string[] {
 
 /** Every Release of the repo, by tag. */
 function releasesByTag(deps: Deps, repo: string): Map<string, Release> {
-  const lines = deps.run("gh", ["api", "--paginate", `repos/${repo}/releases`, "--jq", ".[] | {id, tag_name, name, body}"]);
+  const lines = deps.run("gh", ["api", "--paginate", `repos/${repo}/releases`, "--jq", ".[] | {id, tag_name, name, body, draft}"]);
   const releases = lines
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => JSON.parse(line) as Release);
-  return new Map(releases.map((release) => [release.tag_name, release]));
+  // The published one first, should a tag have a draft beside it.
+  return new Map(releases.sort((a, b) => Number(b.draft ?? false) - Number(a.draft ?? false)).map((release) => [release.tag_name, release]));
 }
 
 /** GitHub's list of the pull requests merged between `previous` (or the start) and `tag`. */
@@ -128,7 +138,9 @@ function generatedNotes(deps: Deps, repo: string, tag: string, previous: string 
 export function publishReleases(deps: Deps, options: Options): Outcome {
   const tags = versionTags(deps.run("git", ["tag", "--list", "v*"]).split("\n").map((tag) => tag.trim()));
 
-  const problems = changedPublishedNotes(deps, tags);
+  // Only the tags HEAD descends from: a run on an older ref does not carry the later Versions' notes.
+  const merged = new Set(deps.run("git", ["tag", "--list", "v*", "--merged", "HEAD"]).split("\n").map((tag) => tag.trim()));
+  const problems = changedPublishedNotes(deps, tags.filter((tag) => merged.has(tag)));
   if (problems.length) {
     for (const problem of problems) deps.log(`✗ ${problem}`);
     return { problems, actions: [] };
@@ -141,12 +153,14 @@ export function publishReleases(deps: Deps, options: Options): Outcome {
   tags.forEach((tag, index) => {
     const version = tag.slice(1);
     const [fr, en] = LOCALES.map((locale) => attempt(() => deps.run("git", ["show", `${tag}:${notePath(locale, version)}`])));
-    // GitHub generates the list only for a token that may write the repo's contents; a pull request's dry-run has none.
-    const pullRequests = options.dryRun
-      ? (attempt(() => generatedNotes(deps, options.repo, tag, tags[index - 1])) ?? "_(liste des pull requests non lue en dry-run)_")
-      : generatedNotes(deps, options.repo, tag, tags[index - 1]);
-    const wanted = renderRelease(tag, { fr: fr ?? null, en: en ?? null }, pullRequests);
     const release = existing.get(tag);
+    // GitHub generates the list only for a token that may write the repo's contents; a pull request's dry-run has none.
+    const pullRequests =
+      publishedPullRequests(release) ??
+      (options.dryRun
+        ? (attempt(() => generatedNotes(deps, options.repo, tag, tags[index - 1])) ?? "_(liste des pull requests non lue en dry-run)_")
+        : generatedNotes(deps, options.repo, tag, tags[index - 1]));
+    const wanted = renderRelease(tag, { fr: fr ?? null, en: en ?? null }, pullRequests);
     const kind = !release ? "create" : upToDate(release, wanted) ? "unchanged" : "update";
     actions.push({ kind, wanted, release });
 
@@ -159,7 +173,7 @@ export function publishReleases(deps: Deps, options: Options): Outcome {
       const payload = { tag_name: tag, name: wanted.name, body: wanted.body, draft: false, prerelease: false, make_latest: tag === latest ? "true" : "false" };
       deps.run("gh", ["api", "-X", "POST", `repos/${options.repo}/releases`, "--input", "-"], JSON.stringify(payload));
     } else {
-      deps.run("gh", ["api", "-X", "PATCH", `repos/${options.repo}/releases/${release!.id}`, "--input", "-"], JSON.stringify({ name: wanted.name, body: wanted.body }));
+      deps.run("gh", ["api", "-X", "PATCH", `repos/${options.repo}/releases/${release!.id}`, "--input", "-"], JSON.stringify({ name: wanted.name, body: wanted.body, draft: false }));
     }
   });
   return { problems: [], actions };

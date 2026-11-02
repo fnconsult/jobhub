@@ -886,6 +886,47 @@ textarea.input {
   margin-inline: auto;
 }
 
+/* The welcome panel (the AI disclosure, the page's Introduction and the help): a card its ✕ closes for good; the
+   « Coach IA » badge by the box opens it again, in a dialog. */
+.page-conversation-thread .welcome-panel {
+  position: relative;
+  padding: var(--space-4) calc(var(--space-4) + var(--size-control)) var(--space-4) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.welcome-panel-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: max(44px, var(--size-control));
+  height: max(44px, var(--size-control));
+  padding: 0;
+  color: var(--color-secondary);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+}
+
+.welcome-panel-close:hover {
+  color: var(--color-text);
+  background: var(--color-hover);
+}
+
+/* « Coach IA », a button that shows the welcome panel again. */
+button.coach-panel-badge {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.coach-panel-badge:hover {
+  text-decoration: underline;
+}
+
 .page-conversation-thread {
   flex: 1;
   padding-bottom: var(--space-6);

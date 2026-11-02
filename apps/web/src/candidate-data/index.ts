@@ -277,6 +277,8 @@ export interface CandidateDataExport {
   appointmentReminders: ExportedAppointmentReminders;
   /** Every Coach Conversation, most recently active first. */
   coachConversations: ExportedCoachConversation[];
+  /** When the Candidate closed the conversations' welcome panel for good, or null while it still shows. */
+  coachWelcome: { closedAt: Date | null };
   /** As an Administrator: every Back Office Assistant conversation, most recently active first. */
   backOfficeAssistantConversations: ExportedAssistantConversation[];
   /** The Human Coaches the Candidate granted Coach Access to, oldest first. */
@@ -373,6 +375,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   follow_up_delay: "followUpDelays",
   appointment_reminder_setting: "appointmentReminders.enabled and changedAt",
   appointment_reminder: "appointmentReminders.sent",
+  coach_welcome_closed: "coachWelcome.closedAt",
   legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
   profile: "profiles",
@@ -707,7 +710,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -733,6 +736,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
+        rowOf<{ closedAt: Date }>(`SELECT closed_at AS "closedAt" FROM coach_welcome_closed WHERE candidate_id = $1`, candidateId),
         exportCoachConversations(candidateId),
         exportAssistantConversations(candidateId),
         rowsOf<CandidateDataExport["coachAccess"][number]>(
@@ -773,7 +777,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

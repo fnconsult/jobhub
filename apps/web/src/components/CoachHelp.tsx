@@ -80,11 +80,14 @@ export function HelpIntro({
   locale,
   onOpen,
   howThisPageWorks = false,
+  oftenAsked: showOftenAsked = true,
 }: {
   pathname: string;
   locale: HelpLocale;
   onOpen: (article: HelpArticle) => void;
   howThisPageWorks?: boolean;
+  /** « Souvent demandé »: the help's general questions; none on a page with its own suggestions (an object's, a menu's). */
+  oftenAsked?: boolean;
 }) {
   const { t } = useTranslation();
   const here = onThisPage(pathname, locale);
@@ -109,17 +112,19 @@ export function HelpIntro({
           </button>
         </section>
       ) : null}
-      <section className="help-intro-section">
-        <h3>{t("coachPanel.help.oftenAsked")}</h3>
-        {/* Buttons, not a list: inside the conversation's first message, a list would read as more messages. */}
-        <div className="help-chips">
-          {oftenAsked(locale).map((article) => (
-            <button key={article.id} type="button" className="button help-chip" onClick={() => onOpen(article)}>
-              {article.title}
-            </button>
-          ))}
-        </div>
-      </section>
+      {showOftenAsked ? (
+        <section className="help-intro-section">
+          <h3>{t("coachPanel.help.oftenAsked")}</h3>
+          {/* Buttons, not a list: inside the conversation's first message, a list would read as more messages. */}
+          <div className="help-chips">
+            {oftenAsked(locale).map((article) => (
+              <button key={article.id} type="button" className="button help-chip" onClick={() => onOpen(article)}>
+                {article.title}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

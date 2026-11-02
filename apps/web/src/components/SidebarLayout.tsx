@@ -62,6 +62,7 @@ export function SidebarLayout({
   freeConversations,
   menus,
   fiche = null,
+  welcomeClosed = false,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -77,6 +78,8 @@ export function SidebarLayout({
   freeConversations: readonly FreeConversation[];
   menus?: SidebarMenus | undefined;
   fiche?: FicheContent | null;
+  /** Whether the Candidate closed the conversations' welcome panel for good. */
+  welcomeClosed?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -166,7 +169,7 @@ export function SidebarLayout({
     </AiActivityProvider>
   );
   return (
-    <ConversationFirstProvider conversations={freeConversations} {...(menus ? { menus } : {})}>
+    <ConversationFirstProvider conversations={freeConversations} welcomeClosed={welcomeClosed} {...(menus ? { menus } : {})}>
       <WorkPaneProvider version={version}>
         <PageHelpProvider>
           <FicheProvider object={fiche !== null}>

@@ -218,6 +218,34 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
   });
 
   // #602 (ADR-0070): the Work Pane beside the conversation, never over it, where the help and the Candidate's forms open.
+  test("the welcome panel closes for good, on the account; the « Coach IA » badge shows it again in a dialog", async ({ browser }) => {
+    const email = newAddress("welcome-panel");
+    const page = await signedIn(browser, email);
+    await page.goto("/");
+    await expect(conversation(page)).toContainText(fr.coachPanel.aiDisclosure);
+
+    await conversation(page).getByRole("button", { name: texts.closeWelcome }).click();
+    await expect(conversation(page)).not.toContainText(fr.coachPanel.aiDisclosure);
+    await expect(conversation(page).getByRole("textbox", { name: fr.coachPanel.messageLabel })).toBeFocused();
+
+    // Remembered on the account: another browser, signed in as the same Candidate, does not show it either.
+    const elsewhere = await signedIn(browser, email);
+    await elsewhere.goto("/");
+    await expect(conversation(elsewhere).getByRole("textbox", { name: fr.coachPanel.messageLabel })).toBeVisible();
+    await expect(conversation(elsewhere)).not.toContainText(fr.coachPanel.aiDisclosure);
+
+    // The badge by the box opens it again, AI disclosure included; « Fermer » gives the focus back to the badge.
+    const badge = conversation(elsewhere).getByRole("button", { name: texts.welcomeOpen });
+    await badge.click();
+    const dialog = elsewhere.getByRole("dialog", { name: texts.welcomeTitle });
+    await expect(dialog).toContainText(fr.coachPanel.aiDisclosure);
+    await dialog.getByRole("button", { name: fr.coachPanel.close, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(badge).toBeFocused();
+    await elsewhere.context().close();
+    await page.context().close();
+  });
+
   test("the help opens in the Work Pane: suggestions while typing, « Comment marche cette page ? », « Demander au coach »", async ({ browser }) => {
     const page = await signedIn(browser, newAddress("work-pane-help"));
     await page.goto("/");

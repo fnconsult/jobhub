@@ -4976,6 +4976,9 @@
     "sessionsNone": "Aucune séance de coaching pour l'instant."
   },
   "conversationFirst": {
+    "closeWelcome": "Ne plus afficher cette présentation",
+    "welcomeTitle": "Votre coach IA",
+    "welcomeOpen": "Le Coach IA : qui il est, ce qu'il voit",
     "newConversation": "Nouvelle conversation",
     "coach": "Coach",
     "actions": "Actions pour « {{title}} »",

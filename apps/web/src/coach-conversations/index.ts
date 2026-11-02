@@ -152,6 +152,10 @@ export interface CoachConversations {
   rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
   delete(candidateId: string, conversationId: string): Promise<boolean>;
+  /** Whether the Candidate closed the conversations' welcome panel (the AI disclosure and the page's introduction): never shown again. */
+  welcomeClosed(candidateId: string): Promise<boolean>;
+  /** Closes the welcome panel for good; the « Coach IA » badge still shows it. Closing it again changes nothing. */
+  closeWelcome(candidateId: string): Promise<void>;
   /**
    * The Candidate's AI Coach replies whose Focus is `focus` (one of the six kinds In view; the Agenda whatever its id), from any of their
    * conversations, oldest first: when each was saved and its Provenance (a partial one for a reply saved before, null when
@@ -585,6 +589,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       const { rowCount } = await database.query(`DELETE FROM coach_conversation WHERE id = $1 AND candidate_id = $2`, [conversationId, candidateId]);
       return rowCount === 1;
     },
+
+    async welcomeClosed(candidateId) {
+      const { rows } = await database.query(`SELECT 1 FROM coach_welcome_closed WHERE candidate_id = $1`, [candidateId]);
+      return rows.length > 0;
+    },
+
+    async closeWelcome(candidateId) {
+      await database.query(`INSERT INTO coach_welcome_closed (candidate_id, closed_at) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [candidateId, now()]);
+    },
   };
 
   /**
@@ -857,5 +870,11 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS coach_conversation_subject_idx
       ON coach_conversation (candidate_id, subject_kind, (coalesce(application_id::text, job_search_id::text, job_digest_id::text, subject_menu, profile_id::text)))
       WHERE subject_kind IS NOT NULL;
+    -- The Candidate closed the conversations' welcome panel (the AI disclosure and the page's introduction): never shown
+    -- again, the « Coach IA » badge showing it on demand.
+    CREATE TABLE IF NOT EXISTS coach_welcome_closed (
+      candidate_id text PRIMARY KEY REFERENCES candidate (id) ON DELETE CASCADE,
+      closed_at timestamptz NOT NULL
+    );
   `);
 }

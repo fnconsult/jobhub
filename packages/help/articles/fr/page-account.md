@@ -3,10 +3,10 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon compte
-synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, abonnement]
+synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, abonnement, sécurité, vérification en deux étapes, codes de secours, application d'authentification]
 route: /compte
 ---
-Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
+Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Sécurité, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
 
 Profils liste vos profils actifs, puis les archivés. Abonnement montre votre offre et ce que vous en avez utilisé cette semaine : il a son propre article, Mon abonnement.
 
@@ -17,6 +17,8 @@ Réception par email permet de recevoir dans Jobbbox les offres de vos alertes d
 IA européenne : avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'active, « Retirer mon accord » l'arrête, à tout moment ; la rubrique indique la date de votre accord.
 
 Connexion montre l'adresse e-mail de votre compte et les moyens de vous connecter.
+
+Sécurité gère la vérification en deux étapes, désactivée tant que vous ne l'activez pas. « Activer » affiche un QR code et la clé à saisir dans votre application d'authentification ; saisissez le « Code affiché par l'application » puis cliquez sur « Confirmer ». Vos 10 codes de secours s'affichent alors une seule fois : « Copier » ou « Télécharger » pour les garder, puis « J'ai gardé mes codes ». Ensuite, chaque connexion par lien magique vous demande un code avant d'ouvrir Jobbbox ; une connexion avec un fournisseur, comme Google, ne le demande pas. La rubrique indique depuis quand la vérification est activée, la date d'ajout et de dernière utilisation de l'application et des codes, et le nombre de codes restants. « Régénérer les codes de secours » en donne 10 nouveaux, les anciens ne fonctionnant plus ; « Désactiver » l'arrête. Pour l'un comme l'autre, si votre dernière vérification date de plus de 10 minutes, la rubrique vous demande d'abord un code. Un e-mail vous prévient quand la vérification est activée ou désactivée.
 
 Dans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir.
 

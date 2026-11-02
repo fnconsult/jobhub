@@ -253,3 +253,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | As long as the Candidate's account: deleted with it (`ON DELETE CASCADE`). A Quota Reduction (no personal data but the Administrator's id and email) is kept with the Plan's history. |
 | Rights | In the Candidate's data export (`quotaReductionNotices`: each refund with its status, made, still to make or made by the team, and its amount; without Stripe identifiers or error codes); erased with the account. |
 | Security | Scheduling and cancelling a Quota Reduction check the Administrator's Back Office Roles and are written to the Back Office Audit; cancelling over one checks the signed-in Candidate. |
+
+## Two-step verification (#663, ADR-0075)
+
+| | |
+| --- | --- |
+| Purpose | Protect a Candidate's account beyond their mailbox: once they turn it on, every sign-in by magic link asks for a second step (a code from their authenticator app, or a backup code) before the session reaches anything. Part of the same authentication processing as the magic link and the Sign-in Providers. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)), as for signing in: a security measure the Candidate chooses (art. 32). Off by default. |
+| People concerned | Candidates who turn it on in Mon compte, « Sécurité ». |
+| Data | Per Candidate: the authenticator app's TOTP secret, encrypted (AES-256-GCM under AUTH_SECRET, Better Auth's cipher); the backup codes not used yet, each as its SHA-256 hash only; when it was turned on, when the app and the codes were added and last used, the last 30-second period whose code was accepted, the count of wrong codes in a row and until when codes are refused. Per session: whether it waits for its second step, and when its second step was last done. Each attempt is counted under the Tool « Vérification en deux étapes » in AI Usage's external API calls (its outcome, no Candidate, never the code). The email telling the account it was turned on or off goes to its address; its text is not kept. |
+| Source | The Candidate, in Mon compte (`/api/account/two-step-verification`) and on the second step's page (`/api/two-step-verification/second-step`). |
+| Processors | None new: the codes are checked within Jobbbox; Brevo (EU) sends the emails, already a processor for emails. No recipient outside the EU. |
+| Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it; nobody can read the secret or a backup code back. |
+| Storage | The `two_step_verification` table and the `session` table's `twoStepPending` and `twoStepVerifiedAt` columns in the app's Postgres database (EU). |
+| Retention | Until the Candidate turns it off (the row is deleted, and the sessions still waiting for their second step are signed out) or the account is deleted (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, the backup codes left; never the secret nor a code); erased with the account. |
+| Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |

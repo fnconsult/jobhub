@@ -181,4 +181,13 @@ describe.skipIf(!connectionString)("Two-step verification (needs Postgres: DATAB
     const { rows } = await database.query(`SELECT id FROM session WHERE "userId" = $1`, [marie.candidateId]);
     expect(rows.map((row) => row.id)).toEqual([marie.sessionId]);
   });
+
+  it("still takes the backup codes when the app's secret no longer opens (AUTH_SECRET rotated)", async () => {
+    const { secret, backupCodes } = await turnOn();
+    const rotated = createTwoStepVerification(database, { secret: "another-secret-another-secret-another-0", now: () => now });
+    later(60);
+
+    expect(await rotated.verify(marie, totpAt(secret, now))).toEqual({ ok: false, error: "invalid_code" });
+    expect(await rotated.verify(marie, backupCodes[0]!)).toEqual({ ok: true, factor: "backup_code" });
+  });
 });

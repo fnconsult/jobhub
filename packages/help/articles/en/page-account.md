@@ -3,10 +3,10 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My account
-synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, subscription]
+synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email, email intake, forwarding address, feedback, my feedback, European AI, Mistral, subscription, security, two-step verification, backup codes, authenticator app]
 route: /compte
 ---
-My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
+My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.
 
 Profiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.
 
@@ -17,6 +17,8 @@ Email intake lets you receive in Jobbbox the offers from your job alerts and fro
 European AI: with your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. « Give my consent » switches it on, « Withdraw my consent » stops it, at any time; the section shows the date of your consent.
 
 Sign-in shows your account's email address and the ways you can sign in.
+
+Security manages two-step verification, off until you turn it on. « Turn on » shows a QR code and the key to enter in your authenticator app; enter the « Code the app shows », then click « Confirm ». Your 10 backup codes are then shown once: « Copy » or « Download » to keep them, then « I have kept my codes ». From then on, every sign-in by magic link asks for a code before Jobbbox opens; signing in with a provider, such as Google, does not ask for it. The section shows since when it is on, when the app and the codes were added and last used, and how many codes are left. « Renew the backup codes » gives you 10 new ones, the old ones no longer working; « Turn off » stops it. For either, if your last verification is more than 10 minutes old, the section first asks you for a code. An email tells you when it is turned on or off.
 
 In Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it.
 

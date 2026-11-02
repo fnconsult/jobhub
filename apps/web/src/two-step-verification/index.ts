@@ -172,7 +172,15 @@ export function createTwoStepVerification(
   const secondStepDone = (client: PoolClient, sessionId: string, at: Date) =>
     client.query(`UPDATE session SET "twoStepPending" = false, "twoStepVerifiedAt" = $2 WHERE id = $1`, [sessionId, at]);
 
-  const decrypt = (data: string) => symmetricDecrypt({ key: options.secret, data });
+  /** The app's secret; null when it no longer opens (AUTH_SECRET rotated): the backup codes still work then. */
+  async function decrypt(data: string): Promise<string | null> {
+    try {
+      return await symmetricDecrypt({ key: options.secret, data });
+    } catch (error) {
+      console.error("[two-step-verification] an authenticator app's secret could not be decrypted", error);
+      return null;
+    }
+  }
 
   return {
     isEnabled: (candidateId) => hasTwoStepVerification(database, candidateId),
@@ -197,7 +205,8 @@ export function createTwoStepVerification(
         if (!row) return { ok: false, error: "no_setup" };
         if (row.enabled_at) return { ok: false, error: "already_enabled" };
         const at = now();
-        const step = verifyTotp(await decrypt(row.totp_secret), code, at);
+        const secret = await decrypt(row.totp_secret);
+        const step = secret === null ? null : verifyTotp(secret, code, at);
         if (step === null) return { ok: false, error: "invalid_code" };
         const backupCodes = newBackupCodes();
         await client.query(
@@ -222,7 +231,8 @@ export function createTwoStepVerification(
         const at = now();
         if (row.locked_until && row.locked_until > at) return { ok: false, error: "locked", retryAt: row.locked_until };
 
-        const step = verifyTotp(await decrypt(row.totp_secret), code, at);
+        const secret = await decrypt(row.totp_secret);
+        const step = secret === null ? null : verifyTotp(secret, code, at);
         // A code already used, or older than one used, is refused: each code serves once.
         if (step !== null && (row.totp_last_step === null || step > Number(row.totp_last_step))) {
           await client.query(

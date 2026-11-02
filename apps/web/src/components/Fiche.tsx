@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
@@ -60,13 +60,20 @@ const ROOM_FOR_BOTH = "(width >= 100rem)";
 /** The same, the Sidebar hidden: 0.68 × the screen − 24rem. */
 const ROOM_FOR_BOTH_SIDEBAR_HIDDEN = "(width >= 76.5rem)";
 const UNFOLDED: ReadonlySet<FicheGroup> = new Set();
+/** The page's `<main>` (SidebarShell): the focus goes there when what opened a column is gone. */
+const MAIN_ID = "main";
 const SECTIONS: FicheGroup = "sections";
 const ACTIVITY: FicheGroup = "activity";
 const RESULTS: FicheGroup = "results";
 /** The glyph « Activité » shows while an AI action of the page is under way, before its step is known. */
 const UNDER_WAY = "think";
 
-const noSubscription = () => () => {};
+/** Calls `onChange` when the screen crosses 64rem: below it, the columns open over the conversation, full screen (#608). */
+function onWideChange(onChange: () => void) {
+  const query = typeof window.matchMedia === "function" ? window.matchMedia(WIDE) : null;
+  query?.addEventListener?.("change", onChange);
+  return () => query?.removeEventListener?.("change", onChange);
+}
 /** Whether the screen is wide enough for the Fiche: the server's HTML, and a browser without media queries, say it is. */
 const wideScreen = () => typeof window.matchMedia !== "function" || window.matchMedia(WIDE).matches;
 const wideOnServer = () => true;
@@ -103,6 +110,10 @@ type Control = {
   toggleGroup: (group: FicheGroup) => void;
   /** Counts « Activité »'s openings: the Fiche scrolls its Activity group into view. */
   activityAsked: number;
+  /** Wide enough for the columns beside the conversation; below 64rem they open over it, full screen, with a ✕ (#608). */
+  wide: boolean;
+  /** The column's ✕ (and Escape) on a phone: closes it, the focus back on the Top Bar's button that opened it. */
+  close: () => void;
 };
 
 const FicheControl = createContext<Control | null>(null);
@@ -120,7 +131,7 @@ const FicheControl = createContext<Control | null>(null);
  * « Activité » opens and closes, closed when the page loads; it gives way to the Work Pane as the Fiche does.
  */
 export function FicheProvider({ object = true, children }: { object?: boolean; children: ReactNode }) {
-  const wide = useSyncExternalStore(noSubscription, wideScreen, wideOnServer);
+  const wide = useSyncExternalStore(onWideChange, wideScreen, wideOnServer);
   const room = useSyncExternalStore(onRoomChange, roomForBoth, wideOnServer);
   const workPane = useWorkPane();
   const givenWay = !room && workPane?.item != null;
@@ -129,11 +140,23 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
   const state = useMemo(() => changed ?? { open: object && wide, folded: UNFOLDED }, [changed, object, wide]);
   const [activityAsked, setActivityAsked] = useState(0);
   const ficheId = useId();
+  // On a phone, what opened the column over the conversation: the focus goes back to it when its ✕ closes it (#608).
+  const opener = useRef<HTMLElement | null>(null);
+  const focusBack = useRef(false);
+  useEffect(() => {
+    if (state.open || !focusBack.current) return;
+    focusBack.current = false;
+    const back = opener.current?.isConnected ? opener.current : document.getElementById(MAIN_ID);
+    opener.current = null;
+    back?.focus();
+  }, [state.open]);
   const control = useMemo<Control>(() => {
     // « Fiche » and « Activité » act on what is shown: a Fiche that has given way is brought back, in the Work Pane's place.
     const shown = { ...state, open: state.open && !givenWay };
     const bringBack = () => {
       if (givenWay) workPane?.close();
+      // Opened over the conversation on a phone: its ✕ gives the focus back to the button that opened it.
+      if (!shown.open && document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
     };
     return {
       object,
@@ -152,8 +175,13 @@ export function FicheProvider({ object = true, children }: { object?: boolean; c
       },
       toggleGroup: (group) => setChanged(toggleGroup(state, group)),
       activityAsked,
+      wide,
+      close: () => {
+        focusBack.current = true;
+        setChanged({ ...state, open: false });
+      },
     };
-  }, [object, state, givenWay, workPane, ficheId, activityAsked]);
+  }, [object, state, givenWay, workPane, ficheId, activityAsked, wide]);
   return <FicheControl.Provider value={control}>{children}</FicheControl.Provider>;
 }
 
@@ -201,7 +229,8 @@ export function FicheButtons() {
 
 /**
  * The Fiche (#603, ADR-0070): the column beside an object's conversation, never over it, with no heading nor ✕ of its
- * own (the Top Bar's « Fiche » closes it). The object's card, then three groups the Candidate folds: its Sections, its
+ * own (the Top Bar's « Fiche » closes it); on a phone it opens over the conversation, full screen, titled and closed by its
+ * ✕ or Escape (#608). The object's card, then three groups the Candidate folds: its Sections, its
  * Activity (the page's AI Activity) and its Results; a Section or a Result opens in the Work Pane at its address, the one
  * shown marked as the current page. Nothing while it is closed, or outside a FicheProvider; hidden while it has given
  * way to the Work Pane, still there for the link that opened it to get the focus back when the pane closes.
@@ -239,7 +268,8 @@ export function Fiche({ content }: { content: FicheContent }) {
     </ul>
   );
   return (
-    <aside id={ficheId} className="fiche" aria-label={t("fiche.label")} hidden={control.givenWay}>
+    <aside id={ficheId} className="fiche" aria-label={t("fiche.label")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
+      {control.wide ? null : <ColumnHead label={t("fiche.label")} close={control.close} />}
       <div className="fiche-card">{content.card}</div>
       <Group group={SECTIONS} label={t("fiche.groups.sections")} state={state} toggle={control.toggleGroup}>
         {links(content.sections)}
@@ -258,7 +288,7 @@ export function Fiche({ content }: { content: FicheContent }) {
 /**
  * The Activité column of the home page and the menus (#607, ADR-0070), beside the conversation, never over it: the
  * Context bar of the page's conversation, then AI Activity (the actions under way and those of late), with no heading
- * nor ✕ (the Top Bar's « Activité » closes it). Nothing while it is closed, or outside a FicheProvider; hidden while it
+ * nor ✕ (the Top Bar's « Activité » closes it); on a phone, over the conversation like the Fiche, with both (#608). Nothing while it is closed, or outside a FicheProvider; hidden while it
  * has given way to the Work Pane.
  */
 export function ActivityColumn() {
@@ -266,11 +296,51 @@ export function ActivityColumn() {
   const control = useContext(FicheControl);
   if (!control || control.object || !control.state.open) return null;
   return (
-    <aside id={control.ficheId} className="fiche activity-column" aria-label={t("fiche.activity")} hidden={control.givenWay}>
+    <aside id={control.ficheId} className="fiche activity-column" aria-label={t("fiche.activity")} hidden={control.givenWay} onKeyDown={closeOnEscape(control)}>
+      {control.wide ? null : <ColumnHead label={t("fiche.activity")} close={control.close} />}
       <ContextBar />
       <AiActivityContent />
     </aside>
   );
+}
+
+/** On a phone, Escape closes the column open over the conversation, as its ✕ does; beside it, the Top Bar's button alone. */
+const closeOnEscape = (control: Control) => (event: KeyboardEvent<HTMLElement>) => {
+  if (control.wide || event.key !== "Escape" || event.defaultPrevented) return;
+  event.stopPropagation();
+  control.close();
+};
+
+/**
+ * On a phone, the head of a column open over the conversation, full screen (#608): its name, which takes the focus as it
+ * opens, so it is read out, and its ✕ « Fermer ». Beside the conversation it has neither: the Top Bar's button closes it.
+ */
+function ColumnHead({ label, close }: { label: string; close: () => void }) {
+  const { t } = useTranslation();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => heading.current?.focus(), []);
+  return (
+    <div className="fiche-head">
+      <h2 ref={heading} tabIndex={-1}>
+        {label}
+      </h2>
+      <button className={buttonClass({ variant: "quiet" })} type="button" onClick={close}>
+        <Icons.close />
+        {t("conversationFirst.close")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Whether a column covers the conversation: on a phone, the Work Pane or the Fiche (the Activité column) open over it,
+ * full screen (#608). The page behind is then out of reach (SidebarShell's `pageInert`), as behind a dialog.
+ */
+export function useColumnOverPage(): boolean {
+  const control = useContext(FicheControl);
+  const workPane = useWorkPane();
+  if (!control || control.wide) return false;
+  return workPane?.item != null || control.state.open;
 }
 
 /** One of the Fiche's groups: its heading is the button that folds it. */

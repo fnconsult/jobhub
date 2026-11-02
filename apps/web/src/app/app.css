@@ -1353,15 +1353,54 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   display: none;
 }
 
-/* On a phone the Fiche takes the whole screen, under the Work Pane (#608 finishes the phone's layout). */
+/* On a phone (below 64rem) the Fiche, and the Activité column, open over the conversation and take the whole screen, as
+   the Work Pane does (#608): titled, closed by their ✕, the page behind out of reach (SidebarShell's pageInert). */
 @media (width < 64rem) {
   .fiche {
     position: fixed;
-    inset: var(--topbar-height, 3.5rem) 0 0;
+    inset: 0;
     z-index: 25;
+    padding-top: 0;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     border: 0;
     border-radius: 0;
   }
+}
+
+.fiche-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+  margin-inline: calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fiche-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.fiche-head h2:focus {
+  outline: none;
+}
+
+.fiche-head h2:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.fiche-head .icon {
+  width: 1.125em;
+  height: 1.125em;
 }
 
 /* « Mémoire du coach » under « Coach », a button among the Free conversations' links, like « Coach » itself. */

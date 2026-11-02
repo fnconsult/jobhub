@@ -13,7 +13,7 @@ import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
-import { ActivityColumn, Fiche, FicheButtons, FicheProvider, type FicheContent } from "@/components/Fiche";
+import { ActivityColumn, Fiche, FicheButtons, FicheProvider, useColumnOverPage, type FicheContent } from "@/components/Fiche";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { AIDE_ET_LEGAL } from "@/public-pages/public-shell";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
@@ -88,9 +88,10 @@ export function SidebarLayout({
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
-  const shell = (
+  const shell = (pageInert: boolean) => (
     <AiActivityProvider elements={aiActivity}>
       <SidebarShell
+        pageInert={pageInert}
         brand={{ href: routes.home, label: t("app.name") }}
         title={title}
         wide={wide}
@@ -189,10 +190,17 @@ export function SidebarLayout({
   return freeConversations ? (
     <ConversationFirstProvider conversations={freeConversations} {...(menus ? { menus } : {})}>
       <WorkPaneProvider version={version}>
-        <FicheProvider object={fiche !== null}>{shell}</FicheProvider>
+        <FicheProvider object={fiche !== null}>
+          <ColumnsOverPage>{shell}</ColumnsOverPage>
+        </FicheProvider>
       </WorkPaneProvider>
     </ConversationFirstProvider>
   ) : (
-    shell
+    shell(false)
   );
+}
+
+/** Draws the shell with the page out of reach while a column covers it, on a phone (#608). */
+function ColumnsOverPage({ children }: { children: (pageInert: boolean) => ReactNode }) {
+  return children(useColumnOverPage());
 }

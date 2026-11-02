@@ -79,6 +79,7 @@ export function SidebarShell({
   topBarEnd = <CoachPanelToggle />,
   topBarActivity = <AiActivityButton />,
   beside,
+  pageInert = false,
   children,
 }: {
   brand: { href: string; label: string };
@@ -94,6 +95,8 @@ export function SidebarShell({
   topBarActivity?: ReactNode;
   /** The columns beside the page, never over it: the Work Pane under « Conversation au centre » (#602), and an object's Fiche (#603). */
   beside?: ReactNode;
+  /** A column open over the page, full screen on a phone (#608): the Top Bar and the page are out of reach behind it. */
+  pageInert?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -290,7 +293,7 @@ export function SidebarShell({
             notifications): without this, <main> stayed in reach behind the drawer.
           */}
           <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
-            <header ref={topbar} className="topbar">
+            <header ref={topbar} className="topbar" inert={pageInert || undefined}>
               <button ref={menuButton} className={`${buttonClass()} menu-toggle`} type="button" aria-expanded={drawerOpen} onClick={showMenu}>
                 <Icons.menu />
                 {t("sidebar.menu")}
@@ -326,7 +329,7 @@ export function SidebarShell({
               {topBarActivity}
               {topBarEnd}
             </header>
-            <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"}>
+            <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"} inert={pageInert || undefined}>
               {children}
             </main>
             {beside}

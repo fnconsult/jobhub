@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon abonnement
-synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation, rétractation, factures, code promo, utilisation, quota]
+synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation, rétractation, factures, code promo, utilisation]
 route: /abonnement
 ---
 Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus.

@@ -472,8 +472,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "rétractation",
         "factures",
         "code promo",
-        "utilisation",
-        "quota"
+        "utilisation"
       ],
       "route": "/abonnement",
       "motion": null,
@@ -2488,8 +2487,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "withdrawal",
         "invoices",
         "promotion code",
-        "usage",
-        "quota"
+        "usage"
       ],
       "route": "/abonnement",
       "motion": null,

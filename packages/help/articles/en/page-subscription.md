@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My subscription
-synonyms: [subscription, price, pay, payment, premium, standard, free, cancel, cancellation, withdrawal, invoices, promotion code, usage, quota]
+synonyms: [subscription, price, pay, payment, premium, standard, free, cancel, cancellation, withdrawal, invoices, promotion code, usage]
 route: /abonnement
 ---
 This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it.

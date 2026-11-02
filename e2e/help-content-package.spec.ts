@@ -83,6 +83,37 @@ test.describe("@jobhub/help package", () => {
     }
   });
 
+  // #562: a Release Note fragment (releases/unreleased/<pr>.md) gives its line in French and in English, and only
+  // tags of RELEASE_NOTE_TAGS.
+  test("the build refuses a Release Note fragment without its English line, or with a tag outside the list", () => {
+    const fragment = path.join(helpDir, "releases", "unreleased", "999999.md");
+    const releaseNotes = path.join(helpDir, "src", "release-notes.generated.ts");
+    const before = readFileSync(releaseNotes, "utf8");
+    const articles = readFileSync(generated, "utf8");
+    const build = () => spawnSync("npm", ["run", "build", "-w", "@jobhub/help"], { cwd: root, encoding: "utf8", timeout: 120_000 });
+    try {
+      writeFileSync(fragment, "---\nkind: new\ntags: [candidature]\n---\n## fr\n- Une ligne pour les Candidats.\n");
+      const noEnglish = build();
+      expect(noEnglish.status).not.toBe(0);
+      expect(noEnglish.stdout + noEnglish.stderr).toContain("unreleased/999999.md: its en line is missing: every fragment is written in French and in English");
+
+      writeFileSync(fragment, "---\nkind: new\ntags: [blog]\n---\n## fr\n- Une ligne pour les Candidats.\n\n## en\n- A line for Candidates.\n");
+      const unknownTag = build();
+      expect(unknownTag.status).not.toBe(0);
+      expect(unknownTag.stdout + unknownTag.stderr).toContain("unreleased/999999.md: tag blog is not one of candidature, extension, coach-ia, confidentialite, accessibilite");
+      // Refused before anything is written.
+      expect(readFileSync(generated, "utf8")).toBe(articles);
+
+      writeFileSync(fragment, "---\nkind: new\ntags: [candidature]\n---\n## fr\n- Une ligne pour les Candidats.\n\n## en\n- A line for Candidates.\n");
+      const valid = build();
+      expect(valid.status, valid.stdout + valid.stderr).toBe(0);
+      expect(valid.stdout).toMatch(/Release Note fragments: \d+ waiting in releases\/unreleased\//);
+      expect(readFileSync(releaseNotes, "utf8")).toBe(before);
+    } finally {
+      rmSync(fragment, { force: true });
+    }
+  });
+
   test("a missing translation fails npm test", () => {
     const victim = path.join(helpDir, "articles", "en", "faq-text-size.md");
     const hidden = `${victim}.hidden`;

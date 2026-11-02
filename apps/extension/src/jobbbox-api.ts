@@ -9,6 +9,7 @@
 import { distinctLocations, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { API_VERSION_HEADERS, updateRequiredBy, type ExtensionUpdate } from "./extension-update";
 import type { SearchCriteriaDraft } from "./guest-session";
+import type { CguVersion } from "./guest-terms";
 import type { CapturedJobOffer } from "./job-page";
 
 /** Why a CV file could not be read (the web app's CV file error codes), or the web app could not be reached. */
@@ -62,6 +63,11 @@ export interface JobbboxApi {
    * or returns the one they already have for it. "not_found": the Job Offer or the Profile is gone.
    */
   saveApplication(jobOfferId: string, profileId: string): Promise<Result<{ applicationId: string }, "not_found" | "signed_out" | "failed" | "unreachable">>;
+  /**
+   * The CGU version in effect, which the Guest's box names (#550), or null while none is. A plain read, the same for
+   * everyone: nothing of the Guest's Acceptance is sent.
+   */
+  cguInEffect(): Promise<Result<{ cgu: CguVersion | null }, "unreachable">>;
 }
 
 /** What a Job Offer is scored against: one of the signed-in Candidate's Profiles, or a CV (with the Search Criteria read from it). */
@@ -179,6 +185,15 @@ export function createJobbboxApi(
       if (reply.status === 401) return { ok: false, error: "signed_out" };
       if (reply.status === 404) return { ok: false, error: "not_found" };
       return { ok: false, error: "failed" };
+    },
+
+    async cguInEffect() {
+      const reply = await request("/api/legal/cgu/in-effect", { method: "GET" });
+      if (!reply || reply.status !== 200) return { ok: false, error: "unreachable" };
+      const { version, url } = reply.body;
+      if (version === null) return { ok: true, cgu: null };
+      if (typeof version !== "string" || typeof url !== "string") return { ok: false, error: "unreachable" };
+      return { ok: true, cgu: { version, url } };
     },
   };
 }

@@ -46,7 +46,8 @@ test.describe("magic-link sign-up and sign-in", () => {
 
     // The home page now leads to the account instead of sign-in.
     await page.goto("/");
-    await expect(page.getByRole("link", { name: fr.nav.account })).toHaveAttribute("href", "/compte");
+    await page.getByRole("button", { name: fr.nav.account, exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: fr.nav.account })).toHaveAttribute("href", "/compte");
   });
 
   test("the sign-in and account pages use only catalogue strings and meet the ADR-0009 floor", async ({ page }) => {
@@ -104,7 +105,8 @@ test.describe("magic-link sign-up and sign-in", () => {
     await expect(page).toHaveURL(/\/connexion(\?|$)/);
 
     await signInWithMagicLink(page, newAddress("leaving"));
-    await page.getByRole("button", { name: fr.account.signOut }).click();
+    await page.getByRole("button", { name: fr.nav.account, exact: true }).click();
+    await page.getByRole("menuitem", { name: fr.account.signOut }).click();
     await expect(page).toHaveURL(`${origin}/`);
     await expect(page.getByRole("link", { name: fr.nav.signIn })).toBeVisible();
     expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
@@ -188,7 +190,8 @@ test.describe("Interface Language", () => {
 
     // Signed out, visitors get French again; the next sign-in email is in English.
     await page.goto("/compte");
-    await page.getByRole("button", { name: en.account.signOut }).click();
+    await page.getByRole("button", { name: en.nav.account, exact: true }).click();
+    await page.getByRole("menuitem", { name: en.account.signOut }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
     const message = await signInWithMagicLink(page, email);
     expect(message.subject).toBe(en.signInEmail.subject);

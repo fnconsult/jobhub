@@ -102,15 +102,11 @@ describe("the help of a page that is a conversation, in the Work Pane (#602, ADR
     expect(document.activeElement).toBe(within(conversation()).getByRole("button", { name: "Comment marche cette page ?" }));
   });
 
-  it("opens « Signaler un problème », under the box, in the Work Pane", async () => {
-    const user = userEvent.setup();
+  it("has no Signalement links under the box: the icon beside « Mon compte » is the way in", () => {
     renderInFrench(<HomePage />);
 
-    await user.click(within(conversation()).getByRole("button", { name: "Signaler un problème" }));
-
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(within(workPane()).getByRole("heading", { level: 2, name: "Envoyer un signalement" })).toBe(document.activeElement);
-    expect(within(workPane()).getByRole("radio", { name: "Bug" }).getAttribute("aria-checked")).toBe("true");
+    expect(within(conversation()).queryByRole("button", { name: "Signaler un problème" })).toBeNull();
+    expect(within(conversation()).queryByRole("button", { name: "Proposer une idée" })).toBeNull();
   });
 
   it("starts with a question about the Help Article its address names (« Demander au coach » from Mon compte), and drops it from the address", async () => {

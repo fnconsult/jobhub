@@ -27,7 +27,7 @@ describe.skipIf(!connectionString)("« Questions sans réponse »: a Help editor
     const cookie = await signInWithMagicLink(testAuth, "claire@jobbbox.fr");
     const { user } = await (await testAuth.request("/api/auth/get-session", { cookie })).json();
     claire = { id: user.id, email: user.email };
-    for (const question of ["Où est passé le bouton vert ?", "Puis-je imprimer en noir et blanc ?"]) {
+    for (const question of ["Où est passé le losange vert ?", "Puis-je imprimer en noir et blanc ?"]) {
       await questions.notice("marie", { question, reply: { text: "Réponse du coach.", outcome: "replied", aboutJobbbox: true }, route: "/", language: "fr" });
     }
   }, 60_000);
@@ -61,7 +61,7 @@ describe.skipIf(!connectionString)("« Questions sans réponse »: a Help editor
 
     const recorded = JSON.stringify(await backOffice.journal());
     expect(recorded).toContain("dismissed");
-    for (const words of ["bouton vert", "noir et blanc", "Réponse du coach"]) expect(recorded).not.toContain(words);
+    for (const words of ["losange vert", "noir et blanc", "Réponse du coach"]) expect(recorded).not.toContain(words);
   });
 
   it("records nothing for one already marked, unknown, or a mark that is not one", async () => {

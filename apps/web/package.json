@@ -20,6 +20,8 @@
     "./applications": "./src/applications/index.ts",
     "./appointment-reminders": "./src/appointment-reminders/index.ts",
     "./legal-text-notices": "./src/legal-text-notices/index.ts",
+    "./nouveautes-email": "./src/nouveautes-email/index.ts",
+    "./release": "./src/release/index.ts",
     "./quota-reductions": "./src/quota-reductions/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./unanswered-questions": "./src/unanswered-questions/index.ts",

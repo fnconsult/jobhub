@@ -33,6 +33,7 @@ import { migrateJobDigests } from "./job-digests/index";
 import { migrateJobOffers } from "./job-offers/index";
 import { migrateJobSearches } from "./job-searches/index";
 import { migrateLegalTextNotices } from "./legal-text-notices/index";
+import { migrateNouveautesEmails } from "./nouveautes-email/index";
 import { migrateOrders } from "./orders/index";
 import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
@@ -104,6 +105,7 @@ export async function migrateDatabase(
     ["Signalements are up to date", () => migrateSignalements(database)],
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
     ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],
+    ["The Nouveautés email is up to date", () => migrateNouveautesEmails(database)],
     ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
   ];
   for (const [done, migrate] of steps) {

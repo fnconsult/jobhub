@@ -859,16 +859,6 @@ textarea.input {
   color: var(--color-text);
 }
 
-/* The panel's foot (#345): « Signaler un problème » and « Proposer une idée », under every view. */
-.coach-panel-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  align-items: center;
-  padding: 0 var(--space-4) var(--space-2);
-}
-
-.coach-panel-foot .link-action,
 .reply-feedback .link-action,
 .help-intro .link-action {
   min-height: var(--control-height);
@@ -923,10 +913,6 @@ textarea.input {
 .page-conversation-foot .coach-panel-form {
   padding: 0;
   border-top: 0;
-}
-
-.page-conversation-foot .coach-panel-foot {
-  padding-inline: var(--space-1);
 }
 
 .page-conversation-foot .notice {
@@ -2897,7 +2883,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 /* Lined up with the items' icons. */
 .account-menu-label {
   padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-meta);
   color: var(--color-meta);
 }
 

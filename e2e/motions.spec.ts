@@ -31,11 +31,11 @@ async function demoSession(browser: Browser, locale: "fr" | "en") {
 
 test.describe("motions: the capture stage of a run", () => {
   test.skip(!work, "MOTIONS_WORK names no run");
-
-  test("films every planned motion, a broken capture written down beside it", async ({ browser }) => {
-    test.setTimeout(60 * 60_000);
-    for (const motion of readPlan(work!)) {
-      if (failure(work!, motion)) continue;
+  // One test per motion, each with its own time: a capture that hangs or breaks costs that motion only.
+  for (const motion of work && existsSync(path.join(work, "plan.json")) ? readPlan(work) : []) {
+    test(`films ${motion.id} in ${motion.locale}`, async ({ browser }) => {
+      test.setTimeout(15 * 60_000);
+      if (failure(work!, motion)) return;
       try {
         const script = scriptOf(motion);
         const storageState = script.viewer === "candidate" ? await demoSession(browser, motion.locale) : undefined;
@@ -44,8 +44,8 @@ test.describe("motions: the capture stage of a run", () => {
       } catch (error) {
         writeStageError(work!, motion, "capture", error);
       }
-    }
-  });
+    });
+  }
 });
 
 test.describe("motions: the test Motion Scripts", () => {

@@ -81,7 +81,7 @@ const LINE = 42;
 export function captionCues(text: string, start: number, duration: number): Timeline["cues"] {
   const pieces: string[] = [];
   let current = "";
-  // A line never breaks inside « … » nor before French high punctuation.
+  // A line never breaks just inside « … » (after « or before ») nor before French high punctuation.
   const unbroken = text.replace(/« /g, "«\u00a0").replace(/ ([»:;?!])/g, "\u00a0$1");
   for (const word of unbroken.split(" ")) {
     const next = current ? `${current} ${word}` : word;

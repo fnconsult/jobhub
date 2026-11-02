@@ -99,9 +99,18 @@ export const MOTION_MEDIA_ORIGIN = "https://media.jobbbox.ai";
 export const MOTION_FILES = { video: "video.mp4", captions: "captions.vtt", transcript: "transcript.md", poster: "poster.jpg" } as const;
 export type MotionFile = keyof typeof MOTION_FILES;
 
-/** `<id>/<locale>/<hash>/<file>`: the bucket key of one published file. */
-export function motionFileKey(id: string, locale: HelpLocale, hash: string, file: MotionFile): string {
-  return `${id}/${locale}/${hash}/${MOTION_FILES[file]}`;
+/**
+ * `<id>/<locale>/<hash>/<render>/<file>`: the bucket key of one published file. The render (when it was rendered,
+ * `20261102T090000Z`) sets apart two renders of the same script: a page it films changed (« Motion à régénérer »), or
+ * the voice. A published file never changes, so it is cached for good; `manifest.json` names the current render.
+ */
+export function motionFileKey(id: string, locale: HelpLocale, hash: string, render: string, file: MotionFile): string {
+  return `${id}/${locale}/${hash}/${render}/${MOTION_FILES[file]}`;
+}
+
+/** The render id of a render at `date`: `20261102T090000Z`. */
+export function motionRenderId(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
 /** What the transcript says first: the voice is synthetic (ADR-0066, AI Act art. 50). */
@@ -140,7 +149,8 @@ export function narrationSentences(text: string): string[] {
     if (char === "«") quoted++;
     if (char === "»") quoted = Math.max(0, quoted - 1);
     const next = plain[index + 1];
-    if (quoted === 0 && /[.!?…]/.test(char) && (next === undefined || next === " ") && !/[.!?…]/.test(next ?? "")) {
+    const abbreviation = char === "." && ABBREVIATION.test(current);
+    if (quoted === 0 && !abbreviation && /[.!?…]/.test(char) && (next === undefined || next === " ") && !/[.!?…]/.test(next ?? "")) {
       sentences.push(current.trim());
       current = "";
     }
@@ -148,6 +158,9 @@ export function narrationSentences(text: string): string[] {
   if (current.trim()) sentences.push(current.trim());
   return sentences;
 }
+
+/** A period that ends no sentence: « M. », « Mme. », « p. ex. », « etc. » inside one, « e.g. », an initial. */
+const ABBREVIATION = /(?:^|[\s(«“])(?:M|Mme|Mlle|Dr|p|ex|cf|etc|env|e\.g|i\.e|vs|[A-Z])\.$/;
 
 /** Whether `path` (`/candidatures/abc`, maybe under `/en`) is a page of the route pattern `pattern` (`/candidatures/[id]`). */
 export function routeMatches(pattern: string, path: string): boolean {

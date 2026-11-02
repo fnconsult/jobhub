@@ -14,13 +14,18 @@
 import { appendFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { readMotionScripts } from "@jobhub/help/motion-scripts-content";
-import { bucketFromEnv, readManifest } from "./bucket";
+import { bucketFromEnv, readManifest, readPublicManifest } from "./bucket";
 import { renderMotion } from "./render";
 import { fixturesDir, motionScriptsDir, narrateAll, publishAll, renderAll, writePlan } from "./run";
 import { voiceSamples } from "./samples";
 import { flaggedScripts, mergedPullBodies, selectMotions } from "./select";
 import { runSummary } from "./summary";
 import { voiceFromEnv } from "./voice";
+
+/** Where the published motions are read from by anyone. */
+function publicUrl(): string {
+  return process.env.MOTIONS_PUBLIC_URL ?? "https://media.jobbbox.ai";
+}
 
 function option(name: string, args: string[]): string | undefined {
   const index = args.indexOf(`--${name}`);
@@ -35,7 +40,7 @@ async function main(argv: string[]): Promise<void> {
       const request = option("select", args) ?? "flagged";
       const scriptsDir = args.includes("--fixtures") ? fixturesDir : motionScriptsDir;
       const bucket = bucketFromEnv();
-      const manifest = bucket ? await readManifest(bucket) : { motions: {} };
+      const manifest = bucket ? await readManifest(bucket) : await readPublicManifest(publicUrl());
       const flagged =
         request === "flagged" && process.env.GITHUB_REPOSITORY
           ? flaggedScripts(await mergedPullBodies({ repo: process.env.GITHUB_REPOSITORY, token: process.env.GITHUB_TOKEN, since: option("since", args) || null }))
@@ -57,7 +62,7 @@ async function main(argv: string[]): Promise<void> {
     case "publish": {
       const bucket = bucketFromEnv();
       const voice = voiceFromEnv();
-      const { outcomes } = await publishAll(work, bucket);
+      const { outcomes } = await publishAll(work, bucket, new Date(), bucket ? null : await readPublicManifest(publicUrl()));
       const runUrl = process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : undefined;
       const summary = runSummary({ outcomes, voice: `${voice.provider} (${voice.voices.fr} ; ${voice.voices.en})`, publicUrl: bucket?.publicUrl ?? null, runUrl });
       writeFileSync(path.join(work, "summary.md"), summary);

@@ -39,6 +39,7 @@ export {
   MOTION_FILES,
   MOTION_MEDIA_ORIGIN,
   motionFileKey,
+  motionRenderId,
   motionTranscript,
   narrationSentences,
   plainNarration,

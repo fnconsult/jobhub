@@ -67,15 +67,18 @@ export function selectMotions(options: {
 export async function mergedPullBodies(options: { repo: string; token?: string; since: string | null; base?: string; fetcher?: typeof fetch }): Promise<string[]> {
   const { repo, token, since, base = "main", fetcher = fetch } = options;
   const bodies: string[] = [];
+  // `git log --format=%cI` gives an offset (+02:00), GitHub gives UTC (Z): compared as instants, never as text.
+  const from = since ? Date.parse(since) : null;
+  if (from !== null && Number.isNaN(from)) throw new Error(`--since ${since} is no date`);
   for (let page = 1; page <= 10; page++) {
     const response = await fetcher(`https://api.github.com/repos/${repo}/pulls?state=closed&base=${base}&sort=updated&direction=desc&per_page=100&page=${page}`, {
       headers: { accept: "application/vnd.github+json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
     });
     if (!response.ok) throw new Error(`GitHub answered ${response.status} listing the pull requests`);
     const pulls = (await response.json()) as { merged_at: string | null; updated_at: string; body: string | null }[];
-    for (const pull of pulls) if (pull.merged_at && (!since || pull.merged_at >= since)) bodies.push(pull.body ?? "");
+    for (const pull of pulls) if (pull.merged_at && (from === null || Date.parse(pull.merged_at) >= from)) bodies.push(pull.body ?? "");
     // Sorted by update: once a page ends before `since`, older merges cannot follow.
-    if (pulls.length < 100 || (since && pulls.at(-1)!.updated_at < since)) break;
+    if (pulls.length < 100 || (from !== null && Date.parse(pulls.at(-1)!.updated_at) < from)) break;
   }
   return bodies;
 }

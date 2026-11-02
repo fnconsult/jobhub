@@ -188,6 +188,8 @@ finish() {
 # repository's secrets, and reads its voice provider's key from them too.
 # ──────────────────────────────────────────────────────────────────────────
 TOTAL_STAGES=7
+# Run from anywhere: the CORS file is read from the repository.
+cd "$(dirname "$0")/../.."
 BUCKET="media.jobbbox.ai"
 ENDPOINT="https://s3.fr-par.scw.cloud"
 
@@ -265,10 +267,12 @@ ask_secret GG_KEY "Google Cloud Text-to-Speech API key (restricted to that API),
 unset EL_KEY AZ_KEY GG_KEY
 
 stage "First run"
-step "Run: gh workflow run motions.yml -f motions=all -f fixtures=true -f voice-samples=true"
+step "Run the samples only: gh workflow run motions.yml -f motions=all -f fixtures=true -f publish=false -f voice-samples=true"
 step "Listen to the samples (the run's « motions » artifact, voice-samples/), then name the chosen voice:"
 note "gh variable set MOTIONS_VOICE_PROVIDER --body <elevenlabs|azure|google>"
 note "gh variable set MOTIONS_VOICE_FR --body <voice> ; gh variable set MOTIONS_VOICE_EN --body <voice>"
+step "Then publish the test Motion Script with that voice: gh workflow run motions.yml -f motions=essai-candidatures,essai-capture-cassee -f fixtures=true"
+note "Its summary shows essai-candidatures published, FR and EN, and essai-capture-cassee broken, with its warning."
 step "Check a published file opens: https://media.jobbbox.ai/manifest.json"
 confirm "manifest.json opens?" || SKIPPED+=("Run the motions workflow with the fixtures and open https://media.jobbbox.ai/manifest.json")
 

@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { readHelpContent, HelpContentError } from "./content";
 import { checkMotionLinks, parseAction, parseMotionScript, readAppRoutes, readMotionScripts } from "./motion-scripts-content";
-import { motionFileKey, motionTranscript, narrationSentences, plainNarration, routeMatches } from "./motion-scripts";
+import { motionFileKey, motionRenderId, motionTranscript, narrationSentences, plainNarration, routeMatches } from "./motion-scripts";
 import { motionScript, motionScriptsFilming } from "./index";
 
 /** Writes `files` ({ "fr/x.md": "…" }) into a fresh directory with fr/ and en/. */
@@ -222,6 +222,7 @@ describe("narration, transcript and routes", () => {
       "C'est fait…",
       "Voilà",
     ]);
+    expect(narrationSentences("Écrivez à M. Martin, p. ex. demain. Puis attendez.")).toEqual(["Écrivez à M. Martin, p. ex. demain.", "Puis attendez."]);
   });
 
   it("matches a page against a route pattern, under /en too", () => {
@@ -232,7 +233,9 @@ describe("narration, transcript and routes", () => {
   });
 
   it("names the bucket key of each published file", () => {
-    expect(motionFileKey("retrouver", "en", "0123456789ab", "captions")).toBe("retrouver/en/0123456789ab/captions.vtt");
+    const render = motionRenderId(new Date("2026-11-02T09:00:00.123Z"));
+    expect(render).toBe("20261102T090000Z");
+    expect(motionFileKey("retrouver", "en", "0123456789ab", render, "captions")).toBe("retrouver/en/0123456789ab/20261102T090000Z/captions.vtt");
   });
 
   it("serves this build's scripts by id (none yet: #570 writes them)", () => {

@@ -30,7 +30,7 @@ publishes nothing.
 | Narrate | the voice reads each sentence; ffprobe measures it |
 | Capture | builds the app, migrates a throwaway Postgres, signs the demo Candidate in and seeds the demo data through the app's API, then films each script in French and in English at 1280 × 720 (`npx playwright test --project=motions`) |
 | Render | Remotion composes the MP4 (title card, zooms, step titles, voice, no music), writes the WebVTT captions and the transcript (« Voix de synthèse ») from the same script, and the poster |
-| Publish | uploads `<script>/<langue>/<hash du script>/{video.mp4, captions.vtt, transcript.md, poster.jpg}` (cached a year: a folder never changes), then `manifest.json` (cached 60 s), which names the version each script shows in each language; a broken motion keeps its previous entry |
+| Publish | uploads `<script>/<langue>/<hash du script>/<rendu>/{video.mp4, captions.vtt, transcript.md, poster.jpg}`, `<rendu>` being the render's time (`20261102T090000Z`: a page a script films can change while its text does not), cached a year since a folder never changes, then `manifest.json` (cached 60 s), which names the version each script shows in each language; a broken motion keeps its previous entry |
 
 ## Secrets and variables
 
@@ -44,8 +44,9 @@ is neither a Tool nor a Recipient, and nothing goes through the app's Provider S
 | `MOTIONS_VOICE_PROVIDER`, `MOTIONS_VOICE_FR`, `MOTIONS_VOICE_EN` | variable | the voice the product owner chose by ear (`elevenlabs`, `azure` or `google`, and its voices) |
 | `MOTIONS_BUCKET` | variable | the bucket's name, `media.jobbbox.ai` by default |
 
-Without a voice key the narration is read by `espeak-ng`, a draft that is never published. Without the bucket's keys
-nothing is published (and every script counts as never published).
+Without a voice key the narration is read by `espeak-ng`, a draft that is never published; a pull request always uses
+it. Without the bucket's keys (a pull request, `publish` unticked) nothing is published, and what is online is read from
+`https://media.jobbbox.ai/manifest.json`.
 
 ## The bucket
 

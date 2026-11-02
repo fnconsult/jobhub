@@ -11,7 +11,7 @@ here runs on a Mac nor in the web app, which never imports it.
 | narrate | `src/voice.ts`, `src/narration.ts` | each sentence read by the synthetic voice, measured with ffprobe |
 | capture | `src/capture.ts`, `src/demo-seed.ts`, `e2e/motions.spec.ts` | Playwright plays the script's actions on the demo Candidate, 1280 × 720, FR then EN, each step held as long as its narration |
 | render | `src/timeline.ts`, `src/remotion/`, `src/render.ts` | Remotion: title card, zooms, step titles, the voice; WebVTT captions and the transcript from the same script; the poster |
-| publish | `src/bucket.ts`, `src/run.ts`, `src/summary.ts` | `<script>/<langue>/<hash du script>/` in the bucket, `manifest.json`, the run's summary |
+| publish | `src/bucket.ts`, `src/run.ts`, `src/summary.ts` | `<script>/<langue>/<hash du script>/<rendu>/` in the bucket, `manifest.json`, the run's summary |
 
 Run a stage by hand: `npm run motions -w @jobhub/motions -- <plan|narrate|render|publish|samples> --work <dir>`; the
 capture is `MOTIONS_WORK=<dir> npx playwright test --project=motions` (it needs the built app and Postgres, like e2e).

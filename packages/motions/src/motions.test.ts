@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseMotionScript } from "@jobhub/help/motion-scripts-content";
-import { directoryBucket, readManifest, type Manifest } from "./bucket";
+import { directoryBucket, readManifest, readPublicManifest, type Manifest } from "./bucket";
 import { narrate, stepDurations, type Narration } from "./narration";
 import { framing, zoomAt } from "./remotion/Motion";
 import { motionDir, publishAll, writePlan, writeStageError } from "./run";
@@ -204,6 +204,13 @@ describe("select — which motions a run renders", () => {
     expect(() => selectMotions({ request: "retrouver,inconnu", scripts, scriptsDir: "/s", flagged: [], manifest })).toThrow(/no Motion Script named inconnu/);
   });
 
+  it("compares the last Version's date, with its offset, to GitHub's UTC dates as instants", async () => {
+    const fetcher = (async () => new Response(JSON.stringify([{ merged_at: "2026-10-20T12:30:00Z", updated_at: "2026-10-20T12:30:00Z", body: "after the tag" }]))) as unknown as typeof fetch;
+    // Tag cut at 12:03 UTC, written 14:03+02:00: as text, 12:30Z would sort before it.
+    expect(await mergedPullBodies({ repo: "fnconsult/jobhub", since: "2026-10-20T14:03:11+02:00", fetcher })).toEqual(["after the tag"]);
+    await expect(mergedPullBodies({ repo: "x/y", since: "hier", fetcher })).rejects.toThrow(/--since hier is no date/);
+  });
+
   it("lists the bodies of pull requests merged since the last Version", async () => {
     const pulls = [
       { merged_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z", body: "Motion à régénérer : retrouver" },
@@ -245,8 +252,8 @@ describe("publishAll — the bucket and its manifest", () => {
     const bucket = directoryBucket(bucketDir);
     const { outcomes } = await publishAll(run(), bucket, new Date("2026-11-02T09:00:00Z"));
 
-    expect(readFileSync(path.join(bucketDir, "retrouver/fr/111111111111/video.mp4"), "utf8")).toBe("video.mp4");
-    expect(existsSync(path.join(bucketDir, "retrouver/fr/111111111111/captions.vtt"))).toBe(true);
+    expect(readFileSync(path.join(bucketDir, "retrouver/fr/111111111111/20261102T090000Z/video.mp4"), "utf8")).toBe("video.mp4");
+    expect(existsSync(path.join(bucketDir, "retrouver/fr/111111111111/20261102T090000Z/captions.vtt"))).toBe(true);
     expect(existsSync(path.join(bucketDir, "retrouver/en/222222222222"))).toBe(false);
     expect(await readManifest(bucket)).toEqual({
       motions: {
@@ -258,19 +265,23 @@ describe("publishAll — the bucket and its manifest", () => {
             renderedAt: "2026-11-02T09:00:00.000Z",
             voice: "azure/fr-FR-DeniseNeural",
             files: {
-              video: "retrouver/fr/111111111111/video.mp4",
-              captions: "retrouver/fr/111111111111/captions.vtt",
-              transcript: "retrouver/fr/111111111111/transcript.md",
-              poster: "retrouver/fr/111111111111/poster.jpg",
+              video: "retrouver/fr/111111111111/20261102T090000Z/video.mp4",
+              captions: "retrouver/fr/111111111111/20261102T090000Z/captions.vtt",
+              transcript: "retrouver/fr/111111111111/20261102T090000Z/transcript.md",
+              poster: "retrouver/fr/111111111111/20261102T090000Z/poster.jpg",
             },
           },
         },
       },
     });
     expect(outcomes.map((outcome) => outcome.status)).toEqual(["published", "broken"]);
+    // A second render of the same script (a page it films changed) goes to a folder of its own: nothing published changes.
+    await publishAll(run(), bucket, new Date("2026-11-09T09:00:00Z"));
+    expect(readFileSync(path.join(bucketDir, "retrouver/fr/111111111111/20261102T090000Z/video.mp4"), "utf8")).toBe("video.mp4");
+    expect((await readManifest(bucket)).motions.retrouver?.fr?.files.video).toBe("retrouver/fr/111111111111/20261109T090000Z/video.mp4");
 
     const summary = runSummary({ outcomes, voice: "azure", publicUrl: "https://media.jobbbox.ai" });
-    expect(summary).toContain("| retrouver | FR | script modifié | ✅ nouvelle vidéo `111111111111` | 43 s | [vidéo](https://media.jobbbox.ai/retrouver/fr/111111111111/video.mp4)");
+    expect(summary).toContain("| retrouver | FR | script modifié | ✅ nouvelle vidéo `111111111111` | 43 s | [vidéo](https://media.jobbbox.ai/retrouver/fr/111111111111/20261102T090000Z/video.mp4)");
     expect(summary).toContain("| retrouver | EN | script modifié | ⚠️ cassée : la vidéo `000000000000` reste en ligne |");
     expect(summary).toContain("### ⚠️ Avertissements");
     expect(summary).toContain('- **retrouver (EN)** : capture cassée, étape 2 « Ouvrir » : click button "Ouvrir": Timeout 10000ms exceeded.');
@@ -282,10 +293,20 @@ describe("publishAll — the bucket and its manifest", () => {
     expect(outcomes[0]).toMatchObject({ status: "rendered", warnings: ["lue par la voix de brouillon (espeak) : non publiée"] });
     expect(existsSync(path.join(bucketDir, "retrouver"))).toBe(false);
 
-    const { outcomes: dry, manifest } = await publishAll(run(), null);
+    const { outcomes: dry, manifest } = await publishAll(run(), null, new Date(), { motions: { retrouver: { en: previous } } });
     expect(dry.map((outcome) => outcome.status)).toEqual(["rendered", "broken"]);
+    expect(dry[1]!.previous).toEqual(previous);
     expect(manifest).toBeNull();
     expect(runSummary({ outcomes: dry, voice: "azure", publicUrl: null })).toContain("Rien n'est publié : les fichiers sont dans l'artefact « motions » du run.");
+  });
+
+  it("reads the manifest online over HTTPS, or nothing when it cannot", async () => {
+    const online = (async (url: string) => new Response(url === "https://media.jobbbox.ai/manifest.json" ? JSON.stringify({ motions: { retrouver: {} } }) : "", { status: url.endsWith("manifest.json") ? 200 : 404 })) as unknown as typeof fetch;
+    expect(await readPublicManifest("https://media.jobbbox.ai/", online)).toEqual({ motions: { retrouver: {} } });
+    const down = (async () => {
+      throw new Error("getaddrinfo ENOTFOUND");
+    }) as unknown as typeof fetch;
+    expect(await readPublicManifest("https://media.jobbbox.ai", down)).toEqual({ motions: {} });
   });
 
   it("says when nothing needs rendering", () => {

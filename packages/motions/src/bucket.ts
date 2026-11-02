@@ -1,6 +1,6 @@
 /**
  * Where the motions are published (ADR-0066): a Scaleway Object Storage bucket in fr-par, served at media.jobbbox.ai.
- * MP4, VTT, transcripts and posters live there, never in git, under `<script>/<langue>/<hash du script>/`, with
+ * MP4, VTT, transcripts and posters live there, never in git, under `<script>/<langue>/<hash du script>/<rendu>/`, with
  * `manifest.json` at its root naming the version each script shows in each language. A capture that broke leaves its
  * manifest entry as it was: the previous video stays online.
  *
@@ -93,6 +93,19 @@ export function scalewayBucket(config: { name: string; endpoint: string; region:
       return run.status === 0 ? Promise.resolve() : Promise.reject(new Error(`publishing ${key} failed: ${run.stderr.trim()}`));
     },
   };
+}
+
+/**
+ * The manifest as anyone reads it, over HTTPS (its objects are public): what is online, for a run that may not write
+ * the bucket (a pull request, publish unticked). Empty when it cannot be read: everything then counts as never published.
+ */
+export async function readPublicManifest(publicUrl: string, fetcher: typeof fetch = fetch): Promise<Manifest> {
+  try {
+    const response = await fetcher(`${publicUrl.replace(/\/$/, "")}/${MANIFEST_KEY}`);
+    return response.ok ? ((await response.json()) as Manifest) : { motions: {} };
+  } catch {
+    return { motions: {} };
+  }
 }
 
 export async function readManifest(bucket: Bucket): Promise<Manifest> {

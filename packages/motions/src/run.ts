@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { motionFileKey, motionTranscript, type HelpLocale, type MotionScript } from "@jobhub/help";
+import { motionFileKey, motionRenderId, motionTranscript, type HelpLocale, type MotionScript } from "@jobhub/help";
 import { readAppRoutes, readMotionScripts, motionScriptsDir } from "@jobhub/help/motion-scripts-content";
 import { CONTENT_TYPES, IMMUTABLE, MANIFEST_KEY, readManifest, SHORT_LIVED, type Bucket, type Manifest, type PublishedMotion } from "./bucket";
 import { narrate, type Narration } from "./narration";
@@ -133,15 +133,22 @@ export interface MotionOutcome {
 }
 
 /**
- * Stage 5: publishes each rendered motion to `bucket` (null: render only), then the manifest, which keeps the previous
+ * Stage 5: publishes each rendered motion to `bucket` (null: render only; `online`, the manifest read over HTTPS, then
+ * says what stays online), then the manifest, which keeps the previous
  * version of every motion that broke. The local draft voice is never published.
  */
-export async function publishAll(work: string, bucket: Bucket | null, now: Date = new Date()): Promise<{ outcomes: MotionOutcome[]; manifest: Manifest | null }> {
+export async function publishAll(
+  work: string,
+  bucket: Bucket | null,
+  now: Date = new Date(),
+  online: Manifest | null = null,
+): Promise<{ outcomes: MotionOutcome[]; manifest: Manifest | null }> {
   const manifest = bucket ? await readManifest(bucket) : null;
+  const shown = manifest ?? online;
   const outcomes: MotionOutcome[] = [];
   for (const motion of readPlan(work)) {
     const dir = motionDir(work, motion);
-    const previous = manifest?.motions[motion.id]?.[motion.locale];
+    const previous = shown?.motions[motion.id]?.[motion.locale];
     const broke = failure(work, motion);
     if (broke) {
       outcomes.push({ ...base(motion), status: "broken", failure: broke, previous, warnings: [] });
@@ -156,11 +163,12 @@ export async function publishAll(work: string, bucket: Bucket | null, now: Date 
       continue;
     }
     try {
+      const render = motionRenderId(now);
       const files = {
-        video: motionFileKey(motion.id, motion.locale, motion.hash, "video"),
-        captions: motionFileKey(motion.id, motion.locale, motion.hash, "captions"),
-        transcript: motionFileKey(motion.id, motion.locale, motion.hash, "transcript"),
-        poster: motionFileKey(motion.id, motion.locale, motion.hash, "poster"),
+        video: motionFileKey(motion.id, motion.locale, motion.hash, render, "video"),
+        captions: motionFileKey(motion.id, motion.locale, motion.hash, render, "captions"),
+        transcript: motionFileKey(motion.id, motion.locale, motion.hash, render, "transcript"),
+        poster: motionFileKey(motion.id, motion.locale, motion.hash, render, "poster"),
       };
       for (const key of Object.values(files)) await bucket.put(key, path.join(dir, "out", path.basename(key)), CONTENT_TYPES[path.extname(key)]!, IMMUTABLE);
       const published: PublishedMotion = { hash: motion.hash, duration: rendered.duration, renderedAt: now.toISOString(), voice: `${narration.provider}/${narration.voice}`, files };

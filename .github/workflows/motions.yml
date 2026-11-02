@@ -67,13 +67,14 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # The voice the product owner chose by ear (repository variables), and the providers' keys (secrets of this
       # workflow, never Provider Secrets of the app: the scripts hold demo data only). No key: the draft voice, never published.
-      MOTIONS_VOICE_PROVIDER: ${{ vars.MOTIONS_VOICE_PROVIDER }}
-      MOTIONS_VOICE_FR: ${{ vars.MOTIONS_VOICE_FR }}
-      MOTIONS_VOICE_EN: ${{ vars.MOTIONS_VOICE_EN }}
-      MOTIONS_ELEVENLABS_API_KEY: ${{ secrets.MOTIONS_ELEVENLABS_API_KEY }}
-      MOTIONS_AZURE_SPEECH_KEY: ${{ secrets.MOTIONS_AZURE_SPEECH_KEY }}
-      MOTIONS_GOOGLE_TTS_API_KEY: ${{ secrets.MOTIONS_GOOGLE_TTS_API_KEY }}
-      # The bucket: read (what is online) on every run, written only by a manual run asked to publish.
+      # A pull request always uses the draft voice (espeak-ng): no key, no cost, nothing published.
+      MOTIONS_VOICE_PROVIDER: ${{ github.event_name == 'pull_request' && 'espeak' || vars.MOTIONS_VOICE_PROVIDER }}
+      MOTIONS_VOICE_FR: ${{ github.event_name != 'pull_request' && vars.MOTIONS_VOICE_FR || '' }}
+      MOTIONS_VOICE_EN: ${{ github.event_name != 'pull_request' && vars.MOTIONS_VOICE_EN || '' }}
+      MOTIONS_ELEVENLABS_API_KEY: ${{ github.event_name != 'pull_request' && secrets.MOTIONS_ELEVENLABS_API_KEY || '' }}
+      MOTIONS_AZURE_SPEECH_KEY: ${{ github.event_name != 'pull_request' && secrets.MOTIONS_AZURE_SPEECH_KEY || '' }}
+      MOTIONS_GOOGLE_TTS_API_KEY: ${{ github.event_name != 'pull_request' && secrets.MOTIONS_GOOGLE_TTS_API_KEY || '' }}
+      # The bucket: written only by a manual run asked to publish; any other run reads what is online over HTTPS.
       MOTIONS_BUCKET: ${{ vars.MOTIONS_BUCKET || 'media.jobbbox.ai' }}
       MOTIONS_S3_ACCESS_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && secrets.MOTIONS_S3_ACCESS_KEY || '' }}
       MOTIONS_S3_SECRET_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && secrets.MOTIONS_S3_SECRET_KEY || '' }}
@@ -96,13 +97,16 @@ jobs:
 
       - name: Plan
         id: plan
+        env:
+          SELECT: ${{ inputs.motions }}
+          FIXTURES: ${{ inputs.fixtures && '--fixtures' || '' }}
         run: |
           last_version=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
           since=$([ -n "$last_version" ] && git log -1 --format=%cI "$last_version" || true)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             npm run -s motions -w @jobhub/motions -- plan --select all --fixtures
           else
-            npm run -s motions -w @jobhub/motions -- plan --select "${{ inputs.motions }}" ${{ inputs.fixtures && '--fixtures' || '' }} --since "$since"
+            npm run -s motions -w @jobhub/motions -- plan --select "$SELECT" $FIXTURES --since "$since"
           fi
           echo "count=$(jq length "$MOTIONS_WORK/plan.json")" >> "$GITHUB_OUTPUT"
 
@@ -121,13 +125,15 @@ jobs:
       # The demo Candidate, seeded on this run's throwaway database; a broken capture is written down, never fails.
       - name: Capture
         if: steps.plan.outputs.count != '0'
-        run: npx playwright test --project=motions
+        run: npx playwright test --project=motions --reporter=list
 
+      # Whatever the capture step did, what was filmed is rendered and published, and the summary is written.
       - name: Render
-        if: steps.plan.outputs.count != '0'
+        if: ${{ !cancelled() && steps.plan.outputs.count != '0' }}
         run: npm run -s motions -w @jobhub/motions -- render
 
       - name: Publish and summarise
+        if: ${{ !cancelled() && steps.plan.outcome == 'success' }}
         run: npm run -s motions -w @jobhub/motions -- publish
 
       - uses: actions/upload-artifact@v4

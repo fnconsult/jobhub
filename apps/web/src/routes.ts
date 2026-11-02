@@ -143,6 +143,8 @@ export const routes = {
   acceptance: "/acceptation",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
+  /** Where a Nouveautés email's unsubscribe link leads (#566, no sign-in needed). */
+  nouveautesEmailUnsubscribe: "/desabonnement/nouveautes",
   /** The Help Centre (#549, ADR-0065): its four topics and its search (`?q=`); public. */
   help: "/aide",
   /** A topic of the Help Centre: its public articles, or « Bientôt des articles ici ». */
@@ -154,6 +156,8 @@ export const routes = {
   helpArticle: (topic: string, id: string, locale?: "fr" | "en") => `${locale === "en" ? "/en" : ""}/aide/${encodeURIComponent(topic)}/${encodeURIComponent(id)}`,
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
   nouveautes: "/nouveautes",
+  /** One Version's Release Note on Nouveautés (#566), where the Nouveautés email leads; public. */
+  nouveautesVersion: (version: string) => `/nouveautes/${encodeURIComponent(version)}`,
   /**
    * Légal (ADR-0062): a Legal Text (the CGU by default), the version in effect; or `version`, its permanent dated
    * address. Public.

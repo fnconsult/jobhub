@@ -71,7 +71,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Purpose | Let an Administrator ask questions about Back Office data and settings (Plan Quotas, Human Coaches, the AI Coach's cost, Administrators, the Journal) in the Back Office, and keep their conversations so they can reopen them. Read-only: it changes nothing. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)): helping the Jobbbox team run its own administration. |
 | People concerned | Administrators (who ask). Human Coaches, by their public name and bio, when the asking Administrator's roles cover Human Coaches. |
-| Data | What the Administrator types and the assistant's replies, with dates; the AI provider, model and estimated cost of each reply (internal). What the AI is told is limited to what the Administrator's Back Office Roles may read, and minimised: no email address (Administrators are counted per role, Journal targets are masked, any address left is masked), no Human Coach booking link, and never a Provider Secret or SSO client secret value. |
+| Data | What the Administrator types and the assistant's replies, with dates; the AI provider, model and estimated cost of each reply (internal). With each question, the Administrators' Help Articles the search finds for it (#551): texts written by the Jobbbox team, without personal data. What the AI is told is limited to what the Administrator's Back Office Roles may read, and minimised: no email address (Administrators are counted per role, Journal targets are masked, any address left is masked), no Human Coach booking link, and never a Provider Secret or SSO client secret value. |
 | Source | The Administrator, in the Back Office Assistant panel; the Back Office's own data. |
 | Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Administrator's EU AI consent, what they type that carries identity goes to Mistral (#121). |
 | Who can read it | The Administrator who had the conversation, in the panel. Not other Administrators, not Candidates; Back Office routes answer 404 to anyone without a Back Office Role. |
@@ -79,6 +79,22 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | 12 months after the conversation's last message (the worker's nightly job `back-office-assistant.purge`); deleted at once with the Administrator's account, or when they delete the conversation. |
 | Rights | In the Administrator's account data export (`backOfficeAssistantConversations`, without AI costs). |
 | Security | The API checks the Administrator's Back Office Roles on every request; conversations are scoped to their own account. |
+
+## Unanswered Questions (#344, #551)
+
+| | |
+| --- | --- |
+| Purpose | Improve Jobbbox's help: keep the questions about using Jobbbox that no Help Article answered, so Help editors write the missing article or synonym (ADR-0035, ADR-0065). |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)): improving the help Jobbbox gives its users. |
+| People concerned | Candidates who ask the AI Coach a question the help missed; Administrators who click « Demander un tutoriel » in the Back Office Assistant. Neither is identified in the record. |
+| Data | The question and the AI's answer (the AI Coach's, or the Back Office Assistant's), redacted: for a Candidate, their known identity and every email address and phone number; for an Administrator, every email address and phone number by its shape. Its audience (`candidate` or `administrator`), the page's route pattern (`/candidatures/[id]`, `/admin/parametres`), never its address or an id; the Interface Language; how many times it was asked, when first and last; its status. No Candidate id, Administrator id, account or conversation id. |
+| Source | A Candidate's question is kept automatically when the AI Coach replied, said it was about using Jobbbox, and no Help Article matched it. An Administrator's is kept only when they click « Demander un tutoriel » under a Back Office Assistant reply that no Administrator article covered (#551), never automatically. |
+| Processors | None: kept in Jobbbox's own database. The AI calls that produced the answers are the AI Coach's and the Back Office Assistant's, covered by their own entries. |
+| Who can read it | Help editors and super-admins (read, mark « Article écrit » or « Écarter »), Support (read), in « Questions sans réponse », filtered by audience, page and language. Not Candidates. |
+| Storage | The `unanswered_question` table in the app's Postgres database (EU), which references no other table. |
+| Retention | 12 months after it was last asked; 30 days after it was marked written or dismissed (the worker's daily purge). |
+| Rights | Not linked to anyone, so in no Data export and untouched by an account deletion: there is nothing to find a person by. |
+| Security | Reading and marking check the Administrator's Back Office Roles; a mark is written to the Back Office Audit by the question's id, never its words. « Demander un tutoriel » is answered 404 to anyone without a Back Office Role and passes on no Administrator id. |
 
 ## AI Usage (#218)
 

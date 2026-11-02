@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTACT_EMAIL_TOKEN } from "./contact";
-import { HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
+import { BACK_OFFICE_HELP_TOPICS, HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
 export class HelpContentError extends Error {
@@ -107,7 +107,7 @@ function articleProblems(article: HelpArticle): string[] {
   if (!article.topic) problems.push("topic is missing");
   else if (article.audience === "administrator") {
     if (publicTopic) problems.push(`an administrator article's topic is a Back Office one, never a public topic (${article.topic})`);
-    else if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(article.topic)) problems.push("topic must be a slug: lower-case letters, digits and hyphens");
+    else if (!(BACK_OFFICE_HELP_TOPICS as readonly string[]).includes(article.topic)) problems.push(`an administrator article's topic must be ${orList(BACK_OFFICE_HELP_TOPICS)}`);
   } else if (!publicTopic) problems.push(`topic must be ${orList(PUBLIC_HELP_TOPICS)}`);
   if (!article.title) problems.push("title is missing");
   if (article.kind === "tutorial" && numberedSteps(article.body) < 2) problems.push("a tutorial needs at least two numbered steps (« 1. … », « 2. … »)");

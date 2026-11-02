@@ -85,10 +85,22 @@ function ApplicationCard({ data }: { data: ApplicationPageData }) {
   const facts = [jobOffer.employer, jobOffer.location].filter(Boolean).join(" · ");
   return (
     <div className="application-card">
-      {facts ? <p className="application-card__facts">{facts}</p> : null}
+      {/* As in the prototype (#586): the employer's initial, the job and where, the Match Score at the right. */}
+      <div className="fiche-object-head">
+        <span className="fiche-object-mark" aria-hidden="true">
+          {(jobOffer.employer ?? jobOffer.title).trim().charAt(0).toUpperCase()}
+        </span>
+        <div className="fiche-object-name">
+          <p className="fiche-object-title">{jobOffer.title}</p>
+          {facts ? <p className="application-card__facts">{facts}</p> : null}
+        </div>
+      </div>
       <dl className="props">
         <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
-        <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />
+        <div className="prop">
+          <dt>{t("application.savedOnLabel")}</dt>
+          <dd>{date.format(application.createdAt)}</dd>
+        </div>
         <div className="prop">
           <dt>{t("application.matchLabel")}</dt>
           <dd>
@@ -98,10 +110,7 @@ function ApplicationCard({ data }: { data: ApplicationPageData }) {
             </Link>
           </dd>
         </div>
-        <div className="prop">
-          <dt>{t("application.savedOnLabel")}</dt>
-          <dd>{date.format(application.createdAt)}</dd>
-        </div>
+        <ApplicationProfileSelect applicationId={application.id} profileId={application.profile.id} profiles={choices} />
         {jobOffer.source.url && site ? (
           <div className="prop">
             <dt>{t("application.offerLabel")}</dt>

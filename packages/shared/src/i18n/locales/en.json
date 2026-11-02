@@ -5092,7 +5092,31 @@
     "published": "Published versions",
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
-    "noneForTag": "No version has this topic yet."
+    "noneForTag": "No version has this topic yet.",
+    "allVersions": "All versions"
+  },
+  "nouveautesEmail": {
+    "settings": {
+      "label": "Get an email when Jobbbox announces something new",
+      "explanation": "At most one email a week, with no open or click tracking. You can unsubscribe at any time, here or through the email's link.",
+      "since": "Subscribed since {{date}}.",
+      "on": "Subscription saved.",
+      "off": "You will no longer receive these emails.",
+      "error": "Your choice could not be saved. Please try again."
+    },
+    "email": {
+      "subject": "New in Jobbbox: {{title}}",
+      "read": "Read version {{version}}",
+      "reason": "You are receiving this email because you asked, in My account, to hear about what is new in Jobbbox.",
+      "unsubscribe": "Stop receiving what's new by email"
+    },
+    "unsubscribePage": {
+      "title": "Unsubscribe from what's-new emails",
+      "confirm": "You will no longer get an email when Jobbbox announces something new. You can subscribe again at any time in My account, under Preferences.",
+      "action": "Unsubscribe",
+      "done": "Done: you will no longer receive what's-new emails.",
+      "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and untick the box in My account, under Preferences."
+    }
   },
   "publicFooter": {
     "legal": {

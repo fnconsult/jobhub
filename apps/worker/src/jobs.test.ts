@@ -26,7 +26,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -762,6 +762,30 @@ describe("the Legal Text notices job (#547)", () => {
     const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
     const sendDue = vi.fn(async () => Promise.reject(missingTable));
     await expect(createJobs({ ...otherDeps, database: noDatabase, legalTextNotices: { sendDue } })[LEGAL_TEXT_NOTICES]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("the Nouveautés email job (#566)", () => {
+  it("sends the Nouveautés emails due every day, saying how many went and how many are left to the next run", async () => {
+    const logs: string[] = [];
+    const sendDue = vi.fn(async () => ({ emails: 2, failed: 0 }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, nouveautesEmails: { sendDue }, log: (line) => logs.push(line) })[NOUVEAUTES_EMAILS]!;
+
+    expect(job.cron).toMatch(/^\d+ \d+ \* \* \*$/);
+    await job.handler({});
+    sendDue.mockResolvedValueOnce({ emails: 0, failed: 0 });
+    await job.handler({});
+    sendDue.mockResolvedValueOnce({ emails: 1, failed: 1 });
+    await job.handler({});
+
+    expect(logs).toEqual(["[nouveautes-emails] 2 Nouveautés email(s) sent", "[nouveautes-emails] 1 Nouveautés email(s) sent; 1 could not be sent, left to the next run"]);
+  });
+
+  it("does nothing without the Nouveautés email, or before the web app has created its tables", async () => {
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[NOUVEAUTES_EMAILS]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    const sendDue = vi.fn(async () => Promise.reject(missingTable));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, nouveautesEmails: { sendDue } })[NOUVEAUTES_EMAILS]!.handler({})).resolves.toBeUndefined();
   });
 });
 

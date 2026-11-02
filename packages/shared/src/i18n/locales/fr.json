@@ -5092,7 +5092,31 @@
     "published": "Versions publiées",
     "emptyTitle": "Rien n'est encore publié",
     "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
-    "noneForTag": "Aucune version ne porte ce thème pour le moment."
+    "noneForTag": "Aucune version ne porte ce thème pour le moment.",
+    "allVersions": "Toutes les versions"
+  },
+  "nouveautesEmail": {
+    "settings": {
+      "label": "Recevoir un e-mail quand Jobbbox annonce une nouveauté",
+      "explanation": "Au plus un e-mail par semaine, sans suivi d'ouverture ni de clic. Vous pouvez vous désabonner à tout moment, ici ou par le lien de l'e-mail.",
+      "since": "Inscrit depuis le {{date}}.",
+      "on": "Inscription enregistrée.",
+      "off": "Vous ne recevrez plus ces e-mails.",
+      "error": "Votre choix n’a pas pu être enregistré. Réessayez."
+    },
+    "email": {
+      "subject": "Nouveauté Jobbbox : {{title}}",
+      "read": "Lire la version {{version}}",
+      "reason": "Vous recevez cet e-mail parce que vous avez demandé, dans Mon compte, à être prévenu des nouveautés de Jobbbox.",
+      "unsubscribe": "Ne plus recevoir les nouveautés par e-mail"
+    },
+    "unsubscribePage": {
+      "title": "Se désabonner des e-mails de nouveautés",
+      "confirm": "Vous ne recevrez plus d'e-mail quand Jobbbox annonce une nouveauté. Vous pourrez vous réinscrire à tout moment dans Mon compte, rubrique Préférences.",
+      "action": "Me désabonner",
+      "done": "C'est fait : vous ne recevrez plus les e-mails de nouveautés.",
+      "invalid": "Ce lien de désabonnement n'est plus valable. Vous êtes peut-être déjà désabonné ; sinon, connectez-vous et décochez la case dans Mon compte, rubrique Préférences."
+    }
   },
   "publicFooter": {
     "legal": {

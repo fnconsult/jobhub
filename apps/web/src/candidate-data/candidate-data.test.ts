@@ -19,6 +19,7 @@ import { createEmailIntakeInbound } from "../email-intake/inbound";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
+import { createNouveautesEmails } from "../nouveautes-email";
 import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -287,6 +288,19 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       emailed: [{ text: "confidentialite", version: "2026-12-15", sentAt: at }],
       privacyChangesSeen: [{ version: "2026-10-01", seenAt: at }],
     });
+  });
+
+  it("the export holds the Candidate's Nouveautés email choice, its date and the Versions it told them of, never its unsubscribe token (#566)", async () => {
+    expect((await candidateData.export(candidateId)).nouveautesEmail).toEqual({ subscribed: false, subscribedAt: null, sent: [] });
+    const at = new Date("2026-11-02T09:00:00Z");
+    const note = { version: "0.2.0", date: "2026-11-02", title: "Titre", tags: [], image: null, announce: true, intro: "Intro.", changes: [] };
+    const emails = createNouveautesEmails(database, { mailer: { send: async () => {} }, baseURL: BASE_URL, production: true, version: "0.2.0", now: () => at, written: { fr: [{ ...note, locale: "fr" }], en: [] } });
+    await emails.subscribe(candidateId);
+    await emails.sendDue();
+
+    const exported = (await candidateData.export(candidateId)).nouveautesEmail;
+    expect(exported).toEqual({ subscribed: true, subscribedAt: at, sent: [{ version: "0.2.0", sentAt: at }] });
+    expect(JSON.stringify(exported)).not.toMatch(/token/i);
   });
 
   it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {

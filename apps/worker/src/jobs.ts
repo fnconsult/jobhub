@@ -4,6 +4,7 @@ import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { REMINDER_HOUR, REMINDER_TIME_ZONE, type AppointmentReminders } from "@jobhub/web/appointment-reminders";
 import type { LegalTextNotices } from "@jobhub/web/legal-text-notices";
+import type { NouveautesEmails } from "@jobhub/web/nouveautes-email";
 import type { QuotaReductions } from "@jobhub/web/quota-reductions";
 import { MESSAGE_LOG_RETENTION_DAYS, purgeExpiredAiUsage, RETENTION_MONTHS as AI_USAGE_RETENTION_MONTHS } from "@jobhub/web/ai-usage";
 import { CGU_RETENTION_YEARS, CGV_RETENTION_YEARS, purgeExpiredAcceptances } from "@jobhub/web/acceptances";
@@ -85,6 +86,13 @@ export const APPOINTMENT_REMINDERS = "appointment-reminders.send";
  * (LEGAL_TEXT_NOTICES_RETRY), and only those are sent.
  */
 export const LEGAL_TEXT_NOTICES = "legal-text-notices.send";
+
+/**
+ * Queue name: email each subscribed Candidate the announced Release Note due to them (#566): at most one per Candidate in
+ * any 7 days, once per Version, only in Production. Run when the worker starts, so a Production deployment carrying an
+ * announced Version sends at once, then daily: a second note of the same week goes out a week after the first.
+ */
+export const NOUVEAUTES_EMAILS = "nouveautes-emails.send";
 
 /** How a run of LEGAL_TEXT_NOTICES with emails that failed is tried again: 5 more times, from 15 minutes apart, doubling. */
 const LEGAL_TEXT_NOTICES_RETRY = { limit: 5, delaySeconds: 900, backoff: true };
@@ -218,6 +226,8 @@ export interface JobsDeps {
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
   /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
   legalTextNotices?: Pick<LegalTextNotices, "sendDue">;
+  /** The Nouveautés email (#566), sent from Production only. Satisfied by the web app's Nouveautés email module. Without it, nothing to send. */
+  nouveautesEmails?: Pick<NouveautesEmails, "sendDue">;
   /** Quota Reductions (#514). Without them, none is applied nor announced. */
   quotaReductions?: Pick<QuotaReductions, "run">;
   /** The reference data, refreshed monthly. Satisfied by the web app's reference data module. Without it, nothing to refresh. */
@@ -500,6 +510,18 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           log(`[legal-text-notices] ${sent.emails} notice email(s) sent` + (sent.failed ? `; ${sent.failed} could not be sent, left to the next try` : ""));
           // Thrown for the runner to try again: the notices sent are not sent twice.
           if (sent.failed) throw new Error(`${sent.failed} Legal Text notice(s) could not be sent`);
+        }),
+    },
+
+    // Every morning, and when the worker starts. Safe to run again: one email per Candidate and per Version, one a week.
+    [NOUVEAUTES_EMAILS]: {
+      cron: "37 10 * * *",
+      tz: "Europe/Paris",
+      handler: () =>
+        onceTablesExist(async () => {
+          const sent = await deps.nouveautesEmails?.sendDue();
+          if (!sent || (!sent.emails && !sent.failed)) return;
+          log(`[nouveautes-emails] ${sent.emails} Nouveautés email(s) sent` + (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""));
         }),
     },
 

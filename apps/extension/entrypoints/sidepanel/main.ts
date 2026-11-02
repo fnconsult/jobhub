@@ -87,14 +87,20 @@ function siteLink(text: string, path: string): HTMLAnchorElement {
 }
 
 /**
- * The CGU version in effect (#550), which the Guest's box names; null while none is. Asked of the web app once it
- * answers, and asked again while it has not: undefined then, which is not « none ».
+ * The CGU version in effect (#550), which the Guest's box names; null while none is, undefined while the web app
+ * cannot say (which is not « none »). `fresh`: asked again, as before a CV is sent; otherwise the last answer, or the
+ * question already asked, serves (a render).
  */
-let cguInEffect: CguVersion | null | undefined;
-async function readCguInEffect(): Promise<CguVersion | null | undefined> {
-  if (cguInEffect !== undefined) return cguInEffect;
-  const reply = await api.cguInEffect();
-  if (reply.ok) cguInEffect = reply.cgu;
+let cguInEffect: Promise<CguVersion | null | undefined> | undefined;
+function readCguInEffect({ fresh = false } = {}): Promise<CguVersion | null | undefined> {
+  if (!cguInEffect || fresh) {
+    const asked = api.cguInEffect().then((reply) => (reply.ok ? reply.cgu : undefined));
+    cguInEffect = asked;
+    // Not known: asked again next time.
+    void asked.then((known) => {
+      if (known === undefined && cguInEffect === asked) cguInEffect = undefined;
+    });
+  }
   return cguInEffect;
 }
 
@@ -343,7 +349,7 @@ function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLBu
   // One place for the latest error: a new attempt replaces the last one's message.
   const error = element("p", "", "error");
   error.setAttribute("role", "alert");
-  const terms = cgu ? guestTermsBox(cgu) : undefined;
+  let terms = cgu ? guestTermsBox(cgu) : undefined;
   form.append(label, input, drop, ...(terms ? [terms.node] : []), progress, error);
 
   form.addEventListener("submit", async (event) => {
@@ -353,33 +359,36 @@ function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLBu
       input.reportValidity();
       return;
     }
+    if (submit.disabled) return;
+    submit.disabled = true;
     error.textContent = "";
-    // A Guest's CV goes only once they have accepted the CGU in effect (#550): the box, never sent, stays in the
-    // Guest session. Not knowing whether a version is in effect, nothing is sent.
+    // A Guest's CV goes only once they have accepted the CGU in effect (#550), asked again now: the box, never
+    // sent, stays in the Guest session. Not knowing whether a version is in effect, nothing is sent.
     if (!candidate.signedIn) {
-      submit.disabled = true;
-      const inEffect = await readCguInEffect();
-      submit.disabled = false;
-      if (inEffect === undefined) {
-        error.textContent = t("extension.unreachable");
-        return;
-      }
+      const inEffect = await readCguInEffect({ fresh: true });
+      const refuse = (message: string) => {
+        submit.disabled = false;
+        error.textContent = message;
+      };
+      if (inEffect === undefined) return refuse(t("extension.unreachable"));
       const toAccept = guestTermsToAccept(inEffect, (await session.read()).guestTerms);
       if (toAccept) {
-        // A version came into effect, or became known, since the form was drawn: its box is shown first.
+        // A version came into effect, or became known, since the form was drawn: its box, unticked, takes the
+        // place of any other, the file chosen staying chosen.
         if (terms?.input.dataset.version !== toAccept.version) {
-          await render();
-          return;
+          const shown = guestTermsBox(toAccept);
+          if (terms) terms.node.replaceWith(shown.node);
+          else drop.after(shown.node);
+          terms = shown;
         }
         if (!terms.input.checked) {
-          error.textContent = t("extension.guestTerms.required");
+          refuse(t("extension.guestTerms.required"));
           terms.input.focus();
           return;
         }
         await session.acceptGuestTerms(toAccept.version);
       }
     }
-    submit.disabled = true;
     progress.textContent = t("cvUpload.reading");
     const read = await api.readCv(file);
     if (!read.ok) {

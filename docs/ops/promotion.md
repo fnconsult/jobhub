@@ -23,7 +23,7 @@ Le script promeut `origin/main`. Il vérifie d'abord, et dit en clair chaque pr�
 3. **La CI de ce commit est verte** (`ci.yml`).
 4. **La Beta sert ce commit** : `https://staging.jobbbox.ai/api/health` répond ce SHA et cette Version. Sinon, déployez d'abord ce commit sur la Beta.
 5. **Les Release Notes FR et EN existent** : `packages/help/releases/fr/X.Y.Z.md` et `en/X.Y.Z.md`, sauf avec `--rien-de-visible`, que le résumé rappelle.
-6. **Aucun fragment ne reste** dans `packages/help/releases/unreleased/` : ils sont assemblés dans la Release Note.
+6. **Aucun fragment ne reste** dans `packages/help/releases/unreleased/` : ils sont assemblés dans la Release Note par `npm run release-note -w @jobhub/help` (#562), qui écrit le brouillon `releases/{fr,en}/X.Y.Z.md` et les retire ; l'agent le réécrit dans un ton unique, vous le validez ici.
 
 Il résume ensuite ce qu'il va faire et demande de taper la Version (`--yes` pour s'en passer), puis :
 

@@ -1,4 +1,4 @@
-import { backOfficeHelpArticle } from "@jobhub/help";
+import { backOfficeHelpArticle, type BackOfficeHelpTopic } from "@jobhub/help";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
@@ -19,8 +19,10 @@ async function shown({ params }: Params) {
 }
 
 export async function generateMetadata(props: Params): Promise<Metadata> {
-  await requireBackOffice();
-  return backOfficeHelpMetadata((await shown(props)).title);
+  // The Back Office first: a non-Administrator's 404 never names the article.
+  const metadata = await backOfficeHelpMetadata();
+  const article = await shown(props);
+  return { ...metadata, title: `${article.title} · ${String(metadata.title)}` };
 }
 
 /**
@@ -34,7 +36,7 @@ export default async function BackOfficeHelpArticlePage(props: Params) {
   return (
     <BackOfficeLayout access={access} title={article.title}>
       <article className="section-page" aria-label={article.title}>
-        <BackOfficeHelpBreadcrumb topic={backOfficeTopicOrNotFound(article.topic)} />
+        <BackOfficeHelpBreadcrumb topic={article.topic as BackOfficeHelpTopic} />
         <p className="section-meta">
           {t(`coachPanel.help.kinds.${article.kind}`)} · {t("helpCentre.writtenBy")}
         </p>

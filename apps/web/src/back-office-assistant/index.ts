@@ -34,7 +34,7 @@
 import { costInEur, createProvenanceRecorder, type AiLayer, type GenerateResult } from "@jobhub/ai";
 import type { Provenance } from "@jobhub/shared";
 import { toolById, type Plan, type PlanFeature, type PlanQuotas } from "@jobhub/shared";
-import { failureReasonWording } from "@jobhub/shared/i18n";
+import { failureReasonWording, resources } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import { backOfficeHelpAddress, backOfficeHelpFor, helpLocale, type HelpArticle, type HelpLocale } from "../coach-help";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
@@ -90,7 +90,16 @@ export interface AskingAdministrator {
  * `provenance`: what served the reply, the Guardrail checks and the reply itself, with the model of each (#327).
  */
 export type AssistantReply =
-  | { ok: true; reply: string; outcome: GuardedReply["outcome"]; cost: CoachMessageCost; sections: BackOfficeResource[]; provenance: Provenance }
+  | {
+      ok: true;
+      reply: string;
+      outcome: GuardedReply["outcome"];
+      cost: CoachMessageCost;
+      sections: BackOfficeResource[];
+      provenance: Provenance;
+      /** No Administrator's Help Article covered the question (#551): the panel offers « Demander un tutoriel ». Unset: it did. */
+      helpMissed?: boolean;
+    }
   | { ok: false; error: "invalid" | "unavailable" };
 
 export interface BackOfficeAssistant {
@@ -472,21 +481,23 @@ function journalLine(entry: BackOfficeAuditEntry): string {
   return `${JOURNAL_SECTIONS[entry.section]}, ${ACTIONS[entry.action]} de ${target}${values}`;
 }
 
-/** « Demander un tutoriel », as the panel shows it in the Administrator's language. */
-const REQUEST_TUTORIAL: Record<HelpLocale, string> = { fr: "Demander un tutoriel", en: "Request a tutorial" };
-
 /**
- * What the assistant is told of the help for `question` (#551): the Administrators' articles the search finds, whole, to
- * answer from and cite; or that none covers it, so it says so and points to « Demander un tutoriel ». Articles are the
- * team's own texts, without personal data (ADR-0065).
+ * What the assistant is told of the help for the Administrator's latest question (#551): the Administrators' articles
+ * the search finds, whole, to answer from and cite; or that none covers it, so it says so and points to « Demander un
+ * tutoriel », the button the panel then shows (in the panel's own words). A follow-up the search reads nothing in
+ * (« Et pour la langue ? ») is looked for with the question before it. Articles are the team's own texts, without
+ * personal data (ADR-0065).
  */
-export function helpContext(question: string, locale: HelpLocale): { text: string; articles: HelpArticle[] } {
-  const articles = backOfficeHelpFor(question, locale);
+export function helpContext(asked: readonly string[], locale: HelpLocale): { text: string; articles: HelpArticle[] } {
+  const latest = asked.at(-1) ?? "";
+  const found = backOfficeHelpFor(latest, locale);
+  const articles = found.length === 0 && asked.length > 1 ? backOfficeHelpFor(`${asked.at(-2)} ${latest}`, locale) : found;
+  const requestTutorial = resources[locale].translation.backOfficeAssistant.help.requestTutorial;
   if (articles.length === 0)
     return {
       articles,
       text: `## Aide du back office
-Aucun article de l'aide du back office ne couvre cette question. Si elle porte sur la façon d'utiliser le back office (où trouver quelque chose, comment faire), dites qu'aucun tutoriel ne couvre encore ce point et que l'Administrateur peut cliquer sur « ${REQUEST_TUTORIAL[locale]} » sous votre réponse. N'inventez aucun article ni aucun lien d'aide.`,
+Aucun article de l'aide du back office ne couvre cette question. Si elle porte sur la façon d'utiliser le back office (où trouver quelque chose, comment faire), dites qu'aucun tutoriel ne couvre encore ce point et que l'Administrateur peut cliquer sur « ${requestTutorial} » sous votre réponse. N'inventez aucun article ni aucun lien d'aide.`,
     };
   const shown = articles.map((article) => `### « ${article.title} » (${backOfficeHelpAddress(article)})
 ${article.body}`);
@@ -531,7 +542,10 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
         message.from === "administrator" && message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text;
       const administratorSaid = messages.filter((message) => message.from === "administrator").map(said);
       // The help for the question asked now, in the Administrator's language: the Administrators' articles only (#551).
-      const help = helpContext(messages.at(-1)!.text, helpLocale(options.language));
+      const help = helpContext(
+        messages.filter((message) => message.from === "administrator").map((message) => message.text),
+        helpLocale(options.language),
+      );
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance (#327).
       const recorder = createProvenanceRecorder(deps.ai);
       try {
@@ -587,6 +601,7 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
           },
           sections: readableSections(administrator.access),
           provenance: recorder.provenance(),
+          helpMissed: help.articles.length === 0,
         };
       } catch (error) {
         console.warn("[back-office-assistant] the assistant could not reply:", error instanceof Error ? error.message : error);

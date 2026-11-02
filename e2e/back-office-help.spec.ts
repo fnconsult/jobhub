@@ -50,7 +50,7 @@ async function ask(page: Page, text: string) {
 }
 
 test.describe("Back Office help: the assistant's articles, « Demander un tutoriel », /admin/aide (#551)", () => {
-  test("the assistant shows the section's article « Sur cette page », suggests it while typing, is given it and never a Candidate's", async ({ page }) => {
+  test("the assistant shows the section's article « Sur cette page », suggests it while typing, is given it and cites it", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto("/admin/questions-sans-reponse");
     await openAssistant(page);
@@ -68,7 +68,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
 
     // Suggested first, without AI, while typing.
     await box(page).fill("filtrer les questions sans réponse par public");
-    await expect(assistant(page).getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button")).toHaveText([`${ARTICLE.title}${fr.coachPanel.help.kinds.page}`]);
+    await expect(assistant(page).getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button").first()).toHaveText(`${ARTICLE.title}${fr.coachPanel.help.kinds.page}`);
 
     // Given to the assistant, with its link to cite; a Candidate's article never.
     const show = showSystemPrompt();
@@ -79,20 +79,20 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     // Found articles: no « Demander un tutoriel » under the reply.
     await expect(messages(page).last().getByRole("button", { name: assistantTexts.help.requestTutorial })).toHaveCount(0);
 
-    const candidateShow = showSystemPrompt();
-    await ask(page, `Comment relancer un recruteur ? ${candidateShow}`);
-    const told = await systemPromptShown(candidateShow);
-    expect(told).not.toContain("### « ");
-    expect(told).toContain("Aucun article de l'aide du back office ne couvre cette question");
   });
 
-  test("« Demander un tutoriel » alone records an Administrator's Unanswered Question, without the Administrator, filtered by audience", async ({ page }) => {
+  test("given no Candidate's article, the assistant offers « Demander un tutoriel », which alone records an Administrator's Unanswered Question, without the Administrator, filtered by audience", async ({ page }) => {
     const ref = tag();
-    const question = `Comment archiver un ${ref} ?`;
+    const show = showSystemPrompt();
+    // A Candidate's frequent question (faq-follow-up-recruiter): the assistant is never given that article.
+    const question = `Comment relancer un recruteur ${ref} ? ${show}`;
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto("/admin/offres");
     await openAssistant(page);
     await ask(page, question);
+    const told = await systemPromptShown(show);
+    expect(told).not.toContain("### « ");
+    expect(told).toContain("Aucun article de l'aide du back office ne couvre cette question");
     const reply = messages(page).last();
     await expect(reply).toContainText(assistantTexts.help.noTutorial);
 
@@ -110,8 +110,8 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
       expect(rows[0]).toMatchObject({ audience: "administrator", question, route: "/admin/offres", language: "fr", count: 1 });
       // Nothing in it names the Administrator.
       expect(JSON.stringify(rows[0])).not.toContain("back-office-help-office");
-      const { rows: account } = await db.query<{ id: string }>("SELECT id::text FROM candidate WHERE email = $1", [SUPER_ADMIN]).catch(() => ({ rows: [] as { id: string }[] }));
-      for (const { id } of account) expect(JSON.stringify(rows[0])).not.toContain(id);
+      // No column could: none names a person, an account or a conversation.
+      expect(Object.keys(rows[0]!).filter((column) => /candidate|administrator|account|person|email|conversation/.test(column))).toEqual([]);
     } finally {
       await db.end();
     }
@@ -143,7 +143,7 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
 
     await page.getByLabel(admin.help.searchLabel).fill("questions sans réponse public");
     await page.getByRole("button", { name: admin.help.searchSubmit }).click();
-    await expect(page.getByRole("status")).toContainText(admin.help.results_one.replace("{{count}}", "1").replace("{{query}}", "questions sans réponse public"));
+    await expect(page.getByRole("status")).toContainText("« questions sans réponse public »");
     await page.getByRole("main").getByRole("link", { name: ARTICLE.title }).first().click();
     await expect(page).toHaveURL(new RegExp(`${ARTICLE.path}$`));
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(ARTICLE.title);

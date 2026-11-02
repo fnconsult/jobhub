@@ -204,7 +204,7 @@ export const routes = {
     return `/admin/questions-sans-reponse${query ? `?${query}` : ""}`;
   },
   /** The Back Office's help (#551, ADR-0065): its topics and its search (`?q=`); Administrators only, never indexed. */
-  adminHelp: (query?: string) => (query ? `/admin/aide?${new URLSearchParams({ q: query }).toString()}` : "/admin/aide"),
+  adminHelp: "/admin/aide",
   /** A topic of the Back Office's help: its Administrator articles. */
   adminHelpTopic: (topic: string) => `/admin/aide/${encodeURIComponent(topic)}`,
   /** An Administrator's Help Article in the Back Office's help. */

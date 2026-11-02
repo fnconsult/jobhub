@@ -16,7 +16,7 @@ import { CoachReplyText } from "@/components/CoachReplyText";
 import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback, TutorialRequest, type TutorialRequestState } from "@/components/CoachHelp";
 import { SignalementProvider, useOpenSignalement } from "@/components/Signalement";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
-import { backOfficeHelpFor, helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle, type HelpAudience } from "@/coach-help";
+import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle, type HelpAudience } from "@/coach-help";
 import { createMentions, type Mentions } from "@/help-terms";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
@@ -271,6 +271,8 @@ type ReplyBody = {
   at?: string;
   /** The AI Coach could not answer the question (#345). */
   couldNotAnswer?: boolean;
+  /** The Back Office Assistant was given no Administrator's Help Article for the question (#551). */
+  helpMissed?: boolean;
   /** The conversation's Context bar's figures, once the message is saved (#607). */
   context?: ConversationContext;
 };
@@ -957,8 +959,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
           ...(body.jobOffer ? { jobOffer: body.jobOffer } : {}),
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
-          // The Administrators' help had no article on the question (#551): the reply offers « Demander un tutoriel ».
-          ...(help && audience === "administrator" && !blocked?.message && !blocked?.reply && backOfficeHelpFor(text, locale).length === 0 ? { tutorial: "offered" as const } : {}),
+          // The Administrators' help had no article on the question, as the server searched it (#551): the reply offers « Demander un tutoriel ».
+          ...(help && audience === "administrator" && body.helpMissed === true && !blocked?.message && !blocked?.reply ? { tutorial: "offered" as const } : {}),
         },
       ]);
       const at = body.at;

@@ -91,8 +91,8 @@ export function BackOfficeSidebarLayout({
             <li>
               <Link
                 className="sidebar-link"
-                href={routes.adminHelp()}
-                aria-current={isUnder(pathname, routes.adminHelp()) ? CURRENT : undefined}
+                href={routes.adminHelp}
+                aria-current={isUnder(pathname, routes.adminHelp) ? CURRENT : undefined}
                 onClick={closeDrawer}
               >
                 <Icons.help />

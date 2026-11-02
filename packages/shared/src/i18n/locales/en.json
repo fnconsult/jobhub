@@ -3441,8 +3441,6 @@
       "results_other": "{{count}} articles for “{{query}}”",
       "noResults": "No article matches “{{query}}”. Try other words, or request a tutorial from the assistant.",
       "topicsTitle": "Topics",
-      "articleCount_one": "{{count}} article",
-      "articleCount_other": "{{count}} articles",
       "emptyTopic": "Articles coming soon",
       "breadcrumb": "Breadcrumb",
       "topics": {

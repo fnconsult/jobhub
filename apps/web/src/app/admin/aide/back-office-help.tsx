@@ -31,7 +31,7 @@ export function backOfficeTopicOrNotFound(topic: string): BackOfficeHelpTopic {
 export async function BackOfficeHelpSearchForm({ query = "" }: { query?: string }) {
   const t = await getServerT();
   return (
-    <form className="section-head section-filter" role="search" action={routes.adminHelp()} method="get">
+    <form className="section-head section-filter" role="search" action={routes.adminHelp} method="get">
       <Field label={t("admin.help.searchLabel")}>
         <TextInput type="search" name="q" defaultValue={query} />
       </Field>
@@ -66,7 +66,7 @@ export async function BackOfficeHelpBreadcrumb({ topic }: { topic?: BackOfficeHe
   return (
     <nav aria-label={t("admin.help.breadcrumb")}>
       <p className="section-meta">
-        <Link href={routes.adminHelp()}>{t("admin.help.title")}</Link>
+        <Link href={routes.adminHelp}>{t("admin.help.title")}</Link>
         {topic ? (
           <>
             {" › "}

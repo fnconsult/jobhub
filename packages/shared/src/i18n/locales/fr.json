@@ -3441,8 +3441,6 @@
       "results_other": "{{count}} articles pour « {{query}} »",
       "noResults": "Aucun article ne correspond à « {{query}} ». Essayez avec d'autres mots, ou demandez un tutoriel depuis l'assistant.",
       "topicsTitle": "Rubriques",
-      "articleCount_one": "{{count}} article",
-      "articleCount_other": "{{count}} articles",
       "emptyTopic": "Bientôt des articles ici",
       "breadcrumb": "Fil d'Ariane",
       "topics": {

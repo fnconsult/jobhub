@@ -70,10 +70,6 @@ const IN_SCOPE: Record<HelpScope, (article: HelpArticle) => boolean> = {
   backOffice: (article) => article.audience === "administrator",
 };
 
-/** Whether `article` is in `scope`: what a search of that scope may return. */
-export function inHelpScope(article: HelpArticle, scope: HelpScope): boolean {
-  return IN_SCOPE[scope](article);
-}
 
 /** Whether the Help Centre may serve `article`: never an Administrator's (ADR-0065). */
 export function isPublic(article: HelpArticle): boolean {

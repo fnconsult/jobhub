@@ -752,3 +752,24 @@ describe("Back Office Assistant: the Administrators' help (#551, ADR-0065)", () 
     expect(await systemFor("How do I export a candidate's data?", "en")).toContain("« Request a tutorial »");
   });
 });
+
+describe("Back Office Assistant: follow-ups and « Demander un tutoriel » (#551)", () => {
+  it("looks a follow-up the search reads nothing in up with the question before it, and says whether the help missed", async () => {
+    const provider = createFakeProvider({ id: "mistral", reply: "Réponse" });
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
+    const assistant = createBackOfficeAssistant({ ai, sources: backOfficeData().sources });
+    const administrator = { id: "a2", access: backOfficeAccess(["help-editor"]) };
+
+    const followUp = await assistant.reply(administrator, {
+      messages: [
+        { from: "administrator", text: "Comment filtrer les questions sans réponse par public ?" },
+        { from: "assistant", text: "Avec « Filtrer par public »." },
+        { from: "administrator", text: "Et ensuite ?" },
+      ],
+    });
+    expect(followUp).toMatchObject({ ok: true, helpMissed: false });
+    expect(provider.calls.at(-1)!.system).toContain("### « Questions sans réponse »");
+
+    expect(await assistant.reply(administrator, asked("Comment relancer un recruteur ?"))).toMatchObject({ ok: true, helpMissed: true });
+  });
+});

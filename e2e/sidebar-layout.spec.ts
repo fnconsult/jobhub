@@ -48,7 +48,8 @@ async function expectNavLinks(nav: ReturnType<typeof sidebarNav>) {
   for (const label of NAV_LABELS) await expect(nav.getByRole("link", { name: label, exact: true }), label).toBeVisible();
 }
 /** Mon compte sits in the sidebar's foot, above signing out; the Subscription is one of its Sections. */
-const accountLink = (page: Page) => page.getByRole("link", { name: fr.nav.account, exact: true });
+/** « Mon compte », the menu button in the docked sidebar's foot: Aide et légal, Mon compte's page and « Se déconnecter ». */
+const accountButton = (page: Page) => page.locator(".sidebar-docked").getByRole("button", { name: fr.nav.account, exact: true });
 
 /** What the focused element says: its accessible name as a screen reader would read it, roughly. */
 const focused = (page: Page) =>
@@ -95,9 +96,9 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       await expect(link.locator("svg")).toHaveAttribute("aria-hidden", "true");
       expect((await link.innerText()).trim().length).toBeGreaterThan(0);
     }
-    await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
+    await expect(accountButton(page)).toHaveAttribute("data-current", "true");
     await page.goto("/abonnement");
-    await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
+    await expect(accountButton(page)).toHaveAttribute("data-current", "true");
     await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.sidebar.subscription })).toHaveAttribute("aria-current", "page");
     await page.goto("/compte");
     // Recherches d'offres is one conversation for every Profile (#606).
@@ -105,7 +106,11 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
     // The Text Size setting moved to Mon compte → Préférences.
     await expect(page.getByLabel(fr.textSize.label)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: fr.account.signOut })).toBeVisible();
+    // « Se déconnecter » is in Mon compte's menu, with Aide et légal.
+    await accountButton(page).click();
+    await expect(page.getByRole("menuitem")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes, fr.nav.account, fr.account.signOut]);
+    await page.keyboard.press("Escape");
+    await expect(accountButton(page)).toBeFocused();
 
     // The links lead to their pages.
     await sidebarNav(page).getByRole("link", { name: fr.nav.applications }).click();
@@ -161,30 +166,26 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    const stops = NAV_LABELS.length + 16;
+    const stops = NAV_LABELS.length + 12;
     for (let i = 0; i < stops; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
     }
     expect(order).toEqual([
       fr.app.name,
+      // « Masquer le menu », its icon beside the brand.
+      fr.sidebar.collapse,
       fr.profileSwitcher.choose,
       // The conversations (#601): « Nouvelle conversation », « Coach » folding them, the Coach Memory under it (#602).
       fr.conversationFirst.newConversation,
       fr.conversationFirst.coach,
       fr.coachMemory.open,
       ...NAV_LABELS,
-      // « Aide et légal » (#544), at the top of the sidebar's foot.
-      fr.publicSite.help,
-      fr.publicSite.legal,
-      fr.publicSite.nouveautes,
       // The Usage Meter reads as its title and the week's percentage.
       `${fr.usageMeter.title} ${fr.usageMeter.percent.replace("{{percent}}", "0")}`,
       fr.nav.account,
       // The Signalement icon, beside Mon compte on its row (#375).
       fr.signalement.open,
-      fr.account.signOut,
-      fr.sidebar.collapse,
       // « Activité » (#607) and « Aide » on a page without a conversation (#602).
       fr.fiche.activity,
       fr.conversationFirst.help,
@@ -244,8 +245,11 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
 
     await page.getByRole("button", { name: fr.sidebar.mainMenu }).click();
     await expect(sidebarNav(page)).toBeVisible();
-    await expect(page.getByRole("button", { name: fr.account.title, exact: true })).toBeFocused();
-    await page.getByRole("button", { name: fr.account.title, exact: true }).click();
+    // The button back to the Sections, named after them; not Mon compte's menu button in the foot.
+    const toSections = page.locator(".sidebar-switch-forward");
+    await expect(toSections).toHaveAccessibleName(fr.account.title);
+    await expect(toSections).toBeFocused();
+    await toSections.click();
     await expect(inSidebar).toBeVisible();
     await expect(page.getByRole("button", { name: fr.sidebar.mainMenu })).toBeFocused();
   });
@@ -291,8 +295,8 @@ test.describe("below 64rem", () => {
     await expect(drawer(page)).toBeVisible();
     const nav = drawer(page).getByRole("navigation", { name: fr.sidebar.label });
     await expectNavLinks(nav);
-    // Focus goes into the drawer, onto the current page's link.
-    await expect(drawer(page).getByRole("link", { name: fr.nav.account, exact: true })).toBeFocused();
+    // Focus goes into the drawer, onto the current page's entry: Mon compte's menu button.
+    await expect(drawer(page).getByRole("button", { name: fr.nav.account, exact: true })).toBeFocused();
     // The page behind is out of reach while it is open: its content and <main> itself,
     // which holds a live region (the Job Search notifications) that Radix's modal leaves exposed.
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(0);

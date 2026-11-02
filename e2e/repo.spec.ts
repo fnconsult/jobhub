@@ -154,6 +154,38 @@ test.describe("monorepo tooling", () => {
     expect(read("docs/ops/hosting.md")).toContain("docs/ops/promotion.md");
   });
 
+  // Issue #561 (ADR-0063): the GitHub Release of a Version is published once its tag exists; a published note never changes.
+  test("publier-releases publishes each tag's Release, and fails when a tagged Version's Release Note changed", () => {
+    const workflow = read(".github/workflows/publier-releases.yml");
+    for (const trigger of ['tags: ["v*"]', "packages/help/releases/fr/*.md", "packages/help/releases/en/*.md"]) expect(workflow).toContain(trigger);
+    expect(workflow).toContain("run: npx tsx scripts/publish-releases.ts --dry-run");
+    expect(workflow).toContain("run: npx tsx scripts/publish-releases.ts $DRY_RUN");
+    expect(workflow).toContain("fetch-depth: 0");
+
+    const repo = mkdtempSync(path.join(os.tmpdir(), "publier-releases-"));
+    try {
+      const git = (...args: string[]) => spawnSync("git", args, { cwd: repo, encoding: "utf8" });
+      git("init", "-q", "-b", "main");
+      for (const [key, value] of [["user.email", "e2e@example.com"], ["user.name", "e2e"], ["commit.gpgSign", "false"], ["tag.gpgSign", "false"]]) git("config", key, value);
+      mkdirSync(path.join(repo, "packages/help/releases/fr"), { recursive: true });
+      writeFileSync(path.join(repo, "packages/help/releases/fr/1.0.0.md"), "---\ntitle: Une\n---\nTexte\n");
+      git("add", "-A");
+      git("commit", "-q", "-m", "1.0.0");
+      git("tag", "-a", "v1.0.0", "-m", "Version 1.0.0");
+      writeFileSync(path.join(repo, "packages/help/releases/fr/1.0.0.md"), "---\ntitle: Une\n---\nTexte retouché\n");
+      git("commit", "-q", "-am", "edit a published note");
+      const run = spawnSync(path.resolve("node_modules/.bin/tsx"), [path.resolve("scripts/publish-releases.ts"), "--dry-run"], {
+        cwd: repo,
+        encoding: "utf8",
+        env: { ...process.env, GITHUB_REPOSITORY: "fnconsult/jobhub" },
+      });
+      expect(run.status).toBe(1);
+      expect(run.stdout).toContain("::error::packages/help/releases/fr/1.0.0.md a été modifiée après la Promotion de v1.0.0");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
   test("EU hosting target is documented (ADR-0007)", () => {
     const adr = read("docs/adr/0007-eu-hosting-provider-agnostic-ai.md");
     expect(adr).toMatch(/\bEU\b/);

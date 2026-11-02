@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { ficheOf } from "./support/conversation";
 
 // Issue #16, the rules of the Agent Brief that decide WHEN a Job Offer is an
 // Expired Job Offer, WHICH ones are read, and what a Candidate can report:
@@ -205,7 +206,7 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
   });
 
   for (const [language, t, label] of [["fr", fr, "French"], ["en", en, "English"]] as const) {
-    test(`the badge shows in the list, the board, the Application page and the Job Offer page (${label})`, async () => {
+    test(`the badge shows in the list, the Application page and the Job Offer page (${label})`, async () => {
       if (language === "en") {
         await page.goto("/compte/preferences");
         await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
@@ -214,18 +215,17 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
       const title = titleOf("twiceGone");
       const noticeStart = t.jobOffer.expired.split("{{date}}")[0];
 
+      // Mes candidatures' list (#604); the board went with the page it was on.
       await page.goto("/candidatures");
       const row = page.getByRole("row", { name: new RegExp(title) });
       await expect(row.getByText(t.applications.expired, { exact: true })).toBeVisible();
+      await expect(row).toContainText(t.applicationStatuses.interview);
       await expect(page.getByRole("row", { name: new RegExp(titleOf("stable")) }).getByText(t.applications.expired, { exact: true })).toHaveCount(0);
 
-      await page.getByRole("link", { name: t.applications.boardView }).click();
-      const column = page.getByRole("region", { name: t.applicationStatuses.interview });
-      await expect(column.getByRole("listitem").filter({ hasText: title }).getByText(t.applications.expired, { exact: true })).toBeVisible();
-
+      // The Application's Fiche (#603).
       await page.goto(`/candidatures/${applications.twiceGone.id}`);
-      await expect(page.getByText(t.applications.expired, { exact: true }).or(page.getByText(noticeStart))).toBeVisible();
-      await expect(page.getByRole("status").filter({ hasText: t.application.expiredNotice })).toBeVisible();
+      await expect(ficheOf(page).getByText(t.applications.expired, { exact: true }).or(ficheOf(page).getByText(noticeStart))).toBeVisible();
+      await expect(ficheOf(page).getByRole("status").filter({ hasText: t.application.expiredNotice })).toBeVisible();
 
       await page.goto(`/offres/${offerIds.twiceGone}`);
       await expect(page.getByRole("status").filter({ hasText: noticeStart })).toBeVisible();
@@ -241,11 +241,12 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
     await page.goto(mine);
     await expect(page.getByText(fr.applications.expired, { exact: true })).toHaveCount(0);
 
-    await page.getByRole("button", { name: /signaler/i }).click();
-    await expect(page.getByText(fr.applications.expired, { exact: true })).toBeVisible();
-    await expect(page.getByText(/signalé par vous/i).first()).toBeVisible();
+    // On the Application's Fiche (#603).
+    await ficheOf(page).getByRole("button", { name: /signaler/i }).click();
+    await expect(ficheOf(page).getByText(fr.applications.expired, { exact: true })).toBeVisible();
+    await expect(ficheOf(page).getByText(/signalé par vous/i).first()).toBeVisible();
     // Her Application keeps its status, and shows the same in the list.
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("applied");
+    await expect(ficheOf(page).getByLabel(fr.application.statusLabel)).toHaveValue("applied");
     await page.goto("/candidatures");
     const row = page.getByRole("row", { name: new RegExp(titleOf("stable")) });
     await expect(row.getByText(fr.applications.expired, { exact: true })).toBeVisible();
@@ -263,7 +264,7 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
 
     // Undone: no badge any more.
     await page.goto(mine);
-    await page.getByRole("button", { name: /annuler|retirer/i }).click();
+    await ficheOf(page).getByRole("button", { name: /annuler|retirer/i }).click();
     await expect(page.getByText(fr.applications.expired, { exact: true })).toHaveCount(0);
     await page.goto("/candidatures");
     await expect(page.getByRole("row", { name: new RegExp(titleOf("stable")) }).getByText(fr.applications.expired, { exact: true })).toHaveCount(0);

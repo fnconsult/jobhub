@@ -7,6 +7,7 @@ import pg from "pg";
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { startJobSearch } from "./support/conversation";
 import { platformSettingsStore } from "../apps/web/src/platform-settings/index";
 
 // Issue #113: a Job discovery run is bounded by a budget, not by a count of result pages: it
@@ -293,10 +294,8 @@ test.describe("Job discovery budget (#113)", () => {
     await signInWithMagicLink(page, newAddress("discovery-budget-timeout"));
     const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria } });
     const timeoutProfileId = (await created.json()).id as string;
-    await page.goto(`/recherches?profil=${timeoutProfileId}`);
-    await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
-    await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
-    const jobSearchId = new URL(page.url()).pathname.split("/").pop()!;
+    // From Recherches d'offres (#606).
+    const jobSearchId = await startJobSearch(page);
 
     // Nobody works that queued job, and a later spec's worker must not find it left behind.
     const dropQueuedDiscovery = async () => {

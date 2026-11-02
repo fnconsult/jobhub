@@ -4,10 +4,10 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { toConversation } from "./support/conversation";
+import { activityButtonOf, activityOf, openActivity } from "./support/conversation";
 
-// Issue #332: AI Activity, the Candidate's top-bar button left of « Aide et coach », and the « Cette page » pane it opens,
-// read from each element's stored Provenance: the page's content and the AI Coach replies about its object. The AI is
+// Issue #332: AI Activity, read from each element's stored Provenance: the page's content and the AI Coach replies about
+// its object, which « Activité » in the Candidate's Top Bar shows (#603, #607, #608). The AI is
 // faked inside the server (fake-mistral.mjs): every Coach reply runs on Mistral Large (api.eu.mistral.ai, in the EU).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const SUPER_ADMIN = "ai-activity-office@e2e.jobbbox.test";
@@ -44,32 +44,18 @@ async function storedJobOffer(title: string): Promise<string> {
   return row!.id;
 }
 
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
-const coachPanelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
+/** AI Activity on a page with no conversation, the Job Offer's (#607, #608): « Activité » opens its column beside the page. */
+const paneOf = (page: Page) => activityOf(page);
 
-async function askTheCoach(page: Page, message: string) {
-  await toConversation(page);
-  const panel = coachPanelOf(page);
-  const replies = panel.getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
-  const before = await replies.count();
-  await panel.getByLabel(fr.coachPanel.messageLabel).fill(message);
-  await panel.getByRole("button", { name: fr.coachPanel.send }).click();
-  await expect(replies).toHaveCount(before + 2, { timeout: 30_000 });
+/** An AI Coach reply about the Job Offer `jobOfferId`, its Focus (#600): what the Coach Panel once sent from its page. */
+async function askTheCoachAbout(page: Page, jobOfferId: string, message: string) {
+  const sent = await page.request.post("/api/coach", { headers: { origin: process.env.E2E_WEB_ORIGIN! }, data: { message, focus: { kind: "job_offer", id: jobOfferId } } });
+  expect(sent.status(), await sent.text()).toBe(200);
 }
 
 async function expectNoAxeViolations(page: Page, selector: string) {
   const results = await new AxeBuilder({ page }).include(selector).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
-}
-
-/** The closed button's words: `--font-size-meta` (0.8125rem) in `--color-text-meta`, on one line, cut with an ellipsis at their max-width. */
-async function expectOneLineMetadata(words: Locator) {
-  const style = await words.evaluate((element) => {
-    const css = getComputedStyle(element);
-    return { color: css.color, rem: parseFloat(css.fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize), whiteSpace: css.whiteSpace, textOverflow: css.textOverflow, overflow: css.overflowX, maxWidth: css.maxWidth };
-  });
-  expect(style).toEqual({ color: "rgb(104, 105, 120)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", maxWidth: expect.stringMatching(/px$/) });
 }
 
 /** Nothing the Candidate must never see: cost, prompt, AI task, Playbook Agent, Back Office setting, internal id or technical error. */
@@ -78,79 +64,56 @@ async function expectNothingInternal(region: Locator) {
   expect(shown).not.toMatch(/€|\beur\b|co[uû]t|prompt|playbook|coaching|offer_analysis|web_search|guardrail|[0-9a-f]{8}-[0-9a-f]{4}-|error|erreur/i);
 }
 
+// Since #603, #607 and #608 the Top Bar's « Activité IA » button and its « Cette page » pane gave way to « Activité »: an
+// object's Fiche shows the page's AI Activity in its Activity group, the other pages' Activité column beside the page.
 test.describe("AI Activity (#332)", () => {
-  test("`/offres/[id]` and a Coach reply about it show in the pane, with each model's sums, the Tools and the wall-clock total", async ({ page }) => {
+  test("`/offres/[id]` and a Coach reply about it show in « Activité », with each model's sums, the Tools and the wall-clock total", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-offer"));
     const offerId = await storedJobOffer("DAF Lyon");
     await page.goto(`/offres/${offerId}`);
 
-    // At rest (#369): the tasks icon alone in the frame, left of « Aide et coach », as high; the page's summary just
-    // left of the frame, outside it, light grey metadata on one line. The words are still the button's: its name says them.
-    const button = aiActivityButton(page);
+    // Closed at rest: « Activité » in the Top Bar opens the column, beside the page.
+    const button = activityButtonOf(page);
     await expect(button).toHaveAttribute("aria-expanded", "false");
-    await expect(button).toHaveAccessibleName(`${fr.aiActivity.label} 2 modèles · 7,8k tokens · 9,1 s`);
-    const coachButton = page.getByRole("button", { name: fr.coachPanel.open, exact: true });
-    const frame = button.locator(".ai-activity-frame");
-    await expect(frame.locator("svg")).toHaveCount(1);
-    await expect(frame).toHaveText("");
-    const [mine, coach] = [(await frame.boundingBox())!, (await coachButton.boundingBox())!];
-    expect(mine.x + mine.width).toBeLessThanOrEqual(coach.x);
-    expect(mine.height).toBeCloseTo(coach.height, 0);
-    const words = page.getByRole("banner").locator(".ai-activity-summary");
-    await expect(words).toHaveText("2 modèles · 7,8k tokens · 9,1 s");
-    const wordsBox = (await words.boundingBox())!;
-    expect(wordsBox.x + wordsBox.width).toBeLessThanOrEqual(mine.x);
-    expect(wordsBox.height).toBeLessThan(mine.height);
-    await expectOneLineMetadata(words);
-    // A single tab stop: from the button, Tab goes straight on to « Aide et coach ».
-    await button.focus();
-    await page.keyboard.press("Tab");
-    await expect(coachButton).toBeFocused();
+    await expect(paneOf(page)).toHaveCount(0);
     await expectNoAxeViolations(page, "header.topbar");
-
-    // A Coach reply about the offer counts with the page at once.
-    await askTheCoach(page, "Que pensez-vous de cette offre ?");
-    await coachPanelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
-    await expect(button).toHaveAccessibleName(new RegExp(`^${fr.aiActivity.label} 3 modèles · \\d+(,\\d)?k tokens · \\d+(,\\d)? s$`));
-
-    // Clicking the words opens the pane too. Open: the close icon alone in the frame, no words.
-    await words.click();
-    const pane = paneOf(page);
-    await expect(pane.getByRole("heading", { name: fr.aiActivity.title })).toBeVisible();
-    await expect(button).toHaveAttribute("aria-expanded", "true");
-    await expect(button).toHaveText(fr.aiActivity.label);
-    await expect(words).toHaveCount(0);
-    await expect(frame.locator("svg")).toHaveCount(1);
-    await expectNoAxeViolations(page, "header.topbar");
+    const pane = await openActivity(page);
     const models = pane.locator(".ai-activity-section").first();
     await expect(models).toContainText("Perplexity");
     await expect(models).toContainText("Claude Haiku 4.5");
     await expect(models).toContainText("AWS Bedrock · UE (Stockholm)");
-    await expect(models).toContainText("Mistral Large");
     await expect(models).toContainText(fr.aiActivity.measure);
     await expect(pane.locator(".ai-activity-total")).toContainText(/Total\s*\d+(,\d)?k tokens · \d+(,\d)? s/);
     await expect(pane).toContainText("Sites d'emploi");
     await expect(pane).toContainText("DAF Lyon");
-    await expect(pane).toContainText(fr.aiActivity.kinds.coach_reply);
+    await expect(pane.locator(".ai-activity-element")).toHaveCount(1);
     await expectNothingInternal(pane);
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await expectNoAxeViolations(page, ".activity-column");
 
-    // Loaded again, the reply comes from the server, counted once.
+    // A Coach reply about the offer counts with the page, once, as the server read it.
+    await askTheCoachAbout(page, offerId, "Que pensez-vous de cette offre ?");
     await page.reload();
-    await expect(button).toHaveAccessibleName(/3 modèles · /);
+    await openActivity(page);
+    await expect(models).toContainText("Mistral Large");
+    await expect(pane).toContainText(fr.aiActivity.kinds.coach_reply);
+    await expect(pane.locator(".ai-activity-element")).toHaveCount(2);
+    await expectNothingInternal(pane);
+
+    // « Activité » closes it again.
     await button.click();
-    await expect(paneOf(page).locator(".ai-activity-element")).toHaveCount(2);
+    await expect(paneOf(page)).toHaveCount(0);
+    await expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("works from the keyboard: the button, the sections, the Sources disclosures and Escape", async ({ page }) => {
+  test("works from the keyboard: the button, the sections and the Sources disclosures", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-keyboard"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
-    const button = aiActivityButton(page);
+    const button = activityButtonOf(page);
 
     await button.focus();
     await page.keyboard.press("Enter");
     const pane = paneOf(page);
-    await expect(pane.getByRole("heading", { name: fr.aiActivity.title })).toBeFocused();
+    await expect(button).toHaveAttribute("aria-expanded", "true");
 
     // Each section folds under its title, a disclosure button.
     const models = pane.getByRole("button", { name: fr.aiActivity.sections.models });
@@ -172,95 +135,78 @@ test.describe("AI Activity (#332)", () => {
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
     await expect(link).toHaveAttribute("rel", "noopener noreferrer");
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await expectNoAxeViolations(page, ".activity-column");
 
-    // Escape closes the pane and gives the focus back to the button.
-    await page.keyboard.press("Escape");
+    // « Activité » closes the column, from the keyboard too.
+    await button.focus();
+    await page.keyboard.press("Enter");
     await expect(pane).toHaveCount(0);
     await expect(button).toBeFocused();
     await expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
-  test("a page with no AI content: no summary, the button shows its icon alone, named « Activité IA », and the pane says so", async ({ page }) => {
+  test("a page with no AI content: « Activité » says so", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-none"));
     await page.goto("/candidatures");
-    const button = aiActivityButton(page);
-    await expect(button).toHaveAttribute("aria-expanded", "false");
-    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toHaveCount(0);
-    // ADR-0009's amendment: the label is never on screen, only in the button's name and its tooltip.
-    await expect(button).toHaveAttribute("title", fr.aiActivity.label);
-    const label = button.getByText(fr.aiActivity.label, { exact: true });
-    expect(await label.evaluate((element) => getComputedStyle(element).clipPath)).not.toBe("none");
-
-    await button.click();
-    await expect(paneOf(page)).toContainText(fr.aiActivity.noAi);
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await expect(activityButtonOf(page)).toHaveAttribute("aria-expanded", "false");
+    const pane = await openActivity(page);
+    await expect(pane).toContainText(fr.aiActivity.noAi);
+    await expectNoAxeViolations(page, ".activity-column");
   });
 
-  test("under 1300px with the Coach Panel docked, the pane is a drawer over the page; Escape closes it, focus back on the button", async ({ page }) => {
+  test("on a laptop's screen (1200px) the column opens beside the page, never over it", async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 800 });
-    await signInWithMagicLink(page, newAddress("ai-activity-drawer"));
+    await signInWithMagicLink(page, newAddress("ai-activity-beside"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
-    await toConversation(page);
-    await expect(coachPanelOf(page)).toBeVisible();
-    const button = aiActivityButton(page);
-    await button.click();
-
-    const pane = paneOf(page);
-    expect(await pane.evaluate((element) => getComputedStyle(element).position)).toBe("fixed");
-    const [drawer, coach, topbar] = [(await pane.boundingBox())!, (await coachPanelOf(page).boundingBox())!, (await page.getByRole("banner").boundingBox())!];
-    // Over the page, under the Top Bar, beside the Coach Panel, within the window.
-    expect(drawer.x + drawer.width).toBeLessThanOrEqual(coach.x);
-    expect(drawer.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
-    expect(drawer.y + drawer.height).toBeLessThanOrEqual(800);
-    await page.keyboard.press("Escape");
-    await expect(pane).toHaveCount(0);
-    await expect(button).toBeFocused();
+    const pane = await openActivity(page);
+    const [column, main, topbar] = [(await pane.boundingBox())!, (await page.locator("main").boundingBox())!, (await page.getByRole("banner").boundingBox())!];
+    expect(column.x).toBeGreaterThanOrEqual(main.x + main.width - 1);
+    expect(column.y).toBeGreaterThanOrEqual(topbar.y + topbar.height - 1);
+    expect(column.x + column.width).toBeLessThanOrEqual(1200);
+    // Beside it, no heading nor ✕ of its own: « Activité » closes it.
+    await expect(pane.getByRole("button", { name: fr.conversationFirst.close })).toHaveCount(0);
   });
 
-  test("on a phone: the icon alone, and a sheet with its visible title and a labelled Close", async ({ page }) => {
+  test("on a phone: the column over the whole screen, with its visible title and a labelled Close", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 740 });
     await signInWithMagicLink(page, newAddress("ai-activity-phone"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
-    const button = aiActivityButton(page);
-    expect(await button.getByText(fr.aiActivity.label, { exact: true }).evaluate((element) => getComputedStyle(element).clipPath)).not.toBe("none");
-    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toBeHidden();
+    const button = activityButtonOf(page);
 
     await button.click();
     const pane = paneOf(page);
-    await expect(pane.getByRole("heading", { name: fr.aiActivity.title })).toBeVisible();
+    await expect(pane.getByRole("heading", { level: 2, name: fr.fiche.activity })).toBeFocused();
     const sheet = (await pane.boundingBox())!;
     expect(sheet.x).toBe(0);
     expect(sheet.width).toBe(375);
     expect(sheet.y + sheet.height).toBeCloseTo(740, 0);
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
-    await pane.getByRole("button", { name: fr.aiActivity.close }).click();
+    await expect(pane).toContainText("DAF Lyon");
+    await expectNoAxeViolations(page, ".activity-column");
+    await pane.getByRole("button", { name: fr.conversationFirst.close }).click();
     await expect(pane).toHaveCount(0);
     await expect(button).toBeFocused();
   });
 
-  test("at 200 % text size (a 640px-wide window), the pane's words stay whole, with no scrolling sideways", async ({ page }) => {
+  test("at 200 % text size (a 640px-wide window), the column's words stay whole, with no scrolling sideways", async ({ page }) => {
     await page.setViewportSize({ width: 640, height: 450 });
     await signInWithMagicLink(page, newAddress("ai-activity-zoom"));
     await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "xlarge"));
     await page.goto(`/offres/${await storedJobOffer("Directeur administratif et financier du groupe H/F")}`);
-    await aiActivityButton(page).click();
+    await activityButtonOf(page).click();
 
     const pane = paneOf(page);
-    await expect(pane.getByRole("heading", { name: fr.aiActivity.title })).toBeVisible();
-    const body = pane.locator(".ai-activity-body");
-    expect(await body.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-    // Its last element is reached by scrolling the pane.
+    await expect(pane.getByRole("heading", { level: 2, name: fr.fiche.activity })).toBeVisible();
+    expect(await pane.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    // Its last element is reached by scrolling the column.
     const last = pane.locator(".ai-activity-element").last();
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
-    await expect(pane.getByRole("button", { name: fr.aiActivity.close })).toBeInViewport();
+    await expect(pane.getByRole("button", { name: fr.conversationFirst.close })).toBeInViewport();
   });
 
   test("no token count appears in the Usage Meter or on /abonnement", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-quotas"));
-    await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
-    await askTheCoach(page, "Que pensez-vous de cette offre ?");
+    await askTheCoachAbout(page, await storedJobOffer("DAF Lyon"), "Que pensez-vous de cette offre ?");
 
     await page.goto("/abonnement");
     await expect(page.getByRole("main")).not.toContainText(/tokens?|jetons?/i);
@@ -273,6 +219,7 @@ test.describe("AI Activity (#332)", () => {
     await page.goto("/admin/journal");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("button", { name: new RegExp(fr.aiActivity.label) })).toHaveCount(0);
-    await expect(page.locator(".ai-activity-pane")).toHaveCount(0);
+    await expect(page.getByRole("banner").getByRole("button", { name: fr.fiche.activity, exact: true })).toHaveCount(0);
+    await expect(page.locator(".ai-activity-pane, .activity-column")).toHaveCount(0);
   });
 });

@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { renderedTexts } from "./support/accessibility";
+import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { workPaneOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 
 // Issue #6: the Candidate edits every entry of a Master CV. Each saved change
-// creates a new version; previous versions can be viewed and restored.
+// creates a new version; previous versions can be viewed and restored. The editor,
+// the versions and each version open in the Work Pane beside the Profile's
+// conversation, titled there (#605, #608: the Profile's name is the Top Bar's title).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
@@ -45,8 +48,11 @@ async function openEditor(page: Page, id: string) {
   await page.goto(`/profils/${id}/cv-de-reference`);
   await page.getByRole("link", { name: fr.profile.editMasterCv }).click();
   await expect(page).toHaveURL(`${origin}/profils/${id}/cv`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.cvEditor.title);
+  await expect(paneTitle(page, fr.cvEditor.title)).toBeVisible();
 }
+
+/** The title of what the Work Pane shows. */
+const paneTitle = (page: Page, title: string) => workPaneOf(page, title).getByRole("heading", { level: 2, name: title });
 
 test.describe("editing the Master CV", () => {
   test("the Candidate adds, edits, reorders and removes entries in every section, and saving creates a new version", async ({ page }) => {
@@ -241,7 +247,7 @@ test.describe("Master CV version history", () => {
 
     await page.getByRole("link", { name: fr.profile.versionHistory }).click();
     await expect(page).toHaveURL(`${origin}/profils/${id}/versions`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.versions.title);
+    await expect(paneTitle(page, fr.versions.title)).toBeVisible();
     const versions = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
     await expect(versions.getByRole("heading", { level: 2 })).toHaveText(["Version 2", "Version 1"]);
     await expect(versions.first()).toContainText(fr.versions.current);
@@ -250,9 +256,10 @@ test.describe("Master CV version history", () => {
 
     await page.getByRole("link", { name: "Voir la version 1" }).click();
     await expect(page).toHaveURL(`${origin}/profils/${id}/versions/1`);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Version 1 du CV de référence");
-    await expect(page.getByText("Directrice financière", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("DAF groupe")).toHaveCount(0);
+    const shown = workPaneOf(page, "Version 1 du CV de référence");
+    await expect(paneTitle(page, "Version 1 du CV de référence")).toBeVisible();
+    await expect(shown.getByText("Directrice financière", { exact: true }).first()).toBeVisible();
+    await expect(shown.getByText("DAF groupe")).toHaveCount(0);
 
     await button(page, "Restaurer la version 1").click();
     await expect(page).toHaveURL(`${origin}/profils/${id}/cv-de-reference`);
@@ -280,8 +287,9 @@ test.describe("Master CV version history", () => {
     for (const path of [`/profils/${id}/cv`, `/profils/${id}/versions`, `/profils/${id}/versions/1`]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByRole("complementary").getByRole("heading", { level: 2 }).first()).toBeVisible();
       for (const t of await renderedTexts(page)) {
-        expect.soft(t.fontSizePx, `${path}: font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+        expect.soft(t.fontSizePx, `${path}: font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
         expect.soft(t.contrast, `${path}: contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
       }
     }

@@ -7,6 +7,7 @@ import { Client } from "pg";
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { openFoundJobOffers, startJobSearch } from "./support/conversation";
 import { subscribe as subscribeToPlan } from "./support/plan";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 
@@ -573,13 +574,13 @@ test.describe("Job Digest", () => {
     const profileId = await createProfile(page);
     const otherProfileId = await createProfile(page, "Responsable financière");
 
-    // The Candidate ran a Job Search for the Profile: it listed both Job Offers, and they saved the DAF one.
-    await page.goto(`/recherches?profil=${profileId}`);
-    await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
-    await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
-    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });
+    // The Candidate ran a Job Search for the Profile, from Recherches d'offres (#606): it listed both Job Offers, in its
+    // Section (#605), and they saved the DAF one.
+    await startJobSearch(page, "Directrice administrative et financière");
+    await openFoundJobOffers(page);
+    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name: DAF }) });
     await expect(daf, workerOutput).toHaveCount(1, { timeout: 90_000 });
-    await expect(page.getByRole("heading", { level: 2, name: RESPONSABLE })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: RESPONSABLE })).toBeVisible();
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
     await expect(daf.getByText("Enregistrée", { exact: true })).toBeVisible();
 

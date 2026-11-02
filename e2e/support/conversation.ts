@@ -36,3 +36,79 @@ export async function openFreeConversation(page: Page, title: string | RegExp): 
   await sidebarOf(page).getByRole("link", { name: title }).click();
   await expect(conversationOf(page)).toBeVisible();
 }
+
+/** « Activité » in the Top Bar of the Candidate's pages (#603, #607): AI Activity's way in since the Coach Panel left (#608). */
+export const activityButtonOf = (page: Page) => page.getByRole("banner").getByRole("button", { name: fr.fiche.activity, exact: true });
+
+/**
+ * Where a page's AI Activity shows (#603, #607, ADR-0070): an object's Fiche, in its Activity group, or the Activité column
+ * of the home page and the menus. Its Context bar comes first, then the actions under way and the page's sections.
+ */
+export const activityOf = (page: Page) => page.getByRole("complementary", { name: new RegExp(`^(${fr.fiche.label}|${fr.fiche.activity})$`) });
+
+/**
+ * Shows the page's AI Activity, which `activityOf` returns: « Activité » opens the Activité column, or the Fiche on its
+ * Activity group; already shown (an object's Fiche starts open on a wide screen), it is left as it is.
+ */
+export async function openActivity(page: Page) {
+  const button = activityButtonOf(page);
+  if ((await button.getAttribute("aria-expanded")) !== "true") await button.click();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  return activityOf(page);
+}
+
+/** « Activité »'s glyph, live while an AI action of the page is under way (#603): what the closed button says of it. */
+export const activityUnderWayOf = (page: Page) => activityButtonOf(page).locator(".activity-glyph[data-live]");
+
+/** Hides the page's AI Activity again: « Activité » closes the Activité column, or folds the Fiche's Activity group. */
+export async function closeActivity(page: Page) {
+  const button = activityButtonOf(page);
+  if ((await button.getAttribute("aria-expanded")) === "true") await button.click();
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+}
+
+/** An object's Fiche (#603, #605, ADR-0070): beside its conversation, open on a wide screen as the page loads. */
+export const ficheOf = (page: Page) => page.getByRole("complementary", { name: fr.fiche.label, exact: true });
+
+/** The Work Pane, named by the title of what it shows (#602, ADR-0070). */
+export const workPaneOf = (page: Page, title: string | RegExp) => page.getByRole("complementary", { name: title });
+
+/** « Modifier les critères » on a Profile's Fiche (#605): what opens its Search Criteria. */
+export const editCriteriaOf = (page: Page) => ficheOf(page).getByRole("button", { name: fr.jobSearch.editCriteria, exact: true });
+
+/**
+ * A Profile's Search Criteria, each edited in place and saved on change (#137, ADR-0025), in the dialog « Modifier les
+ * critères » opens from its Fiche's card (#605: the Fiche is too narrow for them as properties). Opens it, and the Fiche
+ * first when it is closed, and returns them; a reload closes it.
+ */
+export async function openSearchCriteria(page: Page) {
+  // On a phone the Fiche starts closed: « Fiche » in the Top Bar opens it, over the conversation (#608).
+  if (!(await ficheOf(page).isVisible())) await page.getByRole("banner").getByRole("button", { name: fr.fiche.label, exact: true }).click();
+  await editCriteriaOf(page).click();
+  const criteria = page.getByRole("dialog").getByRole("group", { name: fr.cvReview.searchCriteria });
+  await expect(criteria).toBeVisible();
+  return criteria;
+}
+
+/** One of a Profile's Sections, from its Fiche (ADR-0024, #605): it opens in the Work Pane. */
+export const profileSectionLink = (page: Page, name: string) => ficheOf(page).getByRole("link", { name, exact: true });
+
+/** « Lancer une recherche », Recherches d'offres' suggestion above its box (#606): for `profileName` when the Candidate has several active Profiles. */
+export const startJobSearchButton = (page: Page, profileName?: string) =>
+  page
+    .getByRole("navigation", { name: fr.quickActions.label })
+    .getByRole("button", { name: profileName ? fr.jobSearchesMenu.startFor.replace("{{profile}}", profileName) : fr.jobSearchesMenu.start, exact: true });
+
+/** Starts a Job Search from Recherches d'offres (#606), for `profileName` when the Candidate has several, and returns its id once on its page. */
+export async function startJobSearch(page: Page, profileName?: string): Promise<string> {
+  await page.goto("/recherches");
+  await startJobSearchButton(page, profileName).click();
+  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
+  return new URL(page.url()).pathname.split("/").pop()!;
+}
+
+/** A Job Search's Job Offers, its Section, opened from its Fiche in the Work Pane (#605): their titles are h3 there. */
+export async function openFoundJobOffers(page: Page) {
+  await ficheOf(page).getByRole("link", { name: fr.jobSearch.resultsLabel, exact: true }).click();
+  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+\/offres$/);
+}

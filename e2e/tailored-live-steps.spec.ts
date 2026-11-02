@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { activityOf, activityUnderWayOf, closeActivity, openActivity } from "./support/conversation";
 
 // Issue #334: a Tailored CV proposed and a Cover Letter or Outreach Message drafted keep their Provenance (ADR-0034): the line
 // under each says the model, tokens and time, and AI Activity's « Cette page » pane on `/candidatures/[id]/documents` lists
@@ -63,8 +64,8 @@ async function tab(page: Page, name: string): Promise<Locator> {
   return documents(page).getByRole("tabpanel", { name, exact: true });
 }
 
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
+/** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
+const paneOf = (page: Page) => activityOf(page);
 /** The pane's « Par élément » entry of an element kind. */
 const elementOf = (page: Page, kind: "tailored_cv" | "tailored_documents") => paneOf(page).locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds[kind] });
 
@@ -80,6 +81,9 @@ const dangerSurface = (element: Locator) =>
   });
 
 test.describe("Tailored CV and Tailored Documents: Provenance, live steps and Stop (#334)", () => {
+  // Wide enough for the Fiche, where AI Activity shows, beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("a new Tailored CV and Cover Letter show their model, tokens and time, and the documents page gives each to AI Activity", async ({ page }) => {
     const id = await openApplication(page, "Acme Industrie recrute son DAF. Vous pilotez la clôture des comptes. E2E_WRITING_SLOW=1500");
 
@@ -108,9 +112,8 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(letterLine).toContainText("Mistral");
     await expect(letterLine).toContainText(/· \d+(,\d)? s/);
 
-    // AI Activity's pane, without loading the page again: each document with the model that wrote it, its tokens and time.
-    await expect(aiActivityButton(page)).toHaveAccessibleName(/\d+ modèles? · /);
-    await aiActivityButton(page).click();
+    // AI Activity, in the Fiche, without loading the page again: each document with the model that wrote it, its tokens and time.
+    await openActivity(page);
     for (const kind of ["tailored_cv", "tailored_documents"] as const) {
       await expect(elementOf(page, kind)).toContainText("Mistral");
       await expect(elementOf(page, kind)).not.toContainText(fr.aiActivity.modelNotRecorded);
@@ -120,15 +123,15 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(paneOf(page).locator(".ai-activity-total")).toContainText(/\d+(,\d)?k? tokens · \d+(,\d)? s/);
     // Done, each action left AI Activity's live sections: its document says it.
     await expect(paneOf(page).locator(".ai-activity-live")).toHaveCount(0);
-    expect(await paneOf(page).innerHTML()).not.toContain(id);
-    await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
+    expect(await paneOf(page).locator(".fiche-activity").innerHTML()).not.toContain(id);
+    await closeActivity(page);
 
     // Saved, the Tailored CV keeps the proposal's Provenance.
     await cv.page().getByRole("tab", { name: tc.tailored, exact: true }).click();
     await cv.getByRole("button", { name: tc.save, exact: true }).click();
     await expect(cv.getByRole("status")).toHaveText(tc.saved);
     await page.reload();
-    await aiActivityButton(page).click();
+    await openActivity(page);
     await expect(elementOf(page, "tailored_cv")).toHaveCount(1);
     await expect(elementOf(page, "tailored_cv")).toContainText("Mistral");
     await expect(elementOf(page, "tailored_documents")).toContainText("Mistral");
@@ -139,7 +142,7 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     const startedAt = new Date();
 
     // AI Activity's pane open beside the page, the Cover Letter drafted then stopped from the page.
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const letter = await tab(page, td.coverLetter.title);
     await letter.getByRole("button", { name: td.coverLetter.draft }).click();
     await expect(letter.locator(".live-action-step")).toContainText(fr.aiActivity.steps.write);
@@ -163,18 +166,20 @@ test.describe("Tailored CV and Tailored Documents: Provenance, live steps and St
     await expect(action).toContainText(/Arrêtée à \d{2}:\d{2}/);
     expect(await action.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(action));
     await expect(elementOf(page, "tailored_documents")).toHaveCount(0);
-    await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
+    await closeActivity(page);
 
-    // The Tailored CV too, stopped from AI Activity's button: no proposal kept.
+    // The Tailored CV too, stopped from AI Activity, « Activité »'s glyph live meanwhile (#603): no proposal kept.
     const cv = await tab(page, tc.tailored);
     await cv.getByRole("button", { name: tc.propose, exact: true }).click();
     await expect(cv.locator(".live-action-step")).toContainText(fr.aiActivity.steps.write);
-    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.write));
-    await page.getByRole("banner").getByRole("button", { name: fr.aiActivity.live.stop.tailored_cv, exact: true }).click();
+    await expect(activityUnderWayOf(page)).toBeVisible();
+    await openActivity(page);
+    await expect(paneOf(page).locator(".ai-activity-live").filter({ hasText: fr.aiActivity.kinds.tailored_cv })).toContainText(fr.aiActivity.steps.write);
+    await paneOf(page).getByRole("button", { name: fr.aiActivity.live.stop.tailored_cv, exact: true }).click();
     await expect(cv.locator(".live-action-stopped")).toBeVisible();
     await expect(cv.getByText(tc.none)).toBeVisible();
     expect(await query(`SELECT 1 FROM tailored_cv WHERE application_id = $1 AND proposal IS NOT NULL`, [id])).toEqual([]);
-    await aiActivityButton(page).click();
+    await openActivity(page);
     await expect(paneOf(page).locator(".ai-activity-live").filter({ hasText: fr.aiActivity.kinds.tailored_cv })).toContainText(/Arrêtée à \d{2}:\d{2}/);
     await expect(paneOf(page).locator(".ai-activity-element").filter({ hasText: /CV adapté|Documents adaptés/ })).toHaveCount(0);
   });

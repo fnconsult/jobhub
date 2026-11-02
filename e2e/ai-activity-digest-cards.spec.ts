@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { activityButtonOf, activityOf, ficheOf, openActivity } from "./support/conversation";
 
 // Issue #336: AI Activity reads a new Job Digest, a Follow-up card, an ATS Fix card and the ATS Score from their stored
 // Provenance. The ATS Score and the ATS Fix (and a Job Digest's Match Scores) are made by Jobbbox's rules: « Calcul »,
@@ -69,14 +70,16 @@ async function createProfile(page: Page): Promise<string> {
   return (await created.json()).id;
 }
 
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
+/** « Activité » in the Top Bar (#603, #607): the way to the page's AI Activity since the Coach Panel left (#608). */
+const aiActivityButton = (page: Page) => activityButtonOf(page);
+/** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
+const paneOf = (page: Page) => activityOf(page);
 /** The pane's « Par élément » entry whose title or kind says `label`. */
 const elementOf = (page: Page, label: string | RegExp) => paneOf(page).locator(".ai-activity-element").filter({ hasText: label });
 
 async function openPane(page: Page) {
-  await aiActivityButton(page).click();
-  await expect(paneOf(page).getByRole("heading", { name: fr.aiActivity.title })).toBeVisible();
+  await openActivity(page);
+  await expect(paneOf(page).locator(".fiche-activity")).toBeVisible();
 }
 
 async function storedJobOffer(title: string): Promise<string> {
@@ -96,6 +99,9 @@ async function storedDigest(candidateId: string, profileId: string, offerId: str
 }
 
 test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
+  // Wide enough for the Fiche, where AI Activity shows, beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("a new ATS Score and its ATS Fix cards show as « Calcul » with no model, and an Action Card made before shows « non enregistré »", async ({ page }) => {
     const { candidateId } = await signIn(page, "digest-cards-ats");
     const profileId = await createProfile(page);
@@ -111,10 +117,8 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     );
     await page.reload();
 
-    // No model served this page: the closed button shows its label, never « 0 modèle ».
-    const button = aiActivityButton(page);
-    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toHaveCount(0);
-    await expect(button).toContainText(fr.aiActivity.label);
+    // No model served this page: « Activité » says its name alone, never « 0 modèle ».
+    await expect(aiActivityButton(page)).toHaveText(fr.fiche.activity);
 
     await openPane(page);
     const pane = paneOf(page);
@@ -145,7 +149,7 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     const before = await storedDigest(candidateId, profileId, offerId, "2026-10-14T06:00:00Z", null);
 
     await page.goto(`/job-digests/${fresh}`);
-    await expect(page.getByRole("banner").locator(".ai-activity-summary")).toHaveCount(0);
+    await expect(aiActivityButton(page)).toHaveText(fr.fiche.activity);
     await openPane(page);
     const digest = elementOf(page, fr.aiActivity.kinds.job_digest);
     await expect(digest).toHaveCount(1);
@@ -168,8 +172,8 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
     const applicationId = (await saved.json()).id as string;
     // A Follow-up card applies while the Application waits (« Postulée »).
     await page.goto(`/candidatures/${applicationId}`);
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.applied });
-    await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
+    await ficheOf(page).getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.applied });
+    await expect(ficheOf(page).getByRole("status")).toHaveText(fr.application.statusSaved);
 
     for (const [title, provenance] of [["Relancer : nouvelle relance", WRITTEN], ["Relancer : ancienne relance", null]] as const) {
       await query(
@@ -177,12 +181,17 @@ test.describe("AI Activity: Job Digests and Action Cards (#336)", () => {
         [candidateId, title, applicationId, provenance ? JSON.stringify(provenance) : null],
       );
     }
+    // The Job Offer read by Mistral, its Job Offer Summary written as its Section is shown (#603).
+    await page.goto(`/candidatures/${applicationId}/offre`);
+    await expect(page.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`)).toBeVisible();
     await page.goto(`/candidatures/${applicationId}`);
 
-    // The Job Offer was read by Mistral when saved, the Follow-up card written by Claude: both count; the older card adds nothing.
-    await expect(aiActivityButton(page)).toHaveAccessibleName(/2 modèles/);
+    // The Job Offer was read by Mistral, the Follow-up card written by Claude: both count; the older card adds nothing.
     await openPane(page);
-    await expect(paneOf(page).locator(".ai-activity-section").first()).toContainText("Claude Sonnet 5");
+    const models = paneOf(page).locator(".ai-activity-section").first().locator(".ai-activity-list > li:not(.ai-activity-total)");
+    await expect(models).toHaveCount(2);
+    await expect(models.filter({ hasText: "Claude Sonnet 5" })).toHaveCount(1);
+    await expect(models.filter({ hasText: "Mistral" })).toHaveCount(1);
     const written = elementOf(page, "Relancer : nouvelle relance");
     await expect(written).toHaveCount(1);
     await expect(written).toContainText("Claude Sonnet 5");

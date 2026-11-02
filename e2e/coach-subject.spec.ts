@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { openActivity } from "./support/conversation";
 
 // Issue #600 / ADR-0070: every Coach Conversation has a Subject (an object or a Sidebar menu), one conversation each, created at
 // its first message. Driven through the public endpoints (POST /api/coach, GET /api/coach/conversations, the account export) and
@@ -130,10 +131,10 @@ test.describe("Coach Conversation Subjects (#600)", () => {
     expect(new Set(focusKinds)).toEqual(new Set(["application", "profile", "job_search", "job_digest", "agenda", "job_offer"]));
 
     // AI Activity counts the replies about a Job Search, a Job Digest and the Agenda on their own pages.
+    // « Activité » in the Top Bar shows it (#603, #607): the Fiche's Activity group, or the Agenda's Activité column.
     for (const path of [`/recherches/${searchId}`, `/job-digests/${digestId}`, "/agenda"]) {
       await page.goto(path);
-      await page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) }).click();
-      await expect(page.getByRole("complementary", { name: fr.aiActivity.label }), path).toContainText(fr.aiActivity.kinds.coach_reply);
+      await expect(await openActivity(page), path).toContainText(fr.aiActivity.kinds.coach_reply);
     }
   });
 });

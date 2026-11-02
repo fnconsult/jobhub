@@ -30,7 +30,8 @@ const sectionOf = (page: Page) => page.getByRole("main");
 const itemOf = (page: Page, text: string) => sectionOf(page).getByRole("listitem").filter({ hasText: text });
 const notificationsOf = (page: Page) => page.getByRole("list", { name: notices.label });
 const notificationOf = (page: Page, text: RegExp) => notificationsOf(page).getByRole("listitem").filter({ hasText: text });
-const dialogOf = (page: Page) => page.getByRole("dialog", { name: dialogTexts.title });
+/** The Signalement's form, in the Work Pane beside the page (#602, #608), named by its title. */
+const dialogOf = (page: Page) => page.getByRole("complementary", { name: dialogTexts.title });
 
 async function withDb<T>(run: (db: pg.Pool) => Promise<T>): Promise<T> {
   const db = new pg.Pool({ connectionString: databaseUrl });
@@ -203,7 +204,7 @@ test.describe("« Mes signalements » and the Signalement notification (#377)", 
     await candidate.context().close();
   });
 
-  test("the empty state's two buttons open the Signalement dialog with that type; once sent, « Voir mes signalements » shows it in the Section", async ({ page }) => {
+  test("the empty state's two buttons open the Signalement form with that type; once sent, « Voir mes signalements » shows it in the Section", async ({ page }) => {
     const ref = tag();
     await signInWithMagicLink(page, newAddress("mes-signalements-empty"));
     await page.goto("/compte");
@@ -226,11 +227,11 @@ test.describe("« Mes signalements » and the Signalement notification (#377)", 
 
     await sectionOf(page).getByRole("button", { name: mine.proposeIdea }).click();
     await expect(dialogOf(page).getByRole("radio", { name: dialogTexts.types.idee })).toBeChecked();
-    await expectNoAxeViolations(page, "[role=dialog]");
+    await expectNoAxeViolations(page, ".work-pane");
     await dialogOf(page).getByRole("textbox").fill(`Pouvoir trier par date de relance ${ref}`);
     await dialogOf(page).getByRole("button", { name: dialogTexts.send, exact: true }).click();
     await expect(dialogOf(page).getByRole("status")).toContainText(dialogTexts.thanks);
-    await expect(dialogOf(page).getByRole("button", { name: dialogTexts.close })).toBeVisible();
+    await expect(dialogOf(page).locator(".signalement-actions").getByRole("button", { name: dialogTexts.close })).toBeVisible();
 
     await dialogOf(page).getByRole("link", { name: dialogTexts.seeMine }).click();
     await expect(dialogOf(page)).toHaveCount(0);
@@ -240,7 +241,7 @@ test.describe("« Mes signalements » and the Signalement notification (#377)", 
     await expect(sent).toContainText(tr(mine.status, { status: mine.statuses.nouveau }));
   });
 
-  test("the dialog opened from the Sidebar offers « Voir mes signalements » after sending, leading to the Section", async ({ page }) => {
+  test("the form opened from the Sidebar offers « Voir mes signalements » after sending, leading to the Section", async ({ page }) => {
     const ref = tag();
     await signInWithMagicLink(page, newAddress("mes-signalements-sidebar"));
     await page.goto("/candidatures");

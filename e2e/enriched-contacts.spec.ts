@@ -7,6 +7,7 @@ import { Client } from "pg";
 import { derivedPort } from "./support/ports";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { ficheOf } from "./support/conversation";
 import { subscribe } from "./support/plan";
 
 // Issue #23: on the Premium Plan, named Enriched Contacts at the employer, from a
@@ -216,10 +217,11 @@ test.describe("Enriched Contacts configuration", () => {
         await page.goto(`${server.origin}/candidatures/${id}/documents`);
         await expect(page.getByRole("tab", { name: td.outreachMessage.title })).toBeVisible();
         await expect(page.getByRole("region", { name: t.title })).toHaveCount(0);
-        // No Contacts Section (ADR-0024): not listed, and not at its address.
-        const sections = page.getByRole("navigation", { name: fr.application.sections.sectionsLabel });
-        await expect(sections.getByRole("link", { name: fr.application.sections.documents })).toBeVisible();
-        await expect(sections.getByRole("link", { name: fr.application.sections.contacts })).toHaveCount(0);
+        // No Contacts Section (ADR-0024): not listed in the Application's Fiche (#603), and not at its address.
+        await page.goto(`${server.origin}/candidatures/${id}`);
+        const sections = ficheOf(page);
+        await expect(sections.getByRole("link", { name: fr.application.sections.documents, exact: true })).toBeVisible();
+        await expect(sections.getByRole("link", { name: fr.application.sections.contacts, exact: true })).toHaveCount(0);
         expect((await page.goto(`${server.origin}/candidatures/${id}/contacts`))?.status()).toBe(404);
       } finally {
         server.stop();

@@ -57,7 +57,7 @@ async function grant(superAdmin: Page, email: string, role: string) {
 
 /** A Candidate asks a question the help misses, about using Jobbbox: it becomes an Unanswered Question. */
 async function missedQuestion(browser: Browser, ref: string): Promise<string> {
-  const question = `Pourquoi suis-je bloqué à cinq analyses ? ${ref}`;
+  const question = `Pourquoi suis-je bloqué à cinq tentatives ? ${ref}`;
   const candidate = await personPage(browser, newAddress(`unanswered-${ref}`));
   await candidate.goto("/candidatures");
   await ask(candidate, question);
@@ -68,7 +68,7 @@ async function missedQuestion(browser: Browser, ref: string): Promise<string> {
 test.describe("Unanswered Questions: recorded redacted, « Questions sans réponse », Help editor role (#344)", () => {
   test("a question about quotas no article matched is kept once and counted; « réécris mon CV » and a failed reply are not", async ({ page, browser }) => {
     const ref = tag();
-    const question = `Pourquoi suis-je bloqué à cinq analyses ? ${ref}`;
+    const question = `Pourquoi suis-je bloqué à cinq tentatives ? ${ref}`;
     await signInWithMagicLink(page, newAddress("unanswered-candidate"));
     await page.goto("/candidatures");
     await toConversation(page);
@@ -84,7 +84,7 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
     await ask(page, `Réécris mon CV ${ref}`);
     // The AI Coach unavailable: nothing is recorded.
     const failedRef = tag();
-    await boxOf(page).fill(`Pourquoi suis-je bloqué à cinq analyses ? ${failedRef} E2E_AI_DOWN`);
+    await boxOf(page).fill(`Pourquoi suis-je bloqué à cinq tentatives ? ${failedRef} E2E_AI_DOWN`);
     await panelOf(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(panelOf(page).getByRole("alert")).toBeVisible({ timeout: 30_000 });
 
@@ -107,7 +107,7 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
 
   test("the table holds no link to a Candidate, and the Candidate's Data export does not carry the question", async ({ page }) => {
     const ref = tag();
-    const question = `Pourquoi suis-je bloqué à cinq analyses ? ${ref}`;
+    const question = `Pourquoi suis-je bloqué à cinq tentatives ? ${ref}`;
     const email = newAddress("unanswered-export");
     await signInWithMagicLink(page, email);
     await page.goto("/candidatures");

@@ -50,6 +50,8 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(steps).toHaveCount(5);
     await expect(steps.nth(1)).toContainText(`« ${fr.extension.badge} »`);
     await expect(main(page).getByRole("heading", { name: fr.helpCentre.related })).toBeVisible();
+    // Its metadata comes after a client-side navigation: wait for the page's title before axe reads it.
+    await expect(page).toHaveTitle(new RegExp(`^${titleOf("fr", TUTORIAL).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
     expect(await axeViolations(page)).toEqual([]);
   });
 

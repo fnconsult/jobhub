@@ -97,7 +97,7 @@ test.describe("Freshness rule in Job Search results (#116)", () => {
 
   test("keeps a posting dated within 30 days, drops one dated older, keeps an undated one labelled 'date inconnue', ranked below the dated one at an equal Match Score", async ({ page }) => {
     await searchFromNewProfile(page);
-    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3 }) });
+    const results = page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3 }) });
     // Two of the three postings are kept; the page refreshes itself until the worker has finished.
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
     await expect(page.getByRole("heading", { level: 3, name: `Directeur financier ancienne – réf. ${tag}` })).toHaveCount(0);

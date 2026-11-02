@@ -288,8 +288,8 @@ test.describe("On-demand AI Coach job search", () => {
       // Then: search again, from its Fiche, the Profile it is for in the Sidebar's switcher.
       await expect(card.getByRole("button", { name: "Relancer une recherche" })).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Sélecteur de profil" }).getByRole("button")).toHaveText(`Profil : ${searchCriteria.targetRole}`);
-      // It sits in the sidebar layout, the Job Searches link marked as the current page.
-      await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Recherches d'offres" })).toHaveAttribute("aria-current", "page");
+      // It sits in the sidebar layout, under Recherches d'offres, the Job Search itself marked as the current page (#606).
+      await expect(page.getByRole("navigation", { name: "Navigation principale" }).locator('[aria-current="page"]')).toHaveAttribute("href", `/recherches/${searchId}`);
     });
 
     test("meets the ADR-0009 floor: 16px text at AA contrast, 44px targets, and no sideways scrolling on a phone", async ({ page }) => {

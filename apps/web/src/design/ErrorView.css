@@ -80,4 +80,27 @@
     text-decoration: none;
     letter-spacing: -0.02em;
   }
+
+  /* The Exit Page: the site a link leads to, its full address beneath, and the countdown before going there. */
+  .ds-error__destination {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-4) 0 0;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+  }
+
+  .ds-error__destination span {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+    overflow-wrap: anywhere;
+  }
+
+  .ds-error__countdown {
+    margin: 0;
+    color: var(--color-secondary);
+    font-variant-numeric: tabular-nums;
+  }
 }

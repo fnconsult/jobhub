@@ -39,6 +39,16 @@
       "title": "Something went wrong",
       "message": "We could not display this page. Your data is safe. Please try again in a moment."
     },
+    "exit": {
+      "title": "You are leaving Jobbbox",
+      "message": "This link leads to a site outside Jobbbox. Jobbbox is not responsible for its content or for what it does with your data.",
+      "countdown_one": "You will be taken to {{site}} in {{count}} second.",
+      "countdown_other": "You will be taken to {{site}} in {{count}} seconds.",
+      "check": "Check the address before you continue.",
+      "cancelled": "Redirect cancelled.",
+      "continue": "Continue to {{site}}",
+      "cancel": "Cancel"
+    },
     "actions": {
       "retry": "Try again",
       "back": "Previous page",

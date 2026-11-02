@@ -1067,6 +1067,10 @@ _Avoid_: GIF, hint, coach mark
 The reviewed text of an Explainer Video, one per language, kept with its Tutorial: the narration, which says everything shown on screen, and the one source of its captions and transcript. Declares the pages it films, so a change to them flags the video to regenerate.
 _Avoid_: Storyboard, voice-over text
 
+**Exit Page**:
+The page « Vous quittez Jobbbox » that every link to a site outside Jobbbox goes through, for every role and in the role's shell, as an error page: it names the site and shows its full address, says Jobbbox is not responsible for it, then takes the person there after 5 seconds unless they click « Annuler », or at once with « Continuer vers <site> ». It counts down only for a person who came from a page of Jobbbox; reached from anywhere else, it waits for the click, so its address cannot send someone elsewhere unawares under Jobbbox's name. The destination is not told which page of Jobbbox the person came from. Only an absolute `http` or `https` address without a user name is taken; any other is a page not found.
+_Avoid_: Interstitial, redirect page, outbound link page
+
 **Help Centre**:
 The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Candidate's pages show the same articles in context: suggested above the box while typing and opened in the Work Pane.
 _Avoid_: KB, support site, help desk

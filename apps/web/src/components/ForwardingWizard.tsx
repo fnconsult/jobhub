@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { ExternalLink } from "@/components/ExternalLink";
 import type { CandidateSender, PlatformSender } from "@/email-intake/candidate-senders";
 import type { ForwardingSetup } from "@/email-intake/forwarding-setup";
 import { guideOf, MAILBOX_PROVIDERS, wizardSteps, type MailboxProvider, type WizardStep } from "@/email-intake/forwarding-wizard";
@@ -221,9 +222,9 @@ export function ForwardingWizard({
               </dl>
             ) : null}
             {setup?.confirmation?.link ? (
-              <a href={setup.confirmation.link} target="_blank" rel="noopener noreferrer">
+              <ExternalLink href={setup.confirmation.link}>
                 {t("forwardingWizard.confirmation.link")}
-              </a>
+              </ExternalLink>
             ) : null}
             {setup?.confirmation && !setup.confirmation.code && !setup.confirmation.link ? <p>{t("forwardingWizard.confirmation.unreadable")}</p> : null}
             {setup?.confirmation ? null : (

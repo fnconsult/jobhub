@@ -61,7 +61,7 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
     it("counts the same request again, apart from a Candidate's same question, and filters by audience", async () => {
       // The same words, page and language as a Candidate's, kept apart by audience.
       await questions.request({ ...request, question: QUOTA, route: "/candidatures" });
-      await questions.request({ ...request, question: "cinq analyses : pourquoi suis-je BLOQUÉ", route: "/candidatures" });
+      await questions.request({ ...request, question: "cinq tentatives : pourquoi suis-je BLOQUÉ", route: "/candidatures" });
       await questions.notice("marie", replied(QUOTA, { route: "/candidatures" }));
 
       expect((await questions.open()).map((each) => [each.audience, each.count])).toEqual([

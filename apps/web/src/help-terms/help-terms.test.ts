@@ -107,7 +107,20 @@ describe("the Help Article each term and each empty state opens", () => {
   });
 
   it("covers the listed terms and empty states", () => {
-    expect(Object.keys(HELP_TERMS).sort()).toEqual(["atsScore", "followUp", "masterCv", "matchScore", "planQuota", "proposals", "tailoredCv"]);
+    expect(Object.keys(HELP_TERMS).sort()).toEqual([
+      "aiCoach",
+      "atsScore",
+      "coachAccess",
+      "coachMemory",
+      "euAiConsent",
+      "followUp",
+      "masterCv",
+      "matchScore",
+      "planQuota",
+      "proposals",
+      "tailoredCv",
+      "targetCompany",
+    ]);
     expect(Object.keys(EMPTY_STATE_HELP).sort()).toEqual(["agenda", "applications", "followUps", "jobSearches", "profiles", "proposals"]);
   });
 });

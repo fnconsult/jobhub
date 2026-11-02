@@ -6,6 +6,7 @@ import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
 import { Pill } from "@/design/Pill";
+import { HelpText } from "@/components/HelpTerm";
 
 /**
  * The Candidate's EU AI consent (ADR-0007 amendment): with it, the AI calls carrying their
@@ -36,7 +37,9 @@ export function EuAiConsentForm({ givenAt: initial, locale }: { givenAt: Date | 
   return (
     <Card title={t("euAiConsent.title")} headingId={`${id}-title`}>
       <div className="stack">
-        <p>{t("euAiConsent.explanation")}</p>
+        <p>
+          <HelpText terms={{ euAiConsent: t("helpTerms.words.euAiConsent") }}>{t("euAiConsent.explanation")}</HelpText>
+        </p>
         <p role="status" className="account-status">
           {date ? <Pill tone="success">{t("euAiConsent.givenOn", { date })}</Pill> : <Pill>{t("euAiConsent.notGiven")}</Pill>}
         </p>

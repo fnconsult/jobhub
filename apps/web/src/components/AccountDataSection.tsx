@@ -7,6 +7,7 @@ import { Card } from "@/design/Card";
 import { Field, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { routes } from "@/routes";
+import { HelpText } from "@/components/HelpTerm";
 
 /** What the export holds, one line each (GDPR art. 15 / 20, #171). */
 const EXPORT_CONTENTS = ["account", "profiles", "applications", "coaching"] as const;
@@ -51,7 +52,13 @@ export function AccountDataSection() {
         <p>{t("accountData.exportHint")}</p>
         <ul>
           {EXPORT_CONTENTS.map((part) => (
-            <li key={part}>{t(`accountData.exportContents.${part}`)}</li>
+            <li key={part}>
+              <HelpText
+                terms={{ aiCoach: t("helpTerms.words.aiCoach"), coachMemory: t("helpTerms.words.coachMemory"), coachAccess: t("helpTerms.words.coachAccess") }}
+              >
+                {t(`accountData.exportContents.${part}`)}
+              </HelpText>
+            </li>
           ))}
         </ul>
         <p>{t("accountData.exportLeftOut")}</p>

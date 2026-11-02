@@ -55,6 +55,7 @@ export {
   type MotionViewer,
 } from "./motion-scripts";
 export {
+  compareVersions,
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,
   RELEASE_NOTE_TAGS,

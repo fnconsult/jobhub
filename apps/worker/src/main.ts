@@ -17,6 +17,8 @@ import { createJobOffers } from "@jobhub/web/job-offers";
 import { createJobSearchReports } from "@jobhub/web/job-searches";
 import { createLegalTextNotices, sendsLegalTextNotices } from "@jobhub/web/legal-text-notices";
 import { mailerFromEnv } from "@jobhub/web/mailers";
+import { createNouveautesEmails } from "@jobhub/web/nouveautes-email";
+import { builtVersion, currentRelease } from "@jobhub/web/release";
 import { maintenanceOf } from "@jobhub/web/maintenance";
 import { secretsWithSettings, watchPlatformSettings } from "@jobhub/web/platform-settings";
 import { createProfiles } from "@jobhub/web/profiles";
@@ -32,7 +34,7 @@ import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
-import { createJobs, LEGAL_TEXT_NOTICES, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
+import { createJobs, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
 import { workerClients } from "./provider-secrets";
 
 const connectionString = process.env.DATABASE_URL;
@@ -160,6 +162,8 @@ const jobs = createJobs({
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
+  // The Nouveautés email of each announced Release Note up to the Version this build serves, from Production only (#566).
+  nouveautesEmails: createNouveautesEmails(database, { mailer, baseURL, production: !currentRelease(process.env).beta, version: builtVersion }),
   // A Quota Reduction (#514) applies on its effective date; each subscriber gets its notice, in their Interface Language.
   // Stripe asked again for prorata refunds it did not answer about: its keys as the web app has them (Provider Secrets over env).
   quotaReductions: { run: () => createQuotaReductions(database, { billing: stripeBilling(), mailer, baseURL }).run() },
@@ -206,6 +210,8 @@ await runner.enqueue("system.heartbeat");
 await runner.enqueue(PROVIDER_SECRETS_REENCRYPT);
 // The Production deployment carrying a substantial Legal Text Version starts the worker: its notices go out now (#547).
 await runner.enqueue(LEGAL_TEXT_NOTICES);
+// The Production deployment carrying an announced Release Note starts the worker: its Nouveautés emails go out now (#566).
+await runner.enqueue(NOUVEAUTES_EMAILS);
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

@@ -2727,7 +2727,8 @@
         "secret_disclosure": "Secret disclosure",
         "harmful_advice": "Out-of-scope or harmful advice",
         "distress": "Distress",
-        "email_injection": "Booby-trapped email content"
+        "email_injection": "Booby-trapped email content",
+        "ungrounded_answer": "Answer not grounded in the profile"
       },
       "descriptions": {
         "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
@@ -2735,7 +2736,8 @@
         "secret_disclosure": "A reply that reveals the AI's instructions, the coaching playbooks' rules or a key (Provider Secrets).",
         "harmful_advice": "A reply that gives legal, medical or financial advice, or discriminatory advice, age included.",
         "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted.",
-        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside."
+        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside.",
+        "ungrounded_answer": "An AI Coach reply that ranks job offers or says whether an offer, an application or a piece of advice suits the candidate without citing their skills, experience or criteria, or that claims not to have the reasons for a score or their CV. Blocked, it is written again once; if it still is, the message below is shown."
       },
       "languages": {
         "fr": "French",
@@ -5164,7 +5166,31 @@
     "published": "Published versions",
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
-    "noneForTag": "No version has this topic yet."
+    "noneForTag": "No version has this topic yet.",
+    "allVersions": "All versions"
+  },
+  "nouveautesEmail": {
+    "settings": {
+      "label": "Get an email when Jobbbox announces something new",
+      "explanation": "At most one email a week, with no open or click tracking. You can unsubscribe at any time, here or through the email's link.",
+      "since": "Subscribed since {{date}}.",
+      "on": "Subscription saved.",
+      "off": "You will no longer receive these emails.",
+      "error": "Your choice could not be saved. Please try again."
+    },
+    "email": {
+      "subject": "New in Jobbbox: {{title}}",
+      "read": "Read version {{version}}",
+      "reason": "You are receiving this email because you asked, in My account, to hear about what is new in Jobbbox.",
+      "unsubscribe": "Stop receiving what's new by email"
+    },
+    "unsubscribePage": {
+      "title": "Unsubscribe from what's-new emails",
+      "confirm": "You will no longer get an email when Jobbbox announces something new. You can subscribe again at any time in My account, under Preferences.",
+      "action": "Unsubscribe",
+      "done": "Done: you will no longer receive what's-new emails.",
+      "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and untick the box in My account, under Preferences."
+    }
   },
   "publicFooter": {
     "legal": {

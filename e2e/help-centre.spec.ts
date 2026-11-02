@@ -50,6 +50,8 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(steps).toHaveCount(6);
     await expect(steps.nth(1)).toContainText(`« ${fr.extension.badge} »`);
     await expect(main(page).getByRole("heading", { name: fr.helpCentre.related })).toBeVisible();
+    // Reached by a link: Next streams the page's <title> after its content, so axe waits for it (else « document-title »).
+    await expect(page).toHaveTitle(`${titleOf("fr", TUTORIAL)} · ${fr.helpCentre.title} · ${fr.app.name}`);
     expect(await axeViolations(page)).toEqual([]);
   });
 

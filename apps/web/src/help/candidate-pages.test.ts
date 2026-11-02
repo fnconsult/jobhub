@@ -15,10 +15,10 @@ const NOT_CANDIDATE_PAGES = [
   /^\/admin(\/|$)/,
   /^\/espace-coach(\/|$)/,
   /^\/connexion(\/|$)/,
-  /^\/desabonnement$/,
+  /^\/desabonnement(\/nouveautes)?$/,
   /^\/compte\/supprime$/,
   /^\/design-system(\/|$)/,
-  /^\/nouveautes$/,
+  /^\/nouveautes(\/\[version\])?$/,
   /^\/legal(\/|$)/,
   /^\/aide(\/|$)/,
 ];

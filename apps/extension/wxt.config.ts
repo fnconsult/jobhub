@@ -14,8 +14,18 @@ export default defineConfig({
   manifestVersion: 3,
   // The zips the extension workflow attaches to its Release: jobbbox-extension-X.Y.Z-chrome.zip and …-chrome-beta.zip.
   zip: { name: "jobbbox-extension" },
-  // The web app this build talks to (src/web-app.ts), from its mode rather than from the environment alone.
-  vite: ({ mode }) => ({ define: { "import.meta.env.WXT_WEB_ORIGIN": JSON.stringify(buildTarget(mode, process.env).webOrigin) } }),
+  // The web app this build talks to (src/web-app.ts), from its mode rather than from the environment alone. A store
+  // build also runs as production whatever its mode: WXT's runtime keeps its « [wxt] » console logging out of it only
+  // when MODE is "production", so the beta zip behaves as the public one.
+  vite: ({ mode }) => {
+    const target = buildTarget(mode, process.env);
+    return {
+      define: {
+        "import.meta.env.WXT_WEB_ORIGIN": JSON.stringify(target.webOrigin),
+        ...(target.store ? { "import.meta.env.MODE": JSON.stringify("production"), "import.meta.env.DEV": "false", "import.meta.env.PROD": "true" } : {}),
+      },
+    };
+  },
   hooks: {
     // Each build ships its own icon set only: the beta's never reaches the public listing, nor the other way round.
     "build:publicAssets": (wxt, files) => {

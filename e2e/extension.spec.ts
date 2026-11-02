@@ -37,6 +37,8 @@ test.describe("browser extension", () => {
       locale: "en-US",
       args: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`],
     });
+    // This is the public listing's build, tied to Production (#563): CI never calls jobbbox.ai, it finds it unreachable.
+    await context.route("https://jobbbox.ai/**", (route) => route.abort());
   });
 
   test.afterAll(async () => {

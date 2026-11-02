@@ -41,7 +41,7 @@ Enregistrer dans Jobbbox l'offre d'emploi consultée et en calculer le score de 
 ## Justification des autorisations
 
 - **activeTab, scripting** : lire la page de l'offre que la personne consulte, quand elle clique sur « Capturer cette page » ou « Analyser cette offre ». Le script de contenu des sites d'offres reconnaît une offre pour afficher ce bouton, sans envoyer la page.
-- **storage** : garder la session de la personne sans compte, en mémoire, et ses réglages.
+- **storage** : garder la session de la personne sans compte, en mémoire, et la liste des sites d'offres que lui envoie Jobbbox.
 - **alarms** : effacer la session sans compte à l'heure prévue, au plus tard 24 heures après.
 - **sidePanel** : l'extension s'ouvre dans le panneau latéral du navigateur, à côté de l'offre.
 - **Autorisations d'hôte (jobbbox.ai et sites d'offres)** : partager la session de la personne sur jobbbox.ai, et lire l'offre d'un site d'offres, y compris quand elle est affichée dans un cadre d'une autre page.

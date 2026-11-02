@@ -12,6 +12,7 @@ on:
   pull_request:
     paths:
       - apps/extension/**
+      - packages/shared/**
       - .github/workflows/extension.yml
 
 concurrency:
@@ -47,8 +48,8 @@ jobs:
           if [ "$EVENT" = workflow_dispatch ] && [ "$GITHUB_REF" != refs/heads/main ]; then
             echo "::error::An Extension Version is released from main, not $GITHUB_REF"; exit 1
           fi
-          if [ "$EVENT" = workflow_dispatch ] && gh release view "extension-v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "::error::extension-v$version already exists: raise the Extension Version in apps/extension/package.json"; exit 1
+          if [ "$EVENT" = workflow_dispatch ] && { gh release view "extension-v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/extension-v$version" > /dev/null; }; then
+            echo "::error::extension-v$version already exists (Release or tag): raise the Extension Version in apps/extension/package.json"; exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
       # The extension's tsconfig extends .wxt/tsconfig.json, which WXT generates.

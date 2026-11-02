@@ -76,6 +76,10 @@ describe("the extension's store builds", () => {
     }
   });
 
+  it("both run as production builds, without WXT's « [wxt] » console logging", () => {
+    for (const { code } of [publicBuild, betaBuild]) expect(code).not.toContain("[wxt]");
+  });
+
   it("the beta build is named « Jobbbox (bêta) » and has its own icon", () => {
     expect(publicBuild.manifest.name).toBe("__MSG_extName__");
     expect(betaBuild.manifest.name).toBe("__MSG_extNameBeta__");

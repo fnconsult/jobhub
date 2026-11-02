@@ -27,6 +27,7 @@ describe("extension.yml", () => {
   it("refuses a version that is not X.Y.Z in digits, and one already released", () => {
     expect(workflow).toContain("^[0-9]+\\.[0-9]+\\.[0-9]+$");
     expect(workflow).toContain('gh release view "extension-v$version"');
+    expect(workflow).toContain('git ls-remote --exit-code --tags origin "refs/tags/extension-v$version"');
   });
 
   it("attaches both zips to the Release extension-vX.Y.Z, which is never the repo's latest", () => {

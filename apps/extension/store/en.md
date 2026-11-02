@@ -41,7 +41,7 @@ Save into Jobbbox the job offer being read and work out its match score with the
 ## Permission justifications
 
 - **activeTab, scripting**: read the page of the job offer the person is viewing, when they click « Capture this page » or « Analyse this offer ». The job sites' content script recognises an offer to show that button, without sending the page.
-- **storage**: keep the session of a person without an account, in memory, and their settings.
+- **storage**: keep the session of a person without an account, in memory, and the list of job sites Jobbbox sends it.
 - **alarms**: delete the session of a person without an account on time, within 24 hours.
 - **sidePanel**: the extension opens in the browser's side panel, beside the offer.
 - **Host permissions (jobbbox.ai and job sites)**: share the person's session on jobbbox.ai, and read a job site's offer, including when it is shown in a frame of another page.

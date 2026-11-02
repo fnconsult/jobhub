@@ -3,9 +3,10 @@ import { coachReplyBlocks, type Inline, type LinkPolicy } from "@/coach/reply-te
 
 /**
  * An AI Coach reply set as paragraphs, lists and bold or italic text, never raw Markdown (#164). Its links are shown as
- * their text, unless `links` keeps them: a Help Article in the Help Centre (#552), never an AI reply.
+ * their text, unless `links` keeps them: a Help Article in the Help Centre (#552), never an AI reply. `afterStep` puts
+ * something after a numbered item, by its number: a Tutorial step's « Voir comment » (#569).
  */
-export function CoachReplyText({ text, links }: { text: string; links?: LinkPolicy }) {
+export function CoachReplyText({ text, links, afterStep }: { text: string; links?: LinkPolicy; afterStep?: (step: number) => ReactNode }) {
   const line = (inlines: Inline[]) =>
     inlines.map((part, i) => {
       let node: ReactNode = part.text;
@@ -29,7 +30,10 @@ export function CoachReplyText({ text, links }: { text: string; links?: LinkPoli
         ) : block.ordered ? (
           <ol key={index} start={block.start}>
             {block.items.map((item, i) => (
-              <li key={i}>{lines(item)}</li>
+              <li key={i}>
+                {lines(item)}
+                {afterStep?.(block.start + i)}
+              </li>
             ))}
           </ol>
         ) : (

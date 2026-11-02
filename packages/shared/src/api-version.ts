@@ -12,6 +12,16 @@ export const API_VERSION_HEADER = "Jobbbox-Api-Version";
 /** The stable code of the 426 answer: the extension is asked to update itself (« Mettez à jour l'extension »). */
 export const EXTENSION_OUTDATED = "extension_outdated";
 
+/**
+ * The stable code of the 401 every API route answers a session pending its second step (ADR-0075, #663): the extension
+ * then says « Terminez votre connexion sur Jobbbox », with a link to SECOND_STEP_PATH. An older extension reads it as
+ * signed out, which it is not far from: no version is raised for it.
+ */
+export const SECOND_STEP_REQUIRED = "second_step_required";
+
+/** The web app's page where a session pending its second step finishes signing in. */
+export const SECOND_STEP_PATH = "/connexion/deuxieme-etape";
+
 /** The API Versions the web app serves: the current one and the one before (none below 1). */
 export function servedApiVersions(current: number = API_VERSION): number[] {
   return current > 1 ? [current, current - 1] : [current];

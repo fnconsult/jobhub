@@ -1,7 +1,12 @@
+import { SECOND_STEP_PATH } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { pendingSessionGate, secondStepHref, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE } from "./gate";
 
 describe("what a session pending its second step reaches (ADR-0075)", () => {
+  it("is the page the extension links to", () => {
+    expect(SECOND_STEP_PAGE).toBe(SECOND_STEP_PATH);
+  });
+
   it("reaches the second step's page and endpoint, and sign-out", () => {
     expect(pendingSessionGate(SECOND_STEP_PAGE, "GET")).toBe("open");
     expect(pendingSessionGate(`${SECOND_STEP_PAGE}?suite=%2Fcompte`, "GET")).toBe("open");

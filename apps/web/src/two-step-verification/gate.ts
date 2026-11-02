@@ -5,11 +5,12 @@
  * code SECOND_STEP_REQUIRED. Applied by the proxy (src/proxy.ts) before anything else of the app's runs, the CGU
  * Acceptance gate (ADR-0062) included.
  */
+import { SECOND_STEP_REQUIRED } from "@jobhub/shared";
 import { RETURN_PARAM, safeReturnPath } from "../auth/sign-in-return";
 import { routes } from "../routes";
 
-/** The code a refused request answers with: `{ error: SECOND_STEP_REQUIRED }`, 401. */
-export const SECOND_STEP_REQUIRED = "second_step_required";
+/** The code a refused request answers with: `{ error: SECOND_STEP_REQUIRED }`, 401 (the extension reads it too). */
+export { SECOND_STEP_REQUIRED };
 export const SECOND_STEP_PAGE = routes.secondStep;
 /** Where the second step's page (and Mon compte, to confirm turning it off) posts a code. */
 export const SECOND_STEP_ENDPOINT = "/api/two-step-verification/second-step";

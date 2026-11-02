@@ -24,9 +24,14 @@ type AgendaParams = Parameters<typeof readAgendaMenuAddress>[0];
 
 /** The Agenda's Subject: the menu's one conversation per Candidate (ADR-0070); its replies' Focus is the Agenda. */
 const SUBJECT = { kind: "menu", id: "agenda" } as const;
+/**
+ * What goes with each message, as the page's object: the Agenda, its next 30 days (#254). The box's line says so
+ * (« Vous consultez : vos entretiens et rendez-vous des 30 prochains jours »), as the replies' Focus is the Agenda.
+ */
+const IN_VIEW = { kind: "agenda", id: "agenda" } as const;
 /** The week and the month in the Work Pane: views of the Agenda, like an object's Section. */
 const VIEW: AddressedKind = "section";
-/** The view the card shows: the list. */
+/** The view the card shows: the list, « Liste » current while neither the week nor the month is open beside it. */
 const LIST: AgendaView = "liste";
 /** The form adding an Interview, in the Work Pane. */
 const FORM: AddressedKind = "form";
@@ -68,13 +73,15 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
         key={conversationId ?? "new"}
         conversationId={conversationId}
         subject={SUBJECT}
+        inView={{ ...IN_VIEW, name: t("agenda.title") }}
         introduction={<p>{t("agendaMenu.introduction")}</p>}
         card={
           <Card>
             {/* Drawn as the Agenda's page was: its targets at the 44px floor, its long buttons wrapping on a phone (#608). */}
             <div className="agenda-card">
               <div className="agenda-toolbar">
-                <ViewSwitch view={LIST} date={frenchDay(now)} t={t} />
+                {/* The view the address names is the one shown, the week or the month in the Work Pane beside the list. */}
+                <ViewSwitch view={pane?.kind === "calendar" ? pane.view : LIST} date={pane?.kind === "calendar" ? pane.date : frenchDay(now)} t={t} />
                 <div className="agenda-actions">{addInterview}</div>
               </div>
               {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} withdrawable={withdrawable} formats={formats} t={t} /> : null}

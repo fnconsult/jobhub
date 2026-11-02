@@ -96,7 +96,7 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
     await expect(row).toHaveCount(1);
     await expect(row.getByRole("rowheader")).toHaveText(question);
     // The page it was asked from, and the Interface Language.
-    await expect(row.getByRole("cell").nth(0)).toHaveText(`/candidatures · ${texts.languages.fr}`);
+    await expect(row.getByRole("cell").nth(0)).toHaveText(`/candidatures · ${texts.audiences.candidate} · ${texts.languages.fr}`);
     await expect(row.getByRole("cell").nth(1)).toHaveText("2");
     await expect(row.getByRole("cell").nth(4)).toContainText(texts.answer);
     await expect(rowOf(office, "Réécris")).toHaveCount(0);

@@ -1,0 +1,172 @@
+import { readFileSync } from "node:fs";
+import pg from "pg";
+import { expect, test, type Browser, type Page } from "@playwright/test";
+import { signInWithMagicLink } from "./support/candidate";
+import { newAddress } from "./support/mailbox";
+import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
+
+// Issue #551 (ADR-0065): the Back Office's help. The Back Office Assistant suggests the Administrators' Help Articles
+// first, found without AI, is given those the search finds and cites them; with none, the reply offers « Demander un
+// tutoriel », whose click alone keeps an Unanswered Question of the Administrator audience, with the section in view,
+// never the Administrator. « Questions sans réponse » filters by audience. /admin/aide lists the Back Office's topics,
+// « Fournisseurs et Tools » first, its search and each article, for Administrators only, never indexed; an
+// Administrator's article stays out of /aide and sitemap.xml. The AI is faked inside the server (fake-mistral.mjs):
+// "E2E_SHOW_CONTEXT#<tag>" prints the system prompt to the server log.
+const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+const admin = fr.admin;
+const uq = admin.unansweredQuestions;
+const assistantTexts = fr.backOfficeAssistant;
+const page404 = fr.errorPage.notFound.title;
+// Its own permanent super-admin (playwright.config.ts's ADMIN_EMAILS).
+const SUPER_ADMIN = "back-office-help-office@e2e.jobbbox.test";
+const ARTICLE = { id: "page-admin-unanswered-questions", title: "Questions sans réponse", path: "/admin/aide/contenu/page-admin-unanswered-questions" };
+const origin = process.env.E2E_WEB_ORIGIN!;
+
+/** A word of letters alone, its own to each run: no Help Article holds it. */
+const tag = () => Array.from({ length: 10 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join("");
+
+const assistant = (page: Page) => page.getByRole("complementary", { name: assistantTexts.title });
+const box = (page: Page) => assistant(page).getByLabel(fr.coachPanel.messageLabel);
+const messages = (page: Page) => assistant(page).getByRole("list", { name: assistantTexts.messagesLabel }).locator("> li");
+
+async function personPage(browser: Browser, email: string): Promise<Page> {
+  const context = await browser.newContext({ baseURL: origin, locale: "en-US" });
+  const page = await context.newPage();
+  await signInWithMagicLink(page, email);
+  return page;
+}
+
+async function openAssistant(page: Page) {
+  await page.getByRole("button", { name: assistantTexts.open, exact: true }).click();
+  await expect(assistant(page)).toBeVisible();
+}
+
+/** Sends `text` to the assistant and waits for its reply. */
+async function ask(page: Page, text: string) {
+  const before = await messages(page).count();
+  await box(page).fill(text);
+  await assistant(page).getByRole("button", { name: assistantTexts.send, exact: true }).click();
+  await expect(messages(page)).toHaveCount(before + 2);
+}
+
+test.describe("Back Office help: the assistant's articles, « Demander un tutoriel », /admin/aide (#551)", () => {
+  test("the assistant shows the section's article « Sur cette page », suggests it while typing, is given it and never a Candidate's", async ({ page }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/questions-sans-reponse");
+    await openAssistant(page);
+
+    // « Sur cette page »: the section's Administrator article.
+    const intro = assistant(page).locator(".help-intro");
+    await expect(intro.getByRole("heading", { name: fr.coachPanel.help.onThisPage })).toBeVisible();
+    await expect(intro).toContainText(ARTICLE.title);
+    await expect(intro).not.toContainText(fr.coachPanel.help.oftenAsked);
+    await intro.getByRole("button", { name: fr.coachPanel.help.readMoreAbout.replace("{{title}}", ARTICLE.title) }).click();
+    const card = assistant(page).getByRole("article", { name: ARTICLE.title });
+    await expect(card).toContainText("Filtrer par public");
+    await expect(card.getByRole("link", { name: assistantTexts.help.openInBackOfficeHelpAbout.replace("{{title}}", ARTICLE.title) })).toHaveAttribute("href", ARTICLE.path);
+    await expect(card.getByRole("link", { name: fr.coachPanel.help.openInHelpCentre })).toHaveCount(0);
+
+    // Suggested first, without AI, while typing.
+    await box(page).fill("filtrer les questions sans réponse par public");
+    await expect(assistant(page).getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button")).toHaveText([`${ARTICLE.title}${fr.coachPanel.help.kinds.page}`]);
+
+    // Given to the assistant, with its link to cite; a Candidate's article never.
+    const show = showSystemPrompt();
+    await ask(page, `Comment filtrer les questions sans réponse par public ? ${show}`);
+    const system = await systemPromptShown(show);
+    expect(system).toContain(`### « ${ARTICLE.title} » (${ARTICLE.path})`);
+    expect(system).toContain("citez chaque article dont vous vous servez par son titre et son lien");
+    // Found articles: no « Demander un tutoriel » under the reply.
+    await expect(messages(page).last().getByRole("button", { name: assistantTexts.help.requestTutorial })).toHaveCount(0);
+
+    const candidateShow = showSystemPrompt();
+    await ask(page, `Comment relancer un recruteur ? ${candidateShow}`);
+    const told = await systemPromptShown(candidateShow);
+    expect(told).not.toContain("### « ");
+    expect(told).toContain("Aucun article de l'aide du back office ne couvre cette question");
+  });
+
+  test("« Demander un tutoriel » alone records an Administrator's Unanswered Question, without the Administrator, filtered by audience", async ({ page }) => {
+    const ref = tag();
+    const question = `Comment archiver un ${ref} ?`;
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin/offres");
+    await openAssistant(page);
+    await ask(page, question);
+    const reply = messages(page).last();
+    await expect(reply).toContainText(assistantTexts.help.noTutorial);
+
+    // Nothing is recorded before the click.
+    const db = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
+    try {
+      const kept = async () => (await db.query("SELECT * FROM unanswered_question WHERE question LIKE $1", [`%${ref}%`])).rows;
+      expect(await kept()).toEqual([]);
+
+      await reply.getByRole("button", { name: assistantTexts.help.requestTutorial }).click();
+      await expect(reply.getByRole("status")).toHaveText(assistantTexts.help.requested);
+
+      const rows = await kept();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ audience: "administrator", question, route: "/admin/offres", language: "fr", count: 1 });
+      // Nothing in it names the Administrator.
+      expect(JSON.stringify(rows[0])).not.toContain("back-office-help-office");
+      const { rows: account } = await db.query<{ id: string }>("SELECT id::text FROM candidate WHERE email = $1", [SUPER_ADMIN]).catch(() => ({ rows: [] as { id: string }[] }));
+      for (const { id } of account) expect(JSON.stringify(rows[0])).not.toContain(id);
+    } finally {
+      await db.end();
+    }
+
+    // « Questions sans réponse », by audience.
+    await page.goto("/admin/questions-sans-reponse");
+    const row = page.getByRole("row").filter({ hasText: ref });
+    await expect(row.getByRole("cell").nth(0)).toHaveText(`/admin/offres · ${uq.audiences.administrator} · ${uq.languages.fr}`);
+    const audiences = page.getByRole("navigation", { name: uq.audienceFilter });
+    await expect(audiences.getByRole("link")).toHaveText([uq.allAudiences, ...["visitor", "guest", "candidate", "human-coach", "administrator"].map((each) => uq.audiences[each])]);
+    await audiences.getByRole("link", { name: uq.audiences.candidate }).click();
+    await expect(page).toHaveURL(/public=candidate/);
+    await expect(page.getByRole("row").filter({ hasText: ref })).toHaveCount(0);
+    await page.getByRole("navigation", { name: uq.audienceFilter }).getByRole("link", { name: uq.audiences.administrator }).click();
+    await expect(page.getByRole("navigation", { name: uq.audienceFilter }).getByRole("link", { name: uq.audiences.administrator })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("row").filter({ hasText: ref })).toHaveCount(1);
+  });
+
+  test("/admin/aide: the Back Office's topics, « Fournisseurs et Tools » first, its search and its articles, for Administrators only, never indexed", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    await page.goto("/admin");
+    await page.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.nav.help }).click();
+    await expect(page).toHaveURL(/\/admin\/aide$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(admin.help.title);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    const topics = page.getByRole("heading", { level: 3 });
+    await expect(topics.first()).toHaveText(admin.help.topics["fournisseurs-et-tools"].title);
+    await expect(topics.last()).toHaveText(admin.help.topics["ia-et-conformite"].title);
+
+    await page.getByLabel(admin.help.searchLabel).fill("questions sans réponse public");
+    await page.getByRole("button", { name: admin.help.searchSubmit }).click();
+    await expect(page.getByRole("status")).toContainText(admin.help.results_one.replace("{{count}}", "1").replace("{{query}}", "questions sans réponse public"));
+    await page.getByRole("main").getByRole("link", { name: ARTICLE.title }).first().click();
+    await expect(page).toHaveURL(new RegExp(`${ARTICLE.path}$`));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(ARTICLE.title);
+    await expect(page.getByRole("main")).toContainText("Demander un tutoriel");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+
+    // A Candidate's article is no Back Office help page.
+    expect((await page.goto("/admin/aide/utiliser/faq-text-size"))?.status()).toBe(404);
+
+    // Anyone but an Administrator: a 404.
+    const candidate = await personPage(browser, newAddress("back-office-help-candidate"));
+    for (const path of ["/admin/aide", ARTICLE.path, "/admin/aide?q=public"]) {
+      const response = await candidate.goto(path);
+      expect(response?.status(), path).toBe(404);
+      await expect(candidate.getByRole("heading", { level: 1 })).toHaveText(page404);
+    }
+    // Never public: not in the Help Centre, its search, nor the sitemap.
+    expect((await candidate.goto(`/aide/contenu/${ARTICLE.id}`))?.status()).toBe(404);
+    await candidate.goto("/aide?q=questions%20sans%20r%C3%A9ponse%20public");
+    await expect(candidate.getByRole("main")).not.toContainText(ARTICLE.title);
+    const sitemap = await (await candidate.request.get("/sitemap.xml")).text();
+    expect(sitemap).not.toContain(ARTICLE.id);
+    expect(sitemap).not.toContain("/admin/aide");
+    await candidate.context().close();
+  });
+});

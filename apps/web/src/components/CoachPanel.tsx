@@ -13,10 +13,10 @@ import { CoachConversationList, type ConversationSummary } from "@/components/Co
 import { useConversationFirst } from "@/components/conversation-first";
 import { CoachMemoryProposals, CoachMemoryView } from "@/components/CoachMemory";
 import { CoachReplyText } from "@/components/CoachReplyText";
-import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
+import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback, TutorialRequest, type TutorialRequestState } from "@/components/CoachHelp";
 import { SignalementProvider, useOpenSignalement } from "@/components/Signalement";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
-import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
+import { backOfficeHelpFor, helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle, type HelpAudience } from "@/coach-help";
 import { createMentions, type Mentions } from "@/help-terms";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icons } from "@/components/icons";
@@ -233,8 +233,10 @@ type HelpCard = { from: "help"; key: number; article: HelpArticle; answered: boo
 /**
  * A message as the panel shows it, with what this browser alone knows of an AI Coach reply (#345, never saved):
  * `couldNotAnswer`, the AI Coach marked the question as one it could not answer; `satisfied`, the Candidate's « Oui » or « Non ».
+ * `tutorial`: a Back Office Assistant reply to a question no Help Article covered offers « Demander un tutoriel » (#551),
+ * then says whether it was sent.
  */
-type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean };
+type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean; tutorial?: TutorialRequestState };
 
 /** What the panel lists: the saved messages, the replies stopped and the Help Articles opened since it opened. */
 type PanelMessage = ShownMessage | StoppedReply | HelpCard;
@@ -330,6 +332,11 @@ interface PanelConfig {
     inView: boolean;
     /** Help Articles first (#342, ADR-0035): suggested while the Candidate types, opened as cards, offered when the AI cannot answer. */
     help: boolean;
+    /**
+     * Whose Help Articles (ADR-0065): the Candidate's (and the extension's), or the Administrators' only (#551), which
+     * the Back Office Assistant is also given, and whose miss it offers to turn into « Demander un tutoriel ».
+     */
+    helpAudience: HelpAudience;
     /** Questions asked from an Explainable label, with the item's context (#407). */
     explain: boolean;
   };
@@ -356,7 +363,7 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     sendLabel: "coachPanel.send",
     conversations: "/api/coach/conversations",
     storageKey: "jobhub.coachConversation",
-    features: { memory: true, inView: true, live: true, help: true, explain: false },
+    features: { memory: true, inView: true, live: true, help: true, helpAudience: "candidate", explain: false },
     texts: {
       open: "coachPanel.open",
       openShort: "coachPanel.openShort",
@@ -377,7 +384,7 @@ const PANELS: Record<PanelKind, PanelConfig> = {
     sendLabel: "backOfficeAssistant.send",
     conversations: "/api/admin/assistant/conversations",
     storageKey: "jobhub.backOfficeAssistantConversation",
-    features: { memory: false, inView: false, live: false, help: false, explain: true },
+    features: { memory: false, inView: false, live: false, help: true, helpAudience: "administrator", explain: true },
     texts: {
       open: "backOfficeAssistant.open",
       title: "backOfficeAssistant.title",
@@ -547,7 +554,10 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   // The help (#342): the Help Articles matching the draft, once the Candidate pauses; the one read last, whose title goes
   // with the next message; the question the AI Coach could not answer, for the help to answer instead.
   const help = panel.features.help;
-  const openSignalement = help ? signalement : null;
+  const audience = panel.features.helpAudience;
+  // The Candidate's help alone goes with Signalements, HelpTerms and what was read last: the Back Office's is articles only (#551).
+  const candidateHelp = help && audience === "candidate";
+  const openSignalement = candidateHelp ? signalement : null;
   const locale = helpLocale(i18n.language);
   const [query, setQuery] = useState("");
   const [readArticle, setReadArticle] = useState<{ id: string; title: string } | null>(null);
@@ -561,7 +571,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     const timer = setTimeout(() => setQuery(draft), SUGGEST_DELAY_MS);
     return () => clearTimeout(timer);
   }, [help, draft]);
-  const found = useMemo(() => (help ? helpSuggestions(query, locale) : []), [help, query, locale]);
+  const found = useMemo(() => (help ? helpSuggestions(query, locale, audience) : []), [help, query, locale, audience]);
   // A draft cleared (sent) or cut short hides them at once.
   const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
 
@@ -749,6 +759,25 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     openSignalement?.({ kind: "question", question, coachReply });
   }
 
+  /**
+   * « Demander un tutoriel » under a Back Office Assistant reply (#551): the question and the reply, with the section in
+   * view and the language, become an Unanswered Question for Help editors, never naming the Administrator.
+   */
+  async function requestTutorial(index: number, question: string, answer: string) {
+    const mark = (tutorial: TutorialRequestState) => setMessages((shown) => shown.map((each, at) => (at === index && each.from === "coach" ? { ...each, tutorial } : each)));
+    mark("sending");
+    try {
+      const response = await fetch(routes.adminTutorialRequest, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question, answer, route: pathname, language: locale }),
+      });
+      mark(response.ok ? "sent" : "failed");
+    } catch {
+      mark("failed");
+    }
+  }
+
   /** The Candidate's « Oui » or « Non » under an AI Coach reply. */
   function answerFeedback(index: number, satisfied: boolean) {
     setMessages((shown) => shown.map((each, at) => (at === index && each.from === "coach" ? { ...each, satisfied } : each)));
@@ -882,7 +911,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     setFailure(null);
     setUnanswered(null);
     // The Help Article read last goes with this message only: the AI Coach is told its title (#342).
-    const read = !help ? null : (readArticle ?? (inPane ? { id: inPane.id, title: inPane.title } : null));
+    const read = !candidateHelp ? null : (readArticle ?? (inPane ? { id: inPane.id, title: inPane.title } : null));
     const stop = new AbortController();
     stopper.current = stop;
     const startedAt = Date.now();
@@ -928,6 +957,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
           ...(body.jobOffer ? { jobOffer: body.jobOffer } : {}),
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
+          // The Administrators' help had no article on the question (#551): the reply offers « Demander un tutoriel ».
+          ...(help && audience === "administrator" && !blocked?.message && !blocked?.reply && backOfficeHelpFor(text, locale).length === 0 ? { tutorial: "offered" as const } : {}),
         },
       ]);
       const at = body.at;
@@ -978,7 +1009,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
           ...(read ? { helpArticle: read } : {}),
           ...(explained && panel.features.explain ? { explained } : {}),
           // The page in view, for a question the help missed (#344): the server keeps its route pattern alone.
-          ...(help ? { route: pathname } : {}),
+          ...(candidateHelp ? { route: pathname } : {}),
         }),
         signal: stop.signal,
       });
@@ -1041,7 +1072,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     label: texts.open,
     ...(texts.openShort ? { shortLabel: texts.openShort } : {}),
     openHelp,
-    mentions: help ? mentions : null,
+    mentions: candidateHelp ? mentions : null,
     repliesInView,
     ask: panel.features.explain ? ask : null,
     focusBox: () => setFocusInput((n) => n + 1),
@@ -1063,7 +1094,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
             <span className="visually-hidden">{t(texts.author)}</span>
             <p>{t(opening)}</p>
             {page?.introduction}
-            {showIntro && !page?.card ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
+            {showIntro && !page?.card ? <HelpIntro pathname={pathname} locale={locale} audience={audience} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} /> : null}
           </li>
         )}
         {/* A menu's content (#604), a card after the Introduction: it stays whatever is sent; the help comes after it. */}
@@ -1071,7 +1102,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         {page?.card && showIntro ? (
           <li className="chat-message chat-coach">
             <span className="visually-hidden">{t(texts.author)}</span>
-            <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} />
+            <HelpIntro pathname={pathname} locale={locale} audience={audience} onOpen={showArticle} howThisPageWorks={isPage && workPane !== null} />
           </li>
         ) : null}
         {messages.map((message, index) =>
@@ -1083,6 +1114,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
                 answered={message.answered}
                 onAnswered={() => setMessages((shown) => shown.map((each) => (isHelpCard(each) && each.key === message.key ? { ...each, answered: true } : each)))}
                 onAskCoach={() => askAbout(message.article)}
+                audience={audience}
               />
             </li>
           ) : message.from === "stopped" ? (
@@ -1106,6 +1138,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
                 onAnswer={(satisfied) => answerFeedback(index, satisfied)}
                 onAskTeam={() => askTeam(questionBefore(messages, index), message.text)}
               />
+            ) : null}
+            {message.from === "coach" && message.tutorial ? (
+              <TutorialRequest state={message.tutorial} onRequest={() => void requestTutorial(index, questionBefore(messages, index), message.text)} />
             ) : null}
           </li>
           ),
@@ -1138,6 +1173,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
         <HelpForUnanswered
           question={unanswered}
           locale={locale}
+          audience={audience}
           onOpen={showArticle}
           // The team, directly: the AI Coach's unavailable message stands for its reply (#345).
           {...(openSignalement ? { onAskTeam: () => askTeam(unanswered, failureText) } : {})}

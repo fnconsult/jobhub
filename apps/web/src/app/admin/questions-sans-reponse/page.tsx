@@ -13,7 +13,7 @@ import { Note } from "@/design/Note";
 import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
-import { UNANSWERED_QUESTION_LANGUAGES, type UnansweredQuestionLanguage, type UnansweredQuestionMark } from "@/unanswered-questions";
+import { isUnansweredQuestionAudience, UNANSWERED_QUESTION_AUDIENCES, UNANSWERED_QUESTION_LANGUAGES, type UnansweredQuestionLanguage, type UnansweredQuestionMark } from "@/unanswered-questions";
 import { getUnansweredQuestions } from "@/unanswered-questions/server";
 import "../section.css";
 
@@ -36,7 +36,7 @@ async function mark(form: FormData) {
   const { administrator } = await requireBackOffice("unansweredQuestions", "write");
   const status = form.get("status");
   const marked = await getUnansweredQuestionsBackOffice().mark(administrator, String(form.get("id")), status);
-  const back = routes.adminUnansweredQuestions({ route: String(form.get("route") ?? ""), language: String(form.get("language") ?? "") });
+  const back = routes.adminUnansweredQuestions({ route: String(form.get("route") ?? ""), language: String(form.get("language") ?? ""), audience: String(form.get("audience") ?? "") });
   redirect(`${back}${back.includes("?") ? "&" : "?"}${marked ? `marque=${String(status)}` : "erreur=1"}`);
 }
 
@@ -50,17 +50,22 @@ const isLanguage = (value: unknown): value is UnansweredQuestionLanguage => UNAN
 
 /**
  * « Questions sans réponse » (#344, ADR-0035): the questions about using Jobbbox the help missed, most asked first,
- * by page and by language, each with what the AI Coach answered. Help editors and super-admins mark one « Article écrit »
+ * by audience (#551: Visitor, Guest, Candidate, Human Coach, Administrator), page and language, each with what the AI
+ * answered (the AI Coach, or the Back Office Assistant for an Administrator's « Demander un tutoriel »). Help editors and super-admins mark one « Article écrit »
  * or « Écarter »; Support reads them.
  */
-export default async function UnansweredQuestionsPage({ searchParams }: { searchParams: Promise<{ page?: string; langue?: string; marque?: string; erreur?: string }> }) {
+export default async function UnansweredQuestionsPage({ searchParams }: { searchParams: Promise<{ public?: string; page?: string; langue?: string; marque?: string; erreur?: string }> }) {
   const { access, canWrite } = await requireBackOffice("unansweredQuestions");
   const t = await getServerT();
   const locale = await getRequestLocale();
-  const { page: route, langue, marque, erreur } = await searchParams;
+  const { public: asker, page: route, langue, marque, erreur } = await searchParams;
   const language = isLanguage(langue) ? langue : undefined;
+  const audience = isUnansweredQuestionAudience(asker) ? asker : undefined;
   const all = await getUnansweredQuestions().open();
-  const shown = await getUnansweredQuestions().open({ ...(route ? { route } : {}), ...(language ? { language } : {}) });
+  const shown = await getUnansweredQuestions().open({ ...(route ? { route } : {}), ...(language ? { language } : {}), ...(audience ? { audience } : {}) });
+  // Each filter keeps the others.
+  const filtered = (change: { route?: string; language?: string; audience?: string }) =>
+    routes.adminUnansweredQuestions({ ...(audience ? { audience } : {}), ...(route ? { route } : {}), ...(language ? { language } : {}), ...change });
   const pages = [...new Set(all.flatMap((each) => (each.route ? [each.route] : [])))].sort();
   const at = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Paris" });
   const number = new Intl.NumberFormat(locale);
@@ -84,11 +89,20 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
         ) : null}
 
         <FilterLinks
+          label={t("admin.unansweredQuestions.audienceFilter")}
+          shown={audience ?? ALL}
+          links={[undefined, ...UNANSWERED_QUESTION_AUDIENCES].map((option) => ({
+            id: option ?? ALL,
+            href: filtered({ audience: option }),
+            label: option ? t(`admin.unansweredQuestions.audiences.${option}`) : t("admin.unansweredQuestions.allAudiences"),
+          }))}
+        />
+        <FilterLinks
           label={t("admin.unansweredQuestions.routeFilter")}
           shown={route ?? ALL}
           links={[undefined, ...pages].map((option) => ({
             id: option ?? ALL,
-            href: routes.adminUnansweredQuestions({ ...(option ? { route: option } : {}), ...(language ? { language } : {}) }),
+            href: filtered({ route: option }),
             label: option ?? t("admin.unansweredQuestions.allRoutes"),
           }))}
         />
@@ -97,7 +111,7 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
           shown={language ?? ALL}
           links={[undefined, ...UNANSWERED_QUESTION_LANGUAGES].map((option) => ({
             id: option ?? ALL,
-            href: routes.adminUnansweredQuestions({ ...(route ? { route } : {}), ...(option ? { language: option } : {}) }),
+            href: filtered({ language: option }),
             label: option ? t(`admin.unansweredQuestions.languages.${option}`) : t("admin.unansweredQuestions.allLanguages"),
           }))}
         />
@@ -117,7 +131,8 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
                 header: t("admin.unansweredQuestions.route"),
                 cell: (each) => (
                   <>
-                    {each.route ? <code>{each.route}</code> : t("admin.unansweredQuestions.unknownRoute")} · {t(`admin.unansweredQuestions.languages.${each.language}`)}
+                    {each.route ? <code>{each.route}</code> : t("admin.unansweredQuestions.unknownRoute")} · {t(`admin.unansweredQuestions.audiences.${each.audience}`)} ·{" "}
+                    {t(`admin.unansweredQuestions.languages.${each.language}`)}
                   </>
                 ),
               },
@@ -150,6 +165,7 @@ export default async function UnansweredQuestionsPage({ searchParams }: { search
                     <input type="hidden" name="id" value={each.id} />
                     <input type="hidden" name="route" value={route ?? ""} />
                     <input type="hidden" name="language" value={language ?? ""} />
+                    <input type="hidden" name="audience" value={audience ?? ""} />
                     {MARKS.map(({ status, label, named }) => (
                       <button
                         key={status}

@@ -20,6 +20,10 @@
  * prompt injection before the assistant sees it, and the reply for personal data leaks and secret disclosure; a blocked one is answered,
  * or replaced, by the Guardrail message in the Administrator's `language`. `outcome` says which happened.
  *
+ * Help (#551, ADR-0065): the Administrators' Help Articles the search finds for the question, found without AI, are given
+ * to it, to answer from and cite by title and link (/admin/aide/…); never another audience's. With none, it says no
+ * tutorial covers the point and points to « Demander un tutoriel », which the panel offers (nothing is recorded here).
+ *
  * Task `back_office_assistant` (routed like `coaching` unless configured apart), EU endpoints only (ADR-0007), on behalf of the Administrator's own
  * Candidate account: identity-bearing calls (an address or phone number they type)
  * go to Mistral when they gave EU AI consent (#121). Its replies cost Jobbbox, not a
@@ -32,6 +36,7 @@ import type { Provenance } from "@jobhub/shared";
 import { toolById, type Plan, type PlanFeature, type PlanQuotas } from "@jobhub/shared";
 import { failureReasonWording } from "@jobhub/shared/i18n";
 import * as z from "zod";
+import { backOfficeHelpAddress, backOfficeHelpFor, helpLocale, type HelpArticle, type HelpLocale } from "../coach-help";
 import { BACK_OFFICE_ROLES, type BackOfficeAccess, type BackOfficeResource, type BackOfficeRole } from "../admin/access";
 import type { Administrator } from "../admin/administrators";
 import type { BackOfficeAuditEntry, Recorded } from "../admin/back-office";
@@ -467,6 +472,34 @@ function journalLine(entry: BackOfficeAuditEntry): string {
   return `${JOURNAL_SECTIONS[entry.section]}, ${ACTIONS[entry.action]} de ${target}${values}`;
 }
 
+/** « Demander un tutoriel », as the panel shows it in the Administrator's language. */
+const REQUEST_TUTORIAL: Record<HelpLocale, string> = { fr: "Demander un tutoriel", en: "Request a tutorial" };
+
+/**
+ * What the assistant is told of the help for `question` (#551): the Administrators' articles the search finds, whole, to
+ * answer from and cite; or that none covers it, so it says so and points to « Demander un tutoriel ». Articles are the
+ * team's own texts, without personal data (ADR-0065).
+ */
+export function helpContext(question: string, locale: HelpLocale): { text: string; articles: HelpArticle[] } {
+  const articles = backOfficeHelpFor(question, locale);
+  if (articles.length === 0)
+    return {
+      articles,
+      text: `## Aide du back office
+Aucun article de l'aide du back office ne couvre cette question. Si elle porte sur la façon d'utiliser le back office (où trouver quelque chose, comment faire), dites qu'aucun tutoriel ne couvre encore ce point et que l'Administrateur peut cliquer sur « ${REQUEST_TUTORIAL[locale]} » sous votre réponse. N'inventez aucun article ni aucun lien d'aide.`,
+    };
+  const shown = articles.map((article) => `### « ${article.title} » (${backOfficeHelpAddress(article)})
+${article.body}`);
+  return {
+    articles,
+    text: [
+      `## Aide du back office : les articles trouvés pour cette question`,
+      `Écrits par l'équipe Jobbbox pour les Administrateurs. Répondez d'abord à partir d'eux, sans les contredire, et citez chaque article dont vous vous servez par son titre et son lien, ainsi : « Titre » (/admin/aide/…).`,
+      ...shown,
+    ].join("\n\n"),
+  };
+}
+
 /** What the assistant is told about the Back Office, for what `access` may read. */
 /** The Back Office sections `access` may read. */
 const readableSections = (access: AskingAdministrator["access"]): BackOfficeResource[] =>
@@ -497,6 +530,8 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
       const said = (message: (typeof messages)[number]) =>
         message.from === "administrator" && message.explained ? withoutEmails(`${message.text}\n\n${explainedText(message.explained)}`) : message.text;
       const administratorSaid = messages.filter((message) => message.from === "administrator").map(said);
+      // The help for the question asked now, in the Administrator's language: the Administrators' articles only (#551).
+      const help = helpContext(messages.at(-1)!.text, helpLocale(options.language));
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance (#327).
       const recorder = createProvenanceRecorder(deps.ai);
       try {
@@ -510,7 +545,7 @@ export function createBackOfficeAssistant(deps: BackOfficeAssistantDeps): BackOf
             task: "back_office_assistant",
             // The Administrator's own account: their EU AI consent routes what they type (#121).
             candidateId: administrator.id,
-            system: [instructions, context, feedback].filter(Boolean).join("\n\n"),
+            system: [instructions, context, help.text, feedback].filter(Boolean).join("\n\n"),
             ...run.agent,
             // No Candidate identity in the context (#121): no email address, no phone, no CV. Human Coaches
             // appear by the professional name and bio Candidates see on the public Coachs page, which is not

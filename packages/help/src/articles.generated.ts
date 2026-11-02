@@ -269,6 +269,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Cet écran s'affiche après la connexion quand les conditions générales d'utilisation (CGU) attendent votre accord : la première fois, puis à chaque nouvelle version qui change vos droits. Une version mineure ne vous est pas redemandée.\n\n« Lire les CGU » ouvre la version à accepter, avec sa date. Cochez « J'accepte les CGU (version du JJ/MM/AAAA) », puis « Accepter et continuer » : vous revenez à la page que vous vouliez ouvrir. La case n'est jamais cochée pour vous, et l'écran ne revient pas pour la même version.\n\nTant que vous n'avez pas accepté, vous pouvez toujours ouvrir Mes données, pour télécharger vos données ou supprimer votre compte, et Abonnement, pour vous rétracter ou résilier. Votre abonnement continue de courir.\n\nEn anglais, l'écran rappelle que le texte français fait foi."
     },
     {
+      "id": "page-admin-unanswered-questions",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Questions sans réponse",
+      "synonyms": [
+        "question sans réponse",
+        "manque de l'aide",
+        "article manquant",
+        "tutoriel demandé",
+        "demander un tutoriel",
+        "rédacteur de l'aide",
+        "public",
+        "filtrer"
+      ],
+      "route": "/admin/questions-sans-reponse",
+      "body": "Cette page liste les questions sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu, les plus posées d'abord. Elles viennent de deux endroits :\n\n- un candidat a posé la question à son coach IA, aucun article ne l'a trouvée et le coach IA a dit qu'elle portait sur Jobbbox ;\n- un administrateur a cliqué sur « Demander un tutoriel » dans l'assistant du back office, après une réponse sans article d'aide. Rien n'est envoyé sans ce clic.\n\nChaque question est gardée masquée, sans le nom ni l'adresse de qui l'a posée : seuls comptent son public, la page ou la section du back office d'où elle vient, et la langue.\n\nFiltrez la liste avec « Filtrer par public » (Visiteur, Invité, Candidat, Coach humain, Administrateur), « Filtrer par page » et « Filtrer par langue ». « Réponse de l'IA » montre ce que le coach IA ou l'assistant a répondu : c'est une matière première, jamais un article publié.\n\nUne fois l'article écrit, ou un synonyme ajouté dans l'aide, cliquez sur « Article écrit ». Pour une question qui n'est pas un manque de l'aide, cliquez sur « Écarter ». Les rédacteurs de l'aide et les super-admins marquent les questions ; le Support les lit."
+    },
+    {
       "id": "page-job-searches",
       "locale": "fr",
       "kind": "page",
@@ -1202,6 +1222,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/acceptation",
       "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
+    },
+    {
+      "id": "page-admin-unanswered-questions",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Unanswered questions",
+      "synonyms": [
+        "unanswered question",
+        "help gap",
+        "missing article",
+        "tutorial requested",
+        "request a tutorial",
+        "help editor",
+        "audience",
+        "filter"
+      ],
+      "route": "/admin/questions-sans-reponse",
+      "body": "This page lists the questions about using Jobbbox that no help article answered, most asked first. They come from two places:\n\n- a Candidate asked their AI coach, no article matched, and the AI coach said the question was about Jobbbox;\n- an Administrator clicked « Request a tutorial » in the back office assistant, after a reply without a help article. Nothing is sent without that click.\n\nEach question is kept redacted, without the name or address of whoever asked it: only its audience, the page or back office section it came from, and the language are kept.\n\nFilter the list with « Filter by audience » (Visitor, Guest, Candidate, Human Coach, Administrator), « Filter by page » and « Filter by language ». « The AI's answer » shows what the AI coach or the assistant replied: raw material, never a published article.\n\nOnce the article is written, or a synonym added to the help, click « Article written ». For a question that is not a gap in the help, click « Dismiss ». Help editors and super-admins mark the questions; Support reads them."
     },
     {
       "id": "page-withdrawal",

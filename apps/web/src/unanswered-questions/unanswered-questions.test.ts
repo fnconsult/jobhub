@@ -37,6 +37,66 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
     await throwaway.drop();
   }, 60_000);
 
+  describe("« Demander un tutoriel » from the Back Office Assistant (#551)", () => {
+    const request = { question: "Comment changer le modèle d'une tâche IA ?", answer: "Aucun tutoriel ne couvre encore ce point.", route: "/admin/parametres?tab=ia", language: "fr" as const };
+
+    it("records an Administrator's question with its audience and Back Office section, and nothing that names the Administrator", async () => {
+      expect(await questions.request(request)).toBe(true);
+
+      expect(await questions.open()).toEqual([
+        expect.objectContaining({ audience: "administrator", question: request.question, answer: request.answer, route: "/admin/parametres", language: "fr", count: 1 }),
+      ]);
+      // The table has no column that could hold who asked.
+      const { rows } = await database.query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_name = 'unanswered_question'`);
+      expect(rows.map((row) => row.column_name)).not.toEqual(expect.arrayContaining([expect.stringMatching(/candidate|administrator|account|person|email/)]));
+    });
+
+    it("redacts every email address and phone number in it by shape", async () => {
+      await questions.request({ ...request, question: "Pourquoi claire@jobbbox.fr ne voit pas les Outils ? Appelez le 06 12 34 56 78" });
+
+      const [kept] = await questions.open();
+      expect(kept!.question).not.toMatch(/claire@jobbbox\.fr|06 12 34 56 78/);
+    });
+
+    it("counts the same request again, apart from a Candidate's same question, and filters by audience", async () => {
+      // The same words, page and language as a Candidate's, kept apart by audience.
+      await questions.request({ ...request, question: QUOTA, route: "/candidatures" });
+      await questions.request({ ...request, question: "cinq analyses : pourquoi suis-je BLOQUÉ", route: "/candidatures" });
+      await questions.notice("marie", replied(QUOTA, { route: "/candidatures" }));
+
+      expect((await questions.open()).map((each) => [each.audience, each.count])).toEqual([
+        ["administrator", 2],
+        ["candidate", 1],
+      ]);
+      expect((await questions.open({ audience: "administrator" })).map((each) => each.audience)).toEqual(["administrator"]);
+      expect((await questions.open({ audience: "candidate" })).map((each) => each.audience)).toEqual(["candidate"]);
+      expect(await questions.open({ audience: "guest" })).toEqual([]);
+    });
+
+    it("records nothing for a question with no words the search reads", async () => {
+      expect(await questions.request({ ...request, question: "?? !!" })).toBe(false);
+      expect(await questions.open()).toEqual([]);
+    });
+  });
+
+  it("upgrades a table from before audiences: its questions are the Candidates'", async () => {
+    await database.query("DROP TABLE unanswered_question");
+    await database.query(`CREATE TABLE unanswered_question (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), question text NOT NULL, answer text NOT NULL, question_key text NOT NULL, route text,
+      language text NOT NULL, count integer NOT NULL DEFAULT 1, first_asked_at timestamptz NOT NULL, last_asked_at timestamptz NOT NULL,
+      status text NOT NULL DEFAULT 'open', status_changed_at timestamptz)`);
+    await database.query(`CREATE UNIQUE INDEX unanswered_question_open_idx ON unanswered_question (language, question_key, coalesce(route, '')) WHERE status = 'open'`);
+    await database.query(`INSERT INTO unanswered_question (question, answer, question_key, language, first_asked_at, last_asked_at) VALUES ('Avant', 'R', 'avant', 'fr', '2026-10-01', '2026-10-01')`);
+
+    await migrateUnansweredQuestions(database);
+    await questions.request({ question: "Avant", answer: "R", language: "fr" });
+
+    expect((await questions.open()).map((each) => [each.question, each.audience])).toEqual([
+      ["Avant", "administrator"],
+      ["Avant", "candidate"],
+    ]);
+  });
+
   describe("recorded after an AI Coach reply", () => {
     it("records a question no Help Article matched and that the AI Coach marked as about using Jobbbox, with its page as a route pattern", async () => {
       expect(await questions.notice("marie", replied(QUOTA))).toBe(true);
@@ -44,6 +104,7 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
       expect(await questions.open()).toEqual([
         {
           id: expect.any(String),
+          audience: "candidate",
           question: QUOTA,
           answer: "Votre quota se renouvelle chaque lundi.",
           route: "/candidatures/[id]/documents",

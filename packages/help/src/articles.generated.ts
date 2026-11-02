@@ -24,6 +24,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'accueil est votre point de départ dans Jobbbox : une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nUne question sur Jobbbox ? Pendant que vous écrivez, les articles de l'aide qui correspondent s'affichent au-dessus de la zone de message, « Dans l'aide, sans IA », à la place des suggestions. Un article s'ouvre à côté de la conversation, comme « Comment marche cette page ? » tant que la conversation est vide ; « Demander au coach » y commence une question à son sujet. « Activité », en haut de la page, ouvre à côté de la conversation ce que l'IA a fait pour vous et le contexte de la conversation.\n\nSur téléphone, la conversation occupe tout l'écran. Un article, « Activité » ou un formulaire s'ouvrent par-dessus, en plein écran : « Fermer » les referme et vous ramène à la conversation. Le menu s'ouvre avec « Menu », en haut de la page.\n\nEn bas du menu, « Aide et légal » mène au centre d'aide (« Aide »), aux textes légaux (« Légal ») et à ce qui change dans Jobbbox (« Nouveautés »). Sur téléphone, ces liens sont dans le menu."
     },
     {
+      "id": "page-admin-help",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Aide du back office",
+      "synonyms": [
+        "aide",
+        "documentation",
+        "tutoriels",
+        "rubriques",
+        "chercher",
+        "article d'aide",
+        "administrateur"
+      ],
+      "route": "/admin/aide",
+      "motion": null,
+      "microAnimations": [],
+      "body": "L'aide du back office réunit les pages, tutoriels et questions fréquentes écrits par l'équipe Jobbbox pour les administrateurs. Elle n'est jamais publique : le centre d'aide (/aide), sa recherche et le plan du site ne la montrent pas, et seuls les administrateurs l'ouvrent, quels que soient leurs rôles.\n\nLes articles sont rangés par rubrique : « Fournisseurs et Tools » d'abord, puis une rubrique par groupe du menu du back office, puis « IA et conformité ». « Chercher dans l'aide du back office » trouve un article par ses mots, sans IA.\n\nChaque section du back office montre aussi son article dans l'assistant, sous « Sur cette page ». L'assistant répond à partir des articles qu'il trouve et les cite. S'il n'en trouve aucun, cliquez sur « Demander un tutoriel » sous sa réponse : les rédacteurs de l'aide verront la question dans « Questions sans réponse », sans votre nom."
+    },
+    {
       "id": "page-conversation",
       "locale": "fr",
       "kind": "page",
@@ -342,6 +363,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer."
+    },
+    {
+      "id": "page-admin-unanswered-questions",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Questions sans réponse",
+      "synonyms": [
+        "question sans réponse",
+        "manque de l'aide",
+        "article manquant",
+        "tutoriel demandé",
+        "demander un tutoriel",
+        "rédacteur de l'aide",
+        "public",
+        "filtrer"
+      ],
+      "route": "/admin/questions-sans-reponse",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Cette page liste les questions sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu, les plus posées d'abord. Elles viennent de deux endroits :\n\n- un candidat a posé la question à son coach IA, aucun article ne l'a trouvée et le coach IA a dit qu'elle portait sur Jobbbox ;\n- un administrateur a cliqué sur « Demander un tutoriel » dans l'assistant du back office, après une réponse sans article d'aide. Rien n'est envoyé sans ce clic.\n\nChaque question est gardée masquée, sans le nom ni l'adresse de qui l'a posée : seuls comptent son public, la page ou la section du back office d'où elle vient, et la langue.\n\nFiltrez la liste avec « Filtrer par public » (Visiteur, Invité, Candidat, Coach humain, Administrateur), « Filtrer par page » et « Filtrer par langue ». « Réponse de l'IA » montre ce que le coach IA ou l'assistant a répondu : c'est une matière première, jamais un article publié.\n\nUne fois l'article écrit, ou un synonyme ajouté dans l'aide, cliquez sur « Article écrit ». Pour une question qui n'est pas un manque de l'aide, cliquez sur « Écarter ». Les rédacteurs de l'aide et les super-admins marquent les questions ; le Support les lit."
     },
     {
       "id": "page-job-searches",
@@ -1287,6 +1330,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
     },
     {
+      "id": "page-admin-help",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Back office help",
+      "synonyms": [
+        "help",
+        "documentation",
+        "tutorials",
+        "topics",
+        "search",
+        "help article",
+        "administrator"
+      ],
+      "route": "/admin/aide",
+      "motion": null,
+      "microAnimations": [],
+      "body": "The back office help gathers the pages, tutorials and frequent questions the Jobbbox team writes for Administrators. It is never public: the Help Centre (/aide), its search and the sitemap never show it, and only Administrators open it, whatever their roles.\n\nArticles are sorted by topic: « Providers and Tools » first, then one topic per group of the back office menu, then « AI and compliance ». « Search the back office help » finds an article by its words, without AI.\n\nEach back office section also shows its article in the assistant, under « On this page ». The assistant answers from the articles it finds and cites them. When it finds none, click « Request a tutorial » under its reply: the help editors will see the question in « Unanswered questions », without your name."
+    },
+    {
       "id": "page-subscription-reduction",
       "locale": "en",
       "kind": "page",
@@ -1586,6 +1650,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The Jobbbox Chrome extension saves into Jobbbox the job offer you are reading on a job site, and works out its match score, without copying and pasting. It installs in the Google Chrome browser, on a computer.\n\nTo install it, signed in: in My account, under Tools, click « Install the extension from the Chrome Web Store », then add it to Chrome from the page that opens. Without an account, « Extension », at the foot of the public pages, leads to the same page. Until it is published, Tools shows « The extension is coming soon to the Chrome Web Store. »\n\nOnce installed, pin it to Chrome's toolbar to find it again. On a job offer's page, it adds the « Analyse this offer » button; you can also open it and click « Capture this page ».\n\nWithout an account, the extension works out a job offer's Match Score with your CV, then deletes everything within 24 hours. To keep the offer in your applications, sign in: « Sign in », in the extension. The rest is explained step by step in the tutorial « Save a job offer with the extension »."
+    },
+    {
+      "id": "page-admin-unanswered-questions",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Unanswered questions",
+      "synonyms": [
+        "unanswered question",
+        "help gap",
+        "missing article",
+        "tutorial requested",
+        "request a tutorial",
+        "help editor",
+        "audience",
+        "filter"
+      ],
+      "route": "/admin/questions-sans-reponse",
+      "motion": null,
+      "microAnimations": [],
+      "body": "This page lists the questions about using Jobbbox that no help article answered, most asked first. They come from two places:\n\n- a Candidate asked their AI coach, no article matched, and the AI coach said the question was about Jobbbox;\n- an Administrator clicked « Request a tutorial » in the back office assistant, after a reply without a help article. Nothing is sent without that click.\n\nEach question is kept redacted, without the name or address of whoever asked it: only its audience, the page or back office section it came from, and the language are kept.\n\nFilter the list with « Filter by audience » (Visitor, Guest, Candidate, Human Coach, Administrator), « Filter by page » and « Filter by language ». « The AI's answer » shows what the AI coach or the assistant replied: raw material, never a published article.\n\nOnce the article is written, or a synonym added to the help, click « Article written ». For a question that is not a gap in the help, click « Dismiss ». Help editors and super-admins mark the questions; Support reads them."
     },
     {
       "id": "page-what-is-jobbbox",

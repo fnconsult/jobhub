@@ -20,11 +20,28 @@ export type HelpAudience = (typeof HELP_AUDIENCES)[number];
 
 /**
  * The Help Centre's topics (« rubriques », #501), in the order /aide shows them, each named by a task: « Découvrir
- * Jobbbox », « L'extension », « Utiliser Jobbbox », « Espace coach ». An Administrator article's topic is free (a
- * Back Office section, #551), never one of these.
+ * Jobbbox », « L'extension », « Utiliser Jobbbox », « Espace coach ». An Administrator article's topic is one of
+ * BACK_OFFICE_HELP_TOPICS (#551), never one of these.
  */
 export const PUBLIC_HELP_TOPICS = ["decouvrir", "extension", "utiliser", "espace-coach"] as const;
 export type PublicHelpTopic = (typeof PUBLIC_HELP_TOPICS)[number];
+
+/**
+ * The Back Office's help topics (#551, ADR-0065), in the order /admin/aide shows them: « Fournisseurs et Tools » first,
+ * then one per group of the Back Office's sidebar, then « IA et conformité ». An Administrator article's topic is one of
+ * these, never a public one; the build refuses any other.
+ */
+export const BACK_OFFICE_HELP_TOPICS = [
+  "fournisseurs-et-tools",
+  "candidats",
+  "offre",
+  "coaching",
+  "contenu",
+  "plateforme",
+  "equipe",
+  "ia-et-conformite",
+] as const;
+export type BackOfficeHelpTopic = (typeof BACK_OFFICE_HELP_TOPICS)[number];
 
 /** A Help Article in one language: drafted by an agent or a person, never served before a person reviewed and merged it (ADR-0065). */
 export interface HelpArticle {
@@ -34,7 +51,7 @@ export interface HelpArticle {
   kind: HelpArticleKind;
   /** Who it is written for; the same in both languages. */
   audience: HelpAudience;
-  /** Its topic: one of PUBLIC_HELP_TOPICS for a public article, a free slug for an Administrator's; the same in both languages. */
+  /** Its topic: one of PUBLIC_HELP_TOPICS for a public article, of BACK_OFFICE_HELP_TOPICS for an Administrator's; the same in both languages. */
   topic: string;
   title: string;
   /** Words a reader may use that should find this article. */

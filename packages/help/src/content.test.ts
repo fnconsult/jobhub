@@ -76,7 +76,7 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     ["no topic", page(valid.replace("topic: utiliser\n", "")), /topic is missing/],
     ["a public article outside the four topics", page(valid.replace("topic: utiliser", "topic: parametres")), /topic must be decouvrir, extension, utiliser or espace-coach/],
     ["an administrator article in a public topic", page(valid.replace("audience: candidate", "audience: administrator")), /an administrator article's topic is a Back Office one, never a public topic \(utiliser\)/],
-    ["an administrator topic that is no slug", page(valid.replace("audience: candidate", "audience: administrator").replace("topic: utiliser", "topic: Mes Réglages")), /topic must be a slug/],
+    ["an administrator topic that is no Back Office topic", page(valid.replace("audience: candidate", "audience: administrator").replace("topic: utiliser", "topic: Mes Réglages")), /an administrator article's topic must be fournisseurs-et-tools, candidats/],
     ["a tutorial without numbered steps", tutorial("Ouvrez l'offre, puis cliquez sur « Analyser cette offre »."), /a tutorial needs at least two numbered steps/],
     ["a tutorial with one numbered step", tutorial("1. Ouvrez l'offre.\n\nPuis cliquez sur « Analyser cette offre »."), /a tutorial needs at least two numbered steps/],
     ["no title", page(valid.replace("title: Mes candidatures", "")), /title is missing/],
@@ -105,10 +105,10 @@ describe("readHelpContent — the Help Articles of a directory", () => {
 
   it("reads a tutorial of two numbered steps or more, and an administrator article in a Back Office topic", () => {
     const steps = "1. Ouvrez l'offre.\n2. Cliquez sur « Analyser cette offre ».";
-    const admin = page("kind: faq\naudience: administrator\ntopic: parametres\ntitle: Les réglages\nsynonyms: [réglage]", "Ils changent sans redéploiement.");
+    const admin = page("kind: faq\naudience: administrator\ntopic: plateforme\ntitle: Les réglages\nsynonyms: [réglage]", "Ils changent sans redéploiement.");
     const content = readHelpContent(articlesDir({ "fr/tutorial-x.md": tutorial(steps), "en/tutorial-x.md": tutorial(steps), "fr/faq-admin.md": admin, "en/faq-admin.md": admin }));
     expect(content.fr.map((entry) => [entry.id, entry.kind, entry.audience, entry.topic])).toEqual([
-      ["faq-admin", "faq", "administrator", "parametres"],
+      ["faq-admin", "faq", "administrator", "plateforme"],
       ["tutorial-x", "tutorial", "candidate", "extension"],
     ]);
   });

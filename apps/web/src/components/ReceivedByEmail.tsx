@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReceivedOffer, ReceivedOffersOverview } from "@/email-intake/received-offers";
 import { JobOfferResults } from "@/components/JobOfferResults";
 import { RecogniseSenderButton } from "@/components/RecogniseSenderButton";
+import { MicroAnimation } from "@/design/MicroAnimation";
 import { routes } from "@/routes";
 
 /** The ids of a « Reçues par email » list's titles: apart from the Job Search results of the same Profile. */
@@ -54,7 +55,10 @@ export function ReceivedByEmail({
           />
         </>
       ) : (
-        <p className="notice">{t("receivedByEmail.none")}</p>
+        <>
+          <p className="notice">{t("receivedByEmail.none")}</p>
+          <MicroAnimation id="forward-email" />
+        </>
       )}
     </section>
   );

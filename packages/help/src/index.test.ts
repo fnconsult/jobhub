@@ -76,7 +76,7 @@ describe("articleFor — the Help Article of the page in view", () => {
   });
 
   it("gives a tab its own article when its pattern names it, the page's otherwise (#557)", () => {
-    const page = (id: string, route: string) => ({ id, locale: "fr" as const, kind: "page" as const, audience: "administrator" as const, topic: "fournisseurs-et-tools", title: id, synonyms: [], route, motion: null, body: id });
+    const page = (id: string, route: string) => ({ id, locale: "fr" as const, kind: "page" as const, audience: "administrator" as const, topic: "fournisseurs-et-tools", title: id, synonyms: [], route, motion: null, microAnimations: [], body: id });
     const from = [page("settings", "/admin/parametres"), page("sign-in", "/admin/parametres?tab=connexion"), page("both", "/admin/parametres?tab=sources&vue=liste")];
     expect(articleFor("/admin/parametres?tab=connexion", "fr", { from })?.id).toBe("sign-in");
     expect(articleFor("/admin/parametres?saved=google&tab=connexion#form", "fr", { from })?.id).toBe("sign-in");

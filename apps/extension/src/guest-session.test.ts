@@ -140,4 +140,39 @@ describe("a Guest session", () => {
 
     expect(storage.items).toEqual({});
   });
+
+  it("keeps the CGU version the Guest accepted, and when, with the CV and the Job Offer (#550)", async () => {
+    const storage = memoryStorage();
+    const session = createGuestSession(storage, () => 2 * HOUR);
+
+    await session.keepJobOffer(jobOffer);
+    await session.acceptGuestTerms("2026-06-01");
+    await session.keepCv(cv, searchCriteria);
+
+    expect(await session.read()).toEqual({ jobOffer, cv, searchCriteria, guestTerms: { version: "2026-06-01", acceptedAt: 2 * HOUR }, expiresAt: 25 * HOUR });
+  });
+
+  it("forgets the Guest's Acceptance with the session: on demand, at its end, or once the work is in an account (#550)", async () => {
+    const storage = memoryStorage();
+    let now = 0;
+    const session = createGuestSession(storage, () => now);
+
+    await session.keepJobOffer(jobOffer);
+    await session.acceptGuestTerms("2026-06-01");
+    await session.forget();
+    expect(await session.read()).toEqual({});
+    expect(storage.items).toEqual({});
+
+    await session.keepJobOffer(jobOffer);
+    await session.acceptGuestTerms("2026-06-01");
+    now = 23 * HOUR;
+    expect(await session.read()).toEqual({});
+    expect(storage.items).toEqual({});
+
+    // Nothing is carried into the account: the Candidate accepts the CGU on their own screen (#510).
+    await session.keepJobOffer(jobOffer);
+    await session.acceptGuestTerms("2026-06-01");
+    await session.keepSaved({ applicationId: "app-1", jobOffer, newProfile: null });
+    expect((await session.read()).guestTerms).toBeUndefined();
+  });
 });

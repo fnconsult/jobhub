@@ -34,6 +34,21 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | In the Candidate's Data export (`acceptances`: version, URL, fingerprint, channel, date, immediate performance; never the pseudonym nor Stripe's id). It is Jobbbox's operations record (`OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`): an erasure request is weighed against the legal obligation and the proof (GDPR art. 17(3)(b) and (e)). |
 | Security | Rows are only added, read for the export and purged; the app never edits them. |
 
+## Guest session in the browser extension (ADR-0003, #550)
+
+| | |
+| --- | --- |
+| Purpose | Let a Guest (the browser extension without an account) get a Match Score for a Job Offer against their CV: the captured Job Offer, the CV read from their file, the Search Criteria read from it, the last Match Score, and their Acceptance of the CGU for guests, kept for their session only. |
+| Legal basis | Performance of the service the Guest asks for (GDPR art. 6(1)(b)), within the CGU for guests they accept. The storage in the browser is strictly necessary to the service asked for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Guests; people named in a CV. |
+| Data | The Job Offer (its id, title, text, source address); the CV's content and the Search Criteria read from it; the last Match Score; when the session ends. Since #550, the Acceptance of the CGU for guests: the version accepted (its effective date) and when it was ticked, before the session's first CV, while a CGU version is in effect. |
+| Source | The Guest: the page they capture, the CV file they choose, the box they tick in the Side Panel. |
+| Who can read it | No one but the Guest, in their browser. The web app reads the CV file to answer it, keeps neither the file nor what it read (ADR-0003); the Job Offer is stored for everyone, without the Guest's identity, and forgotten within 24 hours. The Acceptance is sent to no one: no request carries it, and Jobbbox holds no proof of it. |
+| Storage | The browser's session storage (`chrome.storage.session`, in memory, gone when the browser closes), key `guestSession`. |
+| Retention | 23 hours after the session began at most, or until « Effacer mes données maintenant ». Once the Guest saves their work in an account, only where it went is kept, the Acceptance not carried over: the Candidate accepts the CGU on their own screen (#510). |
+| Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
+| Security | Readable only by the extension's own pages. |
+
 ## Provider Secrets (#208)
 
 | | |

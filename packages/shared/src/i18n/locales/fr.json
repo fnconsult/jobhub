@@ -166,7 +166,19 @@
       "chooseFile": "Choisir un fichier"
     },
     "allSites": "Détecter les offres sur tous les sites",
-    "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."
+    "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement.",
+    "guestTerms": {
+      "box": "J'accepte les {{terms}} (version du {{date}}) et j'ai lu l'{{privacy}}",
+      "terms": "conditions d'utilisation pour les invités",
+      "privacy": "information sur mes données",
+      "required": "Cochez la case pour envoyer votre CV."
+    },
+    "links": {
+      "label": "Aide et légal",
+      "help": "Aide",
+      "privacy": "Confidentialité",
+      "terms": "CGU"
+    }
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",

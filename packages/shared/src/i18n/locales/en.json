@@ -166,7 +166,19 @@
       "chooseFile": "Choose a file"
     },
     "allSites": "Detect job offers on every site",
-    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
+    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only.",
+    "guestTerms": {
+      "box": "I accept the {{terms}} (version of {{date}}) and I have read the {{privacy}}",
+      "terms": "terms of use for guests",
+      "privacy": "information about my data",
+      "required": "Tick the box to send your CV."
+    },
+    "links": {
+      "label": "Help and legal",
+      "help": "Help",
+      "privacy": "Privacy",
+      "terms": "Terms of use"
+    }
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",

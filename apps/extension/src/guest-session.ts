@@ -5,8 +5,10 @@
  * is used, so a Guest's data never lasts more than 24 hours (ADR-0003).
  * The CV never leaves the browser except to be read and scored, and the server
  * keeps neither (ADR-0003); this session is the only place it is kept.
+ * So is the Guest's Acceptance of the CGU for guests (#550): sent to no one, forgotten with the rest.
  */
 import { GUEST_RETENTION_HOURS, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
+import type { GuestTermsAcceptance } from "./guest-terms";
 
 /** The part of chrome.storage.session this module uses. */
 export interface SessionStorage {
@@ -46,6 +48,11 @@ export interface GuestSessionContent {
   profileId?: string;
   /** Set once the work is saved in an account (it is then all that is left), until another Job Offer is captured. */
   saved?: SavedWork;
+  /**
+   * The CGU version the Guest accepted before sending their first CV, and when (#550): kept here only, never sent,
+   * and not carried into an account, where the Candidate accepts the CGU on their own screen (#510).
+   */
+  guestTerms?: GuestTermsAcceptance;
   /** When everything here is forgotten (ms since the epoch). */
   expiresAt?: number;
 }
@@ -62,6 +69,8 @@ export interface GuestSession {
   chooseProfile(profileId: string): Promise<void>;
   /** The work is saved in the Candidate's account: forgets the CV and the Job Offer, keeping only where they went (and the Profile chosen). */
   keepSaved(saved: SavedWork): Promise<void>;
+  /** The Guest accepted the CGU `version` (#550), now. */
+  acceptGuestTerms(version: string): Promise<void>;
   /** Forgets everything now. */
   forget(): Promise<void>;
 }
@@ -106,6 +115,7 @@ export function createGuestSession(storage: SessionStorage, now: () => number = 
       await keep({ matchScore });
     },
     chooseProfile: (profileId) => keep({ profileId }),
+    acceptGuestTerms: (version) => keep({ guestTerms: { version, acceptedAt: now() } }),
     async keepSaved(saved) {
       const { profileId } = await read();
       await keep({ saved, profileId }, { replace: true });

@@ -82,7 +82,7 @@ const guardrailIds = (triggers: GuardrailTrigger[]) => triggers.map((trigger) =>
 
 describe("the catalogue of Guardrails, fixed in code", () => {
   it("has a stable id for each Guardrail", () => {
-    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection"]);
+    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer"]);
   });
 
   it("never lets the distress, personal data leak and secret disclosure Guardrails be switched off", () => {
@@ -104,7 +104,7 @@ describe("the catalogue of Guardrails, fixed in code", () => {
   });
 
   it("has a default Guardrail message in French and in English for each conversation's Guardrail, the distress one giving the 3114 helpline", () => {
-    expect(MESSAGE_GUARDRAILS).toEqual(GUARDRAIL_IDS.filter((id) => id !== "email_injection"));
+    expect([...MESSAGE_GUARDRAILS].sort()).toEqual(GUARDRAIL_IDS.filter((id) => id !== "email_injection").sort());
     for (const id of MESSAGE_GUARDRAILS) {
       expect(DEFAULT_GUARDRAIL_MESSAGES[id].fr.length).toBeGreaterThan(20);
       expect(DEFAULT_GUARDRAIL_MESSAGES[id].en.length).toBeGreaterThan(20);
@@ -319,6 +319,7 @@ describe("an AI check that cannot be reached or does not answer in time", () => 
       "personal_data_leak:unavailable",
       "secret_disclosure:unavailable",
       "harmful_advice:unavailable",
+      "ungrounded_answer:unavailable",
     ]);
   });
 
@@ -351,6 +352,7 @@ describe("an AI check that cannot be reached or does not answer in time", () => 
       "personal_data_leak:invalid_verdict",
       "secret_disclosure:invalid_verdict",
       "harmful_advice:invalid_verdict",
+      "ungrounded_answer:invalid_verdict",
     ]);
     expect(slow.triggers.map((trigger) => trigger.reason)).toEqual(["guardrail_timeout", "guardrail_timeout", "guardrail_timeout"]);
     expect(down.triggers[0]).toEqual({ guardrail: "prompt_injection", setting: "block", action: "unavailable", reason: "provider_error", agent: "ai_coach", at: AT });
@@ -446,5 +448,68 @@ describe("what the Guardrail checks cost", () => {
     const guarded = await guardrails.guard("ai_coach", request("Bonjour", writer(["Bonjour"]).reply));
 
     expect(guarded.checks.every((call: GenerateResult) => call.provider === "mistral" && call.usage.inputTokens > 0)).toBe(true);
+  });
+});
+
+describe("a reply not grounded in the Candidate's own data (#653)", () => {
+  const FIT_QUESTION = "Parmi les offres trouvées, lesquelles me correspondent le mieux, et pourquoi ?";
+  const UNGROUNDED = "Je ne peux pas vous dire pourquoi chaque offre a obtenu son score : les données dont je dispose ne détaillent pas les critères.";
+  const GROUNDED = "La DAF chez Acme (71/100) : vos 19 ans en direction financière et votre IFRS y répondent ; il manque Power BI.";
+
+  it("is checked on the AI Coach's reply, told what an ungrounded answer is", async () => {
+    const { guardrails, provider } = setUp();
+
+    await guardrails.guard("ai_coach", request(FIT_QUESTION, writer([GROUNDED]).reply));
+
+    const system = provider.calls.at(-1)!.system!;
+    expect(system).toMatch(/ungrounded_answer : /);
+    expect(system).toMatch(/sans citer aucune de ses données/);
+    expect(system).toMatch(/affirme ne pas disposer des raisons d'un score/);
+  });
+
+  it("is written again once, told to explain from the Candidate's skills, experience and criteria, and goes out when it passes", async () => {
+    let checked = 0;
+    const { guardrails, triggers } = setUp({ verdicts: { output: () => (++checked === 1 ? '{"ungrounded_answer": true}' : "{}") } });
+    const { reply, feedback } = writer([UNGROUNDED, GROUNDED]);
+
+    const guarded = await guardrails.guard("ai_coach", request(FIT_QUESTION, reply));
+
+    expect(feedback).toHaveLength(2);
+    expect(feedback[1]).toMatch(/compétences, ses expériences et ses critères/);
+    expect(feedback[1]).toMatch(/raisons de chaque score/);
+    expect(guarded).toMatchObject({ text: GROUNDED, outcome: "replied" });
+    expect(guardrailIds(triggers)).toEqual(["ungrounded_answer:blocked"]);
+  });
+
+  it("is replaced by its Guardrail message when still ungrounded once written again", async () => {
+    const { guardrails, triggers } = setUp({ verdicts: { output: '{"ungrounded_answer": true}' } });
+
+    const guarded = await guardrails.guard("ai_coach", request(FIT_QUESTION, writer([UNGROUNDED, UNGROUNDED]).reply));
+
+    expect(guarded).toMatchObject({ text: DEFAULT_GUARDRAIL_MESSAGES.ungrounded_answer.fr, outcome: "blocked_reply" });
+    expect(guardrailIds(triggers)).toEqual(["ungrounded_answer:blocked", "ungrounded_answer:blocked"]);
+  });
+
+  it("goes out when set to flag only, recording a Guardrail Trigger", async () => {
+    const { guardrails, triggers } = setUp({ verdicts: { output: '{"ungrounded_answer": true}' }, settings: { ungrounded_answer: "flag" } });
+
+    const guarded = await guardrails.guard("ai_coach", request(FIT_QUESTION, writer([UNGROUNDED]).reply));
+
+    expect(guarded).toMatchObject({ text: UNGROUNDED, outcome: "replied" });
+    expect(guardrailIds(triggers)).toEqual(["ungrounded_answer:flagged"]);
+  });
+
+  it("can be set to block or flag only, never switched off, and blocks by default", () => {
+    expect(guardrailSettingsOf("ungrounded_answer")).toEqual(["block", "flag"]);
+    expect(ALWAYS_ON_GUARDRAILS).not.toContain("ungrounded_answer");
+  });
+
+  it("is not checked for the Back Office Assistant", async () => {
+    const { guardrails, provider } = setUp({ verdicts: { output: '{"ungrounded_answer": true}' } });
+
+    const guarded = await guardrails.guard("back_office_assistant", request("?", writer(["Les quotas sont…"]).reply));
+
+    expect(guarded.outcome).toBe("replied");
+    expect(provider.calls.at(-1)!.system).not.toMatch(/ungrounded_answer/);
   });
 });

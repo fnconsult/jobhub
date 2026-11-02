@@ -232,8 +232,9 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
     await page.goto(`/agenda?vue=semaine&date=${WEEK_DAY}`);
     const views = page.getByRole("navigation", { name: fr.agenda.viewsLabel });
     await expect(views.getByRole("link")).toHaveText([fr.agenda.listView, fr.agenda.weekView, fr.agenda.monthView]);
-    // The card holds the list; the week opens beside the conversation, in the Work Pane (#606, #608).
-    await expect(views.getByRole("link", { name: fr.agenda.listView })).toHaveAttribute("aria-current", "page");
+    // The card holds the list; the week opens beside the conversation, in the Work Pane (#606, #608), the view its address
+    // names marked current (#251).
+    await expect(views.getByRole("link", { name: fr.agenda.weekView })).toHaveAttribute("aria-current", "page");
     await expect(page.locator("aside.work-pane .agenda-week")).toBeVisible();
     // An Interview's block and a Coaching Session's, told apart by their colour and their words.
     await expect(page.locator('.agenda-week .agenda-item[data-kind="interview"]')).toHaveCount(2);

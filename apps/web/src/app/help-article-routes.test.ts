@@ -28,7 +28,8 @@ describe("each page Help Article's route (#555)", () => {
     expect(pageArticles.filter((article) => article.audience === "candidate" && article.topic === "utiliser").length).toBeGreaterThanOrEqual(20);
   });
 
+  // A route may name a tab in its query (`/admin/parametres?tab=connexion`, #557): its page is the path before it.
   it.each(pageArticles.map((article) => [article.id, article.route!]))("%s: %s is a page of apps/web/src/app", (_, route) => {
-    expect(routes).toContain(route);
+    expect(routes).toContain(route.split("?")[0]);
   });
 });

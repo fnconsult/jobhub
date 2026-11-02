@@ -3,8 +3,11 @@
  * saving the captured Job Offer as an Application. Every request carries the browser's session cookie (the extension's
  * host permission on the web app), so a signed-in Candidate is recognised and a
  * Guest is not. Problems come back as results, never exceptions.
+ * Every request states the API Version this build speaks (#564); one the web app no longer serves (426) is told to
+ * `update` (src/extension-update.ts) and comes back "unreachable": the Side Panel then asks for the update instead.
  */
 import { distinctLocations, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { API_VERSION_HEADERS, updateRequiredBy, type ExtensionUpdate } from "./extension-update";
 import type { SearchCriteriaDraft } from "./guest-session";
 import type { CapturedJobOffer } from "./job-page";
 
@@ -93,16 +96,24 @@ function draftLocations(criteria: Record<string, unknown>): string[] {
   return distinctLocations([String(criteria.location ?? "")]);
 }
 
-export function createJobbboxApi(webOrigin: string, fetchImpl: Fetch = (url, init) => fetch(url, init)): JobbboxApi {
-  /** The JSON reply and its status, or null when the web app cannot be reached. */
+export function createJobbboxApi(
+  webOrigin: string,
+  fetchImpl: Fetch = (url, init) => fetch(url, init),
+  update?: Pick<ExtensionUpdate, "answered">,
+): JobbboxApi {
+  /** The JSON reply and its status, or null when the web app cannot be reached, or no longer serves this build. */
   async function request(path: string, init: RequestInit): Promise<{ status: number; body: Record<string, unknown> } | null> {
+    let reply: { status: number; body: Record<string, unknown> };
     try {
-      const response = await fetchImpl(`${webOrigin}${path}`, { ...init, credentials: "include" });
+      const response = await fetchImpl(`${webOrigin}${path}`, { ...init, headers: { ...API_VERSION_HEADERS, ...(init.headers as Record<string, string>) }, credentials: "include" });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-      return { status: response.status, body };
+      reply = { status: response.status, body };
     } catch {
       return null;
     }
+    const asked = updateRequiredBy(reply.status, reply.body);
+    await update?.answered(asked);
+    return asked ? null : reply;
   }
 
   const postJson = (path: string, data: unknown) =>

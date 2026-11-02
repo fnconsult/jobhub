@@ -1,14 +1,14 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { catalogueStrings, renderedTexts } from "./support/accessibility";
+import { catalogueStrings, fromCatalogue, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #134: the Candidate's pages sit in the sidebar layout approved in the
 // prototype (#132): a sidebar with the Profile switcher and labelled links,
-// collapsible on wide screens and a drawer below 64rem, a skip link, and the
-// Coach Panel docked on the right from 64rem (ADR-0024, which also puts each
-// page's title in the Top Bar and signing out in the sidebar's foot).
+// collapsible on wide screens and a drawer below 64rem, and a skip link (ADR-0024, which also puts each page's title in
+// the Top Bar and signing out in the sidebar's foot). Since #608 the Candidate's pages are their conversations
+// (ADR-0070): the Work Pane opens beside the page, on the right, where the Coach Panel docked.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
@@ -37,12 +37,16 @@ async function createProfile(page: Page, targetRole: string): Promise<string> {
 const sidebarNav = (page: Page) => page.getByRole("navigation", { name: fr.sidebar.label });
 const menuButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.menu, exact: true });
 const collapseButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.collapse });
-// « Aide et coach », « Aide » below 48rem (#342).
-const coachButton = (page: Page) => page.getByRole("button", { name: new RegExp(`^(${fr.coachPanel.open}|${fr.coachPanel.openShort})$`) });
-const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
+/** « Aide » in the Top Bar of a page without a conversation (Mon compte, #602): the page's Help Article in the Work Pane. */
+const helpButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: fr.conversationFirst.help, exact: true });
+const workPane = (page: Page) => page.locator("aside.work-pane");
 const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
 
 const NAV_LABELS = [fr.nav.applications, fr.sidebar.agenda, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.account.humanCoaches];
+/** The Sidebar's links to the menus are all there, among « Nouvelle conversation », the Free conversations and the menus' objects. */
+async function expectNavLinks(nav: ReturnType<typeof sidebarNav>) {
+  for (const label of NAV_LABELS) await expect(nav.getByRole("link", { name: label, exact: true }), label).toBeVisible();
+}
 /** Mon compte sits in the sidebar's foot, above signing out; the Subscription is one of its Sections. */
 const accountLink = (page: Page) => page.getByRole("link", { name: fr.nav.account, exact: true });
 
@@ -84,8 +88,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     }
 
     await page.goto("/compte");
+    await expectNavLinks(sidebarNav(page));
     const links = sidebarNav(page).getByRole("link");
-    await expect(links).toHaveText(NAV_LABELS);
     // Every icon comes with its label in words (ADR-0009): the icon is decoration.
     for (const link of await links.all()) {
       await expect(link.locator("svg")).toHaveAttribute("aria-hidden", "true");
@@ -96,7 +100,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(accountLink(page)).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).getByRole("link", { name: fr.sidebar.subscription })).toHaveAttribute("aria-current", "page");
     await page.goto("/compte");
-    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", `/recherches?profil=${profileId}`);
+    // Recherches d'offres is one conversation for every Profile (#606).
+    await expect(sidebarNav(page).getByRole("link", { name: fr.sidebar.jobSearches })).toHaveAttribute("href", "/recherches");
     await expect(page.getByRole("navigation", { name: fr.profileSwitcher.label })).toBeVisible();
     // The Text Size setting moved to Mon compte → Préférences.
     await expect(page.getByLabel(fr.textSize.label)).toHaveCount(0);
@@ -107,12 +112,15 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(page).toHaveURL(`${origin}/candidatures`);
     await expect(sidebarNav(page).getByRole("link", { name: fr.nav.applications })).toHaveAttribute("aria-current", "page");
 
-    // Only catalogue strings, at the ADR-0009 floor.
+    // Only catalogue strings, at the ADR-0009 floor: the interface's, their numbers filled in, and the Help Articles'
+    // titles the empty conversation offers (#342), written by the Jobbbox team.
+    const inCatalogue = fromCatalogue(fr);
     const allowed = new Set(catalogueStrings(fr));
     // The Usage Meter's percentage, a catalogue string with the week's number in it.
     allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
+    for (const file of readdirSync("packages/help/articles/fr")) allowed.add(/^title: (.+)$/m.exec(readFileSync(`packages/help/articles/fr/${file}`, "utf8"))![1]!);
     for (const t of await renderedTexts(page)) {
-      expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
+      expect.soft(allowed.has(t.text) || inCatalogue(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
@@ -153,7 +161,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await expect(skip).toBeInViewport();
 
     const order: string[] = [];
-    const stops = NAV_LABELS.length + 13;
+    const stops = NAV_LABELS.length + 16;
     for (let i = 0; i < stops; i++) {
       await page.keyboard.press("Tab");
       order.push(await focused(page));
@@ -161,6 +169,10 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     expect(order).toEqual([
       fr.app.name,
       fr.profileSwitcher.choose,
+      // The conversations (#601): « Nouvelle conversation », « Coach » folding them, the Coach Memory under it (#602).
+      fr.conversationFirst.newConversation,
+      fr.conversationFirst.coach,
+      fr.coachMemory.open,
       ...NAV_LABELS,
       // « Aide et légal » (#544), at the top of the sidebar's foot.
       fr.publicSite.help,
@@ -173,9 +185,9 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
       fr.signalement.open,
       fr.account.signOut,
       fr.sidebar.collapse,
-      // AI Activity (#332): a page with no AI content, so its button shows only its label.
-      fr.aiActivity.label,
-      fr.coachPanel.open,
+      // « Activité » (#607) and « Aide » on a page without a conversation (#602).
+      fr.fiche.activity,
+      fr.conversationFirst.help,
       order[stops - 1],
     ]);
     // After the top bar comes the page itself.
@@ -191,63 +203,40 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     expect(await page.evaluate(() => !!document.activeElement?.closest("main"))).toBe(true);
   });
 
-  test("the Coach Panel opens from the top bar and docks on the right, beside the page", async ({ page }) => {
+  test("the Work Pane opens from the top bar on the right, beside the page, never over it (#602, #608)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-coach"));
-    await expect(page.getByRole("banner").getByRole("button", { name: fr.coachPanel.open, exact: true })).toBeVisible();
-    await expect(coachButton(page)).toHaveCount(1);
-
-    await coachButton(page).click();
-    const panel = coachPanel(page);
-    await expect(panel.getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
-    // Its Fermer button closes it: the top bar's steps aside meanwhile.
-    await expect(coachButton(page)).toHaveCount(0);
-    const box = (await panel.boundingBox())!;
-    // A card inset by --space-2 (0.5rem, 8.5px at the standard text size), as AI Activity's pane (#332).
-    const inset = 0.5 * 17;
-    expect(box.x + box.width).toBeCloseTo(1440 - inset, 0);
-    // A third of the window, between 27rem and 36rem.
-    expect(box.width).toBeCloseTo(0.34 * 1440, 0);
-    expect(box.height).toBeCloseTo(900 - 2 * inset, 0);
-    // Docked: the page stays beside it, not under it.
+    await expect(page.getByRole("banner").getByRole("button", { name: fr.coachPanel.open, exact: true })).toHaveCount(0);
+    await helpButton(page).click();
+    const pane = workPane(page);
+    await expect(pane.getByRole("heading", { level: 2 })).toBeFocused();
+    const box = (await pane.boundingBox())!;
+    // A card a 1rem gutter from the screen's edge (17px at the standard text size), 32vw wide between 20rem and 32rem.
+    expect(box.x + box.width).toBeCloseTo(1440 - 17, 0);
+    expect(box.width).toBeCloseTo(Math.min(32 * 17, 0.32 * 1440), 0);
+    // Beside the page: the page stays beside it, not under it.
     const main = (await page.getByRole("main").boundingBox())!;
     expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
-    // The message box stays at the bottom of the panel, with only the panel's foot under it (#345).
-    const form = (await panel.locator("form").boundingBox())!;
-    const foot = (await panel.locator(".coach-panel-foot").boundingBox())!;
-    expect(foot.y).toBeGreaterThanOrEqual(form.y + form.height - 1);
-    expect(foot.y + foot.height).toBeGreaterThan(900 - inset - 32);
 
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
 
-    // Agrandir: a modal drawer over the page, which keeps its place beneath; Escape brings it back.
-    await panel.getByRole("button", { name: fr.coachPanel.widen, exact: true }).click();
-    const drawerPanel = page.getByRole("dialog", { name: fr.coachPanel.title });
-    expect((await drawerPanel.boundingBox())!.width).toBeCloseTo(64 * 17, 0); // 64rem at the standard text size (17px)
-    expect((await page.locator("main").boundingBox())!.width).toBeCloseTo(main.width, 0);
-    // Modal: the page beneath is out of reach.
-    await expect(page.getByRole("main")).toHaveCount(0);
-    await drawerPanel.getByLabel(fr.coachPanel.messageLabel).press("Escape");
-    await expect(coachPanel(page)).toBeVisible();
-    expect((await coachPanel(page).boundingBox())!.width).toBeCloseTo(box.width, 0);
-
-    await panel.getByRole("button", { name: fr.coachPanel.close }).click();
-    await expect(panel).toHaveCount(0);
-    await expect(coachButton(page)).toBeFocused();
+    await pane.getByRole("button", { name: fr.conversationFirst.close }).click();
+    await expect(pane).toHaveCount(0);
+    await expect(helpButton(page)).toBeFocused();
   });
 
   test("with no room beside the page for its Sections, the sidebar lists them, the main menu one arrow away", async ({ page }) => {
-    // Room for the Sections beside the page at the standard text size (17px), until the Coach Panel docks.
+    // Room for the Sections beside the page at the standard text size (17px), until the Work Pane opens.
     await page.setViewportSize({ width: 1170, height: 800 });
     await signInWithMagicLink(page, newAddress("sidebar-sections"));
     await page.goto("/compte/relances");
     const inPage = page.getByRole("main").getByRole("navigation", { name: fr.account.sections.sectionsLabel });
     await expect(inPage).toBeVisible();
 
-    // The Coach Panel docked beside the page leaves its column too narrow.
-    await coachButton(page).click();
+    // The Work Pane beside the page leaves its column too narrow.
+    await helpButton(page).click();
     await expect(inPage).toBeHidden();
     const inSidebar = page.locator(".sidebar-docked").getByRole("navigation", { name: fr.account.sections.sectionsLabel });
     await expect(inSidebar.getByRole("link", { name: fr.account.sections.followUps })).toHaveAttribute("aria-current", "page");
@@ -275,7 +264,8 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     await signInWithMagicLink(page, newAddress("sidebar-home"));
     await page.goto("/");
     await expect(sidebarNav(page)).toBeVisible();
-    await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
+    // A new Free conversation (#601).
+    await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toHaveText(fr.conversationFirst.newConversation);
     await expect(page.locator(".page-header")).toHaveCount(0);
   });
 });
@@ -300,7 +290,7 @@ test.describe("below 64rem", () => {
     await page.keyboard.press("Enter");
     await expect(drawer(page)).toBeVisible();
     const nav = drawer(page).getByRole("navigation", { name: fr.sidebar.label });
-    await expect(nav.getByRole("link")).toHaveText(NAV_LABELS);
+    await expectNavLinks(nav);
     // Focus goes into the drawer, onto the current page's link.
     await expect(drawer(page).getByRole("link", { name: fr.nav.account, exact: true })).toBeFocused();
     // The page behind is out of reach while it is open: its content and <main> itself,
@@ -339,13 +329,15 @@ test.describe("below 64rem", () => {
     await expect(page.getByRole("banner").getByRole("link", { name: fr.account.title, exact: true })).toHaveCount(0);
   });
 
-  test("the Coach Panel takes the whole screen, with nothing to widen", async ({ page }) => {
+  test("the Work Pane takes the whole screen over the page, out of reach behind it (#608)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("sidebar-sheet"));
-    await coachButton(page).click();
-    const box = (await coachPanel(page).boundingBox())!;
-    expect(box.x).toBeCloseTo(0, 0);
-    expect(box.width).toBeCloseTo(1000, 0);
-    await expect(coachPanel(page).getByRole("button", { name: fr.coachPanel.widen, exact: true })).toBeHidden();
+    await helpButton(page).click();
+    const box = (await workPane(page).boundingBox())!;
+    expect([box.x, box.y, box.width, box.height]).toEqual([0, 0, 1000, 800]);
+    await expect(page.locator("main")).toHaveAttribute("inert", "");
+    await workPane(page).getByRole("button", { name: fr.conversationFirst.close }).click();
+    await expect(page.locator("main")).not.toHaveAttribute("inert", "");
+    await expect(helpButton(page)).toBeFocused();
   });
 });
 
@@ -374,11 +366,12 @@ test("screenshots at 3 widths", async ({ page }, testInfo) => {
         },
       ]);
     shots.push([
-      "coach",
+      "fiche",
       async () => {
         if (width < 1024) await page.keyboard.press("Escape");
-        await coachButton(page).click();
-        await expect(coachPanel(page)).toBeVisible();
+        const fiche = page.getByRole("complementary", { name: fr.fiche.label });
+        if (!(await fiche.isVisible())) await page.getByRole("banner").getByRole("button", { name: fr.fiche.label }).click();
+        await expect(fiche).toBeVisible();
       },
     ]);
     for (const [name, show] of shots) {

@@ -56,6 +56,7 @@ export {
 } from "./motion-scripts";
 export { isMicroAnimationId, MICRO_ANIMATION_IDS, MICRO_ANIMATIONS, type MicroAnimationId, type MicroAnimationPlacement } from "./micro-animations";
 export {
+  compareVersions,
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,
   RELEASE_NOTE_TAGS,

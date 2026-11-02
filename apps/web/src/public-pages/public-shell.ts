@@ -71,14 +71,17 @@ export type FooterColumn = { key: "legal" | "help" | "jobbbox"; label: ParseKeys
  * section of the privacy policy (#503). « Nous contacter » opens its Help Article (#552: signed in, the help then a
  * Question; without an account, the legal notice's address), « Extension » opens its store page (`extensionStore`), the
  * Help Centre while it is unset. Jobbbox's last link is « Se connecter »,
- * « Mon compte » for a signed-in Candidate (`account`), none on a sign-in page (`null`), like the header's.
+ * « Mon compte » for a signed-in Candidate (`account`), none on a sign-in page (`null`), like the header's. Under the
+ * coach space, « Centre d'aide » opens the « Espace coach » topic (`helpCentre`, #554): a Human Coach has no help in context.
  */
 export function footerColumns({
   extensionStore,
   account = "signIn",
+  helpCentre = routes.help,
 }: {
   extensionStore?: string | null | undefined;
   account?: "signIn" | "account" | null;
+  helpCentre?: string;
 }): FooterColumn[] {
   return [
     {
@@ -96,7 +99,7 @@ export function footerColumns({
       key: "help",
       label: "publicFooter.help.title",
       links: [
-        { key: "helpCentre", href: routes.help, label: "publicFooter.help.helpCentre" },
+        { key: "helpCentre", href: helpCentre, label: "publicFooter.help.helpCentre" },
         { key: "contact", href: CONTACT_ARTICLE, label: "publicFooter.help.contact" },
         { key: "extension", href: extensionStore ?? routes.help, label: "publicFooter.help.extension" },
       ],

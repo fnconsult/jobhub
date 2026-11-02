@@ -97,6 +97,14 @@ const EXTENSION_ARTICLES = {
   "tutorial-extension-create-account": ["tutorial", "guest"],
   "tutorial-extension-save-job-offer": ["tutorial", "candidate"],
 } as const;
+/** #554's articles of « Espace coach », all a Human Coach's: no help in context for them (ADR-0065), the topic is theirs. */
+const COACH_SPACE_ARTICLES = {
+  "page-coach-space": "page",
+  "faq-coach-access": "faq",
+  "faq-retired-human-coach": "faq",
+  "tutorial-coach-session-date": "tutorial",
+  "tutorial-coach-review": "tutorial",
+} as const;
 
 describe("this build's Help Articles (#549)", () => {
   it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`, a Back Office page's or glossary entry is an Administrator's", () => {
@@ -104,7 +112,7 @@ describe("this build's Help Articles (#549)", () => {
     for (const found of articles("fr")) {
       expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
       const backOffice = found.route?.startsWith("/admin") === true || found.id.startsWith("glossary-admin-");
-      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !(found.id in EXTENSION_ARTICLES))
+      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !(found.id in EXTENSION_ARTICLES) && !(found.id in COACH_SPACE_ARTICLES))
         expect([found.id, found.audience]).toEqual([found.id, backOffice ? "administrator" : "candidate"]);
     }
   });
@@ -137,6 +145,33 @@ describe("this build's Help Articles (#549)", () => {
     ["en", "rescore", "faq-rescore-why-match-score"],
   ] as const)("finds, from a Candidate's Coach Panel, in %s, « %s »: %s (#553)", (locale, query, id) => {
     expect(search(query, locale, { scope: "coachPanel" }).map((article) => article.id)).toContain(id);
+  });
+
+  it("has the « Espace coach » articles (#554): 1 page, 2 questions and 2 tutorials, a Human Coach's, in French and English, under the topic", () => {
+    for (const locale of ["fr", "en"] as const) {
+      const topic = helpCentreTopics(locale).find((entry) => entry.topic === "espace-coach");
+      expect(topic?.articles.map((found) => found.id).sort()).toEqual(Object.keys(COACH_SPACE_ARTICLES).sort());
+      for (const [id, kind] of Object.entries(COACH_SPACE_ARTICLES))
+        expect([id, helpCentreArticle("espace-coach", id, locale)?.kind, helpCentreArticle("espace-coach", id, locale)?.audience]).toEqual([id, kind, "human-coach"]);
+    }
+    expect(articleFor("/espace-coach", "fr")?.id).toBe("page-coach-space");
+  });
+
+  it.each([
+    ["fr", "retirer l'accès coach", "faq-coach-access"],
+    ["fr", "le candidat a retiré l'accès", "faq-coach-access"],
+    ["fr", "coach retiré", "faq-retired-human-coach"],
+    ["fr", "lien de la visio", "tutorial-coach-session-date"],
+    ["fr", "saisir la date", "tutorial-coach-session-date"],
+    ["fr", "commenter la lettre de motivation", "tutorial-coach-review"],
+    ["fr", "espace coach", "page-coach-space"],
+    ["en", "withdraw coach access", "faq-coach-access"],
+    ["en", "retired coach", "faq-retired-human-coach"],
+    ["en", "video link", "tutorial-coach-session-date"],
+    ["en", "coach review", "tutorial-coach-review"],
+  ] as const)("finds in the Help Centre, in %s, « %s »: %s (#554), never from a Candidate's Coach Panel", (locale, query, id) => {
+    expect(search(query, locale).map((article) => article.id)).toContain(id);
+    expect(search(query, locale, { scope: "coachPanel" }).map((article) => article.id)).not.toContain(id);
   });
 
   it("has tutorials in French and English, each of two numbered steps or more", () => {

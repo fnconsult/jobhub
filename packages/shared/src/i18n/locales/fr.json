@@ -215,7 +215,13 @@
       "planQuota": "quota",
       "masterCv": "CV de référence",
       "tailoredCv": "CV adapté",
-      "proposals": "proposition"
+      "proposals": "proposition",
+      "aiCoach": "coach IA",
+      "coachMemory": "mémoire du coach",
+      "coachAccess": "accès",
+      "euAiConsent": "votre accord",
+      "redaction": "sans vos données d'identité",
+      "targetCompany": "entreprise cible"
     }
   },
   "emptyStateHelp": {

@@ -18,6 +18,12 @@ export const HELP_TERMS = {
   tailoredCv: "glossary-tailored-cv",
   followUp: "glossary-follow-up",
   planQuota: "glossary-plan-quota",
+  aiCoach: "glossary-ai-coach",
+  coachMemory: "glossary-coach-memory",
+  coachAccess: "glossary-coach-access",
+  euAiConsent: "glossary-eu-ai-consent",
+  redaction: "glossary-redaction",
+  targetCompany: "glossary-target-company",
 } as const;
 export type HelpTermName = keyof typeof HELP_TERMS;
 

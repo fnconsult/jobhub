@@ -952,6 +952,15 @@ textarea.input {
   .page-conversation-suggestions .quick-actions > * {
     flex: none;
   }
+
+  /* A menu's card holds its whole width on a phone (#608): a long button or pill (« Réserver avec … », « Reporté ·
+     initialement prévu le … ») wraps rather than pushing the page sideways. */
+  .page-conversation .chat-card :is(.ds-button, .ds-pill) {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    text-align: start;
+  }
 }
 
 /* ---------- The Work Pane (#602, ADR-0070): one item beside the conversation, never over it ----------
@@ -998,6 +1007,11 @@ textarea.input {
 .work-pane-head .icon {
   width: 1.125em;
   height: 1.125em;
+}
+
+/* Its ✕ and its actions, and the Fiche's ✕ on a phone, reach the 44px target floor of the Candidate's pages (ADR-0009). */
+:is(.work-pane-head, .fiche-head) .ds-button {
+  min-height: var(--control-height);
 }
 
 .work-pane-body {

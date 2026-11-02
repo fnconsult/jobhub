@@ -7,23 +7,13 @@
  */
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { commands } from "./shell-words.mjs";
 
 const LEGAL_PATH = "packages/help/legal/";
 const PR_URL = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/;
 const API_MERGE = /^\/?repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)\/merge$/;
 /** The options of `gh pr merge` that take a value. */
 const VALUED = new Set(["-A", "--author-email", "-b", "--body", "-F", "--body-file", "-t", "--subject", "--match-head-commit", "-R", "--repo"]);
-
-/** A command's words, quotes removed, each run of `;`, `&&`, `||`, `|` or a new line ending a command. */
-function commands(line) {
-  const all = [[]];
-  const pattern = /\s*(?:(;|&&|\|\||\||\n)|"((?:\\.|[^"\\])*)"|'([^']*)'|((?:\\.|[^\s;&|"'])+))/g;
-  for (const [, separator, double, single, bare] of line.matchAll(pattern)) {
-    if (separator) all.push([]);
-    else all.at(-1).push(double ?? single ?? bare);
-  }
-  return all.filter((words) => words.length > 0);
-}
 
 /** The pull requests a tool call merges: `{ owner?, repo?, pr? , branch? }` each; none for a call that merges nothing. */
 export function mergesIn({ tool_name: tool, tool_input: input }) {

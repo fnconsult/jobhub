@@ -8,6 +8,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONTACT_EMAIL_TOKEN } from "./contact";
 import { BACK_OFFICE_HELP_TOPICS, HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
@@ -76,6 +77,7 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
         if (article.kind !== french.kind) problems.push(`${where}: its kind ${article.kind} differs from the French one (${french.kind})`);
         else if (article.route !== french.route) problems.push(`${where}: its route ${article.route} differs from the French one (${french.route})`);
         if (article.audience !== french.audience) problems.push(`${where}: its audience ${article.audience} differs from the French one (${french.audience})`);
+        if (article.motion !== french.motion) problems.push(`${where}: its motion ${article.motion} differs from the French one (${french.motion})`);
         if (article.topic !== french.topic) problems.push(`${where}: its topic ${article.topic} differs from the French one (${french.topic})`);
       }
       if (article.kind !== "page" || !article.route) continue;
@@ -112,9 +114,14 @@ function articleProblems(article: HelpArticle): string[] {
   if (!Array.isArray(article.synonyms)) problems.push("synonyms must be a list: [word, other word]");
   if (article.kind === "page" && !article.route) problems.push("a page article needs its route");
   if (article.kind !== "page" && article.route) problems.push("only a page article has a route");
+  if (article.kind !== "tutorial" && article.motion) problems.push("only a tutorial has a motion");
   if (article.route && !article.route.startsWith("/")) problems.push("route must start with /");
   if (!article.body) problems.push("the body is empty");
   if (/!\[[^\]]*\]\(/.test(article.body) || /<img\b/i.test(article.body)) problems.push("no images in a Help Article");
+  for (const [, target] of article.body.matchAll(/\[[^\]\n]+\]\(([^)\s]+)\)/g))
+    if (!/^\/(?![/\\])/.test(target!) || target!.includes("\\")) problems.push(`a link leads to a page of this site (/legal/…), never elsewhere: ${target}`);
+  if (/[\w.+-]+@[\w-]+\.[\w.-]+/.test(article.body.split(CONTACT_EMAIL_TOKEN).join("")))
+    problems.push(`no email address written out: ${CONTACT_EMAIL_TOKEN} stands for the legal notice's`);
   return problems;
 }
 
@@ -146,6 +153,7 @@ function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArt
     title: text(frontmatter.title),
     synonyms: frontmatter.synonyms as string[],
     route: text(frontmatter.route) || null,
+    motion: text(frontmatter.motion) || null,
     body: body.trim(),
   };
 }

@@ -22,7 +22,9 @@ describe("search — Help Articles matching a Candidate's words, without AI", ()
 
   it("searches the articles of the language asked for", () => {
     expect(ids("how do I follow up with the recruiter", "en")[0]).toBe("faq-follow-up-recruiter");
-    expect(search("make the text bigger", "en")[0]).toMatchObject({ id: "faq-text-size", locale: "en" });
+    expect(search("make the text bigger", "en", { scope: "coachPanel" })[0]).toMatchObject({ id: "faq-text-size", locale: "en" });
+    // Public, the Visitor's question about the site's text (#552) comes too.
+    expect(ids("make the text bigger", "en").slice(0, 2).sort()).toEqual(["faq-text-size", "faq-text-size-site"]);
   });
 
   it("finds an article by one of its synonyms", () => {

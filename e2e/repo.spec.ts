@@ -132,6 +132,28 @@ test.describe("monorepo tooling", () => {
     expect(projects[0].workers).toBe(1);
   });
 
+  // Issue #560 (ADR-0063): Production runs only a Version the product owner Promoted; no agent may Promote.
+  test("Production deploys only a tag on prod, and the repo's hook refuses the Promotion to an agent", () => {
+    expect(read(".github/workflows/deploy.yml")).toContain("node scripts/deploy/check-production-ref.mjs");
+    const deployFrom = (ref: string) =>
+      spawnSync("node", ["scripts/deploy/check-production-ref.mjs"], { encoding: "utf8", env: { ...process.env, GITHUB_REF: ref, PROD_COMPARE: "identical" } });
+    const fromMain = deployFrom("refs/heads/main");
+    expect(fromMain.status).toBe(1);
+    expect(fromMain.stdout).toContain("::error::Production deploys only a Version's tag vX.Y.Z");
+    const version = JSON.parse(read("package.json")).version;
+    expect(deployFrom(`refs/tags/v${version}`).status).toBe(0);
+
+    expect(JSON.stringify(JSON.parse(read(".claude/settings.json")).hooks.PreToolUse)).toContain("scripts/hooks/no-promotion.mjs");
+    const hook = (command: string) =>
+      spawnSync("node", ["scripts/hooks/no-promotion.mjs"], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command } }), encoding: "utf8" }).stdout;
+    for (const command of ["npx tsx scripts/promote.ts", "git push origin HEAD:prod", `git push origin v${version}`, "gh workflow run deploy.yml -f target=production -f confirm=jobbbox.ai"])
+      expect(JSON.parse(hook(command)).hookSpecificOutput.permissionDecision, command).toBe("deny");
+    expect(hook("git push -u origin issue-560-promotion-prod")).toBe("");
+
+    expect(read("docs/ops/promotion.md")).toMatch(/^# Promouvoir une Version/);
+    expect(read("docs/ops/hosting.md")).toContain("docs/ops/promotion.md");
+  });
+
   test("EU hosting target is documented (ADR-0007)", () => {
     const adr = read("docs/adr/0007-eu-hosting-provider-agnostic-ai.md");
     expect(adr).toMatch(/\bEU\b/);

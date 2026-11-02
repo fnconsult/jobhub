@@ -12,19 +12,27 @@ import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS, RETIRED_SETTINGS } from "./catalo
 
 const ROOT = new URL("../../../../", import.meta.url).pathname;
 
+/**
+ * Workspaces neither the web app nor the worker runs: their variables are no Platform Setting. The motions' tooling (#567)
+ * runs in its own GitHub workflow, on that workflow's secrets and variables (docs/ops/motions.md).
+ */
+const NOT_THE_APP = new Set(["packages/motions"]);
+
 /** Every source file of the apps and packages, tests left out. */
 function sourceFiles(): string[] {
   return ["apps", "packages"].flatMap((top) =>
-    readdirSync(join(ROOT, top)).flatMap((workspace) => {
-      const src = join(ROOT, top, workspace, "src");
-      try {
-        return (readdirSync(src, { recursive: true }) as string[])
-          .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.includes("node_modules"))
-          .map((file) => join(src, file));
-      } catch {
-        return [];
-      }
-    }),
+    readdirSync(join(ROOT, top))
+      .filter((workspace) => !NOT_THE_APP.has(`${top}/${workspace}`))
+      .flatMap((workspace) => {
+        const src = join(ROOT, top, workspace, "src");
+        try {
+          return (readdirSync(src, { recursive: true }) as string[])
+            .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.includes("node_modules"))
+            .map((file) => join(src, file));
+        } catch {
+          return [];
+        }
+      }),
   );
 }
 
@@ -57,6 +65,12 @@ describe("the guard on the Platform Settings", () => {
     expect(found.map(({ name }) => name)).toEqual(expect.arrayContaining(["DATABASE_URL", "AUTH_SECRET", "SECRETS_MASTER_KEYS", "JOB_DIGEST_TARGET_COUNT", "STRIPE_PRICE_STANDARD", "MISTRAL_API_KEY"]));
     const unknown = [...found, ...AI_ENV_KEYS.map((name) => ({ name, file: "packages/ai/src/env.ts (AI_ENV_KEYS)" }))].filter(({ name }) => !known.has(name));
     expect(unknown).toEqual([]);
+  });
+
+  it("leaves out only workspaces that the web app does not import (the motions' tooling)", () => {
+    const web = JSON.parse(readFileSync(join(ROOT, "apps/web/package.json"), "utf8")) as { dependencies?: Record<string, string> };
+    expect(Object.keys(web.dependencies ?? {})).not.toContain("@jobhub/motions");
+    expect(sourceFiles().some((file) => file.includes("/packages/motions/"))).toBe(false);
   });
 
   it("reads none of the variables it lists as no longer read, which are nothing else either (#396)", () => {

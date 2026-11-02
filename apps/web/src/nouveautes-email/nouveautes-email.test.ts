@@ -196,6 +196,30 @@ describe.skipIf(!connectionString)("Nouveautés email: the box in Mon compte, on
       expect(outbox.map((message) => message.subject)).toEqual(["Nouveauté Jobbbox : Titre 0.2.0", "Nouveauté Jobbbox : Titre 0.3.0"]);
     });
 
+    it("counts the week in Paris days: an email sent at 15:00 lets the next one go at the morning run 7 days later", async () => {
+      const module = emails(written(["0.2.0"], ["0.3.0"]));
+      await module.subscribe("marie");
+      clock.now = new Date("2026-11-02T14:00:00.000Z"); // the worker starting at 15:00 in Paris
+      expect(await module.sendDue()).toEqual({ emails: 1, failed: 0 });
+      clock.now = new Date("2026-11-09T09:37:00.000Z"); // the daily run, 10:37 in Paris, 7 days later
+      expect(await module.sendDue()).toEqual({ emails: 1, failed: 0 });
+    });
+
+    it("sends the Version Production serves even when the Candidate subscribed after the day its note gives", async () => {
+      const module = emails(written(["0.3.0", { date: "2026-10-28" }]));
+      await module.subscribe("marie");
+      expect(await module.sendDue()).toEqual({ emails: 1, failed: 0 });
+    });
+
+    it("sends the French note, in French, to a Candidate whose language has none", async () => {
+      const notes = written(["0.3.0"])!;
+      const module = emails({ fr: notes.fr, en: [] });
+      await module.subscribe("john");
+      await module.sendDue();
+      expect(outbox[0]!.subject).toBe("Nouveauté Jobbbox : Titre 0.3.0");
+      expect(outbox[0]!.text).toContain("lang=fr");
+    });
+
     it("sends one email when two workers run at once", async () => {
       const module = emails(written(["0.2.0"], ["0.3.0"]));
       await module.subscribe("marie");
@@ -220,12 +244,14 @@ describe.skipIf(!connectionString)("Nouveautés email: the box in Mon compte, on
       expect(outbox.map((message) => message.to)).toEqual(["marie@example.fr"]);
     });
 
-    it("leaves a failed email to the next run, the others sent all the same", async () => {
-      const module = emails(written(["0.3.0"]));
+    it("leaves a failed email to the next run, the others sent all the same, and says why", async () => {
+      const errors: string[] = [];
+      const module = emails(written(["0.3.0"]), { logError: (line) => errors.push(line) });
       await module.subscribe("marie");
       await module.subscribe("john");
       refusing.add("john@example.com");
       expect(await module.sendDue()).toEqual({ emails: 1, failed: 1 });
+      expect(errors).toEqual(["[nouveautes-emails] the email of 0.3.0 could not be sent to Candidate john"]);
       refusing.clear();
       expect(await module.sendDue()).toEqual({ emails: 1, failed: 0 });
       expect(outbox.map((message) => message.to)).toEqual(["marie@example.fr", "john@example.com"]);

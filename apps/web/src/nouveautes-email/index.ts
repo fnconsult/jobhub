@@ -9,18 +9,18 @@
  *    8058), with no sign-in, as for the Job Digest. The token names one Candidate's subscription; subscribing again
  *    gives a new one.
  *  - the worker's side: `sendDue`. Each subscribed Candidate with a verified address is emailed, in their Interface
- *    Language, the oldest announced Release Note they were not sent, of a Version Production serves or served
- *    (promoted on or after the day they subscribed): at most one email per Candidate in any 7 days, so a second note
- *    of the same week waits for the next; once per Candidate and per Version. Only in Production (`production`),
- *    never from the Beta. Running it again, or on two workers at once, sends nothing twice; an email that fails is
- *    sent on the next run.
+ *    Language, the oldest announced Release Note they were not sent, of a Version Production serves or served: the
+ *    one it serves now, or an earlier one dated on or after the day they subscribed. At most one email per Candidate
+ *    every 7 days (Paris days), so a second note of the same week waits for the next; once per Version. Only in
+ *    Production (`production`), never from the Beta. Each email is claimed before it is sent: running it again, or on
+ *    two workers at once, sends nothing twice; an email that fails gives its claim back and is sent on the next run.
  *
  * The email carries no image and no tracked link: every link leads straight to Jobbbox (apps/web/src/emails). Brevo
  * has no per-message switch for its open and click tracking: it must be off on the account (docs/privacy/register.md).
  *
  * Both tables are the Candidate's: in their Data export (`nouveautesEmailOf`), deleted with their account.
  */
-import { compareVersions, nouveautes, parisDay, releaseNotes, type HelpLocale, type ReleaseNote } from "@jobhub/help";
+import { addDays, compareVersions, nouveautes, parisDay, releaseNotes, type HelpLocale, type ReleaseNote } from "@jobhub/help";
 import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
 import { randomBytes } from "node:crypto";
 import type { Pool } from "pg";
@@ -30,7 +30,6 @@ import { nouveautesEmail } from "./email";
 
 /** No more than one Nouveautés email per Candidate in this long. */
 export const MIN_INTERVAL_DAYS = 7;
-const DAY_MS = 86_400_000;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
 export interface NouveautesEmailsDeps {
@@ -42,6 +41,8 @@ export interface NouveautesEmailsDeps {
   /** The Version this deployment serves; notes of a later Version are never sent. Null: none known, nothing is sent. */
   version: string | null;
   now?: () => Date;
+  /** Where an email that could not be sent is told. Default: console.error. */
+  logError?: (line: string, error: unknown) => void;
   /** The Release Notes, by language. Default: those this build carries. */
   written?: Record<HelpLocale, readonly ReleaseNote[]>;
 }
@@ -107,6 +108,7 @@ interface SubscriberRow {
 export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDeps): NouveautesEmails {
   const now = deps.now ?? (() => new Date());
   const written = (locale: HelpLocale) => deps.written?.[locale] ?? releaseNotes(locale);
+  const logError = deps.logError ?? ((line: string, error: unknown) => console.error(line, error));
 
   async function setting(candidateId: string): Promise<NouveautesEmailSetting> {
     const { rows } = await database.query<{ subscribed_at: Date }>(`SELECT subscribed_at FROM nouveautes_email_subscription WHERE candidate_id = $1`, [candidateId]);
@@ -114,19 +116,24 @@ export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDep
     return { subscribed: subscribedAt !== null, subscribedAt };
   }
 
-  /** The note due to `subscriber` now, or null: the oldest announced one they were not sent, promoted since they subscribed. */
+  /**
+   * The note due to `subscriber` now, or null: the oldest announced one they were not sent, the served Version's or one
+   * dated since they subscribed; none within MIN_INTERVAL_DAYS Paris days of the last one.
+   */
   function dueNote(subscriber: Pick<SubscriberRow, "subscribed_at" | "sent" | "last_sent_at">, announced: ReleaseNote[], at: Date): ReleaseNote | null {
-    if (subscriber.last_sent_at && at.getTime() - subscriber.last_sent_at.getTime() < MIN_INTERVAL_DAYS * DAY_MS) return null;
+    if (subscriber.last_sent_at && parisDay(at) < addDays(parisDay(subscriber.last_sent_at), MIN_INTERVAL_DAYS)) return null;
     const since = parisDay(subscriber.subscribed_at);
-    return announced.find((note) => note.date >= since && !subscriber.sent.includes(note.version)) ?? null;
+    return announced.find((note) => (note.version === deps.version || note.date >= since) && !subscriber.sent.includes(note.version)) ?? null;
   }
 
   /**
-   * Claims the Candidate's email of `note` and sends it, in one transaction: the subscription row is locked, so a second
-   * worker waits, then finds the week's email taken; a failed email gives it back. Whether it was sent now.
+   * Claims the Candidate's email of `note`, then sends it. The claim is made in a transaction that locks the
+   * subscription, so a second worker waits, then finds the week's email taken; it is committed before the email goes,
+   * so an email is never sent twice, and given back when the email fails. Whether it was sent now.
    */
   async function send(candidateId: string, note: ReleaseNote, announced: ReleaseNote[], at: Date): Promise<boolean> {
     const client = await database.connect();
+    let subscriber: SubscriberRow | undefined;
     try {
       await client.query("BEGIN");
       const { rows } = await client.query<SubscriberRow>(
@@ -138,18 +145,25 @@ export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDep
             FOR UPDATE OF s`,
         [candidateId],
       );
-      const subscriber = rows[0];
       // Still subscribed, and still due this note: another worker may have sent this week's email meanwhile.
-      if (!subscriber || dueNote(subscriber, announced, at)?.version !== note.version) {
-        await client.query("COMMIT");
-        return false;
-      }
-      await client.query(`INSERT INTO nouveautes_email_sent (candidate_id, version, sent_at) VALUES ($1, $2, $3)`, [candidateId, note.version, at]);
-      const language: HelpLocale = isSupportedLocale(subscriber.interfaceLanguage) ? subscriber.interfaceLanguage : DEFAULT_LOCALE;
-      const shown = written(language).find((entry) => entry.version === note.version) ?? note;
+      subscriber = rows[0] && dueNote(rows[0], announced, at)?.version === note.version ? rows[0] : undefined;
+      if (subscriber) await client.query(`INSERT INTO nouveautes_email_sent (candidate_id, version, sent_at) VALUES ($1, $2, $3)`, [candidateId, note.version, at]);
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+    if (!subscriber) return false;
+    try {
+      // The Release Note in their Interface Language; the French one, and a French email, when it has none.
+      const own = isSupportedLocale(subscriber.interfaceLanguage) ? subscriber.interfaceLanguage : DEFAULT_LOCALE;
+      const translated = written(own).find((entry) => entry.version === note.version);
+      const language: HelpLocale = translated ? own : "fr";
       const email = nouveautesEmail(
         {
-          note: shown,
+          note: translated ?? note,
           noteUrl: new URL(`${routes.nouveautesVersion(note.version)}?lang=${language}`, deps.baseURL).toString(),
           unsubscribeUrl: unsubscribePageURL(deps.baseURL, subscriber.unsubscribe_token, language),
         },
@@ -160,13 +174,10 @@ export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDep
         ...email,
         headers: { "List-Unsubscribe": `<${oneClickUnsubscribeURL(deps.baseURL, subscriber.unsubscribe_token)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
       });
-      await client.query("COMMIT");
       return true;
     } catch (error) {
-      await client.query("ROLLBACK");
+      await database.query(`DELETE FROM nouveautes_email_sent WHERE candidate_id = $1 AND version = $2`, [candidateId, note.version]);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
@@ -212,8 +223,9 @@ export function createNouveautesEmails(database: Pool, deps: NouveautesEmailsDep
         if (!note) continue;
         try {
           if (await send(subscriber.id, note, announced, at)) emails += 1;
-        } catch {
+        } catch (error) {
           failed += 1;
+          logError(`[nouveautes-emails] the email of ${note.version} could not be sent to Candidate ${subscriber.id}`, error);
         }
       }
       return { emails, failed };

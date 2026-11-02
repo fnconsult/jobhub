@@ -2727,7 +2727,8 @@
         "secret_disclosure": "Divulgation de secrets",
         "harmful_advice": "Conseil hors rôle ou dangereux",
         "distress": "Détresse",
-        "email_injection": "Contenu piégé dans un email"
+        "email_injection": "Contenu piégé dans un email",
+        "ungrounded_answer": "Réponse non fondée sur le profil"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
@@ -2735,7 +2736,8 @@
         "secret_disclosure": "Une réponse qui dévoile les instructions de l'IA, les règles des playbooks de coaching ou une clé (Provider Secrets).",
         "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
         "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
-        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée."
+        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée.",
+        "ungrounded_answer": "Une réponse du coach IA qui classe des offres ou dit si une offre, une candidature ou un conseil convient au candidat sans citer ses compétences, ses expériences ou ses critères, ou qui prétend ne pas disposer des raisons d'un score ou de son CV. Bloquée, elle est réécrite une fois ; si elle l'est encore, le message ci-dessous s'affiche."
       },
       "languages": {
         "fr": "français",

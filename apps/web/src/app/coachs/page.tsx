@@ -16,6 +16,7 @@ import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { COACHING_ORDER, ORDER_PARAMS, routes } from "@/routes";
 import "@/components/MenuCards.css";
+import { HelpText } from "@/components/HelpTerm";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -140,7 +141,9 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
     ) : null;
   const coachesList = (
     <>
-      <p>{t("humanCoaches.accessIntro")}</p>
+      <p>
+        <HelpText terms={{ coachAccess: t("helpTerms.words.coachAccess") }}>{t("humanCoaches.accessIntro")}</HelpText>
+      </p>
       {price === null ? (
         <p>{t("humanCoaches.unavailable")}</p>
       ) : price.amount < price.regularAmount ? (

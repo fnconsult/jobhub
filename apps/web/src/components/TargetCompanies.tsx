@@ -6,6 +6,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { markOfTool, toolById } from "@jobhub/shared";
 import { routes, type ApplicationSection } from "@/routes";
+import { HelpText } from "@/components/HelpTerm";
 
 /** One of the Profile's Target Companies, as its Section shows it (#409). */
 export interface TargetCompanyItem {
@@ -117,7 +118,9 @@ export function TargetCompanies({ profileId, companies }: { profileId: string; c
       </p>
 
       {companies.length === 0 ? (
-        <p className="notice">{t("targetCompanies.empty")}</p>
+        <p className="notice">
+          <HelpText terms={{ targetCompany: t("helpTerms.words.targetCompany") }}>{t("targetCompanies.empty")}</HelpText>
+        </p>
       ) : (
         <ul className="rows" aria-label={t("targetCompanies.listLabel")}>
           {companies.map((company) => {

@@ -8,14 +8,12 @@ import { getBilling } from "@/billing/server";
 import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { RescheduleHistory } from "@/components/RescheduleHistory";
-import { conversationFirst } from "@/conversation-first";
 import { Card } from "@/design/Card";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
-import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { COACHING_ORDER, ORDER_PARAMS, routes } from "@/routes";
 import "@/components/MenuCards.css";
 
@@ -184,47 +182,27 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
     </>
   );
 
-  if (conversationFirst(getPlatformSettingsResolver().current())) {
-    const subject = await getCoachConversations().ofSubject(candidate.id, SUBJECT);
-    const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
-    return (
-      <CandidateLayout candidateId={candidate.id} title={t("humanCoaches.title")}>
-        <CoachConversationPage
-          key={conversationId ?? "new"}
-          conversationId={conversationId}
-          subject={SUBJECT}
-          introduction={<p>{t("humanCoachesMenu.introduction")}</p>}
-          card={
-            <>
-              <Card title={t("humanCoaches.sessionsTitle")} headingId={SESSIONS_TITLE_ID}>
-                {notices}
-                {sessionsList ?? <p>{t("humanCoachesMenu.sessionsNone")}</p>}
-              </Card>
-              <Card title={t("humanCoaches.listTitle")} headingId={COACHES_TITLE_ID}>
-                {coachesList}
-              </Card>
-            </>
-          }
-        />
-      </CandidateLayout>
-    );
-  }
-
+  const subject = await getCoachConversations().ofSubject(candidate.id, SUBJECT);
+  const conversationId = subject.ok ? (subject.conversation?.id ?? null) : null;
   return (
     <CandidateLayout candidateId={candidate.id} title={t("humanCoaches.title")}>
-      <p className="lead">{t("humanCoaches.intro")}</p>
-      {notices}
-      {sessionsList ? (
-        <section className="stack" aria-labelledby="sessions-title">
-          <h2 id="sessions-title">{t("humanCoaches.sessionsTitle")}</h2>
-          {sessionsList}
-        </section>
-      ) : null}
-
-      <section className="stack" aria-labelledby="coaches-title">
-        <h2 id="coaches-title">{t("humanCoaches.listTitle")}</h2>
-        {coachesList}
-      </section>
+      <CoachConversationPage
+        key={conversationId ?? "new"}
+        conversationId={conversationId}
+        subject={SUBJECT}
+        introduction={<p>{t("humanCoachesMenu.introduction")}</p>}
+        card={
+          <>
+            <Card title={t("humanCoaches.sessionsTitle")} headingId={SESSIONS_TITLE_ID}>
+              {notices}
+              {sessionsList ?? <p>{t("humanCoachesMenu.sessionsNone")}</p>}
+            </Card>
+            <Card title={t("humanCoaches.listTitle")} headingId={COACHES_TITLE_ID}>
+              {coachesList}
+            </Card>
+          </>
+        }
+      />
     </CandidateLayout>
   );
 }

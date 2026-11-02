@@ -7,7 +7,7 @@ import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { AddInterviewForm, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { AgendaList, AgendaMonth, AgendaWeek, Legend, ToSchedule, ViewSwitch, formatsFor, type Formats, type Withdrawable } from "@/components/AgendaViews";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Icons } from "@/components/icons";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
@@ -24,9 +24,14 @@ type AgendaParams = Parameters<typeof readAgendaMenuAddress>[0];
 
 /** The Agenda's Subject: the menu's one conversation per Candidate (ADR-0070); its replies' Focus is the Agenda. */
 const SUBJECT = { kind: "menu", id: "agenda" } as const;
+/**
+ * What goes with each message, as the page's object: the Agenda, its next 30 days (#254). The box's line says so
+ * (« Vous consultez : vos entretiens et rendez-vous des 30 prochains jours »), as the replies' Focus is the Agenda.
+ */
+const IN_VIEW = { kind: "agenda", id: "agenda" } as const;
 /** The week and the month in the Work Pane: views of the Agenda, like an object's Section. */
 const VIEW: AddressedKind = "section";
-/** The view the card shows: the list. */
+/** The view the card shows: the list, « Liste » current while neither the week nor the month is open beside it. */
 const LIST: AgendaView = "liste";
 /** The form adding an Interview, in the Work Pane. */
 const FORM: AddressedKind = "form";
@@ -68,16 +73,21 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
         key={conversationId ?? "new"}
         conversationId={conversationId}
         subject={SUBJECT}
+        inView={{ ...IN_VIEW, name: t("agenda.title") }}
         introduction={<p>{t("agendaMenu.introduction")}</p>}
         card={
           <Card>
-            <div className="agenda-toolbar">
-              <ViewSwitch view={LIST} date={frenchDay(now)} t={t} />
-              <div className="agenda-actions">{addInterview}</div>
+            {/* Drawn as the Agenda's page was: its targets at the 44px floor, its long buttons wrapping on a phone (#608). */}
+            <div className="agenda-card">
+              <div className="agenda-toolbar">
+                {/* The view the address names is the one shown, the week or the month in the Work Pane beside the list. */}
+                <ViewSwitch view={pane?.kind === "calendar" ? pane.view : LIST} date={pane?.kind === "calendar" ? pane.date : frenchDay(now)} t={t} />
+                <div className="agenda-actions">{addInterview}</div>
+              </div>
+              {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} withdrawable={withdrawable} formats={formats} t={t} /> : null}
+              <AgendaList days={days} past={past} withdrawable={withdrawable} formats={formats} t={t} />
+              <Legend t={t} />
             </div>
-            {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} withdrawable={withdrawable} formats={formats} t={t} /> : null}
-            <AgendaList days={days} past={past} withdrawable={withdrawable} formats={formats} t={t} />
-            <Legend t={t} />
           </Card>
         }
         suggestions={
@@ -128,11 +138,13 @@ async function CalendarPane({
   const title = view === "semaine" ? t("agenda.weekTitle", { range: formats.range(period.first, period.last) }) : formats.month(period.first);
   return (
     <InWorkPane kind={VIEW} title={title} href={pane.href} back={back}>
-      {view === "semaine" ? (
-        <AgendaWeek period={period} byDay={byDay} today={today} withdrawable={withdrawable} formats={formats} t={t} />
-      ) : (
-        <AgendaMonth period={period} byDay={byDay} selected={pane.date} today={today} withdrawable={withdrawable} formats={formats} t={t} />
-      )}
+      <div className="agenda-card">
+        {view === "semaine" ? (
+          <AgendaWeek period={period} byDay={byDay} today={today} withdrawable={withdrawable} formats={formats} t={t} />
+        ) : (
+          <AgendaMonth period={period} byDay={byDay} selected={pane.date} today={today} withdrawable={withdrawable} formats={formats} t={t} />
+        )}
+      </div>
     </InWorkPane>
   );
 }

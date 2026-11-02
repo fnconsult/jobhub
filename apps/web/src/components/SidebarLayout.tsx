@@ -13,7 +13,8 @@ import type { ActivityElement } from "@/ai-activity/pane";
 import type { UsageMeter as Meter } from "@/billing/usage-meter";
 import { ClearConversationButton, ConversationFirstProvider, PageHelpButton, SidebarConversations, SidebarMenu, hasObjects, type FreeConversation, type SidebarMenus } from "@/components/conversation-first";
 import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
-import { ActivityColumn, Fiche, FicheButtons, FicheProvider, type FicheContent } from "@/components/Fiche";
+import { PageHelpProvider } from "@/components/page-help";
+import { ActivityColumn, Fiche, FicheButtons, FicheProvider, useColumnOverPage, type FicheContent } from "@/components/Fiche";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
 import { AIDE_ET_LEGAL } from "@/public-pages/public-shell";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
@@ -35,20 +36,17 @@ const LABELS = {
 } as const satisfies Record<SidebarNavKey, string>;
 
 /**
- * The sidebar layout of the Candidate's pages (#132, #134): the sidebar shell
- * (see SidebarShell) with the Profile switcher and the Candidate's labelled links,
- * and in its foot the Usage Meter of the week's Plan Quotas (null when billing could not be read).
- * Its Top Bar has AI Activity's button, its pane the page's `aiActivity` elements (none: « Aucun contenu
- * produit par l'IA sur cette page »). Beside « Mon compte », on its row, the Signalement icon (#375), which opens the
- * Signalement dialog; `version` is the Jobbbox version that dialog shows. At the top of its foot, « Aide et légal »
- * (#544): the public Aide, Légal and Nouveautés, in the drawer too on a phone.
- * `freeConversations`: under « Conversation au centre » (#601, ADR-0070), the Candidate's Free conversations; the Sidebar
- * then has « Nouvelle conversation » and « Coach » with them above its links, and the Top Bar « Effacer » in place of
- * « Aide et coach » (« Aide » on a page without a conversation), and the Work Pane opens beside the page (#602). Null
- * while the switch is off. `menus`: then, what its menus with objects unfold into (#604, #606). `fiche`: an object's page (an
- * Application's, #603): the Fiche beside the conversation, after the Work Pane, and « Fiche » and « Activité » in the Top
- * Bar in place of AI Activity's button, which the Fiche shows; ignored while the switch is off. Without one (the home page,
- * the menus, #607), « Activité » alone in AI Activity's button's place, which opens the Activité column with the Context bar.
+ * The sidebar layout of the Candidate's pages (#132, #134, ADR-0070): the sidebar shell (see SidebarShell) with
+ * « Nouvelle conversation » and « Coach » with the Candidate's `freeConversations` (#601), the Profile switcher and the
+ * Candidate's labelled links, its menus with objects unfolding into them (`menus`, #604, #606), and in its foot the Usage
+ * Meter of the week's Plan Quotas (null when billing could not be read). Beside « Mon compte », on its row, the
+ * Signalement icon (#375), whose form opens in the Work Pane; `version` is the Jobbbox version it shows. At the top of
+ * its foot, « Aide et légal » (#544): the public Aide, Légal and Nouveautés, in the drawer too on a phone.
+ * Its Top Bar has « Effacer » while the page is a conversation, « Aide » on a page without one (#602). The Work Pane opens
+ * beside the page (#602). `fiche`: an object's page (an Application's, #603): the Fiche beside the conversation, after
+ * the Work Pane, and « Fiche » and « Activité » in the Top Bar; the Fiche shows the page's `aiActivity`. Without one (the
+ * home page, the menus, #607), « Activité » alone, which opens the Activité column with the Context bar and AI Activity.
+ * On a phone those columns open over the conversation, full screen, the page behind out of reach (#608).
  */
 export function SidebarLayout({
   profiles,
@@ -61,7 +59,7 @@ export function SidebarLayout({
   wide = false,
   aiActivity = NO_AI_ACTIVITY,
   version,
-  freeConversations = null,
+  freeConversations,
   menus,
   fiche = null,
   children,
@@ -76,7 +74,7 @@ export function SidebarLayout({
   wide?: boolean;
   aiActivity?: readonly ActivityElement[];
   version: string;
-  freeConversations?: readonly FreeConversation[] | null;
+  freeConversations: readonly FreeConversation[];
   menus?: SidebarMenus | undefined;
   fiche?: FicheContent | null;
   children: ReactNode;
@@ -88,30 +86,28 @@ export function SidebarLayout({
   const switcherProfiles = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
   const current = profiles.find((profile) => profile.id === currentProfileId);
 
-  const shell = (
+  const shell = (pageInert: boolean) => (
     <AiActivityProvider elements={aiActivity}>
       <SidebarShell
+        pageInert={pageInert}
         brand={{ href: routes.home, label: t("app.name") }}
         title={title}
         wide={wide}
-        {...(freeConversations
-          ? {
-              topBarEnd: (
-                <>
-                  <FicheButtons />
-                  <ClearConversationButton />
-                  {fiche ? null : <PageHelpButton />}
-                </>
-              ),
-              beside: (
-                <>
-                  <WorkPane />
-                  {fiche ? <Fiche content={fiche} /> : <ActivityColumn />}
-                </>
-              ),
-              topBarActivity: null,
-            }
-          : {})}
+        topBarEnd={
+          // One group, so on a phone its buttons stay together at the right of Menu, the title on its own row (#608).
+          <div className="topbar-actions">
+            <FicheButtons />
+            <ClearConversationButton />
+            {fiche ? null : <PageHelpButton />}
+          </div>
+        }
+        beside={
+          <>
+            <WorkPane />
+            {fiche ? <Fiche content={fiche} /> : <ActivityColumn />}
+          </>
+        }
+        topBarActivity={null}
         foot={(closeDrawer, closeDrawerThen) => (
           <>
             {/* Named by its own words; no id, the drawer drawing the same block beside the docked sidebar. */}
@@ -156,7 +152,7 @@ export function SidebarLayout({
             <ul>
               {items.map((item) => {
                 const NavIcon = Icons[item.key];
-                if (hasObjects(item.key) && freeConversations)
+                if (hasObjects(item.key))
                   return (
                     <SidebarMenu
                       key={item.key}
@@ -186,13 +182,20 @@ export function SidebarLayout({
       </SidebarShell>
     </AiActivityProvider>
   );
-  return freeConversations ? (
+  return (
     <ConversationFirstProvider conversations={freeConversations} {...(menus ? { menus } : {})}>
       <WorkPaneProvider version={version}>
-        <FicheProvider object={fiche !== null}>{shell}</FicheProvider>
+        <PageHelpProvider>
+          <FicheProvider object={fiche !== null}>
+            <ColumnsOverPage>{shell}</ColumnsOverPage>
+          </FicheProvider>
+        </PageHelpProvider>
       </WorkPaneProvider>
     </ConversationFirstProvider>
-  ) : (
-    shell
   );
+}
+
+/** Draws the shell with the page out of reach while a column covers it, on a phone (#608). */
+function ColumnsOverPage({ children }: { children: (pageInert: boolean) => ReactNode }) {
+  return children(useColumnOverPage());
 }

@@ -103,7 +103,6 @@ test.describe("« Conversation au centre »: a Profile's, a Job Search's and a J
       JOBHUB_IGNORE_ROOT_ENV: "1",
       AUTH_SECRET: "e2e-conversation-objects-e2e-conversation-objects",
       MAIL_TRANSPORT: "console",
-      CONVERSATION_FIRST: "true",
       AI_SCORING_PROVIDER: "mistral",
       AI_WRITING_PROVIDER: "mistral",
       AI_COACHING_PROVIDER: "mistral",

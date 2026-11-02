@@ -18,15 +18,15 @@ vi.mock("next/navigation", () => ({
 function Conversation({ context }: { context: PageConversation["context"] }) {
   const register = useConversationFirst()?.setPage;
   useEffect(() => {
-    register?.({ conversationId: "c1", replying: false, context, clear: async () => true, startNew: null, askAbout: () => {} });
+    register?.({ conversationId: "c1", replying: false, context, repliesInView: [], clear: async () => true, startNew: null, askAbout: () => {} });
     return () => register?.(null);
   }, [register, context]);
   return <p>La conversation</p>;
 }
 
-function Page({ fiche = null, switchedOn = true }: { fiche?: Parameters<typeof SidebarLayout>[0]["fiche"]; switchedOn?: boolean }) {
+function Page({ fiche = null }: { fiche?: Parameters<typeof SidebarLayout>[0]["fiche"] }) {
   return (
-    <SidebarLayout profiles={[]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={switchedOn ? [] : null} fiche={fiche}>
+    <SidebarLayout profiles={[]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={[]} fiche={fiche}>
       <Conversation context={{ messages: 12, tokens: 3_100 }} />
     </SidebarLayout>
   );
@@ -86,12 +86,6 @@ describe("« Activité » on the home page and the menus (#607, ADR-0070)", () =
     expect(screen.queryByRole("complementary", { name: "Activité" })).toBeNull();
   });
 
-  it("keeps AI Activity's button while the switch is off", () => {
-    renderInFrench(<Page switchedOn={false} />);
-
-    expect(within(topBar()).queryByRole("button", { name: "Activité" })).toBeNull();
-    expect(within(topBar()).getByRole("button", { name: /Activité IA/ })).toBeTruthy();
-  });
 });
 
 describe("the Context bar in an object's Fiche (#607)", () => {

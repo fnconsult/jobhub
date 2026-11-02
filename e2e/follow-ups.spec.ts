@@ -3,12 +3,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
+import { ficheOf, workPaneOf } from "./support/conversation";
 import { emailsIn, linkIn, newAddress } from "./support/mailbox";
 
 // Issue #21: when an Application stays "Postulée" unanswered, the AI Coach
 // proposes a Follow-up email draft on it (7 working days after "Postulée", then
 // 10 more after each Follow-up sent; after two, it suggests "Abandonnée"), and
-// tells the Candidate by email and with a notice on their Applications. Drafts
+// tells the Candidate by email and with a notice on their Applications (a suggestion above Mes candidatures' box, #604),
+// the draft in the Application's Propositions Section (#603), opened from its Fiche in the Work Pane. Drafts
 // only (ADR-0005): nothing is ever sent to the employer; the Candidate sends the
 // draft themselves and marks it as sent, which moves the Application to
 // "Relancée". The Candidate adjusts the delays on their account page.
@@ -96,21 +98,40 @@ async function candidateWithApplication(page: Page, label: string) {
   return { email, title, id: (await saved.json()).id as string };
 }
 
-/** Sets the Application's status by hand on its page. */
+/** Sets the Application's status by hand on its Fiche (#603, #604), beside its conversation and its live region. */
 async function setStatus(page: Page, applicationId: string, status: string) {
   await page.goto(`/candidatures/${applicationId}`);
-  await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses[status] });
-  await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
+  await statusOf(page).selectOption({ label: fr.applicationStatuses[status] });
+  await expect(ficheOf(page).getByRole("status")).toHaveText(fr.application.statusSaved);
+}
+
+/** The Application's Status, on its Fiche. */
+const statusOf = (page: Page) => ficheOf(page).getByLabel(fr.application.statusLabel);
+/** The Application's Propositions Section, its Action Cards, in the Work Pane. */
+const propositions = (page: Page) => workPaneOf(page, fr.application.sections.propositions);
+/** « Propositions » on the Application's Fiche: there while it has an Action Card (#603). */
+const propositionsLink = (page: Page) => ficheOf(page).getByRole("link", { name: fr.application.sections.propositions, exact: true });
+
+/** Opens the Application's Propositions from its Fiche, on its page. */
+async function openPropositions(page: Page, applicationId: string) {
+  await propositionsLink(page).click();
+  await expect(page).toHaveURL(`${origin}/candidatures/${applicationId}/propositions`);
 }
 
 const followUpCard = (page: Page, title: string) =>
-  page.getByRole("article").filter({ has: page.getByRole("heading", { name: `Relancer l'employeur pour « ${title} »` }) });
+  propositions(page).getByRole("article").filter({ has: page.getByRole("heading", { name: `Relancer l'employeur pour « ${title} »` }) });
 const abandonCard = (page: Page, title: string) =>
-  page.getByRole("article").filter({ has: page.getByRole("heading", { name: `Classer « ${title} » comme abandonnée ?` }) });
-const notices = (page: Page) => page.getByRole("region", { name: fr.followUps.noticesTitle });
+  propositions(page).getByRole("article").filter({ has: page.getByRole("heading", { name: `Classer « ${title} » comme abandonnée ?` }) });
+/** Mes candidatures' suggestions above its box (#604): the Applications à traiter first, each to its page. */
+const notices = (page: Page) => page.getByRole("navigation", { name: fr.quickActions.label });
+/** The notices about the Application titled `title`: a Follow-up ready, or still no answer. */
+const noticesOf = (page: Page, title: string) =>
+  notices(page).getByRole("link", { name: new RegExp(`^(Relance prête|Toujours sans réponse) : ${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) });
 
 test.describe("Follow-ups", () => {
   test.describe.configure({ timeout: 180_000 });
+  // Wide enough for the Fiche, its Status, beside the Propositions open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
 
   test("by default, proposes a Follow-up draft 7 working days after Postulée, then 10 after each one sent, then suggests Abandonnée — by email and in the app, drafts only", async ({ page }) => {
     const { email, title, id } = await candidateWithApplication(page, "follow-up-defaults");
@@ -121,7 +142,8 @@ test.describe("Follow-ups", () => {
     let output = proposeFollowUpsAt(workingDaysAfter(appliedAt, 6));
     expect(emailsIn(output, email)).toHaveLength(0);
     await page.goto(`/candidatures/${id}`);
-    await expect(followUpCard(page, title)).toHaveCount(0);
+    await expect(statusOf(page)).toHaveValue("applied");
+    await expect(propositionsLink(page)).toHaveCount(0);
 
     // 7 working days on: a Follow-up draft on the Application, and an email to the Candidate. Proposed once.
     output = proposeFollowUpsAt(workingDaysAfter(appliedAt, 7));
@@ -137,13 +159,14 @@ test.describe("Follow-ups", () => {
     await page.goto("/candidatures");
     await notices(page).getByRole("link", { name: `Relance prête : ${title}` }).click();
     await expect(page).toHaveURL(`${origin}/candidatures/${id}`);
+    await openPropositions(page, id);
     const card = followUpCard(page, title);
     await expect(card).toHaveCount(1);
     await expect(card).toContainText(fr.followUps.cardLabel);
     await expect(card).toContainText(`Objet : Relance de ma candidature : ${title}`);
     await expect(card).toContainText("Je me permets de revenir vers vous au sujet de ma candidature");
     await expect(card).toContainText(fr.followUps.sentHint);
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("applied");
+    await expect(statusOf(page)).toHaveValue("applied");
     // The draft is set apart, ready to copy into the Candidate's own mail client (#136).
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin });
     await card.getByRole("button", { name: fr.actionCards.copyDraft }).click();
@@ -153,12 +176,15 @@ test.describe("Follow-ups", () => {
     // The Candidate sent it themselves, and marks it as sent: the Application is "Relancée".
     await card.getByRole("button", { name: fr.followUps.markSent }).click();
     await expect(page.getByText(fr.actionCards.accepted)).toBeVisible();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("followed_up");
+    await expect(statusOf(page)).toHaveValue("followed_up");
     await page.reload();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("followed_up");
+    await expect(statusOf(page)).toHaveValue("followed_up");
     await expect(followUpCard(page, title)).toHaveCount(0);
+    await page.goto(`/candidatures/${id}`);
+    await expect(propositionsLink(page)).toHaveCount(0);
     await page.goto("/candidatures");
-    await expect(notices(page)).toHaveCount(0);
+    await expect(notices(page)).toBeVisible();
+    await expect(noticesOf(page, title)).toHaveCount(0);
     const firstSentAt = new Date();
 
     // 10 more working days for the second Follow-up.
@@ -167,10 +193,11 @@ test.describe("Follow-ups", () => {
     output = proposeFollowUpsAt(workingDaysAfter(firstSentAt, 10));
     expect(emailsIn(output, email).map((sent) => sent.subject)).toEqual([`Une relance vous attend : ${title}`]);
     await page.goto(`/candidatures/${id}`);
+    await openPropositions(page, id);
     await expect(followUpCard(page, title)).toContainText("Je me permets de revenir de nouveau vers vous");
     await followUpCard(page, title).getByRole("button", { name: fr.followUps.markSent }).click();
     await expect(page.getByText(fr.actionCards.accepted)).toBeVisible();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("followed_up");
+    await expect(statusOf(page)).toHaveValue("followed_up");
     const secondSentAt = new Date();
 
     // After two Follow-ups unanswered as long, the AI Coach suggests "Abandonnée" instead of a third.
@@ -183,15 +210,16 @@ test.describe("Follow-ups", () => {
     await page.goto("/candidatures");
     await notices(page).getByRole("link", { name: `Toujours sans réponse : ${title}` }).click();
     await expect(page).toHaveURL(`${origin}/candidatures/${id}`);
+    await openPropositions(page, id);
     await expect(followUpCard(page, title)).toHaveCount(0);
     const suggestion = abandonCard(page, title);
     await expect(suggestion).toContainText("Vos 2 relances sont restées sans réponse.");
     // The status only changes when the Candidate accepts.
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("followed_up");
+    await expect(statusOf(page)).toHaveValue("followed_up");
     await suggestion.getByRole("button", { name: fr.followUps.abandonAccept }).click();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("abandoned");
+    await expect(statusOf(page)).toHaveValue("abandoned");
     await page.reload();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("abandoned");
+    await expect(statusOf(page)).toHaveValue("abandoned");
   });
 
   test("the Candidate adjusts their Follow-up Delays on their account page, and the AI Coach keeps to them", async ({ page }) => {
@@ -220,8 +248,9 @@ test.describe("Follow-ups", () => {
     expect(emailsIn(proposeFollowUpsAt(workingDaysAfter(appliedAt, 1)), email)).toHaveLength(0);
     expect(emailsIn(proposeFollowUpsAt(workingDaysAfter(appliedAt, 2)), email)).toHaveLength(1);
     await page.goto(`/candidatures/${id}`);
+    await openPropositions(page, id);
     await followUpCard(page, title).getByRole("button", { name: fr.followUps.markSent }).click();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("followed_up");
+    await expect(statusOf(page)).toHaveValue("followed_up");
     const sentAt = new Date();
 
     expect(emailsIn(proposeFollowUpsAt(workingDaysAfter(sentAt, 2)), email)).toHaveLength(0);

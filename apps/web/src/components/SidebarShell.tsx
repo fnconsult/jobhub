@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
-import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
 import { buttonClass } from "@/design/Button";
@@ -42,6 +41,17 @@ const CRAMPED_REM = 44;
  */
 export type CloseDrawerThen = (action: () => void) => void;
 
+/** Inside the drawer, its closeDrawerThen; null in the docked sidebar and the page. */
+const InDrawer = createContext<CloseDrawerThen | null>(null);
+
+/**
+ * What opens beside the page from inside the Sidebar's drawer (a HelpTerm of the Usage Meter, #608) waits for the drawer to
+ * close, the page behind being inert until then: closeDrawerThen there, null anywhere else.
+ */
+export function useCloseDrawerThen(): CloseDrawerThen | null {
+  return useContext(InDrawer);
+}
+
 /** Hides or shows the sidebar on wide screens. The state lives on <html data-sidebar>, which the CSS reads (see design/sidebar-state). */
 function setHidden(hidden: boolean) {
   document.documentElement.dataset.sidebar = hidden ? SIDEBAR_CLOSED : SIDEBAR_OPEN;
@@ -76,9 +86,10 @@ export function SidebarShell({
   foot,
   title,
   wide = false,
-  topBarEnd = <CoachPanelToggle />,
+  topBarEnd,
   topBarActivity = <AiActivityButton />,
   beside,
+  pageInert = false,
   children,
 }: {
   brand: { href: string; label: string };
@@ -88,12 +99,14 @@ export function SidebarShell({
   /** Above signing out, in the sidebar's foot (Mon compte); gets the drawer's close functions too. */
   foot?: (closeDrawer: () => void, closeDrawerThen: CloseDrawerThen) => ReactNode;
   wide?: boolean;
-  /** The Top Bar's last button: the Coach Panel's, or « Effacer » under « Conversation au centre » (#601). */
+  /** The Top Bar's last buttons: the Back Office Assistant's; « Effacer » on the Candidate's pages (#601). */
   topBarEnd?: ReactNode;
   /** AI Activity's button, before `topBarEnd`; none on an object's page, whose Fiche shows its Activity (#603). */
   topBarActivity?: ReactNode;
   /** The columns beside the page, never over it: the Work Pane under « Conversation au centre » (#602), and an object's Fiche (#603). */
   beside?: ReactNode;
+  /** A column open over the page, full screen on a phone (#608): the Top Bar and the page are out of reach behind it. */
+  pageInert?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -281,7 +294,7 @@ export function SidebarShell({
             }}
           >
             <DrawerTitle className="visually-hidden">{t("sidebar.menu")}</DrawerTitle>
-            {content(true)}
+            <InDrawer.Provider value={closeDrawerThen}>{content(true)}</InDrawer.Provider>
           </Drawer>
           {/*
             While the drawer is open the page behind is inert and hidden. Radix's
@@ -290,7 +303,7 @@ export function SidebarShell({
             notifications): without this, <main> stayed in reach behind the drawer.
           */}
           <div className="workspace" inert={drawerOpen} aria-hidden={drawerOpen || undefined}>
-            <header ref={topbar} className="topbar">
+            <header ref={topbar} className="topbar" inert={pageInert || undefined}>
               <button ref={menuButton} className={`${buttonClass()} menu-toggle`} type="button" aria-expanded={drawerOpen} onClick={showMenu}>
                 <Icons.menu />
                 {t("sidebar.menu")}
@@ -326,7 +339,7 @@ export function SidebarShell({
               {topBarActivity}
               {topBarEnd}
             </header>
-            <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"}>
+            <main id={MAIN_ID} tabIndex={-1} className={wide ? "page page-wide" : "page"} inert={pageInert || undefined}>
               {children}
             </main>
             {beside}

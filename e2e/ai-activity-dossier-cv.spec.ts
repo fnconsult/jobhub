@@ -5,6 +5,7 @@ import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { activityOf, activityUnderWayOf, closeActivity, openActivity } from "./support/conversation";
 
 // Issue #335: a Company Dossier and the reading of an uploaded CV keep their Provenance, show their steps live (on their
 // page beside « Arrêter », and in AI Activity) and can be stopped. A new dossier lists its Provenance sites in AI Activity,
@@ -19,8 +20,8 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 const origin = process.env.E2E_WEB_ORIGIN!;
 const REGISTER_PAGE = "https://annuaire-entreprises.data.gouv.fr/entreprise/552100554";
 
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
+/** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
+const paneOf = (page: Page) => activityOf(page);
 const elementOf = (page: Page, kind: string) => paneOf(page).locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds[kind] });
 const dossierOf = (page: Page) => page.getByRole("region", { name: fr.companyDossier.title });
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -90,6 +91,9 @@ async function expectNoAxeViolations(page: Page, selector: string) {
 }
 
 test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", () => {
+  // Wide enough for the Fiche, where AI Activity shows, beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   // #398 dropped Perplexity's Agent API: Search providers return pages, never the Company News JSON an LLM wrote,
   // so the dossier has no news site to list. Company News from the pages themselves has no issue yet (ADR-0043).
   test.fixme("a new dossier lists its sites with filtered links; one built before shows « non enregistré » with the sites its source names", async ({ page }) => {
@@ -100,7 +104,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
     await expect(dossier.getByText(fr.companyDossier.reliability.less_reliable)).toBeVisible();
 
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const built = elementOf(page, "company_dossier");
     await expect(built).toBeVisible();
     await expect(built).not.toContainText(fr.aiActivity.modelNotRecorded);
@@ -112,7 +116,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(paneOf(page)).not.toContainText("linkedin");
     await expect(paneOf(page)).not.toContainText("javascript");
     await expect(paneOf(page)).not.toContainText("news.example/depart");
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await expectNoAxeViolations(page, ".fiche-activity");
 
     // A dossier built before its Provenance was kept: « modèle non enregistré », the register's page as its site.
     const old = await newApplication(page, "Acme Industrie");
@@ -131,7 +135,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
       },
     ]);
     await openDossier(page, old);
-    await aiActivityButton(page).click();
+    await openActivity(page);
     await expect(elementOf(page, "company_dossier")).toContainText(fr.aiActivity.modelNotRecorded);
     const oldSources = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.sources }) });
     await oldSources.getByRole("button", { name: "annuaire-entreprises.data.gouv.fr" }).click();
@@ -146,15 +150,15 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
 
     await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
 
-    // The step under way, beside « Arrêter », on the page and on the closed AI Activity button.
+    // The step under way, beside « Arrêter », on the page; « Activité »'s glyph live in the Top Bar (#603).
     await expect(dossier.locator(".streamed-action-step")).toContainText(fr.aiActivity.steps.web_search);
-    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.web_search));
+    await expect(activityUnderWayOf(page)).toHaveCount(1);
     // The pane: the facts' web search ended (« 1 requête »), the news' under way.
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const live = paneOf(page).locator(".ai-activity-live");
     await expect(live).toContainText(fr.aiActivity.kinds.company_dossier);
     await expect(live.getByRole("list", { name: fr.aiActivity.live.steps })).toContainText("1 requête");
-    await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
+    await closeActivity(page);
 
     await dossier.getByRole("button", { name: fr.aiActivity.live.stop.company_dossier, exact: true }).click();
 
@@ -168,13 +172,13 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect.poll(async () => (await query(`SELECT 1 FROM ai_usage WHERE task = 'web_search' AND at >= $1 AND reason = 'stopped'`, [startedAt])).length).toBeGreaterThan(0);
 
     // AI Activity: the action stopped, in light red, in words; the dossier, with the sites of its finished parts.
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const stopped = paneOf(page).locator(".ai-activity-live");
     await expect(stopped).toContainText(/Arrêtée à \d{2}:\d{2}/);
     expect(await stopped.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(stopped));
     await expect(elementOf(page, "company_dossier")).not.toContainText(fr.aiActivity.modelNotRecorded);
     await expect(paneOf(page).getByRole("button", { name: "globex-robotics.example" })).toBeVisible();
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await expectNoAxeViolations(page, ".fiche-activity");
   });
 
   test("a dossier whose provider fails shows its Failure Reason in AI Activity, in light red; a network cut, that it could not finish (#367)", async ({ page }) => {
@@ -185,7 +189,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
     await expect(dossier.getByRole("alert")).toHaveText(fr.companyDossier.unavailable);
 
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const failed = paneOf(page).locator(".ai-activity-live");
     await expect(failed).toContainText(fr.aiActivity.kinds.company_dossier);
     await expect(failed).toContainText(/Échec à \d{2}:\d{2}/);
@@ -194,37 +198,40 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     // Never the provider's words nor its status.
     await expect(failed).not.toContainText("upstream");
     await expect(failed).not.toContainText("503");
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
-    await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
+    await expectNoAxeViolations(page, ".fiche-activity");
+    await closeActivity(page);
 
     // The network cut: no reason to give, « Elle n'a pas pu aboutir. ».
     await page.route("**/company-dossier", (route) => route.abort("internetdisconnected"));
     await dossier.getByRole("button", { name: fr.companyDossier.build }).click();
     await expect(dossier.getByRole("alert")).toBeVisible();
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const cut = paneOf(page).locator(".ai-activity-live");
     await expect(cut).toHaveCount(1);
     await expect(cut.locator(".ai-activity-live-reason")).toHaveText(fr.aiActivity.live.unknownReason);
   });
 
-  test("stopped mid-reading from the closed AI Activity button, an uploaded CV makes no Master CV Version", async ({ page }) => {
+  test("stopped mid-reading from AI Activity, an uploaded CV makes no Master CV Version", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ai-activity-cv-stop"));
     await page.goto("/profils/nouveau");
     await page.waitForLoadState("networkidle");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])) });
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
-    // The reading, live: on the file's row beside its Stop (#468), and on the closed button with its stop icon.
+    // The reading, live: on the file's row beside its Stop (#468); « Activité »'s glyph live, and in its column the reading's
+    // step with its stop icon (#603, #607).
     await expect(page.locator(".ds-upload__step")).toContainText(fr.aiActivity.steps.read);
-    await expect(aiActivityButton(page)).toHaveAccessibleName(new RegExp(fr.aiActivity.steps.read));
-    await page.getByRole("banner").getByRole("button", { name: fr.aiActivity.live.stop.cv_reading, exact: true }).click();
+    await expect(activityUnderWayOf(page)).toHaveCount(1);
+    await openActivity(page);
+    await expect(paneOf(page).locator(".ai-activity-live")).toContainText(fr.aiActivity.steps.read);
+    await paneOf(page).getByRole("button", { name: fr.aiActivity.live.stop.cv_reading, exact: true }).click();
 
     await expect(page.getByText(/^Lecture arrêtée à \d{2}:\d{2} : rien n'a été lu ni enregistré\.$/)).toBeVisible();
     await expect(page.getByRole("heading", { name: fr.cvReview.title })).toHaveCount(0);
     await expect(page.getByRole("button", { name: fr.cvUpload.submit })).toBeEnabled();
     const profiles = await page.request.get("/api/profiles");
     expect(await profiles.json()).toEqual([]);
-    await aiActivityButton(page).click();
+    await openActivity(page);
     await expect(paneOf(page).locator(".ai-activity-live")).toContainText(fr.aiActivity.kinds.cv_reading);
     await expect(paneOf(page).locator(".ai-activity-live")).toContainText(/Arrêtée à \d{2}:\d{2}/);
   });
@@ -239,7 +246,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await page.getByRole("button", { name: fr.cvReview.save }).click();
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}/);
 
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const read = elementOf(page, "master_cv");
     await expect(read).toBeVisible();
     await expect(read).not.toContainText(fr.aiActivity.modelNotRecorded);

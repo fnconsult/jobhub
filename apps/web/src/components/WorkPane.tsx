@@ -11,7 +11,7 @@ import { OpenInHelpCentre } from "@/components/CoachHelp";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
-import { SignalementPaneForm, signalementTitle } from "@/components/Signalement";
+import { SignalementPane, SignalementPaneForm, SignalementPaneTitle } from "@/components/Signalement";
 import { WorkPaneContext, askCoachAddress, type AddressedKind, type WorkPaneItem } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 
@@ -46,15 +46,20 @@ export function WorkPaneProvider({ version, children }: { version: string; child
   // Pane its place on a narrower screen, Fiche.tsx). Only when the pane had it: closed from elsewhere (« Fiche » in the
   // Top Bar, bringing the Fiche back), the focus stays where it is.
   const focusBack = useRef(false);
-  const close = useCallback(() => {
+  // Where the focus goes instead of the opener, when the item asked (close's `focusTo`).
+  const focusTo = useRef<(() => HTMLElement | null) | null>(null);
+  const close = useCallback((to?: () => HTMLElement | null) => {
     const active = document.activeElement;
     focusBack.current = !(active instanceof HTMLElement) || active === document.body || active.closest(`.${PANE_CLASS}`) !== null;
+    focusTo.current = typeof to === "function" ? to : null;
     setShown(null);
   }, []);
   useLayoutEffect(() => {
     if (shown || !focusBack.current) return;
     focusBack.current = false;
-    const back = opener.current?.isConnected ? opener.current : document.getElementById(MAIN_ID);
+    const asked = focusTo.current?.() ?? null;
+    focusTo.current = null;
+    const back = asked ?? (opener.current?.isConnected ? opener.current : document.getElementById(MAIN_ID));
     opener.current = null;
     back?.focus();
   }, [shown]);
@@ -95,14 +100,14 @@ export function WorkPane() {
     close();
   }
 
-  return (
+  const pane = (
     <aside className={PANE_CLASS} aria-labelledby={titleId} onKeyDown={onKeyDown}>
       <div className="work-pane-head">
         <h2 id={titleId} ref={title} tabIndex={-1}>
           <ItemTitle item={shown.item} />
         </h2>
         {shown.item.kind === "help" ? <AskCoach article={shown.item.article} /> : null}
-        <button className={buttonClass({ variant: "quiet" })} type="button" onClick={close}>
+        <button className={buttonClass({ variant: "quiet" })} type="button" onClick={() => close()}>
           <Icons.close />
           {t("conversationFirst.close")}
         </button>
@@ -113,6 +118,14 @@ export function WorkPane() {
       </div>
     </aside>
   );
+  // A Signalement's title has its type's glyph, which follows the type its form shows (ADR-0009).
+  if (shown.item.kind === "signalement")
+    return (
+      <SignalementPane key={shown.opening} start={shown.item.start}>
+        {pane}
+      </SignalementPane>
+    );
+  return pane;
 }
 
 /** An item's title, in the pane's header. */
@@ -124,7 +137,7 @@ function ItemTitle({ item }: { item: WorkPaneItem }) {
     case "memory":
       return t("coachMemory.title");
     case "signalement":
-      return t(signalementTitle(item.start));
+      return <SignalementPaneTitle start={item.start} />;
     case "section":
     case "result":
     case "form":
@@ -145,7 +158,7 @@ function ItemBody({
 }: {
   item: WorkPaneItem;
   version: string;
-  close: () => void;
+  close: (focusTo?: () => HTMLElement | null) => void;
   heading: RefObject<HTMLHeadingElement | null>;
   setSlot: (slot: HTMLElement | null) => void;
 }) {

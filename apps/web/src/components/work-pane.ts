@@ -23,12 +23,13 @@ export type AddressedKind = "section" | "result" | "form";
 
 /**
  * The Work Pane of the Candidate's pages under « Conversation au centre »: `item`, what it shows (null: closed); `open`
- * shows `item` in its place, the focus on its title, and remembers what had the focus; `close` gives the focus back to it.
+ * shows `item` in its place, the focus on its title, and remembers what had the focus; `close` gives the focus back to it,
+ * or to what `focusTo` finds when the item's work changed the page (a Signalement sent from « Mes signalements »).
  */
 export interface WorkPaneControl {
   item: WorkPaneItem | null;
   open: (item: WorkPaneItem) => void;
-  close: () => void;
+  close: (focusTo?: () => HTMLElement | null) => void;
 }
 
 export const WorkPaneContext = createContext<WorkPaneControl | null>(null);

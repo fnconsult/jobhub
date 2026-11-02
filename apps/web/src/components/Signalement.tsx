@@ -262,14 +262,25 @@ function SignalementDialog({
 
 /**
  * A Signalement's form in the Work Pane (#602, ADR-0070), open on `start`: the pane's header gives its title (see
- * signalementTitle), its ✕ or « Annuler » closes it (`onClose`), keeping the draft. Sent from « Mes signalements », that
- * Section, beside it, lists the new one at once.
+ * SignalementPaneTitle), its ✕ or « Annuler » closes it (`onClose`), keeping the draft. Sent from « Mes signalements »,
+ * that Section, beside it, lists the new one at once, and closing the form gives the focus to its title, as the Drawer
+ * did: the empty state's button that opened it has given way to the list.
  */
-export function SignalementPaneForm({ version, start, onClose }: { version: string; start: SignalementStart; onClose: () => void }) {
+export function SignalementPaneForm({ version, start, onClose }: { version: string; start: SignalementStart; onClose: (focusTo?: () => HTMLElement | null) => void }) {
   const message = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
   const onMine = usePathname() === routes.accountSignalements;
-  const shared = { version, message, titled: false, onSent: () => onMine && router.refresh(), onClose };
+  const sent = useRef(false);
+  const shared = {
+    version,
+    message,
+    titled: false,
+    onSent: () => {
+      sent.current = true;
+      if (onMine) router.refresh();
+    },
+    onClose: () => onClose(sent.current && onMine ? () => document.getElementById(MY_SIGNALEMENTS_TITLE_ID) : undefined),
+  };
   return start.kind === "question" ? (
     <SignalementForm {...shared} question={start} />
   ) : (
@@ -280,6 +291,34 @@ export function SignalementPaneForm({ version, start, onClose }: { version: stri
 /** A Signalement's form's title: « Poser la question à l'équipe » for a Question, else the Signalement's own. */
 export function signalementTitle(start: SignalementStart): "signalement.question.title" | "signalement.title" {
   return start.kind === "question" ? "signalement.question.title" : "signalement.title";
+}
+
+/** In the Work Pane, the type the form shows, which its title's glyph follows; null elsewhere (the Drawer titles itself). */
+const PaneType = createContext<{ type: DraftType; setType: (type: DraftType) => void } | null>(null);
+
+/**
+ * Around a Signalement's form in the Work Pane and the pane's title (#602, #608): the type chosen, from `start` or the
+ * kept draft, which the form changes and the title's glyph follows. Mount it afresh on each opening, as the form is.
+ */
+export function SignalementPane({ start, children }: { start: SignalementStart; children: ReactNode }) {
+  const [type, setType] = useState<DraftType>(() => (start.kind === "type" ? start.type : keptDraft().type));
+  const value = useMemo(() => ({ type, setType }), [type]);
+  return <PaneType.Provider value={value}>{children}</PaneType.Provider>;
+}
+
+/**
+ * A Signalement's title in the Work Pane's header, as in the Drawer's (ADR-0009): its glyph, decorative, before the
+ * words: ⓘ for a Question, else the type's, morphing as the type changes (inside a SignalementPane).
+ */
+export function SignalementPaneTitle({ start }: { start: SignalementStart }) {
+  const { t } = useTranslation();
+  const type = useContext(PaneType)?.type ?? keptDraft().type;
+  return (
+    <span className="signalement-title">
+      <MorphingGlyph d={start.kind === "question" ? SIGNALEMENT_GLYPHS.info : signalementGlyph(type)} />
+      {t(signalementTitle(start))}
+    </span>
+  );
 }
 
 type Problem = "tooShort" | "tooMany" | "failed";
@@ -322,6 +361,8 @@ function SignalementForm({
   const closeButton = useRef<HTMLButtonElement>(null);
   const onMine = usePathname() === routes.accountSignalements;
   const length = text.trim().length;
+  // In the Work Pane, its title's glyph follows the type (SignalementPaneTitle).
+  const paneType = useContext(PaneType);
 
   useEffect(() => {
     if (sent) closeButton.current?.focus();
@@ -336,6 +377,7 @@ function SignalementForm({
   function changeType(next: DraftType) {
     keepDraft({ type: next, text });
     setType(next);
+    paneType?.setType(next);
   }
 
   function changeText(next: string) {
@@ -626,6 +668,8 @@ function MorphingGlyph({ d }: { d: string }) {
 function useMotionAllowed(): boolean {
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
+    // A browser without media queries says nothing: nothing moves.
+    if (typeof window.matchMedia !== "function") return;
     const query = window.matchMedia("(prefers-reduced-motion: no-preference)");
     const update = () => setAllowed(query.matches);
     update();

@@ -5,7 +5,8 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #343 (ADR-0035, « In pages, no chrome »): the first mention of a glossary term on a page is a button that opens
-// its Help Article in the Coach Panel, and each empty state links to its article. Driven in the browser, in French.
+// its Help Article in the Work Pane (#602, #608: the Coach Panel left the Candidate's pages), and each empty state links
+// to its article. A term in a Section reads there, in the Work Pane too. Driven in the browser, in French.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 const titleOf = (id: string) => /^title: (.+)$/m.exec(readFileSync(`packages/help/articles/fr/${id}.md`, "utf8"))![1]!;
@@ -14,9 +15,11 @@ const SUFFIX = fr.helpTerms.suffix;
 const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const termNamed = (term: string) => new RegExp(`^${escaped(`${term} ${SUFFIX}`)}$`, "i");
 
-const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
-const cardOf = (page: Page, title: string) => panelOf(page).getByRole("article", { name: title });
-const termButton = (page: Page, term: string) => page.locator("main").getByRole("button", { name: termNamed(term) });
+/** The Work Pane, where an article opens (#602), and a Section of an object's page is read (#603). */
+const panelOf = (page: Page) => page.locator("aside.work-pane");
+const cardOf = (page: Page, title: string) => page.getByRole("complementary", { name: title });
+/** A HelpTerm in the page or in the Section open in the Work Pane. */
+const termButton = (page: Page, term: string) => page.locator("main, aside.work-pane").getByRole("button", { name: termNamed(term) });
 
 const masterCv = {
   fullName: "Catherine Morel",
@@ -68,25 +71,25 @@ async function createApplication(page: Page, profileId: string, status = "to_app
   return { id, jobOfferId };
 }
 
-/** Clicks the HelpTerm `term` on the page shown, and expects the panel to show `article`'s card; then closes the panel. */
+/** Clicks the HelpTerm `term` on the page shown, and expects the Work Pane to show `article`; then closes it. */
 async function opensItsArticle(page: Page, term: string, article: string) {
-  await termButton(page, term).click();
+  await termButton(page, term).first().click();
   const card = cardOf(page, titleOf(article));
   await expect(card).toBeVisible();
   await expect(card).toContainText(fr.coachPanel.help.cardLabel);
-  await expect(card.getByRole("heading", { name: titleOf(article) })).toBeFocused();
-  await panelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
-  await expect(panelOf(page)).toHaveCount(0);
+  await expect(card.getByRole("heading", { level: 2, name: titleOf(article) })).toBeFocused();
+  await card.getByRole("button", { name: fr.conversationFirst.close }).click();
+  await expect(cardOf(page, titleOf(article))).toHaveCount(0);
 }
 
 for (const viewport of [
   { name: "docked", width: 1440, height: 900 },
   { name: "phone", width: 375, height: 812 },
 ]) {
-  test.describe(`glossary terms open their Help Article in the Coach Panel (${viewport.name}, #343)`, () => {
+  test.describe(`glossary terms open their Help Article in the Work Pane (${viewport.name}, #343)`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
-    test("each listed term opens its article in the panel", async ({ page }) => {
+    test("each listed term opens its article in the Work Pane", async ({ page }) => {
       await signInWithMagicLink(page, newAddress(`help-terms-${viewport.name}`));
       const profileId = await createProfile(page);
       const application = await createApplication(page, profileId);
@@ -118,7 +121,7 @@ for (const viewport of [
       await page.getByRole("button", { name: termNamed(fr.helpTerms.words.planQuota) }).click();
       await expect(cardOf(page, titleOf("glossary-plan-quota"))).toBeVisible();
       if (viewport.width < 768) {
-        // On a phone the panel takes the whole screen.
+        // On a phone the Work Pane takes the whole screen (#608).
         const box = (await panelOf(page).boundingBox())!;
         expect(box.width).toBe(viewport.width);
       }
@@ -179,7 +182,9 @@ test.describe("HelpTerms and empty states (#343)", () => {
     expect(outline.width).toBeGreaterThanOrEqual(2);
     await page.keyboard.press("Enter");
     await expect(cardOf(page, titleOf("glossary-ats-score"))).toBeVisible();
-    await panelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
+    await panelOf(page).getByRole("button", { name: fr.conversationFirst.close }).click();
+    // The article closed, the Section comes back at its address.
+    await page.goto(`/profils/${profileId}/ats-score`);
 
     const contrast = await button.evaluate((element) => {
       const parse = (value: string) => value.match(/[\d.]+/g)!.map(Number);
@@ -211,7 +216,7 @@ test.describe("HelpTerms and empty states (#343)", () => {
     expect(contrast.line).toBe("underline");
     expect(contrast.dotted).toBe("dotted");
 
-    const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const results = await new AxeBuilder({ page }).include("aside.work-pane").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
   });
 
@@ -219,33 +224,22 @@ test.describe("HelpTerms and empty states (#343)", () => {
     await signInWithMagicLink(page, newAddress("help-terms-empty"));
     const links = fr.emptyStateHelp;
     const opens = async (link: string, article: string) => {
-      await page.locator("main").getByRole("button", { name: link, exact: true }).click();
+      await page.locator("main, aside.work-pane").getByRole("button", { name: link, exact: true }).first().click();
       await expect(cardOf(page, titleOf(article))).toBeVisible();
-      await panelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
+      await cardOf(page, titleOf(article)).getByRole("button", { name: fr.conversationFirst.close }).click();
     };
 
-    // No Profile, no Application, no Interview.
+    // No Profile, no Interview: Mon compte, and the Agenda's card in its conversation (#606).
     await page.goto("/compte");
     await expect(page.getByText(fr.profiles.none)).toBeVisible();
     await opens(links.profiles, "page-new-profile");
-    await page.goto("/candidatures");
-    await expect(page.getByText(fr.applications.none)).toBeVisible();
-    await opens(links.applications, "page-applications");
     await page.goto("/agenda");
     await expect(page.getByText(fr.agenda.none)).toBeVisible();
     await opens(links.agenda, "page-agenda");
 
-    // No Job Search yet for a new Profile.
+    // No Propositions on an Application: its Section, in the Work Pane (#603).
     const profileId = await createProfile(page);
-    await page.goto(`/recherches?profil=${profileId}`);
-    await expect(page.getByText(fr.jobSearchesPage.never)).toBeVisible();
-    await opens(links.jobSearches, "glossary-job-search");
-
-    // An Application waiting for news, with no Relance to do yet, and no Propositions.
     const application = await createApplication(page, profileId, "applied");
-    await page.goto("/candidatures");
-    await expect(page.getByText(fr.followUps.noneWaiting)).toBeVisible();
-    await opens(links.followUps, "glossary-follow-up");
     await page.goto(`/candidatures/${application.id}/propositions`);
     await expect(page.getByText(fr.actionCards.none)).toBeVisible();
     await opens(links.proposals, "glossary-proposals");

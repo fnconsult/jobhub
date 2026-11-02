@@ -18,9 +18,13 @@ export type RenderedText = {
 
 /**
  * Where metadata text sits (see RenderedText.metadata): a Provenance line, what an action spent, a count beside a
- * Back Office section, a chart's axis and threshold labels (whose values the table under each chart also gives).
+ * Back Office section, a chart's axis and threshold labels (whose values the table under each chart also gives), the
+ * detail under a Fiche's link (a version's date, a Job Offer's Match Score), the Context bar's message and jeton
+ * counts (#603, #607), and AI Activity's tokens and times, its Total's in the text colour (#608: AI Activity is in the
+ * Fiche, measured with the page).
  */
-const METADATA = ".provenance-line, .live-action-spent, .chat-stopped-spent, .sidebar-count, .chart-axis, .chart-x, .chart-threshold-label";
+const METADATA =
+  ".provenance-line, .live-action-spent, .chat-stopped-spent, .sidebar-count, .chart-axis, .chart-x, .chart-threshold-label, .fiche-link-detail, .context-bar-figures, .ai-activity-measure";
 
 /** The smallest body and metadata text of each Density, in px (ADR-0009 and its amendments). */
 const FLOORS = { confort: { body: 16, meta: 13 }, compact: { body: 14, meta: 12.5 } } as const;

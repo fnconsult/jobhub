@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
+import { openFoundJobOffers } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe as subscribeToPlan } from "./support/plan";
 
@@ -120,11 +121,13 @@ async function runJobSearch(page: Page, profileId: string, status: "done" | "fai
   return { id, ...row! };
 }
 
-/** The Match Scores of the Job Offers a finished Job Search lists, as its page shows them. */
+/** The Match Scores of the Job Offers a finished Job Search lists, as its page shows them: its Job Offers, opened from its Fiche (#605). */
 async function shownScores(page: Page, jobSearchId: string): Promise<number[]> {
   await page.goto(`/recherches/${jobSearchId}`);
-  await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first()).toBeVisible({ timeout: 30_000 });
-  const texts = await page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).allTextContents();
+  await openFoundJobOffers(page);
+  const found = page.getByRole("list", { name: "Offres trouvées" });
+  await expect(found.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first()).toBeVisible({ timeout: 30_000 });
+  const texts = await found.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).allTextContents();
   return texts.map((text) => Number(/(\d+) \//.exec(text)![1]));
 }
 

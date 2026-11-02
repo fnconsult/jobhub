@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { ficheOf, profileSectionLink } from "./support/conversation";
 
 // Issue #8: the ATS Score of a Master CV, split into Lisibilité and Mots-clés
 // for the Profile's target role, and the ATS Fixes the AI Coach proposes as
@@ -44,14 +45,16 @@ const cards = (page: Page) => page.getByRole("region", { name: fr.actionCards.ti
 /** The Profile page's Master CV (#137), and its "Version N · enregistrée le …". */
 const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
 const versionShown = (page: Page, version: number) => masterCvOf(page).getByText(new RegExp(`^Version ${version} · `));
-/** Opens a Section of the Profile's page from the list beside it (ADR-0024). */
-const openSection = (page: Page, name: string) =>
-  page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel }).getByRole("link", { name, exact: true }).click();
+/** Opens a Section of the Profile's page from its Fiche (ADR-0024, #605), in the Work Pane. */
+const openSection = (page: Page, name: string) => profileSectionLink(page, name).click();
 const S = fr.profilePage.sections;
 /** The Profile's ATS Score Section proposes its fixes in its Propositions Section, where the Candidate is taken. */
 const atPropositions = (page: Page, id: string) => expect(page).toHaveURL(`${origin}/profils/${id}/propositions`);
 
 test.describe("ATS Score", () => {
+  // Wide enough for the Fiche beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("shows the score with its Lisibilité / Mots-clés breakdown and proposes the fixes as Action Cards", async ({ page }) => {
     const id = await openProfile(page, "ats-score");
     const section = atsSection(page);
@@ -86,10 +89,12 @@ test.describe("ATS Score", () => {
     await expect(proposals.getByRole("article").getByRole("heading")).toHaveText([KEYWORD_FIX, SENIOR_ADVICE]);
     await expect(proposals.getByRole("article", { name: KEYWORD_FIX })).toBeInViewport();
 
-    // The same cards after a reload, and on the Profile's page itself, whose first Section they now are.
+    // The same cards after a reload, and from the Profile's page itself, whose first Section they now are (its Fiche, #605).
     await page.reload();
     await expect(cards(page).getByRole("article").getByRole("heading")).toHaveText([KEYWORD_FIX, SENIOR_ADVICE]);
     await page.goto(`/profils/${id}`);
+    await expect(ficheOf(page).locator(".fiche-links").first().getByRole("link").first()).toHaveText(S.propositions);
+    await openSection(page, S.propositions);
     await expect(cards(page).getByRole("article").getByRole("heading")).toHaveText([KEYWORD_FIX, SENIOR_ADVICE]);
 
     // The score itself stays in its own Section.
@@ -135,10 +140,12 @@ test.describe("ATS Score", () => {
     await expect(section.getByLabel("ATS Score : 100 sur 100")).toBeVisible();
     await expect(section).toContainText("Calculé sur la version 2 de votre CV de référence.");
 
-    // The last card accepted, Propositions is gone: the Profile's page shows its Master CV.
+    // The last card accepted, Propositions is gone: back to the Profile's page, its conversation (#605).
     await openSection(page, S.propositions);
     await cards(page).getByRole("article", { name: SENIOR_ADVICE }).getByRole("button", { name: fr.actionCards.accept }).click();
     await expect(page).toHaveURL(`${origin}/profils/${id}`);
+    await expect(profileSectionLink(page, S.propositions)).toHaveCount(0);
+    await openSection(page, S["cv-de-reference"]);
     await expect(versionShown(page, 3)).toBeVisible();
     await expect(masterCvOf(page).getByLabel(fr.cvReview.headline)).toHaveValue("Directrice financière");
     await openSection(page, S["ats-score"]);
@@ -169,6 +176,8 @@ async function shownScore(page: Page): Promise<number> {
 }
 
 test.describe("ATS Fixes, one by one", () => {
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("rejecting a fix keeps the Master CV and the score; accepting another creates a version and raises the score", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("ats-one-by-one"));
     const created = await page.request.post("/api/profiles", {

@@ -6,16 +6,16 @@ import pg from "pg";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
 
-// Issue #601 (ADR-0070): behind the Platform Setting « Conversation au centre », off by default, the Candidate's home page
+// Issue #601 (ADR-0070), switched on for good by #608: the Candidate's home page
 // is a new Free conversation: the Introduction in its first message, the Quick actions as suggestions above the box at the
 // page's foot, replies in the thread. The Sidebar has « Nouvelle conversation » and « Coach » with the Free conversations;
-// the Top Bar « Effacer » (a confirming Dialog) in place of « Aide et coach ». The switch changes every Candidate's pages,
+// the Top Bar « Effacer » (a confirming Dialog) in place of « Aide et coach ». It once switched every Candidate's pages,
 // so this spec runs on a server of its own (own-server.ts). The AI Coach is faked inside it (fake-mistral.mjs), and so are
 // the reference data's sources its context reads (fake-reference-data.mjs): nothing reaches the real ones.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const texts = fr.conversationFirst;
-const settings = fr.admin.platformSettings;
 const SUPER_ADMIN = "conversation-office@e2e.jobbbox.test";
+/** The Platform Setting that switched it on until #608. */
 const SETTING = "CONVERSATION_FIRST";
 /** Inside the suite's own range of derived ports (e2e/support/ports.ts), apart from the other specs' servers. */
 const PORT_OFFSET = 601;
@@ -90,42 +90,26 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await server?.stop();
   });
 
-  test("switched off by default: the home page and the Top Bar are as before", async ({ browser }) => {
-    const page = await signedIn(browser, newAddress("conversation-off"));
-    await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.home.title);
-    await expect(page.getByRole("navigation", { name: fr.quickActions.label })).toBeVisible();
-    await expect(topBar(page).getByRole("button", { name: fr.coachPanel.open })).toBeVisible();
-    await expect(conversation(page)).toHaveCount(0);
-    await expect(sidebar(page).getByRole("link", { name: texts.newConversation })).toHaveCount(0);
-    expect((await page.goto("/conversations/00000000-0000-4000-8000-000000000000"))?.status()).toBe(404);
-  });
-
-  test("a super-admin switches it on in Paramètres' Environnement tab, and the Journal records it", async ({ browser }) => {
+  test("always on (#608): no switch left in Paramètres, and the Coach Panel is the Back Office Assistant's alone", async ({ browser }) => {
     const admin = await signedIn(browser, SUPER_ADMIN);
     await admin.goto("/admin/parametres?tab=environnement");
-    const row = admin.locator(`tr[data-setting="${SETTING}"]`);
-    await expect(row).toContainText(settings.labels[SETTING]);
-    await expect(row.getByRole("cell").nth(0)).toHaveText("false");
-    await row.getByRole("combobox", { name: tr(settings.newValue, { name: SETTING }) }).selectOption("true");
-    await row.getByRole("button", { name: settings.save }).click();
-    await expect(admin.getByRole("status").filter({ hasText: SETTING })).toHaveText(tr(settings.notices.saved, { name: SETTING }));
-    await expect(row.getByRole("cell").nth(0)).toHaveText("true");
+    await expect(admin.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(admin.locator(`tr[data-setting="${SETTING}"]`)).toHaveCount(0);
+    await admin.goto("/admin");
+    await expect(topBar(admin).getByRole("button", { name: fr.backOfficeAssistant.open })).toBeVisible();
 
-    await admin.goto("/admin/journal?section=platform_settings");
-    const saved = admin.getByRole("row").filter({ hasText: SETTING }).filter({ hasText: SUPER_ADMIN }).filter({ hasText: fr.admin.journal.actions.updated });
-    await expect(saved).toHaveCount(1);
-    await expect(saved).toContainText(tr(fr.admin.journal.changed, { field: settings.journalFields.value, before: "false", after: "true" }));
+    const page = await signedIn(browser, newAddress("conversation-always"));
+    await page.goto("/");
+    await expect(conversation(page)).toBeVisible();
+    await expect(topBar(page).getByRole("button", { name: fr.coachPanel.open })).toHaveCount(0);
+    await expect(page.locator(".coach-panel, .coach-panel-toggle")).toHaveCount(0);
   });
 
   test("sign in → the home page is a new conversation → send → the reply → « Effacer »", async ({ browser }) => {
     const email = newAddress("conversation-home");
     const page = await signedIn(browser, email);
-    // A change takes effect within seconds, without a restart.
-    await expect(async () => {
-      await page.goto("/");
-      await expect(conversation(page)).toBeVisible({ timeout: 1000 });
-    }).toPass({ timeout: 20_000 });
+    await page.goto("/");
+    await expect(conversation(page)).toBeVisible();
 
     // The home page: « Nouvelle conversation », its Introduction, the note, the Quick actions above the box.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(texts.newConversation);

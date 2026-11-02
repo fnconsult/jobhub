@@ -598,8 +598,9 @@ export function CoachConversationPage(page: PagePlacement) {
                 {/* No visible author (#317, #327): screen readers still hear who speaks. */}
                 <span className="visually-hidden">{t("questionnaire.coach")}</span>
                 {welcome ? (
-                  <button className="welcome-panel-close" type="button" aria-label={t("conversationFirst.closeWelcome")} title={t("conversationFirst.closeWelcome")} onClick={closeWelcome}>
+                  <button className="welcome-panel-close" type="button" onClick={closeWelcome}>
                     <Icons.close />
+                    {t("conversationFirst.closeWelcome")}
                   </button>
                 ) : null}
                 <p>{t(opening)}</p>

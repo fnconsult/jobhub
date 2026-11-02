@@ -101,6 +101,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "coach_memory_item", // issue #125: the Candidate's Coach Memory
         "coach_message", // issue #124: their messages
         "coach_review", // issue #24: Coach Reviews of Tailored Documents
+        "coach_welcome_closed", // the conversations' welcome panel the Candidate closed for good
         "coaching_playbook", // issue #225: the Coaching Playbooks, the Core Digest and the Sources list
         "coaching_session", // issue #24: Coaching Sessions paid through Stripe
         "coaching_session_reschedule", // issue #250: a Coaching Session's Reschedule history
@@ -232,6 +233,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "coach_review", from_column: "application_id", to_table: "application" },
         { from_table: "coach_review", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coach_review", from_column: "coach_id", to_table: "human_coach" },
+        { from_table: "coach_welcome_closed", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coaching_session", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "coaching_session", from_column: "coach_id", to_table: "human_coach" },
         // Reschedule histories (issue #250) go with their Interview or Coaching Session.

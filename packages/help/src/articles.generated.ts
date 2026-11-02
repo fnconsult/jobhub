@@ -119,6 +119,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "télécharger l'extension"
       ],
       "route": "/compte/outils",
+      "motion": null,
       "body": "L'extension Chrome Jobbbox enregistre dans Jobbbox l'offre d'emploi que vous lisez sur un site d'offres, et calcule son score de correspondance, sans copier-coller. Elle s'installe dans le navigateur Google Chrome, sur ordinateur.\n\nPour l'installer, connecté : dans Mon compte, rubrique Outils, cliquez sur « Installer l'extension depuis le Chrome Web Store », puis ajoutez-la à Chrome depuis la page qui s'ouvre. Sans compte, « Extension », en bas des pages publiques, mène à la même page. Tant qu'elle n'est pas publiée, Outils affiche « L'extension arrive bientôt sur le Chrome Web Store. »\n\nUne fois installée, épinglez-la dans la barre de Chrome pour la retrouver. Sur la page d'une offre, elle ajoute le bouton « Analyser cette offre » ; vous pouvez aussi l'ouvrir et cliquer sur « Capturer cette page ».\n\nSans compte, l'extension calcule le Match Score d'une offre avec votre CV, puis efface tout au plus tard 24 heures après. Pour garder l'offre dans vos candidatures, connectez-vous : « Se connecter », dans l'extension. La suite est expliquée pas à pas dans le tutoriel « Enregistrer une offre avec l'extension »."
     },
     {
@@ -178,6 +179,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/offres/[id]",
       "motion": null,
       "body": "Elle montre l'offre d'emploi : l'employeur, le lieu, le type de contrat, le télétravail et le salaire quand ils sont indiqués, les compétences demandées et le texte de l'offre.\n\nLe score de correspondance dit à quel point le CV de référence d'un de vos profils correspond à l'offre. Choisissez le profil à utiliser, puis « Enregistrer l'offre » : elle devient une candidature que vous suivez dans « Mes candidatures »."
+    },
+    {
+      "id": "page-side-panel",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Le panneau de l'extension",
+      "synonyms": [
+        "side panel",
+        "panneau latéral",
+        "panneau",
+        "extension",
+        "fenêtre de l'extension",
+        "invité",
+        "sans compte",
+        "analyse de l'offre",
+        "ouvrir l'extension",
+        "barre latérale"
+      ],
+      "route": "/sidepanel.html",
+      "motion": null,
+      "body": "L'extension Jobbbox s'ouvre dans un panneau sur le côté droit de votre navigateur, à côté de l'offre d'emploi que vous lisez. Pour l'ouvrir, cliquez sur l'icône Jobbbox dans la barre du navigateur, ou sur le bouton « Analyser cette offre » qu'elle ajoute aux pages d'offres. Une fois ouvert, le panneau reste affiché quand vous changez d'onglet et suit l'offre que vous avez sous les yeux.\n\nEn haut, « Analyse de l'offre » est le titre du panneau. Sans compte, la mention « Invité » s'affiche à côté : vous utilisez l'extension en invité, et rien n'est gardé dans un compte.\n\nQuand la page ouverte est une offre, le panneau affiche « Offre détectée sur cette page. » avec son intitulé. Sinon, « Capturer cette page » lit la page telle qu'elle s'affiche. Tant qu'aucune offre n'est capturée, le panneau vous l'explique : « Aucune offre capturée. »\n\nUne fois l'offre capturée, le panneau montre son intitulé, l'employeur et le lieu. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier », puis sur « Calculer mon Match Score » : le score sur 100 s'affiche, avec le « Détail du Match Score », critère par critère. Votre CV et l'offre restent dans ce navigateur, le temps de votre session d'invité ; la date à laquelle ils seront effacés est écrite dans le panneau.\n\nEn bas du panneau, « Créer mon compte et garder cette offre » ouvre Jobbbox dans un nouvel onglet ; « Effacer mes données maintenant » efface tout de suite votre CV et l'offre de ce navigateur. Si vous avez déjà un compte, cliquez sur « J'ai déjà un compte · Se connecter ».\n\nTout en bas, la case « Détecter les offres sur tous les sites » ajoute le bouton « Analyser cette offre » aux sites carrières des employeurs."
     },
     {
       "id": "page-job-search",
@@ -323,6 +347,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "découvrir"
       ],
       "route": "/connexion",
+      "motion": null,
       "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer."
     },
     {
@@ -781,6 +806,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "malvoyant"
       ],
       "route": null,
+      "motion": null,
       "body": "En haut de chaque page publique, la liste « Taille du texte » propose Petit, Standard, Moyen et Grand. Le texte de toute la page change aussitôt.\n\nVotre choix est gardé sur cet appareil, connecté ou non : une fois connecté, vous le retrouvez dans Mon compte, rubrique Préférences. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau.\n\nLe zoom de votre navigateur agrandit aussi la page : Ctrl et + sur ordinateur (Cmd et + sur Mac)."
     },
     {
@@ -805,6 +831,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "identifiant"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox n'a pas de mot de passe. Sur la page « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Vous recevez l'e-mail « Votre lien de connexion à Jobbbox » : son bouton « Me connecter à Jobbbox » vous connecte. Si vous n'avez pas encore de compte, il est créé à ce moment-là.\n\nLe lien est valable 15 minutes et ne fonctionne qu'une seule fois. Un lien expiré ou déjà utilisé affiche « Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous. »\n\nSelon les moyens proposés sur la page, « Continuer avec … » vous connecte aussi avec un autre compte que vous avez déjà, sans attendre d'e-mail.\n\nL'e-mail n'arrive pas ?\n- Attendez quelques minutes : il peut mettre un peu de temps.\n- Regardez dans vos courriers indésirables (spam) ou vos promotions.\n- Vérifiez l'adresse saisie, puis demandez un nouveau lien.\n\nToujours rien ? Voyez « Comment nous contacter ? »."
     },
     {
@@ -826,6 +853,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "alerte"
       ],
       "route": null,
+      "motion": null,
       "body": "Dans un Job Digest reçu par e-mail, cliquez sur « Ne plus recevoir le Job Digest de ce profil ». La page « Se désabonner du Job Digest » s'ouvre, sans vous connecter : cliquez sur « Me désabonner ». Elle confirme « C'est fait : vous ne recevrez plus ce Job Digest. »\n\nSeul le Job Digest de ce profil s'arrête ; ceux de vos autres profils continuent. Vous pouvez le réactiver à tout moment depuis la page du profil.\n\nSi la page affiche « Ce lien de désabonnement n'est plus valable », vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
     },
     {
@@ -850,6 +878,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "parler à quelqu'un"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox n'a pas de boîte de support : selon que vous avez un compte ou non, vous joignez l'équipe Jobbbox autrement.\n\nAvec un compte, connectez-vous et posez votre question dans « Aide et coach » : les articles de l'aide s'affichent d'abord, puis votre coach IA répond. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question, avec la réponse du coach, à l'équipe Jobbbox. Vous suivez sa réponse dans Mon compte, rubrique Mes signalements. Pour un problème ou une idée : « Signaler un problème » ou « Proposer une idée ».\n\nSans compte, écrivez à {{contact-email}}, l'adresse des mentions légales."
     },
     {
@@ -1045,7 +1074,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "supprimer mes données"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox se sert de ce que vous lui confiez, votre CV, vos critères et vos candidatures, pour vous aider dans votre recherche d'emploi. Votre coach et plusieurs tâches, comme lire votre CV ou calculer un score de correspondance, font appel à l'IA ; votre coach dit toujours qu'il est une IA. L'aide, elle, n'utilise aucune IA.\n\nAvec votre accord, dans Mon compte, rubrique IA européenne, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. Vous pouvez retirer cet accord à tout moment.\n\nDans Mon compte, rubrique Mes données, vous téléchargez toutes vos données ou supprimez votre compte.\n\nLe détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
+    },
+    {
+      "id": "faq-rescore-why-match-score",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "extension",
+      "title": "Que font « Recalculer le Match Score » et « Pourquoi … ? » ?",
+      "synonyms": [
+        "recalculer",
+        "recalcul",
+        "nouveau calcul",
+        "pourquoi ce score",
+        "pourquoi",
+        "détail du score",
+        "détail du match score",
+        "score de correspondance",
+        "match score",
+        "score qui ne change pas",
+        "forfait"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Le Match Score compare une offre à votre CV et à vos critères de recherche, sur cinq critères : « Compétences », « Expérience », « Lieu », « Salaire » et « Type de contrat ». Il est noté sur 100.\n\n« Pourquoi … ? », à côté du score d'une offre dans Jobbbox, ouvre le détail : une ligne par critère, avec ce qui correspond et ce qui ne correspond pas. Dans le panneau de l'extension, ce détail s'affiche sous le score, dans « Détail du Match Score ». Un critère dont l'offre ne dit rien ne compte pas : le score est alors partiel, ou « non calculable » si aucun critère n'a pu être comparé.\n\n« Recalculer le Match Score », dans le panneau de l'extension, calcule de nouveau le score de l'offre. Connecté, un nouveau calcul utilise un Match Score de votre forfait de la semaine : l'extension vous le demande d'abord, et vous validez avec « Confirmer le recalcul ». Le résultat ne change que si l'offre ou votre profil a changé ; le panneau vous dit s'il est inchangé, ou quel était le score d'avant.\n\nRecalculez par exemple après avoir mis à jour votre CV de référence, ou quand le panneau vous l'indique parce que le texte de l'offre n'a pas pu être lu."
     },
     {
       "id": "faq-plans-and-quotas",
@@ -1071,7 +1125,82 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "combien ça coûte"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota.\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
+    },
+    {
+      "id": "faq-guest-session",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Sans compte, combien de temps sont gardés mon CV et l'offre ?",
+      "synonyms": [
+        "invité",
+        "sans compte",
+        "session",
+        "23 heures",
+        "24 heures",
+        "effacer",
+        "supprimer mes données",
+        "durée de conservation",
+        "combien de temps",
+        "mon cv est-il gardé",
+        "données personnelles",
+        "guest session"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Sans compte, vous utilisez l'extension en invité. Votre CV et l'offre capturée restent dans votre navigateur, jamais dans un compte Jobbbox. Jobbbox lit votre CV pour calculer le Match Score, sans l'enregistrer.\n\nTout est effacé 23 heures après votre première analyse, même si vous continuez d'utiliser l'extension. Le panneau affiche la date exacte : « Vos données seront effacées au plus tard le … ». Passé ce délai, l'offre n'est plus disponible : capturez-la de nouveau pour l'analyser.\n\nPour tout effacer avant, cliquez sur « Effacer mes données maintenant », dans le panneau de l'extension. Votre CV et l'offre sont aussitôt effacés de ce navigateur.\n\nPour garder votre travail, créez votre compte avant ce délai : votre CV devient votre premier profil et l'offre votre première candidature. Le tutoriel « Créer son compte depuis l'extension et garder son travail » explique comment."
+    },
+    {
+      "id": "faq-extension-badge-sites",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Sur quels sites apparaît « Analyser cette offre » ?",
+      "synonyms": [
+        "badge",
+        "bouton",
+        "analyser cette offre",
+        "sites reconnus",
+        "sites d'offres",
+        "linkedin",
+        "indeed",
+        "welcome to the jungle",
+        "apec",
+        "france travail",
+        "hellowork",
+        "le bouton n'apparaît pas",
+        "site carrière"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "L'extension ajoute le bouton « Analyser cette offre » sur la page d'une offre d'emploi, quand elle la reconnaît. Elle reconnaît les principaux sites d'offres, dont LinkedIn, Indeed, Welcome to the Jungle, l'Apec, France Travail, HelloWork, Cadremploi et Glassdoor, et les pages d'offres de nombreux outils de recrutement des employeurs (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). L'équipe Jobbbox tient cette liste à jour sans que vous ayez à mettre l'extension à jour.\n\nLe bouton n'apparaît que sur la page d'une offre, pas sur une liste de résultats : ouvrez l'offre elle-même.\n\nSur le site carrière d'un employeur, cochez « Détecter les offres sur tous les sites », en bas du panneau de l'extension. Votre navigateur vous demande l'autorisation ; les pages restent lues dans ce navigateur uniquement.\n\nSi le bouton n'apparaît toujours pas, ouvrez le panneau de l'extension depuis la barre du navigateur, puis cliquez sur « Capturer cette page » : la capture fonctionne sur n'importe quelle page. Si la page ne peut pas être lue, le panneau l'indique : « Cette page ne peut pas être capturée. » Ouvrez alors la page de l'offre elle-même et réessayez."
+    },
+    {
+      "id": "tutorial-extension-analyse-job-offer",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Analyser une offre avec l'extension, sans compte",
+      "synonyms": [
+        "analyser une offre",
+        "match score",
+        "score de correspondance",
+        "sans compte",
+        "invité",
+        "essayer",
+        "extension",
+        "capturer",
+        "mon cv correspond-il",
+        "tester l'extension"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Sans compte, l'extension Jobbbox compare votre CV à une offre d'emploi et calcule son Match Score.\n\n1. Ouvrez la page d'une offre d'emploi, puis cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur et cliquez sur « Capturer cette page ».\n2. Le panneau de l'extension s'ouvre à droite et montre l'offre capturée.\n3. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier » pour le choisir.\n4. Cliquez sur « Calculer mon Match Score », en bas du panneau.\n5. Le score s'affiche sur 100, avec le « Détail du Match Score » : pour chaque critère, ce qui correspond et ce qui ne correspond pas.\n6. Pour comparer un autre CV, cliquez sur « Utiliser un autre CV ». Pour tout effacer, cliquez sur « Effacer mes données maintenant »."
     },
     {
       "id": "tutorial-getting-started",
@@ -1093,7 +1222,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "débuter"
       ],
       "route": null,
+      "motion": null,
       "body": "Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\n1. Cliquez sur « Se connecter », en haut de chaque page publique. Sur « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ».\n2. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuite.\n3. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n4. Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ».\n5. Si vous avez un CV, choisissez « J'ai un CV », déposez-le (PDF ou Word .docx, 10 Mo maximum) puis cliquez sur « Lire mon CV ». Sinon, choisissez « Je n'ai pas de CV à jour », puis « Répondre aux questions de mon coach » : une question à la fois, une dizaine de minutes.\n6. Vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu », corrigez ce qui doit l'être, puis cliquez sur « Enregistrer mon profil ».\n\nVotre premier profil est prêt : votre coach peut chercher des offres pour vous."
+    },
+    {
+      "id": "tutorial-extension-create-account",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Créer son compte depuis l'extension et garder son travail",
+      "synonyms": [
+        "créer un compte",
+        "inscription",
+        "s'inscrire",
+        "garder mon offre",
+        "garder mon cv",
+        "invité",
+        "sans compte",
+        "se connecter",
+        "premier profil",
+        "première candidature",
+        "ne pas perdre"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Sans compte, votre CV et l'offre sont effacés au bout de 23 heures. En créant votre compte, vous les gardez : votre CV devient votre premier profil, et l'offre votre première candidature.\n\n1. Dans le panneau de l'extension, une fois votre Match Score calculé, cliquez sur « Créer mon compte et garder cette offre ». Jobbbox s'ouvre dans un nouvel onglet.\n2. Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de connexion ».\n3. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes : votre compte est créé, sans mot de passe.\n4. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n5. Revenez à l'onglet de l'offre : le panneau de l'extension se met à jour tout seul. Votre CV est devenu votre profil, et l'offre est enregistrée dans vos candidatures, au statut « À postuler ».\n6. Cliquez sur « Voir ma candidature » pour l'ouvrir dans Jobbbox.\n\nSi vous avez déjà un compte, cliquez plutôt sur « J'ai déjà un compte · Se connecter » : le tutoriel « Enregistrer une offre avec l'extension » explique la suite."
     },
     {
       "id": "tutorial-extension-save-job-offer",
@@ -1109,11 +1263,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "capturer",
         "enregistrer une offre",
         "ajouter une offre",
-        "nouvelle candidature"
+        "nouvelle candidature",
+        "choisir un profil",
+        "profil utilisé",
+        "changer de profil",
+        "connecté"
       ],
       "route": null,
       "motion": null,
-      "body": "L'extension Jobbbox enregistre dans vos candidatures l'offre d'emploi que vous lisez, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi.\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur et cliquez sur « Capturer cette page ».\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature.\n5. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
+      "body": "Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi. Le panneau de l'extension affiche « Connecté en tant que … ».\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur et cliquez sur « Capturer cette page ».\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.\n5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.\n6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
     }
   ],
   "en": [
@@ -1491,7 +1649,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "download the extension"
       ],
       "route": "/compte/outils",
+      "motion": null,
       "body": "The Jobbbox Chrome extension saves into Jobbbox the job offer you are reading on a job site, and works out its match score, without copying and pasting. It installs in the Google Chrome browser, on a computer.\n\nTo install it, signed in: in My account, under Tools, click « Install the extension from the Chrome Web Store », then add it to Chrome from the page that opens. Without an account, « Extension », at the foot of the public pages, leads to the same page. Until it is published, Tools shows « The extension is coming soon to the Chrome Web Store. »\n\nOnce installed, pin it to Chrome's toolbar to find it again. On a job offer's page, it adds the « Analyse this offer » button; you can also open it and click « Capture this page ».\n\nWithout an account, the extension works out a job offer's Match Score with your CV, then deletes everything within 24 hours. To keep the offer in your applications, sign in: « Sign in », in the extension. The rest is explained step by step in the tutorial « Save a job offer with the extension »."
+    },
+    {
+      "id": "page-side-panel",
+      "locale": "en",
+      "kind": "page",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "The extension's panel",
+      "synonyms": [
+        "side panel",
+        "panel",
+        "extension",
+        "extension window",
+        "guest",
+        "without an account",
+        "job offer analysis",
+        "open the extension",
+        "sidebar"
+      ],
+      "route": "/sidepanel.html",
+      "motion": null,
+      "body": "The Jobbbox extension opens in a panel on the right-hand side of your browser, beside the job offer you are reading. To open it, click the Jobbbox icon in the browser's toolbar, or the « Analyse this offer » button it adds to job offer pages. Once open, the panel stays in view when you switch tabs and follows the job offer in front of you.\n\nAt the top, « Job offer analysis » is the panel's title. Without an account, « Guest » shows beside it: you are using the extension as a guest, and nothing is kept in an account.\n\nWhen the open page is a job offer, the panel shows « Job offer found on this page. » with its title. Otherwise, « Capture this page » reads the page as it shows. Until a job offer is captured, the panel says so: « No job offer captured yet. »\n\nOnce the job offer is captured, the panel shows its title, the employer and the location. Drop your CV in « Drop your CV here », or click « Choose a file », then « Compute my Match Score »: the score out of 100 shows, with the « Match Score breakdown », criterion by criterion. Your CV and the job offer stay in this browser for your guest session; the date they will be deleted is written in the panel.\n\nAt the foot of the panel, « Create my account and keep this job offer » opens Jobbbox in a new tab; « Delete my data now » deletes your CV and the job offer from this browser at once. If you already have an account, click « I already have an account · Sign in ».\n\nAt the very bottom, the « Detect job offers on every site » box adds the « Analyse this offer » button to employers' own career sites."
     },
     {
       "id": "page-what-is-jobbbox",
@@ -1514,6 +1695,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "discover"
       ],
       "route": "/connexion",
+      "motion": null,
       "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start."
     },
     {
@@ -1892,6 +2074,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "talk to someone"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox has no support mailbox: whether or not you have an account, you reach the Jobbbox team in a different way.\n\nWith an account, sign in and ask your question in « Help and coach »: the help's articles show first, then your AI coach answers. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question, with the coach's reply, to the Jobbbox team. You follow its answer in My account, under My feedback. For a problem or an idea: « Report a problem » or « Suggest an idea ».\n\nWithout an account, write to {{contact-email}}, the address of the legal notice."
     },
     {
@@ -1955,6 +2138,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "visually impaired"
       ],
       "route": null,
+      "motion": null,
       "body": "At the top of every public page, the « Text size » list offers Small, Standard, Medium and Large. The whole page's text changes at once.\n\nYour choice is kept on this device, signed in or not: once signed in, you find it in My account, under Preferences. On another computer or phone, set it again.\n\nYour browser's zoom also makes the page larger: Ctrl and + on a computer (Cmd and + on a Mac)."
     },
     {
@@ -2023,6 +2207,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "username"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox has no password. On the « Sign in to Jobbbox » page, enter « Your email address » then click « Send me a sign-in link ». You receive the email « Your Jobbbox sign-in link »: its button « Sign in to Jobbbox » signs you in. If you don't have an account yet, it is created then.\n\nThe link is valid for 15 minutes and works only once. A link that has expired or was already used shows « This sign-in link is no longer valid. Ask for a new one below. »\n\nDepending on the options on the page, « Continue with … » also signs you in with another account you already have, without waiting for an email.\n\nThe email doesn't arrive?\n- Wait a few minutes: it can take a little while.\n- Look in your junk mail (spam) or promotions.\n- Check the address you entered, then ask for a new link.\n\nStill nothing? See « How do I contact you? »."
     },
     {
@@ -2043,7 +2228,34 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "alert"
       ],
       "route": null,
+      "motion": null,
       "body": "In a Job Digest received by email, click « Stop receiving this profile's Job Digest ». The page « Unsubscribe from the Job Digest » opens, without signing in: click « Unsubscribe ». It confirms « Done: you will no longer receive this Job Digest. »\n\nOnly this profile's Job Digest stops; those of your other profiles go on. You can turn it back on at any time from the profile's page.\n\nIf the page shows « This unsubscribe link is no longer valid », you may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile's page."
+    },
+    {
+      "id": "faq-extension-badge-sites",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "On which sites does « Analyse this offer » show?",
+      "synonyms": [
+        "badge",
+        "button",
+        "analyse this offer",
+        "supported sites",
+        "job sites",
+        "linkedin",
+        "indeed",
+        "welcome to the jungle",
+        "apec",
+        "france travail",
+        "hellowork",
+        "the button does not show",
+        "career site"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "The extension adds the « Analyse this offer » button to a job offer's page when it recognises it. It recognises the main job sites, including LinkedIn, Indeed, Welcome to the Jungle, Apec, France Travail, HelloWork, Cadremploi and Glassdoor, and the job pages of many employers' recruiting tools (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). The Jobbbox team keeps this list up to date without you having to update the extension.\n\nThe button only shows on a job offer's own page, not on a list of results: open the offer itself.\n\nOn an employer's career site, tick « Detect job offers on every site », at the bottom of the extension's panel. Your browser asks for your permission; pages are still read in this browser only.\n\nIf the button still does not show, open the extension's panel from the browser's toolbar, then click « Capture this page »: capturing works on any page. If the page cannot be read, the panel says so: « This page cannot be captured. » Open the job offer's own page and try again."
     },
     {
       "id": "faq-plans-and-quotas",
@@ -2068,7 +2280,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "how much does it cost"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota.\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
+    },
+    {
+      "id": "faq-rescore-why-match-score",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "extension",
+      "title": "What do « Rescore » and « Why …? » do?",
+      "synonyms": [
+        "rescore",
+        "recalculate",
+        "new calculation",
+        "why this score",
+        "why",
+        "score breakdown",
+        "match score breakdown",
+        "match score",
+        "score does not change",
+        "plan"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "The Match Score compares a job offer with your CV and your search criteria, on five criteria: « Skills », « Experience », « Location », « Salary » and « Contract type ». It is out of 100.\n\n« Why …? », beside a job offer's score in Jobbbox, opens the breakdown: one line per criterion, with what matches and what does not. In the extension's panel, the breakdown shows under the score, in « Match Score breakdown ». A criterion the job offer says nothing about does not count: the score is then partial, or « not computable » if no criterion could be compared.\n\n« Rescore », in the extension's panel, works out the job offer's score again. Signed in, a new calculation uses one Match Score of your weekly plan: the extension asks you first, and you confirm with « Confirm the recalculation ». The result only changes if the job offer or your profile has changed; the panel tells you whether it is unchanged, or what the score was before.\n\nRescore, for example, after updating your master CV, or when the panel tells you to because the job offer's text could not be read."
     },
     {
       "id": "faq-data-and-ai",
@@ -2091,6 +2327,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "delete my data"
       ],
       "route": null,
+      "motion": null,
       "body": "Jobbbox uses what you entrust to it, your CV, your criteria and your applications, to help you with your job search. Your coach and several tasks, such as reading your CV or working out a match score, use AI; your coach always says it is an AI. The help, for its part, uses no AI.\n\nWith your consent, in My account, under European AI, each request to the AI that holds your identity data is handled by Mistral AI, a European AI provider. You can withdraw this consent at any time.\n\nIn My account, under My data, you download all your data or delete your account.\n\nThe details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -2181,6 +2418,78 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Jobbbox writes to you when it publishes a substantial version of the Terms of use, the Terms of sale or the Privacy policy: at least 30 days before it takes effect. The email names the text, the date it takes effect and what changes, with « Read the new version » and the « Version history ». A minor version, a typo corrected for instance, gets no email.\n\nIt is a service email: you get it even if you do not receive our news. It has no image and no tracking link, and you get it only once per version.\n\nFor the Terms of use, Jobbbox will ask you to accept the new version the first time you sign in from the date it takes effect. For the Terms of sale, it will apply to your next purchases. The Privacy policy is not accepted: after it takes effect, a notice « Our privacy policy changed on … » shows once in your workspace, and « Got it » closes it."
     },
     {
+      "id": "faq-guest-session",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Without an account, how long are my CV and the job offer kept?",
+      "synonyms": [
+        "guest",
+        "without an account",
+        "session",
+        "23 hours",
+        "24 hours",
+        "delete",
+        "delete my data",
+        "retention",
+        "how long",
+        "is my cv kept",
+        "personal data",
+        "guest session"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Without an account, you use the extension as a guest. Your CV and the captured job offer stay in your browser, never in a Jobbbox account. Jobbbox reads your CV to compute the Match Score, without saving it.\n\nEverything is deleted 23 hours after your first analysis, even if you keep using the extension. The panel shows the exact date: « Your data will be deleted by … ». After that, the job offer is no longer available: capture it again to analyse it.\n\nTo delete everything sooner, click « Delete my data now », in the extension's panel. Your CV and the job offer are deleted from this browser at once.\n\nTo keep your work, create your account before then: your CV becomes your first profile and the job offer your first application. The tutorial « Create your account from the extension and keep your work » explains how."
+    },
+    {
+      "id": "tutorial-extension-analyse-job-offer",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Analyse a job offer with the extension, without an account",
+      "synonyms": [
+        "analyse a job offer",
+        "analyze",
+        "match score",
+        "without an account",
+        "guest",
+        "try",
+        "extension",
+        "capture",
+        "does my cv match",
+        "test the extension"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Without an account, the Jobbbox extension compares your CV with a job offer and computes its Match Score.\n\n1. Open a job offer's page, then click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar and click « Capture this page ».\n2. The extension's panel opens on the right and shows the captured job offer.\n3. Drop your CV in « Drop your CV here », or click « Choose a file » to pick it.\n4. Click « Compute my Match Score », at the foot of the panel.\n5. The score shows out of 100, with the « Match Score breakdown »: for each criterion, what matches and what does not.\n6. To compare another CV, click « Use another CV ». To delete everything, click « Delete my data now »."
+    },
+    {
+      "id": "tutorial-extension-create-account",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Create your account from the extension and keep your work",
+      "synonyms": [
+        "create an account",
+        "sign up",
+        "register",
+        "keep my job offer",
+        "keep my cv",
+        "guest",
+        "without an account",
+        "sign in",
+        "first profile",
+        "first application",
+        "don't lose"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Without an account, your CV and the job offer are deleted after 23 hours. By creating your account, you keep them: your CV becomes your first profile, and the job offer your first application.\n\n1. In the extension's panel, once your Match Score is computed, click « Create my account and keep this job offer ». Jobbbox opens in a new tab.\n2. Enter « Your email address », then click « Send me a sign-in link ».\n3. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes: your account is created, without a password.\n4. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n5. Go back to the job offer's tab: the extension's panel updates by itself. Your CV has become your profile, and the job offer is saved in your applications, as “To apply”.\n6. Click « See my application » to open it in Jobbbox.\n\nIf you already have an account, click « I already have an account · Sign in » instead: the tutorial « Save a job offer with the extension » explains what comes next."
+    },
+    {
       "id": "tutorial-getting-started",
       "locale": "en",
       "kind": "tutorial",
@@ -2200,6 +2509,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "first steps"
       ],
       "route": null,
+      "motion": null,
       "body": "A profile is a job you are aiming for: a master CV and search criteria. Your coach uses it to look for offers and prepare your applications.\n\n1. Click « Sign in », at the top of every public page. On « Sign in to Jobbbox », enter « Your email address » then click « Send me a sign-in link ».\n2. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan.\n3. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n4. In My account, under Profiles, click « Create my first profile ».\n5. If you have a CV, choose « I have a CV », drop it in (PDF or Word .docx, 10 MB maximum) then click « Read my CV ». Otherwise, choose « I don't have an up-to-date CV », then « Answer my coach's questions »: one question at a time, about ten minutes.\n6. Check your CV and search criteria, such as the « Target role » and the « Location », correct what needs it, then click « Save my profile ».\n\nYour first profile is ready: your coach can look for offers for you."
     },
     {
@@ -2216,11 +2526,15 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "capture",
         "save a job offer",
         "add a job offer",
-        "new application"
+        "new application",
+        "choose a profile",
+        "profile used",
+        "change profile",
+        "signed in"
       ],
       "route": null,
       "motion": null,
-      "body": "The Jobbbox extension saves the job offer you are reading to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page.\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar and click « Capture this page ».\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. At the foot of the panel, choose the profile for this application in « Profile used for this application ».\n5. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
+      "body": "Signed in, the Jobbbox extension works out a job offer's Match Score with one of your profiles, then saves it to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page. The extension's panel shows « Signed in as … ».\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar and click « Capture this page ».\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. To compare the offer with another of your profiles, choose it in « Profile compared with this job offer »: the score is worked out again with it.\n5. At the foot of the panel, choose the profile for this application in « Profile used for this application ». If you uploaded a CV in the panel, « A new profile, from this CV » makes it a new profile.\n6. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
     }
   ]
 };

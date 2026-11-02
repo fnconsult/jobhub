@@ -86,13 +86,23 @@ describe("relatedArticles — under an article's page", () => {
 /** #552's articles of « Découvrir Jobbbox ». */
 const DECOUVRIR_PAGES = ["page-what-is-jobbbox", "page-install-extension"];
 const DECOUVRIR_FAQ = ["faq-sign-in-link", "faq-plans-and-quotas", "faq-text-size-site", "faq-job-digest-unsubscribe", "faq-contact-us", "faq-data-and-ai"];
+/** #553's articles of « L'extension », each with its audience: the Guest's, and the signed-in Candidate's. */
+const EXTENSION_ARTICLES = {
+  "page-side-panel": ["page", "guest"],
+  "faq-extension-badge-sites": ["faq", "guest"],
+  "faq-guest-session": ["faq", "guest"],
+  "faq-rescore-why-match-score": ["faq", "candidate"],
+  "tutorial-extension-analyse-job-offer": ["tutorial", "guest"],
+  "tutorial-extension-create-account": ["tutorial", "guest"],
+  "tutorial-extension-save-job-offer": ["tutorial", "candidate"],
+} as const;
 
 describe("this build's Help Articles (#549)", () => {
   it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`", () => {
     const english = new Map(articles("en").map((found) => [found.id, found]));
     for (const found of articles("fr")) {
       expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
-      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id)) expect([found.id, found.audience]).toEqual([found.id, "candidate"]);
+      if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id) && !(found.id in EXTENSION_ARTICLES)) expect([found.id, found.audience]).toEqual([found.id, "candidate"]);
     }
   });
 
@@ -101,6 +111,29 @@ describe("this build's Help Articles (#549)", () => {
     for (const locale of ["fr", "en"] as const)
       for (const [kind, expected] of Object.entries(ids))
         for (const id of expected) expect([id, helpCentreArticle("decouvrir", id, locale)?.kind, helpCentreArticle("decouvrir", id, locale)?.audience]).toEqual([id, kind, "visitor"]);
+  });
+
+  it("has the « L'extension » articles (#553): 1 page, 3 questions and 3 tutorials, in French and English, all of the topic's", () => {
+    for (const locale of ["fr", "en"] as const) {
+      const topic = helpCentreTopics(locale).find((entry) => entry.topic === "extension");
+      expect(topic?.articles.map((found) => found.id).sort()).toEqual(Object.keys(EXTENSION_ARTICLES).sort());
+      for (const [id, [kind, audience]] of Object.entries(EXTENSION_ARTICLES))
+        expect([id, helpCentreArticle("extension", id, locale)?.kind, helpCentreArticle("extension", id, locale)?.audience]).toEqual([id, kind, audience]);
+    }
+  });
+
+  it.each([
+    ["fr", "effacer mes données", "faq-guest-session"],
+    ["fr", "le bouton n'apparaît pas", "faq-extension-badge-sites"],
+    ["fr", "recalculer", "faq-rescore-why-match-score"],
+    ["fr", "panneau latéral", "page-side-panel"],
+    ["fr", "créer un compte depuis l'extension", "tutorial-extension-create-account"],
+    ["fr", "analyser une offre", "tutorial-extension-analyse-job-offer"],
+    ["en", "guest session", "faq-guest-session"],
+    ["en", "side panel", "page-side-panel"],
+    ["en", "rescore", "faq-rescore-why-match-score"],
+  ] as const)("finds, from a Candidate's Coach Panel, in %s, « %s »: %s (#553)", (locale, query, id) => {
+    expect(search(query, locale, { scope: "coachPanel" }).map((article) => article.id)).toContain(id);
   });
 
   it("has tutorials in French and English, each of two numbered steps or more", () => {

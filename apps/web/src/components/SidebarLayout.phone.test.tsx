@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
@@ -37,6 +37,7 @@ function HomePage() {
 }
 
 const topBar = () => screen.getByRole("banner");
+const USAGE = { used: 1, allowed: 4, percent: 25, quotas: [{ quota: "jobSearches" as const, used: 1, limit: 4 }], jobDigest: "weekly" as const };
 const ficheButton = () => within(topBar()).getByRole("button", { name: "Fiche" });
 const activityButton = () => within(topBar()).getByRole("button", { name: "Activité" });
 
@@ -127,5 +128,24 @@ describe("an object's page on a phone (#608, ADR-0070)", () => {
     await user.click(within(pane).getByRole("button", { name: "Fermer" }));
 
     expect(screen.getByRole("main").closest("[inert]")).toBeNull();
+  });
+
+  it("opens a HelpTerm of the Sidebar's drawer in the Work Pane once the drawer has closed, the focus on its title", async () => {
+    pathname.current = "/";
+    const user = userEvent.setup();
+    renderInFrench(
+      <SidebarLayout profiles={[]} canAddProfile={false} title="Nouvelle conversation" version="1.2.3" freeConversations={[]} usage={USAGE}>
+        <p>La conversation</p>
+      </SidebarLayout>,
+    );
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    const drawer = screen.getByRole("dialog");
+    await user.click(within(drawer).getByRole("button", { name: /^Hebdomadaire/ }));
+    await user.click(within(drawer).getByRole("button", { name: /\(aide\)$/ }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const pane = await screen.findByRole("complementary", { name: "Quota" });
+    expect(pane.closest("[inert]")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(within(pane).getByRole("heading", { level: 2, name: "Quota" })));
   });
 });

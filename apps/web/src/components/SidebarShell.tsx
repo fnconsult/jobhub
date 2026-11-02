@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
 import { Icons } from "@/components/icons";
@@ -40,6 +40,17 @@ const CRAMPED_REM = 44;
  * beside the page (the Work Pane), which is inert behind the drawer. In the docked sidebar, `action` at once.
  */
 export type CloseDrawerThen = (action: () => void) => void;
+
+/** Inside the drawer, its closeDrawerThen; null in the docked sidebar and the page. */
+const InDrawer = createContext<CloseDrawerThen | null>(null);
+
+/**
+ * What opens beside the page from inside the Sidebar's drawer (a HelpTerm of the Usage Meter, #608) waits for the drawer to
+ * close, the page behind being inert until then: closeDrawerThen there, null anywhere else.
+ */
+export function useCloseDrawerThen(): CloseDrawerThen | null {
+  return useContext(InDrawer);
+}
 
 /** Hides or shows the sidebar on wide screens. The state lives on <html data-sidebar>, which the CSS reads (see design/sidebar-state). */
 function setHidden(hidden: boolean) {
@@ -283,7 +294,7 @@ export function SidebarShell({
             }}
           >
             <DrawerTitle className="visually-hidden">{t("sidebar.menu")}</DrawerTitle>
-            {content(true)}
+            <InDrawer.Provider value={closeDrawerThen}>{content(true)}</InDrawer.Provider>
           </Drawer>
           {/*
             While the drawer is open the page behind is inert and hidden. Radix's

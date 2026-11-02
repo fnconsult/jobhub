@@ -56,6 +56,10 @@ describe("the public footer (#544)", () => {
     expect(hrefs(help)).toEqual(["/aide", "/aide/decouvrir/faq-contact-us", "/aide"]);
   });
 
+  it("under the coach space, « Centre d'aide » leads to the « Espace coach » topic (#554)", () => {
+    expect(hrefs(footerColumns({ helpCentre: routes.helpTopic("espace-coach") })[1]!.links)).toEqual(["/aide/espace-coach", "/aide/decouvrir/faq-contact-us", "/aide"]);
+  });
+
   it("« Nous contacter »'s article is a public article of « Découvrir Jobbbox », in both languages", () => {
     for (const locale of ["fr", "en"] as const) expect(helpCentreArticle("decouvrir", "faq-contact-us", locale)?.kind).toBe("faq");
     expect(CONTACT_ARTICLE).toBe(routes.helpArticle("decouvrir", "faq-contact-us"));

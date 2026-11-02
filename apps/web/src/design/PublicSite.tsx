@@ -78,13 +78,14 @@ async function LanguageSwitch({ label, signedIn }: { label: string; signedIn: bo
 
 /**
  * The public footer (#544): Légal, Aide and Jobbbox in three columns, then the FR/EN switch and « © Jobbbox ». On every
- * public page, and under the coach space's pages. Without `signInLink` (a sign-in page), no « Se connecter ».
+ * public page, and under the coach space's pages. Without `signInLink` (a sign-in page), no « Se connecter ». `helpCentre`
+ * is where « Centre d'aide » leads: the coach space's, its « Espace coach » topic (#554).
  */
-export async function PublicFooter({ signInLink = true }: { signInLink?: boolean }) {
+export async function PublicFooter({ signInLink = true, helpCentre }: { signInLink?: boolean; helpCentre?: string }) {
   const t = await getServerT();
   const url = { url: await getUrlLocale(), lang: await getChosenLocale() };
   const account = signInLink ? ((await getCurrentCandidate()) ? "account" : "signIn") : null;
-  const columns = footerColumns({ extensionStore: extensionStorePage(getPlatformSettingsResolver().current()), account });
+  const columns = footerColumns({ extensionStore: extensionStorePage(getPlatformSettingsResolver().current()), account, helpCentre });
   return (
     <footer className="ds-site__foot">
       <div className="ds-site__foot-columns">

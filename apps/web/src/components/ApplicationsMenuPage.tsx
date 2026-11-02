@@ -6,6 +6,7 @@ import { getCoachConversations } from "@/coach-conversations/server";
 import { ApplicationsMenuSuggestions } from "@/components/ApplicationsMenuSuggestions";
 import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Card } from "@/design/Card";
+import { MicroAnimation } from "@/design/MicroAnimation";
 import { Pill, type Tone } from "@/design/Pill";
 import { Table, type Column } from "@/design/Table";
 import { getFollowUps } from "@/follow-ups/server";
@@ -108,7 +109,12 @@ function ApplicationsCard({ rows, toHandle, archivedHidden, showArchived, t }: {
       headingId={CARD_TITLE_ID}
       actions={toHandle > 0 ? <Pill tone="warn">{t("applicationsMenu.toHandle", { count: toHandle })}</Pill> : undefined}
     >
-      {rows.length === 0 ? <p>{t("applications.none")}</p> : <Table label={t("applications.title")} columns={columns} rows={rows} rowKey={(row) => row.id} data-row-links="" />}
+      {rows.length === 0 ? (
+        <>
+          <p>{t("applications.none")}</p>
+          <MicroAnimation id="extension-side-panel" />
+        </>
+      ) : <Table label={t("applications.title")} columns={columns} rows={rows} rowKey={(row) => row.id} data-row-links="" />}
       {archivedHidden > 0 ? (
         <p className="applications-menu-card__archived">
           {t("applications.archivedHidden", { count: archivedHidden })} <Link href={`${routes.applications}?archivees=1`}>{t("applicationsMenu.showArchived")}</Link>

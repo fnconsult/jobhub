@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import type { HelpArticle } from "@/coach-help";
 import { CoachMemoryView } from "@/components/CoachMemory";
 import { OpenInHelpCentre } from "@/components/CoachHelp";
-import { CoachReplyText } from "@/components/CoachReplyText";
+import { HelpArticleText } from "@/components/HelpArticleText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { SignalementPane, SignalementPaneForm, SignalementPaneTitle } from "@/components/Signalement";
@@ -182,7 +182,7 @@ function HelpArticleBody({ article }: { article: HelpArticle }) {
   return (
     <article className="work-pane-article">
       <p className="help-card-label">{t("coachPanel.help.cardLabel")}</p>
-      <CoachReplyText text={article.body} />
+      <HelpArticleText article={article} />
       <OpenInHelpCentre article={article} />
     </article>
   );

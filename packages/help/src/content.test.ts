@@ -49,6 +49,7 @@ describe("readHelpContent — the Help Articles of a directory", () => {
         synonyms: ["relance", "rappeler", "sans réponse"],
         route: null,
         motion: null,
+        microAnimations: [],
         body: "Votre coach propose un e-mail de **relance**.\n\nJobbbox n'envoie rien à votre place.",
       },
     ]);
@@ -130,6 +131,29 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     expect(() =>
       readHelpContent(articlesDir({ "fr/page-applications.md": fr, "en/page-applications.md": page(valid.replace("kind: page", "kind: faq").replace("route: /candidatures", "")) })),
     ).toThrow(/en\/page-applications\.md: its kind faq differs from the French one \(page\)/);
+  });
+
+  it("takes a tutorial step's « Voir comment » and a FAQ's out of the text, as the article's Micro-animations (#569)", () => {
+    const steps = "1. Ouvrez l'offre.\n2. Épinglez l'extension. {{voir-comment:extension-side-panel}}";
+    const faq = page("kind: faq\naudience: candidate\ntopic: utiliser\ntitle: Le texte\nsynonyms: [texte]", "Réglez « Taille du texte ».\n{{voir-comment:text-size}}");
+    const content = readHelpContent(articlesDir({ "fr/tutorial-x.md": tutorial(steps), "en/tutorial-x.md": tutorial(steps), "fr/faq-t.md": faq, "en/faq-t.md": faq }));
+    expect(content.fr.map((entry) => [entry.id, entry.body, entry.microAnimations])).toEqual([
+      ["faq-t", "Réglez « Taille du texte ».", [{ id: "text-size", step: null }]],
+      ["tutorial-x", "1. Ouvrez l'offre.\n2. Épinglez l'extension.", [{ id: "extension-side-panel", step: 2 }]],
+    ]);
+  });
+
+  it("fails on a « Voir comment » naming no Micro-animation, off a step's end, off a tutorial or FAQ, or unlike the French", () => {
+    const build = (fr: string, en: string = fr) => () => readHelpContent(articlesDir({ "fr/tutorial-x.md": fr, "en/tutorial-x.md": en }));
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:nowhere}}"))).toThrow(/fr\/tutorial-x\.md: no Micro-animation is called nowhere/);
+    expect(build(tutorial("1. Ouvrez {{voir-comment:text-size}} puis.\n2. Cliquez."))).toThrow(/a « Voir comment » reference ends its line/);
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez.\n\n{{voir-comment:text-size}}"))).toThrow(/a tutorial's « Voir comment » ends one of its numbered steps/);
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:text-size}}"), tutorial("1. Open.\n2. Click."))).toThrow(
+      /en\/tutorial-x\.md: its Micro-animations \(none\) differ from the French ones \(text-size@2\)/,
+    );
+    expect(() => readHelpContent(articlesDir({ "fr/page-applications.md": page(valid, "Rien. {{voir-comment:text-size}}"), "en/page-applications.md": page(valid) }))).toThrow(
+      /fr\/page-applications\.md: only a tutorial \(on a numbered step\) or a FAQ \(after its answer\) shows a Micro-animation/,
+    );
   });
 
   it("fails when two page articles explain the same route", () => {

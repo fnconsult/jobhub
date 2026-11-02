@@ -53,6 +53,7 @@ export {
   type MotionTarget,
   type MotionViewer,
 } from "./motion-scripts";
+export { isMicroAnimationId, MICRO_ANIMATION_IDS, MICRO_ANIMATIONS, type MicroAnimationId, type MicroAnimationPlacement } from "./micro-animations";
 export {
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,

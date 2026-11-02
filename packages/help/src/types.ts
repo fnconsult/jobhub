@@ -1,3 +1,5 @@
+import type { MicroAnimationPlacement } from "./micro-animations";
+
 /** The Interface Languages every Help Article is written in. */
 export const HELP_LOCALES = ["fr", "en"] as const;
 export type HelpLocale = (typeof HELP_LOCALES)[number];
@@ -41,6 +43,11 @@ export interface HelpArticle {
   route: string | null;
   /** For a `tutorial`, the Motion Script of its Explainer Video (`motions/<locale>/<id>.md`, ADR-0066); null otherwise. */
   motion: string | null;
+  /**
+   * Its Micro-animations (#569): a Tutorial's beside their numbered step, a FAQ's after its answer; none for any other
+   * kind. Written in the Markdown as `{{voir-comment:<id>}}` at the end of the line, which never reaches `body`.
+   */
+  microAnimations: MicroAnimationPlacement[];
   /** Short Markdown, no images. */
   body: string;
 }

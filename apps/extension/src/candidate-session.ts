@@ -1,3 +1,4 @@
+import { API_VERSION_HEADERS } from "./extension-update";
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 
 export type CandidateSession =
@@ -14,7 +15,7 @@ type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
  */
 export async function readCandidateSession(webOrigin: string, fetchImpl: Fetch = fetch): Promise<CandidateSession> {
   try {
-    const response = await fetchImpl(`${webOrigin}/api/auth/get-session`, { credentials: "include" });
+    const response = await fetchImpl(`${webOrigin}/api/auth/get-session`, { headers: API_VERSION_HEADERS, credentials: "include" });
     if (!response.ok) return { signedIn: false };
     const body = (await response.json()) as { user?: Record<string, unknown> } | null;
     const user = body?.user;

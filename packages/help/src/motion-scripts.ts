@@ -48,6 +48,7 @@ export const MOTION_ROLES = [
   "search",
   "searchbox",
   "tab",
+  "table",
   "textbox",
 ] as const;
 export type MotionRole = (typeof MOTION_ROLES)[number];

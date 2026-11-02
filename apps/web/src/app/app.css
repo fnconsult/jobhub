@@ -869,7 +869,8 @@ textarea.input {
 }
 
 .coach-panel-foot .link-action,
-.reply-feedback .link-action {
+.reply-feedback .link-action,
+.help-intro .link-action {
   min-height: var(--control-height);
 }
 
@@ -5040,9 +5041,9 @@ textarea.title-edit {
   gap: var(--space-2);
 }
 
-/* « Souvent demandé » and the help's proposals: pills on the surface. */
+/* « Souvent demandé » and the help's proposals: pills on the surface, at the Candidate's 44px target (ADR-0009, #467). */
 .help-chip.button {
-  min-height: var(--size-control);
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   text-align: left;
   background: var(--color-surface);

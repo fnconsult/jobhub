@@ -1211,8 +1211,8 @@ button.coach-panel-badge:hover {
   color: var(--color-text-secondary);
 }
 
-/* In the Fiche's width, each property's label sits above its value; the Application's first two side by side, as in
-   the prototype (#586). */
+/* In the Fiche's width, each property's label sits above its value; the Application's Statut on its own row, for its
+   longest status at every Text Size, then Enregistrée le and Correspondance side by side, as in the prototype (#586). */
 .fiche .props {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -1234,7 +1234,8 @@ button.coach-panel-badge:hover {
   min-width: 0;
 }
 
-.fiche .application-card .prop:nth-child(n + 3) {
+.fiche .application-card .prop:first-child,
+.fiche .application-card .prop:nth-child(n + 4) {
   grid-column: 1 / -1;
 }
 

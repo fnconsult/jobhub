@@ -1,0 +1,10 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://jobbbox.ai", "https://staging.jobbbox.ai", "http://localhost:3000"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "MaxAgeSeconds": 86400
+    }
+  ]
+}

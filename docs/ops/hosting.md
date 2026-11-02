@@ -31,6 +31,12 @@ Email intake receives the emails Candidates forward on Jobbbox's own MTA (#580):
 
 Setting it up: `scripts/setup/issue-580.sh`. Checking it from outside: `node apps/mta/scripts/probe.mjs mx.jobbbox.ai alertes.staging.jobbbox.ai`.
 
+### Motions (media.jobbbox.ai)
+
+The Explainer Videos are files in a Scaleway Object Storage bucket in `fr-par` (`media.jobbbox.ai`), served over HTTPS
+by Scaleway Edge Services at `https://media.jobbbox.ai`, never by the VPS (ADR-0066). The `motions` workflow publishes
+them: `docs/ops/motions.md`.
+
 ## Later: AWS, region eu-west-3 (Paris)
 
 | Piece | Service | Region |

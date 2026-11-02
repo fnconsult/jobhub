@@ -13,7 +13,10 @@ import { isNoticed } from "./legal-notices";
 import { legalTextVersionUrl, type LegalTextHistoryEntry, type LegalTextId, type LegalTextVersion, type LegalTextVersionRecord } from "./legal-texts";
 import { LEGAL_TEXT_REGISTRY, LEGAL_TEXT_VERSIONS } from "./legal-texts.generated";
 import type { ReleaseNote } from "./release-notes";
+import type { MotionScript } from "./motion-scripts";
+import { MOTION_SCRIPTS } from "./motions.generated";
 import { RELEASE_NOTES } from "./release-notes.generated";
+import { routeMatches as routeMatchesPath } from "./motion-scripts";
 import { indexArticle, queryWords, searchIndex, type IndexedArticle } from "./search";
 import { PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale, type PublicHelpTopic } from "./types";
 
@@ -34,6 +37,23 @@ export {
 export { CONTACT_EMAIL_TOKEN, fillContactEmail } from "./contact";
 export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
+  MOTION_FILES,
+  MOTION_MEDIA_ORIGIN,
+  motionFileKey,
+  motionRenderId,
+  motionTranscript,
+  narrationSentences,
+  plainNarration,
+  routeMatches,
+  SYNTHETIC_VOICE,
+  type MotionAction,
+  type MotionFile,
+  type MotionScript,
+  type MotionStep,
+  type MotionTarget,
+  type MotionViewer,
+} from "./motion-scripts";
+export {
   nouveautes,
   RELEASE_NOTE_CHANGE_KINDS,
   RELEASE_NOTE_TAGS,
@@ -53,6 +73,16 @@ export {
   type HelpLocale,
   type PublicHelpTopic,
 } from "./types";
+
+/** A Tutorial's Motion Script in `locale` (its `motion` field), or null: the Help Centre's player and transcript (#568). */
+export function motionScript(id: string, locale: HelpLocale): MotionScript | null {
+  return MOTION_SCRIPTS[locale].find((script) => script.id === id) ?? null;
+}
+
+/** The Motion Scripts that film `path` (`/candidatures/abc`): what a change to that page flags « Motion à régénérer ». */
+export function motionScriptsFilming(path: string): readonly MotionScript[] {
+  return MOTION_SCRIPTS.fr.filter((script) => script.routes.some((route) => routeMatchesPath(route, path)));
+}
 
 /**
  * Which Help Articles a reader's search covers (ADR-0065): `public`, every article but the Administrators' (the Help

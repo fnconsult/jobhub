@@ -39,6 +39,8 @@ export interface HelpArticle {
   synonyms: string[];
   /** For a `page` article, the app route pattern it explains (`/candidatures/[id]`); null otherwise. */
   route: string | null;
+  /** For a `tutorial`, the Motion Script of its Explainer Video (`motions/<locale>/<id>.md`, ADR-0066); null otherwise. */
+  motion: string | null;
   /** Short Markdown, no images. */
   body: string;
 }

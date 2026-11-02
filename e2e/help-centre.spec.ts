@@ -47,7 +47,7 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(article.getByRole("navigation", { name: fr.helpCentre.breadcrumb }).getByRole("link")).toHaveText([fr.helpCentre.title, fr.helpCentre.topics.extension.title]);
     // A tutorial's steps: a numbered list, the interface's labels word for word.
     const steps = article.locator(".help-centre__body ol > li");
-    await expect(steps).toHaveCount(5);
+    await expect(steps).toHaveCount(6);
     await expect(steps.nth(1)).toContainText(`« ${fr.extension.badge} »`);
     await expect(main(page).getByRole("heading", { name: fr.helpCentre.related })).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);

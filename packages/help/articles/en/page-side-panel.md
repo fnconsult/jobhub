@@ -14,6 +14,6 @@ When the open page is a job offer, the panel shows « Job offer found on this pa
 
 Once the job offer is captured, the panel shows its title, the employer and the location. Drop your CV in « Drop your CV here », or click « Choose a file », then « Compute my Match Score »: the score out of 100 shows, with the « Match Score breakdown », criterion by criterion. Your CV and the job offer stay in this browser for your guest session; the date they will be deleted is written in the panel.
 
-At the foot of the panel, « Create my account and keep this job offer » opens Jobbbox in a new tab; « Delete my data now » deletes your CV and the job offer from this browser at once. If you already have an account, click « I already have an account · Sign in ».
+At the end of the panel, the « Detect job offers on every site » box adds the « Analyse this offer » button to employers' own career sites.
 
-At the very bottom, the « Detect job offers on every site » box adds the « Analyse this offer » button to employers' own career sites.
+The buttons stay at the foot of the panel. Before the calculation: « Compute my Match Score » and, if you already have an account, « I already have an account · Sign in ». After the calculation: « Create my account and keep this job offer », which opens Jobbbox in a new tab, to create your account or sign in; and « Delete my data now », which deletes your CV and the job offer from this browser at once.

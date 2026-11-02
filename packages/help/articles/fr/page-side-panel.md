@@ -14,6 +14,6 @@ Quand la page ouverte est une offre, le panneau affiche « Offre détectée sur 
 
 Une fois l'offre capturée, le panneau montre son intitulé, l'employeur et le lieu. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier », puis sur « Calculer mon Match Score » : le score sur 100 s'affiche, avec le « Détail du Match Score », critère par critère. Votre CV et l'offre restent dans ce navigateur, le temps de votre session d'invité ; la date à laquelle ils seront effacés est écrite dans le panneau.
 
-En bas du panneau, « Créer mon compte et garder cette offre » ouvre Jobbbox dans un nouvel onglet ; « Effacer mes données maintenant » efface tout de suite votre CV et l'offre de ce navigateur. Si vous avez déjà un compte, cliquez sur « J'ai déjà un compte · Se connecter ».
+À la fin du panneau, la case « Détecter les offres sur tous les sites » ajoute le bouton « Analyser cette offre » aux sites carrières des employeurs.
 
-Tout en bas, la case « Détecter les offres sur tous les sites » ajoute le bouton « Analyser cette offre » aux sites carrières des employeurs.
+Les boutons restent en bas du panneau. Avant le calcul : « Calculer mon Match Score » et, si vous avez déjà un compte, « J'ai déjà un compte · Se connecter ». Après le calcul : « Créer mon compte et garder cette offre », qui ouvre Jobbbox dans un nouvel onglet, pour créer votre compte ou vous connecter ; et « Effacer mes données maintenant », qui efface tout de suite votre CV et l'offre de ce navigateur.

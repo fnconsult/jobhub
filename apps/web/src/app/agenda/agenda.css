@@ -2,27 +2,28 @@
    its buttons and links drawn as one are Buttons, a rescheduled item's « Reporté » a warn Pill and an empty list a
    Note; this file places them, and draws the list's days, the week's columns and the month's grid. */
 
-.agenda-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+/* On the Candidate's pages, the segmented control's options and the buttons reach the 44px target floor (ADR-0009): on
+   the Agenda's card in its conversation and in the Work Pane too (.agenda-card, #608). */
+.agenda-card .ds-segmented__option,
+.agenda-card .ds-button {
+  min-height: var(--control-height);
 }
 
-/* On the Candidate's pages, the segmented control's options and the buttons reach the 44px target floor (ADR-0009). */
-.agenda-page .ds-segmented__option,
-.agenda-page .ds-button {
-  min-height: var(--control-height);
+.agenda-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 /* A button or a Pill naming a Human Coach or a date (« Choisir mon créneau avec … », « Reporté · initialement prévu
    le … ») wraps on a phone rather than run off the side. */
-.agenda-page .ds-button,
-.agenda-page .ds-pill {
+.agenda-card .ds-button,
+.agenda-card .ds-pill {
   max-width: 100%;
   white-space: normal;
 }
 
-.agenda-page .ds-button {
+.agenda-card .ds-button {
   padding-block: var(--space-2);
   text-align: center;
 }

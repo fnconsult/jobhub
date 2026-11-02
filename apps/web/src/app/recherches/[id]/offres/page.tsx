@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
 import { JobOfferResults } from "@/components/JobOfferResults";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
 import { routes, type JobSearchSection } from "@/routes";
@@ -17,7 +15,6 @@ const OFFERS: JobSearchSection = "offres";
  */
 export default async function JobSearchOffersPage({ params }: Params) {
   const { jobSearch, t, locale } = await loadJobSearchPage((await params).id);
-  if (!pagesAreConversations()) redirect(routes.jobSearch(jobSearch.id));
   const { profile, results } = jobSearch;
   return (
     <InWorkPane kind={SECTION} title={t("jobSearch.resultsLabel")} href={routes.jobSearchSection(jobSearch.id, OFFERS)} back={routes.jobSearch(jobSearch.id)}>

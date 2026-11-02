@@ -51,13 +51,10 @@ const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_IN
 /** Maintenance (#542): on or off, its message in each language and how long it should last. */
 const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_MESSAGE_EN", "MAINTENANCE_EXPECTED_MINUTES"];
 
-/** « Conversation au centre » (#601, ADR-0070): the Candidate's pages built around their Coach Conversation, off until switched on. */
-const CANDIDATE_PAGES = ["CONVERSATION_FIRST"];
-
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE, ...CANDIDATE_PAGES].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 

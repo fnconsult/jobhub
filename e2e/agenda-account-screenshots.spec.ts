@@ -125,41 +125,50 @@ async function settled(page: Page) {
   );
 }
 
-async function expectNoAxeViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).include("#main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+async function expectNoAxeViolations(page: Page, target: string) {
+  const results = await new AxeBuilder({ page }).include(target).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
 
+/**
+ * Each screen, and what is shot of it (`target`): the page (`#main`); for the Agenda's week and month, the Work Pane they
+ * open in beside the Agenda's conversation (#606, #608), the list being a card of the conversation.
+ */
 const PAGES = [
   {
     name: "agenda-liste",
-    path: "/agenda?vue=liste",
+    path: "/agenda",
     ready: (page: Page) => page.getByRole("region", { name: fr.agenda.upcomingTitle }),
-    component: "main .ds-segmented",
+    component: "#main .ds-card",
+    target: "#main",
   },
   {
     name: "agenda-semaine",
     path: `/agenda?vue=semaine&date=${WEEK_DAY}`,
     ready: (page: Page) => page.getByRole("navigation", { name: fr.agenda.weekNavLabel }),
-    component: "main .ds-segmented",
+    component: "aside.work-pane .ds-button",
+    target: "aside.work-pane",
   },
   {
     name: "agenda-mois",
     path: `/agenda?vue=mois&date=${MONTH_DAY}`,
     ready: (page: Page) => page.getByRole("navigation", { name: fr.agenda.monthNavLabel }),
-    component: "main .ds-segmented",
+    component: "aside.work-pane .ds-button",
+    target: "aside.work-pane",
   },
   {
     name: "compte",
     path: "/compte",
     ready: (page: Page) => page.getByRole("navigation", { name: fr.account.sections.sectionsLabel }).first(),
     component: "main .sections",
+    target: "#main",
   },
   {
     name: "abonnement",
     path: "/abonnement",
     ready: (page: Page) => page.getByRole("region", { name: fr.billing.page.comparisonTitle }),
     component: "main .ds-card",
+    target: "#main",
   },
 ] as const;
 
@@ -194,21 +203,21 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
         // Nothing runs off the side.
         expect(await page.evaluate(() => document.documentElement.scrollWidth), `${name}: the page's width`).toBeLessThanOrEqual(width);
         // Its buttons and segmented options reach the 44px target floor (ADR-0009).
-        for (const target of await page.locator("#main").locator(".ds-button, .ds-segmented__option").all()) {
+        for (const target of await page.locator(shot.target).locator(".ds-button, .ds-segmented__option").all()) {
           if (!(await target.isVisible())) continue;
           expect.soft((await target.boundingBox())!.height, `${name}: the height of « ${await target.innerText()} »`).toBeGreaterThanOrEqual(44);
         }
         for (const theme of THEMES) {
           await showInTheme(page, theme);
           await settled(page);
-          await expectNoAxeViolations(page);
+          await expectNoAxeViolations(page, shot.target);
           if (theme === "dark") await expectTextContrast(page, `${shot.name}-${name}`);
           if (comparesScreenshots()) {
             // The page whole, its column drawn at once with nothing to scroll into view.
             await leaveOutRelease(page);
             await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
-            await expect(page.locator("#main")).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: MASK.map((selector) => page.locator(selector)) });
+            await expect(page.locator(shot.target)).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: MASK.map((selector) => page.locator(selector)) });
           }
         }
         await showInTheme(page, "light");
@@ -223,7 +232,9 @@ test.describe("the Agenda, Mon compte and Mon abonnement in the Design System (#
     await page.goto(`/agenda?vue=semaine&date=${WEEK_DAY}`);
     const views = page.getByRole("navigation", { name: fr.agenda.viewsLabel });
     await expect(views.getByRole("link")).toHaveText([fr.agenda.listView, fr.agenda.weekView, fr.agenda.monthView]);
-    await expect(views.getByRole("link", { name: fr.agenda.weekView })).toHaveAttribute("aria-current", "page");
+    // The card holds the list; the week opens beside the conversation, in the Work Pane (#606, #608).
+    await expect(views.getByRole("link", { name: fr.agenda.listView })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator("aside.work-pane .agenda-week")).toBeVisible();
     // An Interview's block and a Coaching Session's, told apart by their colour and their words.
     await expect(page.locator('.agenda-week .agenda-item[data-kind="interview"]')).toHaveCount(2);
     await expect(page.locator('.agenda-week .agenda-item[data-kind="coachingSession"]')).toHaveCount(1);

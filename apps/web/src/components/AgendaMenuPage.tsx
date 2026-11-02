@@ -7,7 +7,7 @@ import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { AddInterviewForm, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { AgendaList, AgendaMonth, AgendaWeek, Legend, ToSchedule, ViewSwitch, formatsFor, type Formats, type Withdrawable } from "@/components/AgendaViews";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Icons } from "@/components/icons";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
@@ -71,13 +71,16 @@ export async function AgendaMenuPage({ candidateId, params }: { candidateId: str
         introduction={<p>{t("agendaMenu.introduction")}</p>}
         card={
           <Card>
-            <div className="agenda-toolbar">
-              <ViewSwitch view={LIST} date={frenchDay(now)} t={t} />
-              <div className="agenda-actions">{addInterview}</div>
+            {/* Drawn as the Agenda's page was: its targets at the 44px floor, its long buttons wrapping on a phone (#608). */}
+            <div className="agenda-card">
+              <div className="agenda-toolbar">
+                <ViewSwitch view={LIST} date={frenchDay(now)} t={t} />
+                <div className="agenda-actions">{addInterview}</div>
+              </div>
+              {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} withdrawable={withdrawable} formats={formats} t={t} /> : null}
+              <AgendaList days={days} past={past} withdrawable={withdrawable} formats={formats} t={t} />
+              <Legend t={t} />
             </div>
-            {unscheduled.length > 0 ? <ToSchedule sessions={unscheduled} withdrawable={withdrawable} formats={formats} t={t} /> : null}
-            <AgendaList days={days} past={past} withdrawable={withdrawable} formats={formats} t={t} />
-            <Legend t={t} />
           </Card>
         }
         suggestions={
@@ -128,11 +131,13 @@ async function CalendarPane({
   const title = view === "semaine" ? t("agenda.weekTitle", { range: formats.range(period.first, period.last) }) : formats.month(period.first);
   return (
     <InWorkPane kind={VIEW} title={title} href={pane.href} back={back}>
-      {view === "semaine" ? (
-        <AgendaWeek period={period} byDay={byDay} today={today} withdrawable={withdrawable} formats={formats} t={t} />
-      ) : (
-        <AgendaMonth period={period} byDay={byDay} selected={pane.date} today={today} withdrawable={withdrawable} formats={formats} t={t} />
-      )}
+      <div className="agenda-card">
+        {view === "semaine" ? (
+          <AgendaWeek period={period} byDay={byDay} today={today} withdrawable={withdrawable} formats={formats} t={t} />
+        ) : (
+          <AgendaMonth period={period} byDay={byDay} selected={pane.date} today={today} withdrawable={withdrawable} formats={formats} t={t} />
+        )}
+      </div>
     </InWorkPane>
   );
 }

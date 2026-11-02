@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { helpLocale, onThisPage } from "@/coach-help";
 import type { ConversationContext } from "@/coach/conversation";
+import type { ReplyInView } from "@/components/CoachConversationPage";
 import { Icons } from "@/components/icons";
 import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
@@ -40,6 +41,8 @@ export type PageConversation = {
   conversationId: string | null;
   replying: boolean;
   context: ConversationContext | null;
+  /** The AI Coach replies given here about the page's object since it loaded: AI Activity counts them at once (#332). */
+  repliesInView: readonly ReplyInView[];
   clear: () => Promise<boolean>;
   startNew: (() => void) | null;
   askAbout: (article: { id: string; title: string }) => void;
@@ -63,7 +66,7 @@ const Context = createContext<ConversationFirst | null>(null);
 /**
  * What the Candidate's pages share under « Conversation au centre » (#601, ADR-0070): the Sidebar's Free conversations,
  * kept up to date as the page's conversation is saved, renamed or cleared, and the page's conversation, which « Effacer »
- * in the Top Bar and « Nouvelle conversation » in the Sidebar act on. Its absence means the switch is off.
+ * in the Top Bar and « Nouvelle conversation » in the Sidebar act on. Absent outside the Candidate's layout (the Back Office).
  */
 export function ConversationFirstProvider({
   conversations: initial,
@@ -89,7 +92,7 @@ export function ConversationFirstProvider({
 
 const NO_MENUS: SidebarMenus = {};
 
-/** The pages' conversations under « Conversation au centre »; null while it is off. */
+/** The Candidate's pages' conversations (ADR-0070); null outside their layout. */
 export function useConversationFirst(): ConversationFirst | null {
   return useContext(Context);
 }
@@ -98,7 +101,7 @@ export function useConversationFirst(): ConversationFirst | null {
  * The Sidebar's conversations (ADR-0070): « Nouvelle conversation », which leads to the home page, a new Free
  * conversation; then « Coach », which folds, with the Free conversations, each its own page, renamed or deleted from its
  * actions (deleting asks first), and « Mémoire du coach », opened in the Work Pane (#602). `onNavigate`: closes the
- * Sidebar's drawer on phones; `closeDrawerThen` opens the Work Pane once it has (SidebarShell). Nothing while the switch is off.
+ * Sidebar's drawer on phones; `closeDrawerThen` opens the Work Pane once it has (SidebarShell). Nothing outside the Candidate's layout.
  */
 export function SidebarConversations({ onNavigate, closeDrawerThen }: { onNavigate?: () => void; closeDrawerThen?: CloseDrawerThen }) {
   const { t } = useTranslation();
@@ -451,7 +454,7 @@ export function ClearConversationButton({ inContextBar = false }: { inContextBar
 /**
  * « Aide » in the Top Bar of a page without a conversation (Mon compte, #602, ADR-0070): opens the page's Help Article in
  * the Work Pane, whose « Demander au coach » starts a Free conversation about it. Nothing on a page that is a
- * conversation (its box suggests the help), on a page without an article, or while the switch is off.
+ * conversation (its box suggests the help), on a page without an article, or outside the Candidate's layout.
  */
 export function PageHelpButton() {
   const { t, i18n } = useTranslation();

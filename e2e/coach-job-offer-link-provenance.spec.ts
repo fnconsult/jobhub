@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { toConversation } from "./support/conversation";
 
 // Issue #329: a Job Offer read from a link pasted in the Coach Panel keeps its Provenance (the page read, on the
 // site of its page) and, being shared, names no Candidate. The careers site is faked inside the server
@@ -13,8 +14,8 @@ const SITE = "https://carrieres.coach-links.e2e-jobbbox.fr";
 test("a Job Offer read from a pasted link keeps its page read and names no Candidate (#329)", async ({ page }) => {
   await signInWithMagicLink(page, newAddress("coach-link-provenance"));
   const candidateId: string = (await (await page.request.get("/api/auth/get-session")).json()).user.id;
-  const panel = page.getByRole("complementary", { name: fr.coachPanel.title });
-  await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+  const panel = page.getByRole("region", { name: fr.conversationFirst.label });
+  await toConversation(page);
   await panel.getByLabel(fr.coachPanel.messageLabel).fill(`Que pensez-vous de cette offre ? ${SITE}/offres/daf-lyon`);
   await panel.getByRole("button", { name: fr.coachPanel.send }).click();
   await expect(panel.getByRole("article", { name: fr.coachPanel.jobOfferLink.card })).toBeVisible();

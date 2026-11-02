@@ -184,7 +184,7 @@ test.describe("Interface Language", () => {
     await page.reload();
     await expect(page.getByLabel(en.account.interfaceLanguage)).toHaveValue("en");
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.home.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.conversationFirst.newConversation);
 
     // Signed out, visitors get French again; the next sign-in email is in English.
     await page.goto("/compte");

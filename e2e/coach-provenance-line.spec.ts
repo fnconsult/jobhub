@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { chooseInPanelMenu } from "./support/coach-panel";
+import { openFreeConversation, toConversation } from "./support/conversation";
 
 // Issue #327: each AI Coach reply keeps its Provenance, and one quiet line under it says what served it (the model that
 // actually did, tokens · time, Tools, Provenance sites and the hour). « Votre coach » and « Vous » are read only by screen
@@ -15,7 +15,7 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 /** A permanent super-admin of the suite's own (playwright.config.ts), for the Back Office Assistant. */
 const SUPER_ADMIN = "provenance-office@e2e.jobbbox.test";
 
-const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const panelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const messagesOf = (panel: Locator, label: string) => panel.getByRole("list", { name: label }).locator("> li");
 const lineOf = (message: Locator) => message.locator(".provenance-line");
 
@@ -42,7 +42,7 @@ async function expectNoAxeViolations(page: Page, selector: string) {
 test.describe("the Provenance line under each AI Coach reply", () => {
   test("a reply shows the model that served it, tokens · time and the hour, with no visible author, no cost, prompt, Playbook Agent or id", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("provenance-line"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await ask(panelOf(page), "Comment préparer mon entretien ?");
 
     const messages = messagesOf(panelOf(page), fr.coachPanel.messagesLabel);
@@ -72,15 +72,15 @@ test.describe("the Provenance line under each AI Coach reply", () => {
 
     // The line is kept: it is back when the conversation reopens.
     await page.reload();
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(lineOf(messagesOf(panelOf(page), fr.coachPanel.messagesLabel).last())).toContainText("Mistral Large");
-    await expectNoAxeViolations(page, "aside.coach-panel");
+    await expectNoAxeViolations(page, ".page-conversation");
   });
 
   test("a reply that went to the EU AI Consent route shows Mistral with the « consentement IA UE » chip", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("provenance-consent"));
     expect((await page.request.put("/api/account/eu-ai-consent", { headers: { origin } })).ok()).toBe(true);
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     // A phone number makes the call identity-bearing: with EU AI Consent, the identity route serves it.
     await ask(panelOf(page), "Rappelez-moi au 06 12 34 56 78 pour parler de ma candidature.");
 
@@ -108,9 +108,8 @@ test.describe("the Provenance line under each AI Coach reply", () => {
       await db.end();
     }
 
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    await chooseInPanelMenu(panelOf(page), fr.coachPanel.conversations);
-    await panelOf(page).getByRole("button", { name: "Avant la provenance" }).click();
+    await toConversation(page);
+    await openFreeConversation(page, "Avant la provenance");
 
     const messages = messagesOf(panelOf(page), fr.coachPanel.messagesLabel);
     // The welcome first: the conversation was saved before the AI disclosure.
@@ -121,12 +120,12 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     // Its time was not kept: none is shown.
     await expect(partial).not.toContainText(/\d s\b/);
     await expect(lineOf(messages.nth(4))).toContainText(fr.provenanceLine.unrecorded);
-    await expectNoAxeViolations(page, "aside.coach-panel");
+    await expectNoAxeViolations(page, ".page-conversation");
   });
 
   test("a reply's Provenance sites open as a disclosure listing the pages read, which passes axe", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("provenance-sites"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     // A careers page served by fake-coach-link-sites.mjs: the reply reads it (or finds its Job Offer already read) and keeps it as a Provenance site.
     await ask(panelOf(page), "Que pensez-vous de cette offre ? https://carrieres.coach-links.e2e-jobbbox.fr/offres/daf-lyon");
 
@@ -140,7 +139,7 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
     await expect(link).toHaveAttribute("rel", "noreferrer");
-    await expectNoAxeViolations(page, "aside.coach-panel");
+    await expectNoAxeViolations(page, ".page-conversation");
     await page.keyboard.press("Escape");
     await expect(sources).toHaveAttribute("aria-expanded", "false");
   });

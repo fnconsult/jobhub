@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CandidateLayout } from "@/components/CandidateLayout";
 import { MasterCvView } from "@/components/MasterCvView";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
@@ -31,11 +29,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * One saved version of a Profile's Master CV, read-only, with a way to restore it. Under « Conversation au centre »
- * (#605, ADR-0070), one of the Profile's Results, in the Work Pane beside its conversation.
+ * One saved version of a Profile's Master CV, read-only, with a way to restore it: one of the Profile's Results, in the
+ * Work Pane beside its conversation (#605, ADR-0070).
  */
 export default async function MasterCvVersionPage({ params }: Params) {
-  const { candidateId, profile, shown } = await currentVersion(params);
+  const { profile, shown } = await currentVersion(params);
   const t = await getServerT();
   const current = shown.version === profile.masterCv.version;
   const version = (
@@ -51,16 +49,9 @@ export default async function MasterCvVersionPage({ params }: Params) {
       </div>
     </>
   );
-  if (pagesAreConversations())
-    return (
-      <InWorkPane kind={RESULT} title={t("versions.viewTitle", { version: shown.version })} href={routes.masterCvVersion(profile.id, shown.version)} back={routes.profile(profile.id)}>
-        {version}
-      </InWorkPane>
-    );
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("versions.viewTitle", { version: shown.version })}>
-      <p className="lead">{profile.name}</p>
+    <InWorkPane kind={RESULT} title={t("versions.viewTitle", { version: shown.version })} href={routes.masterCvVersion(profile.id, shown.version)} back={routes.profile(profile.id)}>
       {version}
-    </CandidateLayout>
+    </InWorkPane>
   );
 }

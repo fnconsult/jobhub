@@ -4,6 +4,7 @@ import pg from "pg";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { toConversation } from "./support/conversation";
 
 // Issue #344 (ADR-0035): what the help missed reaches a person. A Candidate's question to the AI Coach that no Help
 // Article matched, and that the AI Coach marked as about using Jobbbox, is kept redacted, never linked to the Candidate,
@@ -23,9 +24,8 @@ const tr = (template: string, values: Record<string, string>) => template.replac
 /** A word of letters alone, its own to each run: no Help Article holds it, and Redaction never takes it for a phone number. */
 const tag = () => Array.from({ length: 10 }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join("");
 
-const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const panelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const boxOf = (page: Page) => panelOf(page).getByLabel(fr.coachPanel.messageLabel);
-const messagesOf = (page: Page) => panelOf(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).locator("> li");
 const suggestionsOf = (page: Page) => panelOf(page).getByRole("list", { name: fr.coachPanel.help.suggestions });
 const rowOf = (page: Page, text: string) => page.getByRole("row").filter({ hasText: text });
 
@@ -37,13 +37,13 @@ async function personPage(browser: Browser, email: string): Promise<Page> {
   return page;
 }
 
-/** The Candidate asks the AI Coach `question` in the Coach Panel and waits for the reply. */
+/** The Candidate asks the AI Coach `question` in the page's conversation and waits for the reply. */
 async function ask(page: Page, question: string) {
-  const before = await messagesOf(page).count();
+  const replies = panelOf(page).locator(".chat-coach .provenance-line");
+  const before = await replies.count();
   await boxOf(page).fill(question);
   await panelOf(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
-  // The disclosure comes with a new conversation's first reply.
-  await expect(messagesOf(page)).toHaveCount(before === 0 ? 3 : before + 2);
+  await expect(replies).toHaveCount(before + 1);
 }
 
 /** The super-admin grants `role` to the account with `email`. */
@@ -60,7 +60,6 @@ async function missedQuestion(browser: Browser, ref: string): Promise<string> {
   const question = `Pourquoi suis-je bloqué à cinq analyses ? ${ref}`;
   const candidate = await personPage(browser, newAddress(`unanswered-${ref}`));
   await candidate.goto("/candidatures");
-  await candidate.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
   await ask(candidate, question);
   await candidate.context().close();
   return question;
@@ -72,7 +71,7 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
     const question = `Pourquoi suis-je bloqué à cinq analyses ? ${ref}`;
     await signInWithMagicLink(page, newAddress("unanswered-candidate"));
     await page.goto("/candidatures");
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
 
     // No Help Article is suggested for it before it is sent.
     await boxOf(page).fill(question);
@@ -112,7 +111,7 @@ test.describe("Unanswered Questions: recorded redacted, « Questions sans répon
     const email = newAddress("unanswered-export");
     await signInWithMagicLink(page, email);
     await page.goto("/candidatures");
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await ask(page, question);
 
     // The stored table: no column or foreign key reaches a Candidate, an account or a Coach Conversation.

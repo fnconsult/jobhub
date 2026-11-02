@@ -19,6 +19,8 @@ import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/t
 // e2e/__screenshots__, failing CI on a visual difference; axe runs on each. Only the page (`#main`) is compared, or one
 // component alone: the shell has its own baselines (shell-screenshots.spec.ts). How to update a baseline on purpose:
 // docs/agents/screenshot-baselines.md.
+// - Since #608 the pages are their conversations (ADR-0070): a menu's content is a card in its thread, an object's
+//   Section is shot in the Work Pane beside its conversation.
 // - Issue #467, in the Confort Density: Recherches d'offres (Job Offer cards with the Match Score ring), Candidatures
 //   (the list as a Table), an Application's page (its Sections in tabs) and the quick actions on the home page.
 //   Everything shown is fixed (titles, dates, scores) but the day an Application was saved, which is masked.
@@ -443,44 +445,41 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
     await session.close();
   });
 
+  /**
+   * Since #608 each page is its conversation (ADR-0070): the menus' content is a card in the thread, an object's Section
+   * opens in the Work Pane beside it. `target`: what is shot, the page (`#main`) or the Work Pane.
+   */
   const PAGES = [
     {
       name: "recherches",
-      path: () => `/recherches?profil=${seeded.profileId}`,
-      ready: (page: Page) =>
-        page.getByRole("list", {
-          name: fr.jobSearchesPage.groupTitle.replace(
-            "{{profile}}",
-            "Directrice administrative et financière",
-          ),
-        }),
-      // Drawn with the Design System's components: the Job Offer cards' Match Score ring.
-      component: ".job-offer-result .ds-ring",
+      path: () => "/recherches",
+      ready: (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label }).locator(".chat-card"),
+      component: "#main .chat-card .ds-card",
+      target: "#main",
       mask: () => [] as string[],
     },
     {
       name: "candidatures",
       path: () => "/candidatures",
-      ready: (page: Page) =>
-        page.getByRole("table", { name: fr.applications.title }),
-      component: "main .ds-table",
+      ready: (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label }).locator(".chat-card"),
+      component: "#main .chat-card .ds-card",
+      target: "#main",
       mask: () => [] as string[],
     },
     {
       name: "application",
       path: () => `/candidatures/${seeded.applicationId}/entretiens`,
-      ready: (page: Page) =>
-        page.getByRole("region", { name: fr.application.interviewsTitle }),
-      component: '.sections[data-look="tabs"]',
-      // The day it was saved: today.
-      mask: () => [".application-head__props .prop:nth-child(4) dd"],
+      ready: (page: Page) => page.locator("aside.work-pane").getByRole("region", { name: fr.application.interviewsTitle }),
+      component: "aside.work-pane .ds-button",
+      target: "aside.work-pane",
+      mask: () => [] as string[],
     },
     {
       name: "home",
       path: () => "/",
-      ready: (page: Page) =>
-        page.getByRole("navigation", { name: fr.quickActions.label }),
-      component: ".quick-actions .ds-button--primary",
+      ready: (page: Page) => page.getByRole("navigation", { name: fr.quickActions.label }),
+      component: ".quick-actions .ds-button",
+      target: "#main",
       mask: () => [] as string[],
     },
   ] as const;
@@ -501,7 +500,7 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
             await page.evaluate(() => document.documentElement.scrollWidth),
             `${name}: the page's width`,
           ).toBeLessThanOrEqual(width);
-          await expectNoAxeViolations(page);
+          await expectNoAxeViolations(page, shot.target);
           if (theme === "dark") await expectTextContrast(page, `${shot.name}-${name}`);
           if (comparesScreenshots()) {
             // The page whole, its column drawn at once with nothing to scroll into view.
@@ -512,7 +511,7 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
               ),
             });
             await settled(page);
-            await expect(page.locator("#main")).toHaveScreenshot(
+            await expect(page.locator(shot.target)).toHaveScreenshot(
               `${themedName(`${shot.name}-${name}`, theme)}.png`,
               { mask: shot.mask().map((selector) => page.locator(selector)) },
             );
@@ -524,146 +523,59 @@ test.describe("the Candidate's pages in the Design System (#467)", () => {
     });
   }
 
-  test("the home page's quick actions lead to Recherches d'offres and the Agenda, and open the Coach Panel", async () => {
+  test("the home page's quick actions lead to Recherches d'offres and the Agenda, and put the focus in the box", async () => {
     const page = await session.newPage();
     await page.goto("/");
-    const actions = page.getByRole("navigation", {
-      name: fr.quickActions.label,
-    });
-    await expect(
-      actions.getByRole("link", { name: fr.quickActions.searchJobOffers }),
-    ).toHaveAttribute("href", "/recherches");
-    await expect(
-      actions.getByRole("link", { name: fr.quickActions.scheduleInterview }),
-    ).toHaveAttribute("href", "/agenda");
-    await actions
-      .getByRole("button", { name: fr.quickActions.askCoach })
-      .click();
-    await expect(page.getByLabel(fr.coachPanel.messageLabel)).toBeVisible();
+    const actions = page.getByRole("navigation", { name: fr.quickActions.label });
+    await expect(actions.getByRole("link", { name: fr.quickActions.searchJobOffers })).toHaveAttribute("href", "/recherches");
+    await expect(actions.getByRole("link", { name: fr.quickActions.scheduleInterview })).toHaveAttribute("href", "/agenda");
+    await actions.getByRole("button", { name: fr.quickActions.askCoach }).click();
+    await expect(page.getByRole("region", { name: fr.conversationFirst.label }).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
     await page.close();
   });
 
-  // ADR-0009 on a phone, in the all-Profiles view: only a swimlane scrolls sideways, never the page. The long « Chercher
-  // pour mes 2 profils (2 recherches) » wraps, a card's visually hidden label stays inside its swimlane, and the Profile
-  // select reaches the 44px target floor. Without the worker: on the Standard Plan, for two Profiles, each Profile's Job
-  // Search is seeded done.
-  test("Recherches d'offres for every Profile, in swimlanes, does not scroll the page sideways at 375px, and its targets are 44px high", async ({
-    browser,
-  }) => {
-    const context = await browser.newContext({
-      baseURL: origin,
-      locale: "fr-FR",
-      colorScheme: "light",
-    });
+  // ADR-0009 on a phone (#608): Recherches d'offres' conversation, its card listing every Profile's Job Search, never
+  // scrolls the page sideways. Without the worker: on the Standard Plan, for two Profiles, each Job Search seeded done.
+  test("Recherches d'offres for every Profile does not scroll the page sideways at 375px", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: origin, locale: "fr-FR", colorScheme: "light" });
     const page = await context.newPage();
     const email = newAddress("candidate-pages-all-profiles");
     await signInWithMagicLink(page, email);
     await subscribe(page, email, "standard");
-    const [candidate] = await query<{ id: string }>(
-      `SELECT id FROM candidate WHERE email = $1`,
-      [email],
-    );
-    const roles = [
-      "Directrice administrative et financière",
-      "Responsable consolidation groupe",
-    ];
-    for (const [index, targetRole] of roles.entries()) {
+    const [candidate] = await query<{ id: string }>(`SELECT id FROM candidate WHERE email = $1`, [email]);
+    for (const [index, targetRole] of ["Directrice administrative et financière", "Responsable consolidation groupe"].entries()) {
       const created = await page.request.post("/api/profiles", {
         headers: { origin },
-        data: {
-          masterCv,
-          searchCriteria: {
-            targetRole,
-            locations: ["Lyon"],
-            minSalary: 90_000,
-            contractTypes: ["cdi"],
-          },
-        },
+        data: { masterCv, searchCriteria: { targetRole, locations: ["Lyon"], minSalary: 90_000, contractTypes: ["cdi"] } },
       });
       expect(created.status(), await created.text()).toBe(201);
-      const offerIds = await insertJobOffers(
-        OFFERS.slice(0, 3),
-        `all-${index}-`,
-      );
+      const offerIds = await insertJobOffers(OFFERS.slice(0, 3), `all-${index}-`);
       await query(
         `INSERT INTO job_search (candidate_id, profile_id, status, job_offer_ids, started_at, finished_at, metrics) VALUES ($1, $2, 'done', $3, $4, $5, $6)`,
-        [
-          candidate!.id,
-          (await created.json()).id,
-          offerIds,
-          "2026-10-27T08:30:00Z",
-          "2026-10-27T08:32:00Z",
-          doneRunMetrics(offerIds.length),
-        ],
+        [candidate!.id, (await created.json()).id, offerIds, "2026-10-27T08:30:00Z", "2026-10-27T08:32:00Z", doneRunMetrics(offerIds.length)],
       );
     }
 
     await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto("/recherches?profil=tous&vue=couloirs");
-    const lane = page.getByRole("region", {
-      name: fr.jobSearchesPage.laneLabel.replace("{{profile}}", roles[0]),
-    });
-    await expect(lane.locator(".job-offer-result")).toHaveCount(3);
-    await expect(
-      page.getByRole("button", {
-        name: fr.jobSearchesPage.startAll_other.replaceAll("{{count}}", "2"),
-      }),
-    ).toBeVisible();
+    await page.goto("/recherches");
+    await expect(page.getByRole("region", { name: fr.conversationFirst.label }).locator(".chat-card")).toBeVisible();
     await settled(page);
-    expect(
-      await page.evaluate(
-        () =>
-          document.documentElement.scrollWidth -
-          document.documentElement.clientWidth,
-      ),
-      "sideways scroll at 375px",
-    ).toBe(0);
-    expect(
-      await lane.evaluate(
-        (element) => element.scrollWidth > element.clientWidth,
-      ),
-      "the swimlane scrolls sideways",
-    ).toBe(true);
-    for (const target of await page
-      .getByRole("main")
-      .locator("a, button, summary, select")
-      .all()) {
-      if (!(await target.isVisible())) continue;
-      expect
-        .soft(
-          (await target.boundingBox())!.height,
-          `height of "${await target.innerText()}"`,
-        )
-        .toBeGreaterThanOrEqual(44);
-    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), "sideways scroll at 375px").toBe(0);
     await context.close();
   });
 
-  test("an Application's Sections are tabs from 64rem, the one shown marked, and stay in the page beside a docked Coach Panel", async () => {
+  test("an Application's Section opens in the Work Pane beside its conversation, marked in the Fiche (#603, #608)", async () => {
     const page = await session.newPage();
-    await page.setViewportSize({ width: 1170, height: 800 });
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto(`/candidatures/${seeded.applicationId}/entretiens`);
-    const tabs = page
-      .getByRole("main")
-      .getByRole("navigation", { name: fr.application.sections.sectionsLabel });
-    await expect(
-      tabs.getByRole("link", { name: fr.application.sections.entretiens }),
-    ).toHaveAttribute("aria-current", "page");
-    const boxes = await tabs
-      .getByRole("link")
-      .evaluateAll((links) =>
-        links.map((link) => link.getBoundingClientRect().top),
-      );
-    // One line of tabs.
-    expect(new Set(boxes.map(Math.round)).size).toBe(1);
-    // The Coach Panel docked beside the page: the tabs stay, the sidebar keeps the main menu.
-    await page.getByRole("button", { name: fr.coachPanel.open }).click();
-    await expect(tabs).toBeVisible();
-    await expect(
-      page.locator(".sidebar-docked").getByRole("navigation", {
-        name: fr.application.sections.sectionsLabel,
-      }),
-    ).toHaveCount(0);
+    const pane = page.locator("aside.work-pane");
+    await expect(pane.getByRole("heading", { level: 2, name: fr.application.sections.entretiens })).toBeVisible();
+    await expect(page.getByRole("region", { name: fr.conversationFirst.label })).toBeVisible();
+    const fiche = page.getByRole("complementary", { name: fr.fiche.label });
+    await expect(fiche.getByRole("link", { name: fr.application.sections.entretiens })).toHaveAttribute("aria-current", "page");
+    // Beside the conversation, never over it.
+    const main = (await page.getByRole("main").boundingBox())!;
+    expect(main.x + main.width).toBeLessThanOrEqual((await pane.boundingBox())!.x + 1);
     await page.close();
   });
 });
@@ -678,13 +590,14 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     const id = await newProfile(page);
     for (const { name, width, height } of SCREENSHOT_WIDTHS) {
       await page.setViewportSize({ width, height });
+      // The Master CV, a Section of the Profile, opens in the Work Pane beside its conversation (#605, #608).
       await page.goto(`/profils/${id}/cv-de-reference`);
-      const cv = page.getByRole("region", { name: fr.profile.masterCv });
+      const cv = page.locator("aside.work-pane").getByRole("region", { name: fr.profile.masterCv });
       await expect(cv.getByLabel(fr.cvReview.summary)).toBeVisible();
       await check(
         page,
-        page.locator("#main"),
-        "#main",
+        page.locator("aside.work-pane"),
+        "aside.work-pane",
         `profile-${name}`,
         width,
       );
@@ -698,7 +611,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
         name: fr.profilePage.savebarLabel,
       });
       await expect(bar).toBeVisible();
-      await check(page, bar, "#main", `profile-savebar-${name}`, width, false);
+      await check(page, bar, "aside.work-pane", `profile-savebar-${name}`, width, false);
     }
   });
 
@@ -782,10 +695,11 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       await expect(
         page.getByRole("img", { name: /^Page 1 sur \d$/ }),
       ).toBeVisible();
+      // In the Work Pane beside the Application's conversation (#603, #608).
       await check(
         page,
-        page.locator("#main"),
-        "#main",
+        page.locator("aside.work-pane"),
+        "aside.work-pane",
         `documents-${name}`,
         width,
       );

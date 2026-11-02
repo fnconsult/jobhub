@@ -57,50 +57,6 @@ export function focusFirstSuggestion(from: HTMLElement): boolean {
 }
 
 /**
- * A Help Article opened in the conversation, as a card: never saved with the Coach Conversation, never sent to the
- * AI Coach (only its title, if the Candidate then asks). « Non, demander au coach » starts a question about it.
- */
-export function HelpArticleCard({
-  article,
-  headingId,
-  answered,
-  onAnswered,
-  onAskCoach,
-}: {
-  article: HelpArticle;
-  headingId: string;
-  answered: boolean;
-  onAnswered: () => void;
-  onAskCoach: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <article className="help-card" aria-labelledby={headingId} data-help>
-      <p className="help-card-label">{t("coachPanel.help.cardLabel")}</p>
-      <h3 id={headingId} className="help-card-title" tabIndex={-1}>
-        {article.title}
-      </h3>
-      <CoachReplyText text={article.body} />
-      {answered ? (
-        <p role="status" className="help-card-thanks">
-          {t("coachPanel.help.thanks")}
-        </p>
-      ) : (
-        <div className="help-card-feedback" role="group" aria-label={t("coachPanel.help.answered")}>
-          <p>{t("coachPanel.help.answered")}</p>
-          <button type="button" className="button" onClick={onAnswered}>
-            {t("coachPanel.help.yes")}
-          </button>
-          <button type="button" className="button" onClick={onAskCoach}>
-            {t("coachPanel.help.no")}
-          </button>
-        </div>
-      )}
-    </article>
-  );
-}
-
-/**
  * An empty conversation's help: help comes first, the page in view's article (« Sur cette page »), three frequent questions.
  * `howThisPageWorks`: on a page that is a conversation, whose Work Pane shows articles whole (#602), the page's article is
  * only offered, as « Comment marche cette page ? ».

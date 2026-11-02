@@ -404,23 +404,11 @@ textarea.input {
   width: 100%;
 }
 
-/* The Coach Panel (#134, ADR-0024): docked beside the page from 64rem, the
-   page then scrolling in its own column so its scrollbar never lands on the
-   panel; the whole screen below. Agrandir widens it into a modal drawer over
-   the page. Its button sits in the sidebar layout's top bar; pages outside
-   that layout get a floating one. Either steps aside while the panel is open. */
-.coach-panel-toggle-floating {
-  position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  z-index: 20;
-  box-shadow: var(--shadow-menu);
-}
-
-body:has(.app-shell) .coach-panel-toggle-floating {
-  display: none;
-}
-
+/* The Coach Panel (#134, ADR-0024), the Back Office Assistant's alone since the Candidate's conversation became their
+   page (ADR-0070, #608): docked beside the page from 64rem, the page then scrolling in its own column so its scrollbar
+   never lands on the panel; the whole screen below. Agrandir widens it into a modal drawer over the page. Its button
+   sits in the Top Bar and steps aside while the panel is open. Its thread and box are drawn as the Candidate's
+   conversation's (.page-conversation). */
 .coach-panel {
   position: fixed;
   top: 0;
@@ -451,21 +439,6 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   .coach-panel-wide {
     width: min(64rem, 92vw);
     box-shadow: var(--shadow-overlay);
-  }
-}
-
-/* « Aide et coach », « Aide » below 48rem (#342, ADR-0035): a visible label at every width (ADR-0009). */
-.coach-panel-toggle-short {
-  display: none;
-}
-
-@media (width < 48rem) {
-  .coach-panel-toggle-long {
-    display: none;
-  }
-
-  .coach-panel-toggle-short {
-    display: inline;
   }
 }
 
@@ -979,6 +952,15 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   .page-conversation-suggestions .quick-actions > * {
     flex: none;
   }
+
+  /* A menu's card holds its whole width on a phone (#608): a long button or pill (« Réserver avec … », « Reporté ·
+     initialement prévu le … ») wraps rather than pushing the page sideways. */
+  .page-conversation .chat-card :is(.ds-button, .ds-pill) {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    text-align: start;
+  }
 }
 
 /* ---------- The Work Pane (#602, ADR-0070): one item beside the conversation, never over it ----------
@@ -1025,6 +1007,23 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 .work-pane-head .icon {
   width: 1.125em;
   height: 1.125em;
+}
+
+/* What a Section holds stays within the pane: a long button or Pill (« Modifier l'entretien du … ») wraps (#608). */
+.work-pane-body :is(.ds-button, .ds-pill) {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: start;
+}
+
+.work-pane-body .ds-button {
+  padding-block: var(--space-2);
+}
+
+/* Its ✕ and its actions, and the Fiche's ✕ on a phone, reach the 44px target floor of the Candidate's pages (ADR-0009). */
+:is(.work-pane-head, .fiche-head) .ds-button {
+  min-height: var(--control-height);
 }
 
 .work-pane-body {
@@ -1353,15 +1352,54 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   display: none;
 }
 
-/* On a phone the Fiche takes the whole screen, under the Work Pane (#608 finishes the phone's layout). */
+/* On a phone (below 64rem) the Fiche, and the Activité column, open over the conversation and take the whole screen, as
+   the Work Pane does (#608): titled, closed by their ✕, the page behind out of reach (SidebarShell's pageInert). */
 @media (width < 64rem) {
   .fiche {
     position: fixed;
-    inset: var(--topbar-height, 3.5rem) 0 0;
+    inset: 0;
     z-index: 25;
+    padding-top: 0;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     border: 0;
     border-radius: 0;
   }
+}
+
+.fiche-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+  margin-inline: calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fiche-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.fiche-head h2:focus {
+  outline: none;
+}
+
+.fiche-head h2:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.fiche-head .icon {
+  width: 1.125em;
+  height: 1.125em;
 }
 
 /* « Mémoire du coach » under « Coach », a button among the Free conversations' links, like « Coach » itself. */
@@ -2693,11 +2731,31 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
     padding-left: var(--space-4);
   }
 
-  /* On a phone the title gets a row of its own, under Menu and the coach button. */
+  /* On a phone the title gets a row of its own, under Menu and the page's buttons. */
   .topbar-title {
     flex-basis: 100%;
     order: 1;
   }
+
+  /* The page's buttons (« Fiche », « Activité », « Effacer » or « Aide ») keep together at the right of Menu, closer set,
+     so the conversation keeps the screen (#608). */
+  .topbar .topbar-actions {
+    flex: 1;
+    gap: var(--space-2);
+  }
+
+  .topbar :is(.menu-toggle, .topbar-actions .ds-button) {
+    padding-inline: var(--space-3);
+  }
+}
+
+/* The Candidate's page buttons in the Top Bar, one group at its end (#608). */
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: flex-end;
 }
 
 /* Reached by the skip link: the page itself needs no ring. */

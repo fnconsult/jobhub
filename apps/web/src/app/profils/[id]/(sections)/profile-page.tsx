@@ -1,6 +1,5 @@
-import { referenceLabels, type IndustryReference, type SearchCriteria } from "@jobhub/shared";
 import { notFound, redirect } from "next/navigation";
-import { Fragment, cache } from "react";
+import { cache } from "react";
 import type { Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
 import { getActionCards } from "@/action-cards/server";
@@ -9,9 +8,7 @@ import { getAtsScoring } from "@/ats-score/server";
 import { ActionCardList, type ActionCardView } from "@/components/ActionCardList";
 import { AtsScoreView } from "@/components/AtsScoreView";
 import { CvExportForm } from "@/components/CvExportForm";
-import { anyOfInWords, contractTypesInWords, remoteWorkOptionsInWords } from "@/components/job-search-words";
 import { MasterCvDocument } from "@/components/MasterCvDocument";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
 import { ProfileActions } from "@/components/ProfileActions";
@@ -65,7 +62,7 @@ export const loadProfileAside = cache(async (id: string) => {
  * One Section of a Profile's page. A Section the Profile does not have is not
  * found, but for Propositions: its last Action Card decided (an accepted one
  * refreshes the page), the Candidate is taken back to the Profile's page.
- * Under « Conversation au centre » (#605, ADR-0070), it opens in the Work Pane beside the Profile's conversation.
+ * It opens in the Work Pane beside the Profile's conversation (#605, ADR-0070).
  */
 export async function ProfileSectionPage({ id, section }: { id: string; section: ProfileSection }) {
   const page = await loadProfilePage(id);
@@ -74,7 +71,6 @@ export async function ProfileSectionPage({ id, section }: { id: string; section:
     notFound();
   }
   const t = await getServerT();
-  if (!pagesAreConversations()) return <SectionView page={page} section={section} t={t} />;
   return (
     <InWorkPane kind={SECTION} title={t(`profilePage.sections.${section}`)} href={routes.profileSection(page.profile.id, section)} back={routes.profile(page.profile.id)}>
       <SectionView page={page} section={section} t={t} />
@@ -179,36 +175,6 @@ async function TargetCompaniesSection({ page }: { page: Page }) {
         spontaneousApplicationId: company.spontaneousApplicationId,
       }))}
     />
-  );
-}
-
-/** An archived Profile's Search Criteria: read-only until it is restored. */
-export function ArchivedCriteria({ criteria, locale, t, industries }: { criteria: SearchCriteria; locale: string; t: T; industries: IndustryReference }) {
-  const notSpecified = t("profile.notSpecified");
-  const language = locale.startsWith("en") ? "en" : "fr";
-  const labels = (codes: string[], entries: IndustryReference["sectors"]) => anyOfInWords(referenceLabels(codes, entries, language), locale) || notSpecified;
-  const properties: [string, string][] = [
-    [t("cvReview.targetRole"), criteria.targetRole],
-    [t("cvReview.locations"), anyOfInWords(criteria.locations, locale)],
-    [
-      t("cvReview.minSalary"),
-      criteria.minSalary === undefined ? notSpecified : t("profile.salary", { amount: new Intl.NumberFormat(locale).format(criteria.minSalary) }),
-    ],
-    [t("cvReview.contractType"), contractTypesInWords(criteria.contractTypes, t, locale) || notSpecified],
-    [t("cvReview.remoteWork"), remoteWorkOptionsInWords(criteria.remoteWorkOptions, t, locale) || notSpecified],
-    [t("cvReview.sectors"), labels(criteria.sectors, industries.sectors)],
-    [t("cvReview.subsectors"), labels(criteria.subsectors, industries.subsectors)],
-    [t("cvReview.domains"), labels(criteria.domains, industries.domains)],
-  ];
-  return (
-    <dl className="props" aria-label={t("cvReview.searchCriteria")}>
-      {properties.map(([label, value]) => (
-        <Fragment key={label}>
-          <dt>{label}</dt>
-          <dd>{value}</dd>
-        </Fragment>
-      ))}
-    </dl>
   );
 }
 

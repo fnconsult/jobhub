@@ -3,6 +3,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { toConversation } from "./support/conversation";
 
 // A Job Offer link the Candidate pastes in the Coach Panel: the AI Coach reads the posting and answers with a
 // Job Offer card, to process on the Job Offer's page. The careers site is faked inside the server
@@ -12,7 +13,7 @@ const texts = fr.coachPanel.jobOfferLink;
 const SITE = "https://carrieres.coach-links.e2e-jobbbox.fr";
 const requestLog = path.join(path.dirname(process.env.E2E_SERVER_LOG!), "coach-links.log");
 
-const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 async function say(page: Page, text: string) {
   await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).fill(text);
@@ -24,7 +25,7 @@ const requested = () => (existsSync(requestLog) ? readFileSync(requestLog, "utf8
 test.describe("a Job Offer link pasted in the Coach Panel", () => {
   test("the AI Coach reads the posting and answers with a card to the new Job Offer, to process on its page", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-link"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await say(page, `Que pensez-vous de cette offre ? ${SITE}/offres/daf-lyon`);
 
     await expect(coachPanel(page).getByText(texts.read)).toBeVisible();
@@ -35,7 +36,7 @@ test.describe("a Job Offer link pasted in the Coach Panel", () => {
 
     // The card reopens with the conversation.
     await page.reload();
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanel(page).getByRole("article", { name: texts.card })).toContainText(texts.toProcess);
 
     await coachPanel(page).getByRole("link", { name: texts.open }).click();
@@ -46,7 +47,7 @@ test.describe("a Job Offer link pasted in the Coach Panel", () => {
 
   test("a Forbidden site is never requested, and a page that is not one posting makes no Job Offer", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-link-refused"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
 
     await say(page, "https://www.linkedin.com/jobs/view/4012345678");
     await expect(coachPanel(page).getByText(texts.forbiddenSite)).toBeVisible();

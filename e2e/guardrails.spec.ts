@@ -63,11 +63,8 @@ test.describe("Guardrails on the AI Coach", () => {
       { from: "coach", text: DEFAULT_GUARDRAIL_MESSAGES.prompt_injection.fr, blocked: true },
     ]);
 
-    // The Coach Panel says so, without naming the Guardrail.
-    await page.goto("/compte");
-    await page.evaluate((id) => window.localStorage.setItem("jobhub.coachConversation", id), blocked.conversation.id);
-    await page.reload();
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).first().click();
+    // Its page says so, without naming the Guardrail.
+    await page.goto(`/conversations/${blocked.conversation.id}`);
     await expect(page.locator(".chat-blocked-label")).toHaveText([fr.coachPanel.blocked, fr.coachPanel.blocked]);
   });
 

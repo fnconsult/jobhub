@@ -3,7 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
-import { CoachConversationPage } from "./CoachPanel";
+import { CoachConversationPage } from "./CoachConversationPage";
 import { ClearConversationButton, ConversationFirstProvider } from "./conversation-first";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));

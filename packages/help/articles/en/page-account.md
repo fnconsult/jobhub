@@ -12,4 +12,4 @@ My data lets you download all your data or delete your account.
 
 Under each section, « Jobbbox version » gives the version you are using, for example « 0.1.0 ». On the beta, it is followed by the exact change served, for example « 0.1.0 (main·3f9c2a1) »: quote it if you report a problem.
 
-With the new layout, « Help », at the top of the page, opens this article beside the page. « Ask the coach » there starts a new conversation with your AI coach about My account.
+My account is not a conversation: « Help », at the top of the page, opens this article beside the page (over it, full screen, on a phone). « Ask the coach » there starts a new conversation with your AI coach about My account.

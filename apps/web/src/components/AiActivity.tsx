@@ -10,7 +10,8 @@ import { isRunning, liveView, type LiveAction, type LiveStep, type LiveView } fr
 import { activityElement, aiActivityPane, byRulesOnly, type ActivityElement, type ActivityModel, type ActivityTool, type AiActivityPane } from "@/ai-activity/pane";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive } from "@/components/AiActivityLive";
-import { useCoachRepliesInView } from "@/components/CoachPanel";
+import type { ReplyInView } from "@/components/CoachConversationPage";
+import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 
 type Language = "fr" | "en";
@@ -33,6 +34,9 @@ const NO_ACTIONS: readonly LiveAction[] = [];
 
 const AiActivityControl = createContext<Control | null>(null);
 
+/** No AI Coach reply given here yet about the page's object. */
+const NO_REPLIES: readonly ReplyInView[] = [];
+
 /**
  * AI Activity (CONTEXT.md, #314, #332): the Candidate's top-bar button, left of « Aide et coach », and the « Cette page »
  * pane it opens, of the page's `elements` (one loader per page type, ai-activity/index.ts) and of the AI Coach replies
@@ -41,7 +45,7 @@ const AiActivityControl = createContext<Control | null>(null);
  * pane renders there.
  */
 export function AiActivityProvider({ elements, children }: { elements: readonly ActivityElement[]; children: ReactNode }) {
-  const given = useCoachRepliesInView();
+  const given = useConversationFirst()?.page?.repliesInView ?? NO_REPLIES;
   const store = useAiActivityLive();
   const pathname = usePathname();
   const actions = store?.actions ?? NO_ACTIONS;

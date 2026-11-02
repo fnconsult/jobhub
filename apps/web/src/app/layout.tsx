@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { pendingAcceptance } from "@/acceptances/server";
 import { getCurrentCandidate } from "@/auth/server";
-import { CandidateCoachPanel } from "@/components/CoachPanel";
+import { CandidateProviders } from "@/components/CandidateProviders";
 import { ResponseWatcher } from "@/components/ResponseWatcher";
 import { DocumentHead } from "@/design/document-head";
 import { ScrollbarActivity } from "@/design/ScrollbarActivity";
@@ -23,10 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const locale = await getRequestLocale();
-  // The Coach Panel is on every page a signed-in Candidate sees but the Back
-  // Office's, which has the Back Office Assistant. (Their own pages sit in the
-  // sidebar layout, CandidateLayout, which also shows the Payment Failed Notice.)
-  // Not while a CGU version waits for their Acceptance (ADR-0062): the AI Coach waits too.
+  // AI Activity's live actions follow a signed-in Candidate from page to page, the Back Office's aside (their own pages
+  // sit in the sidebar layout, CandidateLayout, whose conversations are the pages, ADR-0070). Not while a CGU version
+  // waits for their Acceptance (ADR-0062): the AI Coach waits too.
   const candidate = await getCurrentCandidate();
   const coached = candidate !== null && !(await pendingAcceptance(candidate.id));
   return (
@@ -39,7 +38,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <I18nProvider locale={locale}>
           {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
           <ResponseWatcher signedIn={candidate !== null} />
-          {coached ? <CandidateCoachPanel version={jobbboxVersion()}>{children}</CandidateCoachPanel> : children}
+          {coached ? <CandidateProviders version={jobbboxVersion()}>{children}</CandidateProviders> : children}
         </I18nProvider>
       </body>
     </ThemedHtml>

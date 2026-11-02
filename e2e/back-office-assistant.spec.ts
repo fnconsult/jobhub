@@ -120,7 +120,7 @@ test.describe("Back Office Assistant", () => {
     await expect(assistant(coachManager).getByRole("button", { name: /Quels sont les quotas \?/ })).toHaveCount(0);
   });
 
-  test("not shown to Candidates: its API answers 404, and their Coach Panel keeps their own conversations", async ({ page }) => {
+  test("not shown to Candidates: its API answers 404, and their pages are their own conversations (#608)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("assistant-candidate"));
 
     const sent = await page.request.post("/api/admin/assistant", { headers: { origin }, data: { message: "Quels sont les quotas ?" } });
@@ -130,6 +130,8 @@ test.describe("Back Office Assistant", () => {
 
     await page.goto("/compte");
     await expect(page.getByRole("button", { name: assistantTexts.open, exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: fr.coachPanel.open }).first()).toBeVisible();
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: fr.conversationFirst.label })).toBeVisible();
+    await expect(page.locator(".coach-panel")).toHaveCount(0);
   });
 });

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { BackOfficeNavGroup } from "@/admin/back-office-nav";
 import { Icons } from "@/components/icons";
+import { BackOfficeAssistantToggle } from "@/components/BackOfficeAssistantPanel";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
 
@@ -37,6 +38,7 @@ export function BackOfficeSidebarLayout({
     <SidebarShell
       brand={{ href: routes.admin, label: `${t("app.name")} · ${t("admin.title")}` }}
       title={title}
+      topBarEnd={<BackOfficeAssistantToggle />}
       foot={() => <p className="release-line">{t("release.line", { version: release })}</p>}
       nav={(closeDrawer) => (
         <nav className="sidebar-nav" aria-label={t("admin.nav.label")}>

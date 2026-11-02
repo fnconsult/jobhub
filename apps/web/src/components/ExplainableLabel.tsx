@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
-import { useAskAssistant } from "@/components/CoachPanel";
+import { useAskAssistant } from "@/components/BackOfficeAssistantPanel";
 import { useLeaveAddressDrawer } from "@/design/AddressDrawer";
 
 /** What a page says of the item an Explainable label explains; the label's words and the page are added here. */

@@ -872,7 +872,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-exit",
       "locale": "fr",
       "kind": "page",
-      "audience": "visitor",
+      "audience": "candidate",
       "topic": "utiliser",
       "title": "Vous quittez Jobbbox",
       "synonyms": [
@@ -3501,7 +3501,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "page-exit",
       "locale": "en",
       "kind": "page",
-      "audience": "visitor",
+      "audience": "candidate",
       "topic": "utiliser",
       "title": "You are leaving Jobbbox",
       "synonyms": [

@@ -1,6 +1,6 @@
 ---
 kind: page
-audience: visitor
+audience: candidate
 topic: utiliser
 title: "You are leaving Jobbbox"
 route: /sortie

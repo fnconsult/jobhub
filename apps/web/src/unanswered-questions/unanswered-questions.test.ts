@@ -10,7 +10,7 @@ const connectionString = process.env.DATABASE_URL;
 const MARIE: CandidateIdentity = { fullName: "Marie Dupont", firstName: "Marie", lastName: "Dupont", email: "marie.dupont@example.fr", phone: "06 12 34 56 78" };
 
 /** A question the help has no article for, about using Jobbbox, that the AI Coach answered. */
-const QUOTA = "Pourquoi suis-je bloqué à cinq analyses ?";
+const QUOTA = "Pourquoi suis-je bloqué à cinq tentatives ?";
 const replied = (question: string, more: Partial<NoticedReply> = {}): NoticedReply => ({
   question,
   reply: { text: "Votre quota se renouvelle chaque lundi.", outcome: "replied", aboutJobbbox: true },
@@ -61,7 +61,7 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
     it("counts the same request again, apart from a Candidate's same question, and filters by audience", async () => {
       // The same words, page and language as a Candidate's, kept apart by audience.
       await questions.request({ ...request, question: QUOTA, route: "/candidatures" });
-      await questions.request({ ...request, question: "cinq analyses : pourquoi suis-je BLOQUÉ", route: "/candidatures" });
+      await questions.request({ ...request, question: "cinq tentatives : pourquoi suis-je BLOQUÉ", route: "/candidatures" });
       await questions.notice("marie", replied(QUOTA, { route: "/candidatures" }));
 
       expect((await questions.open()).map((each) => [each.audience, each.count])).toEqual([
@@ -121,7 +121,7 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
       await questions.notice("marie", replied(QUOTA));
       const first = now;
       now = new Date("2026-10-25T09:00:00Z");
-      await questions.notice("jean", replied("cinq analyses : pourquoi suis-je BLOQUÉ"));
+      await questions.notice("jean", replied("cinq tentatives : pourquoi suis-je BLOQUÉ"));
 
       expect(await questions.open()).toEqual([expect.objectContaining({ question: QUOTA, count: 2, firstAskedAt: first, lastAskedAt: now })]);
     });
@@ -155,13 +155,13 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
     it("keeps the question and the AI Coach's answer redacted as AI calls are, never who asked", async () => {
       await questions.notice(
         "marie",
-        replied("Je suis Marie Dupont, marie.dupont@example.fr : pourquoi suis-je bloqué à cinq analyses ?", {
+        replied("Je suis Marie Dupont, marie.dupont@example.fr : pourquoi suis-je bloqué à cinq tentatives ?", {
           reply: { text: "Marie Dupont, appelez le 06 12 34 56 78 ou écrivez à support@exemple.fr.", outcome: "replied", aboutJobbbox: true },
         }),
       );
 
       const [kept] = await questions.open();
-      expect(kept!.question).toBe("Je suis [NOM], [E-MAIL] : pourquoi suis-je bloqué à cinq analyses ?");
+      expect(kept!.question).toBe("Je suis [NOM], [E-MAIL] : pourquoi suis-je bloqué à cinq tentatives ?");
       expect(kept!.answer).toBe("[NOM], appelez le [TÉLÉPHONE] ou écrivez à [E-MAIL 2].");
     });
 
@@ -173,9 +173,9 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
         now: () => now,
       });
 
-      await questions.notice("marie", replied("Écrivez-moi à marie.dupont@example.fr : pourquoi suis-je bloqué à cinq analyses ?"));
+      await questions.notice("marie", replied("Écrivez-moi à marie.dupont@example.fr : pourquoi suis-je bloqué à cinq tentatives ?"));
 
-      expect((await questions.open())[0]!.question).toBe("Écrivez-moi à [E-MAIL] : pourquoi suis-je bloqué à cinq analyses ?");
+      expect((await questions.open())[0]!.question).toBe("Écrivez-moi à [E-MAIL] : pourquoi suis-je bloqué à cinq tentatives ?");
     });
 
     it("has no column that could link a row to a Candidate or a Coach Conversation", async () => {
@@ -202,15 +202,15 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
   describe("read by Help editors in « Questions sans réponse »", () => {
     beforeEach(async () => {
       await questions.notice("marie", replied(QUOTA));
-      await questions.notice("marie", replied("Où est passé le bouton vert ?", { route: "/" }));
-      await questions.notice("jean", replied("Où est passé le bouton vert ?", { route: "/" }));
-      await questions.notice("jean", replied("Where did the green button go?", { route: "/", language: "en" }));
+      await questions.notice("marie", replied("Où est passé le losange vert ?", { route: "/" }));
+      await questions.notice("jean", replied("Où est passé le losange vert ?", { route: "/" }));
+      await questions.notice("jean", replied("Where did the green diamond go?", { route: "/", language: "en" }));
     });
 
     it("lists the open ones, most asked first, by route and by language", async () => {
       expect((await questions.open()).map((each) => each.count)).toEqual([2, 1, 1]);
-      expect((await questions.open({ route: "/" })).map((each) => each.question)).toEqual(["Où est passé le bouton vert ?", "Where did the green button go?"]);
-      expect((await questions.open({ language: "en" })).map((each) => each.question)).toEqual(["Where did the green button go?"]);
+      expect((await questions.open({ route: "/" })).map((each) => each.question)).toEqual(["Où est passé le losange vert ?", "Where did the green diamond go?"]);
+      expect((await questions.open({ language: "en" })).map((each) => each.question)).toEqual(["Where did the green diamond go?"]);
       expect((await questions.open({ route: "/", language: "fr" })).map((each) => each.count)).toEqual([2]);
     });
 
@@ -224,7 +224,7 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
       expect(await questions.mark(letters!.id, "dismissed")).toBeNull();
       expect(await questions.mark("not-an-id", "written")).toBeNull();
 
-      await questions.notice("marie", replied("Où est passé le bouton vert ?", { route: "/" }));
+      await questions.notice("marie", replied("Où est passé le losange vert ?", { route: "/" }));
       expect(await questions.open({ route: "/", language: "fr" })).toEqual([expect.objectContaining({ count: 1, status: "open" })]);
     });
   });
@@ -232,9 +232,9 @@ describe.skipIf(!connectionString)("Unanswered Questions (#344, ADR-0035; needs 
   describe("purged by the worker", () => {
     it("deletes an open one 12 months after it was last asked, and a written or dismissed one 30 days after it was marked", async () => {
       await questions.notice("marie", replied(QUOTA));
-      await questions.notice("marie", replied("Où est passé le bouton vert ?"));
+      await questions.notice("marie", replied("Où est passé le losange vert ?"));
       await questions.notice("marie", replied("Puis-je imprimer en noir et blanc ?"));
-      const button = (await questions.open()).find((each) => each.question === "Où est passé le bouton vert ?")!;
+      const button = (await questions.open()).find((each) => each.question === "Où est passé le losange vert ?")!;
       now = new Date("2026-11-01T10:00:00Z");
       await questions.mark(button.id, "written");
 

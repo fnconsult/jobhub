@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Contexte de la conversation
 synonyms: [contexte, contexte de la conversation, jetons, barre de contexte, le coach oublie, messages lus]
 ---

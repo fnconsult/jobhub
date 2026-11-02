@@ -426,6 +426,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-conversation-context",
       "locale": "fr",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Contexte de la conversation",
       "synonyms": [
         "contexte",
@@ -1317,6 +1319,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "id": "glossary-conversation-context",
       "locale": "en",
       "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
       "title": "Conversation context",
       "synonyms": [
         "context",

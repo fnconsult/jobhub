@@ -1,0 +1,290 @@
+{
+  "id": "c05-usine-rouen",
+  "persona": "Directeur d'usine, 53 ans, Rouen (Normandie), sur site",
+  "criteria": {
+    "targetRole": "Directeur d'usine",
+    "location": "Rouen",
+    "contractType": "cdi",
+    "remoteWork": "on_site"
+  },
+  "query": "Offres d'emploi « Directeur d'usine » à Rouen, CDI, sur site",
+  "ranAt": "2026-10-12T11:25:45.925Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 6,
+    "readButNotAnOffer": 4,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 14463,
+    "searchMs": 3078,
+    "pageFetchMsSum": 4030,
+    "pageRequests": 15,
+    "extractionMs": 7246,
+    "extractionCalls": 4
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 6371,
+      "output": 343,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 4,
+      "input": 11827,
+      "output": 60,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00176,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.006,
+    "estimatedUsd": 0.00776,
+    "estimatedEur": 0.00668
+  },
+  "sources": [
+    "https://www.cadremploi.fr/emploi/liste_offres?motscles=usine&ville=rouen-76",
+    "https://www.rouen-emplois.com/emploi/metier_directeur-d-usine.html",
+    "https://www.meteojob.com/jobs/54813660",
+    "https://www.jobijoba.com/fr/emploi/Directeur+usine/Rouen",
+    "https://www.cadremploi.fr/emploi/liste_offres?motscles=directeur%20general&ville=caen-14",
+    "https://www.jobijoba.com/fr/emploi/Directeur+usine/Haute-normandie",
+    "https://www.jobijoba.com/fr/emploi/Directeur+de+site/Haute-normandie",
+    "https://www.cadremploi.fr/emploi/liste_offres?fct=20401&ville=cergy-95",
+    "https://www.hellowork.com/fr-fr/emplois/75026364.html",
+    "https://fr.indeed.com/q-directeur-ing%C3%A9nierie-industrielle-emplois.html"
+  ],
+  "skipped": [
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=usine&ville=rouen-76",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.rouen-emplois.com/emploi/metier_directeur-d-usine.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.meteojob.com/jobs/54813660",
+      "reason": "login_wall"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+usine/Rouen",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=directeur%20general&ville=caen-14",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+usine/Haute-normandie",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+de+site/Haute-normandie",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=20401&ville=cergy-95",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/75026364.html",
+      "reason": "gone"
+    },
+    {
+      "url": "https://fr.indeed.com/q-directeur-ing%C3%A9nierie-industrielle-emplois.html",
+      "reason": "site_terms"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://www.cadremploi.fr/robots.txt",
+      "status": 403,
+      "ms": 11,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=usine&ville=rouen-76",
+      "status": 403,
+      "ms": 11,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.rouen-emplois.com/robots.txt",
+      "status": 200,
+      "ms": 58,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.rouen-emplois.com/emploi/metier_directeur-d-usine.html",
+      "status": 200,
+      "ms": 97,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/robots.txt",
+      "status": 200,
+      "ms": 54,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.meteojob.com/jobs/54813660",
+      "status": 301,
+      "ms": 136,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/jobs?what=Directeur%20d%27usine%20(H%2FF)&where=Caen%20(14)",
+      "status": 200,
+      "ms": 647,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/robots.txt",
+      "status": 200,
+      "ms": 41,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+usine/Rouen",
+      "status": 200,
+      "ms": 1155,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=directeur%20general&ville=caen-14",
+      "status": 403,
+      "ms": 10,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+usine/Haute-normandie",
+      "status": 200,
+      "ms": 809,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Directeur+de+site/Haute-normandie",
+      "status": 200,
+      "ms": 837,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=20401&ville=cergy-95",
+      "status": 403,
+      "ms": 12,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 21,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/75026364.html",
+      "status": 410,
+      "ms": 131,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00057,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00017,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00176
+        },
+        "input_tokens": 6371,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 4588,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 343,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 6714
+      },
+      "searchResults": [
+        {
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=usine&ville=rouen-76",
+          "title": "www.cadremploi.fr · emploi · liste_offresEmploi usine - Rouen (76) | Septembre 2026",
+          "date": "2026-09-26"
+        },
+        {
+          "url": "https://www.rouen-emplois.com/emploi/metier_directeur-d-usine.html",
+          "title": "Offres d'emploi Directeur usine à Rouen",
+          "date": "2025-12-24"
+        },
+        {
+          "url": "https://www.meteojob.com/jobs/54813660",
+          "title": "Directeur d'usine H/F Rouen Industrie - Meteojob",
+          "date": "2026-06-17"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+usine/Rouen",
+          "title": "Emploi Directeur usine à Rouen - Juin 2025",
+          "date": "2026-09-24"
+        },
+        {
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?motscles=directeur%20general&ville=caen-14",
+          "title": "Emploi directeur general - Caen (14) | Octobre 2026",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+usine/Haute-normandie",
+          "title": "Offres d'emploi Directeur usine en Haute-Normandie - Jobijoba",
+          "date": "2026-09-27"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Directeur+de+site/Haute-normandie",
+          "title": "Emploi Directeur de site en Haute-Normandie - Juillet 2026",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.cadremploi.fr/emploi/liste_offres?fct=20401&ville=cergy-95",
+          "title": "Emploi Direction d'Usine - Cergy (95) | Mars 2026 - Cadremploi",
+          "date": "2026-03-09"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emplois/75026364.html",
+          "title": "Directeur Usine H/F Cartesio Human Matching",
+          "date": "2026-01-26"
+        },
+        {
+          "url": "https://fr.indeed.com/q-directeur-ing%C3%A9nierie-industrielle-emplois.html",
+          "title": "Directeur Ingénierie Industrielle : plus de 500 emplois (7 mars 2026)",
+          "date": "2026-02-09"
+        }
+      ],
+      "answer": "Voici les offres correspondant le mieux à vos critères à Rouen ou à proximité. Les annonces visibles confirment le **CDI** ; le travail **sur site** est à vérifier auprès du recruteur lorsque l’annonce ne le précise pas.\n\n- **Directeur d’usine – CARTESIO**, Rouen — CDI, **75 000 à 90 000 € par an**, plus primes sur objectifs. Direction d’une usine agroalimentaire : stratégie, production, qualité, maintenance, budget et amélioration continue. L’annonce indique une expérience de gestion opérationnelle d’usine et un anglais maîtrisé.[9][10]\n- **Directeur de site industriel – Taleah**, Rouen — CDI, **80 000 à 90 000 € par an**. Offre publiée le 10 octobre 2026, dans un contexte de croissance et de structuration.[7]\n- **Directeur de site industriel – groupe familial**, Rouen — CDI, **100 000 à 120 000 €**. Pilotage d’une unité de 160 personnes, décrite comme un centre de profit industriel en transformation.[1]\n- **Directeur d’usine – Exolys**, Vernon — CDI, **80 000 à 100 000 €**. Poste à proximité régionale de Rouen, avec responsabilité globale de la performance du site.[1][6]\n\nLes intitulés « directeur de site » peuvent correspondre à votre recherche même si l’annonce n’emploie pas exactement « directeur d’usine ». Les dates de publication et la disponibilité des postes peuvent changer ; vérifiez les modalités de présence sur site dans l’annonce avant de postuler."
+    }
+  ],
+  "offers": []
+}

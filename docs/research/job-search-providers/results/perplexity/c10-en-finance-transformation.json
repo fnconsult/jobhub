@@ -1,0 +1,291 @@
+{
+  "id": "c10-en-finance-transformation",
+  "persona": "English-language role: Head of Finance Transformation, 51, Paris, hybrid",
+  "criteria": {
+    "targetRole": "Head of Finance Transformation",
+    "location": "Paris",
+    "contractType": "cdi",
+    "remoteWork": "hybrid",
+    "minSalary": 120000
+  },
+  "query": "Offres d'emploi « Head of Finance Transformation » à Paris, CDI, télétravail partiel, salaire à partir de 120 000 € brut annuel",
+  "ranAt": "2026-10-12T11:27:05.398Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 2,
+    "readButNotAnOffer": 8,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 19052,
+    "searchMs": 2380,
+    "pageFetchMsSum": 3380,
+    "pageRequests": 15,
+    "extractionMs": 13056,
+    "extractionCalls": 8
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 5418,
+      "output": 147,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 8,
+      "input": 67475,
+      "output": 117,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00154,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.03391,
+    "estimatedUsd": 0.03545,
+    "estimatedEur": 0.03049
+  },
+  "sources": [
+    "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_arcueil-94110.html",
+    "https://emploi.lefigaro.fr/offres-emploi/s/finance",
+    "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_massy-91300.html",
+    "https://www.roberthalf.com/fr/fr/offres-emploi/courbevoie-ile-de-france/chef-de-projet-transformation-finance-fh",
+    "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager.html",
+    "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+    "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager-ville_paris-75000.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-digital-ville_montreuil-93100.html",
+    "https://www.cadremploi.fr/emploi/detail_offre?offreId=156549916712976018"
+  ],
+  "skipped": [
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_arcueil-94110.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/s/finance",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_massy-91300.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.roberthalf.com/fr/fr/offres-emploi/courbevoie-ile-de-france/chef-de-projet-transformation-finance-fh",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager-ville_paris-75000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-digital-ville_montreuil-93100.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/detail_offre?offreId=156549916712976018",
+      "reason": "bot_protection"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 20,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_arcueil-94110.html",
+      "status": 200,
+      "ms": 81,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 14,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/s/finance",
+      "status": 403,
+      "ms": 11,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_massy-91300.html",
+      "status": 200,
+      "ms": 74,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.roberthalf.com/robots.txt",
+      "status": 200,
+      "ms": 30,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.roberthalf.com/fr/fr/offres-emploi/courbevoie-ile-de-france/chef-de-projet-transformation-finance-fh",
+      "status": 200,
+      "ms": 2455,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital.html",
+      "status": 200,
+      "ms": 93,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager.html",
+      "status": 200,
+      "ms": 24,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/robots.txt",
+      "status": 200,
+      "ms": 29,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+      "status": 200,
+      "ms": 337,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager-ville_paris-75000.html",
+      "status": 200,
+      "ms": 109,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-digital-ville_montreuil-93100.html",
+      "status": 200,
+      "ms": 80,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.cadremploi.fr/robots.txt",
+      "status": 403,
+      "ms": 12,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.cadremploi.fr/emploi/detail_offre?offreId=156549916712976018",
+      "status": 403,
+      "ms": 11,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00045,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00007,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00154
+        },
+        "input_tokens": 5418,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 3635,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 147,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 5565
+      },
+      "searchResults": [
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_arcueil-94110.html",
+          "title": "Emploi Responsable digital Arcueil (94110) - Plus de 60 Offres",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/s/finance",
+          "title": "emploi.lefigaro.fr · offres-emploi · sOffres Emploi Finance - Octobre 2026",
+          "date": "2026-10-10"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital-ville_massy-91300.html",
+          "title": "Emploi Responsable digital Massy (91300) - Plus de 50 Offres",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.roberthalf.com/fr/fr/offres-emploi/courbevoie-ile-de-france/chef-de-projet-transformation-finance-fh",
+          "title": "Offres d'emploi de Chef De Projet Transformation Finance Fh à Paris ...",
+          "date": "2026-10-07"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-digital.html",
+          "title": "Emploi Responsable digital - Plus de 150 Offres - 22 septembre 2026",
+          "date": "2026-10-10"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager.html",
+          "title": "Emploi Finance manager - Plus de 400 Offres - 15 septembre 2026",
+          "date": "2026-10-10"
+        },
+        {
+          "url": "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+          "title": "Emploi Finance - Offres d'emploi et recrutement CDI",
+          "date": "2026-10-02"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_finance-manager-ville_paris-75000.html",
+          "title": "Emploi Finance manager Paris (75000) - Plus de 100 Offres",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-digital-ville_montreuil-93100.html",
+          "title": "Emploi Directeur digital Montreuil (93100) - Plus de 40 Offres - 23 ...",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.cadremploi.fr/emploi/detail_offre?offreId=156549916712976018",
+          "title": "Offre emploi Manager Finance et Transformation H/F en CDI; Paris",
+          "date": "2026-09-22"
+        }
+      ],
+      "answer": "Je n’ai pas trouvé d’offre correspondant à **tous** vos critères (intitulé « Head of Finance Transformation », Paris, CDI, télétravail partiel et rémunération d’au moins 120 000 € brut/an).\n\nLes résultats les plus proches ne remplissent pas le seuil salarial ou l’intitulé : BDO propose à Paris des postes de directeur en transformation finance en CDI, avec télétravail partiel, à 81 000–96 000 € par an[1] ; une offre de Finance Manager à Paris affiche 90 000–130 000 € et du télétravail partiel, mais pas l’intitulé recherché[8]."
+    }
+  ],
+  "offers": []
+}

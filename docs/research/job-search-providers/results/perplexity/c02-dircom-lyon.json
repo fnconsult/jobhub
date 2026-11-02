@@ -1,0 +1,308 @@
+{
+  "id": "c02-dircom-lyon",
+  "persona": "Directeur commercial B2B, 48 ans, Lyon",
+  "criteria": {
+    "targetRole": "Directeur commercial B2B",
+    "location": "Lyon",
+    "contractType": "cdi",
+    "minSalary": 90000
+  },
+  "query": "Offres d'emploi « Directeur commercial B2B » à Lyon, CDI, salaire à partir de 90 000 € brut annuel",
+  "ranAt": "2026-10-12T11:25:06.584Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 6,
+    "readButNotAnOffer": 4,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 20115,
+    "searchMs": 2738,
+    "pageFetchMsSum": 7988,
+    "pageRequests": 18,
+    "extractionMs": 8948,
+    "extractionCalls": 4
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 5691,
+      "output": 183,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 4,
+      "input": 22878,
+      "output": 60,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.0016,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.01153,
+    "estimatedUsd": 0.01313,
+    "estimatedEur": 0.01129
+  },
+  "sources": [
+    "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69000/m/directeur-commercial",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Commercial%20B%20to%20B",
+    "https://www.meteojob.com/Lyon-(69)-Emploi-Directeur-Commercial",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-commercial-ville_lyon-69000.html",
+    "https://www.meteojob.com/jobs/57045761",
+    "https://www.michaelpage.fr/jobs/directeur-commercial/rh%C3%B4ne-alpes",
+    "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69001/m/responsable-commercial",
+    "https://jobtoday.com/fr/emplois-directeur-commercial/lyon",
+    "https://candidat.francetravail.fr/offres/recherche/detail/6321650",
+    "https://www.michaelpage.fr/jobs/directeur/lyon"
+  ],
+  "skipped": [
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69000/m/directeur-commercial",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Commercial%20B%20to%20B",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.meteojob.com/Lyon-(69)-Emploi-Directeur-Commercial",
+      "reason": "login_wall"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-commercial-ville_lyon-69000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.meteojob.com/jobs/57045761",
+      "reason": "login_wall"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur-commercial/rh%C3%B4ne-alpes",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69001/m/responsable-commercial",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://jobtoday.com/fr/emplois-directeur-commercial/lyon",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6321650",
+      "reason": "gone"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur/lyon",
+      "reason": "not_a_job_offer"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 13,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69000/m/directeur-commercial",
+      "status": 403,
+      "ms": 12,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/robots.txt",
+      "status": 403,
+      "ms": 44,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Commercial%20B%20to%20B",
+      "status": 403,
+      "ms": 39,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/robots.txt",
+      "status": 200,
+      "ms": 102,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.meteojob.com/Lyon-(69)-Emploi-Directeur-Commercial",
+      "status": 200,
+      "ms": 190,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 60,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-commercial-ville_lyon-69000.html",
+      "status": 200,
+      "ms": 91,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/jobs/57045761",
+      "status": 301,
+      "ms": 553,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/jobs?what=Directeur%20commercial%20B%20to%20B%20(H%2FF)&where=Lyon%20(69)",
+      "status": 200,
+      "ms": 1360,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.michaelpage.fr/robots.txt",
+      "status": 200,
+      "ms": 17,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur-commercial/rh%C3%B4ne-alpes",
+      "status": 200,
+      "ms": 2372,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69001/m/responsable-commercial",
+      "status": 403,
+      "ms": 10,
+      "kind": "page"
+    },
+    {
+      "url": "https://jobtoday.com/robots.txt",
+      "status": 200,
+      "ms": 83,
+      "kind": "robots"
+    },
+    {
+      "url": "https://jobtoday.com/fr/emplois-directeur-commercial/lyon",
+      "status": 200,
+      "ms": 468,
+      "kind": "page"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/robots.txt",
+      "status": 200,
+      "ms": 86,
+      "kind": "robots"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/recherche/detail/6321650",
+      "status": 404,
+      "ms": 173,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur/lyon",
+      "status": 200,
+      "ms": 2315,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00049,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00009,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.0016
+        },
+        "input_tokens": 5691,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 3908,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 183,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 5874
+      },
+      "searchResults": [
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69000/m/directeur-commercial",
+          "title": "Offres Emploi Directeur commercial Lyon (69000) - Octobre 2026",
+          "date": "2026-09-22"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Commercial%20B%20to%20B",
+          "title": "Offres d'emploi Commercial B to B - Apec",
+          "date": "2026-09-21"
+        },
+        {
+          "url": "https://www.meteojob.com/Lyon-(69)-Emploi-Directeur-Commercial",
+          "title": "Emploi Directeur commercial à Lyon",
+          "date": "2026-10-07"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-commercial-ville_lyon-69000.html",
+          "title": "Offres d'emploi Directeur commercial Lyon",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://www.meteojob.com/jobs/57045761",
+          "title": "Commercial B to B (H/F)",
+          "date": "2026-09-24"
+        },
+        {
+          "url": "https://www.michaelpage.fr/jobs/directeur-commercial/rh%C3%B4ne-alpes",
+          "title": "Offres d'emploi Directeur Commercial - Rhône-Alpes",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/lyon-69001/m/responsable-commercial",
+          "title": "Offres Emploi Responsable commercial Lyon (69001) - Octobre 2026",
+          "date": "2026-10-05"
+        },
+        {
+          "url": "https://jobtoday.com/fr/emplois-directeur-commercial/lyon",
+          "title": "50 Best en tant que directeur commercial Jobs in Lyon (février 2026 ...",
+          "date": "2026-09-01"
+        },
+        {
+          "url": "https://candidat.francetravail.fr/offres/recherche/detail/6321650",
+          "title": "Offre n° 6321650 Commercial informatique B to B (H/F)",
+          "date": "2026-09-16"
+        },
+        {
+          "url": "https://www.michaelpage.fr/jobs/directeur/lyon",
+          "title": "Offres d'emploi Directeur - Lyon | Michael Page France",
+          "date": "2026-10-09"
+        }
+      ],
+      "answer": "J’ai repéré **deux offres à Lyon en CDI affichant au moins 90 000 € brut annuel** qui semblent correspondre à votre recherche :\n\n- **Directeur commercial – Ingénierie industrielle et procédés**, AP Consulting Recrutement — Lyon, CDI, **100 000 à 110 000 € par an**, télétravail partiel.[1]\n- **Directeur commercial – Ingénierie industrielle**, Adsearch — Lyon 7e, CDI, **100 000 à 110 000 € par an**.[1][2]\n\nÀ noter : une offre de **Directeur commercial Groupe – Industrie de procédés** chez Michael Page affiche 75 000 à 100 000 € ; elle atteint donc le seuil uniquement au haut de la fourchette.[1][3] Les annonces peuvent évoluer ou être retirées rapidement."
+    }
+  ],
+  "offers": []
+}

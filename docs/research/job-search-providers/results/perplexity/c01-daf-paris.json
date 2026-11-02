@@ -1,0 +1,284 @@
+{
+  "id": "c01-daf-paris",
+  "persona": "DAF, 52 ans, ETI industrielle, Paris, hybride",
+  "criteria": {
+    "targetRole": "Directeur administratif et financier",
+    "location": "Paris",
+    "contractType": "cdi",
+    "remoteWork": "hybrid",
+    "minSalary": 110000
+  },
+  "query": "Offres d'emploi « Directeur administratif et financier » à Paris, CDI, télétravail partiel, salaire à partir de 110 000 € brut annuel",
+  "ranAt": "2026-10-12T11:24:53.408Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 5,
+    "readButNotAnOffer": 5,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 12966,
+    "searchMs": 2659,
+    "pageFetchMsSum": 3689,
+    "pageRequests": 14,
+    "extractionMs": 6300,
+    "extractionCalls": 5
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 6147,
+      "output": 203,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 5,
+      "input": 42397,
+      "output": 75,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00116,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.02131,
+    "estimatedUsd": 0.02247,
+    "estimatedEur": 0.01933
+  },
+  "sources": [
+    "https://emploi.lefigaro.fr/offres-emploi/v/paris-75001/m/directeur-administratif-et-financier",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-departement_paris-75.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_paris-75000.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-region_ile-de-france.html",
+    "https://emploi.lefigaro.fr/offres-emploi/v/paris-75000/m/directeur-administratif-et-financier",
+    "https://emploi.lefigaro.fr/offres-emploi/v/paris-75013/m/directeur-administratif-et-financier",
+    "https://emploi.lefigaro.fr/offres-emploi/m/directeur-administratif-et-financier",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier.html",
+    "https://www.michaelpage.fr/jobs/directeur-administratif-et-financier/france",
+    "https://www.roberthalf.com/fr/fr/offres-emploi/paris/directeur-administratif-et-financier"
+  ],
+  "skipped": [
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75001/m/directeur-administratif-et-financier",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-departement_paris-75.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_paris-75000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-region_ile-de-france.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75000/m/directeur-administratif-et-financier",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75013/m/directeur-administratif-et-financier",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/m/directeur-administratif-et-financier",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur-administratif-et-financier/france",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.roberthalf.com/fr/fr/offres-emploi/paris/directeur-administratif-et-financier",
+      "reason": "robots"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 55,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75001/m/directeur-administratif-et-financier",
+      "status": 403,
+      "ms": 31,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 33,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-departement_paris-75.html",
+      "status": 200,
+      "ms": 14,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_paris-75000.html",
+      "status": 200,
+      "ms": 23,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-region_ile-de-france.html",
+      "status": 200,
+      "ms": 21,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75000/m/directeur-administratif-et-financier",
+      "status": 403,
+      "ms": 19,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75013/m/directeur-administratif-et-financier",
+      "status": 403,
+      "ms": 14,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/m/directeur-administratif-et-financier",
+      "status": 403,
+      "ms": 16,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier.html",
+      "status": 200,
+      "ms": 21,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.michaelpage.fr/robots.txt",
+      "status": 200,
+      "ms": 69,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur-administratif-et-financier/france",
+      "status": 200,
+      "ms": 3245,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.roberthalf.com/robots.txt",
+      "status": 200,
+      "ms": 68,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.roberthalf.com/fr/fr/offres-emploi/paris/directeur-administratif-et-financier",
+      "status": 200,
+      "ms": 60,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_read_cost": 0.00006,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.0001,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00116
+        },
+        "input_tokens": 6147,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 6144,
+          "cached_tokens": 6144
+        },
+        "output_tokens": 203,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 6350
+      },
+      "searchResults": [
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75001/m/directeur-administratif-et-financier",
+          "title": "Offres Emploi Directeur administratif et financier Paris (75001)",
+          "date": "2026-09-12"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-departement_paris-75.html",
+          "title": "39 offres d'emploi Directeur administratif et financier Paris",
+          "date": "2026-10-01"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_paris-75000.html",
+          "title": "Offres d'emploi Directeur administratif et financier Paris - Hellowork",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-region_ile-de-france.html",
+          "title": "Emploi Directeur administratif et financier Île-de-France - Hellowork",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75000/m/directeur-administratif-et-financier",
+          "title": "Offres Emploi Directeur administratif et financier Paris ...",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/v/paris-75013/m/directeur-administratif-et-financier",
+          "title": "Offres Emploi Directeur administratif et financier Paris (75013) - Octobre 2026",
+          "date": "2026-10-06"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/m/directeur-administratif-et-financier",
+          "title": "Offres Emploi Directeur administratif et financier - Octobre 2026",
+          "date": "2026-09-16"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier.html",
+          "title": "Emploi Directeur administratif et financier - Plus de 550 Offres",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.michaelpage.fr/jobs/directeur-administratif-et-financier/france",
+          "title": "Offres d'emploi Directeur Administratif Et Financier - France",
+          "date": "2026-10-10"
+        },
+        {
+          "url": "https://www.roberthalf.com/fr/fr/offres-emploi/paris/directeur-administratif-et-financier",
+          "title": "Offres d'emploi de Directeur Administratif Et Financier à Paris, Île-de-france",
+          "date": "2026-10-07"
+        }
+      ],
+      "answer": "Une offre semble correspondre à vos critères, mais **le salaire annoncé commence à 90 000 €**, donc elle ne garantit pas le seuil de 110 000 € :\n\n- **DAF – Paris 8e, Clareo Lighting** : CDI, rémunération indiquée de **80 000 à 120 000 € brut/an**, avec télétravail partiel. La fourchette atteint votre minimum, sans garantir qu’une proposition de 110 000 € ou plus soit possible.[8]\n\nLes autres résultats repérés ne réunissent pas clairement tous les critères : une offre à Paris 11e affiche 90 000–130 000 € et télétravail partiel, mais son intitulé précis et l’employeur ne sont pas visibles dans l’extrait; une annonce parisienne de 90 000–130 000 € concerne un poste de Finance Manager, pas explicitement de DAF.[2][5]"
+    }
+  ],
+  "offers": []
+}

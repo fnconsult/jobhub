@@ -1,0 +1,297 @@
+{
+  "id": "c09-marketing-remote",
+  "persona": "Directrice marketing B2B SaaS, 46 ans, télétravail complet",
+  "criteria": {
+    "targetRole": "Directeur marketing",
+    "location": "France",
+    "contractType": "cdi",
+    "remoteWork": "full_remote",
+    "minSalary": 85000
+  },
+  "query": "Offres d'emploi « Directeur marketing » à France, CDI, télétravail complet, salaire à partir de 85 000 € brut annuel",
+  "ranAt": "2026-10-12T11:26:48.892Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 5,
+    "readButNotAnOffer": 5,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 16302,
+    "searchMs": 2974,
+    "pageFetchMsSum": 4482,
+    "pageRequests": 16,
+    "extractionMs": 8544,
+    "extractionCalls": 5
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 6387,
+      "output": 188,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 5,
+      "input": 23876,
+      "output": 72,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00169,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.01205,
+    "estimatedUsd": 0.01374,
+    "estimatedEur": 0.01181
+  },
+  "sources": [
+    "https://www.welcometothejungle.com/fr/pages/emploi-directeur-marketing",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-marketing.html",
+    "https://candidat.francetravail.fr/offres/emploi/directeur-marketing/s32m4",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20Marketing%20France",
+    "https://fr.indeed.com/q-directeur-marketing-(h-f)-emplois.html",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20marketing",
+    "https://www.directemploi.com/lists-offre/directeur-marketing-metiers-secteurs",
+    "https://www.michaelpage.fr/jobs/directeur-marketing/digital-marketing-communication",
+    "https://www.hellowork.com/fr-fr/emplois/77654473.html",
+    "https://www.meteojob.com/Emploi-Directeur-Marketing"
+  ],
+  "skipped": [
+    {
+      "url": "https://www.welcometothejungle.com/fr/pages/emploi-directeur-marketing",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-marketing.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/emploi/directeur-marketing/s32m4",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20Marketing%20France",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://fr.indeed.com/q-directeur-marketing-(h-f)-emplois.html",
+      "reason": "site_terms"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20marketing",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.directemploi.com/lists-offre/directeur-marketing-metiers-secteurs",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur-marketing/digital-marketing-communication",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/77654473.html",
+      "reason": "gone"
+    },
+    {
+      "url": "https://www.meteojob.com/Emploi-Directeur-Marketing",
+      "reason": "login_wall"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://www.welcometothejungle.com/robots.txt",
+      "status": 200,
+      "ms": 28,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/fr/pages/emploi-directeur-marketing",
+      "status": 200,
+      "ms": 335,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 24,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-marketing.html",
+      "status": 200,
+      "ms": 22,
+      "kind": "page"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/robots.txt",
+      "status": 200,
+      "ms": 66,
+      "kind": "robots"
+    },
+    {
+      "url": "https://candidat.francetravail.fr/offres/emploi/directeur-marketing/s32m4",
+      "status": 200,
+      "ms": 602,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/robots.txt",
+      "status": 403,
+      "ms": 16,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20Marketing%20France",
+      "status": 403,
+      "ms": 13,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20marketing",
+      "status": 403,
+      "ms": 18,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.directemploi.com/robots.txt",
+      "status": 200,
+      "ms": 49,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.directemploi.com/lists-offre/directeur-marketing-metiers-secteurs",
+      "status": 200,
+      "ms": 392,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.michaelpage.fr/robots.txt",
+      "status": 200,
+      "ms": 24,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.michaelpage.fr/jobs/directeur-marketing/digital-marketing-communication",
+      "status": 200,
+      "ms": 2712,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emplois/77654473.html",
+      "status": 410,
+      "ms": 95,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/robots.txt",
+      "status": 200,
+      "ms": 59,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.meteojob.com/Emploi-Directeur-Marketing",
+      "status": 200,
+      "ms": 27,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00058,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00009,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00169
+        },
+        "input_tokens": 6387,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 4604,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 188,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 6575
+      },
+      "searchResults": [
+        {
+          "url": "https://www.welcometothejungle.com/fr/pages/emploi-directeur-marketing",
+          "title": "Offres d'emploi Directeur Marketing - Welcome to the Jungle",
+          "date": "2026-08-25"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-marketing.html",
+          "title": "Emploi Directeur marketing - Plus de 100 Offres",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://candidat.francetravail.fr/offres/emploi/directeur-marketing/s32m4",
+          "title": "Offres d'emploi Directeur marketing",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20Marketing%20France",
+          "title": "Offres d'emploi Directeur Marketing France - Apec",
+          "date": "2026-09-21"
+        },
+        {
+          "url": "https://fr.indeed.com/q-directeur-marketing-(h-f)-emplois.html",
+          "title": "Directeur Marketing H F : plus de 25 emplois (4 novembre 2025)",
+          "date": "2025-10-20"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Directeur%20marketing",
+          "title": "Offres d'emploi Directeur marketing",
+          "date": "2026-09-26"
+        },
+        {
+          "url": "https://www.directemploi.com/lists-offre/directeur-marketing-metiers-secteurs",
+          "title": "20 Offres d'Emploi directeur marketing en France | Recrutement 2026",
+          "date": "2026-09-12"
+        },
+        {
+          "url": "https://www.michaelpage.fr/jobs/directeur-marketing/digital-marketing-communication",
+          "title": "Offres d'emploi Directeur Marketing en France - Michael Page",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emplois/77654473.html",
+          "title": "Offre Emploi CDI Directeur Marketing Roissy-en-France (95)",
+          "date": "2026-04-06"
+        },
+        {
+          "url": "https://www.meteojob.com/Emploi-Directeur-Marketing",
+          "title": "Offres Emploi Directeur marketing | Meteojob.com",
+          "date": "2026-09-26"
+        }
+      ],
+      "answer": "Je n’ai pas trouvé d’offre vérifiant **tous** vos critères à la fois : intitulé « Directeur marketing », CDI, télétravail complet et salaire d’au moins 85 000 € brut/an.\n\nLes annonces les plus proches repérées ne correspondent pas entièrement :\n- **CMO – SaaS IA – CX**, à La Rochelle : CDI, 80 000–95 000 €, mais télétravail seulement occasionnel[2].\n- **Chief Marketing Officer**, à Bordeaux : CDI, 90 000–110 000 €, mais le télétravail n’est pas précisé dans l’extrait[2].\n- **Marketing Manager – 100 % télétravail**, à Aix-en-Provence : CDI, mais 45 000–75 000 €, sous le seuil salarial et intitulé différent[10].\n\nLes résultats disponibles ne permettent donc pas de confirmer une correspondance exacte."
+    }
+  ],
+  "offers": []
+}

@@ -1,0 +1,701 @@
+[
+  {
+    "id": "c01-daf-paris",
+    "persona": "DAF, 52 ans, ETI industrielle, Paris, hybride",
+    "criteria": {
+      "targetRole": "Directeur administratif et financier",
+      "location": "Paris",
+      "contractType": "cdi",
+      "remoteWork": "hybrid",
+      "minSalary": 110000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 1",
+      "headline": "Directeur Administratif et Financier – ETI industrielle",
+      "email": "candidat1@example.test",
+      "phone": "",
+      "location": "Paris",
+      "summary": "DAF avec 25 ans d'expérience en contrôle de gestion, consolidation IFRS, trésorerie et transformation finance dans des ETI et groupes industriels.",
+      "experience": [
+        {
+          "title": "Directeur Administratif et Financier",
+          "employer": "Groupe Métallurgie SA",
+          "location": "Paris",
+          "period": "2014 – aujourd'hui",
+          "description": "Pilotage finance, comptabilité, trésorerie, juridique et IT (45 personnes). Consolidation IFRS, relations bancaires, LBO, ERP SAP."
+        },
+        {
+          "title": "Responsable contrôle de gestion",
+          "employer": "Industries Lambda",
+          "location": "Nanterre",
+          "period": "2005 – 2014",
+          "description": "Budget, reporting, business plans, clôtures mensuelles."
+        },
+        {
+          "title": "Auditeur senior",
+          "employer": "Cabinet d'audit",
+          "location": "Paris",
+          "period": "1998 – 2005",
+          "description": "Audit légal de groupes industriels."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Master CCA / DSCG",
+          "institution": "Université Paris-Dauphine",
+          "year": "1998"
+        }
+      ],
+      "skills": [
+        "Finance",
+        "Comptabilité",
+        "Consolidation",
+        "IFRS",
+        "Trésorerie",
+        "Contrôle de gestion",
+        "Budget",
+        "Reporting",
+        "SAP",
+        "Fiscalité",
+        "Juridique",
+        "Management",
+        "M&A",
+        "LBO",
+        "Excel",
+        "ERP"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c02-dircom-lyon",
+    "persona": "Directeur commercial B2B, 48 ans, Lyon",
+    "criteria": {
+      "targetRole": "Directeur commercial B2B",
+      "location": "Lyon",
+      "contractType": "cdi",
+      "minSalary": 90000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 2",
+      "headline": "Directeur Commercial B2B – Industrie et services",
+      "email": "candidat2@example.test",
+      "phone": "",
+      "location": "Lyon",
+      "summary": "Directeur commercial, 22 ans en vente B2B de solutions industrielles, management d'équipes de 30 commerciaux et grands comptes.",
+      "experience": [
+        {
+          "title": "Directeur commercial France",
+          "employer": "Fluides Industriels SAS",
+          "location": "Lyon",
+          "period": "2015 – aujourd'hui",
+          "description": "Équipe de 30 commerciaux et KAM, CA 80 M€, développement grands comptes, négociation, CRM Salesforce."
+        },
+        {
+          "title": "Responsable grands comptes",
+          "employer": "ElecPro",
+          "location": "Villeurbanne",
+          "period": "2007 – 2015",
+          "description": "Grands comptes industriels, appels d'offres."
+        },
+        {
+          "title": "Ingénieur commercial",
+          "employer": "TechVente",
+          "location": "Lyon",
+          "period": "2001 – 2007",
+          "description": "Prospection, vente de solutions."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Programme Grande École",
+          "institution": "EM Lyon",
+          "year": "2001"
+        }
+      ],
+      "skills": [
+        "Vente B2B",
+        "Management",
+        "Négociation",
+        "Grands comptes",
+        "Key account management",
+        "CRM",
+        "Salesforce",
+        "Business development",
+        "Stratégie commerciale",
+        "Prospection",
+        "Anglais",
+        "Pilotage",
+        "Distribution"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c03-dsi-nantes",
+    "persona": "DSI, 55 ans, Nantes, hybride",
+    "criteria": {
+      "targetRole": "Directeur des systèmes d'information (DSI)",
+      "location": "Nantes",
+      "contractType": "cdi",
+      "remoteWork": "hybrid",
+      "minSalary": 100000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 3",
+      "headline": "DSI – Transformation digitale, cloud et cybersécurité",
+      "email": "candidat3@example.test",
+      "phone": "",
+      "location": "Nantes",
+      "summary": "DSI depuis 12 ans, transformation digitale, migration cloud, ERP et cybersécurité dans des groupes de distribution et de l'industrie.",
+      "experience": [
+        {
+          "title": "Directeur des systèmes d'information",
+          "employer": "Distrib Ouest",
+          "location": "Nantes",
+          "period": "2013 – aujourd'hui",
+          "description": "Équipe IT de 60 personnes, budget 15 M€, migration cloud Azure, ERP SAP S/4HANA, cybersécurité, ITIL."
+        },
+        {
+          "title": "Responsable études et développement",
+          "employer": "Banque Régionale",
+          "location": "Nantes",
+          "period": "2003 – 2013",
+          "description": "Pilotage de projets, Agile, gouvernance."
+        },
+        {
+          "title": "Chef de projet informatique",
+          "employer": "SSII Atlantique",
+          "location": "Rennes",
+          "period": "1996 – 2003",
+          "description": "Intégration de systèmes."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Ingénieur informatique",
+          "institution": "École Centrale Nantes",
+          "year": "1996"
+        }
+      ],
+      "skills": [
+        "Transformation digitale",
+        "Cloud",
+        "Azure",
+        "AWS",
+        "ERP",
+        "SAP",
+        "Cybersécurité",
+        "ITIL",
+        "Agile",
+        "Gouvernance",
+        "Management",
+        "Budget",
+        "Infrastructure",
+        "Data",
+        "RGPD",
+        "Architecture"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c04-drh-bordeaux",
+    "persona": "DRH, 50 ans, Bordeaux",
+    "criteria": {
+      "targetRole": "Directeur des ressources humaines",
+      "location": "Bordeaux",
+      "contractType": "cdi",
+      "minSalary": 85000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 4",
+      "headline": "DRH – Relations sociales, transformation et talents",
+      "email": "candidat4@example.test",
+      "phone": "",
+      "location": "Bordeaux",
+      "summary": "DRH avec 24 ans d'expérience RH généraliste, relations sociales, conduite du changement et développement des talents en environnement multi-sites.",
+      "experience": [
+        {
+          "title": "Directrice des ressources humaines",
+          "employer": "AgroSud",
+          "location": "Bordeaux",
+          "period": "2012 – aujourd'hui",
+          "description": "1 200 salariés, 8 sites, dialogue social, CSE, GPEC, paie, recrutement, QVT, SIRH."
+        },
+        {
+          "title": "Responsable RH",
+          "employer": "Logistique Atlantique",
+          "location": "Mérignac",
+          "period": "2004 – 2012",
+          "description": "Relations sociales, formation, recrutement."
+        },
+        {
+          "title": "Chargée RH",
+          "employer": "Retail France",
+          "location": "Bordeaux",
+          "period": "2000 – 2004",
+          "description": "Administration du personnel, paie."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Master GRH",
+          "institution": "IAE Bordeaux",
+          "year": "2000"
+        }
+      ],
+      "skills": [
+        "Ressources humaines",
+        "Relations sociales",
+        "Droit social",
+        "Dialogue social",
+        "GPEC",
+        "Recrutement",
+        "Formation",
+        "Paie",
+        "SIRH",
+        "Conduite du changement",
+        "Management",
+        "QVT",
+        "Talent management",
+        "Rémunération"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c05-usine-rouen",
+    "persona": "Directeur d'usine, 53 ans, Rouen (Normandie), sur site",
+    "criteria": {
+      "targetRole": "Directeur d'usine",
+      "location": "Rouen",
+      "contractType": "cdi",
+      "remoteWork": "on_site"
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 5",
+      "headline": "Directeur d'usine – Lean manufacturing, chimie et agroalimentaire",
+      "email": "candidat5@example.test",
+      "phone": "",
+      "location": "Rouen",
+      "summary": "Directeur de site industriel depuis 15 ans, lean manufacturing, QHSE, amélioration continue, sites de 150 à 400 personnes.",
+      "experience": [
+        {
+          "title": "Directeur d'usine",
+          "employer": "ChimieNord",
+          "location": "Rouen",
+          "period": "2011 – aujourd'hui",
+          "description": "Site de 350 personnes, P&L 120 M€, lean, sécurité, QHSE, investissements, maintenance, ISO 9001/14001."
+        },
+        {
+          "title": "Responsable production",
+          "employer": "AgroFood",
+          "location": "Évreux",
+          "period": "2002 – 2011",
+          "description": "Production, amélioration continue, TPM."
+        },
+        {
+          "title": "Ingénieur méthodes",
+          "employer": "Automobile SA",
+          "location": "Le Havre",
+          "period": "1995 – 2002",
+          "description": "Méthodes, industrialisation."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Ingénieur génie industriel",
+          "institution": "INSA Rouen",
+          "year": "1995"
+        }
+      ],
+      "skills": [
+        "Production",
+        "Lean manufacturing",
+        "Amélioration continue",
+        "QHSE",
+        "Sécurité",
+        "Qualité",
+        "Maintenance",
+        "TPM",
+        "ISO 9001",
+        "Management",
+        "P&L",
+        "Supply chain",
+        "Industrialisation",
+        "Six Sigma"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c06-cdp-toulouse",
+    "persona": "Chef de projet senior SI, 47 ans, Toulouse, hybride",
+    "criteria": {
+      "targetRole": "Chef de projet senior",
+      "location": "Toulouse",
+      "contractType": "cdi",
+      "remoteWork": "hybrid",
+      "minSalary": 60000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 6",
+      "headline": "Chef de projet senior – Systèmes d'information, aéronautique",
+      "email": "candidat6@example.test",
+      "phone": "",
+      "location": "Toulouse",
+      "summary": "Chef de projet senior, 20 ans de pilotage de projets SI et d'ingénierie en environnement aéronautique, méthodes Agile et cycle en V.",
+      "experience": [
+        {
+          "title": "Chef de projet senior",
+          "employer": "AeroSystems",
+          "location": "Toulouse",
+          "period": "2012 – aujourd'hui",
+          "description": "Pilotage de projets SI (budget 5 M€), planning, risques, Agile Scrum, MS Project, Jira, PMO."
+        },
+        {
+          "title": "Chef de projet",
+          "employer": "SpaceSoft",
+          "location": "Blagnac",
+          "period": "2004 – 2012",
+          "description": "Projets logiciels embarqués."
+        },
+        {
+          "title": "Ingénieur développement",
+          "employer": "ESN Sud",
+          "location": "Toulouse",
+          "period": "2000 – 2004",
+          "description": "Développement Java."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Ingénieur informatique",
+          "institution": "ENSEEIHT",
+          "year": "2000"
+        }
+      ],
+      "skills": [
+        "Gestion de projet",
+        "Agile",
+        "Scrum",
+        "PMP",
+        "Prince2",
+        "Planning",
+        "Gestion des risques",
+        "Budget",
+        "Jira",
+        "MS Project",
+        "PMO",
+        "Cycle en V",
+        "Anglais",
+        "Management transverse"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c07-raf-angouleme",
+    "persona": "Responsable administratif et financier, 58 ans, petite ville (Angoulême)",
+    "criteria": {
+      "targetRole": "Responsable administratif et financier",
+      "location": "Angoulême",
+      "contractType": "cdi",
+      "minSalary": 55000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 7",
+      "headline": "Responsable administratif et financier – PME",
+      "email": "candidat7@example.test",
+      "phone": "",
+      "location": "Angoulême",
+      "summary": "RAF de PME depuis 18 ans : comptabilité, paie, trésorerie, contrôle de gestion et services généraux.",
+      "experience": [
+        {
+          "title": "Responsable administratif et financier",
+          "employer": "Papeteries Charente",
+          "location": "Angoulême",
+          "period": "2007 – aujourd'hui",
+          "description": "Comptabilité générale, clôtures, paie, trésorerie, relation expert-comptable et banques, Sage."
+        },
+        {
+          "title": "Comptable unique",
+          "employer": "Négoce Cognac",
+          "location": "Cognac",
+          "period": "1992 – 2007",
+          "description": "Comptabilité, fiscalité, paie."
+        }
+      ],
+      "education": [
+        {
+          "degree": "DSCG",
+          "institution": "CNAM",
+          "year": "1995"
+        }
+      ],
+      "skills": [
+        "Comptabilité",
+        "Paie",
+        "Trésorerie",
+        "Contrôle de gestion",
+        "Fiscalité",
+        "Sage",
+        "Excel",
+        "Budget",
+        "Reporting",
+        "Ressources humaines",
+        "Services généraux",
+        "Juridique"
+      ],
+      "languages": []
+    }
+  },
+  {
+    "id": "c08-supply-lille",
+    "persona": "Directeur supply chain, 49 ans, Lille",
+    "criteria": {
+      "targetRole": "Directeur supply chain",
+      "location": "Lille",
+      "contractType": "cdi",
+      "minSalary": 95000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 8",
+      "headline": "Directeur Supply Chain – Retail et e-commerce",
+      "email": "candidat8@example.test",
+      "phone": "",
+      "location": "Lille",
+      "summary": "Directeur supply chain, 23 ans en logistique, S&OP, achats et transport dans le retail et l'e-commerce.",
+      "experience": [
+        {
+          "title": "Directeur supply chain",
+          "employer": "RetailNord",
+          "location": "Lille",
+          "period": "2014 – aujourd'hui",
+          "description": "Entrepôts, transport, S&OP, prévisions, WMS, 400 personnes, réduction des coûts logistiques."
+        },
+        {
+          "title": "Responsable logistique",
+          "employer": "E-Shop France",
+          "location": "Roubaix",
+          "period": "2005 – 2014",
+          "description": "Logistique e-commerce, transport."
+        },
+        {
+          "title": "Ingénieur logistique",
+          "employer": "Distrib",
+          "location": "Lille",
+          "period": "2001 – 2005",
+          "description": "Flux, approvisionnement."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Ingénieur logistique",
+          "institution": "Centrale Lille",
+          "year": "2001"
+        }
+      ],
+      "skills": [
+        "Supply chain",
+        "Logistique",
+        "S&OP",
+        "Transport",
+        "Achats",
+        "Approvisionnement",
+        "WMS",
+        "SAP",
+        "Lean",
+        "Prévisions",
+        "Management",
+        "Entrepôt",
+        "E-commerce",
+        "Anglais"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c09-marketing-remote",
+    "persona": "Directrice marketing B2B SaaS, 46 ans, télétravail complet",
+    "criteria": {
+      "targetRole": "Directeur marketing",
+      "location": "France",
+      "contractType": "cdi",
+      "remoteWork": "full_remote",
+      "minSalary": 85000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 9",
+      "headline": "Directrice Marketing – B2B SaaS et growth",
+      "email": "candidat9@example.test",
+      "phone": "",
+      "location": "Montpellier",
+      "summary": "Directrice marketing, 21 ans en marketing B2B, acquisition digitale, marque et product marketing dans le logiciel.",
+      "experience": [
+        {
+          "title": "Directrice marketing",
+          "employer": "SaaS Montpellier",
+          "location": "Montpellier",
+          "period": "2016 – aujourd'hui",
+          "description": "Marketing digital, acquisition, SEO, SEA, marketing automation HubSpot, équipe de 12, budget 3 M€."
+        },
+        {
+          "title": "Responsable marketing produit",
+          "employer": "Logiciels SA",
+          "location": "Paris",
+          "period": "2006 – 2016",
+          "description": "Product marketing, go-to-market, marque."
+        },
+        {
+          "title": "Chef de produit",
+          "employer": "Telecom",
+          "location": "Paris",
+          "period": "2003 – 2006",
+          "description": "Gestion de produit."
+        }
+      ],
+      "education": [
+        {
+          "degree": "Master marketing",
+          "institution": "ESSEC",
+          "year": "2003"
+        }
+      ],
+      "skills": [
+        "Marketing",
+        "Marketing digital",
+        "B2B",
+        "SaaS",
+        "Acquisition",
+        "SEO",
+        "SEA",
+        "HubSpot",
+        "Marketing automation",
+        "Product marketing",
+        "Go-to-market",
+        "Branding",
+        "Management",
+        "Anglais",
+        "Growth"
+      ],
+      "languages": [
+        {
+          "name": "Anglais",
+          "level": "courant"
+        }
+      ]
+    }
+  },
+  {
+    "id": "c10-en-finance-transformation",
+    "persona": "English-language role: Head of Finance Transformation, 51, Paris, hybrid",
+    "criteria": {
+      "targetRole": "Head of Finance Transformation",
+      "location": "Paris",
+      "contractType": "cdi",
+      "remoteWork": "hybrid",
+      "minSalary": 120000
+    },
+    "cv": {
+      "fullName": "Candidat Fictif 10",
+      "headline": "Head of Finance Transformation – Global groups",
+      "email": "candidat10@example.test",
+      "phone": "",
+      "location": "Paris",
+      "summary": "Finance transformation leader with 24 years of experience in global finance operating models, ERP programmes, shared services and process automation.",
+      "experience": [
+        {
+          "title": "Head of Finance Transformation",
+          "employer": "Global Consumer Goods",
+          "location": "Paris",
+          "period": "2015 – present",
+          "description": "Led finance operating model redesign, S/4HANA rollout across 20 countries, shared service centres, RPA, change management."
+        },
+        {
+          "title": "Finance Director, Shared Services",
+          "employer": "Pharma Group",
+          "location": "Paris",
+          "period": "2006 – 2015",
+          "description": "Shared services, process excellence, controlling."
+        },
+        {
+          "title": "Consultant",
+          "employer": "Strategy Consulting",
+          "location": "London",
+          "period": "2000 – 2006",
+          "description": "Finance consulting."
+        }
+      ],
+      "education": [
+        {
+          "degree": "MBA",
+          "institution": "INSEAD",
+          "year": "2006"
+        }
+      ],
+      "skills": [
+        "Finance transformation",
+        "ERP",
+        "SAP S/4HANA",
+        "Shared services",
+        "Process improvement",
+        "Change management",
+        "Controlling",
+        "Automation",
+        "RPA",
+        "Project management",
+        "Stakeholder management",
+        "English",
+        "Leadership",
+        "Operating model"
+      ],
+      "languages": [
+        {
+          "name": "English",
+          "level": "fluent"
+        },
+        {
+          "name": "Français",
+          "level": "langue maternelle"
+        }
+      ]
+    }
+  }
+]

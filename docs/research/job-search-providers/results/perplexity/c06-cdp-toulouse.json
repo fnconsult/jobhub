@@ -1,0 +1,279 @@
+{
+  "id": "c06-cdp-toulouse",
+  "persona": "Chef de projet senior SI, 47 ans, Toulouse, hybride",
+  "criteria": {
+    "targetRole": "Chef de projet senior",
+    "location": "Toulouse",
+    "contractType": "cdi",
+    "remoteWork": "hybrid",
+    "minSalary": 60000
+  },
+  "query": "Offres d'emploi « Chef de projet senior » à Toulouse, CDI, télétravail partiel, salaire à partir de 60 000 € brut annuel",
+  "ranAt": "2026-10-12T11:26:00.593Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 6,
+    "readButNotAnOffer": 4,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 12826,
+    "searchMs": 3105,
+    "pageFetchMsSum": 691,
+    "pageRequests": 13,
+    "extractionMs": 8884,
+    "extractionCalls": 4
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 5716,
+      "output": 219,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 4,
+      "input": 36797,
+      "output": 60,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00162,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.01849,
+    "estimatedUsd": 0.02011,
+    "estimatedEur": 0.01729
+  },
+  "sources": [
+    "https://www.hellowork.com/fr-fr/emploi/metier_charge-projet-ville_toulouse-31000.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet-ville_toulouse-31000.html",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Project%20Manager%20Senior",
+    "https://www.staffsante.fr/offres-emploi-m-chef-de-projet",
+    "https://www.hellowork.com/fr-fr/emploi/mot-cle_senior-ville_toulouse-31000.html",
+    "https://emploi.lefigaro.fr/offres-emploi/156547516944938682",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Chef%20de%20Projet%20Industrialisation%20S%C3%A9nior",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=chef-de-projet",
+    "https://fr.indeed.com/q-chef-de-projet-senior-l-toulouse-31-jobs.html",
+    "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet.html"
+  ],
+  "skipped": [
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_charge-projet-ville_toulouse-31000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet-ville_toulouse-31000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Project%20Manager%20Senior",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.staffsante.fr/offres-emploi-m-chef-de-projet",
+      "reason": "login_wall"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/mot-cle_senior-ville_toulouse-31000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/156547516944938682",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Chef%20de%20Projet%20Industrialisation%20S%C3%A9nior",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=chef-de-projet",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://fr.indeed.com/q-chef-de-projet-senior-l-toulouse-31-jobs.html",
+      "reason": "site_terms"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet.html",
+      "reason": "not_a_job_offer"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 28,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_charge-projet-ville_toulouse-31000.html",
+      "status": 200,
+      "ms": 25,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet-ville_toulouse-31000.html",
+      "status": 200,
+      "ms": 25,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/robots.txt",
+      "status": 403,
+      "ms": 16,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Project%20Manager%20Senior",
+      "status": 403,
+      "ms": 17,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.staffsante.fr/robots.txt",
+      "status": 200,
+      "ms": 77,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.staffsante.fr/offres-emploi-m-chef-de-projet",
+      "status": 200,
+      "ms": 392,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/mot-cle_senior-ville_toulouse-31000.html",
+      "status": 200,
+      "ms": 23,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 16,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/156547516944938682",
+      "status": 403,
+      "ms": 13,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Chef%20de%20Projet%20Industrialisation%20S%C3%A9nior",
+      "status": 403,
+      "ms": 18,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=chef-de-projet",
+      "status": 403,
+      "ms": 17,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet.html",
+      "status": 200,
+      "ms": 24,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00049,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00011,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00162
+        },
+        "input_tokens": 5716,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 3933,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 219,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 5935
+      },
+      "searchResults": [
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_charge-projet-ville_toulouse-31000.html",
+          "title": "www.hellowork.com · fr-fr · emploiEmploi Chargé de projet Toulouse (31000) - Plus de 90 Offres ...",
+          "date": "2026-10-08"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet-ville_toulouse-31000.html",
+          "title": "Emploi Chef de projet Toulouse (31000) - Plus de 100 Offres",
+          "date": "2026-08-24"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Project%20Manager%20Senior",
+          "title": "Offres d'emploi Project Manager Senior",
+          "date": "2026-09-22"
+        },
+        {
+          "url": "https://www.staffsante.fr/offres-emploi-m-chef-de-projet",
+          "title": "Offres d'Emploi Chef de projet en CDI, CDD ou Intérim",
+          "date": "2026-10-02"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/mot-cle_senior-ville_toulouse-31000.html",
+          "title": "1 390 offres d'emploi Senior Toulouse",
+          "date": "2026-10-09"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/156547516944938682",
+          "title": "Emploi Chef de Projet Senior – Défense (H/F) - Toulouse (31000) sur Figaro Emploi",
+          "date": "2026-08-27"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Chef%20de%20Projet%20Industrialisation%20S%C3%A9nior",
+          "title": "Offres d'emploi Chef de Projet Industrialisation Sénior - Apec",
+          "date": "2026-09-27"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=chef-de-projet",
+          "title": "www.apec.fr · emploiRecherche emploi | Apec",
+          "date": "2026-09-25"
+        },
+        {
+          "url": "https://fr.indeed.com/q-chef-de-projet-senior-l-toulouse-31-jobs.html",
+          "title": "Emplois chef de projet senior (Toulouse (31))",
+          "date": "2026-09-12"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_chef-de-projet.html",
+          "title": "Emploi Chef de projet - Plus de 3 750 Offres - 9 octobre 2026",
+          "date": "2026-10-10"
+        }
+      ],
+      "answer": "Une offre correspond clairement aux critères de **CDI à Toulouse et salaire d’au moins 60 000 € brut/an** : **Chargé de Projet Senior SLI H/F**, chez Sonovision – Ortec Group, affichée à **60 000 €/an**. En revanche, l’annonce consultée ne précise pas le télétravail partiel ; ce critère reste donc à confirmer auprès du recruteur.[1]\n\nUne autre piste, **Chef de Projet Industriel Senior H/F**, est annoncée à Toulouse en CDI avec une fourchette de **55 000 à 65 000 € brut/an**. Le salaire peut atteindre 60 000 €, mais le télétravail n’est pas indiqué dans le résultat disponible.[7]\n\nÀ noter : les autres annonces repérées ne satisfont pas l’ensemble des critères — par exemple, le poste de Chef de Projet Senior Défense est à 40–50 k€, et le PMO Senior d’IN-GENIUM est à 40–60 k€.[6][3]"
+    }
+  ],
+  "offers": []
+}

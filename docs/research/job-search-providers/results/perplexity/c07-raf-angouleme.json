@@ -1,0 +1,302 @@
+{
+  "id": "c07-raf-angouleme",
+  "persona": "Responsable administratif et financier, 58 ans, petite ville (Angoulême)",
+  "criteria": {
+    "targetRole": "Responsable administratif et financier",
+    "location": "Angoulême",
+    "contractType": "cdi",
+    "minSalary": 55000
+  },
+  "query": "Offres d'emploi « Responsable administratif et financier » à Angoulême, CDI, salaire à partir de 55 000 € brut annuel",
+  "ranAt": "2026-10-12T11:26:13.624Z",
+  "error": null,
+  "funnel": {
+    "providerUrls": 10,
+    "considered": 10,
+    "refusedBeforeRead": 6,
+    "readButNotAnOffer": 4,
+    "invalid": 0,
+    "captured": 0,
+    "duplicatesMerged": 0,
+    "offersAfterDedup": 0,
+    "score60plus": 0,
+    "fresh30d": 0,
+    "unknownAge": 0,
+    "looksExpired": 0
+  },
+  "timing": {
+    "totalMs": 10109,
+    "searchMs": 2467,
+    "pageFetchMsSum": 1387,
+    "pageRequests": 17,
+    "extractionMs": 5193,
+    "extractionCalls": 4
+  },
+  "tokens": {
+    "perplexity": {
+      "calls": 1,
+      "input": 5325,
+      "output": 169,
+      "model": "openai/gpt-6-luna"
+    },
+    "mistral": {
+      "calls": 4,
+      "input": 26953,
+      "output": 54,
+      "model": "mistral-large-latest"
+    },
+    "perplexityUsd": 0.00154,
+    "perplexityUsdSource": "billed (response usage.cost)",
+    "mistralUsd": 0.01356,
+    "estimatedUsd": 0.0151,
+    "estimatedEur": 0.01298
+  },
+  "sources": [
+    "https://fr.trabajo.org/offre-3999-b9b524fd30f0b19738125f634a0cfeeb",
+    "https://emploi.ouest-france.fr/recherche-emploi/responsable-administratif-et-financier-administrative-et-financiere/?page=1",
+    "https://www.hellowork.com/fr-fr/emploi/metier_responsable-administratif-et-financier.html",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=responsable%20administratif%20et%20financier",
+    "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Responsable%20administratif,%20financi%C3%A8r.e%20et%20RH",
+    "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_angouleme-16000.html",
+    "https://www.meteojob.com/Emploi-Responsable-Administratif-Et-Financier",
+    "https://emploi.lefigaro.fr/offres-emploi/m/responsable-administratif",
+    "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+    "https://www.jobijoba.com/fr/emploi/Responsable+administratif+financier"
+  ],
+  "skipped": [
+    {
+      "url": "https://fr.trabajo.org/offre-3999-b9b524fd30f0b19738125f634a0cfeeb",
+      "reason": "gone"
+    },
+    {
+      "url": "https://emploi.ouest-france.fr/recherche-emploi/responsable-administratif-et-financier-administrative-et-financiere/?page=1",
+      "reason": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-administratif-et-financier.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=responsable%20administratif%20et%20financier",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Responsable%20administratif,%20financi%C3%A8r.e%20et%20RH",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_angouleme-16000.html",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.meteojob.com/Emploi-Responsable-Administratif-Et-Financier",
+      "reason": "login_wall"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/m/responsable-administratif",
+      "reason": "bot_protection"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+      "reason": "not_a_job_offer"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Responsable+administratif+financier",
+      "reason": "not_a_job_offer"
+    }
+  ],
+  "fetches": [
+    {
+      "url": "https://fr.trabajo.org/robots.txt",
+      "status": 200,
+      "ms": 79,
+      "kind": "robots"
+    },
+    {
+      "url": "https://fr.trabajo.org/offre-3999-b9b524fd30f0b19738125f634a0cfeeb",
+      "status": 410,
+      "ms": 48,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.ouest-france.fr/robots.txt",
+      "status": 200,
+      "ms": 96,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/robots.txt",
+      "status": 200,
+      "ms": 26,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-administratif-et-financier.html",
+      "status": 200,
+      "ms": 15,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/robots.txt",
+      "status": 403,
+      "ms": 16,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=responsable%20administratif%20et%20financier",
+      "status": 403,
+      "ms": 16,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Responsable%20administratif,%20financi%C3%A8r.e%20et%20RH",
+      "status": 403,
+      "ms": 127,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_angouleme-16000.html",
+      "status": 200,
+      "ms": 67,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.meteojob.com/robots.txt",
+      "status": 200,
+      "ms": 53,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.meteojob.com/Emploi-Responsable-Administratif-Et-Financier",
+      "status": 200,
+      "ms": 25,
+      "kind": "page"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/robots.txt",
+      "status": 403,
+      "ms": 15,
+      "kind": "robots"
+    },
+    {
+      "url": "https://emploi.lefigaro.fr/offres-emploi/m/responsable-administratif",
+      "status": 403,
+      "ms": 10,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/robots.txt",
+      "status": 200,
+      "ms": 70,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+      "status": 200,
+      "ms": 328,
+      "kind": "page"
+    },
+    {
+      "url": "https://www.jobijoba.com/robots.txt",
+      "status": 200,
+      "ms": 31,
+      "kind": "robots"
+    },
+    {
+      "url": "https://www.jobijoba.com/fr/emploi/Responsable+administratif+financier",
+      "status": 200,
+      "ms": 365,
+      "kind": "page"
+    }
+  ],
+  "perplexityRaw": [
+    {
+      "model": "openai/gpt-6-luna",
+      "usage": {
+        "cost": {
+          "cache_creation_cost": 0.00044,
+          "cache_read_cost": 0.00002,
+          "currency": "USD",
+          "input_cost": 0,
+          "output_cost": 0.00008,
+          "tool_calls_cost": 0.001,
+          "tool_calls_cost_details": {
+            "search_web": 0.001
+          },
+          "total_cost": 0.00154
+        },
+        "input_tokens": 5325,
+        "input_tokens_details": {
+          "cache_creation_input_tokens": 3542,
+          "cache_read_input_tokens": 1780,
+          "cached_tokens": 1780
+        },
+        "output_tokens": 169,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "tool_calls_details": {
+          "search_web": {
+            "cost_usd": 0.001,
+            "invocation": 1
+          }
+        },
+        "total_tokens": 5494
+      },
+      "searchResults": [
+        {
+          "url": "https://fr.trabajo.org/offre-3999-b9b524fd30f0b19738125f634a0cfeeb",
+          "title": "Responsable administratif et financier h/f",
+          "date": "2026-09-12"
+        },
+        {
+          "url": "https://emploi.ouest-france.fr/recherche-emploi/responsable-administratif-et-financier-administrative-et-financiere/?page=1",
+          "title": "Offre d'emploi Responsable administratif et financier administrative ...",
+          "date": "2026-04-11"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_responsable-administratif-et-financier.html",
+          "title": "Offres d'emploi Responsable administratif et financier",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=responsable%20administratif%20et%20financier",
+          "title": "Offres d'emploi responsable administratif et financier - Apec",
+          "date": "2026-09-24"
+        },
+        {
+          "url": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Responsable%20administratif,%20financi%C3%A8r.e%20et%20RH",
+          "title": "Offres d'emploi Responsable administratif, financièr.e et RH",
+          "date": "2026-09-25"
+        },
+        {
+          "url": "https://www.hellowork.com/fr-fr/emploi/metier_directeur-administratif-et-financier-ville_angouleme-16000.html",
+          "title": "Emploi Directeur administratif et financier Angoulême (16000) - Voir ...",
+          "date": "2026-03-07"
+        },
+        {
+          "url": "https://www.meteojob.com/Emploi-Responsable-Administratif-Et-Financier",
+          "title": "Offres Emploi Responsable administratif et financier",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://emploi.lefigaro.fr/offres-emploi/m/responsable-administratif",
+          "title": "Offres Emploi Responsable administratif - Octobre 2026",
+          "date": "2026-10-11"
+        },
+        {
+          "url": "https://www.welcometothejungle.com/fr/pages/emploi-finance",
+          "title": "Emploi Finance - Offres d'emploi et recrutement CDI",
+          "date": "2026-10-06"
+        },
+        {
+          "url": "https://www.jobijoba.com/fr/emploi/Responsable+administratif+financier",
+          "title": "Emploi Responsable administratif financier - Octobre 2026 - Jobijoba",
+          "date": "2026-10-12"
+        }
+      ],
+      "answer": "Aucune offre correspondant à **tous** vos critères — Responsable administratif et financier, à Angoulême, en CDI, à partir de 55 000 € brut/an — n’apparaît dans les résultats consultés.\n\nL’offre RAF localisée à Angoulême repérée est un CDI rémunéré **35 000 à 40 000 € brut/an**, donc sous votre seuil[1]. Des postes à **55 000–65 000 €** sont signalés à L’Isle-d’Espagnac, mais ils sont présentés comme des postes de **directeur administratif et financier**, pas de RAF[6].\n\nVous pourriez élargir la recherche à L’Isle-d’Espagnac et aux intitulés « directeur administratif et financier », ou assouplir le seuil salarial."
+    }
+  ],
+  "offers": []
+}

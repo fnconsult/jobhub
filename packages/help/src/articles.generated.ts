@@ -96,6 +96,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
     },
     {
+      "id": "page-install-extension",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "L'extension : l'installer",
+      "synonyms": [
+        "extension",
+        "installer",
+        "chrome",
+        "chrome web store",
+        "navigateur",
+        "module",
+        "ajouter à chrome",
+        "outils",
+        "télécharger l'extension"
+      ],
+      "route": "/compte/outils",
+      "body": "L'extension Chrome Jobbbox enregistre dans Jobbbox l'offre d'emploi que vous lisez sur un site d'offres, et calcule son score de correspondance, sans copier-coller. Elle s'installe dans le navigateur Google Chrome, sur ordinateur.\n\nPour l'installer, connecté : dans Mon compte, rubrique Outils, cliquez sur « Installer l'extension depuis le Chrome Web Store », puis ajoutez-la à Chrome depuis la page qui s'ouvre. Sans compte, « Extension », en bas des pages publiques, mène à la même page. Tant qu'elle n'est pas publiée, Outils affiche « L'extension arrive bientôt sur le Chrome Web Store. »\n\nUne fois installée, épinglez-la dans la barre de Chrome pour la retrouver. Sur la page d'une offre, elle ajoute le bouton « Analyser cette offre » ; vous pouvez aussi l'ouvrir et cliquer sur « Capturer cette page ».\n\nSans compte, l'extension calcule le Match Score d'une offre avec votre CV, puis efface tout au plus tard 24 heures après. Pour garder l'offre dans vos candidatures, connectez-vous : « Se connecter », dans l'extension. La suite est expliquée pas à pas dans le tutoriel « Enregistrer une offre avec l'extension »."
+    },
+    {
       "id": "page-profile",
       "locale": "fr",
       "kind": "page",
@@ -266,6 +287,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/acceptation",
       "body": "Cet écran s'affiche après la connexion quand les conditions générales d'utilisation (CGU) attendent votre accord : la première fois, puis à chaque nouvelle version qui change vos droits. Une version mineure ne vous est pas redemandée.\n\n« Lire les CGU » ouvre la version à accepter, avec sa date. Cochez « J'accepte les CGU (version du JJ/MM/AAAA) », puis « Accepter et continuer » : vous revenez à la page que vous vouliez ouvrir. La case n'est jamais cochée pour vous, et l'écran ne revient pas pour la même version.\n\nTant que vous n'avez pas accepté, vous pouvez toujours ouvrir Mes données, pour télécharger vos données ou supprimer votre compte, et Abonnement, pour vous rétracter ou résilier. Votre abonnement continue de courir.\n\nEn anglais, l'écran rappelle que le texte français fait foi."
+    },
+    {
+      "id": "page-what-is-jobbbox",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Qu'est-ce que Jobbbox, et pour qui ?",
+      "synonyms": [
+        "jobbbox",
+        "présentation",
+        "à quoi ça sert",
+        "pour qui",
+        "recherche d'emploi",
+        "chercher un emploi",
+        "coach",
+        "inscription",
+        "créer un compte",
+        "s'inscrire",
+        "découvrir"
+      ],
+      "route": "/connexion",
+      "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer."
     },
     {
       "id": "page-job-searches",
@@ -681,6 +725,97 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Dans Mon compte, rubrique Préférences : la réglette « Taille du texte » a quatre crans, Petit, Standard, Moyen et Grand.\n\nVotre choix est gardé sur cet appareil. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau."
     },
     {
+      "id": "faq-text-size-site",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Comment agrandir le texte du site ?",
+      "synonyms": [
+        "taille du texte",
+        "police",
+        "agrandir",
+        "écriture",
+        "petit",
+        "gros caractères",
+        "zoom",
+        "lire",
+        "lisibilité",
+        "malvoyant"
+      ],
+      "route": null,
+      "body": "En haut de chaque page publique, la liste « Taille du texte » propose Petit, Standard, Moyen et Grand. Le texte de toute la page change aussitôt.\n\nVotre choix est gardé sur cet appareil, connecté ou non : une fois connecté, vous le retrouvez dans Mon compte, rubrique Préférences. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau.\n\nLe zoom de votre navigateur agrandit aussi la page : Ctrl et + sur ordinateur (Cmd et + sur Mac)."
+    },
+    {
+      "id": "faq-sign-in-link",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Comment me connecter sans mot de passe, et si l'e-mail n'arrive pas ?",
+      "synonyms": [
+        "connexion",
+        "se connecter",
+        "mot de passe",
+        "mot de passe oublié",
+        "lien de connexion",
+        "lien magique",
+        "e-mail non reçu",
+        "email pas reçu",
+        "spam",
+        "courrier indésirable",
+        "lien expiré",
+        "identifiant"
+      ],
+      "route": null,
+      "body": "Jobbbox n'a pas de mot de passe. Sur la page « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Vous recevez l'e-mail « Votre lien de connexion à Jobbbox » : son bouton « Me connecter à Jobbbox » vous connecte. Si vous n'avez pas encore de compte, il est créé à ce moment-là.\n\nLe lien est valable 15 minutes et ne fonctionne qu'une seule fois. Un lien expiré ou déjà utilisé affiche « Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous. »\n\nSelon les moyens proposés sur la page, « Continuer avec … » vous connecte aussi avec un autre compte que vous avez déjà, sans attendre d'e-mail.\n\nL'e-mail n'arrive pas ?\n- Attendez quelques minutes : il peut mettre un peu de temps.\n- Regardez dans vos courriers indésirables (spam) ou vos promotions.\n- Vérifiez l'adresse saisie, puis demandez un nouveau lien.\n\nToujours rien ? Voyez « Comment nous contacter ? »."
+    },
+    {
+      "id": "faq-job-digest-unsubscribe",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Comment me désabonner d'un Job Digest ?",
+      "synonyms": [
+        "désabonner",
+        "désabonnement",
+        "se désinscrire",
+        "ne plus recevoir",
+        "arrêter les e-mails",
+        "job digest",
+        "offres par e-mail",
+        "newsletter",
+        "alerte"
+      ],
+      "route": null,
+      "body": "Dans un Job Digest reçu par e-mail, cliquez sur « Ne plus recevoir le Job Digest de ce profil ». La page « Se désabonner du Job Digest » s'ouvre, sans vous connecter : cliquez sur « Me désabonner ». Elle confirme « C'est fait : vous ne recevrez plus ce Job Digest. »\n\nSeul le Job Digest de ce profil s'arrête ; ceux de vos autres profils continuent. Vous pouvez le réactiver à tout moment depuis la page du profil.\n\nSi la page affiche « Ce lien de désabonnement n'est plus valable », vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
+    },
+    {
+      "id": "faq-contact-us",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Comment nous contacter ?",
+      "synonyms": [
+        "contact",
+        "contacter",
+        "nous contacter",
+        "joindre",
+        "écrire",
+        "e-mail",
+        "adresse",
+        "support",
+        "service client",
+        "équipe",
+        "question",
+        "parler à quelqu'un"
+      ],
+      "route": null,
+      "body": "Jobbbox n'a pas de boîte de support : selon que vous avez un compte ou non, vous joignez l'équipe Jobbbox autrement.\n\nAvec un compte, connectez-vous et posez votre question dans « Aide et coach » : les articles de l'aide s'affichent d'abord, puis votre coach IA répond. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question, avec la réponse du coach, à l'équipe Jobbbox. Vous suivez sa réponse dans Mon compte, rubrique Mes signalements. Pour un problème ou une idée : « Signaler un problème » ou « Proposer une idée ».\n\nSans compte, écrivez à {{contact-email}}, l'adresse des mentions légales."
+    },
+    {
       "id": "faq-data-export-deletion",
       "locale": "fr",
       "kind": "faq",
@@ -843,6 +978,77 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Chaque lundi à 0 h (heure de Paris). La barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes.\n\nParler à votre coach ne compte pas dans le quota. Une recherche d'offres qui échoue, ou que vous arrêtez avant qu'elle ait trouvé une offre, ne compte pas non plus.\n\nPour en avoir plus chaque semaine, changez d'offre depuis Mon abonnement."
+    },
+    {
+      "id": "faq-data-and-ai",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Que fait Jobbbox de mes données, et de l'IA ?",
+      "synonyms": [
+        "données",
+        "données personnelles",
+        "rgpd",
+        "vie privée",
+        "confidentialité",
+        "ia",
+        "intelligence artificielle",
+        "mistral",
+        "europe",
+        "cv",
+        "supprimer mes données"
+      ],
+      "route": null,
+      "body": "Jobbbox se sert de ce que vous lui confiez, votre CV, vos critères et vos candidatures, pour vous aider dans votre recherche d'emploi. Votre coach et plusieurs tâches, comme lire votre CV ou calculer un score de correspondance, font appel à l'IA ; votre coach dit toujours qu'il est une IA. L'aide, elle, n'utilise aucune IA.\n\nAvec votre accord, dans Mon compte, rubrique IA européenne, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. Vous pouvez retirer cet accord à tout moment.\n\nDans Mon compte, rubrique Mes données, vous téléchargez toutes vos données ou supprimez votre compte.\n\nLe détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
+    },
+    {
+      "id": "faq-plans-and-quotas",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Quelles sont les offres de Jobbbox, et leurs quotas ?",
+      "synonyms": [
+        "offre",
+        "offres",
+        "prix",
+        "tarif",
+        "tarifs",
+        "gratuit",
+        "gratuite",
+        "payant",
+        "abonnement",
+        "standard",
+        "premium",
+        "quota",
+        "limite",
+        "combien ça coûte"
+      ],
+      "route": null,
+      "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota.\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
+    },
+    {
+      "id": "tutorial-getting-started",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Commencer : de l'inscription à votre premier profil",
+      "synonyms": [
+        "commencer",
+        "démarrer",
+        "inscription",
+        "s'inscrire",
+        "créer un compte",
+        "premier profil",
+        "créer un profil",
+        "déposer mon cv",
+        "premiers pas",
+        "débuter"
+      ],
+      "route": null,
+      "body": "Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\n1. Cliquez sur « Se connecter », en haut de chaque page publique. Sur « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ».\n2. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuite.\n3. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n4. Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ».\n5. Si vous avez un CV, choisissez « J'ai un CV », déposez-le (PDF ou Word .docx, 10 Mo maximum) puis cliquez sur « Lire mon CV ». Sinon, choisissez « Je n'ai pas de CV à jour », puis « Répondre aux questions de mon coach » : une question à la fois, une dizaine de minutes.\n6. Vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu », corrigez ce qui doit l'être, puis cliquez sur « Enregistrer mon profil ».\n\nVotre premier profil est prêt : votre coach peut chercher des offres pour vous."
     },
     {
       "id": "tutorial-extension-save-job-offer",
@@ -1202,6 +1408,51 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
     },
     {
+      "id": "page-install-extension",
+      "locale": "en",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "The extension: installing it",
+      "synonyms": [
+        "extension",
+        "install",
+        "chrome",
+        "chrome web store",
+        "browser",
+        "add-on",
+        "plugin",
+        "add to chrome",
+        "tools",
+        "download the extension"
+      ],
+      "route": "/compte/outils",
+      "body": "The Jobbbox Chrome extension saves into Jobbbox the job offer you are reading on a job site, and works out its match score, without copying and pasting. It installs in the Google Chrome browser, on a computer.\n\nTo install it, signed in: in My account, under Tools, click « Install the extension from the Chrome Web Store », then add it to Chrome from the page that opens. Without an account, « Extension », at the foot of the public pages, leads to the same page. Until it is published, Tools shows « The extension is coming soon to the Chrome Web Store. »\n\nOnce installed, pin it to Chrome's toolbar to find it again. On a job offer's page, it adds the « Analyse this offer » button; you can also open it and click « Capture this page ».\n\nWithout an account, the extension works out a job offer's Match Score with your CV, then deletes everything within 24 hours. To keep the offer in your applications, sign in: « Sign in », in the extension. The rest is explained step by step in the tutorial « Save a job offer with the extension »."
+    },
+    {
+      "id": "page-what-is-jobbbox",
+      "locale": "en",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "What is Jobbbox, and who is it for?",
+      "synonyms": [
+        "jobbbox",
+        "about",
+        "what is it for",
+        "who is it for",
+        "job search",
+        "looking for a job",
+        "coach",
+        "sign up",
+        "create an account",
+        "register",
+        "discover"
+      ],
+      "route": "/connexion",
+      "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start."
+    },
+    {
       "id": "page-withdrawal",
       "locale": "en",
       "kind": "page",
@@ -1538,6 +1789,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "No. The help calls on no AI to answer you: its articles are checked and published by the Jobbbox team, and the search finds them from your own words. It works even when the AI is unavailable and never counts against a quota.\n\nOnly your coach answers with AI, and its replies say so. When the help has no answer, « Send to the coach » asks it your question.\n\nAll the help is also in the Help Centre, open without an account: « Help and legal », at the foot of the menu, then « Help ». An article opened beside the conversation offers « Open in the Help Centre ».\n\nIf your coach had to answer a question about using Jobbbox, the question is noted, without your name, so the team can write the missing article."
     },
     {
+      "id": "faq-contact-us",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "How do I contact you?",
+      "synonyms": [
+        "contact",
+        "contact us",
+        "reach",
+        "write",
+        "email",
+        "address",
+        "support",
+        "customer service",
+        "team",
+        "question",
+        "talk to someone"
+      ],
+      "route": null,
+      "body": "Jobbbox has no support mailbox: whether or not you have an account, you reach the Jobbbox team in a different way.\n\nWith an account, sign in and ask your question in « Help and coach »: the help's articles show first, then your AI coach answers. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question, with the coach's reply, to the Jobbbox team. You follow its answer in My account, under My feedback. For a problem or an idea: « Report a problem » or « Suggest an idea ».\n\nWithout an account, write to {{contact-email}}, the address of the legal notice."
+    },
+    {
       "id": "faq-follow-up-recruiter",
       "locale": "en",
       "kind": "faq",
@@ -1575,6 +1849,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "In My account, under My data: « Download all my data » gives you one file with everything Jobbbox keeps about you, including the versions of the Terms of use and Terms of sale you accepted.\n\nIn the same place, « Permanently delete my account » closes it at once, once you have typed your email address to confirm. Your profiles, CVs, applications and documents are erased, for good within 30 days at most, and your subscription ends. Only the proof of the terms you accepted (Terms of use and Terms of sale: which version, when) is kept, without your name or email address: 5 years for the Terms of use, 10 years for the Terms of sale.\n\nDownload your data first if you want to keep it."
+    },
+    {
+      "id": "faq-text-size-site",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "How do I make the site's text larger?",
+      "synonyms": [
+        "text size",
+        "font",
+        "larger",
+        "bigger",
+        "small",
+        "large print",
+        "zoom",
+        "read",
+        "readability",
+        "visually impaired"
+      ],
+      "route": null,
+      "body": "At the top of every public page, the « Text size » list offers Small, Standard, Medium and Large. The whole page's text changes at once.\n\nYour choice is kept on this device, signed in or not: once signed in, you find it in My account, under Preferences. On another computer or phone, set it again.\n\nYour browser's zoom also makes the page larger: Ctrl and + on a computer (Cmd and + on a Mac)."
     },
     {
       "id": "faq-text-size",
@@ -1616,6 +1912,99 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », under the message box of every conversation. You also find it with the icon beside « My account », at the foot of the menu. The form opens beside the conversation, without hiding it (over it, full screen, on a phone); « Close » or the Escape key closes it and your draft is kept.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team, in the same form.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in Jobbbox.\n\nThere is no support email address: feedback is how you reach a person."
+    },
+    {
+      "id": "faq-sign-in-link",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "How do I sign in without a password, and what if the email doesn't arrive?",
+      "synonyms": [
+        "sign in",
+        "log in",
+        "login",
+        "password",
+        "forgot password",
+        "sign-in link",
+        "magic link",
+        "email not received",
+        "no email",
+        "spam",
+        "junk mail",
+        "link expired",
+        "username"
+      ],
+      "route": null,
+      "body": "Jobbbox has no password. On the « Sign in to Jobbbox » page, enter « Your email address » then click « Send me a sign-in link ». You receive the email « Your Jobbbox sign-in link »: its button « Sign in to Jobbbox » signs you in. If you don't have an account yet, it is created then.\n\nThe link is valid for 15 minutes and works only once. A link that has expired or was already used shows « This sign-in link is no longer valid. Ask for a new one below. »\n\nDepending on the options on the page, « Continue with … » also signs you in with another account you already have, without waiting for an email.\n\nThe email doesn't arrive?\n- Wait a few minutes: it can take a little while.\n- Look in your junk mail (spam) or promotions.\n- Check the address you entered, then ask for a new link.\n\nStill nothing? See « How do I contact you? »."
+    },
+    {
+      "id": "faq-job-digest-unsubscribe",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "How do I unsubscribe from a Job Digest?",
+      "synonyms": [
+        "unsubscribe",
+        "opt out",
+        "stop receiving",
+        "stop the emails",
+        "job digest",
+        "offers by email",
+        "newsletter",
+        "alert"
+      ],
+      "route": null,
+      "body": "In a Job Digest received by email, click « Stop receiving this profile's Job Digest ». The page « Unsubscribe from the Job Digest » opens, without signing in: click « Unsubscribe ». It confirms « Done: you will no longer receive this Job Digest. »\n\nOnly this profile's Job Digest stops; those of your other profiles go on. You can turn it back on at any time from the profile's page.\n\nIf the page shows « This unsubscribe link is no longer valid », you may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile's page."
+    },
+    {
+      "id": "faq-plans-and-quotas",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "What are Jobbbox's Plans, and their quotas?",
+      "synonyms": [
+        "plan",
+        "plans",
+        "price",
+        "pricing",
+        "cost",
+        "free",
+        "paid",
+        "subscription",
+        "standard",
+        "premium",
+        "quota",
+        "limit",
+        "how much does it cost"
+      ],
+      "route": null,
+      "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota.\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
+    },
+    {
+      "id": "faq-data-and-ai",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "What does Jobbbox do with my data, and with AI?",
+      "synonyms": [
+        "data",
+        "personal data",
+        "gdpr",
+        "privacy",
+        "confidentiality",
+        "ai",
+        "artificial intelligence",
+        "mistral",
+        "europe",
+        "cv",
+        "delete my data"
+      ],
+      "route": null,
+      "body": "Jobbbox uses what you entrust to it, your CV, your criteria and your applications, to help you with your job search. Your coach and several tasks, such as reading your CV or working out a match score, use AI; your coach always says it is an AI. The help, for its part, uses no AI.\n\nWith your consent, in My account, under European AI, each request to the AI that holds your identity data is handled by Mistral AI, a European AI provider. You can withdraw this consent at any time.\n\nIn My account, under My data, you download all your data or delete your account.\n\nThe details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
     },
     {
       "id": "faq-quota-renewal",
@@ -1699,6 +2088,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "body": "Jobbbox writes to you when it publishes a substantial version of the Terms of use, the Terms of sale or the Privacy policy: at least 30 days before it takes effect. The email names the text, the date it takes effect and what changes, with « Read the new version » and the « Version history ». A minor version, a typo corrected for instance, gets no email.\n\nIt is a service email: you get it even if you do not receive our news. It has no image and no tracking link, and you get it only once per version.\n\nFor the Terms of use, Jobbbox will ask you to accept the new version the first time you sign in from the date it takes effect. For the Terms of sale, it will apply to your next purchases. The Privacy policy is not accepted: after it takes effect, a notice « Our privacy policy changed on … » shows once in your workspace, and « Got it » closes it."
+    },
+    {
+      "id": "tutorial-getting-started",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Getting started: from signing up to your first profile",
+      "synonyms": [
+        "get started",
+        "start",
+        "begin",
+        "sign up",
+        "register",
+        "create an account",
+        "first profile",
+        "create a profile",
+        "upload my cv",
+        "first steps"
+      ],
+      "route": null,
+      "body": "A profile is a job you are aiming for: a master CV and search criteria. Your coach uses it to look for offers and prepare your applications.\n\n1. Click « Sign in », at the top of every public page. On « Sign in to Jobbbox », enter « Your email address » then click « Send me a sign-in link ».\n2. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan.\n3. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n4. In My account, under Profiles, click « Create my first profile ».\n5. If you have a CV, choose « I have a CV », drop it in (PDF or Word .docx, 10 MB maximum) then click « Read my CV ». Otherwise, choose « I don't have an up-to-date CV », then « Answer my coach's questions »: one question at a time, about ten minutes.\n6. Check your CV and search criteria, such as the « Target role » and the « Location », correct what needs it, then click « Save my profile ».\n\nYour first profile is ready: your coach can look for offers for you."
     },
     {
       "id": "tutorial-extension-save-job-offer",

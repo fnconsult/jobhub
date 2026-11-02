@@ -73,6 +73,11 @@ describe("articleFor — the Help Article of the page in view", () => {
 
   it("returns null for a page without an article", () => {
     expect(articleFor("/admin/quotas", "fr")).toBeNull();
-    expect(articleFor("/connexion", "fr")).toBeNull();
+  });
+
+  it("explains the sign-in page and Mon compte's Outils to a Visitor (#552)", () => {
+    expect([articleFor("/connexion", "fr")?.id, articleFor("/connexion", "fr")?.audience]).toEqual(["page-what-is-jobbbox", "visitor"]);
+    expect(articleFor("/compte/outils", "en")?.id).toBe("page-install-extension");
+    expect(articleFor("/compte/preferences", "fr")?.id).toBe("page-account");
   });
 });

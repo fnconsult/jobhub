@@ -84,11 +84,21 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     ["a route that is not an app path", page(valid.replace("route: /candidatures", "route: candidatures")), /route must start with \//],
     ["an empty body", page(valid, ""), /the body is empty/],
     ["an image", page(valid, "Voyez ![la page](capture.png)."), /no images/],
+    ["a link out of the site", page(valid, "Voyez [l'Apec](https://www.apec.fr)."), /a link leads to a page of this site \(\/legal\/…\), never elsewhere: https:\/\/www\.apec\.fr/],
+    ["a link out of the site through a backslash", page(valid, "Voyez [ceci](/\\evil.example)."), /a link leads to a page of this site/],
+    ["a mailto link", page(valid, "Écrivez à [l'équipe](mailto:equipe@jobbbox.fr)."), /a link leads to a page of this site/],
+    ["an email address written out", page(valid, "Écrivez à bonjour@jobbbox.fr."), /no email address written out: \{\{contact-email\}\} stands for the legal notice's/],
   ])("fails on %s, naming the file", (_case, markdown, problem) => {
     const enTwin = page(valid);
     expect(() => readHelpContent(articlesDir({ "fr/page-applications.md": markdown, "en/page-applications.md": enTwin }))).toThrow(
       new RegExp(`fr/page-applications\\.md: ${problem.source}`),
     );
+  });
+
+  it("reads a link to a page of this site and the contact address's token (#552)", () => {
+    const body = "Écrivez à {{contact-email}} ; voyez [IA dans Jobbbox](/legal/confidentialite#ia).";
+    const content = readHelpContent(articlesDir({ "fr/page-applications.md": page(valid, body), "en/page-applications.md": page(valid, body) }));
+    expect(content.fr[0]!.body).toBe(body);
   });
 
   it("reads a tutorial of two numbered steps or more, and an administrator article in a Back Office topic", () => {

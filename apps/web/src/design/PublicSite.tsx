@@ -6,7 +6,6 @@ import { TextSizeControl } from "@/components/TextSizeControl";
 import { getChosenLocale, getRequestLocale, getServerT, getUrlLocale } from "@/i18n/server";
 import { extensionStorePage } from "@/platform-settings/extension-store";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
-import { publicContactEmail } from "@/public-pages/contact-email";
 import { footerColumns, HEADER_LINKS, languageLinks, shellHref, type PublicPage } from "@/public-pages/public-shell";
 import { REQUEST_PATH_HEADER } from "@/request-path";
 import { routes } from "@/routes";
@@ -85,7 +84,7 @@ export async function PublicFooter({ signInLink = true }: { signInLink?: boolean
   const t = await getServerT();
   const url = { url: await getUrlLocale(), lang: await getChosenLocale() };
   const account = signInLink ? ((await getCurrentCandidate()) ? "account" : "signIn") : null;
-  const columns = footerColumns({ contactEmail: publicContactEmail(), extensionStore: extensionStorePage(getPlatformSettingsResolver().current()), account });
+  const columns = footerColumns({ extensionStore: extensionStorePage(getPlatformSettingsResolver().current()), account });
   return (
     <footer className="ds-site__foot">
       <div className="ds-site__foot-columns">

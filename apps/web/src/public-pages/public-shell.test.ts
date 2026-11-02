@@ -1,5 +1,7 @@
+import { helpCentreArticle } from "@jobhub/help";
 import { describe, expect, it } from "vitest";
-import { AIDE_ET_LEGAL, footerColumns, HEADER_LINKS, languageLinks, localePath, shellHref, withLang } from "./public-shell";
+import { routes } from "@/routes";
+import { AIDE_ET_LEGAL, CONTACT_ARTICLE, footerColumns, HEADER_LINKS, languageLinks, localePath, shellHref, withLang } from "./public-shell";
 
 const hrefs = (links: ReadonlyArray<{ href: string }>) => links.map((link) => link.href);
 
@@ -31,7 +33,7 @@ describe("the public header (#544)", () => {
 });
 
 describe("the public footer (#544)", () => {
-  const columns = footerColumns({ contactEmail: "contact@jobbbox.fr", extensionStore: "https://chromewebstore.google.com/detail/jobbbox" });
+  const columns = footerColumns({ extensionStore: "https://chromewebstore.google.com/detail/jobbbox" });
 
   it("has three columns: Légal, Aide, Jobbbox", () => {
     expect(columns.map((column) => column.key)).toEqual(["legal", "help", "jobbbox"]);
@@ -43,15 +45,20 @@ describe("the public footer (#544)", () => {
     expect(hrefs(legal)).toEqual(["/legal/mentions-legales", "/legal/cgu", "/legal/cgv", "/legal/confidentialite", "/legal/confidentialite#ia"]);
   });
 
-  it("Aide: the Help Centre, an email to the team, the extension's store page", () => {
+  it("Aide: the Help Centre, « Nous contacter »'s Help Article (#552), the extension's store page", () => {
     const help = columns[1]!.links;
     expect(help.map((link) => link.key)).toEqual(["helpCentre", "contact", "extension"]);
-    expect(hrefs(help)).toEqual(["/aide", "mailto:contact@jobbbox.fr", "https://chromewebstore.google.com/detail/jobbbox"]);
+    expect(hrefs(help)).toEqual(["/aide", "/aide/decouvrir/faq-contact-us", "https://chromewebstore.google.com/detail/jobbbox"]);
   });
 
-  it("without a contact address or a store page, « Nous contacter » and « Extension » lead to the Help Centre", () => {
+  it("without a store page, « Extension » leads to the Help Centre; « Nous contacter » always to its article", () => {
     const help = footerColumns({})[1]!.links;
-    expect(hrefs(help)).toEqual(["/aide", "/aide", "/aide"]);
+    expect(hrefs(help)).toEqual(["/aide", "/aide/decouvrir/faq-contact-us", "/aide"]);
+  });
+
+  it("« Nous contacter »'s article is a public article of « Découvrir Jobbbox », in both languages", () => {
+    for (const locale of ["fr", "en"] as const) expect(helpCentreArticle("decouvrir", "faq-contact-us", locale)?.kind).toBe("faq");
+    expect(CONTACT_ARTICLE).toBe(routes.helpArticle("decouvrir", "faq-contact-us"));
   });
 
   it("Jobbbox: Nouveautés and « Se connecter », « Mon compte » once signed in, neither on a sign-in page", () => {

@@ -31,6 +31,7 @@ export {
   type LegalTextVersion,
   type LegalTextVersionRecord,
 } from "./legal-texts";
+export { CONTACT_EMAIL_TOKEN, fillContactEmail } from "./contact";
 export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
   nouveautes,

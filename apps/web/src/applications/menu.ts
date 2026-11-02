@@ -8,6 +8,7 @@ import { isArchivedApplication } from "./list-view";
 /**
  * One Application on Mes candidatures' card: its Job Offer, its status, its Match Score (null when it is not
  * computable) and what waits for the Candidate there (à traiter: a Follow-up or an « Abandonnée » suggestion), if anything.
+ * `expired`: its Job Offer expired, or the Candidate reported it unavailable (`reportedByYou`); its status stays theirs.
  */
 export interface ApplicationsMenuRow {
   id: string;
@@ -16,6 +17,8 @@ export interface ApplicationsMenuRow {
   status: ApplicationStatus;
   matchScore: number | null;
   toHandle: FollowUpNotice["kind"] | null;
+  expired: boolean;
+  reportedByYou: boolean;
 }
 
 /** Mes candidatures (ADR-0070, #604): its card in the menu's conversation, and what it unfolds into in the Sidebar. */
@@ -58,6 +61,8 @@ export function applicationsMenu({
       status: application.status,
       matchScore: matchScore && matchScoreReliability(matchScore) !== "not_computable" ? matchScore.score : null,
       toHandle: waiting.get(application.id) ?? null,
+      expired: Boolean(application.jobOffer.expiredAt || application.reportedUnavailableAt),
+      reportedByYou: Boolean(application.reportedUnavailableAt),
     };
   });
   return {

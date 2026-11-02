@@ -76,6 +76,7 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
         if (article.kind !== french.kind) problems.push(`${where}: its kind ${article.kind} differs from the French one (${french.kind})`);
         else if (article.route !== french.route) problems.push(`${where}: its route ${article.route} differs from the French one (${french.route})`);
         if (article.audience !== french.audience) problems.push(`${where}: its audience ${article.audience} differs from the French one (${french.audience})`);
+        if (article.motion !== french.motion) problems.push(`${where}: its motion ${article.motion} differs from the French one (${french.motion})`);
         if (article.topic !== french.topic) problems.push(`${where}: its topic ${article.topic} differs from the French one (${french.topic})`);
       }
       if (article.kind !== "page" || !article.route) continue;
@@ -112,6 +113,7 @@ function articleProblems(article: HelpArticle): string[] {
   if (!Array.isArray(article.synonyms)) problems.push("synonyms must be a list: [word, other word]");
   if (article.kind === "page" && !article.route) problems.push("a page article needs its route");
   if (article.kind !== "page" && article.route) problems.push("only a page article has a route");
+  if (article.kind !== "tutorial" && article.motion) problems.push("only a tutorial has a motion");
   if (article.route && !article.route.startsWith("/")) problems.push("route must start with /");
   if (!article.body) problems.push("the body is empty");
   if (/!\[[^\]]*\]\(/.test(article.body) || /<img\b/i.test(article.body)) problems.push("no images in a Help Article");
@@ -146,6 +148,7 @@ function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArt
     title: text(frontmatter.title),
     synonyms: frontmatter.synonyms as string[],
     route: text(frontmatter.route) || null,
+    motion: text(frontmatter.motion) || null,
     body: body.trim(),
   };
 }

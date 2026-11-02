@@ -48,6 +48,7 @@ describe("readHelpContent — the Help Articles of a directory", () => {
         title: "Comment relancer un recruteur ?",
         synonyms: ["relance", "rappeler", "sans réponse"],
         route: null,
+        motion: null,
         body: "Votre coach propose un e-mail de **relance**.\n\nJobbbox n'envoie rien à votre place.",
       },
     ]);

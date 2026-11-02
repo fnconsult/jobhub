@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./motion-scripts-content": "./src/motion-scripts-content.ts"
   },
   "scripts": {
     "build": "tsx scripts/build-articles.ts",

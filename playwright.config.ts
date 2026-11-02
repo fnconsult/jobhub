@@ -80,6 +80,9 @@ export default defineConfig({
     // spec failed, as Playwright does with a dependency.
     { name: "plan-quotas", testMatch: /quota-reduction\.spec\.ts/, dependencies: ["web"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" } },
     { name: "extension", testMatch: /extension\.spec\.ts/, use: { baseURL: webOrigin } },
+    // The motions' captures (#567, ADR-0066): the test Motion Scripts filmed on the demo Candidate; with MOTIONS_WORK, the
+    // `motions` workflow's capture stage (packages/motions, docs/ops/motions.md).
+    { name: "motions", testMatch: /\/motions\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
     { name: "stack", testMatch: /stack\.spec\.ts/ },
     // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
     { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },

@@ -11,6 +11,8 @@ const BUILD_ID = "apps/web/.next/BUILD_ID";
 const SOURCE_ROOTS = ["apps/web", "packages"];
 // What the build writes or does not read.
 const SKIPPED_DIRECTORIES = new Set([".next", "node_modules", "dist", "coverage", ".turbo"]);
+// Packages the web app never imports: the motions' tooling (#567) runs in its own workflow.
+const SKIPPED_PACKAGES = new Set(["packages/motions"]);
 const SKIPPED_FILES = [/\.test\.tsx?$/, /\.tsbuildinfo$/, /^next-env\.d\.ts$/, /^\.DS_Store$/];
 
 /**
@@ -26,7 +28,7 @@ export function staleBuild(repoRoot) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const full = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORIES.has(entry.name)) walk(full);
+        if (!SKIPPED_DIRECTORIES.has(entry.name) && !SKIPPED_PACKAGES.has(path.relative(repoRoot, full).split(path.sep).join("/"))) walk(full);
       } else if (entry.isFile() && !SKIPPED_FILES.some((pattern) => pattern.test(entry.name))) {
         if (statSync(full).mtimeMs > builtAt) newer.push(path.relative(repoRoot, full));
       }

@@ -13,6 +13,7 @@ const entry = (fields: Partial<HelpArticle> & Pick<HelpArticle, "id" | "title">)
   topic: "utiliser",
   synonyms: [],
   route: null,
+  motion: null,
   body: "Un texte.",
   ...fields,
 });

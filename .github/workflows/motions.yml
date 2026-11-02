@@ -1,0 +1,144 @@
+name: motions
+
+# Renders the Explainer Videos (ADR-0066, #567; runbook: docs/ops/motions.md). Manual, never on a Mac: before each
+# Promotion, the product owner runs it on main. It renders the motions flagged « Motion à régénérer » in the pull
+# requests merged since the last Version, and those whose Motion Script changed (or all, or the ones named): Playwright
+# films each script on the demo data, a synthetic voice reads its narration, Remotion composes the MP4, with its WebVTT
+# captions, its transcript and its poster. It publishes them to the Scaleway bucket served at media.jobbbox.ai and writes
+# what changed in the run's summary. A broken capture keeps the previous video, with a warning: the run stays green.
+# On a pull request that changes the tooling, it renders the test Motion Scripts with the draft voice, and publishes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      motions:
+        description: "flagged (Motion à régénérer, et scripts modifiés), all, ou des scripts séparés par des virgules"
+        default: flagged
+        required: true
+      fixtures:
+        description: "Rendre les Motion Scripts de test (packages/motions/fixtures) au lieu de ceux des Tutorials"
+        type: boolean
+        default: false
+      publish:
+        description: "Publier sur media.jobbbox.ai"
+        type: boolean
+        default: true
+      voice-samples:
+        description: "Rendre aussi les échantillons de voix de chaque fournisseur qui a sa clé"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - packages/motions/**
+      - packages/help/motions/**
+      - packages/help/src/motion-scripts*.ts
+      - .github/workflows/motions.yml
+
+concurrency:
+  group: motions-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: jobhub
+          POSTGRES_PASSWORD: jobhub
+          POSTGRES_DB: jobhub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobhub -d jobhub"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgres://jobhub:jobhub@localhost:5432/jobhub
+      NEXT_TELEMETRY_DISABLED: "1"
+      MOTIONS_WORK: ${{ github.workspace }}/motions-work
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The voice the product owner chose by ear (repository variables), and the providers' keys (secrets of this
+      # workflow, never Provider Secrets of the app: the scripts hold demo data only). No key: the draft voice, never published.
+      MOTIONS_VOICE_PROVIDER: ${{ vars.MOTIONS_VOICE_PROVIDER }}
+      MOTIONS_VOICE_FR: ${{ vars.MOTIONS_VOICE_FR }}
+      MOTIONS_VOICE_EN: ${{ vars.MOTIONS_VOICE_EN }}
+      MOTIONS_ELEVENLABS_API_KEY: ${{ secrets.MOTIONS_ELEVENLABS_API_KEY }}
+      MOTIONS_AZURE_SPEECH_KEY: ${{ secrets.MOTIONS_AZURE_SPEECH_KEY }}
+      MOTIONS_GOOGLE_TTS_API_KEY: ${{ secrets.MOTIONS_GOOGLE_TTS_API_KEY }}
+      # The bucket: read (what is online) on every run, written only by a manual run asked to publish.
+      MOTIONS_BUCKET: ${{ vars.MOTIONS_BUCKET || 'media.jobbbox.ai' }}
+      MOTIONS_S3_ACCESS_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && secrets.MOTIONS_S3_ACCESS_KEY || '' }}
+      MOTIONS_S3_SECRET_KEY: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && secrets.MOTIONS_S3_SECRET_KEY || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The tags, to find when the last Version was cut.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # ffprobe measures the narration; espeak-ng is the draft voice.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng
+      - run: npm ci
+
+      - name: Voice samples
+        if: github.event_name == 'workflow_dispatch' && inputs.voice-samples
+        run: npm run -s motions -w @jobhub/motions -- samples
+
+      - name: Plan
+        id: plan
+        run: |
+          last_version=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          since=$([ -n "$last_version" ] && git log -1 --format=%cI "$last_version" || true)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run -s motions -w @jobhub/motions -- plan --select all --fixtures
+          else
+            npm run -s motions -w @jobhub/motions -- plan --select "${{ inputs.motions }}" ${{ inputs.fixtures && '--fixtures' || '' }} --since "$since"
+          fi
+          echo "count=$(jq length "$MOTIONS_WORK/plan.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Narrate
+        if: steps.plan.outputs.count != '0'
+        run: npm run -s motions -w @jobhub/motions -- narrate
+
+      - name: Build the app for the captures
+        if: steps.plan.outputs.count != '0'
+        run: |
+          npm run build -w @jobhub/help
+          npm run build -w @jobhub/web
+          npm run db:migrate
+          npx playwright install --with-deps chromium
+
+      # The demo Candidate, seeded on this run's throwaway database; a broken capture is written down, never fails.
+      - name: Capture
+        if: steps.plan.outputs.count != '0'
+        run: npx playwright test --project=motions
+
+      - name: Render
+        if: steps.plan.outputs.count != '0'
+        run: npm run -s motions -w @jobhub/motions -- render
+
+      - name: Publish and summarise
+        run: npm run -s motions -w @jobhub/motions -- publish
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: motions
+          path: |
+            motions-work/**/out/
+            motions-work/**/*-error.txt
+            motions-work/summary.md
+            motions-work/manifest.json
+            motions-work/voice-samples/
+          if-no-files-found: ignore
+          retention-days: 30

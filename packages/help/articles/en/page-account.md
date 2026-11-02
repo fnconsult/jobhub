@@ -3,12 +3,12 @@ kind: page
 audience: candidate
 topic: utiliser
 title: My account
-synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version]
+synonyms: [account, settings, preferences, language, theme, dark mode, sign-in, reminders, version, what's new, what's-new email]
 route: /compte
 ---
 My account gathers your settings, in sections: Profiles, Follow-ups, Reminders, European AI, Sign-in, Preferences, Tools and My data.
 
-In Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.
+In Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it. In Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.
 
 My data lets you download all your data or delete your account.
 

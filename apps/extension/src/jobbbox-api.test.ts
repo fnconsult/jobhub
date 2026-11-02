@@ -205,6 +205,21 @@ describe("the Jobbbox API, from the extension", () => {
     expect(await api.saveApplication("jo-1", "p-1")).toEqual({ ok: false, error: "unreachable" });
   });
 
+  it("reads the CGU version in effect, or that none is, sending nothing but the question (#550)", async () => {
+    const path = "/api/legal/cgu/in-effect";
+    const inEffect = webApp({ [path]: () => Response.json({ version: "2026-06-01", url: "/legal/cgu/2026-06-01" }) });
+    expect(await createJobbboxApi(WEB_ORIGIN, inEffect.fetch).cguInEffect()).toEqual({ ok: true, cgu: { version: "2026-06-01", url: "/legal/cgu/2026-06-01" } });
+    expect(inEffect.calls).toHaveLength(1);
+    expect(inEffect.calls[0]).toMatchObject({ url: `${WEB_ORIGIN}${path}`, init: { method: "GET", credentials: "include" } });
+    expect(inEffect.calls[0]?.init.body).toBeUndefined();
+
+    expect(await createJobbboxApi(WEB_ORIGIN, webApp({ [path]: () => Response.json({ version: null }) }).fetch).cguInEffect()).toEqual({ ok: true, cgu: null });
+    // Not known, rather than none: the box is not dropped because the web app could not say.
+    expect(await createJobbboxApi(WEB_ORIGIN, webApp({}).fetch).cguInEffect()).toEqual({ ok: false, error: "unreachable" });
+    expect(await createJobbboxApi(WEB_ORIGIN, webApp({ [path]: () => new Response("", { status: 503 }) }).fetch).cguInEffect()).toEqual({ ok: false, error: "unreachable" });
+    expect(await createJobbboxApi(WEB_ORIGIN, webApp({ [path]: () => Response.json({ version: 1 }) }).fetch).cguInEffect()).toEqual({ ok: false, error: "unreachable" });
+  });
+
   it("is told to update on a 426, remembers it for the Side Panel, and forgets it once served again (#564)", async () => {
     const items: Record<string, unknown> = {};
     const storage: UpdateStorage = {

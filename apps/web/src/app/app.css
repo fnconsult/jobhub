@@ -2705,11 +2705,31 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
     padding-left: var(--space-4);
   }
 
-  /* On a phone the title gets a row of its own, under Menu and the coach button. */
+  /* On a phone the title gets a row of its own, under Menu and the page's buttons. */
   .topbar-title {
     flex-basis: 100%;
     order: 1;
   }
+
+  /* The page's buttons (« Fiche », « Activité », « Effacer » or « Aide ») keep together at the right of Menu, closer set,
+     so the conversation keeps the screen (#608). */
+  .topbar .topbar-actions {
+    flex: 1;
+    gap: var(--space-2);
+  }
+
+  .topbar :is(.menu-toggle, .topbar-actions .ds-button) {
+    padding-inline: var(--space-3);
+  }
+}
+
+/* The Candidate's page buttons in the Top Bar, one group at its end (#608). */
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: flex-end;
 }
 
 /* Reached by the skip link: the page itself needs no ring. */

@@ -94,11 +94,12 @@ export function SidebarLayout({
         title={title}
         wide={wide}
         topBarEnd={
-          <>
+          // One group, so on a phone its buttons stay together at the right of Menu, the title on its own row (#608).
+          <div className="topbar-actions">
             <FicheButtons />
             <ClearConversationButton />
             {fiche ? null : <PageHelpButton />}
-          </>
+          </div>
         }
         beside={
           <>

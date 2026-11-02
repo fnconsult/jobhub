@@ -66,6 +66,12 @@
   },
   "extension": {
     "title": "Jobbbox",
+    "updateRequired": {
+      "title": "Mettez à jour l'extension",
+      "text": "Cette version de l'extension n'est plus prise en charge par Jobbbox. Installez la dernière version depuis sa page sur le store de votre navigateur : l'offre et le CV de cette session restent dans ce navigateur.",
+      "action": "Ouvrir la page de l'extension",
+      "retry": "Réessayer"
+    },
     "description": "Capturez une offre d'emploi depuis la page que vous consultez.",
     "signedInAs": "Connecté en tant que {{email}}",
     "signedOut": "Connectez-vous à Jobbbox pour enregistrer vos offres.",

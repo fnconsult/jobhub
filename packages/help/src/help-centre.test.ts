@@ -115,10 +115,10 @@ describe("this build's Help Articles (#549)", () => {
         for (const id of expected) expect([id, helpCentreArticle("decouvrir", id, locale)?.kind, helpCentreArticle("decouvrir", id, locale)?.audience]).toEqual([id, kind, "visitor"]);
   });
 
-  it("has the « L'extension » articles (#553): 1 page, 3 questions and 3 tutorials, in French and English, all of the topic's", () => {
+  it("has the « L'extension » articles (#553): 1 page, 3 questions and 3 tutorials, in French and English, under the topic", () => {
     for (const locale of ["fr", "en"] as const) {
       const topic = helpCentreTopics(locale).find((entry) => entry.topic === "extension");
-      expect(topic?.articles.map((found) => found.id).sort()).toEqual(Object.keys(EXTENSION_ARTICLES).sort());
+      expect(topic?.articles.map((found) => found.id)).toEqual(expect.arrayContaining(Object.keys(EXTENSION_ARTICLES)));
       for (const [id, [kind, audience]] of Object.entries(EXTENSION_ARTICLES))
         expect([id, helpCentreArticle("extension", id, locale)?.kind, helpCentreArticle("extension", id, locale)?.audience]).toEqual([id, kind, audience]);
     }

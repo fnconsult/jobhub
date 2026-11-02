@@ -729,33 +729,25 @@ export function CoachConversationPage(page: PagePlacement) {
                 )}
               </div>
             </div>
-            {/* What goes with the message: one line, opened for the whole text (and the Job Search). */}
-            <details className="coach-panel-context">
-              <summary>
-                <Icons.coach />
-                <span className="coach-panel-context-line">{inViewLabel}</span>
-              </summary>
-              <div className="coach-panel-context-more">
-                <p className="coach-panel-in-view">{inViewLabel}</p>
-                {profileIdOf(inView) ? (
-                  <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
-                ) : (
-                  <p className="hint">{t("coachPanel.searchHint")}</p>
-                )}
-              </div>
-            </details>
+            {/* What goes with the message, when the page shows something: one line, opened for the whole text (and the Job Search).
+                With nothing in view, no line: the box sits at the foot of the screen. */}
+            {inView ? (
+              <details className="coach-panel-context">
+                <summary>
+                  <Icons.coach />
+                  <span className="coach-panel-context-line">{inViewLabel}</span>
+                </summary>
+                <div className="coach-panel-context-more">
+                  <p className="coach-panel-in-view">{inViewLabel}</p>
+                  {profileIdOf(inView) ? (
+                    <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
+                  ) : (
+                    <p className="hint">{t("coachPanel.searchHint")}</p>
+                  )}
+                </div>
+              </details>
+            ) : null}
           </form>
-          {/* « Signaler un problème », « Proposer une idée » (#345): under the box; their form opens in the Work Pane. */}
-          {openSignalement ? (
-            <nav className="coach-panel-foot" aria-label={t("coachPanel.team.foot")}>
-              <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "bug" })}>
-                {t("coachPanel.team.reportProblem")}
-              </button>
-              <button type="button" className="link-action" onClick={() => openSignalement({ kind: "type", type: "idee" })}>
-                {t("coachPanel.team.suggestIdea")}
-              </button>
-            </nav>
-          ) : null}
         </div>
       </section>
     </BoxControl.Provider>

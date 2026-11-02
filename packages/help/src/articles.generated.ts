@@ -1095,6 +1095,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Chaque lundi à 0 h (heure de Paris). La barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes.\n\nParler à votre coach ne compte pas dans le quota. Une recherche d'offres qui échoue, ou que vous arrêtez avant qu'elle ait trouvé une offre, ne compte pas non plus.\n\nPour en avoir plus chaque semaine, changez d'offre depuis Mon abonnement."
     },
     {
+      "id": "faq-extension-update",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Que faire quand l'extension affiche « Mettez à jour l'extension » ?",
+      "synonyms": [
+        "mettre à jour",
+        "mise à jour",
+        "nouvelle version",
+        "ancienne version",
+        "extension",
+        "chrome web store",
+        "store",
+        "plus prise en charge"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Votre version de l'extension Jobbbox est trop ancienne : Jobbbox ne la prend plus en charge. Le panneau de l'extension l'indique par « Mettez à jour l'extension ».\n\nCliquez sur « Ouvrir la page de l'extension » : sa page sur le store de votre navigateur s'ouvre, d'où vous installez la dernière version. Votre navigateur met aussi l'extension à jour de lui-même, en général dans les heures qui suivent. Une fois à jour, cliquez sur « Réessayer ».\n\nL'offre et le CV de la session en cours restent dans votre navigateur pendant la mise à jour : vous n'avez rien à refaire."
+    },
+    {
       "id": "faq-data-and-ai",
       "locale": "fr",
       "kind": "faq",
@@ -2387,6 +2408,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "The Match Score compares a job offer with your CV and your search criteria, on five criteria: « Skills », « Experience », « Location », « Salary » and « Contract type ». It is out of 100.\n\n« Why …? », beside a job offer's score in Jobbbox, opens the breakdown: one line per criterion, with what matches and what does not. In the extension's panel, the breakdown shows under the score, in « Match Score breakdown ». A criterion the job offer says nothing about does not count: the score is then partial, or « not computable » if no criterion could be compared.\n\n« Rescore », in the extension's panel, works out the job offer's score again. Signed in, a new calculation uses one Match Score of your weekly plan: the extension asks you first, and you confirm with « Confirm the recalculation ». The result only changes if the job offer or your profile has changed; the panel tells you whether it is unchanged, or what the score was before.\n\nRescore, for example, after updating your master CV, or when the panel tells you to because the job offer's text could not be read."
+    },
+    {
+      "id": "faq-extension-update",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "What do I do when the extension says « Update the extension »?",
+      "synonyms": [
+        "update",
+        "new version",
+        "old version",
+        "outdated",
+        "extension",
+        "chrome web store",
+        "store",
+        "no longer supported"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Your version of the Jobbbox extension is too old: Jobbbox no longer supports it. The extension's panel says so with « Update the extension ».\n\nClick « Open the extension's page »: its page on your browser's store opens, where you install the latest version. Your browser also updates the extension by itself, usually within a few hours. Once it is up to date, click « Try again ».\n\nThe job offer and CV of your current session stay in your browser during the update: you have nothing to redo."
     },
     {
       "id": "faq-data-and-ai",

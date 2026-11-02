@@ -152,36 +152,39 @@ test.describe("Signalement from a conversation (#345, #608)", () => {
     await expect(askTeamOf(page)).toHaveCount(0);
   });
 
-  test("both foot links open the form in the Work Pane with their type; at phone width it takes the whole screen", async ({ page }) => {
+  test("the Signalement icon opens the form in the Work Pane, Bug or Idée chosen in it; at phone width it takes the whole screen", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-signalement-foot"));
     await page.goto("/candidatures");
     await openPanel(page);
 
-    const foot = panelOf(page).locator(".coach-panel-foot");
-    await foot.getByRole("button", { name: team.reportProblem, exact: true }).click();
+    // No links under the box: the way in is the icon beside « Mon compte ».
+    await expect(panelOf(page).getByRole("button", { name: team.reportProblem, exact: true })).toHaveCount(0);
+    const icon = page.locator(".sidebar-docked").getByRole("button", { name: s.open, exact: true });
+    await icon.click();
     await expect(dialogOf(page)).toBeVisible();
     await expect(dialogOf(page).getByRole("radio", { name: s.types.bug })).toBeChecked();
     await expect(dialogOf(page).getByRole("heading", { level: 2, name: s.title })).toBeFocused();
     await page.keyboard.press("Escape");
-    await expect(foot.getByRole("button", { name: team.reportProblem, exact: true })).toBeFocused();
+    await expect(icon).toBeFocused();
 
-    await foot.getByRole("button", { name: team.suggestIdea, exact: true }).click();
-    await expect(dialogOf(page).getByRole("radio", { name: s.types.idee })).toBeChecked();
+    await icon.click();
+    await dialogOf(page).getByRole("radio", { name: s.types.idee }).check();
     await dialogOf(page).getByLabel(s.label.idee).fill("Pouvoir exporter mes conversations avec le coach.");
     await dialogOf(page).getByRole("button", { name: s.send, exact: true }).click();
     await expect(dialogOf(page).getByRole("status")).toContainText(s.thanks);
     await page.keyboard.press("Escape");
     expect(await exportedSignalements(page)).toEqual([expect.objectContaining({ type: "idee", message: "Pouvoir exporter mes conversations avec le coach.", attachedQuestion: null })]);
 
-    // On a phone: the Top Bar holds Menu, the title, « Activité » and « Effacer »; the box's foot is the way in, and the
-    // form opens over the conversation, full screen (#608).
+    // On a phone: the Top Bar holds Menu, the title, « Activité » and « Effacer »; the icon in the drawer is the way in, and
+    // the form opens over the conversation, full screen (#608).
     await page.setViewportSize({ width: 375, height: 812 });
     const topbar = page.locator(".topbar");
     const names = await topbar.locator("button:visible, a:visible").evaluateAll((elements) => elements.map((element) => element.getAttribute("title") ?? (element as HTMLElement).innerText.trim()));
     expect(names).toEqual([fr.sidebar.menu, fr.fiche.activity, fr.conversationFirst.clear]);
     await expect(topbar.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(topbar.getByRole("button", { name: s.open })).toHaveCount(0);
-    await foot.getByRole("button", { name: team.reportProblem, exact: true }).click();
+    await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
+    await page.getByRole("dialog", { name: fr.sidebar.menu }).getByRole("button", { name: s.open, exact: true }).click();
     await expect(dialogOf(page).getByRole("radio", { name: s.types.bug })).toBeChecked();
     const pane = (await dialogOf(page).boundingBox())!;
     expect([pane.x, pane.y, pane.width, pane.height]).toEqual([0, 0, 375, 812]);

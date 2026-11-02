@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- The beta listing's mark (#563): the same J on orange, with a band that says β, so the two builds side by side are never confused. -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#c2410c"/>
+  <text x="54" y="88" text-anchor="middle" font-family="Inter, Arial, Helvetica, sans-serif" font-size="80" font-weight="700" fill="#ffffff">J</text>
+  <circle cx="98" cy="98" r="28" fill="#1c1917"/>
+  <text x="98" y="112" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#ffffff">β</text>
+</svg>

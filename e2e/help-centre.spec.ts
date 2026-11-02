@@ -200,7 +200,7 @@ test.describe("« L'extension » (#553)", () => {
     TUTORIAL,
   ];
 
-  test("/aide/extension and /en/aide/extension list its 7 articles", async ({ page }) => {
+  test("/aide/extension and /en/aide/extension list #553's 7 articles", async ({ page }) => {
     for (const [locale, prefix] of [["fr", ""], ["en", "/en"]] as const) {
       await page.goto(`${prefix}/aide/extension`);
       const list = main(page).getByRole("list", { name: (locale === "fr" ? fr : en).helpCentre.inTopic });

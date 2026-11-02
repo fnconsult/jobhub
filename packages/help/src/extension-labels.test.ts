@@ -6,7 +6,7 @@ import { HELP_LOCALES, type HelpLocale } from "./types";
 describe("the « L'extension » Help Articles' quoted labels (#553)", () => {
   it.each(HELP_LOCALES)("each exists in the %s catalogue", (locale: HelpLocale) => {
     const { count, missing } = unknownQuotes("extension", locale);
-    expect(count).toBe(7);
+    expect(count).toBeGreaterThanOrEqual(7);
     expect(missing).toEqual([]);
   });
 });

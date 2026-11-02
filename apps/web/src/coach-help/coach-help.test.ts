@@ -82,6 +82,14 @@ describe("the Back Office's help (#551, ADR-0065)", () => {
     expect(oftenAsked("fr", "administrator")).toEqual([]);
   });
 
+  it("shows Paramètres' Connexion and Sources tabs their own article « Sur cette page » (#557)", () => {
+    expect(onThisPage("/admin/parametres?tab=connexion", "fr", "administrator")?.article.id).toBe("page-admin-sign-in");
+    expect(onThisPage("/admin/parametres?tab=sources", "en", "administrator")?.article.title).toBe("Sites and web search");
+    expect(onThisPage("/admin/parametres?tab=paiement", "fr", "administrator")?.article.id).toBe("page-admin-settings");
+    expect(onThisPage("/admin/outils/stripe", "fr", "administrator")?.article.id).toBe("page-admin-tools");
+    expect(backOfficeHelpFor("remplacer une clé de fournisseur", "fr").map((found) => found.id)).toContain("tutorial-admin-provider-secret");
+  });
+
   it("links an Administrator's article to /admin/aide, never to the public Help Centre", () => {
     const admin = helpArticle("page-admin-unanswered-questions", "fr")!;
     expect(backOfficeHelpAddress(admin)).toBe("/admin/aide/contenu/page-admin-unanswered-questions");

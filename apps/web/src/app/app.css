@@ -1096,10 +1096,49 @@ textarea.input {
   box-shadow: var(--shadow-card);
 }
 
+/* The object's card, first in its Fiche (the prototype's, #586): rounded, like its Sections and Results under it. */
 .fiche-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* Its head: the employer's initial, the job and where, over a line. */
+.fiche-object-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding-bottom: var(--space-3);
+  margin-inline: calc(-1 * var(--space-4));
+  padding-inline: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fiche-object-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.fiche-object-name {
+  min-width: 0;
+}
+
+.fiche-object-title {
+  margin: 0;
+  font-weight: 600;
+  line-height: var(--line-height-heading);
 }
 
 .fiche-card :is(p, dd) {
@@ -1131,7 +1170,8 @@ textarea.input {
   color: var(--color-text-secondary);
 }
 
-/* In the Fiche's width, each property's label sits above its value. */
+/* In the Fiche's width, each property's label sits above its value; the Application's first two side by side, as in
+   the prototype (#586). */
 .fiche .props {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -1142,10 +1182,51 @@ textarea.input {
   margin-top: var(--space-2);
 }
 
+.fiche .application-card .props {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.fiche .application-card .prop {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fiche .application-card .prop:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.fiche .application-card .props dt {
+  margin-top: 0;
+}
+
+.fiche .application-card .props dd {
+  min-height: 0;
+  font-weight: 500;
+}
+
+/* Its selects read as the prototype's status pill: rounded, their own width, in the Fiche's width. */
+.fiche .application-card select.inline-edit {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: 0;
+  padding-inline: var(--space-3);
+  font-weight: 500;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.fiche .application-card select.inline-edit:hover {
+  background-color: var(--color-hover);
+}
+
 .fiche-group-head {
   margin: var(--space-3) 0 0;
   font-size: inherit;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .fiche-group-head button {
@@ -1197,6 +1278,31 @@ textarea.input {
 
 .fiche-links a:hover {
   background: var(--color-hover);
+}
+
+/* The Sections, one rounded list, a line between them, as in the prototype (#586); the Results stay a card each. */
+.fiche-group[data-group="sections"] .fiche-links {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.fiche-group[data-group="sections"] .fiche-links a {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 0;
+}
+
+.fiche-group[data-group="sections"] .fiche-links li + li a {
+  border-top: 1px solid var(--color-border);
+}
+
+.fiche-group[data-group="sections"] .fiche-links a::after {
+  color: var(--color-meta);
+  content: "›";
 }
 
 .fiche-links a[aria-current="page"] {
@@ -1280,6 +1386,15 @@ textarea.input {
     width: 20rem;
     max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-4));
     margin: var(--space-4) var(--space-4) var(--space-4) 0;
+  }
+
+  /* The Fiche, and the Activité column, have no frame of their own beside the conversation: their cards are (the
+     prototype's, #586). */
+  .fiche {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
@@ -1435,13 +1550,30 @@ textarea.input {
   transform: rotate(-90deg);
 }
 
+/* As in the prototype (#586): a thin line down the left of a menu's objects, under its icon; the object shown in the
+   accent, its words bold, not marked by colour alone. */
 .sidebar-nav .sidebar-sublist {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 0;
-  padding: 0 0 0 var(--space-6);
+  margin: 0 0 var(--space-1) calc(var(--space-2) + 0.5625em);
+  padding: 0 0 0 var(--space-2);
   list-style: none;
+  border-left: 1px solid var(--color-border-strong);
+}
+
+.sidebar-sublist .sidebar-link {
+  color: var(--color-text-secondary);
+}
+
+.sidebar-sublist .sidebar-link:hover {
+  color: var(--color-text);
+}
+
+.sidebar-sublist .sidebar-link[aria-current="page"] {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  box-shadow: none;
 }
 
 /* A Sidebar menu with objects (#604): its link, then the button that unfolds it into them. */

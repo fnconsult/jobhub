@@ -88,11 +88,11 @@ const DECOUVRIR_PAGES = ["page-what-is-jobbbox", "page-install-extension"];
 const DECOUVRIR_FAQ = ["faq-sign-in-link", "faq-plans-and-quotas", "faq-text-size-site", "faq-job-digest-unsubscribe", "faq-contact-us", "faq-data-and-ai"];
 
 describe("this build's Help Articles (#549)", () => {
-  it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`, a Back Office page's is an Administrator's", () => {
+  it("each declares its audience and topic, the same in French and English; the former Candidate articles stay `candidate`, a Back Office page's or glossary entry is an Administrator's", () => {
     const english = new Map(articles("en").map((found) => [found.id, found]));
     for (const found of articles("fr")) {
       expect([found.id, english.get(found.id)?.audience, english.get(found.id)?.topic]).toEqual([found.id, found.audience, found.topic]);
-      const backOffice = found.route?.startsWith("/admin") === true;
+      const backOffice = found.route?.startsWith("/admin") === true || found.id.startsWith("glossary-admin-");
       if (/^(page|glossary)-/.test(found.id) && !DECOUVRIR_PAGES.includes(found.id)) expect([found.id, found.audience]).toEqual([found.id, backOffice ? "administrator" : "candidate"]);
     }
   });
@@ -146,5 +146,80 @@ describe("the Back Office's help (#551): the Administrators' articles, in the Ba
   it("finds a Back Office section's article « Sur cette page » in its scope only", () => {
     expect(articleFor("/admin/outils/brevo", "fr", { scope: "backOffice", from: BACK_OFFICE })).toBe(PROVIDERS);
     expect(articleFor("/admin/outils", "fr", { scope: "public", from: BACK_OFFICE })).toBeNull();
+  });
+});
+
+/** #558's Administrator articles: the rest of the Back Office, then « IA et conformité ». */
+const BACK_OFFICE_REST = {
+  page: {
+    "page-admin-dashboard": ["plateforme", "/admin/consommation-ia"],
+    "page-admin-activity": ["plateforme", "/admin/activite"],
+    "page-admin-audit": ["plateforme", "/admin/activite/actions"],
+    "page-admin-plans": ["offre", "/admin/offres"],
+    "page-admin-playbooks": ["coaching", "/admin/playbooks"],
+    "page-admin-guardrails": ["coaching", "/admin/garde-fous"],
+    "page-admin-signalements": ["candidats", "/admin/signalements"],
+    "page-admin-unanswered-questions": ["contenu", "/admin/questions-sans-reponse"],
+    "page-admin-email-intake": ["plateforme", "/admin/activite/emails-recus"],
+    "page-admin-human-coaches": ["coaching", "/admin/coachs"],
+  },
+  tutorial: {
+    "tutorial-admin-plan-stripe": ["offre", null],
+    "tutorial-admin-validate-playbook": ["coaching", null],
+    "tutorial-admin-guardrail-message": ["coaching", null],
+    "tutorial-admin-triage-signalement": ["candidats", null],
+    "tutorial-admin-unanswered-question-article": ["contenu", null],
+    "tutorial-admin-accept-sender": ["plateforme", null],
+    "tutorial-admin-human-coach": ["coaching", null],
+  },
+  glossary: {
+    "glossary-admin-back-office-roles": ["equipe", null],
+    "glossary-admin-failure-reason": ["plateforme", null],
+    "glossary-admin-human-validated": ["coaching", null],
+  },
+  faq: {
+    "faq-admin-ai-literacy": ["ia-et-conformite", null],
+    "faq-admin-annex-iii-note": ["ia-et-conformite", null],
+  },
+} as const;
+
+describe("the rest of the Back Office's help and « IA et conformité » (#558)", () => {
+  it("has 10 pages, 7 tutorials, 3 glossary entries and 2 « IA et conformité » articles, in French and English, Administrators' only", () => {
+    for (const locale of ["fr", "en"] as const)
+      for (const [kind, expected] of Object.entries(BACK_OFFICE_REST))
+        for (const [id, [topic, route]] of Object.entries(expected)) {
+          const found = backOfficeHelpArticle(topic, id, locale);
+          expect([id, found?.kind, found?.audience, found?.route]).toEqual([id, kind, "administrator", route]);
+          expect(helpCentreArticle(topic, id, locale)).toBeNull();
+          expect(isPublic(found!)).toBe(false);
+        }
+  });
+
+  it("shows each section's page « Sur cette page » in the Back Office, its tabs included, and never outside it", () => {
+    expect(articleFor("/admin/activite/recherches?periode=7d", "fr", { scope: "backOffice" })?.id).toBe("page-admin-activity");
+    expect(articleFor("/admin/activite/appels-ia/abc", "fr", { scope: "backOffice" })?.id).toBe("page-admin-activity");
+    expect(articleFor("/admin/activite/actions", "fr", { scope: "backOffice" })?.id).toBe("page-admin-audit");
+    expect(articleFor("/admin/activite/emails-recus", "fr", { scope: "backOffice" })?.id).toBe("page-admin-email-intake");
+    expect(articleFor("/admin/playbooks/socle", "fr", { scope: "backOffice" })?.id).toBe("page-admin-playbooks");
+    expect(articleFor("/admin/signalements/abc", "fr", { scope: "backOffice" })?.id).toBe("page-admin-signalements");
+    expect(articleFor("/admin/garde-fous", "fr", { scope: "public" })).toBeNull();
+  });
+
+  it("finds them with the Back Office search, without AI", () => {
+    expect(search("valider un playbook", "fr", { scope: "backOffice" })[0]?.id).toBe("tutorial-admin-validate-playbook");
+    expect(search("relier une offre à Stripe", "fr", { scope: "backOffice" })[0]?.id).toBe("tutorial-admin-plan-stripe");
+    expect(search("annexe III haut risque", "fr", { scope: "backOffice" })[0]?.id).toBe("faq-admin-annex-iii-note");
+    expect(search("AI literacy article 4", "en", { scope: "backOffice" })[0]?.id).toBe("faq-admin-ai-literacy");
+    expect(search("annexe III haut risque", "fr")).toEqual([]);
+  });
+
+  it("dates the internal « hors Annexe III » note and gives its sources, in both languages", () => {
+    const fr = backOfficeHelpArticle("ia-et-conformite", "faq-admin-annex-iii-note", "fr")!;
+    const en = backOfficeHelpArticle("ia-et-conformite", "faq-admin-annex-iii-note", "en")!;
+    expect(fr.title).toContain("2 novembre 2026");
+    expect(fr.body).toMatch(/Note interne datée du 2 novembre 2026/);
+    expect(fr.body).toMatch(/\*\*Sources\.\*\*[\s\S]*2024\/1689[\s\S]*Service Desk[\s\S]*#497/);
+    expect(en.title).toContain("2 November 2026");
+    expect(en.body).toMatch(/\*\*Sources\.\*\*[\s\S]*2024\/1689[\s\S]*Service Desk[\s\S]*#497/);
   });
 });

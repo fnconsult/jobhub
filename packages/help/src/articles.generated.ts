@@ -551,12 +551,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "mes signalements",
         "IA européenne",
         "Mistral",
-        "abonnement"
+        "abonnement",
+        "sécurité",
+        "vérification en deux étapes",
+        "codes de secours",
+        "application d'authentification"
       ],
       "route": "/compte",
       "motion": null,
       "microAnimations": [],
-      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.\n\nProfils liste vos profils actifs, puis les archivés. Abonnement montre votre offre et ce que vous en avez utilisé cette semaine : il a son propre article, Mon abonnement.\n\nDans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nRéception par email permet de recevoir dans Jobbbox les offres de vos alertes d'emploi et des messages de recruteurs. « Activer la réception par email » vous donne votre adresse de transfert : transférez-y ces e-mails, « Copier l'adresse » la copie, et « Configurer le transfert pas à pas » vous guide pour le faire depuis votre messagerie. Seul le texte des e-mails transférés est lu, jamais leurs pièces jointes. « Remplacer l'adresse » vous en donne une nouvelle et « Désactiver » arrête la réception : l'ancienne adresse cesse aussitôt de fonctionner, les offres déjà reçues restent. Dans « Vos adresses d'envoi », ajoutez les adresses depuis lesquelles vous transférez à la main ; dans « Vos expéditeurs d'alertes », ajoutez l'adresse d'une alerte que Jobbbox ne reconnaît pas encore, ou désactivez pour vous seul un expéditeur « Reconnus par Jobbbox ». Les offres reçues s'affichent dans « Reçues par email », sur la page Recherches d'offres.\n\nIA européenne : avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'active, « Retirer mon accord » l'arrête, à tout moment ; la rubrique indique la date de votre accord.\n\nConnexion montre l'adresse e-mail de votre compte et les moyens de vous connecter.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir.\n\nOutils propose l'extension Chrome Jobbbox.\n\nMes signalements liste les bugs, idées et questions que vous avez envoyés à l'équipe Jobbbox, les plus récents d'abord, avec leur statut (« Envoyé », « Lu par l'équipe » ou « Traité ») et la « Réponse de l'équipe Jobbbox ». Ouvrir la rubrique efface les notifications de vos signalements. « Supprimer » retire un signalement : l'équipe ne le voit plus. Sans signalement, « Signaler un problème » et « Proposer une idée » vous permettent d'en envoyer un.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nSous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.\n\nMon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
+      "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Sécurité, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.\n\nProfils liste vos profils actifs, puis les archivés. Abonnement montre votre offre et ce que vous en avez utilisé cette semaine : il a son propre article, Mon abonnement.\n\nDans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nRéception par email permet de recevoir dans Jobbbox les offres de vos alertes d'emploi et des messages de recruteurs. « Activer la réception par email » vous donne votre adresse de transfert : transférez-y ces e-mails, « Copier l'adresse » la copie, et « Configurer le transfert pas à pas » vous guide pour le faire depuis votre messagerie. Seul le texte des e-mails transférés est lu, jamais leurs pièces jointes. « Remplacer l'adresse » vous en donne une nouvelle et « Désactiver » arrête la réception : l'ancienne adresse cesse aussitôt de fonctionner, les offres déjà reçues restent. Dans « Vos adresses d'envoi », ajoutez les adresses depuis lesquelles vous transférez à la main ; dans « Vos expéditeurs d'alertes », ajoutez l'adresse d'une alerte que Jobbbox ne reconnaît pas encore, ou désactivez pour vous seul un expéditeur « Reconnus par Jobbbox ». Les offres reçues s'affichent dans « Reçues par email », sur la page Recherches d'offres.\n\nIA européenne : avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'active, « Retirer mon accord » l'arrête, à tout moment ; la rubrique indique la date de votre accord.\n\nConnexion montre l'adresse e-mail de votre compte et les moyens de vous connecter.\n\nSécurité gère la vérification en deux étapes, désactivée tant que vous ne l'activez pas. « Activer » affiche un QR code et la clé à saisir dans votre application d'authentification ; saisissez le « Code affiché par l'application » puis cliquez sur « Confirmer ». Vos 10 codes de secours s'affichent alors une seule fois : « Copier » ou « Télécharger » pour les garder, puis « J'ai gardé mes codes ». Ensuite, chaque connexion par lien magique vous demande un code avant d'ouvrir Jobbbox ; une connexion avec un fournisseur, comme Google, ne le demande pas. La rubrique indique depuis quand la vérification est activée, la date d'ajout et de dernière utilisation de l'application et des codes, et le nombre de codes restants. « Régénérer les codes de secours » en donne 10 nouveaux, les anciens ne fonctionnant plus ; « Désactiver » l'arrête. Pour l'un comme l'autre, si votre dernière vérification date de plus de 10 minutes, la rubrique vous demande d'abord un code. Un e-mail vous prévient quand la vérification est activée ou désactivée.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir.\n\nOutils propose l'extension Chrome Jobbbox.\n\nMes signalements liste les bugs, idées et questions que vous avez envoyés à l'équipe Jobbbox, les plus récents d'abord, avec leur statut (« Envoyé », « Lu par l'équipe » ou « Traité ») et la « Réponse de l'équipe Jobbbox ». Ouvrir la rubrique efface les notifications de vos signalements. « Supprimer » retire un signalement : l'équipe ne le voit plus. Sans signalement, « Signaler un problème » et « Proposer une idée » vous permettent d'en envoyer un.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nSous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.\n\nMon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
     },
     {
       "id": "page-acceptance",
@@ -1092,6 +1096,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Votre coach IA est un programme d'intelligence artificielle de Jobbbox, pas une personne. Il vous accompagne dans votre recherche d'emploi : votre CV de référence, vos critères, vos candidatures, vos relances et vos entretiens. Il le dit toujours : chaque conversation commence par « Je suis un coach IA, pas une personne », et le badge « Coach IA » est à côté de la zone de message.\n\nIl répond à partir de ce que vous lui confiez et de ce que montre la page ouverte. Sous chacune de ses réponses, une ligne dit comment elle a été produite. Il ne modifie rien sans votre accord : ses propositions s'acceptent ou s'ignorent une par une.\n\nVos conversations sont gardées 12 mois après leur dernier message, puis supprimées. Pour parler à une personne, réservez une séance avec un coach humain dans « Mes coachs humains »."
     },
     {
+      "id": "glossary-backup-code",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Code de secours",
+      "synonyms": [
+        "code de secours",
+        "codes de secours",
+        "code de récupération",
+        "codes de récupération",
+        "backup code",
+        "téléphone perdu",
+        "vérification en deux étapes"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Un code de secours remplace le code de votre application d'authentification quand vous ne l'avez pas sous la main, par exemple si vous avez perdu votre téléphone. Jobbbox vous en donne 10 quand vous activez la vérification en deux étapes, affichés une seule fois : copiez-les ou téléchargez-les, et gardez-les en lieu sûr.\n\nChaque code ne sert qu'une fois. La rubrique « Sécurité » de Mon compte indique combien il vous en reste ; « Régénérer les codes de secours » vous en donne 10 nouveaux, et les anciens cessent de fonctionner. Jobbbox ne garde pas vos codes en clair et ne peut pas vous les montrer à nouveau."
+    },
+    {
       "id": "glossary-conversation-context",
       "locale": "fr",
       "kind": "glossary",
@@ -1540,6 +1565,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Une version d'un playbook (de coaching, du socle ou d'une tâche IA), ou un message de garde-fou, est validée par une personne quand un administrateur nommé, qui n'en est pas l'auteur, l'a relue et approuvée, avec la date. La page l'affiche « validée par … le … ». Une relecture par une IA ne compte jamais.\n\nEn production, seuls les playbooks et les messages de garde-fous validés sont servis. Ailleurs, la dernière version est servie, validée ou non. Une version de playbook ne se valide qu'après une évaluation sur elle ; aucun score ne bloque, c'est à la personne de juger. Un message de garde-fou se valide langue par langue ; d'ici là, le texte par défaut de Jobbbox s'applique.\n\nModifier une version validée en crée une nouvelle, à valider à son tour. Chaque validation est inscrite dans Actions des administrateurs."
+    },
+    {
+      "id": "glossary-two-step-verification",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Vérification en deux étapes",
+      "synonyms": [
+        "vérification en deux étapes",
+        "double authentification",
+        "authentification à deux facteurs",
+        "2fa",
+        "mfa",
+        "deuxième étape",
+        "application d'authentification",
+        "totp",
+        "sécurité"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "La vérification en deux étapes ajoute une deuxième étape à la connexion par lien magique : un code à 6 chiffres de votre application d'authentification, ou l'un de vos codes de secours. Elle est désactivée tant que vous ne l'activez pas dans Mon compte, rubrique « Sécurité ».\n\nTant que la deuxième étape n'est pas faite, Jobbbox n'ouvre rien d'autre que la page qui demande le code : ni vos pages, ni l'extension, qui vous invite à terminer votre connexion sur Jobbbox. Une connexion avec un fournisseur, comme Google, ne demande pas de code. Le code est demandé à chaque connexion par lien magique, sur chaque appareil."
     },
     {
       "id": "faq-search-criteria",
@@ -2509,6 +2557,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Les contacts enrichis restent désactivés tant que le DPA (l'accord de traitement des données) avec leur fournisseur n'est pas marqué signé, quels que soient le fournisseur et sa clé. Le code ne peut pas vérifier le DPA : le marquer signé est une étape volontaire, confirmée et inscrite dans Activité.\n\n1. Faites signer le DPA avec le fournisseur choisi, hors de Jobbbox. Lusha et Apollo traitent les données hors UE, Kaspr là où ce n'est pas établi : lisez d'abord « Activer un destinataire hors UE ».\n2. Ouvrez Paramètres, onglet « Enrichissement de contacts ».\n3. Un super-admin ouvre la fiche du fournisseur et saisit sa clé, comme dans « Ajouter un fournisseur et le rendre actif ».\n4. Dans « Fournisseurs possibles », cliquez sur « Rendre actif » sur la ligne du fournisseur. Le « Fournisseur des contacts enrichis » prend sa valeur.\n5. Dans la carte « Fournisseur actif », sur la ligne « Accord de traitement (DPA) signé », choisissez true dans « Nouvelle valeur de CONTACT_ENRICHMENT_DPA_SIGNED » et cliquez sur « Enregistrer ».\n6. À la question « Marquer le DPA signé ? », cliquez sur « Oui, le DPA est signé » si c'est vrai, sinon sur « Annuler ».\n\nLes contacts enrichis s'activent alors. Pour les arrêter, remettez false dans le même réglage, ou cliquez sur « Rétablir »."
+    },
+    {
+      "id": "tutorial-two-step-verification",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Activer la vérification en deux étapes",
+      "synonyms": [
+        "vérification en deux étapes",
+        "double authentification",
+        "2fa",
+        "mfa",
+        "application d'authentification",
+        "google authenticator",
+        "microsoft authenticator",
+        "1password",
+        "qr code",
+        "code de secours",
+        "codes de secours",
+        "sécurité",
+        "totp"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "La vérification en deux étapes protège votre compte si quelqu'un accède à votre messagerie : après chaque connexion par lien magique, Jobbbox vous demande aussi un code de votre application d'authentification. Il vous faut une application d'authentification sur votre téléphone, comme Google Authenticator, Microsoft Authenticator ou 1Password.\n\n1. Dans Mon compte, ouvrez la rubrique « Sécurité », puis cliquez sur « Activer ».\n2. Dans votre application d'authentification, ajoutez un compte en scannant le QR code. Si vous ne pouvez pas le scanner, saisissez la clé affichée sous le QR code.\n3. Saisissez le code à 6 chiffres que montre l'application dans « Code affiché par l'application », puis cliquez sur « Confirmer ».\n4. Vos 10 codes de secours s'affichent, une seule fois. Cliquez sur « Copier » ou sur « Télécharger », et gardez-les en lieu sûr, hors de votre téléphone.\n5. Cliquez sur « J'ai gardé mes codes ». La rubrique indique « Activée depuis le … », et un e-mail vous le confirme.\n6. À votre prochaine connexion par lien magique, saisissez le code de votre application dans « Code de l'application », puis cliquez sur « Vérifier ». Sans votre téléphone, cliquez sur « Utiliser un code de secours » et saisissez l'un de vos codes : chacun ne sert qu'une fois.\n\nAprès cinq codes erronés, il faut attendre quelques minutes avant de réessayer. Pour arrêter, cliquez sur « Désactiver » dans la rubrique « Sécurité » ; si votre dernière vérification date de plus de 10 minutes, un code vous est d'abord demandé."
     },
     {
       "id": "tutorial-admin-recipient-outside-eu",
@@ -3645,12 +3720,16 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "my feedback",
         "European AI",
         "Mistral",
-        "subscription"
+        "subscription",
+        "security",
+        "two-step verification",
+        "backup codes",
+        "authenticator app"
       ],
       "route": "/compte",
       "motion": null,
       "microAnimations": [],
-      "body": "My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.\n\nProfiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.\n\nIn Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nEmail intake lets you receive in Jobbbox the offers from your job alerts and from recruiters' messages. « Switch email intake on » gives you your forwarding address: forward those emails to it, « Copy the address » copies it, and « Set up forwarding step by step » guides you to do so from your mailbox. Only the text of forwarded emails is read, never their attachments. « Replace the address » gives you a new one and « Switch off » stops email intake: the old address stops working at once, the offers already received stay. In « Your sending addresses », add the addresses you forward from by hand; in « Your alert senders », add the address of an alert Jobbbox does not recognise yet, or switch off, for yourself alone, a sender « Recognised by Jobbbox ». The offers received show in « Received by email », on the Job searches page.\n\nEuropean AI: with your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. « Give my consent » switches it on, « Withdraw my consent » stops it, at any time; the section shows the date of your consent.\n\nSign-in shows your account's email address and the ways you can sign in.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it.\n\nTools offers the Jobbbox Chrome extension.\n\nMy feedback lists the bugs, ideas and questions you sent the Jobbbox team, newest first, with their status (« Sent », « Read by the team » or « Done ») and the « Reply from the Jobbbox team ». Opening the section clears your feedback notifications. « Delete » removes a piece of feedback: the team no longer sees it. With none sent yet, « Report a problem » and « Suggest an idea » let you send one.\n\nMy data lets you download all your data or delete your account.\n\nUnder each section, « Jobbbox version » gives the version you are using, for example 0.1.0. On the beta, it is followed by the exact change served, for example 0.1.0 (main·3f9c2a1): quote it if you report a problem.\n\nMy account is not a conversation: « Help », at the top of the page, opens this article beside the page (over it, full screen, on a phone). « Ask the coach » there starts a new conversation with your AI coach about My account."
+      "body": "My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Security, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.\n\nProfiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.\n\nIn Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nEmail intake lets you receive in Jobbbox the offers from your job alerts and from recruiters' messages. « Switch email intake on » gives you your forwarding address: forward those emails to it, « Copy the address » copies it, and « Set up forwarding step by step » guides you to do so from your mailbox. Only the text of forwarded emails is read, never their attachments. « Replace the address » gives you a new one and « Switch off » stops email intake: the old address stops working at once, the offers already received stay. In « Your sending addresses », add the addresses you forward from by hand; in « Your alert senders », add the address of an alert Jobbbox does not recognise yet, or switch off, for yourself alone, a sender « Recognised by Jobbbox ». The offers received show in « Received by email », on the Job searches page.\n\nEuropean AI: with your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. « Give my consent » switches it on, « Withdraw my consent » stops it, at any time; the section shows the date of your consent.\n\nSign-in shows your account's email address and the ways you can sign in.\n\nSecurity manages two-step verification, off until you turn it on. « Turn on » shows a QR code and the key to enter in your authenticator app; enter the « Code the app shows », then click « Confirm ». Your 10 backup codes are then shown once: « Copy » or « Download » to keep them, then « I have kept my codes ». From then on, every sign-in by magic link asks for a code before Jobbbox opens; signing in with a provider, such as Google, does not ask for it. The section shows since when it is on, when the app and the codes were added and last used, and how many codes are left. « Renew the backup codes » gives you 10 new ones, the old ones no longer working; « Turn off » stops it. For either, if your last verification is more than 10 minutes old, the section first asks you for a code. An email tells you when it is turned on or off.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it.\n\nTools offers the Jobbbox Chrome extension.\n\nMy feedback lists the bugs, ideas and questions you sent the Jobbbox team, newest first, with their status (« Sent », « Read by the team » or « Done ») and the « Reply from the Jobbbox team ». Opening the section clears your feedback notifications. « Delete » removes a piece of feedback: the team no longer sees it. With none sent yet, « Report a problem » and « Suggest an idea » let you send one.\n\nMy data lets you download all your data or delete your account.\n\nUnder each section, « Jobbbox version » gives the version you are using, for example 0.1.0. On the beta, it is followed by the exact change served, for example 0.1.0 (main·3f9c2a1): quote it if you report a problem.\n\nMy account is not a conversation: « Help », at the top of the page, opens this article beside the page (over it, full screen, on a phone). « Ask the coach » there starts a new conversation with your AI coach about My account."
     },
     {
       "id": "page-applications",
@@ -4235,6 +4314,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "A back office role says what an Administrator may see and change. Your roles show on the Dashboard. They are fixed in code; only super-admins grant and revoke them, in Administrators (Team menu), to someone who already has a Jobbbox account.\n\n- **Super-admin**: the whole back office, including Administrators, provider keys, Guardrails, Activity › AI calls and Administrator actions.\n- **Plans manager**: Plans, their quotas and coupons.\n- **Coach manager**: Human Coaches; reads the AI Coach cost.\n- **Playbook editor**: writes, evaluates, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.\n- **Help editor**: reads the unanswered questions and marks them « Article written » or dismisses them; reads the questions among the feedback, without the Candidate's email or Plan.\n- **Technique**: sets the non-secret settings, the search sources and sites and the prices of tools. Sees keys by their source and last 4 characters, without changing them. Reads the Dashboard, AI consumption, Tools, Activity › Searches, Received emails and Administrator actions.\n- **Support**: handles feedback and withdrawals; reads everything else without changing anything, except provider secrets, AI calls and Administrator actions.\n\nA section none of your roles reads is not in the menu. A section you read but cannot change shows read-only. A revoked role stops giving access from the next page. There is always at least one super-admin, and a permanent super-admin (ADMIN_EMAILS) cannot be revoked from the back office."
     },
     {
+      "id": "glossary-backup-code",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Backup code",
+      "synonyms": [
+        "backup code",
+        "backup codes",
+        "recovery code",
+        "recovery codes",
+        "lost phone",
+        "two-step verification"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "A backup code stands in for your authenticator app's code when you do not have it at hand, for instance if you lost your phone. Jobbbox gives you 10 of them when you turn on two-step verification, shown only once: copy or download them, and keep them somewhere safe.\n\nEach code works only once. The « Security » section of My account shows how many you have left; « Renew the backup codes » gives you 10 new ones, and the old ones stop working. Jobbbox does not keep your codes in readable form and cannot show them to you again."
+    },
+    {
       "id": "glossary-clear-conversation",
       "locale": "en",
       "kind": "glossary",
@@ -4608,6 +4707,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "A target company is a company the job search aims at for a profile, even without a published job offer: one La Bonne Boite gives as likely to hire for your job and area, or one you add. They are in the profile's « Target companies » section, with, for La Bonne Boite's, their hiring potential.\n\nTo add one, enter its name or its SIREN in « Company name », then click « Add »: it is looked up in the company register and comes before La Bonne Boite's. A sole trader, a person, is never searched.\n\nFor each, open its « Company dossier », look for « Enriched contacts » or click « Prepare a spontaneous application ». Each of these buttons first creates a spontaneous application, added to your « To apply » applications, where the dossier, the contacts and the letter are prepared. « Set aside », confirmed with « Yes, set it aside », removes it from this profile for good."
+    },
+    {
+      "id": "glossary-two-step-verification",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Two-step verification",
+      "synonyms": [
+        "two-step verification",
+        "two-factor authentication",
+        "2fa",
+        "mfa",
+        "second step",
+        "authenticator app",
+        "totp",
+        "security"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Two-step verification adds a second step to signing in by magic link: a 6-digit code from your authenticator app, or one of your backup codes. It is off until you turn it on in My account, « Security » section.\n\nUntil the second step is done, Jobbbox opens nothing but the page asking for the code: none of your pages, nor the extension, which asks you to finish signing in on Jobbbox. Signing in with a provider, such as Google, asks for no code. The code is asked at every sign-in by magic link, on every device."
     },
     {
       "id": "glossary-withdrawal",
@@ -6142,6 +6263,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "An unanswered question shows a gap in the help. Filling it means writing an article or adding a synonym to an existing one. You need the Help editor or Super-admin role.\n\n1. Open Unanswered questions (Content menu). The most asked come first; filter if needed with « Filter by audience », « Filter by page » and « Filter by language ».\n2. Read the question and « The AI's answer ». It is raw material, never an article: check each fact and each label in the current interface.\n3. First look for a close article, in the help (/aide) or in the back office help. If it already answers, add the question's words to its synonyms.\n4. Otherwise, write the article in French first, which is authoritative, then in English, with one audience and one topic, using « vous », quoting labels word for word. Articles live in the repository, under `packages/help/articles/`.\n5. Put the change up for review. A person reviews and merges it: no article is served before that merge.\n6. Back on the question, click « Article written ». For a question that is not a gap in the help, click « Dismiss ».\n\nThe question is kept redacted, without the name of whoever asked it, then erased 30 days after it was marked."
+    },
+    {
+      "id": "tutorial-two-step-verification",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Turn on two-step verification",
+      "synonyms": [
+        "two-step verification",
+        "two-factor authentication",
+        "2fa",
+        "mfa",
+        "authenticator app",
+        "google authenticator",
+        "microsoft authenticator",
+        "1password",
+        "qr code",
+        "backup code",
+        "backup codes",
+        "security",
+        "totp"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Two-step verification protects your account if someone gets into your mailbox: after every sign-in by magic link, Jobbbox also asks for a code from your authenticator app. You need an authenticator app on your phone, such as Google Authenticator, Microsoft Authenticator or 1Password.\n\n1. In My account, open the « Security » section, then click « Turn on ».\n2. In your authenticator app, add an account by scanning the QR code. If you cannot scan it, enter the key shown under the QR code.\n3. Enter the 6-digit code the app shows in « Code the app shows », then click « Confirm ».\n4. Your 10 backup codes are shown, once. Click « Copy » or « Download », and keep them somewhere safe, away from your phone.\n5. Click « I have kept my codes ». The section says « On since … », and an email confirms it.\n6. Next time you sign in by magic link, enter your app's code in « App code », then click « Verify ». Without your phone, click « Use a backup code » and enter one of your codes: each one works only once.\n\nAfter five wrong codes, you have to wait a few minutes before trying again. To stop, click « Turn off » in the « Security » section; if your last verification is more than 10 minutes old, you are asked for a code first."
     },
     {
       "id": "tutorial-admin-validate-playbook",

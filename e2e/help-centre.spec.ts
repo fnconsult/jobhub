@@ -47,7 +47,7 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(article.getByRole("navigation", { name: fr.helpCentre.breadcrumb }).getByRole("link")).toHaveText([fr.helpCentre.title, fr.helpCentre.topics.extension.title]);
     // A tutorial's steps: a numbered list, the interface's labels word for word.
     const steps = article.locator(".help-centre__body ol > li");
-    await expect(steps).toHaveCount(5);
+    await expect(steps).toHaveCount(6);
     await expect(steps.nth(1)).toContainText(`« ${fr.extension.badge} »`);
     await expect(main(page).getByRole("heading", { name: fr.helpCentre.related })).toBeVisible();
     // Reached by a link: Next streams the page's <title> after its content, so axe waits for it (else « document-title »).
@@ -186,5 +186,45 @@ test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
     await expect(main(page).locator(".help-centre__body").getByRole("link", { name: fr.publicFooter.legal.ia })).toHaveAttribute("href", "/legal/confidentialite#ia");
     await page.goto("/en/aide/decouvrir/faq-data-and-ai");
     await expect(main(page).locator(".help-centre__body").getByRole("link", { name: en.publicFooter.legal.ia })).toHaveAttribute("href", "/en/legal/confidentialite#ia");
+  });
+});
+
+// Issue #553: the « L'extension » articles, for the Guest and the signed-in Candidate. Listed under their topic in
+// French and English, the tutorials a numbered list of the Side Panel's labels, and found from a Candidate's Coach Panel.
+test.describe("« L'extension » (#553)", () => {
+  const EXTENSION = [
+    "page-side-panel",
+    "faq-extension-badge-sites",
+    "faq-guest-session",
+    "faq-rescore-why-match-score",
+    "tutorial-extension-analyse-job-offer",
+    "tutorial-extension-create-account",
+    TUTORIAL,
+  ];
+
+  test("/aide/extension and /en/aide/extension list #553's 7 articles", async ({ page }) => {
+    for (const [locale, prefix] of [["fr", ""], ["en", "/en"]] as const) {
+      await page.goto(`${prefix}/aide/extension`);
+      const list = main(page).getByRole("list", { name: (locale === "fr" ? fr : en).helpCentre.inTopic });
+      for (const id of EXTENSION) await expect(list.getByRole("link", { name: titleOf(locale, id), exact: true })).toHaveAttribute("href", `${prefix}/aide/extension/${id}`);
+    }
+  });
+
+  test("the Guest's tutorial « Analyser une offre » is a numbered list of the Side Panel's labels", async ({ page }) => {
+    await page.goto("/aide/extension/tutorial-extension-analyse-job-offer");
+    const steps = main(page).locator(".help-centre__body ol > li");
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(0)).toContainText(`« ${fr.extension.badge} »`);
+    await expect(steps.nth(2)).toContainText(`« ${fr.extension.analysis.dropCv} »`);
+    await expect(steps.nth(3)).toContainText(`« ${fr.extension.analysis.submit} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.extension.analysis.forget} »`);
+    expect(await axeViolations(page)).toEqual([]);
+  });
+
+  test("a Candidate's Coach Panel finds the Guest session's question", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("help-centre-extension"));
+    await page.goto("/");
+    await page.getByRole("textbox", { name: fr.coachPanel.messageLabel }).fill("effacer mes données de l'extension");
+    await expect(page.getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button", { name: titleOf("fr", "faq-guest-session") })).toBeVisible();
   });
 });

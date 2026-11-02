@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { activityOf, closeActivity, openActivity } from "./support/conversation";
 
 // Issue #367: a failed Tailored CV or Tailored Documents shows its Failure Reason in AI Activity, in light red, and the
 // routes (Tailored CV, Tailored Documents, Company Dossier) give it in their `failed` event and error body, never with a
@@ -45,8 +46,8 @@ async function tab(page: Page, name: string): Promise<Locator> {
   await documents(page).getByRole("tab", { name, exact: true }).click();
   return documents(page).getByRole("tabpanel", { name, exact: true });
 }
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
+/** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
+const paneOf = (page: Page) => activityOf(page);
 const dangerSurface = (element: Locator) =>
   element.evaluate((node) => {
     const probe = document.createElement("div");
@@ -58,17 +59,20 @@ const dangerSurface = (element: Locator) =>
   });
 
 async function expectFailedWithReason(page: Page, kind: "tailored_cv" | "tailored_documents") {
-  await aiActivityButton(page).click();
+  await openActivity(page);
   const failed = paneOf(page).locator(".ai-activity-live").filter({ hasText: fr.aiActivity.kinds[kind] });
   await expect(failed).toContainText(/Échec à \d{2}:\d{2}/);
   await expect(failed.locator(".ai-activity-live-reason")).toHaveText(fr.failureReasons.provider_unavailable);
   expect(await failed.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(failed));
   await expect(failed).not.toContainText("upstream");
   await expect(failed).not.toContainText("503");
-  await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
+  await closeActivity(page);
 }
 
 test.describe("AI Activity: the Failure Reason of a failed action (#367)", () => {
+  // Wide enough for the Fiche, where AI Activity shows, beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("a Tailored CV and a Cover Letter whose provider fails show their reason in AI Activity, in light red", async ({ page }) => {
     const id = await openApplication(page, "Acme Industrie recrute son DAF. E2E_AI_DOWN");
     await page.goto(`/candidatures/${id}/documents`);
@@ -91,7 +95,7 @@ test.describe("AI Activity: the Failure Reason of a failed action (#367)", () =>
     const cv = await tab(page, tc.tailored);
     await cv.getByRole("button", { name: tc.propose, exact: true }).click();
     await expect(cv.getByRole("alert")).toBeVisible();
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const cut = paneOf(page).locator(".ai-activity-live");
     await expect(cut).toHaveCount(1);
     await expect(cut.locator(".ai-activity-live-reason")).toHaveText(fr.aiActivity.live.unknownReason);

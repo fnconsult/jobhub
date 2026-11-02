@@ -54,8 +54,9 @@ async function outcomes(page: Page): Promise<string[]> {
   return exported.emailIntake.receivedOfferEmails.map((email: { outcome: string }) => email.outcome);
 }
 
+/** No axe violation in the page's main column, nor in the Work Pane when one is open (#606). */
 async function expectAccessible(page: Page) {
-  const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  const results = await new AxeBuilder({ page }).include("main").include(".work-pane").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
 
@@ -67,13 +68,14 @@ test.describe("Email intake: Recognised senders a Candidate adds (#450)", () => 
     const paul = await candidate(browser, "senders-paul");
     const created = await marie.page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Directrice marketing", locations: ["Lyon"], contractTypes: ["cdi"] } } });
     expect(created.status(), await created.text()).toBe(201);
-    const profile = (await created.json()).id as string;
 
     expect((await deliver(marie.page.request, marie.address, sender, `<first-${tag}@monster.example>`)).status()).toBe(200);
     expect(await outcomes(marie.page)).toEqual(["unrecognised_sender"]);
 
-    await marie.page.goto(`/recherches?profil=${profile}`);
-    const row = marie.page.getByRole("list", { name: fr.receivedByEmail.ignored.listLabel }).getByRole("listitem").filter({ hasText: domain });
+    // « Reçues par email », its ignored emails with it, opens in the Work Pane beside Recherches d'offres' conversation (#606).
+    await marie.page.goto("/recherches?recues=1");
+    const received = marie.page.getByRole("complementary", { name: fr.receivedByEmail.title });
+    const row = received.getByRole("list", { name: fr.receivedByEmail.ignored.listLabel }).getByRole("listitem").filter({ hasText: domain });
     await row.getByRole("button", { name: tr(fr.receivedByEmail.ignored.recogniseLabel, { domain }) }).click();
     await expect(row.getByRole("status")).toHaveText(fr.receivedByEmail.ignored.recognised);
     await expectAccessible(marie.page);

@@ -2,11 +2,8 @@ import Link from "next/link";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { FreeConversationPage } from "@/components/FreeConversationPage";
-import { conversationFirst } from "@/conversation-first";
-import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { routes } from "@/routes";
 import { TextSizeControl } from "@/components/TextSizeControl";
-import { QuickActions } from "@/components/QuickActions";
 import { buttonClass } from "@/design/button-class";
 import { Note } from "@/design/Note";
 import type { Metadata } from "next";
@@ -19,8 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The home page: in the sidebar layout for a signed-in Candidate, like every page of theirs (ADR-0024), the quick
- * actions first (#467). Under « Conversation au centre » (#601, ADR-0070), a new Free conversation: the page itself.
+ * The home page: for a signed-in Candidate, in the sidebar layout like every page of theirs (ADR-0024), a new Free
+ * conversation, the page itself (#601, ADR-0070), the quick actions its suggestions (#467).
  */
 export default async function HomePage() {
   const t = await getServerT();
@@ -32,17 +29,10 @@ export default async function HomePage() {
       <Note>{t("home.comingSoon")}</Note>
     </>
   );
-  if (candidate && conversationFirst(getPlatformSettingsResolver().current()))
+  if (candidate)
     return (
       <CandidateLayout candidateId={candidate.id} title={t("conversationFirst.newConversation")}>
         <FreeConversationPage conversationId={null} />
-      </CandidateLayout>
-    );
-  if (candidate)
-    return (
-      <CandidateLayout candidateId={candidate.id} title={t("home.title")}>
-        <QuickActions />
-        {intro}
       </CandidateLayout>
     );
   return (

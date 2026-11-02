@@ -1,7 +1,8 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { fromCatalogue, renderedTexts } from "./support/accessibility";
+import { fontFloorOf, fromCatalogue, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { editCriteriaOf, ficheOf, openSearchCriteria, profileSectionLink, workPaneOf } from "./support/conversation";
 import { placeInput, placeNames, placeOptions, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 
@@ -9,8 +10,16 @@ import { newAddress } from "./support/mailbox";
 // it reads like a document, the Profile's name and Search Criteria are edited in
 // place and saved on change, and the Master CV's edits gather into one new
 // version saved from a sticky bar (ADR-0012). Never below the ADR-0009 floor.
+// Since #605 (ADR-0070) the page is the Profile's conversation: its name stays the
+// Top Bar's title, edited in place; its Fiche's card holds its status and its
+// Search Criteria, edited in place in the dialog « Modifier les critères » opens;
+// its Sections, the Master CV first, open in the Work Pane.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
+/** The French Help Articles' titles (packages/help). */
+const HELP_TITLES = new Set(
+  readdirSync("packages/help/articles/fr").flatMap((file) => /^title: (.+)$/m.exec(readFileSync(`packages/help/articles/fr/${file}`, "utf8"))?.[1] ?? []),
+);
 
 const masterCv = {
   fullName: "Catherine Morel",
@@ -40,6 +49,7 @@ async function candidateWithProfile(page: Page, label: string, locations = ["Lyo
 }
 
 const title = (page: Page) => page.getByLabel(fr.profileActions.name, { exact: true });
+/** The Search Criteria, in the dialog « Modifier les critères » opens (see openSearchCriteria). */
 const criteria = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
 /** The Search Criteria's places, as chips (ADR-0025, #235). */
 const places = (page: Page) => placeNames(criteria(page));
@@ -48,33 +58,39 @@ const choice = (page: Page, legend: string, option: string) => criteria(page).ge
 const masterCvSection = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
 const saveBar = (page: Page) => page.getByRole("region", { name: fr.profilePage.savebarLabel });
 const saveVersion = (version: number) => fr.profilePage.saveVersion.replace("{{version}}", String(version));
-/** The list of the Profile page's Sections (ADR-0024). */
-const sectionsNav = (page: Page) => page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel });
-const sectionLink = (page: Page, name: string) => sectionsNav(page).getByRole("link", { name });
+/** The Profile's Sections (ADR-0024), listed in its Fiche (#605). */
+const sectionsList = (page: Page) => ficheOf(page).locator(".fiche-links").first();
+const sectionLink = (page: Page, name: string) => profileSectionLink(page, name);
 
 test.describe("the Profile page as a document", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("reads top-down: eyebrow, the name as title, the Search Criteria as properties, then the Sections, the Master CV first", async ({ page }) => {
+  test("reads top-down: the name as title, its Fiche's card with the Search Criteria, then the Sections, the Master CV first", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-doc");
     await page.goto(`/profils/${id}`);
 
-    await expect(page.getByText(fr.profilePage.eyebrow, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
     await expect(title(page)).toHaveValue("Directrice administrative et financière");
+    // Its Fiche's card: active, its Search Criteria in words, each changed in place in a dialog (#605).
+    await expect(ficheOf(page)).toContainText(fr.profilePage.status.active);
+    await expect(ficheOf(page).getByRole("definition").filter({ hasText: "Lyon" })).toContainText(/^Lyon · CDI · 85\s000 € brut par an minimum/);
+    await openSearchCriteria(page);
     await expect(criteria(page).getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
     await expect(places(page)).toHaveText(["Lyon"]);
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdd)).not.toBeChecked();
-    // No Job Search nor Job Digest from the Profile page: Recherches d'offres, the Coach Panel and the Job Digests page offer them (#238).
+    await page.keyboard.press("Escape");
+    await expect(criteria(page)).toHaveCount(0);
+    // No Job Search nor Job Digest from the Profile page: Recherches d'offres and the Job Digests page offer them (#238).
     await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
     await expect(page.locator(`a[href="/job-digests#job-digest-${id}"]`)).toHaveCount(0);
 
-    // No Action Cards yet: no Propositions; the page shows its first Section, the Master CV.
+    // No Action Cards yet: no Propositions; the Master CV comes first among its Sections, in the Work Pane.
     const s = fr.profilePage.sections;
-    await expect(sectionsNav(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s["entreprises-cibles"], s.telecharger, s.gerer]);
-    await expect(sectionLink(page, s["cv-de-reference"])).toHaveAttribute("aria-current", "page");
+    await expect(sectionsList(page).getByRole("link")).toHaveText([s["cv-de-reference"], s["ats-score"], s["entreprises-cibles"], s.telecharger, s.gerer]);
+    await sectionLink(page, s["cv-de-reference"]).click();
+    await expect(page).toHaveURL(new RegExp(`/profils/${id}/cv-de-reference$`));
     const cv = masterCvSection(page);
     await expect(cv.getByText(/^Version 1 · enregistrée le \w+ \d+ \w+ \d{4}$/)).toBeVisible();
     await expect(cv.getByLabel(fr.cvReview.headline)).toHaveValue(masterCv.headline);
@@ -107,6 +123,7 @@ test.describe("the Profile page as a document", () => {
     await expect(title(page)).toHaveValue("DAF industrie");
 
     // A place saves as soon as it is added, a checkbox as soon as it is ticked.
+    await openSearchCriteria(page);
     await typePlace(criteria(page), "Lyon et 50 km autour");
     await expect(criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved })).toHaveCount(1);
     await choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid).check();
@@ -121,6 +138,7 @@ test.describe("the Profile page as a document", () => {
 
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
+    await openSearchCriteria(page);
     await expect(places(page)).toHaveText(["Lyon", "Lyon et 50 km autour"]);
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
     await expect(criteria(page).getByLabel(fr.cvReview.minSalary)).toHaveValue("85000");
@@ -131,6 +149,7 @@ test.describe("the Profile page as a document", () => {
   test("Search Criteria take several places, contract types and remote-work options, each change saving (ADR-0025)", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-several-values");
     await page.goto(`/profils/${id}`);
+    await openSearchCriteria(page);
     const saved = () => criteria(page).getByRole("status").filter({ hasText: fr.profilePage.criteriaSaved });
 
     // A second place, chosen among the suggestions with the keyboard: it saves at once, the focus back on the input.
@@ -155,6 +174,7 @@ test.describe("the Profile page as a document", () => {
     await expect(choice(page, fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.full_remote)).toBeChecked();
 
     await page.reload();
+    await openSearchCriteria(page);
     await expect(places(page)).toHaveText(["Lyon", "Bordeaux (33)"]);
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.cdi)).toBeChecked();
     await expect(choice(page, fr.cvReview.contractType, fr.cvReview.contractTypes.freelance)).toBeChecked();
@@ -213,12 +233,14 @@ test.describe("the Profile page as a document", () => {
     await expect(placeInput(criteria(page))).toBeFocused();
 
     await page.reload();
+    await openSearchCriteria(page);
     await expect(places(page)).toHaveText(["Lyon", "Pays de la Loire", "Genève", "Remote"]);
   });
 
   test("suggestions start at three characters: two list nothing, three list the matching places (#235)", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-three-chars");
     await page.goto(`/profils/${id}`);
+    await openSearchCriteria(page);
     await placeInput(criteria(page)).fill("lo");
     await expect(placeInput(criteria(page))).toHaveAttribute("aria-expanded", "false");
     await expect(placeOptions(page)).toHaveCount(0);
@@ -230,6 +252,7 @@ test.describe("the Profile page as a document", () => {
   test("the last place cannot be removed: Locations is required", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-last-place", ["Lyon", "Paris"]);
     await page.goto(`/profils/${id}`);
+    await openSearchCriteria(page);
     await Promise.all([
       page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/api/profiles/")),
       removePlace(criteria(page), "Lyon").click(),
@@ -237,6 +260,7 @@ test.describe("the Profile page as a document", () => {
     await expect(places(page)).toHaveText(["Paris"]);
     await expect(removePlace(criteria(page), "Paris")).toHaveCount(0);
     await page.reload();
+    await openSearchCriteria(page);
     await expect(places(page)).toHaveText(["Paris"]);
   });
 
@@ -301,6 +325,7 @@ test.describe("the Profile page as a document", () => {
   test("Sectors, Subsectors and Domains are chosen as chips, the Subsectors offered limited to the Sectors chosen, each change saving (#236)", async ({ page }) => {
     const id = await candidateWithProfile(page, "profile-sectors");
     await page.goto(`/profils/${id}`);
+    await openSearchCriteria(page);
     const sectorInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.sectors, exact: true });
     const subsectorInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.subsectors, exact: true });
     const domainInput = criteria(page).getByRole("combobox", { name: fr.cvReview.industryInputs.domains, exact: true });
@@ -322,6 +347,10 @@ test.describe("the Profile page as a document", () => {
     await expect(sectorInput).toBeFocused();
 
     // The Subsectors offered are those of the Sector chosen alone, each said with its Sector.
+    // Its suggestions still open, over the Subsectors below it in the dialog's one column: Escape closes them (#605).
+    await sectorInput.press("Escape");
+    await expect(sectorInput).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("dialog")).toBeVisible();
     await subsectorInput.click();
     await expect(options).toHaveText([
       "Activités des services financiers, hors assurance et caisses de retraiteActivités financières et d'assurance",
@@ -337,16 +366,18 @@ test.describe("the Profile page as a document", () => {
     await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
 
     await page.reload();
+    await openSearchCriteria(page);
     await expect(chips(fr.cvReview.sectors)).toHaveText(["Activités financières et d'assurance"]);
     await expect(chips(fr.cvReview.subsectors)).toHaveText(["Activités des services financiers, hors assurance et caisses de retraite"]);
     await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
 
-    // In the Search Criteria in words on Recherches d'offres.
-    await page.goto(`/recherches?profil=${id}`);
-    await expect(page.getByText(/· Secteur : Activités des services financiers, hors assurance et caisses de retraite · Domaine : Direction d'entreprise$/)).toBeVisible();
+    // In the Search Criteria in words, on the Profile's Fiche (#605).
+    await page.keyboard.press("Escape");
+    await expect(ficheOf(page).getByText(/· Secteur : Activités des services financiers, hors assurance et caisses de retraite · Domaine : Direction d'entreprise$/)).toBeVisible();
 
     // Removing the Sector takes its Subsector with it, in one save.
     await page.goto(`/profils/${id}`);
+    await openSearchCriteria(page);
     await Promise.all([
       patched('"sectors":[],"subsectors":[]'),
       criteria(page).getByRole("button", { name: fr.cvReview.removeChoice.replace("{{label}}", "Activités financières et d'assurance"), exact: true }).click(),
@@ -354,6 +385,7 @@ test.describe("the Profile page as a document", () => {
     await expect(chips(fr.cvReview.subsectors)).toHaveCount(0);
     await expect(subsectorInput).toBeDisabled();
     await page.reload();
+    await openSearchCriteria(page);
     await expect(chips(fr.cvReview.sectors)).toHaveCount(0);
     await expect(chips(fr.cvReview.domains)).toHaveText(["Direction d'entreprise"]);
   });
@@ -363,10 +395,11 @@ test.describe("the Profile page as a document", () => {
     const archived = await page.request.patch(`/api/profiles/${id}`, { headers: { origin }, data: { archived: true } });
     expect(archived.ok()).toBe(true);
     await page.goto(`/profils/${id}`);
-    await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
-    const properties = page.getByRole("term");
-    await expect(properties.filter({ hasText: fr.cvReview.locations })).toBeVisible();
-    await expect(page.getByRole("definition").filter({ hasText: /^Lyon$/ })).toBeVisible();
+    await expect(ficheOf(page).getByText(fr.profileActions.archivedNotice)).toBeVisible();
+    // Said in words on its Fiche, with nothing to change them with (#605).
+    await expect(ficheOf(page).getByRole("term").filter({ hasText: fr.jobSearch.criteria })).toBeVisible();
+    await expect(ficheOf(page).getByRole("definition").filter({ hasText: "Lyon" })).toContainText(/^Lyon · CDI · 85\s000 € brut par an minimum/);
+    await expect(editCriteriaOf(page)).toHaveCount(0);
     await expect(placeInput(page)).toHaveCount(0);
     await expect(page.getByRole("checkbox")).toHaveCount(0);
     await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
@@ -379,9 +412,9 @@ test.describe("the Profile page as a document", () => {
     await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toHaveCount(0);
     await expect(page.locator("main").locator('a[href*="job-digest"]')).toHaveCount(0);
 
-    // A Job Search starts from Recherches d'offres.
+    // A Job Search starts from Recherches d'offres, a suggestion above its box (#606).
     await page.goto(`/recherches?profil=${id}`);
-    await expect(page.getByRole("button", { name: fr.jobSearch.start, exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: fr.quickActions.label }).getByRole("button", { name: fr.jobSearchesMenu.start, exact: true })).toBeVisible();
 
     // The Job Digest is reached from the sidebar.
     await page.goto(`/profils/${id}`);
@@ -398,13 +431,23 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
     test(`at ${viewport.width}px: catalogue strings, 16px and AA contrast, visible edit affordances, 44px targets, no sideways scroll`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const id = await candidateWithProfile(page, `profile-floor-${viewport.width}`, ["Lyon", "Saint-Étienne-de-Saint-Geoirs (38)"]);
+      // The Master CV with an unsaved edit, in the Work Pane; then the Search Criteria with the place suggestions shown, in
+      // their dialog (#605), as the Candidate reads them.
       await page.goto(`/profils/${id}/cv-de-reference`);
       await masterCvSection(page).getByLabel(fr.cvReview.headline).fill("DAF");
       await expect(saveBar(page)).toBeVisible();
-      // The place suggestions shown, as the Candidate reads them.
+      await expectOnTheFloor(page);
+      await page.goto(`/profils/${id}`);
+      await openSearchCriteria(page);
       await placeInput(criteria(page)).fill("loire");
       await expect(placeOptions(page)).toHaveCount(4);
+      await expectOnTheFloor(page);
+    });
+  }
+});
 
+/** What the floor test checks on what is shown: catalogue strings, 16px and AA contrast, edit affordances, 44px targets, no sideways scroll. */
+async function expectOnTheFloor(page: Page) {
       const own = new Set(
         [
           masterCv.fullName,
@@ -425,35 +468,39 @@ test.describe("the Profile page on the ADR-0009 floor", () => {
       const catalogue = fromCatalogue(fr);
       // The Usage Meter's percentage, a catalogue string with the week's number in it.
       const meter = fr.usageMeter.percent.replace("{{percent}}", "0");
-      const known = (text: string) => text === meter || catalogue(text);
+      // The Help Articles the conversation suggests (#342): written by the Jobbbox team, not catalogue strings. A Fiche's
+      // Result is its label and its detail, each a catalogue string, joined by « · » (#605): « Version 1 », its date.
+      const one = (text: string) => text === meter || catalogue(text) || HELP_TITLES.has(text) || text === fr.versions.version.replace("{{version}}", "1");
+      const known = (text: string) => one(text) || text.split(" · ").every(one);
       for (const t of await renderedTexts(page)) {
         // Values in fields are the Candidate's own text.
         if (t.tag === "select" || t.tag === "textarea" || own.has(t.text)) continue;
         expect.soft(known(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
       }
       for (const t of await renderedTexts(page)) {
-        expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+        expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
         expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
       }
 
+      // Where the Candidate edits: the page, its Fiche and Work Pane beside it, and the dialog over it.
+      const edited = page.locator("main, .fiche, .work-pane, [role=dialog]");
       // Editable values show it without hover: a dashed underline.
-      for (const field of await page.locator("main .inline-edit").all()) {
+      for (const field of await edited.locator(".inline-edit").all()) {
         if (await field.evaluate((el) => el === document.activeElement)) continue;
         await expect(field).toHaveCSS("border-bottom-style", "dashed");
       }
-      // Every control of the page is at least 2.75rem (44px) tall, but a glossary term in a sentence (#343): an inline
-      // target, as long as its line (WCAG 2.5.8's inline exception).
-      const main = page.locator("main");
-      for (const control of await main.getByRole("button").or(main.getByRole("textbox")).or(main.getByRole("combobox")).or(main.getByRole("option")).or(main.locator("select")).all()) {
+      // Every control there is at least 2.75rem (44px) tall, but a glossary term in a sentence (#343): an inline
+      // target, as long as its line (WCAG 2.5.8's inline exception); in the dialog, at least the Confort Density's
+      // 2.5rem (ADR-0053; the Drawer's « Fermer », #462).
+      for (const control of await edited.getByRole("button").or(edited.getByRole("textbox")).or(edited.getByRole("combobox")).or(edited.getByRole("option")).or(edited.locator("select")).all()) {
         if (!(await control.isVisible())) continue;
         if (await control.evaluate((el) => el.classList.contains("help-term"))) continue;
         const box = (await control.boundingBox())!;
-        expect.soft(box.height, `height of ${await control.evaluate((el) => el.outerHTML.slice(0, 80))}`).toBeGreaterThanOrEqual(44);
+        const floor = (await control.evaluate((el) => el.closest(".ds-drawer__header") !== null)) ? 40 : 44;
+        expect.soft(box.height, `height of ${await control.evaluate((el) => el.outerHTML.slice(0, 80))}`).toBeGreaterThanOrEqual(floor);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
-    });
-  }
-});
+}
 
 // Firefox (and older Safari) has no `field-sizing: content`: the page's textareas
 // must still grow with their text there, as in the prototype. Chromium stands in
@@ -492,7 +539,8 @@ test("where field-sizing is unsupported, the name and the Master CV's texts stil
 // For the review against the prototype: PROFILE_SCREENSHOTS_DIR=<dir> keeps them there.
 test.describe("the Profile page's Sections (ADR-0024)", () => {
   test("on a wide screen, each Section is listed beside the one shown and has its own address", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+    // Wide enough for the Fiche beside the Section, in the Work Pane (Fiche.tsx).
+    await page.setViewportSize({ width: 1600, height: 1000 });
     const id = await candidateWithProfile(page, "profile-sections");
     const s = fr.profilePage.sections;
     await page.goto(`/profils/${id}`);
@@ -502,9 +550,9 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
     await expect(sectionLink(page, s["ats-score"])).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("region", { name: fr.atsScore.title })).toBeVisible();
     await expect(masterCvSection(page)).toHaveCount(0);
-    // The page's head stays on every Section.
+    // The Profile's name and its Fiche's card stay beside every Section.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
-    await expect(places(page)).toHaveText(["Lyon"]);
+    await expect(ficheOf(page).getByRole("definition").filter({ hasText: "Lyon" })).toBeVisible();
 
     await sectionLink(page, s.telecharger).click();
     await expect(page).toHaveURL(new RegExp(`/profils/${id}/telecharger$`));
@@ -518,22 +566,26 @@ test.describe("the Profile page's Sections (ADR-0024)", () => {
     await expect(page.getByRole("region", { name: fr.cvExport.title })).toBeVisible();
   });
 
-  test("on a phone, the Profile's page is the list of its Sections, each shown alone with a way back", async ({ page }) => {
+  test("on a phone, « Fiche » lists the Profile's Sections over its conversation, each shown alone with a way back", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     const id = await candidateWithProfile(page, "profile-sections-phone");
     const s = fr.profilePage.sections;
     await page.goto(`/profils/${id}`);
-    await expect(sectionsNav(page)).toBeVisible();
-    await expect(masterCvSection(page)).toBeHidden();
+    await expect(ficheOf(page)).toHaveCount(0);
+    await expect(masterCvSection(page)).toHaveCount(0);
 
+    // « Fiche » opens over the conversation, full screen (#608); a Section opens over it, in the Work Pane.
+    await page.getByRole("banner").getByRole("button", { name: fr.fiche.label, exact: true }).click();
+    await expect(sectionsList(page)).toBeVisible();
     await sectionLink(page, s["cv-de-reference"]).click();
     await expect(page).toHaveURL(new RegExp(`/profils/${id}/cv-de-reference$`));
     await expect(masterCvSection(page)).toBeVisible();
-    await expect(sectionsNav(page)).toBeHidden();
+    await expect(sectionsList(page)).toBeHidden();
 
-    await page.getByRole("link", { name: s.backToSections, exact: true }).click();
+    // Its ✕ is the way back to the Profile's page.
+    await workPaneOf(page, s["cv-de-reference"]).getByRole("button", { name: fr.conversationFirst.close, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/profils/${id}$`));
-    await expect(sectionsNav(page)).toBeVisible();
+    await expect(masterCvSection(page)).toHaveCount(0);
   });
 
   test("a Section the Profile does not have is not found, nor listed", async ({ page }) => {

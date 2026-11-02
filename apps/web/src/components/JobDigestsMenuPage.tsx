@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCoachConversations } from "@/coach-conversations/server";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { EmptyStateHelp } from "@/components/HelpTerm";
 import { JobDigestFrequency } from "@/components/JobDigestSettings";
 import { Card } from "@/design/Card";

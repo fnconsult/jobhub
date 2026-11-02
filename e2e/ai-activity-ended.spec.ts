@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { activityButtonOf, activityOf, openActivity } from "./support/conversation";
 
 // Issue #368: in AI Activity's « Par élément », a stored element whose action was stopped or failed says so in words and
 // sits on light red, after a reload as the next day: here a Job Search the Candidate stopped, which kept the Job Offers it
@@ -50,8 +51,10 @@ async function query<T = Record<string, unknown>>(sql: string, values: unknown[]
   }
 }
 
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
+/** « Activité » in the Top Bar (#603, #607): the way to the page's AI Activity since the Coach Panel left (#608). */
+const aiActivityButton = (page: Page) => activityButtonOf(page);
+/** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
+const paneOf = (page: Page) => activityOf(page);
 
 test.describe("AI Activity: stopped or failed elements in « Par élément » (#368)", () => {
   test("a stopped Job Search with kept Job Offers shows its element stopped, in words and light red, after a reload", async ({ page }) => {
@@ -78,9 +81,9 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
 
     await page.goto(`/recherches/${search!.id}`);
     await page.reload();
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const pane = paneOf(page);
-    await expect(pane.getByRole("heading", { name: fr.aiActivity.title })).toBeVisible();
+    await expect(pane.locator(".fiche-activity")).toBeVisible();
 
     // Its element says it stopped, and when, on light red like a stopped live action.
     const stopped = pane.locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds.job_search });
@@ -102,7 +105,7 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
     await expect(pane.locator(".ai-activity-total")).toContainText("1,1k tokens");
     await expect(aiActivityButton(page)).toHaveAttribute("aria-expanded", "true");
 
-    const results = await new AxeBuilder({ page }).include("aside.ai-activity-pane").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const results = await new AxeBuilder({ page }).include(".fiche-activity").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
   });
 
@@ -120,7 +123,7 @@ test.describe("AI Activity: stopped or failed elements in « Par élément » (#
     );
 
     await page.goto(`/recherches/${search!.id}`);
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const failed = paneOf(page).locator(".ai-activity-element").filter({ hasText: fr.aiActivity.kinds.job_search });
     await expect(failed).toHaveAttribute("data-end", "failed");
     await expect(failed).toContainText(fr.aiActivity.ended.failedUndated);

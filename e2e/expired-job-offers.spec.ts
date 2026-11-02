@@ -6,6 +6,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { ficheOf } from "./support/conversation";
 
 // Issue #16: Expired Job Offers. Every few days the worker re-checks the source
 // page of each Job Offer a Candidate is applying to (an ongoing Application),
@@ -293,29 +294,23 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
       expect(read.jobOffer.expiredAt).toBeDefined();
     }
 
-    // In the list: each one flagged in words, its status as the Candidate left it.
+    // In Mes candidatures' list (#604): each one flagged in words, its status as the Candidate left it.
     await page.goto("/candidatures");
     for (const [name, { status }] of onExpired) {
-      const row = page.getByRole("row", { name: new RegExp(`Offre ${name} – réf. ${tag}`) });
+      const row = page.getByRole("table", { name: fr.applications.title }).getByRole("row", { name: new RegExp(`Offre ${name} – réf. ${tag}`) });
       await expect(row.getByText(fr.applications.expired, { exact: true })).toBeVisible();
-      await expect(row.getByLabel(fr.application.statusLabel)).toHaveValue(status);
+      await expect(row).toContainText(fr.applicationStatuses[status]);
     }
 
-    // On the board: still in the column of its status.
-    await page.getByRole("link", { name: fr.applications.boardView }).click();
-    const interview = page.getByRole("region", { name: fr.applicationStatuses.interview });
-    const card = interview.getByRole("listitem").filter({ hasText: `Offre notFound – réf. ${tag}` });
-    await expect(card.getByText(fr.applications.expired, { exact: true })).toBeVisible();
-
-    // On the Application page: said in words, and the decision left to the Candidate.
+    // On the Application page, its Fiche (#603): said in words, and the decision left to the Candidate.
     await page.goto(`/candidatures/${applications.notFound.id}`);
-    const notice = page.getByRole("status").filter({ hasText: fr.application.expiredNotice });
+    const notice = ficheOf(page).getByRole("status").filter({ hasText: fr.application.expiredNotice });
     await expect(notice).toContainText(fr.jobOffer.expired.split("{{date}}")[0]);
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("interview");
+    await expect(ficheOf(page).getByLabel(fr.application.statusLabel)).toHaveValue("interview");
 
     // The Candidate still changes it by hand, and the next re-check leaves it.
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.abandoned });
-    await expect(page.getByRole("status").filter({ hasText: fr.application.statusSaved })).toBeVisible();
+    await ficheOf(page).getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.abandoned });
+    await expect(ficheOf(page).getByRole("status").filter({ hasText: fr.application.statusSaved })).toBeVisible();
     recheckSourcesAt(15 * 24 + 5, "later");
     expect((await application(page, applications.notFound.id)).status).toBe("abandoned");
     expect((await application(page, applications.published.id)).status).toBe("applied");

@@ -7,6 +7,7 @@ import { Client } from "pg";
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { ficheOf, openFoundJobOffers, startJobSearch } from "./support/conversation";
 import { subscribe as subscribeToPlan } from "./support/plan";
 import { fakeCustomerId, FAKE_STRIPE_PRICES, signedEvent, subscriptionEvent } from "../apps/web/src/billing/fake-stripe";
 
@@ -211,10 +212,11 @@ async function switchToEnglish(page: Page) {
 }
 
 /**
- * A Profile's Job Digest on the Job Digests page (ADR-0024), named after the Profile: that Profile's
- * when given, else the first (these Candidates have one active Profile).
+ * A Profile's Job Digest on the Job Digests page (ADR-0024), named after the Profile: its group on the menu's card (#606),
+ * that Profile's when given, else the first (these Candidates have one active Profile).
  */
-const jobDigestSection = (page: Page, profileId?: string) => (profileId ? page.locator(`#job-digest-${profileId}`) : page.locator('section[id^="job-digest-"]').first());
+const jobDigestSection = (page: Page, profileId?: string) =>
+  profileId ? page.locator(`section[aria-labelledby="job-digests-of-${profileId}"]`) : page.locator('section[aria-labelledby^="job-digests-of-"]').first();
 
 /** Opts in from the Profile page's Job Digest Section, at the frequency it proposes (the Plan's). */
 async function optIn(page: Page, profileId: string, strings = fr) {
@@ -462,11 +464,14 @@ test.describe("Job Digest", () => {
     expect(digestLink.origin).toBe(origin);
     await page.goto(digestLink.pathname);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Job Digest « Directrice administrative et financière »");
-    await expect(page.getByRole("heading", { level: 2, name: DAF })).toBeVisible();
-    const responsable = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: RESPONSABLE }) });
+    // Its Job Offers, its Section, in the Work Pane beside its conversation (#605).
+    await ficheOf(page).getByRole("link", { name: fr.jobSearch.resultsLabel, exact: true }).click();
+    await expect(page).toHaveURL(`${origin}${digestLink.pathname}/offres`);
+    await expect(page.getByRole("heading", { level: 3, name: DAF })).toBeVisible();
+    const responsable = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name: RESPONSABLE }) });
     await expect(responsable).toHaveCount(1);
     await expect(responsable.getByText("date inconnue", { exact: true })).toBeVisible();
-    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });
+    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name: DAF }) });
     await expect(daf.getByText(/^Publiée le \d{1,2} \S+ \d{4}$/)).toBeVisible();
     await expect(daf).not.toContainText("date inconnue");
     const scores = await matchScoresOn(page);
@@ -475,11 +480,10 @@ test.describe("Job Digest", () => {
     await responsable.getByRole("button", { name: "Enregistrer en candidature" }).click();
     await expect(responsable.getByText("Enregistrée", { exact: true })).toBeVisible();
 
-    // The Profile page lists it, linking to the same page.
+    // The Job Digests page lists it under its Profile (#606), linking to the same page.
     await page.goto("/job-digests");
-    await expect(section.getByRole("heading", { name: fr.jobDigest.latestTitle })).toBeVisible();
-    await section.getByRole("link", { name: /^Job Digest du .+ : \d+ offres$/ }).click();
-    await expect(page).toHaveURL(digestLink.pathname);
+    await section.getByRole("table", { name: "Job Digests de « Directrice administrative et financière »" }).getByRole("link").first().click();
+    await expect(page).toHaveURL(`${origin}${digestLink.pathname}`);
 
     // Weekly: the next tick sends nothing more for this Profile. The other
     // Profile, opted in a week ago, is due on that tick, so once it is reported the tick is over.
@@ -573,13 +577,13 @@ test.describe("Job Digest", () => {
     const profileId = await createProfile(page);
     const otherProfileId = await createProfile(page, "Responsable financière");
 
-    // The Candidate ran a Job Search for the Profile: it listed both Job Offers, and they saved the DAF one.
-    await page.goto(`/recherches?profil=${profileId}`);
-    await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
-    await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
-    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2, name: DAF }) });
+    // The Candidate ran a Job Search for the Profile, from Recherches d'offres (#606): it listed both Job Offers, in its
+    // Section (#605), and they saved the DAF one.
+    await startJobSearch(page, "Directrice administrative et financière");
+    await openFoundJobOffers(page);
+    const daf = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name: DAF }) });
     await expect(daf, workerOutput).toHaveCount(1, { timeout: 90_000 });
-    await expect(page.getByRole("heading", { level: 2, name: RESPONSABLE })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3, name: RESPONSABLE })).toBeVisible();
     await daf.getByRole("button", { name: "Enregistrer en candidature" }).click();
     await expect(daf.getByText("Enregistrée", { exact: true })).toBeVisible();
 

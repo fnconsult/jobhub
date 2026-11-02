@@ -8,6 +8,7 @@ import { jobSearchPage } from "../apps/web/src/ai-activity";
 import { createJobOffers } from "../apps/web/src/job-offers";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { startJobSearch } from "./support/conversation";
 import { subscribe } from "./support/plan";
 
 // Issue #330: a Job Search shows its steps while it runs, and keeps its Provenance (ADR-0034). Driven through
@@ -122,13 +123,10 @@ const notificationsOf = async (page: Page): Promise<Notifications> => {
   return response.json();
 };
 
-/** Starts a worker with fresh postings, then clicks « Chercher des offres » for the Profile and returns the Job Search's id once on its page. */
+/** Starts a worker with fresh postings, then clicks « Lancer une recherche » on Recherches d'offres (#606) and returns the Job Search's id once on its page. */
 async function startSearch(page: Page): Promise<string> {
   await freshWorker();
-  await page.goto(`/recherches?profil=${profileId}`);
-  await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
-  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
-  return new URL(page.url()).pathname.split("/").pop()!;
+  return startJobSearch(page);
 }
 
 /**

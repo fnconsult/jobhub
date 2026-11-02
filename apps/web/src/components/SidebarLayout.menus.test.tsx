@@ -15,9 +15,9 @@ const DIGEST = "33333333-3333-4333-8333-333333333333";
 const JOB_SEARCHES: UnfoldedMenu = { shown: [{ id: SEARCH, label: "DAF · 12 oct.", href: `/recherches/${SEARCH}`, toHandle: true }], total: 4 };
 const JOB_DIGESTS: UnfoldedMenu = { shown: [{ id: DIGEST, label: "DAF · 19 oct.", href: `/job-digests/${DIGEST}`, toHandle: false }], total: 1 };
 
-function Page({ on = true }: { on?: boolean }) {
+function Page() {
   return (
-    <SidebarLayout profiles={[PROFILE]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={on ? [] : null} menus={{ jobSearches: JOB_SEARCHES, jobDigests: JOB_DIGESTS }}>
+    <SidebarLayout profiles={[PROFILE]} canAddProfile={false} title="Accueil" version="1.2.3" freeConversations={[]} menus={{ jobSearches: JOB_SEARCHES, jobDigests: JOB_DIGESTS }}>
       <p>Page</p>
     </SidebarLayout>
   );
@@ -73,9 +73,4 @@ describe("the Sidebar's Recherches d'offres and Job Digests unfold into their ob
     expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres" }).getAttribute("href")).toBe("/recherches");
   });
 
-  it("keeps plain links while « Conversation au centre » is off", () => {
-    renderInFrench(<Page on={false} />);
-    expect(within(sidebar()).queryByRole("list", { name: "Recherches d'offres" })).toBeNull();
-    expect(within(sidebar()).getByRole("link", { name: "Recherches d'offres" }).getAttribute("href")).toBe(`/recherches?profil=${PROFILE.id}`);
-  });
 });

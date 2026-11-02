@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
+import { openFoundJobOffers } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 
 // Issue #120: Job discovery searches France Travail's Offres d'emploi API by structured filters
@@ -190,9 +191,10 @@ test.describe("France Travail adapter for Job discovery (#120)", () => {
     expect(run.webSearches.length).toBeGreaterThanOrEqual(1);
     expect(run.metrics.funnel.providerUrls).toBe(10);
     expect(run.metrics.funnel.afterDedup).toBeGreaterThan(3);
-    // The Candidate sees the offers on the Job Search page.
+    // The Candidate sees the offers on the Job Search page: its Job Offers, opened from its Fiche (#605).
     await page.goto(`/recherches/${run.id}`);
-    await expect(page.getByText(`Directeur administratif et financier France Travail 1 – réf. ${run.tag}`)).toBeVisible({ timeout: 30_000 });
+    await openFoundJobOffers(page);
+    await expect(page.getByRole("heading", { level: 3, name: `Directeur administratif et financier France Travail 1 – réf. ${run.tag}` })).toBeVisible({ timeout: 30_000 });
   });
 
   test("counts France Travail in the Job Search's observability: status, Job Offers kept and HTTP calls, also in the worker log", async ({ page }) => {

@@ -3,15 +3,17 @@ import { act, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
 import { I18nProvider } from "@/i18n/I18nProvider";
-import { CoachPanel } from "./CoachPanel";
+import { PageHelpProvider } from "./page-help";
+import { WorkPaneProvider } from "./WorkPane";
 import { HelpTerm } from "./HelpTerm";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/profils/p/propositions", useRouter: () => ({ refresh: vi.fn() }) }));
 
-/** A page in the Coach Panel naming « propositions » once, in a paragraph keyed `key`: a new key mounts it anew. */
+/** A Candidate's page (its Work Pane and its help) naming « propositions » once, in a paragraph keyed `key`: a new key mounts it anew. */
 const page = (key: string, mentions = 1) => (
-  <CoachPanel>
-    <main>
+  <WorkPaneProvider version="1.2.3">
+    <PageHelpProvider>
+      <main>
       <p key={key}>
         {Array.from({ length: mentions }, (_, index) => (
           <HelpTerm key={index} term="proposals">
@@ -19,8 +21,9 @@ const page = (key: string, mentions = 1) => (
           </HelpTerm>
         ))}
       </p>
-    </main>
-  </CoachPanel>
+      </main>
+    </PageHelpProvider>
+  </WorkPaneProvider>
 );
 const terms = () => screen.queryAllByRole("button", { name: /^propositions \(aide\)$/i });
 

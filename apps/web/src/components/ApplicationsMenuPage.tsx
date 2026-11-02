@@ -4,7 +4,7 @@ import { applicationsMenu, type ApplicationsMenuRow } from "@/applications/menu"
 import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { ApplicationsMenuSuggestions } from "@/components/ApplicationsMenuSuggestions";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Card } from "@/design/Card";
 import { Pill, type Tone } from "@/design/Pill";
 import { Table, type Column } from "@/design/Table";
@@ -68,7 +68,18 @@ function ApplicationsCard({ rows, toHandle, archivedHidden, showArchived, t }: {
       key: "offer",
       header: t("applications.jobOffer"),
       rowHeader: true,
-      cell: (row) => <Link href={routes.application(row.id)}>{[row.title, row.employer].filter(Boolean).join(" · ")}</Link>,
+      cell: (row) => (
+        <>
+          <Link href={routes.application(row.id)}>{[row.title, row.employer].filter(Boolean).join(" · ")}</Link>
+          {/* An Expired Job Offer, or one reported unavailable, flagged in words; its status left as the Candidate set it. */}
+          {row.expired ? (
+            <span className="applications-flags">
+              <Pill tone="danger">{t("applications.expired")}</Pill>
+              {row.reportedByYou ? <Pill>{t("applications.reportedByYou")}</Pill> : null}
+            </span>
+          ) : null}
+        </>
+      ),
     },
     { key: "status", header: t("applications.status"), cell: (row) => <Pill tone={STATUS_TONES[row.status]}>{t(`applicationStatuses.${row.status}`)}</Pill> },
     {

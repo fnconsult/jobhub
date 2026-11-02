@@ -17,6 +17,11 @@ export interface RequestActionLive {
   event(event: ProvenanceEvent): void;
   /** Done, stopped, or failed with its Failure Reason's i18n key (null: not known). */
   end(outcome: "done" | "stopped" | "failed", reason?: string | null): void;
+  /**
+   * The page that asked it is gone, while it runs (a Coach reply: the Candidate moved on to another page, #608): AI
+   * Activity says its end, which that page can no longer say.
+   */
+  leave(): void;
 }
 
 interface Live {
@@ -28,8 +33,8 @@ interface Live {
   jobSearches(running: readonly RunningJobSearch[], ended: readonly LiveEnded[]): void;
   /** Stops an action: a Coach reply's request is aborted, a Job Search gets a Stop request. */
   stop(key: string): void;
-  /** The Coach Panel opened or closed: open, it announces its replies itself. */
-  coachPanel(open: boolean): void;
+  /** A page that is a conversation shown or left (#601): shown, it announces its replies itself. */
+  conversationShown(shown: boolean): void;
 }
 
 const LiveContext = createContext<Live | null>(null);
@@ -44,7 +49,9 @@ const JOB_SEARCH = "job_search:";
  */
 export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
   const [actions, dispatch] = useReducer(nextLive, []);
-  const [coachPanelOpen, setCoachPanelOpen] = useState(false);
+  const [conversationShown, setConversationShown] = useState(false);
+  // The actions whose page was left while they ran (RequestActionLive.leave).
+  const [left, setLeft] = useState<ReadonlySet<string>>(() => new Set());
   const stops = useRef(new Map<string, () => void>());
   const started = useRef(0);
 
@@ -60,6 +67,7 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
             stops.current.delete(key);
             dispatch({ type: "ended", key, outcome, at: new Date().toISOString(), reason });
           },
+          leave: () => setLeft((was) => new Set(was).add(key)),
         };
       },
       jobSearches(running: readonly RunningJobSearch[], ended: readonly LiveEnded[]) {
@@ -79,7 +87,7 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "stopping", key });
         stops.current.get(key)?.();
       },
-      coachPanel: setCoachPanelOpen,
+      conversationShown: setConversationShown,
     }),
     [],
   );
@@ -88,18 +96,19 @@ export function AiActivityLiveProvider({ children }: { children: ReactNode }) {
   return (
     <LiveContext.Provider value={live}>
       {children}
-      <LiveAnnouncer actions={actions} coachPanelOpen={coachPanelOpen} />
+      <LiveAnnouncer actions={actions} conversationShown={conversationShown} left={left} />
     </LiveContext.Provider>
   );
 }
 
 /**
  * One polite live region: the start of an action and its end, done, stopped or failed, never its steps (#333). A Coach
- * reply is left to the Coach Panel while it is open, which says both itself; a Job Search's end to its notification, but on
+ * reply is left to the page that is its conversation while it is shown, which says both itself, but once the Candidate
+ * moved on (`left`: another page, a conversation of its own or not, #608); a Job Search's end to its notification, but on
  * its own page, where the notification is not shown; a Tailored CV or Document to its page, which says both itself, but
  * once the Candidate moved on (#334). An action found running later (a page loaded again) is not said to start.
  */
-function LiveAnnouncer({ actions, coachPanelOpen }: { actions: readonly LiveAction[]; coachPanelOpen: boolean }) {
+function LiveAnnouncer({ actions, conversationShown, left }: { actions: readonly LiveAction[]; conversationShown: boolean; left: ReadonlySet<string> }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [seen, setSeen] = useState(actions);
@@ -107,7 +116,7 @@ function LiveAnnouncer({ actions, coachPanelOpen }: { actions: readonly LiveActi
   if (seen !== actions) {
     setSeen(actions);
     const told = (action: LiveAction) =>
-      action.kind === "coach_reply" ? !coachPanelOpen : action.kind === "job_search" ? action.href === pathname : action.href !== pathname;
+      action.kind === "coach_reply" ? !conversationShown || left.has(action.key) : action.kind === "job_search" ? action.href === pathname : action.href !== pathname;
     const before = new Map(seen.map((action) => [action.key, action]));
     const now = new Set(actions.map((action) => action.key));
     let message: string | null = null;

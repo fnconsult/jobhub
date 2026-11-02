@@ -91,7 +91,6 @@ test.describe("« Conversation au centre »: Mes candidatures and the Sidebar's 
       JOBHUB_IGNORE_ROOT_ENV: "1",
       AUTH_SECRET: "e2e-applications-secret-e2e-applications-secret",
       MAIL_TRANSPORT: "console",
-      CONVERSATION_FIRST: "true",
       AI_SCORING_PROVIDER: "mistral",
       AI_WRITING_PROVIDER: "mistral",
       AI_COACHING_PROVIDER: "mistral",

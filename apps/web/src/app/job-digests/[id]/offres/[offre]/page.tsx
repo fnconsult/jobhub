@@ -1,6 +1,5 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { JobOfferInPane } from "@/components/JobOfferInPane";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
 import { routes } from "@/routes";
@@ -21,7 +20,6 @@ export default async function JobDigestOfferPage({ params }: Params) {
   const { jobDigest, t, locale } = await loadJobDigestPage(id);
   const result = jobDigest.results.find((found) => found.jobOffer.id === offre);
   if (!result) notFound();
-  if (!pagesAreConversations()) redirect(routes.jobOffer(result.jobOffer.id, jobDigest.profile.id));
   return (
     <InWorkPane kind={RESULT} title={result.jobOffer.title} href={routes.jobDigestOffer(jobDigest.id, result.jobOffer.id)} back={routes.jobDigest(jobDigest.id)}>
       <JobOfferInPane result={result} profile={jobDigest.profile} t={t} locale={locale} />

@@ -98,16 +98,16 @@ test.describe("the Help Centre, for a Visitor", () => {
 });
 
 test.describe("the Coach Panel and the Help Centre", () => {
-  test("the Coach Panel finds the « extension » topic's tutorial; its card leads to the article in the Help Centre", async ({ page }) => {
+  test("the conversation finds the « extension » topic's tutorial; the article opens beside it and leads to the Help Centre", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("help-centre-coach"));
-    const panel = page.getByRole("complementary", { name: fr.coachPanel.title });
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    await panel.getByLabel(fr.coachPanel.messageLabel).fill("enregistrer une offre avec l'extension");
-    await panel.getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button", { name: titleOf("fr", TUTORIAL) }).click();
+    await page.goto("/");
+    const box = page.getByRole("textbox", { name: fr.coachPanel.messageLabel });
+    await box.fill("enregistrer une offre avec l'extension");
+    await page.getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button", { name: titleOf("fr", TUTORIAL) }).click();
 
-    const card = panel.getByRole("article", { name: titleOf("fr", TUTORIAL) });
-    await expect(card.getByText(fr.coachPanel.help.cardLabel)).toBeVisible();
-    await card.getByRole("link", { name: fr.coachPanel.help.openInHelpCentreAbout.replace("{{title}}", titleOf("fr", TUTORIAL)) }).click();
+    const pane = page.getByRole("complementary").filter({ has: page.locator(".work-pane-head") });
+    await expect(pane.getByRole("heading", { level: 2, name: titleOf("fr", TUTORIAL) })).toBeVisible();
+    await pane.getByRole("link", { name: fr.coachPanel.help.openInHelpCentreAbout.replace("{{title}}", titleOf("fr", TUTORIAL)) }).click();
     await expect(page).toHaveURL(`${origin}/aide/extension/${TUTORIAL}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(titleOf("fr", TUTORIAL));
   });

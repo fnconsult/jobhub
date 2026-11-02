@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { loadAiActivity } from "@/ai-activity/server";
-import { CandidateLayout } from "@/components/CandidateLayout";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { RestoreVersionButton } from "@/components/RestoreVersionButton";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
@@ -51,21 +48,10 @@ export default async function MasterCvVersionsPage({ params }: Params) {
       })}
     </ol>
   );
-  if (pagesAreConversations())
-    return (
-      <InWorkPane kind={SECTION} title={t("versions.title")} href={routes.masterCvVersions(profile.id)} back={routes.profile(profile.id)}>
-        <p>{t("versions.intro")}</p>
-        {list}
-      </InWorkPane>
-    );
   return (
-    <CandidateLayout candidateId={candidateId} currentProfileId={profile.id} title={t("versions.title")} aiActivity={await loadAiActivity.profile(candidateId, { id: profile.id }, [])}>
-      <p className="lead">{profile.name}</p>
+    <InWorkPane kind={SECTION} title={t("versions.title")} href={routes.masterCvVersions(profile.id)} back={routes.profile(profile.id)}>
       <p>{t("versions.intro")}</p>
       {list}
-      <p>
-        <Link href={routes.profile(profile.id)}>{t("versions.backToProfile")}</Link>
-      </p>
-    </CandidateLayout>
+    </InWorkPane>
   );
 }

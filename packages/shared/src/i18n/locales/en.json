@@ -1896,8 +1896,7 @@
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
-        "maintenance": "Maintenance",
-        "candidate_pages": "Candidate's pages"
+        "maintenance": "Maintenance"
       },
       "setting": "Setting",
       "value": "Value in use",
@@ -2078,7 +2077,8 @@
           "replacedBy": "Replaced by",
           "by": {
             "coaching_playbooks": "Coaching Playbooks, set in Playbooks",
-            "email_intake_mta": "Jobbbox's own MTA for Email intake (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)"
+            "email_intake_mta": "Jobbbox's own MTA for Email intake (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)",
+            "conversation_first": "Conversation first, now the only layout of the Candidate's pages"
           }
         }
       },
@@ -2131,7 +2131,6 @@
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
-        "CONVERSATION_FIRST": "Conversation first (the Candidate's home page is a conversation with the AI Coach)",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
       },

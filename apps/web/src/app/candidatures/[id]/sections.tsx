@@ -31,8 +31,6 @@ import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
 import { JobOfferSummary } from "@/components/JobOfferSummary";
 import { JobOfferTiles } from "@/components/JobOfferView";
-import { conversationFirst } from "@/conversation-first";
-import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
 import { Pill } from "@/design/Pill";
@@ -99,29 +97,22 @@ export const loadApplicationPage = cache(async (id: string) => {
   return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
 });
 
-/** Always there, as is the Job Offer. */
-const MATCH_SCORE: ApplicationSection = "correspondance";
-
 export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
 
 /** What an Application's Section and Result are, in the Work Pane (#603). */
 const SECTION: AddressedKind = "section";
 const RESULT: AddressedKind = "result";
 
-/** Whether the Application's page is its conversation (« Conversation au centre », #603, ADR-0070). */
-const asConversation = () => conversationFirst(getPlatformSettingsResolver().current());
-
 /**
  * One Section of an Application's page, at its own address. A Section there
  * is not (no Tailored Documents yet, say) answers 404, except Propositions: its
  * last Action Card accepted refreshes the page, which keeps saying it was.
- * Under « Conversation au centre » (#603, ADR-0070), it opens in the Work Pane beside the Application's conversation;
+ * It opens in the Work Pane beside the Application's conversation (#603, ADR-0070);
  * the « documents » Section shows one Result alone when its address names it (`result`: `?resultat=lettre`).
  */
 export async function ApplicationSectionPage({ params, section, result }: Params & { section: ApplicationSection; result?: string | string[] }) {
   const data = await loadApplicationPage((await params).id);
   if (section !== "propositions" && !data.sections.includes(section)) notFound();
-  if (!asConversation()) return <SectionView data={data} section={section} />;
   const { application, t } = data;
   const back = routes.application(application.id);
   const alone = section === "documents" ? shownResult(data, applicationResultOf(result)) : null;
@@ -147,25 +138,6 @@ function shownResult({ tailoredCv, drafts }: ApplicationPageData, result: Applic
 function resultTitle(result: ApplicationResult, t: T): string {
   if (result === "tailored_cv") return t("tailoredCv.tailored");
   return t(result === "cover_letter" ? "tailoredDocuments.coverLetter.title" : "tailoredDocuments.outreachMessage.title");
-}
-
-/**
- * The address of the page itself: its first Section (below 64rem, CSS shows the
- * list of Sections there instead). The Action Cards stay in place when there are
- * none, so that accepting the last one, which refreshes the page, still says so
- * above the Section that now comes first.
- */
-export async function ApplicationFirstSectionPage({ params }: Params) {
-  const data = await loadApplicationPage((await params).id);
-  // The page is the Application's conversation: no Section is open in the Work Pane at its own address.
-  if (asConversation()) return null;
-  const first = data.sections.find((section) => section !== "propositions") ?? MATCH_SCORE;
-  return (
-    <>
-      <ActionCardList key={data.application.id} cards={data.cards} />
-      {data.cards.length === 0 ? <SectionView data={data} section={first} /> : null}
-    </>
-  );
 }
 
 function SectionView({ data, section, result }: { data: ApplicationPageData; section: ApplicationSection; result?: ApplicationResult }) {
@@ -215,17 +187,14 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
         />
       ) : null;
     case "offre":
-      // The offer's facts are framed in the page's header: here, its full text. Under « Conversation au centre » there is
-      // no header: its facts and its Job Offer Summary come first (#603).
-      if (asConversation())
-        return (
-          <>
-            <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
-            <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
-            <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
-          </>
-        );
-      return <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />;
+      // Its facts and its Job Offer Summary come first, then its full text (#603).
+      return (
+        <>
+          <JobOfferTiles jobOffer={application.jobOffer} t={t} locale={locale} />
+          <JobOfferSummary applicationId={application.id} summary={application.jobOffer.summary} needsReading={!application.jobOffer.summary || !application.jobOffer.sector} />
+          <JobOfferView jobOffer={application.jobOffer} t={t} locale={locale} details={false} />
+        </>
+      );
   }
 }
 

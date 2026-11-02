@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { createContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AiActivityButton, AiActivityPane } from "@/components/AiActivity";
-import { CoachPanelToggle } from "@/components/CoachPanel";
 import { Icons } from "@/components/icons";
 import { SignOutButton } from "@/components/SignOutButton";
 import { buttonClass } from "@/design/Button";
@@ -76,7 +75,7 @@ export function SidebarShell({
   foot,
   title,
   wide = false,
-  topBarEnd = <CoachPanelToggle />,
+  topBarEnd,
   topBarActivity = <AiActivityButton />,
   beside,
   pageInert = false,
@@ -89,7 +88,7 @@ export function SidebarShell({
   /** Above signing out, in the sidebar's foot (Mon compte); gets the drawer's close functions too. */
   foot?: (closeDrawer: () => void, closeDrawerThen: CloseDrawerThen) => ReactNode;
   wide?: boolean;
-  /** The Top Bar's last button: the Coach Panel's, or « Effacer » under « Conversation au centre » (#601). */
+  /** The Top Bar's last buttons: the Back Office Assistant's; « Effacer » on the Candidate's pages (#601). */
   topBarEnd?: ReactNode;
   /** AI Activity's button, before `topBarEnd`; none on an object's page, whose Fiche shows its Activity (#603). */
   topBarActivity?: ReactNode;

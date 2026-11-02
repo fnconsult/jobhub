@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
 import { JobDigestSettings } from "@/components/JobDigestSettings";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";
 import { getJobDigests } from "@/job-digests/server";
@@ -19,7 +17,6 @@ const SETTINGS: JobDigestSection = "reglages";
  */
 export default async function JobDigestSettingsPage({ params }: Params) {
   const { candidateId, jobDigest, t, locale } = await loadJobDigestPage((await params).id);
-  if (!pagesAreConversations()) redirect(routes.jobDigests);
   const { profile } = jobDigest;
   const [settings, current] = await Promise.all([getJobDigests().settings(candidateId, profile.id), getProfiles().get(candidateId, profile.id)]);
   return (

@@ -1896,8 +1896,7 @@
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
-        "maintenance": "Maintenance",
-        "candidate_pages": "Pages du Candidate"
+        "maintenance": "Maintenance"
       },
       "setting": "Réglage",
       "value": "Valeur en vigueur",
@@ -2078,7 +2077,8 @@
           "replacedBy": "Remplacée par",
           "by": {
             "coaching_playbooks": "Les Coaching Playbooks, réglés dans Playbooks",
-            "email_intake_mta": "Le MTA de Jobbbox pour la réception par email (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)"
+            "email_intake_mta": "Le MTA de Jobbbox pour la réception par email (EMAIL_INTAKE_INBOUND_SECRET, EMAIL_INTAKE_MTA_IP_RANGES)",
+            "conversation_first": "La conversation au centre, désormais la seule mise en page des pages du Candidate"
           }
         }
       },
@@ -2131,7 +2131,6 @@
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
         "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
-        "CONVERSATION_FIRST": "Conversation au centre (l'accueil du Candidate est une conversation avec le Coach IA)",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
       },

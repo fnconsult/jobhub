@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useId, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { helpLocale, onThisPage } from "@/coach-help";
 import type { ConversationContext } from "@/coach/conversation";
+import type { ReplyInView } from "@/components/CoachConversationPage";
 import { Icons } from "@/components/icons";
 import { CURRENT, type CloseDrawerThen } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
@@ -40,6 +41,8 @@ export type PageConversation = {
   conversationId: string | null;
   replying: boolean;
   context: ConversationContext | null;
+  /** The AI Coach replies given here about the page's object since it loaded: AI Activity counts them at once (#332). */
+  repliesInView: readonly ReplyInView[];
   clear: () => Promise<boolean>;
   startNew: (() => void) | null;
   askAbout: (article: { id: string; title: string }) => void;

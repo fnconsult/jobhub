@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { JobSearchConversation } from "./conversation";
 import { loadJobSearchPage, type Params } from "./job-search-page";
 
@@ -9,6 +8,5 @@ import { loadJobSearchPage, type Params } from "./job-search-page";
  * out.
  */
 export default async function JobSearchLayout({ params, children }: Params & { children: ReactNode }) {
-  if (!pagesAreConversations()) return children;
   return <JobSearchConversation data={await loadJobSearchPage((await params).id)}>{children}</JobSearchConversation>;
 }

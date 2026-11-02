@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { useOpenCoachPanel } from "@/components/CoachPanel";
+import { useFocusCoachBox } from "@/components/CoachConversationPage";
 import { Icons } from "@/components/icons";
 import { buttonClass } from "@/design/button-class";
 import type { FollowUpNotice } from "@/follow-ups";
@@ -19,7 +19,7 @@ const SUGGESTED_TO_HANDLE = 2;
  */
 export function ApplicationsMenuSuggestions({ toHandle }: { toHandle: readonly { applicationId: string; title: string; kind: FollowUpNotice["kind"] }[] }) {
   const { t } = useTranslation();
-  const openCoach = useOpenCoachPanel();
+  const openCoach = useFocusCoachBox();
   const chip = buttonClass({ size: "sm" });
   return (
     <nav className="quick-actions" aria-label={t("quickActions.label")}>

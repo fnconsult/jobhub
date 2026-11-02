@@ -404,23 +404,11 @@ textarea.input {
   width: 100%;
 }
 
-/* The Coach Panel (#134, ADR-0024): docked beside the page from 64rem, the
-   page then scrolling in its own column so its scrollbar never lands on the
-   panel; the whole screen below. Agrandir widens it into a modal drawer over
-   the page. Its button sits in the sidebar layout's top bar; pages outside
-   that layout get a floating one. Either steps aside while the panel is open. */
-.coach-panel-toggle-floating {
-  position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  z-index: 20;
-  box-shadow: var(--shadow-menu);
-}
-
-body:has(.app-shell) .coach-panel-toggle-floating {
-  display: none;
-}
-
+/* The Coach Panel (#134, ADR-0024), the Back Office Assistant's alone since the Candidate's conversation became their
+   page (ADR-0070, #608): docked beside the page from 64rem, the page then scrolling in its own column so its scrollbar
+   never lands on the panel; the whole screen below. Agrandir widens it into a modal drawer over the page. Its button
+   sits in the Top Bar and steps aside while the panel is open. Its thread and box are drawn as the Candidate's
+   conversation's (.page-conversation). */
 .coach-panel {
   position: fixed;
   top: 0;
@@ -451,21 +439,6 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   .coach-panel-wide {
     width: min(64rem, 92vw);
     box-shadow: var(--shadow-overlay);
-  }
-}
-
-/* « Aide et coach », « Aide » below 48rem (#342, ADR-0035): a visible label at every width (ADR-0009). */
-.coach-panel-toggle-short {
-  display: none;
-}
-
-@media (width < 48rem) {
-  .coach-panel-toggle-long {
-    display: none;
-  }
-
-  .coach-panel-toggle-short {
-    display: inline;
   }
 }
 

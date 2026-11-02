@@ -1,6 +1,6 @@
 "use client";
 
-import { useAskCoach } from "@/components/CoachPanel";
+import { useAskCoach } from "@/components/CoachConversationPage";
 import { buttonClass } from "@/design/button-class";
 import "./QuickActions.css";
 

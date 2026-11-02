@@ -12,9 +12,9 @@ vi.mock("next/navigation", () => ({
 
 const FICHE = { card: <p>Ledger · Paris</p>, sections: [{ href: "/candidatures/a1/offre", label: "L'offre" }], results: [] };
 
-function ApplicationPage({ switchedOn = true }: { switchedOn?: boolean }) {
+function ApplicationPage() {
   return (
-    <SidebarLayout profiles={[]} canAddProfile={false} title="Responsable logistique" version="1.2.3" freeConversations={switchedOn ? [] : null} fiche={FICHE}>
+    <SidebarLayout profiles={[]} canAddProfile={false} title="Responsable logistique" version="1.2.3" freeConversations={[]} fiche={FICHE}>
       <p>La conversation</p>
     </SidebarLayout>
   );
@@ -52,10 +52,4 @@ describe("an object's page under « Conversation au centre » (#603, ADR-0070)",
     expect(screen.getByRole("main").contains(fiche)).toBe(false);
   });
 
-  it("has no Fiche while the switch is off", () => {
-    renderInFrench(<ApplicationPage switchedOn={false} />);
-
-    expect(screen.queryByRole("complementary", { name: "Fiche" })).toBeNull();
-    expect(within(topBar()).queryByRole("button", { name: "Fiche" })).toBeNull();
-  });
 });

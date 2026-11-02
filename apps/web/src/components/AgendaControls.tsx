@@ -1,35 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, type MouseEvent, type ReactNode } from "react";
-import type { AgendaView } from "@/agenda/calendar";
-import { routes } from "@/routes";
-
-/** Where this browser keeps the Agenda view last picked (ADR-0028). */
-export const AGENDA_VIEW_STORAGE_KEY = "jobbbox.agendaView";
-
-/**
- * Remembers the Agenda view in this browser. On an address that names a view it
- * keeps that view; on one that names none (`restore`, the Sidebar's link), it
- * brings back the week or month last picked. The list is the default, so it
- * stays when nothing was kept or the browser blocks storage.
- */
-export function AgendaViewMemory({ view, restore }: { view: AgendaView; restore: boolean }) {
-  const router = useRouter();
-  useEffect(() => {
-    try {
-      if (!restore) {
-        window.localStorage.setItem(AGENDA_VIEW_STORAGE_KEY, view);
-        return;
-      }
-      const kept = window.localStorage.getItem(AGENDA_VIEW_STORAGE_KEY);
-      if (kept === "semaine" || kept === "mois") router.replace(routes.agendaCalendar(kept));
-    } catch {
-      // Storage blocked (a private window, cleared site data): the list it is.
-    }
-  }, [view, restore, router]);
-  return null;
-}
+import { type MouseEvent, type ReactNode } from "react";
 
 /**
  * A day of the month grid: a submit button of the grid's GET form (`date` = the

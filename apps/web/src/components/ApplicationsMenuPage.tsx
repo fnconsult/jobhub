@@ -4,7 +4,7 @@ import { applicationsMenu, type ApplicationsMenuRow } from "@/applications/menu"
 import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { ApplicationsMenuSuggestions } from "@/components/ApplicationsMenuSuggestions";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Card } from "@/design/Card";
 import { Pill, type Tone } from "@/design/Pill";
 import { Table, type Column } from "@/design/Table";

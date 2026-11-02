@@ -7,7 +7,7 @@ import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { AddInterviewForm, type InterviewableApplication } from "@/components/AddInterviewDialog";
 import { AgendaList, AgendaMonth, AgendaWeek, Legend, ToSchedule, ViewSwitch, formatsFor, type Formats, type Withdrawable } from "@/components/AgendaViews";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Icons } from "@/components/icons";
 import { InWorkPane } from "@/components/WorkPane";
 import type { AddressedKind } from "@/components/work-pane";

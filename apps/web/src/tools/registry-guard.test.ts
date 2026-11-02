@@ -95,7 +95,7 @@ describe("the guard on the Tools", () => {
     // worded, its Target Companies visited and its monthly web search spend alerted (#402), the EUR/USD rate (#403), maintenance (#542) and « Conversation au centre » (#601).
     const taskRouting = Object.keys(TEXT_TASKS).flatMap((task) => [`AI_${task.toUpperCase()}_PROVIDER`, `AI_${task.toUpperCase()}_MODEL`]);
     const discoveryWide = ["JOB_DISCOVERY_TITLES_PER_LANGUAGE", "JOB_DISCOVERY_QUERY_LANGUAGES", "JOB_DISCOVERY_TARGET_COMPANIES_PER_RUN", "JOB_DISCOVERY_COMPANY_REVISIT_DAYS", "WEB_SEARCH_MONTHLY_ALERT_EUR", "EUR_PER_USD"];
-    const tiedToNoProvider = (name: string) => taskRouting.includes(name) || name.startsWith("JOB_DIGEST_") || name === "EXTENSION_STORE_URL" || name.startsWith("MAINTENANCE_") || name === "CONVERSATION_FIRST" || discoveryWide.includes(name);
+    const tiedToNoProvider = (name: string) => taskRouting.includes(name) || name.startsWith("JOB_DIGEST_") || name === "EXTENSION_STORE_URL" || name.startsWith("MAINTENANCE_") || discoveryWide.includes(name);
     const attached = new Set(tools.flatMap((tool) => (tool.settings ?? []).map(({ name }) => name)));
     expect(PLATFORM_SETTINGS.map(({ name }) => name).filter((name) => !tiedToNoProvider(name) && !attached.has(name))).toEqual([]);
   });

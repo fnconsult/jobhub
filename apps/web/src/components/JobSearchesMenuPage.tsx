@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCoachConversations } from "@/coach-conversations/server";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { EmptyStateHelp } from "@/components/HelpTerm";
 import { RefreshWhileSearching } from "@/components/JobSearchControls";
 import { JobSearchesMenuSuggestions } from "@/components/JobSearchesMenuSuggestions";

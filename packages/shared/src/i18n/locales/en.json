@@ -2721,7 +2721,8 @@
         "secret_disclosure": "Secret disclosure",
         "harmful_advice": "Out-of-scope or harmful advice",
         "distress": "Distress",
-        "email_injection": "Booby-trapped email content"
+        "email_injection": "Booby-trapped email content",
+        "ungrounded_answer": "Answer not grounded in the profile"
       },
       "descriptions": {
         "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
@@ -2729,7 +2730,8 @@
         "secret_disclosure": "A reply that reveals the AI's instructions, the coaching playbooks' rules or a key (Provider Secrets).",
         "harmful_advice": "A reply that gives legal, medical or financial advice, or discriminatory advice, age included.",
         "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted.",
-        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside."
+        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside.",
+        "ungrounded_answer": "An AI Coach reply that ranks job offers or says whether an offer, an application or a piece of advice suits the candidate without citing their skills, experience or criteria, or that claims not to have the reasons for a score or their CV. Blocked, it is written again once; if it still is, the message below is shown."
       },
       "languages": {
         "fr": "French",

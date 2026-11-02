@@ -53,6 +53,25 @@ test.describe("browser extension", () => {
     expect(fr.extDescription.message).toMatch(/offre d'emploi/);
   });
 
+  // `npm run build` makes the public listing's build (#563): tied to Production, with the Extension Version and its icon.
+  test("is the public listing's build: tied to jobbbox.ai, at the Extension Version, with its icon", () => {
+    const manifest = JSON.parse(readFileSync(path.join(extensionDir, "manifest.json"), "utf8"));
+    const extensionVersion = JSON.parse(readFileSync("apps/extension/package.json", "utf8")).version;
+    expect(manifest.version).toBe(extensionVersion);
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(manifest.host_permissions[0]).toBe("https://jobbbox.ai/*");
+    expect(manifest.icons["128"]).toBe("icon/128.png");
+    expect(existsSync(path.join(extensionDir, "icon/128.png"))).toBe(true);
+  });
+
+  test("loads in Chrome under its name and Extension Version", async () => {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
+    const manifest = await page.evaluate(() => (globalThis as unknown as { chrome: { runtime: { getManifest(): { name: string; version: string } } } }).chrome.runtime.getManifest());
+    expect(manifest.version).toBe(JSON.parse(readFileSync("apps/extension/package.json", "utf8")).version);
+    expect(await page.evaluate(() => (globalThis as unknown as { chrome: { i18n: { getMessage(name: string): string } } }).chrome.i18n.getMessage("extName"))).toBe("Jobbbox");
+  });
+
   test("declares the Side Panel and no popup (ADR-0054)", () => {
     const manifest = JSON.parse(readFileSync(path.join(extensionDir, "manifest.json"), "utf8"));
     expect(manifest.side_panel).toEqual({ default_path: "sidepanel.html" });

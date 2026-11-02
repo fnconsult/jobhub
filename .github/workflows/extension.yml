@@ -1,0 +1,106 @@
+name: extension
+
+# The Extension Version's two builds (#563, ADR-0063; runbook: docs/ops/extension.md). Manual: the product owner runs it
+# on main once apps/extension/package.json carries the new Extension Version X.Y.Z. It builds the public zip, tied to
+# Production (jobbbox.ai), and the beta zip, « Jobbbox (bêta) », tied to the Beta (staging.jobbbox.ai), checks each
+# manifest, and attaches both to the GitHub Release extension-vX.Y.Z, which it creates with its tag. Uploading them to
+# the two Chrome Web Store listings stays manual (store dashboard) while no store API key is provided.
+# On a pull request that changes the extension, it builds and checks both zips, and creates nothing.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - apps/extension/**
+      - .github/workflows/extension.yml
+
+concurrency:
+  group: extension-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  zips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The Extension Version: X.Y.Z, digits only, as the stores require; a Release is made once per Extension Version.
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          version=$(node -p 'require("./apps/extension/package.json").version')
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::apps/extension/package.json is at $version, not an Extension Version X.Y.Z (digits only)"; exit 1
+          fi
+          if [ "$EVENT" = workflow_dispatch ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::An Extension Version is released from main, not $GITHUB_REF"; exit 1
+          fi
+          if [ "$EVENT" = workflow_dispatch ] && gh release view "extension-v$version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::extension-v$version already exists: raise the Extension Version in apps/extension/package.json"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: npx vitest run apps/extension
+      - run: npm run zip -w @jobhub/extension
+      - run: npm run zip:beta -w @jobhub/extension
+      # Each zip carries the Extension Version and calls only its own web app.
+      - env:
+          VERSION: ${{ steps.version.outputs.version }}
+        working-directory: apps/extension/.output
+        run: |
+          check() {
+            manifest=$(unzip -p "$1" manifest.json)
+            test "$(jq -r .version <<< "$manifest")" = "$VERSION" || { echo "::error::$1 is not at $VERSION"; exit 1; }
+            test "$(jq -r '.host_permissions[0]' <<< "$manifest")" = "$2/*" || { echo "::error::$1 does not call $2"; exit 1; }
+            test "$(jq -r .name <<< "$manifest")" = "$3" || { echo "::error::$1 is not named $3"; exit 1; }
+            echo "$1: $VERSION, $2, $3"
+          }
+          check "jobbbox-extension-$VERSION-chrome.zip" https://jobbbox.ai __MSG_extName__
+          check "jobbbox-extension-$VERSION-chrome-beta.zip" https://staging.jobbbox.ai __MSG_extNameBeta__
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-${{ steps.version.outputs.version }}
+          path: |
+            apps/extension/.output/jobbbox-extension-${{ steps.version.outputs.version }}-chrome.zip
+            apps/extension/.output/jobbbox-extension-${{ steps.version.outputs.version }}-chrome-beta.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: zips
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: extension-${{ needs.zips.outputs.version }}
+      # Not the repo's latest Release: that stays the latest Version of the web app (ADR-0063).
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.zips.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          Extension Version $VERSION de l'extension Jobbbox / Jobbbox extension, Extension Version $VERSION.
+
+          - \`jobbbox-extension-$VERSION-chrome.zip\` : fiche publique, branchée sur la Production (jobbbox.ai) / public listing, tied to Production.
+          - \`jobbbox-extension-$VERSION-chrome-beta.zip\` : fiche beta non répertoriée, « Jobbbox (bêta) », branchée sur la Beta (staging.jobbbox.ai) / unlisted beta listing, tied to the Beta.
+
+          Publication sur le Chrome Web Store : docs/ops/extension.md.
+          EOF
+          gh release create "extension-v$VERSION" \
+            "jobbbox-extension-$VERSION-chrome.zip" "jobbbox-extension-$VERSION-chrome-beta.zip" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Extension $VERSION" --notes-file notes.md --latest=false

@@ -845,6 +845,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Cette page s'affiche quand vous réservez une séance avec un coach humain, avant le paiement. Le récapitulatif rappelle le coach et le prix TTC de la séance, un paiement unique, sans reconduction.\n\nQuand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du …) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.\n\nLa deuxième case est facultative : « Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni et que je perds mon droit de rétractation une fois la séance réalisée. » Sans elle, vous payez et réservez votre séance de la même façon, et une rétractation dans les 14 jours vous est remboursée en entier, même si la séance a eu lieu. Avec elle, vous pouvez vous rétracter tant que la séance n'a pas eu lieu, remboursé en entier ; plus après.\n\n« Passer au paiement » ouvre la page sécurisée de Stripe, notre prestataire de paiement. Une fois le paiement confirmé, vous recevez par e-mail la confirmation de votre commande : conservez-la."
     },
     {
+      "id": "page-coach-space",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Votre espace coach",
+      "synonyms": [
+        "espace coach",
+        "mon espace coach",
+        "coach humain",
+        "human coach",
+        "mes séances",
+        "mes candidats",
+        "séances de coaching",
+        "accès coach",
+        "tableau de bord coach",
+        "coach"
+      ],
+      "route": "/espace-coach",
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Mon espace coach » est votre page de coach humain sur Jobbbox. Connectez-vous à Jobbbox avec l'adresse e-mail que l'équipe Jobbbox a enregistrée pour vous, en recevant un lien de connexion : « Mon espace coach » apparaît alors dans le menu. Le nom Jobbbox, en haut de chaque page de votre espace coach, vous y ramène, et « Mon compte » ouvre votre compte.\n\nLa page a deux parties.\n\n« Mes séances de coaching » liste les séances que des candidats ont payées avec vous, même sans vous avoir donné l'accès coach. Chaque séance indique le prénom et l'initiale du nom du candidat, par exemple Claire D., et la date de paiement : « Payée le … ». Tant que la date n'est pas saisie, la séance est « À planifier ». Une fois datée, elle affiche « Le … (heure de Paris) », sa durée et « Lien de la visio avec … ». Le tutoriel « Saisir la date et le lien d'une séance » explique comment les renseigner.\n\n« Candidats avec accès coach » liste les candidats qui vous ont donné l'accès coach. Cliquez sur l'un d'eux pour ouvrir son dossier : ses candidatures, avec leur statut, et ses profils. Tout y est en lecture seule, comme le rappelle la page : « Lecture seule : seul le candidat peut modifier ses profils et candidatures. » Ouvrez une candidature pour lire son CV adapté, sa lettre de motivation et son message d'approche, et pour donner votre avis : le tutoriel « Rédiger un avis sur un document de candidature » explique comment.\n\nVous ne voyez ni l'agenda du candidat, ni ses conversations avec son coach IA, ni la note qu'il a pu ajouter à une séance. Le lien « Centre d'aide », en bas de chaque page de votre espace coach, mène à cette rubrique de l'aide."
+    },
+    {
       "id": "glossary-coach-access",
       "locale": "fr",
       "kind": "glossary",
@@ -865,6 +889,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "L'accès d'un coach humain est votre accord pour qu'un coach humain lise vos profils et vos candidatures. Avec lui, le coach peut aussi commenter vos documents de candidature : ses avis arrivent dans la rubrique « Avis des coachs » de la candidature. Il ne peut rien modifier.\n\nVous le donnez coach par coach, dans « Mes coachs humains » : « Donner l'accès à … », puis « Retirer l'accès à … » quand vous voulez. Le retrait est immédiat ; les avis déjà reçus vous restent.\n\nUn coach humain ne voit jamais vos conversations avec votre coach IA, ni la mémoire du coach. Sans cet accès, il voit seulement vos séances avec lui, pas vos profils ni vos candidatures."
     },
     {
@@ -891,6 +916,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\nPendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Une action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne."
     },
     {
@@ -933,6 +959,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Votre coach IA est un programme d'intelligence artificielle de Jobbbox, pas une personne. Il vous accompagne dans votre recherche d'emploi : votre CV de référence, vos critères, vos candidatures, vos relances et vos entretiens. Il le dit toujours : chaque conversation commence par « Je suis un coach IA, pas une personne », et le badge « Coach IA » est à côté de la zone de message.\n\nIl répond à partir de ce que vous lui confiez et de ce que montre la page ouverte. Sous chacune de ses réponses, une ligne dit comment elle a été produite. Il ne modifie rien sans votre accord : ses propositions s'acceptent ou s'ignorent une par une.\n\nVos conversations sont gardées 12 mois après leur dernier message, puis supprimées. Pour parler à une personne, réservez une séance avec un coach humain dans « Mes coachs humains »."
     },
     {
@@ -1029,6 +1056,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une entreprise cible est une entreprise que la recherche d'offres vise pour un profil, même sans offre publiée : une que La Bonne Boite donne comme susceptible de recruter pour votre métier et votre zone, ou une que vous ajoutez. Elles sont dans la rubrique « Entreprises cibles » du profil, avec, pour celles de La Bonne Boite, leur potentiel d'embauche.\n\nPour en ajouter une, saisissez son nom ou son SIREN dans « Nom de l'entreprise », puis cliquez sur « Ajouter » : elle est cherchée dans le registre des entreprises et passe avant celles de La Bonne Boite. Un entrepreneur individuel, une personne, n'est jamais recherché.\n\nPour chacune, ouvrez son « Dossier entreprise », cherchez des « Contacts enrichis » ou cliquez sur « Préparer une candidature spontanée ». Chacun de ces boutons crée d'abord une candidature spontanée, ajoutée à vos candidatures « À postuler », où se préparent le dossier, les contacts et la lettre. « Écarter », confirmé par « Oui, l'écarter », la retire pour de bon de ce profil."
     },
     {
@@ -1073,6 +1101,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "L'IA européenne est un accord que vous donnez, ou non, dans Mon compte, rubrique « IA européenne ». Avec votre accord, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'enregistre, avec sa date ; « Retirer mon accord » le retire, à tout moment.\n\nCe qui change d'un choix à l'autre :\n\n- Avec l'accord : les demandes qui contiennent vos données d'identité sont traitées par Mistral AI, dans l'Union européenne.\n- Sans l'accord : elles sont traitées par notre fournisseur habituel, qui peut être hors de l'Union européenne.\n\nDans les deux cas, avant l'envoi, Jobbbox retire votre identité de chaque demande. Aucun des deux choix n'est recommandé : choisissez celui qui vous convient. La lecture de vos e-mails d'offres reste dans l'Union européenne dans les deux cas. Le détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -1134,6 +1163,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une offre privée est une offre que vous seul voyez. C'est celle que Jobbbox tire du message d'un recruteur que vous lui transférez : ce message vous était adressé, et le poste n'est parfois jamais publié.\n\nElle se suit comme toute offre : score de correspondance, CV adapté, lettre de motivation, candidature. Mais elle n'est jamais montrée à un autre candidat, ni mêlée à la même offre trouvée ailleurs : si le poste est publié plus tard, il devient une autre offre, et l'offre privée reste telle quelle.\n\nElle est supprimée avec votre compte, et fait partie de vos données téléchargées. Une offre tirée d'une alerte d'un site d'emploi, elle, décrit une annonce publique : elle n'est pas privée."
     },
     {
@@ -1305,6 +1335,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Avant l'envoi, Jobbbox retire votre identité de chaque demande à l'IA et de chaque recherche web : chaque adresse e-mail et chaque numéro de téléphone, et ce que Jobbbox sait de vous, votre nom et votre e-mail de compte, et le nom complet, le nom de famille, l'adresse, le téléphone et l'e-mail de votre CV de référence. Chacun est remplacé par un repère, comme `[NOM]` ou `[E-MAIL]`. C'est une pseudonymisation.\n\nSes limites sont dites en clair : votre prénom reste ; un nom que Jobbbox ne connaît pas, celui d'un ancien responsable par exemple, passe tel quel ; et le reste de votre CV, vos employeurs, vos postes, vos dates, part avec la demande. Ce sont donc encore des données personnelles.\n\nQuand la réponse revient, Jobbbox remet vos informations à leur place : une lettre de motivation est bien signée de votre nom. Ce retrait vaut pour chaque demande, avec ou sans l'accord « IA européenne » ; avec l'accord, les demandes qui contiennent vos données d'identité sont en plus traitées dans l'Union européenne."
     },
     {
@@ -1405,6 +1436,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Chaque profil a ses critères de recherche : « Poste recherché », « Lieux », « Salaire annuel brut minimum (en euros) », « Type de contrat », « Télétravail », « Secteurs », « Sous-secteurs » et « Domaines ». Jobbbox s'en sert pour le Match Score, le mot-clé cible de l'ATS Score et la recherche d'offres.\n\nIls sont dans la fiche du profil : cliquez sur « Modifier les critères », puis changez une valeur. Elle est enregistrée aussitôt, et « Critères enregistrés » le confirme. Vous pouvez indiquer jusqu'à 5 lieux : une offre proche de l'un d'eux vous correspond. Pour le contrat, le télétravail et les secteurs, cochez tout ce qui vous convient ; rien de coché veut dire pas de préférence.\n\nModifier les critères ne renomme pas le profil. Les scores d'une recherche d'offres sont recalculés avec les critères actuels du profil. Un profil archivé doit être restauré avant de changer ses critères.\n\nPour vous aider à les choisir, cliquez sur la suggestion « Affiner mes critères » dans la conversation du profil."
     },
     {
@@ -1557,6 +1589,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Dans la rubrique « Contacts » d'une candidature, Jobbbox trouve les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtient leurs coordonnées auprès d'un fournisseur de données sous licence. Constituez d'abord le dossier entreprise : il indique les fonctions à rechercher.\n\n1. Cliquez sur « Rechercher des contacts » : les « Personnes trouvées » s'affichent.\n2. Pour la personne de votre choix, cliquez sur « Obtenir les coordonnées ». Chaque demande compte pour un contact enrichi dans votre quota de la semaine ; rien n'est décompté si le fournisseur n'en a pas.\n3. Ses coordonnées rejoignent « Vos contacts enrichis », avec leur source et leur date.\n\nCes données personnelles viennent d'un fournisseur sous licence : utilisez-les uniquement pour cette candidature. Vous pouvez adresser votre message d'approche à l'un de ces contacts, depuis la rubrique « Documents »."
     },
     {
@@ -1584,6 +1617,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Dans la rubrique « Documents » d'une candidature, votre coach rédige la lettre de motivation et le message d'approche à partir de votre CV de référence et de l'offre.\n\n- « Rédiger la lettre » prépare une lettre de motivation, signée avec les coordonnées de votre CV de référence.\n- « Rédiger le message » prépare un message court pour un contact chez l'employeur. Choisissez s'il est « Envoyé par » « E-mail » ou « InMail LinkedIn », et son « Destinataire » : l'un de vos contacts enrichis, ou « Personne en particulier (les fonctions à contacter) ».\n\nModifiez le texte, puis cliquez sur « Enregistrer mes modifications ». « Rédiger à nouveau » remplace le texte actuel, vos modifications comprises. La « Langue des documents » est par défaut celle de l'offre ; elle vaut pour la prochaine rédaction.\n\nJobbbox n'envoie rien à votre place : cliquez sur « Copier le texte », ou sur « Ouvrir dans ma messagerie » pour un e-mail, puis envoyez-le vous-même. La lettre se télécharge aussi en PDF ou en Word."
     },
     {
@@ -1810,6 +1844,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Jobbbox vous écrit quand il publie une version substantielle des Conditions générales d'utilisation, des Conditions générales de vente ou de la Politique de confidentialité : au moins 30 jours avant son entrée en vigueur. L'e-mail nomme le texte, sa date d'entrée en vigueur et ce qui change, avec « Lire la nouvelle version » et l'« Historique des versions ». Une version mineure, une coquille corrigée par exemple, ne donne lieu à aucun e-mail.\n\nC'est un e-mail de service : vous le recevez même si vous ne recevez pas nos actualités. Il ne contient ni image ni lien de suivi, et vous ne le recevez qu'une fois par version.\n\nPour les Conditions générales d'utilisation, Jobbbox vous demandera d'accepter la nouvelle version à votre première connexion à partir de sa date d'entrée en vigueur. Pour les Conditions générales de vente, elle s'appliquera à vos prochains achats. La Politique de confidentialité ne s'accepte pas : après sa date d'entrée en vigueur, un avis « Notre politique de confidentialité a changé le … » s'affiche une fois dans votre espace, et « J'ai compris » le ferme."
     },
     {
+      "id": "faq-coach-access",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Qu'est-ce que l'accès coach, et que se passe-t-il quand un candidat le retire ?",
+      "synonyms": [
+        "accès coach",
+        "coach access",
+        "accès",
+        "consentement",
+        "accord du candidat",
+        "retirer l'accès",
+        "accès retiré",
+        "candidat disparu",
+        "je ne vois plus le candidat",
+        "lecture seule",
+        "dossier du candidat",
+        "page introuvable"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "L'accès coach est l'accord explicite d'un candidat : il vous permet de lire ses profils et ses candidatures, et de commenter ses documents de candidature. C'est le candidat qui le donne, depuis sa page « Mes coachs humains », avec le bouton « Donner l'accès à … » ; vous ne pouvez pas le demander depuis votre espace coach. Avec l'accès coach, vous lisez sans rien pouvoir modifier.\n\nLes candidats qui vous ont donné l'accès apparaissent dans « Candidats avec accès coach ». Si personne ne l'a encore fait, la page l'indique : « Aucun candidat ne vous a encore donné l'accès. »\n\nLe candidat peut retirer l'accès à tout moment, avec « Retirer l'accès à … ». Le retrait prend effet tout de suite : le candidat disparaît de « Candidats avec accès coach », et son dossier comme ses candidatures affichent « Page introuvable ». Si vous rédigiez un avis à ce moment-là, il n'est pas envoyé et vous revenez à « Mon espace coach ».\n\nLe retrait de l'accès ne supprime rien de ce que vous avez déjà fait. Le candidat garde les avis que vous lui avez envoyés. Les séances qu'il a payées avec vous restent dans « Mes séances de coaching », et vous pouvez toujours en saisir la date et le lien : elles ne dépendent pas de l'accès coach."
+    },
+    {
       "id": "faq-quota-renewal",
       "locale": "fr",
       "kind": "faq",
@@ -1852,6 +1912,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Le dossier entreprise rassemble les informations publiques sur l'employeur d'une candidature : son identité, son adresse, ses chiffres clés, les fonctions de ses dirigeants, les fonctions à contacter et ses actualités. Ouvrez la rubrique « Dossier entreprise » de la candidature, puis cliquez sur « Constituer le dossier entreprise ».\n\nLe dossier dit d'où viennent ses informations. « Source officielle. » : le registre des entreprises françaises. « Sources web, fiabilité moindre. » : des sites web, à vérifier, par exemple pour un employeur étranger. Pour une entreprise française, les dirigeants sont donnés par leur fonction, jamais par leur nom.\n\nSi l'offre est publiée par un cabinet de recrutement, Jobbbox propose l'employeur réel qu'il devine : confirmez-le, ou indiquez le bon, avec « Confirmer l'employeur ». S'il n'en devine aucun, indiquez l'employeur, puis cliquez sur « Constituer le dossier pour cet employeur ». Aucune recherche n'est faite avant votre confirmation, ni sur un entrepreneur individuel. « Ce n'est pas le bon employeur ? » permet de donner son nom ou son SIREN.\n\n« Mettre à jour le dossier » le refait, avec les actualités récentes. Le dossier d'une entreprise cible s'ouvre aussi depuis la rubrique « Entreprises cibles » du profil."
     },
     {
@@ -1875,6 +1936,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox vérifie que les offres sont toujours publiées. Quand une offre ne l'est plus sur son site d'origine, sa page l'indique : « Offre expirée : elle n'est plus publiée sur son site d'origine depuis le … ».\n\nVotre candidature, elle, ne change pas : « Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite. » Ses documents, son dossier entreprise et ses contacts restent aussi. Une offre retirée n'est pas toujours un poste pourvu : une relance reste possible.\n\nSi vous voyez qu'une offre n'est plus publiée avant Jobbbox, cliquez sur « Signaler que cette offre n'est plus publiée », dans la fiche de la candidature. C'est pour vous seulement : l'offre ne change pas pour les autres. « Annuler le signalement » le retire.\n\nPour clore une candidature, mettez son statut à « Abandonnée » ou « Refusée »."
     },
     {
@@ -1950,6 +2012,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Le Match Score compare une offre à votre CV et à vos critères de recherche, sur cinq critères : « Compétences », « Expérience », « Lieu », « Salaire » et « Type de contrat ». Il est noté sur 100.\n\n« Pourquoi … ? », à côté du score d'une offre dans Jobbbox, ouvre le détail : une ligne par critère, avec ce qui correspond et ce qui ne correspond pas. Dans le panneau de l'extension, ce détail s'affiche sous le score, dans « Détail du Match Score ». Un critère dont l'offre ne dit rien ne compte pas : le score est alors partiel, ou « non calculable » si aucun critère n'a pu être comparé.\n\n« Recalculer le Match Score », dans le panneau de l'extension, calcule de nouveau le score de l'offre. Connecté, un nouveau calcul utilise un Match Score de votre forfait de la semaine : l'extension vous le demande d'abord, et vous validez avec « Confirmer le recalcul ». Le résultat ne change que si l'offre ou votre profil a changé ; le panneau vous dit s'il est inchangé, ou quel était le score d'avant.\n\nRecalculez par exemple après avoir mis à jour votre CV de référence, ou quand le panneau vous l'indique parce que le texte de l'offre n'a pas pu être lu."
     },
     {
+      "id": "faq-retired-human-coach",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Que se passe-t-il quand je ne suis plus coach sur Jobbbox ?",
+      "synonyms": [
+        "coach retiré",
+        "retired human coach",
+        "retrait du coach",
+        "plus coach",
+        "arrêter",
+        "fin de collaboration",
+        "quitter jobbbox",
+        "espace coach inaccessible",
+        "page introuvable",
+        "je n'ai plus accès",
+        "mes séances passées",
+        "mes avis"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Quand votre collaboration avec Jobbbox s'arrête, l'équipe Jobbbox vous retire de la liste des coachs. Vous devenez alors un coach retiré.\n\nLes candidats ne vous voient plus dans « Choisir un coach » : ils ne peuvent plus réserver de séance avec vous, ni vous donner l'accès coach. Vous ne pouvez plus rien lire : l'adresse de votre espace coach affiche « Page introuvable », et « Mon espace coach » disparaît de votre menu. L'accès coach que des candidats vous avaient donné ne vous permet plus d'ouvrir leurs profils ni leurs candidatures.\n\nRien de ce qui a eu lieu n'est effacé. Vos séances passées restent dans l'agenda des candidats, et les avis que vous leur avez envoyés restent sur leurs candidatures, sous « Avis des coachs ».\n\nVous pensez que c'est une erreur ? Écrivez à l'équipe Jobbbox : « Comment nous contacter ? » explique comment."
+    },
+    {
       "id": "faq-plans-and-quotas",
       "locale": "fr",
       "kind": "faq",
@@ -2007,6 +2095,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox ne lit jamais votre messagerie : il n'y a pas accès. Il ne lit que les e-mails qui arrivent à votre adresse de transfert, et seulement s'ils viennent d'un expéditeur d'alertes qu'il reconnaît (« Reconnus par Jobbbox », ou « Ajoutés par vous ») ou de l'une de vos propres adresses, celles de « Vos adresses d'envoi ». Les autres sont ignorés sans être lus.\n\nSeul le texte de l'e-mail est lu, jamais ses pièces jointes ni ses images. Il n'est pas gardé une fois lu : au plus 72 heures, chiffré, s'il faut le relire. Seules les offres trouvées sont gardées. D'un e-mail ignoré, Jobbbox ne garde que la raison, le domaine de l'expéditeur et la date, jamais le contenu.\n\nChaque e-mail est lu par un modèle d'IA hébergé dans l'Union européenne, quel que soit votre choix dans la rubrique « IA européenne » de Mon compte.\n\nUn e-mail transféré nomme parfois d'autres personnes : un recruteur, un contact, un signataire. Jobbbox n'en garde ni le nom, ni l'adresse e-mail, ni le numéro de téléphone : il ne garde que l'offre et les liens trouvés dans l'e-mail. L'offre tirée du message d'un recruteur est une offre privée, que vous seul voyez.\n\nPour arrêter, cliquez sur « Désactiver » dans la rubrique « Réception par email » : ce qui arrive ensuite à votre adresse de transfert est écarté sans être lu. Le détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -2036,6 +2125,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox lit un CV au format PDF ou Word (.docx), de 10 Mo au plus. Vous l'importez en créant un profil : « J'ai un CV », puis « Lire mon CV ». Vous vérifiez et corrigez ce qui a été lu avant de l'enregistrer.\n\nUn ancien fichier Word (.doc) n'est pas lu : enregistrez-le d'abord au format .docx ou PDF. Un CV scanné, qui n'est qu'une image, ne contient aucun texte à lire : importez plutôt la version PDF ou Word d'origine. Un fichier protégé par un mot de passe ne peut pas être ouvert.\n\nPas de CV à jour ? Choisissez « Je n'ai pas de CV à jour », puis « Répondre aux questions de mon coach » : votre coach vous pose des questions sur votre parcours, une à la fois, et construit votre CV de référence avec vous.\n\nVos CV se téléchargent ensuite en PDF ou en Word (.docx), dans le modèle de votre choix."
     },
     {
@@ -2063,6 +2153,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Trois modèles de CV sont proposés : « Classique » (police à empattements, en-tête centré, titres soulignés), « Moderne » (police sans empattements, en-tête aligné à gauche, titres en bleu foncé) et « Compact », plus dense, pour tenir sur moins de pages. Tous sont conçus pour être bien lus par les logiciels de recrutement : une seule colonne, sans image ni tableau.\n\nVous choisissez le modèle au moment de télécharger :\n\n- votre CV de référence : rubrique « Télécharger » du profil, choisissez le « Modèle de CV », puis « Télécharger en PDF » ou « Télécharger en Word (.docx) » ;\n- un CV adapté ou une lettre de motivation : rubrique « Documents » de la candidature, sous « Télécharger ce CV adapté » ou « Télécharger cette lettre de motivation ».\n\nLe modèle ne change que la mise en page : le contenu reste le même."
     },
     {
@@ -2208,6 +2299,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Notez votre entretien dans Jobbbox, puis ajoutez-le au calendrier de votre téléphone ou de votre messagerie.\n\n1. Ouvrez « Agenda » dans le menu, puis cliquez sur « Ajouter un entretien ».\n2. Dans « Candidature », choisissez la candidature de l'entretien. Si elle n'est pas encore à l'étape « Entretien », laissez cochée « Passer la candidature à Entretien ».\n3. Saisissez la « Date et heure de l'entretien (heure de Paris) » et, si vous voulez, la durée, le format, le « Lieu ou lien (facultatif) » et une note.\n4. Cliquez sur « Ajouter l’entretien ». « Entretien ajouté. » le confirme, et il apparaît dans votre agenda.\n5. Sur l'entretien, dans votre agenda, cliquez sur « Ajouter à mon calendrier » : un fichier .ics est téléchargé.\n6. Ouvrez ce fichier : votre calendrier (Google Agenda, Outlook, Calendrier d'Apple…) propose d'y ajouter l'entretien.\n\nVous pouvez aussi noter un entretien depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien », avec « Ajouter l'entretien ». Si la date change, modifiez l'entretien dans Jobbbox, puis téléchargez à nouveau le fichier : celui déjà ajouté à votre calendrier ne se met pas à jour."
     },
     {
@@ -2359,6 +2451,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Chaque enregistrement de votre CV de référence crée une nouvelle version. Les précédentes restent consultables et peuvent être restaurées.\n\n1. Ouvrez le profil, puis sa rubrique « CV de référence ».\n2. Modifiez sur place le « Titre du CV », le « Profil (résumé) » ou les « Compétences, une par ligne », puis cliquez sur « Enregistrer la version … ». « Annuler » abandonne vos modifications.\n3. Pour vos coordonnées, vos postes, vos formations et vos langues, cliquez sur « Modifier mon CV de référence » : l'éditeur complet s'ouvre. Ajoutez, modifiez, déplacez ou retirez les éléments, puis cliquez sur « Enregistrer une nouvelle version ».\n4. Pour revenir en arrière, cliquez sur « Historique des versions », dans la rubrique « CV de référence ». La version actuelle est marquée « Version actuelle ».\n5. Cliquez sur « Voir la version … » pour la relire, puis sur « Restaurer la version … ».\n6. La version restaurée devient la version actuelle, marquée « Restaurée depuis la version … ». L'historique est conservé : rien n'est perdu.\n\nUn CV adapté déjà enregistré sur une candidature ne change pas quand vous modifiez votre CV de référence ; une proposition en cours, elle, est à redemander."
     },
     {
@@ -2384,7 +2477,36 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Votre coach adapte votre CV de référence à une offre, sans jamais rien inventer. Vous vérifiez chaque changement avant de l'enregistrer, puis vous postulez vous-même.\n\n1. Ouvrez la candidature, puis sa rubrique « Documents ».\n2. Cliquez sur « Proposer un CV adapté ». Quand « Proposition prête : vérifiez les changements avant d'enregistrer. » s'affiche, le score de correspondance avant et après est indiqué.\n3. Si l'offre demande ce que votre CV ne montre pas, répondez aux « Questions du coach » : « Oui, je l'ai » ou « Non ». Un point n'est ajouté que si vous confirmez l'avoir.\n4. Sous « Changements par rapport au CV de référence », cliquez sur « Accepter » ou « Refuser » pour chaque changement. Un changement refusé garde ce que dit votre CV de référence.\n5. Cliquez sur « Enregistrer le CV adapté ». Il remplace le CV adapté déjà enregistré pour cette candidature, s'il y en a un.\n6. Sous « Télécharger ce CV adapté », choisissez un modèle de CV, puis « Télécharger en PDF » ou « Télécharger en Word (.docx) ».\n7. Envoyez votre candidature vous-même, sur le site de l'offre ou par e-mail : Jobbbox n'envoie rien à votre place.\n8. Dans la fiche de la candidature, mettez le « Statut » à « Postulée ». Si elle reste sans réponse, votre coach vous proposera une relance.\n\nLa lettre de motivation se prépare dans la même rubrique, avec « Rédiger la lettre »."
+    },
+    {
+      "id": "tutorial-coach-review",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Rédiger un avis sur un document de candidature",
+      "synonyms": [
+        "avis",
+        "coach review",
+        "donner mon avis",
+        "commenter",
+        "commentaire",
+        "relire",
+        "relecture",
+        "retour",
+        "feedback",
+        "cv adapté",
+        "lettre de motivation",
+        "message d'approche",
+        "document de candidature",
+        "envoyer l'avis"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Avec l'accès coach, vous pouvez donner votre avis sur un document de candidature : le CV adapté, la lettre de motivation ou le message d'approche. Vous ne modifiez pas le document : le candidat lit votre avis et décide de ce qu'il change. Dans cet exemple, Claire D. vous a donné l'accès et prépare sa candidature au poste de responsable des achats chez Exemple Industrie, une entreprise fictive.\n\n1. Ouvrez « Mon espace coach ». Dans « Candidats avec accès coach », cliquez sur Claire D.\n2. Dans « Candidatures », cliquez sur la candidature Responsable des achats · Exemple Industrie.\n3. Lisez les « Documents de candidature ». Un document que le candidat n'a pas encore rédigé affiche « Pas encore rédigé. » ; vous ne pouvez commenter qu'un document déjà rédigé.\n4. Dans « Votre avis », choisissez le « Document commenté », par exemple « Lettre de motivation ».\n5. Écrivez votre avis dans « Votre avis pour le candidat », par exemple : le deuxième paragraphe gagnerait à citer un résultat chiffré.\n6. Cliquez sur « Envoyer l'avis ». La page confirme : « Avis envoyé au candidat. »\n\nLe candidat retrouve votre avis sur sa candidature, sous « Avis des coachs », avec votre nom et la date. Il le garde même s'il vous retire ensuite l'accès coach. Sur la page de la candidature, « Avis de vos coachs » liste les avis déjà envoyés sur cette candidature. Si le candidat n'a encore rédigé aucun document, la page l'indique : « Le candidat n'a encore aucun document de candidature à commenter. »"
     },
     {
       "id": "tutorial-admin-plan-stripe",
@@ -2434,7 +2556,38 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "En plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. Vous payez d'abord, puis vous choisissez votre créneau.\n\n1. Dans le menu, ouvrez « Mes coachs humains ».\n2. Sous « Choisir un coach », cliquez sur « Réserver une séance avec … » pour le coach de votre choix.\n3. Sur la page « Votre commande », vérifiez le récapitulatif, puis cochez « J'accepte les CGV (version du …) ». La case qui demande que le service commence immédiatement est facultative.\n4. Cliquez sur « Passer au paiement », puis payez sur la page sécurisée de Stripe, notre prestataire de paiement. La confirmation de votre commande vous est envoyée par e-mail.\n5. De retour dans Jobbbox, « Paiement reçu. Choisissez maintenant le créneau de votre séance. » s'affiche. Cliquez sur « Choisir mon créneau avec … sur Cal.com » et réservez votre créneau.\n6. Revenez dans Jobbbox et cliquez sur « J'ai réservé : saisir la date ». Saisissez la « Date et heure de la séance (heure de Paris) » et, si vous l'avez, le « Lien de la visio (facultatif) », puis cliquez sur « Enregistrer ».\n7. La séance rejoint votre agenda. Si vous avez saisi le lien de la visio, le jour venu, cliquez sur « Rejoindre la visio avec … », dans « Mes coachs humains », sous « Mes séances payées ».\n\nTant qu'une séance n'a pas de date, elle attend dans « À planifier », dans votre agenda. Pendant les 14 jours qui suivent le paiement, et tant que la séance n'a pas eu lieu, vous pouvez vous rétracter depuis la séance, dans votre agenda."
+    },
+    {
+      "id": "tutorial-coach-session-date",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Saisir la date et le lien d'une séance",
+      "synonyms": [
+        "saisir la date",
+        "date de la séance",
+        "modifier la date",
+        "lien de la visio",
+        "visio",
+        "lien visio",
+        "cal.com",
+        "réservation",
+        "créneau",
+        "planifier",
+        "à planifier",
+        "durée",
+        "heure de paris",
+        "séance de coaching",
+        "coaching session",
+        "reporter une séance"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Le candidat paie sa séance sur Jobbbox, puis réserve son créneau sur votre page Cal.com. Cal.com ne transmet pas ce créneau à Jobbbox : vous le saisissez, ou le candidat le fait, pour qu'il apparaisse dans l'agenda du candidat. Dans cet exemple, une séance payée par Claire D. est « À planifier ».\n\n1. Ouvrez « Mon espace coach ». Dans « Mes séances de coaching », repérez la séance de Claire D.\n2. Cliquez sur « Saisir la date ». Si la séance est déjà datée, le bouton s'appelle « Modifier la date ». Le panneau « Séance avec … » s'ouvre, au nom de Claire D.\n3. Dans « Date et heure de la séance (heure de Paris) », saisissez le créneau réservé sur Cal.com, par exemple le 12 novembre à 14 h 30. Saisissez-le à l'heure de Paris, même si vous ou le candidat êtes dans un autre fuseau.\n4. Si vous le souhaitez, indiquez la « Durée en minutes (facultatif) », entre 5 et 600 minutes, par exemple 60.\n5. Dans « Lien de la visio (facultatif) », collez le lien de la visio reçu à la réservation, qui commence par https://, par exemple https://meet.example.com/seance-demo.\n6. Cliquez sur « Enregistrer ». Le panneau se ferme et la séance affiche « Le … (heure de Paris) », la durée et le lien « Lien de la visio avec … », ici avec Claire D.\n\nLe candidat retrouve la date et le lien dans son agenda, avec la mention « modifié par le coach ». Pour reporter la séance, cliquez sur « Modifier la date » et saisissez le nouveau créneau. « Annuler » ferme le panneau sans rien changer. La note que le candidat a pu ajouter à la séance reste la sienne : vous ne la voyez pas."
     },
     {
       "id": "tutorial-email-intake-forward",
@@ -2466,6 +2619,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Vos alertes d'offres (sites d'emploi, sites carrière) et les messages de recruteurs peuvent arriver dans Jobbbox : transférez-les à votre adresse de transfert, et Jobbbox en tire des offres pour vos profils. Rien n'est fait dans votre messagerie à votre place.\n\n1. Dans Mon compte, ouvrez la rubrique « Réception par email », puis cliquez sur « Configurer le transfert pas à pas ».\n2. À la question « Quelle messagerie reçoit vos alertes d'offres ? », choisissez la vôtre, puis cliquez sur « Continuer ».\n3. Lisez ce qui est lu et ce qui est gardé, puis cliquez sur « Activer et continuer ». La date d'activation est enregistrée.\n4. Cliquez sur « Copier l'adresse » : c'est votre adresse de transfert, à vous seul.\n5. Avec Gmail, sur un ordinateur, ajoutez cette adresse de transfert dans les paramètres de Gmail, comme le guide l'indique. Jobbbox reçoit le code de confirmation de Gmail et vous le montre : saisissez-le dans Gmail, ou cliquez sur « Confirmer avec le lien de Gmail ». Créez ensuite le filtre Gmail qui transfère seulement vos alertes à cette adresse, jamais tout votre courrier.\n6. Avec Outlook.com ou iCloud Mail, sur un ordinateur, créez la règle que décrit le guide, qui transfère seulement vos alertes à cette adresse. Avec Orange et les autres messageries, transférez vos alertes à la main, depuis l'une de « Vos adresses d'envoi ».\n7. Attendez votre prochaine alerte, ou transférez-en une à la main : « Premier email reçu le … » confirme que le transfert marche. Cela peut prendre quelques minutes, parfois plus.\n8. Ouvrez la page Recherches d'offres : les offres de vos emails arrivent dans « Reçues par email », sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60.\n\nSi une de vos alertes est ignorée comme « Expéditeur non reconnu », cliquez sur « C'est une alerte d'offres » : son expéditeur est reconnu pour vous à partir de son prochain email. Pour arrêter, cliquez sur « Désactiver » dans la rubrique « Réception par email » : l'adresse cesse aussitôt de fonctionner, et les offres déjà reçues restent."
     },
     {
@@ -3322,6 +3476,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it. A session booked with the request for the service to start at once can no longer be withdrawn from once it has taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirm the withdrawal » ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
     },
     {
+      "id": "page-coach-space",
+      "locale": "en",
+      "kind": "page",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Your coach space",
+      "synonyms": [
+        "coach space",
+        "my coach space",
+        "human coach",
+        "my sessions",
+        "my candidates",
+        "coaching sessions",
+        "coach access",
+        "coach dashboard",
+        "coach"
+      ],
+      "route": "/espace-coach",
+      "motion": null,
+      "microAnimations": [],
+      "body": "« My coach space » is your human coach's page on Jobbbox. Sign in to Jobbbox with the email address the Jobbbox team registered for you, by receiving a sign-in link: « My coach space » then shows in the menu. The Jobbbox name, at the top of each page of your coach space, brings you back to it, and « My account » opens your account.\n\nThe page has two parts.\n\n« My coaching sessions » lists the sessions candidates paid for with you, even when they have not given you coach access. Each session shows the candidate's first name and last initial, for example Claire D., and the payment date: « Paid on … ». Until its date is entered, the session is « To schedule ». Once dated, it shows « On … (Paris time) », its duration and « Video link with … ». The tutorial « Enter a session's date and link » explains how to fill them in.\n\n« Candidates with coach access » lists the candidates who gave you coach access. Click one to open their file: their applications, with their status, and their profiles. Everything there is read only, as the page reminds you: « Read only: only the candidate can change their profiles and applications. » Open an application to read its tailored CV, cover letter and outreach message, and to give your review: the tutorial « Write a review of an application document » explains how.\n\nYou see neither the candidate's agenda, nor their conversations with their AI coach, nor the note they may have added to a session. The « Help Centre » link, at the bottom of each page of your coach space, leads to this topic of the help."
+    },
+    {
       "id": "page-order",
       "locale": "en",
       "kind": "page",
@@ -3387,6 +3564,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A human coach's access is your consent for a human coach to read your profiles and applications. With it, the coach can also comment on your application documents: their reviews arrive in the application's « Coach reviews » section. They cannot change anything.\n\nYou give it coach by coach, in « My human coaches »: « Give … access », then « Withdraw …'s access » whenever you want. Withdrawing takes effect at once; the reviews already received stay yours.\n\nA human coach never sees your conversations with your AI coach, nor your coach memory. Without this access, they see only your sessions with them, not your profiles or applications."
     },
     {
@@ -3411,6 +3589,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\nWhile an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. A stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting."
     },
     {
@@ -3432,6 +3611,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your AI coach is an artificial intelligence program from Jobbbox, not a person. It helps you through your job search: your Master CV, your criteria, your applications, your follow-ups and your interviews. It always says so: every conversation starts with « I am an AI coach, not a person », and the « AI Coach » badge is next to the message box.\n\nIt answers from what you tell it and from what the open page shows. Under each of its replies, a line says how it was produced. It changes nothing without your consent: its proposals are accepted or dismissed one by one.\n\nYour conversations are kept 12 months after their last message, then deleted. To talk to a person, book a session with a human coach in « My human coaches »."
     },
     {
@@ -3562,6 +3742,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "European AI is a consent you give, or not, in My account, « European AI » section. With your consent, every AI request that contains your identity data is processed by Mistral AI, a European AI provider. « Give my consent » records it, with its date; « Withdraw my consent » withdraws it, at any time.\n\nWhat changes from one choice to the other:\n\n- With consent: the requests that contain your identity data are processed by Mistral AI, in the European Union.\n- Without consent: they are processed by our usual provider, which may be outside the European Union.\n\nEither way, before sending, Jobbbox removes your identity from every request. Neither choice is recommended: choose the one that suits you. Reading your job offer emails stays in the European Union either way. The details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -3747,6 +3928,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A private job offer is a job offer only you see. It is the one Jobbbox draws from a recruiter's message you forward to it: that message was addressed to you, and the role is sometimes never published.\n\nYou follow it like any job offer: match score, tailored CV, cover letter, application. But it is never shown to another candidate, nor merged with the same job offer found elsewhere: if the role is published later, it becomes another job offer, and the private one stays as it is.\n\nIt is deleted with your account, and is part of the data you download. A job offer drawn from a job board's alert, on the other hand, describes a public posting: it is not private."
     },
     {
@@ -3793,6 +3975,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Before sending, Jobbbox removes your identity from every AI request and every web search: every email address and every phone number, and what Jobbbox knows of you, your account's name and email, and the full name, last name, address, phone and email of your Master CV. Each is replaced by a placeholder, such as `[NOM]` or `[E-MAIL]`. This is pseudonymisation.\n\nIts limits are stated plainly: your first name stays; a name Jobbbox does not know, a former manager's for example, goes through as it is; and the rest of your CV, your employers, your jobs, your dates, goes with the request. So it is still personal data.\n\nWhen the reply comes back, Jobbbox puts your details back in place: a cover letter is still signed with your name. This removal applies to every request, with or without the « European AI » consent; with the consent, the requests that contain your identity data are also processed in the European Union."
     },
     {
@@ -3853,6 +4036,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A target company is a company the job search aims at for a profile, even without a published job offer: one La Bonne Boite gives as likely to hire for your job and area, or one you add. They are in the profile's « Target companies » section, with, for La Bonne Boite's, their hiring potential.\n\nTo add one, enter its name or its SIREN in « Company name », then click « Add »: it is looked up in the company register and comes before La Bonne Boite's. A sole trader, a person, is never searched.\n\nFor each, open its « Company dossier », look for « Enriched contacts » or click « Prepare a spontaneous application ». Each of these buttons first creates a spontaneous application, added to your « To apply » applications, where the dossier, the contacts and the letter are prepared. « Set aside », confirmed with « Yes, set it aside », removes it from this profile for good."
     },
     {
@@ -4016,6 +4200,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "In an application's « Contacts » section, Jobbbox finds the people in the roles to contact at the employer, then gets their contact details from a licensed data provider. Build the company dossier first: it gives the roles to look for.\n\n1. Click « Find contacts »: the « People found » show.\n2. For the person you choose, click « Get contact details ». Each request counts as one Enriched Contact in your quota for the week; nothing is counted if the provider has none.\n3. Their contact details join « Your Enriched Contacts », with their source and date.\n\nThis personal data comes from a licensed provider: use it only for this application. You can address your outreach message to one of these contacts, from the « Documents » section."
     },
     {
@@ -4043,6 +4228,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "In an application's « Documents » section, your coach drafts the cover letter and the outreach message from your Master CV and the job offer.\n\n- « Draft the letter » prepares a cover letter, signed with your Master CV's contact details.\n- « Draft the message » prepares a short message to a contact at the employer. Choose whether it is « Sent by » « Email » or « LinkedIn InMail », and its « Recipient »: one of your Enriched Contacts, or « No one in particular (the roles to contact) ».\n\nEdit the text, then click « Save my changes ». « Draft again » replaces the current text, your changes included. The « Document language » is by default the job offer's; it applies to the next draft.\n\nJobbbox sends nothing on your behalf: click « Copy the text », or « Open in my mail app » for an email, then send it yourself. The letter also downloads as PDF or Word."
     },
     {
@@ -4321,6 +4507,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Each profile has its search criteria: « Target role », « Locations », « Minimum gross annual salary (in euros) », « Contract type », « Remote work », « Sectors », « Subsectors » and « Domains ». Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search.\n\nThey are in the profile's fiche: click « Change the criteria », then change a value. It is saved at once, and « Criteria saved » confirms it. You can give up to 5 locations: a job offer near one of them suits you. For contract, remote work and sectors, tick everything that suits you; nothing ticked means no preference.\n\nChanging the criteria does not rename the profile. A job search's scores are recomputed with the profile's current criteria. An archived profile must be restored before you change its criteria.\n\nTo help you choose them, click the « Refine my criteria » suggestion in the profile's conversation."
     },
     {
@@ -4344,6 +4531,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox checks that job offers are still published. When one no longer is on its original site, its page says so: « Expired job offer: no longer published on its original site since … ».\n\nYour application does not change: « Your application and its status stay as they are: you decide what happens next. » Its documents, its company dossier and its contacts stay too. A withdrawn job offer is not always a filled position: a follow-up is still possible.\n\nIf you see that a job offer is no longer published before Jobbbox does, click « Report this job offer as no longer published », in the application's fiche. It is for you only: the job offer does not change for others. « Undo the report » removes it.\n\nTo close an application, set its status to « Abandoned » or « Rejected »."
     },
     {
@@ -4440,7 +4628,60 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "The company dossier gathers the public information about an application's employer: its identity, its address, its key figures, its executives' roles, the roles to contact and its news. Open the application's « Company dossier » section, then click « Build the company dossier ».\n\nThe dossier says where its information comes from. « Official source. »: the French company register. « Web sources, less reliable. »: websites, to be checked, for a foreign employer for example. For a French company, executives are given by their role, never by their name.\n\nIf the job offer is posted by a recruitment agency, Jobbbox suggests the real employer it guesses: confirm it, or give the right one, with « Confirm the employer ». If it guesses none, give the employer, then click « Build the dossier for this employer ». No lookup is made before you confirm, nor on a sole trader. « Not the right employer? » lets you give its name or its SIREN.\n\n« Update the dossier » rebuilds it, with recent news. A target company's dossier also opens from the profile's « Target companies » section."
+    },
+    {
+      "id": "faq-retired-human-coach",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "What happens when I am no longer a coach on Jobbbox?",
+      "synonyms": [
+        "retired coach",
+        "retired human coach",
+        "coach removed",
+        "no longer a coach",
+        "stop",
+        "end of collaboration",
+        "leave jobbbox",
+        "coach space unavailable",
+        "page not found",
+        "I no longer have access",
+        "my past sessions",
+        "my reviews"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "When your collaboration with Jobbbox ends, the Jobbbox team removes you from the list of coaches. You then become a retired coach.\n\nCandidates no longer see you in « Choose a coach »: they can no longer book a session with you, nor give you coach access. You can no longer read anything: the address of your coach space shows « Page not found », and « My coach space » leaves your menu. The coach access candidates had given you no longer lets you open their profiles or applications.\n\nNothing that took place is deleted. Your past sessions stay in the candidates' agenda, and the reviews you sent them stay on their applications, under « Coach reviews ».\n\nYou think this is a mistake? Write to the Jobbbox team: « How do I contact you? » explains how."
+    },
+    {
+      "id": "faq-coach-access",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "What is coach access, and what happens when a candidate withdraws it?",
+      "synonyms": [
+        "coach access",
+        "access",
+        "consent",
+        "candidate's consent",
+        "withdraw access",
+        "access withdrawn",
+        "revoke access",
+        "candidate gone",
+        "I no longer see the candidate",
+        "read only",
+        "candidate's file",
+        "page not found"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Coach access is a candidate's explicit consent: it lets you read their profiles and applications, and review their application documents. The candidate gives it, from their « My human coaches » page, with the « Give … access » button; you cannot ask for it from your coach space. With coach access, you read without being able to change anything.\n\nThe candidates who gave you access show in « Candidates with coach access ». If nobody has yet, the page says so: « No candidate has given you access yet. »\n\nThe candidate can withdraw access at any time, with « Withdraw …'s access ». It takes effect at once: the candidate leaves « Candidates with coach access », and their file and applications show « Page not found ». If you were writing a review at that moment, it is not sent and you go back to « My coach space ».\n\nWithdrawing access deletes nothing you have already done. The candidate keeps the reviews you sent them. The sessions they paid for with you stay in « My coaching sessions », and you can still enter their date and link: they do not depend on coach access."
     },
     {
       "id": "faq-quota-renewal",
@@ -4535,6 +4776,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox reads a CV in PDF or Word (.docx) format, of 10 MB at most. You import it when creating a profile: « I have a CV », then « Read my CV ». You check and correct what was read before saving it.\n\nAn old Word file (.doc) is not read: save it as .docx or PDF first. A scanned CV, which is only an image, holds no text to read: import the original PDF or Word version instead. A password-protected file cannot be opened.\n\nNo up-to-date CV? Choose « I don't have an up-to-date CV », then « Answer my coach's questions »: your coach asks you about your career, one question at a time, and builds your Master CV with you.\n\nYour CVs then download as PDF or Word (.docx), in the template of your choice."
     },
     {
@@ -4561,6 +4803,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Three CV templates are offered: « Classic » (serif font, centred header, underlined headings), « Modern » (sans-serif font, left-aligned header, dark blue headings) and « Compact », denser, to fit on fewer pages. All are designed to be read well by recruitment software: a single column, no image or table.\n\nYou choose the template when you download:\n\n- your Master CV: the profile's « Download » section, choose the « CV template », then « Download as PDF » or « Download as Word (.docx) »;\n- a tailored CV or a cover letter: the application's « Documents » section, under « Download this tailored CV » or « Download this cover letter ».\n\nThe template changes only the layout: the content stays the same."
     },
     {
@@ -4590,6 +4833,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox never reads your mailbox: it has no access to it. It reads only the emails that arrive at your forwarding address, and only if they come from an alert sender it recognises (« Recognised by Jobbbox », or « Added by you ») or from one of your own addresses, those in « Your sending addresses ». The others are ignored unread.\n\nOnly the email's text is read, never its attachments or images. It is not kept once read: at most 72 hours, encrypted, if it must be read again. Only the job offers found are kept. Of an ignored email, Jobbbox keeps only the reason, the sender's domain and the date, never the content.\n\nEach email is read by an AI model hosted in the European Union, whatever you chose in the « European AI » section of My account.\n\nA forwarded email sometimes names other people: a recruiter, a contact, a signatory. Jobbbox keeps neither their name, nor their email address, nor their phone number: it keeps only the job offer and the links found in the email. The job offer drawn from a recruiter's message is a private job offer, which only you see.\n\nTo stop, click « Switch off » in the « Email intake » section: what then arrives at your forwarding address is discarded unread. The details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -4687,6 +4931,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Note your interview in Jobbbox, then add it to your phone's or your mailbox's calendar.\n\n1. Open « Agenda » in the menu, then click « Add an interview ».\n2. In « Application », choose the interview's application. If it is not at the « Interview » stage yet, leave « Move the application to Interview » ticked.\n3. Enter the « Interview date and time (Paris time) » and, if you wish, the duration, the format, the « Place or link (optional) » and a note.\n4. Click « Add the interview ». « Interview added. » confirms it, and it shows in your agenda.\n5. On the interview, in your agenda, click « Add to my calendar »: an .ics file is downloaded.\n6. Open this file: your calendar (Google Calendar, Outlook, Apple Calendar…) offers to add the interview.\n\nYou can also note an interview from an application's « Interviews » section, at the « Interview » stage, with « Add the interview ». If the date changes, edit the interview in Jobbbox, then download the file again: the one already added to your calendar does not update."
     },
     {
@@ -4755,6 +5000,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your coach tailors your Master CV to a job offer, never inventing anything. You check each change before saving it, then you apply yourself.\n\n1. Open the application, then its « Documents » section.\n2. Click « Propose a tailored CV ». When « Proposal ready: check the changes before saving. » shows, the match score before and after is given.\n3. If the job offer asks for what your CV does not show, answer « The coach's questions »: « Yes, I have it » or « No ». A point is added only if you confirm you have it.\n4. Under « Changes from the reference CV », click « Accept » or « Reject » for each change. A rejected change keeps what your Master CV says.\n5. Click « Save the tailored CV ». It replaces the tailored CV already saved for this application, if there is one.\n6. Under « Download this tailored CV », choose a CV template, then « Download as PDF » or « Download as Word (.docx) ».\n7. Send your application yourself, on the job offer's site or by email: Jobbbox sends nothing on your behalf.\n8. In the application's fiche, set the « Status » to « Applied ». If it gets no answer, your coach will suggest a follow-up.\n\nThe cover letter is prepared in the same section, with « Draft the letter »."
     },
     {
@@ -4781,6 +5027,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "On top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. You pay first, then you pick your time.\n\n1. In the menu, open « My human coaches ».\n2. Under « Choose a coach », click « Book a session with … » for the coach of your choice.\n3. On the « Your order » page, check the summary, then tick « I accept the terms of sale (version of …) ». The box asking for the service to start at once is optional.\n4. Click « Go to payment », then pay on the secure page of Stripe, our payment provider. Your order confirmation is sent to you by email.\n5. Back in Jobbbox, « Payment received. Now pick the time of your session. » shows. Click « Pick my time with … on Cal.com » and book your time.\n6. Come back to Jobbbox and click « I've booked: enter the date ». Enter the « Session date and time (Paris time) » and, if you have it, the « Video call link (optional) », then click « Save ».\n7. The session joins your agenda. If you entered the video call link, on the day, click « Join the video call with … », in « My human coaches », under « My paid sessions ».\n\nWhile a session has no date, it waits in « To schedule », in your agenda. During the 14 days after payment, and as long as the session has not taken place, you can withdraw from the session, in your agenda."
     },
     {
@@ -4830,7 +5077,37 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Each save of your Master CV creates a new version. The earlier ones can still be viewed and restored.\n\n1. Open the profile, then its « Master CV » section.\n2. Edit the « CV title », the « Profile (summary) » or the « Skills, one per line » in place, then click « Save version … ». « Cancel » drops your changes.\n3. For your contact details, jobs, education and languages, click « Edit my Master CV »: the full editor opens. Add, change, move or remove items, then click « Save as a new version ».\n4. To go back, click « Version history », in the « Master CV » section. The current version is marked « Current version ».\n5. Click « View version … » to read it again, then « Restore version … ».\n6. The restored version becomes the current version, marked « Restored from version … ». The history is kept: nothing is lost.\n\nA tailored CV already saved on an application does not change when you edit your Master CV; a proposal in progress must be asked for again."
+    },
+    {
+      "id": "tutorial-coach-session-date",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Enter a session's date and link",
+      "synonyms": [
+        "enter the date",
+        "session date",
+        "change the date",
+        "video link",
+        "video call",
+        "video call link",
+        "cal.com",
+        "booking",
+        "slot",
+        "schedule",
+        "to schedule",
+        "duration",
+        "paris time",
+        "coaching session",
+        "reschedule a session"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "The candidate pays for their session on Jobbbox, then books their slot on your Cal.com page. Cal.com does not pass that slot on to Jobbbox: you enter it, or the candidate does, so that it shows in the candidate's agenda. In this example, a session paid for by Claire D. is « To schedule ».\n\n1. Open « My coach space ». In « My coaching sessions », find Claire D.'s session.\n2. Click « Enter the date ». If the session is already dated, the button reads « Change the date ». The « Session with … » panel opens, in Claire D.'s name.\n3. In « Session date and time (Paris time) », enter the slot booked on Cal.com, for example 12 November at 2:30 pm. Enter it in Paris time, even if you or the candidate are in another time zone.\n4. If you wish, give the « Duration in minutes (optional) », between 5 and 600 minutes, for example 60.\n5. In « Video call link (optional) », paste the video call link you got when booking, starting with https://, for example https://meet.example.com/demo-session.\n6. Click « Save ». The panel closes and the session shows « On … (Paris time) », its duration and the « Video link with … » link, here with Claire D.\n\nThe candidate finds the date and the link in their agenda, marked « changed by the coach ». To reschedule the session, click « Change the date » and enter the new slot. « Cancel » closes the panel without changing anything. The note the candidate may have added to the session stays theirs: you do not see it."
     },
     {
       "id": "tutorial-email-intake-forward",
@@ -4860,6 +5137,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your job alerts (job boards, careers sites) and recruiters' messages can reach Jobbbox: forward them to your forwarding address, and Jobbbox draws job offers from them for your profiles. Nothing is done in your mailbox on your behalf.\n\n1. In My account, open the « Email intake » section, then click « Set up forwarding step by step ».\n2. At « Which mailbox gets your job alerts? », choose yours, then click « Continue ».\n3. Read what is read and what is kept, then click « Switch on and continue ». The date you switched it on is recorded.\n4. Click « Copy the address »: it is your forwarding address, yours alone.\n5. With Gmail, on a computer, add this forwarding address in Gmail's settings, as the guide shows. Jobbbox receives Gmail's confirmation code and shows it to you: enter it in Gmail, or click « Confirm with Gmail's link ». Then create the Gmail filter that forwards only your alerts to this address, never all your mail.\n6. With Outlook.com or iCloud Mail, on a computer, create the rule the guide describes, which forwards only your alerts to this address. With Orange and other mailboxes, forward your alerts by hand, from one of « Your sending addresses ».\n7. Wait for your next alert, or forward one by hand: « First email received on … » confirms forwarding works. It can take a few minutes, sometimes longer.\n8. Open the Job searches page: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60.\n\nIf one of your alerts is ignored as « Unrecognised sender », click « It's a job alert »: its sender is recognised for you from its next email. To stop, click « Switch off » in the « Email intake » section: the address stops working at once, and the job offers already received stay."
     },
     {
@@ -5031,6 +5309,31 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "A Guardrail's message is shown to the Candidate instead of the reply, without saying which Guardrail acted. It exists in French and in English, and each language is validated apart. Writing it takes a super-admin, and validating it another super-admin.\n\n1. Open Guardrails (Coaching menu) and find the Guardrail.\n2. Under « Change the message in French », write the « Message text »: clear, short, using « vous ». For distress, it must give 3114, France's national suicide prevention line.\n3. Click « Save the message ». The page shows « Message saved: another Administrator must validate it before production serves it. »\n4. Do the same under « Change the message in English ». The English version says the same thing; for distress, it gives 3114 too.\n5. Ask another super-admin to review each version. Under « Validate the message in French, version … », then in English, they enter « Your name » and click « Validate this message ».\n\nWhile a language is not validated, production serves « Jobbbox's default text » in that language. Changing a message plays no Eval Case, unlike a setting. Each version and each validation are recorded in Administrator actions."
+    },
+    {
+      "id": "tutorial-coach-review",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "human-coach",
+      "topic": "espace-coach",
+      "title": "Write a review of an application document",
+      "synonyms": [
+        "review",
+        "coach review",
+        "give my review",
+        "comment",
+        "feedback",
+        "proofread",
+        "tailored cv",
+        "cover letter",
+        "outreach message",
+        "application document",
+        "send the review"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "With coach access, you can give your review of an application document: the tailored CV, the cover letter or the outreach message. You do not change the document: the candidate reads your review and decides what to change. In this example, Claire D. gave you access and is preparing an application for the purchasing manager role at Exemple Industrie, a fictitious company.\n\n1. Open « My coach space ». In « Candidates with coach access », click Claire D.\n2. In « Applications », click the application Responsable des achats · Exemple Industrie.\n3. Read the « Application documents ». A document the candidate has not written yet shows « Not written yet. »; you can only review a document already written.\n4. In « Your review », choose the « Document reviewed », for example « Cover letter ».\n5. Write your review in « Your review for the candidate », for example: the second paragraph would gain from quoting a figure.\n6. Click « Send the review ». The page confirms: « Review sent to the candidate. »\n\nThe candidate finds your review on their application, under « Coach reviews », with your name and the date. They keep it even if they later withdraw your coach access. On the application's page, « Your coaches' reviews » lists the reviews already sent on this application. If the candidate has not written any document yet, the page says so: « The candidate has no application documents to review yet. »"
     }
   ]
 };

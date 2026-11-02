@@ -1072,6 +1072,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Chaque lundi à 0 h (heure de Paris). La barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes.\n\nParler à votre coach ne compte pas dans le quota. Une recherche d'offres qui échoue, ou que vous arrêtez avant qu'elle ait trouvé une offre, ne compte pas non plus.\n\nPour en avoir plus chaque semaine, changez d'offre depuis Mon abonnement."
     },
     {
+      "id": "faq-extension-update",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Que faire quand l'extension affiche « Mettez à jour l'extension » ?",
+      "synonyms": [
+        "mettre à jour",
+        "mise à jour",
+        "nouvelle version",
+        "ancienne version",
+        "extension",
+        "chrome web store",
+        "store",
+        "plus prise en charge"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Votre version de l'extension Jobbbox est trop ancienne : Jobbbox ne la prend plus en charge. Le panneau de l'extension l'indique par « Mettez à jour l'extension ».\n\nCliquez sur « Ouvrir la page de l'extension » : sa page sur le store de votre navigateur s'ouvre, d'où vous installez la dernière version. Votre navigateur met aussi l'extension à jour de lui-même, en général dans les heures qui suivent. Une fois à jour, cliquez sur « Réessayer ».\n\nL'offre et le CV de la session en cours restent dans votre navigateur pendant la mise à jour : vous n'avez rien à refaire."
+    },
+    {
       "id": "faq-data-and-ai",
       "locale": "fr",
       "kind": "faq",
@@ -2167,6 +2188,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota.\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
+    },
+    {
+      "id": "faq-extension-update",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "What do I do when the extension says « Update the extension »?",
+      "synonyms": [
+        "update",
+        "new version",
+        "old version",
+        "outdated",
+        "extension",
+        "chrome web store",
+        "store",
+        "no longer supported"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Your version of the Jobbbox extension is too old: Jobbbox no longer supports it. The extension's panel says so with « Update the extension ».\n\nClick « Open the extension's page »: its page on your browser's store opens, where you install the latest version. Your browser also updates the extension by itself, usually within a few hours. Once it is up to date, click « Try again ».\n\nThe job offer and CV of your current session stay in your browser during the update: you have nothing to redo."
     },
     {
       "id": "faq-data-and-ai",

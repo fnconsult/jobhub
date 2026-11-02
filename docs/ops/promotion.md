@@ -34,6 +34,12 @@ Il résume ensuite ce qu'il va faire et demande de taper la Version (`--yes` pou
 
 Si le déploiement échoue, `prod` et le tag sont déjà poussés : le script le dit, n'ouvre pas la PR, et donne la commande pour relancer le déploiement.
 
+## La GitHub Release
+
+Le tag poussé, le workflow `publier-releases` (`.github/workflows/publier-releases.yml`, #561) publie la GitHub Release de la Version : la Release Note en français, puis en anglais, puis la liste des pull requests depuis le tag précédent. Une Version promue avec `--rien-de-visible` reçoit une **Release technique**, « vX.Y.Z (technique) », avec la liste des pull requests seule. La Release Note de la Version suivante, sans tag, ne publie rien. Il repasse sur chaque tag à chaque push sur `main` qui touche `packages/help/releases/{fr,en}/` : une Release déjà à jour n'est pas touchée, une Release qui diffère est corrigée, jamais doublée. Pour le relancer à la main : `gh workflow run publier-releases.yml -f dry-run=false`.
+
+Une Release Note publiée ne change plus : si `releases/{fr,en}/X.Y.Z.md` diffère de ce que porte le tag `vX.Y.Z` (modifiée, supprimée ou ajoutée après coup), le workflow échoue sans rien publier, dès la pull request. Une correction va dans la Release Note de la Version suivante.
+
 ## Revenir en arrière
 
 Redéployez le tag précédent, qui est dans l'historique de `prod` :
@@ -55,5 +61,7 @@ Le hook protège des agents dans Claude Code. Une règle de dépôt (Settings �
 The Promotion turns what the Beta (`staging.jobbbox.ai`, deployed from `main`) serves into a Version in Production (`jobbbox.ai`). Only the product owner runs it, from their machine, **outside any agent**: the repo's hook (`scripts/hooks/no-promotion.mjs`) refuses an agent the script, `git push` to `prod` or of a `v*` tag, and `gh workflow run deploy.yml … production`. `deploy.yml` refuses `target=production` from anything but a `vX.Y.Z` tag on `prod`'s history.
 
 Run `npx tsx scripts/promote.ts` (`--minor`, `--major`, `--rien-de-visible` for a Version with nothing a Candidate can see, `--yes`). It promotes `origin/main` once every precondition holds, and pushes nothing otherwise: one Version across the manifests and no existing tag; `prod` moves forward only; green CI on the commit; the Beta's `/api/health` serves that commit; the FR and EN Release Notes exist (unless `--rien-de-visible`); no fragment left in `releases/unreleased/`. It then tags `vX.Y.Z`, pushes `prod` and the tag with `--atomic`, deploys Production from the tag, checks Production's `/api/health`, and opens the pull request that moves `main` to the next Version.
+
+Once the tag is pushed, the `publier-releases` workflow publishes the Version's GitHub Release: the French Release Note, then the English one, then the pull requests since the previous tag; a Version with no Release Note gets a technical Release, « vX.Y.Z (technique) », with the pull requests alone; the next Version's untagged note publishes nothing. Running it again never duplicates a Release. A published Release Note never changes: the workflow fails, from the pull request on, when `releases/{fr,en}/X.Y.Z.md` differs from what tag `vX.Y.Z` carries.
 
 To roll back, redeploy the previous tag: `gh workflow run deploy.yml --ref vX.Y.(Z-1) -f target=production -f confirm=jobbbox.ai`.

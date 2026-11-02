@@ -859,16 +859,6 @@ textarea.input {
   color: var(--color-text);
 }
 
-/* The panel's foot (#345): « Signaler un problème » and « Proposer une idée », under every view. */
-.coach-panel-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  align-items: center;
-  padding: 0 var(--space-4) var(--space-2);
-}
-
-.coach-panel-foot .link-action,
 .reply-feedback .link-action,
 .help-intro .link-action {
   min-height: var(--control-height);
@@ -923,10 +913,6 @@ textarea.input {
 .page-conversation-foot .coach-panel-form {
   padding: 0;
   border-top: 0;
-}
-
-.page-conversation-foot .coach-panel-foot {
-  padding-inline: var(--space-1);
 }
 
 .page-conversation-foot .notice {
@@ -2261,8 +2247,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-2) var(--space-3);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--color-nav);
   border-right: 1px solid var(--color-border);
 }
@@ -2273,9 +2258,36 @@ html[data-sidebar="closed"] .sidebar-docked {
   height: 100dvh;
 }
 
-/* A long menu scrolls the whole sidebar: nothing in it is squeezed (the drawer's head, wrapped on a phone). */
+/* The head and the foot stay put, nothing in them squeezed (the drawer's head, wrapped on a phone); a long menu
+   scrolls between them. */
 .sidebar > * {
   flex-shrink: 0;
+}
+
+.sidebar > .sidebar-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar-scroll > * {
+  flex-shrink: 0;
+}
+
+/* « Masquer le menu », its icon alone at the right of the brand. */
+.sidebar-head .sidebar-collapse {
+  width: var(--size-control);
+  padding: 0;
+  color: var(--color-secondary);
+}
+
+.sidebar-head .sidebar-collapse:hover {
+  color: var(--color-text);
+  background: var(--color-hover);
 }
 
 /* The workspace at the top: the « Jobbbox » wordmark, in text (the logo's stand-in, #542). */
@@ -2432,7 +2444,6 @@ html[data-sidebar="closed"] .sidebar-docked {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: auto;
   padding: var(--space-2) 0 0;
   border-top: 1px solid var(--color-border);
 }
@@ -2559,7 +2570,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   font-weight: 600;
 }
 
-/* Se déconnecter and Masquer le menu read as the links above them: icon and words, full width, no frame. */
+/* Se déconnecter reads as the links above it: icon and words, full width, no frame. */
 .sidebar-foot .button-quiet {
   display: flex;
   gap: var(--space-2);
@@ -2823,37 +2834,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 /* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------
    An icon alone, on Mon compte's row, to its right, a 44 px target (ADR-0009 amendment #375: never the only way in, the Coach
    Panel's foot keeps labelled links, #345). Named « Signalement », with that tooltip on hover and focus. */
-/* « Aide et légal » (#544): the public Aide, Légal and Nouveautés, on one row, at the top of the sidebar's foot. */
-.sidebar-help {
-  padding: var(--space-1) var(--space-2) var(--space-2);
-}
-
-.sidebar-help-title {
-  margin: 0;
-  color: var(--color-meta);
-}
-
-.sidebar-help ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-3);
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-/* Each link at least 24px tall (WCAG 2.2, 2.5.8). */
-.sidebar-help a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  color: var(--color-secondary);
-}
-
-.sidebar-help a:hover {
-  color: var(--color-text);
-}
-
 .sidebar-account-row {
   display: flex;
   gap: var(--space-1);
@@ -2863,6 +2843,80 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 .sidebar-account-row .sidebar-link {
   flex: 1;
   min-width: 0;
+}
+
+/* « Mon compte », a menu button reading as a sidebar link (AccountMenu). */
+.account-menu-button {
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.account-menu-button:hover,
+.account-menu-button[data-state="open"] {
+  background: var(--color-hover);
+}
+
+.account-menu-button[data-current] {
+  font-weight: 600;
+}
+
+.account-menu-button .icon:last-child {
+  margin-left: auto;
+  transform: rotate(180deg);
+}
+
+/* Its menu, over the sidebar (and its drawer): « Aide et légal », Mon compte's page, « Se déconnecter » nearest the button. */
+.account-menu {
+  z-index: 60;
+  min-width: var(--radix-dropdown-menu-trigger-width);
+  max-width: min(24rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-1);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+/* Lined up with the items' icons. */
+.account-menu-label {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-meta);
+}
+
+.account-menu [role="menuitem"] {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  outline-offset: -3px;
+}
+
+.account-menu [role="menuitem"][data-highlighted] {
+  background: var(--color-hover);
+}
+
+.account-menu [role="menuitem"][aria-current="page"] {
+  font-weight: 600;
+}
+
+.account-menu .icon {
+  width: 1.125em;
+  height: 1.125em;
+  color: var(--color-secondary);
+}
+
+.account-menu-separator {
+  height: 1px;
+  margin: var(--space-1) calc(-1 * var(--space-1));
+  background: var(--color-border);
 }
 
 .signalement-open {

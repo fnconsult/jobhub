@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { AccountMenu } from "@/components/AccountMenu";
 import { Icons } from "@/components/icons";
 import { ProfileSwitcherMenu } from "@/components/ProfileSwitcherMenu";
 import { SignalementButton } from "@/components/Signalement";
@@ -16,7 +17,6 @@ import { WorkPane, WorkPaneProvider } from "@/components/WorkPane";
 import { PageHelpProvider } from "@/components/page-help";
 import { ActivityColumn, Fiche, FicheButtons, FicheProvider, useColumnOverPage, type FicheContent } from "@/components/Fiche";
 import { accountLink, sidebarNav, type SidebarNavKey } from "@/components/sidebar-nav";
-import { AIDE_ET_LEGAL } from "@/public-pages/public-shell";
 import { CURRENT, SidebarShell } from "@/components/SidebarShell";
 import { routes } from "@/routes";
 
@@ -40,8 +40,8 @@ const LABELS = {
  * « Nouvelle conversation » and « Coach » with the Candidate's `freeConversations` (#601), the Profile switcher and the
  * Candidate's labelled links, its menus with objects unfolding into them (`menus`, #604, #606), and in its foot the Usage
  * Meter of the week's Plan Quotas (null when billing could not be read). Beside « Mon compte », on its row, the
- * Signalement icon (#375), whose form opens in the Work Pane; `version` is the Jobbbox version it shows. At the top of
- * its foot, « Aide et légal » (#544): the public Aide, Légal and Nouveautés, in the drawer too on a phone.
+ * Signalement icon (#375), whose form opens in the Work Pane; `version` is the Jobbbox version it shows. « Mon compte » is
+ * a menu (AccountMenu): « Aide et légal » (#544), Mon compte's page and « Se déconnecter », in the drawer too on a phone.
  * Its Top Bar has « Effacer » while the page is a conversation, « Aide » on a page without one (#602). The Work Pane opens
  * beside the page (#602). `fiche`: an object's page (an Application's, #603): the Fiche beside the conversation, after
  * the Work Pane, and « Fiche » and « Activité » in the Top Bar; the Fiche shows the page's `aiActivity`. Without one (the
@@ -108,29 +108,12 @@ export function SidebarLayout({
           </>
         }
         topBarActivity={null}
+        signOut={false}
         foot={(closeDrawer, closeDrawerThen) => (
           <>
-            {/* Named by its own words; no id, the drawer drawing the same block beside the docked sidebar. */}
-            <nav className="sidebar-help" aria-label={t("sidebar.helpAndLegal")}>
-              <p className="sidebar-help-title" aria-hidden="true">
-                {t("sidebar.helpAndLegal")}
-              </p>
-              <ul>
-                {AIDE_ET_LEGAL.map((link) => (
-                  <li key={link.key}>
-                    <Link href={link.href} onClick={closeDrawer}>
-                      {t(link.label)}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
             {usage ? <UsageMeter meter={usage} onNavigate={closeDrawer} /> : null}
             <div className="sidebar-account-row">
-              <Link className="sidebar-link" href={account.href} aria-current={account.current ? CURRENT : undefined} onClick={closeDrawer}>
-                <Icons.account />
-                {t("nav.account")}
-              </Link>
+              <AccountMenu account={account} onNavigate={closeDrawer} />
               <SignalementButton version={version} closeDrawerThen={closeDrawerThen} />
             </div>
           </>

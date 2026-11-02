@@ -66,6 +66,12 @@
   },
   "extension": {
     "title": "Jobbbox",
+    "updateRequired": {
+      "title": "Mettez à jour l'extension",
+      "text": "Cette version de l'extension n'est plus prise en charge par Jobbbox. Installez la dernière version depuis sa page sur le store de votre navigateur : l'offre et le CV de cette session restent dans ce navigateur.",
+      "action": "Ouvrir la page de l'extension",
+      "retry": "Réessayer"
+    },
     "description": "Capturez une offre d'emploi depuis la page que vous consultez.",
     "signedInAs": "Connecté en tant que {{email}}",
     "signedOut": "Connectez-vous à Jobbbox pour enregistrer vos offres.",
@@ -166,7 +172,19 @@
       "chooseFile": "Choisir un fichier"
     },
     "allSites": "Détecter les offres sur tous les sites",
-    "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement."
+    "allSitesHint": "Pour voir « Analyser cette offre » aussi sur les sites carrières des employeurs. Votre navigateur vous demandera l'autorisation ; les pages restent lues dans ce navigateur uniquement.",
+    "guestTerms": {
+      "box": "J'accepte les {{terms}} (version du {{date}}) et j'ai lu l'{{privacy}}",
+      "terms": "conditions d'utilisation pour les invités",
+      "privacy": "information sur mes données",
+      "required": "Cochez la case pour envoyer votre CV."
+    },
+    "links": {
+      "label": "Aide et légal",
+      "help": "Aide",
+      "privacy": "Confidentialité",
+      "terms": "CGU"
+    }
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",
@@ -209,7 +227,12 @@
       "planQuota": "quota",
       "masterCv": "CV de référence",
       "tailoredCv": "CV adapté",
-      "proposals": "proposition"
+      "proposals": "proposition",
+      "aiCoach": "coach IA",
+      "coachMemory": "mémoire du coach",
+      "coachAccess": "accès",
+      "euAiConsent": "votre accord",
+      "targetCompany": "entreprise cible"
     }
   },
   "emptyStateHelp": {
@@ -2721,7 +2744,8 @@
         "secret_disclosure": "Divulgation de secrets",
         "harmful_advice": "Conseil hors rôle ou dangereux",
         "distress": "Détresse",
-        "email_injection": "Contenu piégé dans un email"
+        "email_injection": "Contenu piégé dans un email",
+        "ungrounded_answer": "Réponse non fondée sur le profil"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
@@ -2729,7 +2753,8 @@
         "secret_disclosure": "Une réponse qui dévoile les instructions de l'IA, les règles des playbooks de coaching ou une clé (Provider Secrets).",
         "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
         "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
-        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée."
+        "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée.",
+        "ungrounded_answer": "Une réponse du coach IA qui classe des offres ou dit si une offre, une candidature ou un conseil convient au candidat sans citer ses compétences, ses expériences ou ses critères, ou qui prétend ne pas disposer des raisons d'un score ou de son CV. Bloquée, elle est réécrite une fois ; si elle l'est encore, le message ci-dessous s'affiche."
       },
       "languages": {
         "fr": "français",
@@ -3525,7 +3550,7 @@
     "viewsLabel": "Affichage des candidatures",
     "listView": "Liste",
     "boardView": "Tableau",
-    "none": "Vous n'avez pas encore de candidature. Enregistrez une offre d'emploi pour la suivre ici.",
+    "none": "Vous n'avez pas encore de candidature. Enregistrez une offre d'emploi pour la suivre ici : sur la page de l'offre, ouvrez l'extension Jobbbox depuis la barre de votre navigateur, où vous l'avez épinglée.",
     "jobOffer": "Offre",
     "profile": "Profil",
     "status": "Statut",
@@ -4451,7 +4476,7 @@
     "fresh_other": "{{count}} nouvelles cette semaine",
     "intro_one": "{{count}} offre tirée de vos emails d'offres pour ce profil, la plus récente en premier.",
     "intro_other": "{{count}} offres tirées de vos emails d'offres pour ce profil, les plus récentes en premier.",
-    "none": "Aucune offre reçue par email pour ce profil pour l'instant.",
+    "none": "Aucune offre reçue par email pour ce profil pour l'instant. Dans votre messagerie, ouvrez un email d'offre, choisissez « Transférer », puis collez votre adresse de transfert comme destinataire et envoyez.",
     "off": "Recevez aussi ici les offres de vos alertes d'emploi et des messages de recruteurs, en les transférant à Jobbbox.",
     "setUp": "Configurer le transfert pas à pas",
     "listLabel": "Offres reçues par email pour « {{profile}} »",
@@ -5158,7 +5183,31 @@
     "published": "Versions publiées",
     "emptyTitle": "Rien n'est encore publié",
     "empty": "La première version de Jobbbox et ses nouveautés paraîtront ici.",
-    "noneForTag": "Aucune version ne porte ce thème pour le moment."
+    "noneForTag": "Aucune version ne porte ce thème pour le moment.",
+    "allVersions": "Toutes les versions"
+  },
+  "nouveautesEmail": {
+    "settings": {
+      "label": "Recevoir un e-mail quand Jobbbox annonce une nouveauté",
+      "explanation": "Au plus un e-mail par semaine, sans suivi d'ouverture ni de clic. Vous pouvez vous désabonner à tout moment, ici ou par le lien de l'e-mail.",
+      "since": "Inscrit depuis le {{date}}.",
+      "on": "Inscription enregistrée.",
+      "off": "Vous ne recevrez plus ces e-mails.",
+      "error": "Votre choix n’a pas pu être enregistré. Réessayez."
+    },
+    "email": {
+      "subject": "Nouveauté Jobbbox : {{title}}",
+      "read": "Lire la version {{version}}",
+      "reason": "Vous recevez cet e-mail parce que vous avez demandé, dans Mon compte, à être prévenu des nouveautés de Jobbbox.",
+      "unsubscribe": "Ne plus recevoir les nouveautés par e-mail"
+    },
+    "unsubscribePage": {
+      "title": "Se désabonner des e-mails de nouveautés",
+      "confirm": "Vous ne recevrez plus d'e-mail quand Jobbbox annonce une nouveauté. Vous pourrez vous réinscrire à tout moment dans Mon compte, rubrique Préférences.",
+      "action": "Me désabonner",
+      "done": "C'est fait : vous ne recevrez plus les e-mails de nouveautés.",
+      "invalid": "Ce lien de désabonnement n'est plus valable. Vous êtes peut-être déjà désabonné ; sinon, connectez-vous et décochez la case dans Mon compte, rubrique Préférences."
+    }
   },
   "publicFooter": {
     "legal": {
@@ -5342,5 +5391,15 @@
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
     "clear": "Effacer la conversation"
+  },
+  "microAnimation": {
+    "show": "Voir comment",
+    "replay": "Revoir",
+    "hide": "Masquer",
+    "art": {
+      "forward": "Transférer",
+      "to": "À",
+      "send": "Envoyer"
+    }
   }
 }

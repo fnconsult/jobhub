@@ -3,15 +3,29 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon compte
-synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version]
+synonyms: [compte, paramètres, réglages, préférences, langue, thème, mode sombre, connexion, rappels, version, nouveautés, e-mail de nouveautés, réception par email, adresse de transfert, signalements, mes signalements, IA européenne, Mistral, abonnement]
 route: /compte
 ---
-Mon compte rassemble vos réglages, en rubriques : Profils, Relances, Rappels, IA européenne, Connexion, Préférences, Outils et Mes données.
+Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.
 
-Dans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.
+Profils liste vos profils actifs, puis les archivés. Abonnement montre votre offre et ce que vous en avez utilisé cette semaine : il a son propre article, Mon abonnement.
+
+Dans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.
+
+Réception par email permet de recevoir dans Jobbbox les offres de vos alertes d'emploi et des messages de recruteurs. « Activer la réception par email » vous donne votre adresse de transfert : transférez-y ces e-mails, « Copier l'adresse » la copie, et « Configurer le transfert pas à pas » vous guide pour le faire depuis votre messagerie. Seul le texte des e-mails transférés est lu, jamais leurs pièces jointes. « Remplacer l'adresse » vous en donne une nouvelle et « Désactiver » arrête la réception : l'ancienne adresse cesse aussitôt de fonctionner, les offres déjà reçues restent. Dans « Vos adresses d'envoi », ajoutez les adresses depuis lesquelles vous transférez à la main ; dans « Vos expéditeurs d'alertes », ajoutez l'adresse d'une alerte que Jobbbox ne reconnaît pas encore, ou désactivez pour vous seul un expéditeur « Reconnus par Jobbbox ». Les offres reçues s'affichent dans « Reçues par email », sur la page Recherches d'offres.
+
+IA européenne : avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'active, « Retirer mon accord » l'arrête, à tout moment ; la rubrique indique la date de votre accord.
+
+Connexion montre l'adresse e-mail de votre compte et les moyens de vous connecter.
+
+Dans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir.
+
+Outils propose l'extension Chrome Jobbbox.
+
+Mes signalements liste les bugs, idées et questions que vous avez envoyés à l'équipe Jobbbox, les plus récents d'abord, avec leur statut (« Envoyé », « Lu par l'équipe » ou « Traité ») et la « Réponse de l'équipe Jobbbox ». Ouvrir la rubrique efface les notifications de vos signalements. « Supprimer » retire un signalement : l'équipe ne le voit plus. Sans signalement, « Signaler un problème » et « Proposer une idée » vous permettent d'en envoyer un.
 
 Mes données permet de télécharger toutes vos données ou de supprimer votre compte.
 
-Sous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple « 0.1.0 ». Sur la version bêta, elle est suivie de la modification exacte servie, par exemple « 0.1.0 (main·3f9c2a1) » : citez-la si vous signalez un problème.
+Sous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.
 
 Mon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte.

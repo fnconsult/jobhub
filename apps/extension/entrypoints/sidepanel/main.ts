@@ -6,8 +6,10 @@ import { ALL_SITES } from "../../src/all-sites-detection";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
 import { openAnalysisPage } from "../../src/analysis-page";
 import { readCandidateSession } from "../../src/candidate-session";
+import { createExtensionUpdate, UPDATE_STORAGE_KEY, updateHref, type UpdateRequired } from "../../src/extension-update";
 import { choosePage } from "../../src/frame-choice";
 import { createGuestSession } from "../../src/guest-session";
+import { GUEST_TERMS_LINKS, guestTermsToAccept, sentenceParts, SIDE_PANEL_LINKS, siteHref, siteLanguage, versionDay, type CguVersion } from "../../src/guest-terms";
 import type { JobPage } from "../../src/job-page";
 import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePrompt } from "../../src/jobbbox-api";
 import { describeMatchScore, describeRescore, type MatchScoreView } from "../../src/match-score-view";
@@ -45,7 +47,9 @@ document.documentElement.lang = i18n.language;
 document.title = `${t("extension.analysis.title")} – Jobbbox`;
 
 const session = createGuestSession(browser.storage.session);
-const api = createJobbboxApi(WEB_ORIGIN);
+// An extension the web app no longer serves (#564) is asked to update; the background's calls answer for it too.
+const update = createExtensionUpdate(browser.storage.local);
+const api = createJobbboxApi(WEB_ORIGIN, undefined, update);
 const saving = createApplicationSaving({ api, session });
 // Shown again on reopen rather than computed again: each Match Score uses the Candidate's Plan Quota (#51).
 const scoring = createMatchScoring({ api, session });
@@ -75,6 +79,62 @@ function webLink(text: string, path: string, className?: string): HTMLAnchorElem
   const link = element("a", text, className);
   Object.assign(link, { href: `${WEB_ORIGIN}${path}`, target: "_blank", rel: "noopener" });
   return link;
+}
+
+/** A public page of the web app, in a new tab, in the browser's language (#550): under `/en` in English. */
+const siteLanguageNow = siteLanguage(navigator.language);
+function siteLink(text: string, path: string): HTMLAnchorElement {
+  const link = element("a", text);
+  Object.assign(link, { href: siteHref(WEB_ORIGIN, path, siteLanguageNow), target: "_blank", rel: "noopener" });
+  return link;
+}
+
+/**
+ * The CGU version in effect (#550), which the Guest's box names; null while none is, undefined while the web app
+ * cannot say (which is not « none »). `fresh`: asked again, as before a CV is sent; otherwise the last answer, or the
+ * question already asked, serves (a render).
+ */
+let cguInEffect: Promise<CguVersion | null | undefined> | undefined;
+function readCguInEffect({ fresh = false } = {}): Promise<CguVersion | null | undefined> {
+  if (!cguInEffect || fresh) {
+    const asked = api.cguInEffect().then((reply) => (reply.ok ? reply.cgu : undefined));
+    cguInEffect = asked;
+    // Not known: asked again next time.
+    void asked.then((known) => {
+      if (known === undefined && cguInEffect === asked) cguInEffect = undefined;
+    });
+  }
+  return cguInEffect;
+}
+
+/**
+ * The Guest's box (ADR-0062, #550), never ticked for them: « J'accepte les conditions d'utilisation pour les invités
+ * (version du JJ/MM/AAAA) et j'ai lu l'information sur mes données », with its two links.
+ */
+function guestTermsBox(cgu: CguVersion): { node: HTMLElement; input: HTMLInputElement } {
+  const node = element("div", "", "ds-choice guest-terms");
+  const input = element("input");
+  Object.assign(input, { type: "checkbox", id: "guest-terms", checked: false });
+  input.dataset.version = cgu.version;
+  const label = element("label");
+  label.htmlFor = input.id;
+  const marker = (slot: string) => `\u0000${slot}\u0000`;
+  const sentence = t("extension.guestTerms.box", { date: versionDay(cgu.version, i18n.language), terms: marker("terms"), privacy: marker("privacy") });
+  for (const part of sentenceParts(sentence, ["terms", "privacy"], marker)) {
+    if ("text" in part) label.append(part.text);
+    else if (part.slot === "terms") label.append(siteLink(t("extension.guestTerms.terms"), GUEST_TERMS_LINKS.terms));
+    else label.append(siteLink(t("extension.guestTerms.privacy"), GUEST_TERMS_LINKS.privacy));
+  }
+  node.append(input, label);
+  return { node, input };
+}
+
+/** The Side Panel's foot (#550): Aide, Confidentialité and CGU, on the web app, in a new tab. */
+function panelLinks(): HTMLElement {
+  const nav = element("nav", "", "panel-links");
+  nav.setAttribute("aria-label", t("extension.links.label"));
+  nav.append(...SIDE_PANEL_LINKS.map(({ key, path }) => siteLink(t(`extension.links.${key}`), path)));
+  return nav;
 }
 
 /** A Lucide icon, drawn at stroke 1.7 like the web app's (decoration: the words say it). */
@@ -250,8 +310,11 @@ function extrasFor(shown?: JobOffer): HTMLElement {
   return extras;
 }
 
-/** The CV form: the file is read by Jobbbox (and kept by no one but this browser), then scored. Its submit button may sit in the footer. */
-function cvForm(): { form: HTMLFormElement; submit: HTMLButtonElement } {
+/**
+ * The CV form: the file is read by Jobbbox (and kept by no one but this browser), then scored. Its submit button may
+ * sit in the footer. `cgu`: the CGU version a Guest must accept first (#550), whose box comes before the button.
+ */
+function cvForm(cgu: CguVersion | null): { form: HTMLFormElement; submit: HTMLButtonElement } {
   const form = element("form", "", "cv-form");
   form.id = "cv-form";
   const label = element("label", t("cvUpload.fileLabel"), "ds-field__label");
@@ -289,7 +352,8 @@ function cvForm(): { form: HTMLFormElement; submit: HTMLButtonElement } {
   // One place for the latest error: a new attempt replaces the last one's message.
   const error = element("p", "", "error");
   error.setAttribute("role", "alert");
-  form.append(label, input, drop, progress, error);
+  let terms = cgu ? guestTermsBox(cgu) : undefined;
+  form.append(label, input, drop, ...(terms ? [terms.node] : []), progress, error);
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -298,8 +362,36 @@ function cvForm(): { form: HTMLFormElement; submit: HTMLButtonElement } {
       input.reportValidity();
       return;
     }
+    if (submit.disabled) return;
     submit.disabled = true;
     error.textContent = "";
+    // A Guest's CV goes only once they have accepted the CGU in effect (#550), asked again now: the box, never
+    // sent, stays in the Guest session. Not knowing whether a version is in effect, nothing is sent.
+    if (!candidate.signedIn) {
+      const inEffect = await readCguInEffect({ fresh: true });
+      const refuse = (message: string) => {
+        submit.disabled = false;
+        error.textContent = message;
+      };
+      if (inEffect === undefined) return refuse(t("extension.unreachable"));
+      const toAccept = guestTermsToAccept(inEffect, (await session.read()).guestTerms);
+      if (toAccept) {
+        // A version came into effect, or became known, since the form was drawn: its box, unticked, takes the
+        // place of any other, the file chosen staying chosen.
+        if (terms?.input.dataset.version !== toAccept.version) {
+          const shown = guestTermsBox(toAccept);
+          if (terms) terms.node.replaceWith(shown.node);
+          else drop.after(shown.node);
+          terms = shown;
+        }
+        if (!terms.input.checked) {
+          refuse(t("extension.guestTerms.required"));
+          terms.input.focus();
+          return;
+        }
+        await session.acceptGuestTerms(toAccept.version);
+      }
+    }
     progress.textContent = t("cvUpload.reading");
     const read = await api.readCv(file);
     if (!read.ok) {
@@ -491,17 +583,35 @@ function header(): HTMLElement {
   return head;
 }
 
-/** Lays the panel out: its header, its body (which scrolls), and the footer's actions. */
+/** Lays the panel out: its header, its body (which scrolls), and the footer: its actions, then Aide, Confidentialité and CGU. */
 function show(body: (Node | string)[], foot: (Node | string)[]) {
   const main = element("div", "", "panel-body");
   main.append(...body);
-  const parts: HTMLElement[] = [header(), main];
-  if (foot.length) {
-    const footer = element("footer", "", "panel-foot");
-    footer.append(...foot);
-    parts.push(footer);
-  }
-  app.replaceChildren(...parts);
+  const footer = element("footer", "", "panel-foot");
+  footer.append(...foot, panelLinks());
+  app.replaceChildren(header(), main, footer);
+}
+
+/**
+ * « Mettez à jour l'extension » (#564): the web app no longer serves this build's API Version. The link leads to the
+ * extension's store page; the Guest session is kept, and its Job Offer still shown. « Réessayer » asks the web app again.
+ */
+function updateNotice(asked: UpdateRequired, jobOffer: JobOffer | undefined): HTMLElement[] {
+  const link = element("a", t("extension.updateRequired.action"), buttonClass("primary", true));
+  Object.assign(link, { href: updateHref(asked, WEB_ORIGIN), target: "_blank", rel: "noopener" });
+  const retry = button(
+    t("extension.updateRequired.retry"),
+    () => {
+      retry.disabled = true;
+      void update.answered(null).then(() => render());
+    },
+    "quiet",
+    true,
+  );
+  const notice = note("warn", element("h2", t("extension.updateRequired.title"), "update__title"), element("p", t("extension.updateRequired.text")), link, retry);
+  notice.classList.add("update");
+  notice.setAttribute("role", "alert");
+  return jobOffer ? [notice, jobOfferHead(jobOffer).node] : [notice];
 }
 
 /** The Job Offer last shown: another one in the Guest session (captured from a badge, say) is shown at once. */
@@ -517,6 +627,16 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
   const renderId = ++renders;
   if (candidate.signedIn && !outcome) outcome = await saving.open();
   if (renderId !== renders) return;
+  // Asked to update (#564): nothing more is asked of the web app until then.
+  const asked = await update.required();
+  if (renderId !== renders) return;
+  if (asked) {
+    const { jobOffer } = await session.read();
+    if (renderId !== renders) return;
+    shownJobOfferId = jobOffer?.id;
+    show(updateNotice(asked, jobOffer), []);
+    return;
+  }
   if (outcome?.state === "saved") {
     shownJobOfferId = undefined;
     show([...inViewNote(outcome.jobOffer), jobOfferHead(outcome.jobOffer).node, savedNotice(outcome), extrasFor(outcome.jobOffer)], []);
@@ -589,7 +709,10 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
       if ("cv" in against && profiles.length > 0) actions.append(button(t("extension.analysis.useProfile"), useProfile, "quiet", true));
       body.push(actions, ...parts);
     } else {
-      const { form, submit } = cvForm();
+      // A Guest accepts the CGU in effect before their session's first CV (#550); none while no version is in effect.
+      const cgu = candidate.signedIn ? null : guestTermsToAccept((await readCguInEffect()) ?? null, content.guestTerms);
+      if (renderId !== renders) return;
+      const { form, submit } = cvForm(cgu);
       // The form's own label says « Votre CV »; a Candidate scored against a Profile is told which one first.
       if (scoredProfileId) body.push(element("h3", t("extension.analysis.profileTitle"), "label"));
       body.push(form);
@@ -643,6 +766,11 @@ browser.storage.session.onChanged.addListener(() => {
   void session.read().then(({ jobOffer }) => {
     if (jobOffer?.id !== shownJobOfferId) void render();
   });
+});
+
+// Asked to update by an answer of the web app (#564), here or in the background (a Capture), or no longer: shown at once.
+browser.storage.local.onChanged.addListener((changes) => {
+  if (UPDATE_STORAGE_KEY in changes) void render();
 });
 
 // The session is watched before the first render, which a Match Score waiting on another page's can hold up (#66).

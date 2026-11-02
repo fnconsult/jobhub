@@ -133,6 +133,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "legal_text_notice", // issue #547: the notice of a substantial Legal Text Version sent to each Candidate
         "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
         "master_cv_version",
+        "nouveautes_email_sent", // issue #566: the Nouveautés emails sent, one per Candidate and per Version
+        "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
         "plan_quota_reduction", // issue #514: Quota Reductions, and the notice each paying subscriber is sent
@@ -271,6 +273,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // The Legal Text notices (issue #547) follow their Candidate.
         { from_table: "legal_text_notice", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
+        // The Nouveautés email (issue #566) follows its Candidate.
+        { from_table: "nouveautes_email_sent", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "nouveautes_email_subscription", from_column: "candidate_id", to_table: "candidate" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
         { from_table: "plan_quota_reduction", from_column: "plan", to_table: "plan" },

@@ -1,0 +1,80 @@
+name: publier-releases
+
+# Publishes the GitHub Release of every Version (ADR-0063, #561; script: scripts/releases/publish-releases.ts). A tag
+# vX.Y.Z is pushed only by the Promotion (docs/ops/promotion.md). For each tag whose Release is missing or differs, it
+# creates or updates it: the French Release Note, then the English one, then the pull requests since the previous tag.
+# A tag with no Release Note gets a technical Release, « vX.Y.Z (technique) », with the pull requests alone; a Release
+# Note with no tag yet (the next Version, on the Beta) publishes nothing. Running it again creates no duplicate.
+# A Release Note is never changed after its Promotion: when one of a tagged Version differs from its tag's, it fails.
+# On a pull request it checks that guard and says what it would publish (dry-run), with a read-only token.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - packages/help/releases/fr/*.md
+      - packages/help/releases/en/*.md
+  pull_request:
+    paths:
+      - packages/help/releases/fr/*.md
+      - packages/help/releases/en/*.md
+      - scripts/publish-releases.ts
+      - scripts/releases/**
+      - .github/workflows/publier-releases.yml
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Dire ce qui serait publié, sans rien écrire"
+        type: boolean
+        default: true
+
+concurrency:
+  group: publier-releases-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # A pull request: the guard, and what would be published, with a read-only token.
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Every tag, with what each one carries, and the history between them.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/publish-releases.ts --dry-run
+
+  publish:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Creating and editing Releases.
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Publish the Releases
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && '--dry-run' || '' }}
+        run: npx tsx scripts/publish-releases.ts $DRY_RUN

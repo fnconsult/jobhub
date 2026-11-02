@@ -66,6 +66,12 @@
   },
   "extension": {
     "title": "Jobbbox",
+    "updateRequired": {
+      "title": "Update the extension",
+      "text": "Jobbbox no longer supports this version of the extension. Install the latest version from its page on your browser's store: this session's job offer and CV stay in this browser.",
+      "action": "Open the extension's page",
+      "retry": "Try again"
+    },
     "description": "Capture a job offer from the page you are viewing.",
     "signedInAs": "Signed in as {{email}}",
     "signedOut": "Sign in to Jobbbox to save your job offers.",
@@ -166,7 +172,19 @@
       "chooseFile": "Choose a file"
     },
     "allSites": "Detect job offers on every site",
-    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only."
+    "allSitesHint": "To see “Analyse this offer” on employers' own career sites too. Your browser will ask for your permission; pages are still read in this browser only.",
+    "guestTerms": {
+      "box": "I accept the {{terms}} (version of {{date}}) and I have read the {{privacy}}",
+      "terms": "terms of use for guests",
+      "privacy": "information about my data",
+      "required": "Tick the box to send your CV."
+    },
+    "links": {
+      "label": "Help and legal",
+      "help": "Help",
+      "privacy": "Privacy",
+      "terms": "Terms of use"
+    }
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",
@@ -209,7 +227,12 @@
       "planQuota": "quota",
       "masterCv": "Master CV",
       "tailoredCv": "tailored CV",
-      "proposals": "proposals"
+      "proposals": "proposals",
+      "aiCoach": "AI coach",
+      "coachMemory": "coach memory",
+      "coachAccess": "access",
+      "euAiConsent": "your consent",
+      "targetCompany": "target company"
     }
   },
   "emptyStateHelp": {
@@ -2721,7 +2744,8 @@
         "secret_disclosure": "Secret disclosure",
         "harmful_advice": "Out-of-scope or harmful advice",
         "distress": "Distress",
-        "email_injection": "Booby-trapped email content"
+        "email_injection": "Booby-trapped email content",
+        "ungrounded_answer": "Answer not grounded in the profile"
       },
       "descriptions": {
         "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
@@ -2729,7 +2753,8 @@
         "secret_disclosure": "A reply that reveals the AI's instructions, the coaching playbooks' rules or a key (Provider Secrets).",
         "harmful_advice": "A reply that gives legal, medical or financial advice, or discriminatory advice, age included.",
         "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted.",
-        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside."
+        "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside.",
+        "ungrounded_answer": "An AI Coach reply that ranks job offers or says whether an offer, an application or a piece of advice suits the candidate without citing their skills, experience or criteria, or that claims not to have the reasons for a score or their CV. Blocked, it is written again once; if it still is, the message below is shown."
       },
       "languages": {
         "fr": "French",
@@ -3525,7 +3550,7 @@
     "viewsLabel": "How applications are shown",
     "listView": "List",
     "boardView": "Board",
-    "none": "You have no applications yet. Save a job offer to follow it here.",
+    "none": "You have no applications yet. Save a job offer to follow it here: on the offer's page, open the Jobbbox extension from your browser's toolbar, where you pinned it.",
     "jobOffer": "Job offer",
     "profile": "Profile",
     "status": "Status",
@@ -4451,7 +4476,7 @@
     "fresh_other": "{{count}} new this week",
     "intro_one": "{{count}} offer taken from your offer emails for this profile, newest first.",
     "intro_other": "{{count}} offers taken from your offer emails for this profile, newest first.",
-    "none": "No offer received by email for this profile yet.",
+    "none": "No offer received by email for this profile yet. In your mailbox, open a job offer's email, choose « Forward », then paste your forwarding address as the recipient and send.",
     "off": "Get the offers of your job alerts and recruiters' messages here too, by forwarding them to Jobbbox.",
     "setUp": "Set up forwarding step by step",
     "listLabel": "Offers received by email for “{{profile}}”",
@@ -5158,7 +5183,31 @@
     "published": "Published versions",
     "emptyTitle": "Nothing published yet",
     "empty": "Jobbbox's first version and what it brings will appear here.",
-    "noneForTag": "No version has this topic yet."
+    "noneForTag": "No version has this topic yet.",
+    "allVersions": "All versions"
+  },
+  "nouveautesEmail": {
+    "settings": {
+      "label": "Get an email when Jobbbox announces something new",
+      "explanation": "At most one email a week, with no open or click tracking. You can unsubscribe at any time, here or through the email's link.",
+      "since": "Subscribed since {{date}}.",
+      "on": "Subscription saved.",
+      "off": "You will no longer receive these emails.",
+      "error": "Your choice could not be saved. Please try again."
+    },
+    "email": {
+      "subject": "New in Jobbbox: {{title}}",
+      "read": "Read version {{version}}",
+      "reason": "You are receiving this email because you asked, in My account, to hear about what is new in Jobbbox.",
+      "unsubscribe": "Stop receiving what's new by email"
+    },
+    "unsubscribePage": {
+      "title": "Unsubscribe from what's-new emails",
+      "confirm": "You will no longer get an email when Jobbbox announces something new. You can subscribe again at any time in My account, under Preferences.",
+      "action": "Unsubscribe",
+      "done": "Done: you will no longer receive what's-new emails.",
+      "invalid": "This unsubscribe link is no longer valid. You may already be unsubscribed; otherwise, sign in and untick the box in My account, under Preferences."
+    }
   },
   "publicFooter": {
     "legal": {
@@ -5342,5 +5391,15 @@
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
     "clear": "Clear the conversation"
+  },
+  "microAnimation": {
+    "show": "Show me how",
+    "replay": "Replay",
+    "hide": "Hide",
+    "art": {
+      "forward": "Forward",
+      "to": "To",
+      "send": "Send"
+    }
   }
 }

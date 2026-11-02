@@ -20,6 +20,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/",
       "motion": null,
+      "microAnimations": [],
       "body": "L'accueil est votre point de départ dans Jobbbox : une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nUne question sur Jobbbox ? Pendant que vous écrivez, les articles de l'aide qui correspondent s'affichent au-dessus de la zone de message, « Dans l'aide, sans IA », à la place des suggestions. Un article s'ouvre à côté de la conversation, comme « Comment marche cette page ? » tant que la conversation est vide ; « Demander au coach » y commence une question à son sujet. « Activité », en haut de la page, ouvre à côté de la conversation ce que l'IA a fait pour vous et le contexte de la conversation.\n\nSur téléphone, la conversation occupe tout l'écran. Un article, « Activité » ou un formulaire s'ouvrent par-dessus, en plein écran : « Fermer » les referme et vous ramène à la conversation. Le menu s'ouvre avec « Menu », en haut de la page.\n\nEn bas du menu, « Mon compte » ouvre un petit menu : sous « Aide et légal », le centre d'aide (« Aide »), les textes légaux (« Légal ») et ce qui change dans Jobbbox (« Nouveautés ») ; puis la page Mon compte et « Se déconnecter ». Sur téléphone aussi, il est en bas du menu."
     },
     {
@@ -44,6 +45,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/activite/actions",
       "motion": null,
+      "microAnimations": [],
       "body": "L'onglet « Actions des administrateurs » d'Activité est le journal du back office, qui s'appelait « Journal ». Il enregistre chaque modification faite dans le back office : qui, quand, la section, l'élément, l'action, et les valeurs avant et après. Il enregistre aussi chaque tentative refusée ou échouée, avec sa raison mais sans les valeurs saisies, et chaque appel IA ou recherche d'offres d'un candidat qu'un super-admin a ouvert.\n\nLes valeurs secrètes ne sont jamais enregistrées : une clé apparaît « Valeur remplacée (jamais enregistrée) » ou « Valeur effacée : la variable d'environnement reprend le relais ». Une question sans réponse ou un signalement est nommé par son identifiant, jamais par ses mots. Chaque entrée est gardée 3 ans.\n\n« Afficher » filtre par section : « Tout », « Rôles », « Offres », « Codes promo », « Coachs humains », « Playbooks de coaching », « Garde-fous », « Signalements »… Le filtre « Outils » ajoute chaque appel aux outils externes (Stripe, Brevo, connexion, tests de connexion, pages lues), avec son outil, son opération, son résultat et sa durée : ni contenu, ni candidat, ni secret. Le filtre « Boîtes reliées » ajoute les boîtes reliées activées, remplacées, coupées ou à leur plafond du jour, sans candidat ni adresse. Les modifications les plus récentes viennent d'abord.\n\nLes super-admins et Technique lisent ce journal. Personne ne le modifie ni n'en efface une ligne."
     },
     {
@@ -73,6 +75,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/activite",
       "motion": null,
+      "microAnimations": [],
       "body": "Activité (menu Plateforme) réunit, en onglets, ce que la plateforme a fait : « Recherches », « Emails reçus », « Appels IA » et « Actions des administrateurs ». Chaque onglet n'apparaît qu'aux rôles qui le lisent. « Emails reçus » et « Actions des administrateurs » ont chacun leur article.\n\n**Recherches** liste chaque run de la recherche d'offres, lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest. Filtrez avec « Déclencheur », « Période » et « Bascules sur le fournisseur de secours seulement », puis cliquez sur « Afficher ». Chaque ligne donne le profil (« Profil #… », jamais le nom du candidat), les recherches, le fournisseur, les pages lues, les « Offres nouvelles / extraites », l'arrêt, la durée et le coût. « Ouvrir » montre l'« Entonnoir (Discovery metrics) », les « Recherches du run », les « Sources », les « Pages écartées » avec leur raison et « Appels IA de ce run ». Les requêtes et les critères sont effacés après 30 jours ; les chiffres restent. Un super-admin peut « Ouvrir la recherche d'offres du candidat » : cette consultation est inscrite dans Actions des administrateurs.\n\n**Appels IA** est le journal de ce que chaque appel à l'IA a dit, tel qu'il a été envoyé : les instructions, les messages après Redaction et la réponse, clés et secrets masqués, avec le résultat (« OK », « Avertissement » ou « Échec ») et sa raison. Filtrez par « Tâche », « Modèle », « E-mail du candidat », « Jour », résultat et raison, puis cliquez sur « Filtrer » ; « Effacer les filtres » revient à la liste entière. Chaque appel ouvert montre « Détails de l'appel », « Pourquoi » et le « Détail technique » d'un échec. Ces textes contiennent des données personnelles : seuls les super-admins les lisent, chaque appel ouvert est inscrit dans Actions des administrateurs, et ils sont effacés après 30 jours. N'ouvrez un appel que pour comprendre un problème.\n\nLes super-admins, Technique et le Support lisent Recherches ; seuls les super-admins lisent Appels IA."
     },
     {
@@ -93,6 +96,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/aide",
       "motion": null,
+      "microAnimations": [],
       "body": "L'aide du back office réunit les pages, tutoriels et questions fréquentes écrits par l'équipe Jobbbox pour les administrateurs. Elle n'est jamais publique : le centre d'aide (/aide), sa recherche et le plan du site ne la montrent pas, et seuls les administrateurs l'ouvrent, quels que soient leurs rôles.\n\nLes articles sont rangés par rubrique : « Fournisseurs et Tools » d'abord, puis une rubrique par groupe du menu du back office, puis « IA et conformité ». « Chercher dans l'aide du back office » trouve un article par ses mots, sans IA.\n\nChaque section du back office montre aussi son article dans l'assistant, sous « Sur cette page ». L'assistant répond à partir des articles qu'il trouve et les cite. S'il n'en trouve aucun, cliquez sur « Demander un tutoriel » sous sa réponse : les rédacteurs de l'aide verront la question dans « Questions sans réponse », sans votre nom."
     },
     {
@@ -117,6 +121,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/coachs",
       "motion": null,
+      "microAnimations": [],
       "body": "Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jobbbox a choisis et que les candidats peuvent réserver pour des séances payantes, en plus de l'AI Coach. Jobbbox les rémunère en dehors de la plateforme.\n\n« Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.\n\nLes responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains »."
     },
     {
@@ -136,6 +141,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/conversations/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page est l'une de vos conversations avec votre coach IA, rouverte depuis « Coach » dans le menu. Elle reprend vos messages et ses réponses ; sous chaque réponse, une ligne discrète dit ce qui l'a produite, et « Cela répond à votre question ? » vous permet de le dire.\n\nÉcrivez dans la zone de message, en bas de la page. Pendant que le coach répond, « Arrêter » interrompt sa réponse.\n\nPour renommer ou supprimer la conversation, ouvrez ses actions (« … ») à côté de son nom dans le menu. « Effacer », en haut de la page, en supprime tous les messages ; la mémoire du coach reste."
     },
     {
@@ -154,6 +160,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/profils/nouveau",
       "motion": null,
+      "microAnimations": [],
       "body": "Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Vous pouvez en avoir plusieurs, selon votre offre.\n\nSi vous avez un CV, déposez-le : votre coach le lit et vous propose un CV de référence. Sinon, répondez à ses questions sur votre parcours, une à la fois ; comptez une dizaine de minutes.\n\nDans les deux cas, vous vérifiez et corrigez tout avant d'enregistrer. Rien n'est ajouté que vous n'ayez dit."
     },
     {
@@ -186,6 +193,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/consommation-ia",
       "motion": null,
+      "microAnimations": [],
       "body": "Le Dashboard est la première page du back office. Il montre ce que la plateforme consomme et comment se porte la recherche d'offres. Chaque bloc n'apparaît qu'aux rôles qui lisent sa rubrique : sans aucun, la page affiche « Aucun indicateur pour vos rôles : la barre latérale mène à vos rubriques. »\n\nLe bloc « Recherche d'offres : consommation et budget » donne, pour le mois en cours, la « Dépense recherche web du mois » face au seuil d'alerte, le « Coût moyen d'un run » face au « Budget par run », le « Coût par nouvelle offre », les « Runs », les « Runs passés au secours » (sur le fournisseur de secours) et les « Appels IA en échec ». Ses graphiques montrent la dépense quotidienne par Search provider, le « Cumul du mois et seuil d'alerte » avec la fin de mois estimée, « Pourquoi les runs s'arrêtent » et « Où va le coût d'un run (moyenne) ». « Vue tableau » donne les mêmes chiffres en tableau. « Tout le détail dans Consommation IA » ouvre la page suivante.\n\nConsommation IA (menu Plateforme) compte chaque appel à l'IA, toutes tâches comprises, les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion…). Choisissez la « Période » (« 7 derniers jours », « 30 derniers jours », « 90 derniers jours » ou « 12 derniers mois, par mois ») puis cliquez sur « Afficher ». La page détaille ensuite les « Totaux », « Par fournisseur, point d'accès et modèle », « Par tâche », « Par jour » ou « Par mois », les « Outils » et les « API externes ».\n\n« Échecs et avertissements par raison » compte les appels échoués ou en avertissement par Failure Reason : le code et son libellé seulement, jamais la raison technique. Pour lire un appel précis, un super-admin passe par Activité › Appels IA.\n\nLes coûts sont des estimations aux prix publics des fournisseurs, en dollars convertis en euros, figées au moment de chaque appel. Un outil sans prix connu est compté 0 et signalé « prix inconnu ». Ce sont des agrégats : aucun candidat, aucun texte. Quand le seuil d'alerte mensuel de la recherche web est atteint, un bandeau le dit et les super-admins sont prévenus par e-mail ; rien n'est coupé. Le seuil et les prix se règlent dans Paramètres.\n\nLes super-admins, Technique et le Support lisent ces deux pages ; personne n'y modifie rien."
     },
     {
@@ -213,6 +221,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/activite/emails-recus",
       "motion": null,
+      "microAnimations": [],
       "body": "L'Email intake, ou réception par email, transforme en offres les emails d'offres que les candidats transfèrent à leur adresse de transfert : alertes des sites d'emploi, alertes d'un site carrière, message d'un recruteur. Seuls les emails d'un expéditeur reconnu sont lus, par une IA hébergée dans l'UE, une fois passé le garde-fou des emails piégés.\n\nL'onglet « Emails reçus » d'Activité liste chaque email d'offres reçu : « Reçu le », le « Domaine de l'expéditeur », le type (« Alerte », « Recruteur » ou « Autre »), les « Offres nouvelles / déjà là », le verdict du « Garde-fou » et le résultat. Ce résultat peut être « Offres trouvées », « Expéditeur non reconnu », « Écarté par un garde-fou », « Plafond atteint », « Confirmation de transfert », « En attente de lecture », « Autre » ou « Échec ». Filtrez avec « Résultat », « Type » et « Période », puis cliquez sur « Afficher ». Aucun nom, e-mail ni identifiant de candidat ici, et rien de ce que disent les emails.\n\nLes réglages et les listes d'expéditeurs sont dans Paramètres, onglet « Sources », sur la fiche de MTA Jobbbox (Haraka). « Expéditeurs reconnus » liste ceux de la plateforme, reconnus par leur domaine, ou par leur adresse complète quand le domaine envoie pour plusieurs entreprises. Chacun a un libellé ; « Désactiver … » le garde listé sans le lire, « Supprimer … » le retire. « Expéditeurs proposés » liste ceux que des candidats ont ajoutés pour eux seuls : combien de candidats, jamais lesquels. Les accepter les ajoute pour tous.\n\nLes super-admins, Technique et le Support lisent « Emails reçus ». Les super-admins et Technique modifient les expéditeurs ; chaque changement est inscrit dans Actions des administrateurs, section « Expéditeurs reconnus (Réception par email) »."
     },
     {
@@ -234,6 +243,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/agenda",
       "motion": null,
+      "microAnimations": [],
       "body": "L'agenda est une conversation avec votre coach IA, la même à chaque visite. Il montre vos entretiens et vos séances avec un coach humain : la liste y est une carte, vos prochains rendez-vous jour par jour, et les séances « À planifier ». Demandez au coach de préparer un entretien ou de vous rappeler ce qui vient.\n\n« Semaine » et « Mois » ouvrent le calendrier à côté de la conversation. « Ajouter un entretien » y ouvre son formulaire, qui se ferme une fois l'entretien ajouté ; vous pouvez aussi l'ajouter depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ». Sur téléphone, le calendrier et le formulaire s'ouvrent par-dessus la conversation, en plein écran : « Fermer » les referme.\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu."
     },
     {
@@ -264,6 +274,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/garde-fous",
       "motion": null,
+      "microAnimations": [],
       "body": "Garde-fous (menu Coaching) règle les contrôles automatiques sur ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et sur ce qu'ils répondent. Ils contrôlent aussi les emails reçus par la réception par email avant qu'une IA ne les lise. Leur liste est fixée dans le code : « Injection d'instructions », « Fuite de données personnelles », « Divulgation de secrets », « Conseil hors rôle ou dangereux », « Détresse » et « Contenu piégé dans un email ». Ici, vous réglez chacun et écrivez le message qu'il affiche à la place de la réponse.\n\nLe tableau « Les garde-fous et leur réglage » dit, pour chacun, « Ce qu'il contrôle » et son « Réglage ». Dans « Quand il détecte quelque chose », « Bloquer » arrête le message, ou fait réécrire la réponse une fois puis la remplace par le message du garde-fou. « Signaler seulement » laisse tout passer et compte le déclenchement. « Désactivé » n'existe que pour le contenu piégé dans un email. La détresse, la fuite de données personnelles et la divulgation de secrets bloquent toujours (« Bloque toujours »).\n\nAvant d'enregistrer un réglage avec « Enregistrer le réglage », les cas d'évaluation des garde-fous sont joués avec lui. Il est refusé s'il laisse passer un cas que ces trois garde-fous doivent bloquer ; « Voir l'évaluation jouée sur ce réglage » montre le résultat.\n\nChaque message existe en français et en anglais. En production, il n'est servi qu'une fois validé par un administrateur nommé autre que son auteur, chaque langue à part. D'ici là, le « Texte par défaut de Jobbbox » s'applique. Le message de détresse doit donner le 3114. Personne n'est alerté quand un candidat exprime une détresse.\n\n« Déclenchements » compte, par jour (heure de Paris) et par garde-fou, les messages « Bloqués », « Signalés » et les « Contrôle indisponible », ces derniers par raison. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans Activité › Appels IA. Quand le contrôle par IA est indisponible, seules les règles fixes s'appliquent et le message passe.\n\nLes super-admins modifient les réglages et les messages ; le Support lit la page."
     },
     {
@@ -284,6 +295,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/job-digests",
       "motion": null,
+      "microAnimations": [],
       "body": "« Job Digests » est une conversation avec votre coach IA, la même à chaque visite. Un Job Digest est une sélection de nouvelles offres qui correspondent aux critères de recherche d'un profil : vous le recevez par e-mail et le retrouvez ici.\n\nVos Job Digests y sont listés dans une carte, par profil : sa fréquence, que vous réglez là, dans la limite de votre offre (chaque semaine le lundi à 7 h, ou chaque jour à 7 h, heure de Paris), puis chaque Job Digest envoyé, avec sa date et son nombre d'offres. Cliquez sur une ligne pour l'ouvrir, ou demandez au coach quelles offres regarder en premier.\n\nSeules les offres que vous n'avez pas encore vues y figurent. S'il n'y en a aucune, rien n'est envoyé.\n\nDans le menu, « Job Digests » se déroule sur vos Job Digests les plus récents ; « Tout voir » mène à cette page."
     },
     {
@@ -306,6 +318,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/compte/outils",
       "motion": null,
+      "microAnimations": [],
       "body": "L'extension Chrome Jobbbox enregistre dans Jobbbox l'offre d'emploi que vous lisez sur un site d'offres, et calcule son score de correspondance, sans copier-coller. Elle s'installe dans le navigateur Google Chrome, sur ordinateur.\n\nPour l'installer, connecté : dans Mon compte, rubrique Outils, cliquez sur « Installer l'extension depuis le Chrome Web Store », puis ajoutez-la à Chrome depuis la page qui s'ouvre. Sans compte, « Extension », en bas des pages publiques, mène à la même page. Tant qu'elle n'est pas publiée, Outils affiche « L'extension arrive bientôt sur le Chrome Web Store. »\n\nUne fois installée, épinglez-la dans la barre de Chrome pour la retrouver. Sur la page d'une offre, elle ajoute le bouton « Analyser cette offre » ; vous pouvez aussi l'ouvrir et cliquer sur « Capturer cette page ».\n\nSans compte, l'extension calcule le Match Score d'une offre avec votre CV, puis efface tout au plus tard 24 heures après. Pour garder l'offre dans vos candidatures, connectez-vous : « Se connecter », dans l'extension. La suite est expliquée pas à pas dans le tutoriel « Enregistrer une offre avec l'extension »."
     },
     {
@@ -330,6 +343,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/profils/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "La page d'un profil est sa conversation avec votre coach IA : il a sous les yeux son CV de référence et ses critères de recherche pour un métier. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Améliorer mon CV », « Comprendre mon ATS Score », « Affiner mes critères », « Quelles entreprises cibler ? ». La conversation est gardée avec le profil et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, le profil et son CV restent.\n\nÀ droite, la fiche du profil : s'il est actif ou archivé, « Chercher des offres », ses critères de recherche, que vous modifiez sur place, et son ATS Score, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». Les résultats d'un profil sont les versions de son CV de référence, la plus récente en premier, et son téléchargement en PDF ou Word. « Fiche », en haut de la page, l'ouvre ou la ferme.\n\nSes rubriques : Propositions, tant que votre coach a des corrections à vous proposer, puis CV de référence, ATS Score, Entreprises cibles, Télécharger et Gérer. Une rubrique, une version du CV de référence, son historique ou l'éditeur complet du CV s'ouvrent à côté de la conversation, sans la cacher. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse.\n\nCommencez par l'ATS Score : il dit si les logiciels de recrutement liront bien votre CV. Les corrections que propose votre coach apparaissent dans « Propositions » ; acceptez-les ou ignorez-les une par une. Chaque enregistrement du CV de référence crée une nouvelle version, et vous pouvez revenir à une version précédente. « Télécharger » exporte le CV de référence en PDF ou Word. « Gérer » permet de renommer, dupliquer ou archiver le profil.\n\n« Entreprises cibles » liste les entreprises que la recherche d'offres vise pour ce profil : celles que La Bonne Boite donne comme susceptibles de recruter pour votre métier et votre zone, avec leur potentiel d'embauche, et celles que vous ajoutez, marquées « Ajoutée par vous ». Pour en ajouter une, indiquez son nom ou son SIREN dans « Ajouter une entreprise » : elle passe avant celles de La Bonne Boite. Chaque entreprise indique les offres trouvées chez elle ; « Dossier entreprise », « Contacts enrichis » et « Préparer une candidature spontanée » ouvrent une candidature spontanée, ajoutée à vos candidatures « À postuler ». « Écarter » retire une entreprise pour de bon : elle ne reviendra plus pour ce profil.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
@@ -350,7 +364,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/candidatures/[id]",
       "motion": null,
-      "body": "La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nSes rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre. Une rubrique ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer. Mettez le statut à jour dans la fiche quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation."
+      "microAnimations": [],
+      "body": "La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nSes rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre. Une rubrique ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation. Tant qu'aucun entretien n'est noté, « Voir comment » y montre comment passer la candidature au statut « Entretien » pour pouvoir l'ajouter.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer. Mettez le statut à jour dans la fiche quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
       "id": "page-job-offer",
@@ -368,6 +383,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/offres/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "Elle montre l'offre d'emploi : l'employeur, le lieu, le type de contrat, le télétravail et le salaire quand ils sont indiqués, les compétences demandées et le texte de l'offre.\n\nLe score de correspondance dit à quel point le CV de référence d'un de vos profils correspond à l'offre. Choisissez le profil à utiliser, puis « Enregistrer l'offre » : elle devient une candidature que vous suivez dans « Mes candidatures »."
     },
     {
@@ -391,6 +407,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/sidepanel.html",
       "motion": null,
+      "microAnimations": [],
       "body": "L'extension Jobbbox s'ouvre dans un panneau sur le côté droit de votre navigateur, à côté de l'offre d'emploi que vous lisez. Pour l'ouvrir, cliquez sur l'icône Jobbbox dans la barre du navigateur, ou sur le bouton « Analyser cette offre » qu'elle ajoute aux pages d'offres. Une fois ouvert, le panneau reste affiché quand vous changez d'onglet et suit l'offre que vous avez sous les yeux.\n\nEn haut, « Analyse de l'offre » est le titre du panneau. Sans compte, la mention « Invité » s'affiche à côté : vous utilisez l'extension en invité, et rien n'est gardé dans un compte.\n\nQuand la page ouverte est une offre, le panneau affiche « Offre détectée sur cette page. » avec son intitulé. Sinon, « Capturer cette page » lit la page telle qu'elle s'affiche. Tant qu'aucune offre n'est capturée, le panneau vous l'explique : « Aucune offre capturée. »\n\nUne fois l'offre capturée, le panneau montre son intitulé, l'employeur et le lieu. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier », puis sur « Calculer mon Match Score » : le score sur 100 s'affiche, avec le « Détail du Match Score », critère par critère. Votre CV et l'offre restent dans ce navigateur, le temps de votre session d'invité ; la date à laquelle ils seront effacés est écrite dans le panneau.\n\nAvant l'envoi de votre premier CV, une case vous demande d'accepter les « conditions d'utilisation pour les invités » et de confirmer que vous avez lu l'« information sur mes données ». Elle n'est jamais cochée d'avance, et sans elle votre CV n'est pas envoyé. Votre choix reste dans ce navigateur, comme votre CV, et il est effacé avec lui ; une fois la case cochée, elle ne revient plus pendant la session.\n\nÀ la fin du panneau, la case « Détecter les offres sur tous les sites » ajoute le bouton « Analyser cette offre » aux sites carrières des employeurs.\n\nLes boutons restent en bas du panneau. Avant le calcul : « Calculer mon Match Score » et, si vous avez déjà un compte, « J'ai déjà un compte · Se connecter ». Après le calcul : « Créer mon compte et garder cette offre », qui ouvre Jobbbox dans un nouvel onglet, pour créer votre compte ou vous connecter ; et « Effacer mes données maintenant », qui efface tout de suite votre CV et l'offre de ce navigateur.\n\nTout en bas du panneau, « Aide », « Confidentialité » et « CGU » ouvrent le site Jobbbox dans un nouvel onglet : l'aide sur l'extension, la politique de confidentialité et les conditions d'utilisation."
     },
     {
@@ -408,6 +425,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/recherches/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "La page d'une recherche d'offres est sa conversation avec votre coach IA : il a sous les yeux les offres trouvées et leur score de correspondance avec le profil. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Élargir mes critères », « Relancer une recherche ».\n\nÀ droite, la fiche de la recherche : son statut, sa date de lancement et les critères de recherche du profil, que « Modifier les critères » ouvre, puis « Relancer une recherche », ou « Arrêter la recherche » tant qu'elle cherche. Dans « Résultats », chaque offre trouvée avec son score de correspondance ; « Offres trouvées », dans « Sections », les liste toutes.\n\nUne offre s'ouvre à côté de la conversation, sans la cacher, avec son score, ce qui l'explique, et « Enregistrer en candidature » pour la suivre dans vos candidatures. « Fermer » ou la touche Échap la referme.\n\nLes offres que vous recevez par e-mail pour ce profil ne sont pas dans les résultats d'une recherche : elles sont dans « Reçues par email », sur la page Recherches d'offres.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
@@ -429,7 +447,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/candidatures",
       "motion": null,
-      "body": "« Mes candidatures » est une conversation avec votre coach IA, la même à chaque visite. Chaque offre que vous enregistrez devient une candidature, liée à l'un de vos profils.\n\nVos candidatures en cours y sont listées dans une carte : leur statut, leur score de correspondance et celles « à traiter », quand une relance est prête ou qu'une candidature reste sans réponse. Cliquez sur une ligne pour ouvrir la candidature, où vous préparez vos documents et notez vos entretiens ; « Les afficher » montre aussi les candidatures archivées. Demandez au coach laquelle traiter en premier, ou partez d'une suggestion au-dessus de la zone de message : « Ajouter une candidature », « Chercher des offres ».\n\nDans le menu, « Mes candidatures » se déroule sur vos candidatures les plus récentes, et sur celles à traiter, marquées d'un point ; « Tout voir » mène à cette page. La flèche à côté replie ou déroule la liste, et ce navigateur s'en souvient."
+      "microAnimations": [],
+      "body": "« Mes candidatures » est une conversation avec votre coach IA, la même à chaque visite. Chaque offre que vous enregistrez devient une candidature, liée à l'un de vos profils.\n\nVos candidatures en cours y sont listées dans une carte : leur statut, leur score de correspondance et celles « à traiter », quand une relance est prête ou qu'une candidature reste sans réponse. Cliquez sur une ligne pour ouvrir la candidature, où vous préparez vos documents et notez vos entretiens ; « Les afficher » montre aussi les candidatures archivées. Tant que vous n'avez aucune candidature, « Voir comment » montre en quelques secondes où épingler l'extension Jobbbox et comment ouvrir son panneau. Demandez au coach laquelle traiter en premier, ou partez d'une suggestion au-dessus de la zone de message : « Ajouter une candidature », « Chercher des offres ».\n\nDans le menu, « Mes candidatures » se déroule sur vos candidatures les plus récentes, et sur celles à traiter, marquées d'un point ; « Tout voir » mène à cette page. La flèche à côté replie ou déroule la liste, et ce navigateur s'en souvient."
     },
     {
       "id": "page-human-coaches",
@@ -450,6 +469,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/coachs",
       "motion": null,
+      "microAnimations": [],
       "body": "« Mes coachs humains » est une conversation avec votre coach IA, la même à chaque visite. Vos séances et les coachs humains y sont deux cartes. Demandez au coach IA comment préparer une séance.\n\nEn plus de votre coach IA, vous pouvez réserver une séance en visio avec un professionnel RH sélectionné par Jobbbox. « Réserver une séance avec … » ouvre d'abord la page Votre commande de séance : le récapitulatif, la case d'acceptation des CGV et la demande que le service commence immédiatement. Payez la séance, puis choisissez votre créneau.\n\nAvec votre accord, un coach peut lire vos profils et vos candidatures, et commenter vos documents de candidature. Il ne peut rien modifier, et vous retirez cet accès à tout moment."
     },
     {
@@ -476,6 +496,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus.\n\n« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.\n\n« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte. « Factures et moyen de paiement » y mène aussi, pour télécharger vos factures.\n\n« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe. Sur l'offre Gratuite, un « Code promo » saisi ici puis « Appliquer » est vérifié, et s'appliquera au paiement d'un nouvel abonnement.\n\nPendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.\n\nSi nous baissons ce que comprend votre offre (moins de recherches d'offres par semaine, une fonctionnalité retirée…), vous en êtes prévenu par e-mail au moins 30 jours avant, avec la raison et la date. Un encadré « Votre offre … change le … » l'affiche aussi sur cette page : son bouton « Résilier sans frais » arrête votre abonnement tout de suite, et la part de la période payée qui n'aura pas servi vous est remboursée au prorata. Vous pouvez le faire jusqu'à 30 jours après la date du changement."
     },
     {
@@ -508,6 +529,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/compte",
       "motion": null,
+      "microAnimations": [],
       "body": "Mon compte rassemble vos réglages, en rubriques : Profils, Abonnement, Relances, Rappels, Réception par email, IA européenne, Connexion, Préférences, Outils, Mes signalements et Mes données. Chaque rubrique a sa propre adresse ; sur téléphone, « Mon compte » ramène à la liste des rubriques.\n\nProfils liste vos profils actifs, puis les archivés. Abonnement montre votre offre et ce que vous en avez utilisé cette semaine : il a son propre article, Mon abonnement.\n\nDans Relances, choisissez après combien de jours ouvrés votre coach propose une relance ; dans Rappels, l'e-mail de rappel la veille de vos rendez-vous.\n\nRéception par email permet de recevoir dans Jobbbox les offres de vos alertes d'emploi et des messages de recruteurs. « Activer la réception par email » vous donne votre adresse de transfert : transférez-y ces e-mails, « Copier l'adresse » la copie, et « Configurer le transfert pas à pas » vous guide pour le faire depuis votre messagerie. Seul le texte des e-mails transférés est lu, jamais leurs pièces jointes. « Remplacer l'adresse » vous en donne une nouvelle et « Désactiver » arrête la réception : l'ancienne adresse cesse aussitôt de fonctionner, les offres déjà reçues restent. Dans « Vos adresses d'envoi », ajoutez les adresses depuis lesquelles vous transférez à la main ; dans « Vos expéditeurs d'alertes », ajoutez l'adresse d'une alerte que Jobbbox ne reconnaît pas encore, ou désactivez pour vous seul un expéditeur « Reconnus par Jobbbox ». Les offres reçues s'affichent dans « Reçues par email », sur la page Recherches d'offres.\n\nIA européenne : avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'active, « Retirer mon accord » l'arrête, à tout moment ; la rubrique indique la date de votre accord.\n\nConnexion montre l'adresse e-mail de votre compte et les moyens de vous connecter.\n\nDans Préférences, changez la langue de l'interface, la taille du texte et le thème : Clair, Sombre, ou Système, qui suit le réglage de votre appareil. Le thème et la taille du texte sont retenus sur cet appareil. La case « Recevoir un e-mail quand Jobbbox annonce une nouveauté » est décochée tant que vous ne la cochez pas : cochée, vous recevez au plus un e-mail par semaine quand une nouvelle version apporte quelque chose d'important, sans suivi d'ouverture ni de clic, et la case indique depuis quelle date vous êtes inscrit. Décochez-la, ou utilisez le lien en bas de l'e-mail, pour ne plus le recevoir.\n\nOutils propose l'extension Chrome Jobbbox.\n\nMes signalements liste les bugs, idées et questions que vous avez envoyés à l'équipe Jobbbox, les plus récents d'abord, avec leur statut (« Envoyé », « Lu par l'équipe » ou « Traité ») et la « Réponse de l'équipe Jobbbox ». Ouvrir la rubrique efface les notifications de vos signalements. « Supprimer » retire un signalement : l'équipe ne le voit plus. Sans signalement, « Signaler un problème » et « Proposer une idée » vous permettent d'en envoyer un.\n\nMes données permet de télécharger toutes vos données ou de supprimer votre compte.\n\nSous chaque rubrique, « Version de Jobbbox » indique la version que vous utilisez, par exemple 0.1.0. Sur la version bêta, elle est suivie de la modification exacte servie, par exemple 0.1.0 (main·3f9c2a1) : citez-la si vous signalez un problème.\n\nMon compte n'est pas une conversation : « Aide », en haut de la page, ouvre cet article à côté de la page (par-dessus, en plein écran, sur téléphone). « Demander au coach » y commence une nouvelle conversation avec votre coach IA à propos de Mon compte."
     },
     {
@@ -528,6 +550,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/acceptation",
       "motion": null,
+      "microAnimations": [],
       "body": "Cet écran s'affiche après la connexion quand les conditions générales d'utilisation (CGU) attendent votre accord : la première fois, puis à chaque nouvelle version qui change vos droits. Une version mineure ne vous est pas redemandée.\n\n« Lire les CGU » ouvre la version à accepter, avec sa date. Cochez « J'accepte les CGU (version du …) », puis « Accepter et continuer » : vous revenez à la page que vous vouliez ouvrir. La case n'est jamais cochée pour vous, et l'écran ne revient pas pour la même version.\n\nTant que vous n'avez pas accepté, vous pouvez toujours ouvrir Mes données, pour télécharger vos données ou supprimer votre compte, et Abonnement, pour vous rétracter ou résilier. Votre abonnement continue de courir.\n\nEn anglais, l'écran rappelle que le texte français fait foi."
     },
     {
@@ -559,6 +582,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/offres",
       "motion": null,
+      "microAnimations": [],
       "body": "Les sections Offres et Codes promo (menu Offre) règlent ce que les candidats peuvent acheter.\n\n**Offres** liste les offres dans l'ordre de la comparaison, de la plus basse à la plus haute. Chacune a une clé, un nom en français et en anglais, un statut (« proposée » ou « masquée »), un « Produit Stripe » et ses « Fonctionnalités ». Les prix se règlent dans Stripe : le tarif par défaut du produit est celui vendu au paiement. Les quotas se règlent dans la section Quotas. Chaque offre a sa carte « Modifier l'offre … » ; les flèches « Monter l'offre … » et « Descendre l'offre … » changent l'ordre. L'offre Gratuite est intégrée : toujours la première et proposée, sans produit Stripe ; seuls son nom et ses quotas changent. Une offre n'est jamais supprimée. Masquée, elle disparaît de la comparaison, du paiement et des invitations à passer à l'offre supérieure, mais ses abonnés la gardent. Une fois choisi, le produit Stripe d'une offre payante ne change plus. Retirer une fonctionnalité d'une offre que des candidats paient demande une raison et une date d'effet au moins 30 jours plus tard.\n\n**Codes promo** liste les codes que les candidats saisissent au paiement, ou reçoivent par un « Lien à partager ». Chacun montre sa « Réduction », ses « Offres », « Expire le », ses « Utilisations » et son statut. Un code est créé dans Stripe, qui compte ses utilisations, avec des conditions qui ne changent plus. Pour en changer, cliquez sur « Désactiver le code … » puis créez-en un autre avec « Créer un code promo » : les réductions déjà accordées vont à leur terme. Les séances de coaching ne prennent pas de code promo.\n\nLes responsables des offres et les super-admins modifient ces sections ; le Support les lit. Chaque modification est inscrite dans Actions des administrateurs."
     },
     {
@@ -589,6 +613,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/playbooks",
       "motion": null,
+      "microAnimations": [],
       "body": "Playbooks (menu Coaching) ouvre « Playbooks de coaching » : les règles que l'AI Coach applique. Le tableau « Socle, liste des sources et playbooks » montre le « Socle de coaching », la « Liste des sources » et chaque playbook, avec sa « Dernière version », sa « Version servie », son Playbook Agent (le spécialiste que l'AI Coach consulte : fournisseur, modèle et effort) et son état, « Actif » ou « Archivé ». Plus bas, « Playbooks des tâches IA » donne les consignes de chaque tâche IA (lire une offre ou un CV, rédiger un document…) et l'IA qui l'exécute ; l'AI Coach ne les consulte jamais. « Modèles autorisés » liste les modèles proposés, leur hébergement (« UE » ou « hors UE ») et leur effort.\n\nEn production, seule la dernière version validée par une personne (Human-validated) de chacun est servie. Ailleurs, la dernière version est servie, validée ou non : la page le rappelle en tête.\n\nCliquez sur le nom d'un playbook pour l'ouvrir. Sa page liste ses « Versions », puis, pour la version choisie, qui l'a écrite, sa « Validation », ses « Règles » et la carte « Modifier ». Enregistrer une version non validée la modifie ; enregistrer une version validée crée la version suivante, à valider à son tour. Toutes les versions sont gardées.\n\nViennent ensuite les « Cas d'évaluation » du playbook (des scénarios fictifs, notés par un juge IA) et ses « Évaluations ». Une version n'est validée qu'après une évaluation sur elle, quel que soit son score, et par une personne qui ne l'a pas écrite. « Archiver ce playbook » arrête de le servir sans rien effacer ; « Rétablir ce playbook » le sert de nouveau. Le socle et la liste des sources ne s'archivent pas.\n\nUn modèle « hors UE » reçoit des appels expurgés par la Redaction. Les rédacteurs de playbooks et les super-admins modifient, évaluent et valident ; le Support lit. Chaque changement est inscrit dans Actions des administrateurs."
     },
     {
@@ -613,6 +638,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/connexion",
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox vous accompagne dans votre recherche d'emploi, avec un coach IA. Il construit avec vous votre CV de référence et vos critères de recherche, cherche les offres d'emploi qui vous correspondent, puis prépare vos candidatures : un CV adapté à chaque offre, une lettre de motivation. Vous suivez ensuite vos candidatures, vos entretiens et vos relances au même endroit.\n\nJobbbox s'adresse à toute personne qui cherche un emploi, que ce soit pour la première fois ou après des années dans le même poste. Il est fait pour être lu sans effort : pas de jargon, un article d'aide pour chaque mot à connaître, et un texte que vous pouvez agrandir.\n\nVotre coach est une IA, et il le dit. Si vous le souhaitez, des coachs humains peuvent aussi vous accompagner, en séances payées à part. L'extension Chrome Jobbbox, elle, enregistre une offre depuis la page où vous la lisez.\n\nCette page, « Se connecter à Jobbbox », sert aussi à créer votre compte : pas de mot de passe, saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Si vous n'avez pas encore de compte, il est créé, avec l'offre Gratuite : rien à payer pour commencer."
     },
     {
@@ -634,6 +660,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/questions-sans-reponse",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page liste les questions sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu, les plus posées d'abord. Elles viennent de deux endroits :\n\n- un candidat a posé la question à son coach IA, aucun article ne l'a trouvée et le coach IA a dit qu'elle portait sur Jobbbox ;\n- un administrateur a cliqué sur « Demander un tutoriel » dans l'assistant du back office, après une réponse sans article d'aide. Rien n'est envoyé sans ce clic.\n\nChaque question est gardée masquée, sans le nom ni l'adresse de qui l'a posée : seuls comptent son public, la page ou la section du back office d'où elle vient, et la langue.\n\nFiltrez la liste avec « Filtrer par public » (Visiteur, Invité, Candidat, Coach humain, Administrateur), « Filtrer par page » et « Filtrer par langue ». « Réponse de l'IA » montre ce que le coach IA ou l'assistant a répondu : c'est une matière première, jamais un article publié.\n\nUne fois l'article écrit, ou un synonyme ajouté dans l'aide, cliquez sur « Article écrit ». Pour une question qui n'est pas un manque de l'aide, cliquez sur « Écarter ». Les rédacteurs de l'aide et les super-admins marquent les questions ; le Support les lit."
     },
     {
@@ -659,7 +686,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/recherches",
       "motion": null,
-      "body": "« Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Votre coach y cherche des offres d'emploi selon les critères de recherche d'un profil.\n\nVos recherches y sont listées dans la carte « Vos recherches par profil » : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email », en bas de la carte, ouvre « Reçues par email » à côté de la conversation.\n\n« Reçues par email » montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance ; enregistrez-la comme une offre trouvée par une recherche. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
+      "microAnimations": [],
+      "body": "« Recherches d'offres » est une conversation avec votre coach IA, la même à chaque visite. Votre coach y cherche des offres d'emploi selon les critères de recherche d'un profil.\n\nVos recherches y sont listées dans la carte « Vos recherches par profil » : quand chacune a été lancée, où elle en est et combien d'offres elle a trouvées ; « Nouveaux résultats » signale celles que vous n'avez pas encore vues. Cliquez sur une ligne pour ouvrir la recherche, que vous pouvez arrêter tant qu'elle cherche. Pour en lancer une, partez de la suggestion « Lancer une recherche » au-dessus de la zone de message, une par profil si vous en avez plusieurs. « Voir les offres reçues par email », en bas de la carte, ouvre « Reçues par email » à côté de la conversation.\n\n« Reçues par email » montre les offres tirées des e-mails que vous transférez à Jobbbox, par profil, les plus récentes en premier, avec combien sont arrivées cette semaine. Chacune indique quand et de quel domaine elle a été reçue, et son score de correspondance ; enregistrez-la comme une offre trouvée par une recherche. Les offres qu'aucun de vos profils ne rejoint assez (correspondance sous 60) sont dans « Non classées ». Les e-mails qui n'ont donné aucune offre cette semaine sont listés avec leur raison, par exemple « Expéditeur non reconnu » : « C'est une alerte d'offres » fait reconnaître cet expéditeur pour vous à partir de son prochain e-mail. « Filtre trop large » vous prévient quand votre messagerie transfère bien plus que vos alertes. Tant que la réception par email n'est pas activée, « Configurer le transfert pas à pas » vous guide ; elle se règle dans Mon compte, rubrique Réception par email. Tant qu'aucune offre n'est arrivée pour un profil, « Voir comment » montre comment transférer un e-mail d'offre.\n\nChaque recherche compte une fois dans le quota de votre offre. Si elle échoue, ou si vous l'arrêtez avant qu'elle ait trouvé une offre, elle ne compte pas.\n\nDans le menu, « Recherches d'offres » se déroule sur vos recherches les plus récentes, celles aux résultats pas encore vus marquées d'un point ; « Tout voir » mène à cette page."
     },
     {
       "id": "page-withdrawal",
@@ -680,6 +708,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/retractation",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page vous permet de vous rétracter d'un contrat conclu sur Jobbbox, sans donner de motif : votre abonnement à une offre, pendant les 14 jours qui suivent sa souscription, ou une séance avec un coach humain, pendant les 14 jours qui suivent son paiement. Une séance réservée avec la demande que le service commence immédiatement ne peut plus faire l'objet d'une rétractation une fois qu'elle a eu lieu. Le délai court jusqu'à la fin du 14e jour, heure de Paris ; si ce jour est un samedi, un dimanche ou un jour férié, il est prolongé jusqu'au jour ouvrable suivant.\n\nVérifiez le contrat, sa date et le montant payé, indiquez votre nom, puis choisissez où recevoir l'accusé de réception : l'adresse de votre compte ou une autre. « Confirmer la rétractation » annule le contrat tout de suite et vous rembourse sur le moyen de paiement utilisé ; selon votre banque, le remboursement apparaît sous 5 à 10 jours ouvrés. Le remboursement est entier, sauf pour un abonnement souscrit avec la demande que le service commence immédiatement : vous payez alors le service déjà fourni, et la page indique le montant « Remboursé si vous confirmez maintenant » (le montant payé, moins la part des jours écoulés depuis le début de la période).\n\nVous recevez aussitôt par e-mail un accusé de réception avec la date et l'heure de votre rétractation : conservez-le."
     },
     {
@@ -700,6 +729,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/baisse",
       "motion": null,
+      "microAnimations": [],
       "body": "Quand nous baissons ce que comprend votre offre payante, vous recevez un e-mail au moins 30 jours avant la date du changement : ce qui change, pourquoi et à quelle date. Si ce changement ne vous convient pas, vous pouvez résilier sans frais.\n\nCette page, ouverte depuis l'e-mail ou depuis Mon abonnement, rappelle ce qui change, la raison et la date. « Confirmer la résiliation » arrête votre abonnement tout de suite : vous repassez à l'offre Gratuite, et nous vous remboursons au prorata la part de la période payée qui n'aura pas servi. Le remboursement apparaît sur votre relevé sous 5 à 10 jours.\n\nVous pouvez résilier ainsi avant la date du changement, ou jusqu'à 30 jours après. Si vous gardez votre abonnement, vous n'avez rien à faire."
     },
     {
@@ -721,6 +751,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/resiliation",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page résilie votre abonnement à une offre payante. Elle indique votre offre et la date de fin du contrat, c'est-à-dire la fin de la période déjà payée : vous gardez votre offre jusqu'à cette date, aucun prélèvement ne suit, puis vous passez à l'offre Gratuite.\n\n« Confirmer la résiliation » enregistre votre demande. Vous recevez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat : conservez-le.\n\nVous changez d'avis ? Jusqu'à la date de fin, annulez la résiliation depuis Mon abonnement, avec « Gérer mon abonnement »."
     },
     {
@@ -747,6 +778,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/signalements",
       "motion": null,
+      "microAnimations": [],
       "body": "Signalements (menu Candidats) liste les bugs, idées et questions que les candidats envoient depuis l'application, du plus ancien au plus récent. Le nombre « à traiter » s'affiche à côté du nom de la section pour qui peut les traiter. Les signalements sont lus par l'équipe seulement, jamais par une IA.\n\nLe type est « Bug », « Idée » ou « Question ». Une question arrive quand l'aide ou le coach IA n'a pas suffi au candidat : elle porte une copie de sa question et de la réponse du coach IA. Le statut est « Nouveau », « Vu » ou « Traité ». Filtrez avec « Filtrer par type » et « Filtrer par statut » (« À traiter » ou « Tous »).\n\nChaque ligne montre la date, le message, la page d'où il vient, la version de Jobbbox, le navigateur, la langue, la taille du texte, le candidat et son offre. « Ouvrir » donne le signalement entier, son « Contexte », son statut et la « Réponse de l'équipe ». Ouvrir un signalement ne change pas son statut.\n\nLe candidat voit la réponse signée « L'équipe Jobbbox », jamais avec votre nom, et une notification quand l'équipe a répondu ou marqué « Traité ». Une question ne se marque « Traité » qu'une fois répondue. Un signalement ne se supprime pas depuis le back office.\n\nLe Support et les super-admins changent le statut et répondent. Les rédacteurs de l'aide voient les questions seulement, sans l'e-mail ni l'offre du candidat. Chaque statut changé et chaque réponse écrite sont inscrits dans Actions des administrateurs, sans leurs mots."
     },
     {
@@ -763,6 +795,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/job-digests/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "La page d'un Job Digest est sa conversation avec votre coach IA : il a sous les yeux les nouvelles offres trouvées pour le profil et leur score de correspondance. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Quelles offres choisir ? », « Affiner mes critères ». Un Job Digest ne compte dans aucun quota.\n\nÀ droite, la fiche du Job Digest : son profil, sa date d'envoi et son nombre d'offres. Dans « Résultats », chaque offre avec son score de correspondance ; dans « Sections », « Offres trouvées » les liste toutes et « Réglages » ouvre la fréquence du Job Digest de ce profil, que vous changez sur place, avec les derniers envoyés.\n\nUne offre ou les réglages s'ouvrent à côté de la conversation, sans la cacher : enregistrez une offre pour la suivre dans vos candidatures. « Fermer » ou la touche Échap les referme.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une offre aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
@@ -785,6 +818,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/commande",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page s'affiche quand vous choisissez une offre, avant le paiement. Le récapitulatif rappelle l'offre, son prix TTC, sa périodicité et sa reconduction : l'abonnement est reconduit automatiquement jusqu'à sa résiliation.\n\nQuand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du …) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.\n\nLa deuxième case, « Je demande que le service commence immédiatement », est facultative. Sans elle, vous payez et votre offre commence de la même façon, mais une rétractation vous est remboursée en entier. Avec elle, une rétractation vous rembourse le montant payé, moins la part des jours écoulés depuis le début de la période.\n\n« Passer au paiement » ouvre la page sécurisée de Stripe, notre prestataire de paiement. Une fois le paiement confirmé, vous recevez par e-mail la confirmation de votre commande, avec le lien vers la version des CGV acceptée et l'emplacement de « Renoncer au contrat ici » : conservez-la.\n\nSi vous avez déjà une offre payante, vous changez d'offre sur la page de Stripe, depuis « Gérer mon abonnement », sans passer par cette page."
     },
     {
@@ -807,6 +841,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/coachs/commande",
       "motion": null,
+      "microAnimations": [],
       "body": "Cette page s'affiche quand vous réservez une séance avec un coach humain, avant le paiement. Le récapitulatif rappelle le coach et le prix TTC de la séance, un paiement unique, sans reconduction.\n\nQuand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du …) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.\n\nLa deuxième case est facultative : « Je demande que le service commence immédiatement. Je comprends qu'en cas de rétractation je paierai le service déjà fourni et que je perds mon droit de rétractation une fois la séance réalisée. » Sans elle, vous payez et réservez votre séance de la même façon, et une rétractation dans les 14 jours vous est remboursée en entier, même si la séance a eu lieu. Avec elle, vous pouvez vous rétracter tant que la séance n'a pas eu lieu, remboursé en entier ; plus après.\n\n« Passer au paiement » ouvre la page sécurisée de Stripe, notre prestataire de paiement. Une fois le paiement confirmé, vous recevez par e-mail la confirmation de votre commande : conservez-la."
     },
     {
@@ -875,6 +910,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Les recruteurs utilisent des logiciels de recrutement (ATS) qui lisent votre CV avant une personne. L'ATS Score, sur 100, dit si ces logiciels liront bien votre CV de référence pour le métier visé.\n\nIl combine la lisibilité (coordonnées, titre, expériences datées…) et les mots-clés du métier. Il se calcule sans IA, par des règles fixes, et ne dépend d'aucune offre.\n\nLes corrections pour l'améliorer, elles, viennent de votre coach : vous les retrouvez dans les Propositions du profil."
     },
     {
@@ -916,6 +952,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Le contexte de la conversation, c'est ce que votre coach IA relit avant chaque réponse : les derniers messages de la conversation et ce qu'il sait de vous et de la page. « Activité », en haut de la page, le montre dans une barre : le nombre de messages de la conversation sur les 40 que le coach lit, et les jetons de son contexte sur le plafond de 12k. Un jeton est un petit morceau de texte, environ quatre caractères ; ce n'est pas votre quota.\n\nSur une recherche d'offres, une sélection d'offres, une candidature ou une offre, le coach lit aussi le CV de référence du profil contre lequel les offres sont notées, sans votre nom ni vos coordonnées, et les raisons de chaque score de correspondance : compétences présentes et manquantes, séniorité, lieu, salaire et contrat. Quand vous lui demandez quelles offres vous correspondent, il s'appuie sur vos expériences et vos compétences ; s'il lui manque une information, comme vos expériences ou ce qui compte pour vous, il vous la demande.\n\nCes chiffres viennent de Jobbbox : ce sont ceux du contexte envoyé au coach pour sa dernière réponse. À partir de 80 %, la barre vous dit que le coach ne lit que les messages les plus récents et propose « Effacer la conversation » : après confirmation, tous les messages de la conversation sont supprimés, et la mémoire du coach reste."
     },
     {
@@ -933,6 +970,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une copie de votre CV de référence adaptée à une offre : votre coach reformule, réordonne, coupe et met en avant ce qu'il contient, sans jamais rien inventer.\n\nSi l'offre demande ce que votre CV ne montre pas, il vous pose la question ; ce n'est ajouté que si vous confirmez. Vous vérifiez la proposition avant de l'enregistrer.\n\nIl se prépare dans la rubrique « Documents » de la candidature, avec le score de correspondance avant et après."
     },
     {
@@ -950,6 +988,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Votre CV complet pour un profil : celui d'où partent tous vos CV adaptés. Jobbbox n'y ajoute jamais rien que vous n'ayez dit.\n\nChaque enregistrement crée une nouvelle version ; vous pouvez revoir les versions précédentes et revenir à l'une d'elles."
     },
     {
@@ -967,6 +1006,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "« Effacer », en haut d'une page qui est une conversation avec votre coach IA, supprime tous les messages de cette conversation. Jobbbox vous demande d'abord de confirmer ; « Annuler » ne supprime rien. Pendant que le coach répond, « Effacer » attend : interrompez d'abord sa réponse avec « Arrêter ».\n\nLa mémoire du coach reste : ce que vous lui avez demandé de retenir n'est pas effacé. La page redevient une nouvelle conversation."
     },
     {
@@ -1008,6 +1048,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "La fiche, c'est la colonne à droite de la conversation sur la page d'une candidature, d'un profil, d'une recherche d'offres ou d'un Job Digest : l'objet d'un coup d'œil (pour une candidature, son statut et son profil, que vous changez sur place, sa correspondance, l'offre), puis trois groupes, « Sections », « Activité » et « Résultats ». Un clic sur le titre d'un groupe le replie ou le déplie.\n\nElle ne cache jamais la conversation : elle la pousse sur le côté. « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page. Une section ou un résultat de la fiche s'ouvre à côté de la conversation, où vous agissez dessus.\n\nSur téléphone, la fiche s'ouvre par-dessus la conversation, en plein écran, avec son titre ; « Fermer » ou la touche Échap la referme."
     },
     {
@@ -1050,6 +1091,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Un e-mail régulier, aussi visible dans Jobbbox, avec les nouvelles offres qui correspondent aux critères de recherche d'un profil.\n\nVous l'activez profil par profil, chaque semaine (le lundi à 7 h) ou chaque jour (à 7 h), selon votre offre. Il ne contient que des offres que vous n'avez pas encore vues, et ne compte dans aucun autre quota.\n\nVous pouvez vous désabonner depuis l'e-mail, sans vous connecter."
     },
     {
@@ -1069,6 +1111,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "La mémoire du coach, ce sont les faits clés que votre coach IA retient de vous d'une conversation à l'autre : vos objectifs, vos contraintes, vos décisions. Rien n'y est ajouté sans votre accord : dans une conversation, « Que retenir de cette conversation ? » lui fait proposer des éléments, et seuls ceux que vous confirmez avec « Retenir » sont gardés. Elle tient 30 éléments au plus.\n\n« Mémoire du coach » est sous « Coach » dans le menu : elle s'ouvre à côté de la conversation, où vous pouvez modifier ou supprimer chaque élément. « Fermer » ou la touche Échap la referme.\n\nEffacer une conversation ne touche pas à la mémoire du coach. Elle est supprimée avec votre compte."
     },
     {
@@ -1110,6 +1153,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Votre coach place des propositions dans vos pages : des corrections de CV après un ATS Score, une relance à envoyer, une candidature à classer comme abandonnée.\n\nVous acceptez ou ignorez chacune. Rien n'est fait sans votre accord : accepter applique le changement proposé.\n\nUne proposition que votre coach ne fait plus disparaît d'elle-même."
     },
     {
@@ -1128,6 +1172,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Ce que votre offre comprend : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest.\n\nLa barre « Hebdomadaire », en bas du menu, montre où vous en êtes ; « Votre utilisation cette semaine », dans Mon abonnement, le détaille par quota. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris).\n\nParler à votre coach ne compte pas dans le quota.\n\nUne hausse de votre offre s'applique tout de suite. Une baisse vous est annoncée par e-mail au moins 30 jours avant, et vous pouvez alors résilier sans frais, avec un remboursement au prorata."
     },
     {
@@ -1156,6 +1201,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une raison d'échec dit pourquoi quelque chose a échoué ou averti, en deux parties.\n\nLa **raison fonctionnelle** est un code stable, tiré d'un catalogue fixé dans le code, avec un libellé en français : par exemple `provider_unavailable`, `key_missing`, `data_residency`, `test_failed`, `eval_refused`, `last_super_admin` ou `invalid_value`. Une erreur inconnue est `other`, « Erreur inattendue ». Le code est compté là où l'on garde des chiffres : Consommation IA, « Échecs et avertissements par raison », et les déclenchements des garde-fous. Le Support le lit.\n\nLa **raison technique** est le type d'erreur, le fournisseur, le statut HTTP et le message, sans clé ni secret, passé par la Redaction et coupé à 500 caractères. Elle n'apparaît qu'avec ce qu'elle explique : le « Détail technique » d'un appel dans Activité › Appels IA, gardé 30 jours, ou une ligne d'Actions des administrateurs, gardée 3 ans. Seuls les super-admins la lisent.\n\nPour un problème, partez du code dans Consommation IA, puis ouvrez un appel concerné dans Appels IA si vous êtes super-admin."
     },
     {
@@ -1173,6 +1219,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une recherche que votre coach fait pour un profil, selon ses critères de recherche, sur les sites d'emploi. Les offres trouvées sont classées par score de correspondance.\n\nElle se lance depuis la page Recherches d'offres, ou en le demandant à votre coach. Elle compte une fois dans le quota de votre offre, sauf si elle échoue ou si vous l'arrêtez avant qu'elle ait trouvé une offre."
     },
     {
@@ -1190,6 +1237,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Un e-mail que votre coach rédige quand une candidature reste « Postulée » ou « Relancée » trop longtemps sans nouvelles. Il apparaît comme une proposition dans la page de la candidature.\n\nJobbbox n'envoie rien à l'employeur : copiez le texte, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé. La candidature passe alors à « Relancée ».\n\nLe délai avant une relance se règle dans Mon compte, rubrique Relances."
     },
     {
@@ -1210,6 +1258,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Les résultats, ce sont ce que votre coach IA a produit pour une candidature et qui reste avec elle : le CV adapté, la lettre de motivation, le message d'approche, les relances qu'il vous suggère. Ils sont listés dans le groupe « Résultats » de la fiche, chacun avec son état (« Brouillon du … », « Enregistré le … »).\n\nUn résultat s'ouvre à côté de la conversation, seul (par-dessus, en plein écran, sur téléphone) : vous le relisez, le modifiez, le téléchargez ou le copiez. Rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme."
     },
     {
@@ -1228,6 +1277,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Votre droit de renoncer, sans motif, à un contrat conclu en ligne : pendant 14 jours après votre abonnement à une offre, ou après le paiement d'une séance avec un coach humain.\n\nSur Jobbbox, utilisez « Renoncer au contrat ici », sur la page Mon abonnement ou sur la séance dans l'agenda. Le contrat s'arrête tout de suite et vous recevez un accusé de réception par e-mail. Vous êtes remboursé en entier, sauf si, à la commande, vous avez demandé que le service commence immédiatement : un abonnement vous est alors remboursé moins la part des jours écoulés, et une séance qui a eu lieu ne peut plus faire l'objet d'une rétractation."
     },
     {
@@ -1284,6 +1334,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Un rôle du back office dit ce qu'un administrateur peut voir et changer. Vos rôles s'affichent sur le Dashboard. Ils sont fixés dans le code ; seuls les super-admins les donnent et les retirent, dans Administrateurs (menu Équipe), à une personne qui a déjà un compte Jobbbox.\n\n- **Super-admin** : tout le back office, dont les administrateurs, les clés des fournisseurs, les garde-fous, Activité › Appels IA et Actions des administrateurs.\n- **Responsable des offres** : les offres, leurs quotas et les codes promo.\n- **Responsable coaching** : les coachs humains ; lit le coût de l'AI Coach.\n- **Rédacteur de playbooks** : écrit, évalue, valide et archive les playbooks de coaching, le socle et la liste des sources.\n- **Rédacteur de l'aide** : lit les questions sans réponse et les marque « Article écrit » ou les écarte ; lit les questions des signalements, sans l'e-mail ni l'offre du candidat.\n- **Technique** : règle les paramètres non secrets, les sources et sites de recherche et les prix des outils. Voit les clés par leur source et leurs 4 derniers caractères, sans les changer. Lit le Dashboard, Consommation IA, les outils, Activité › Recherches, Emails reçus et Actions des administrateurs.\n- **Support** : traite les signalements et les rétractations ; lit tout le reste sans rien modifier, sauf les secrets des fournisseurs, les appels IA et les actions des administrateurs.\n\nUne section qu'aucun de vos rôles ne lit n'apparaît pas dans le menu. Une section que vous lisez sans pouvoir la changer s'affiche en lecture seule. Un rôle retiré ne donne plus accès dès la page suivante. Il reste toujours au moins un super-admin, et un super-admin permanent (ADMIN_EMAILS) ne se retire pas depuis le back office."
     },
     {
@@ -1303,6 +1354,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une note sur 100 qui dit à quel point un CV correspond à une offre : compétences, expérience, lieu, type de contrat et salaire.\n\nLe détail montre, critère par critère, ce qui correspond et ce qui manque. Un critère dont l'offre ou vos critères ne disent rien ne compte pas ; si trop peu de critères ont pu être comparés, le score est dit partiel.\n\nIl est calculé avec le CV de référence du profil, et avec votre CV adapté si vous en avez un."
     },
     {
@@ -1326,6 +1378,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une version d'un playbook (de coaching, du socle ou d'une tâche IA), ou un message de garde-fou, est validée par une personne quand un administrateur nommé, qui n'en est pas l'auteur, l'a relue et approuvée, avec la date. La page l'affiche « validée par … le … ». Une relecture par une IA ne compte jamais.\n\nEn production, seuls les playbooks et les messages de garde-fous validés sont servis. Ailleurs, la dernière version est servie, validée ou non. Une version de playbook ne se valide qu'après une évaluation sur elle ; aucun score ne bloque, c'est à la personne de juger. Un message de garde-fou se valide langue par langue ; d'ici là, le texte par défaut de Jobbbox s'applique.\n\nModifier une version validée en crée une nouvelle, à valider à son tour. Chaque validation est inscrite dans Actions des administrateurs."
     },
     {
@@ -1372,6 +1425,12 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [
+        {
+          "id": "text-size",
+          "step": null
+        }
+      ],
       "body": "Dans Mon compte, rubrique Préférences : la réglette « Taille du texte » a quatre crans, Petit, Standard, Moyen et Grand.\n\nVotre choix est gardé sur cet appareil. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau."
     },
     {
@@ -1395,6 +1454,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "En haut de chaque page publique, la liste « Taille du texte » propose Petit, Standard, Moyen et Grand. Le texte de toute la page change aussitôt.\n\nVotre choix est gardé sur cet appareil, connecté ou non : une fois connecté, vous le retrouvez dans Mon compte, rubrique Préférences. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau.\n\nLe zoom de votre navigateur agrandit aussi la page : Ctrl et + sur ordinateur (Cmd et + sur Mac)."
     },
     {
@@ -1420,6 +1480,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox n'a pas de mot de passe. Sur la page « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ». Vous recevez l'e-mail « Votre lien de connexion à Jobbbox » : son bouton « Me connecter à Jobbbox » vous connecte. Si vous n'avez pas encore de compte, il est créé à ce moment-là.\n\nLe lien est valable 15 minutes et ne fonctionne qu'une seule fois. Un lien expiré ou déjà utilisé affiche « Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous. »\n\nSelon les moyens proposés sur la page, « Continuer avec … » vous connecte aussi avec un autre compte que vous avez déjà, sans attendre d'e-mail.\n\nL'e-mail n'arrive pas ?\n- Attendez quelques minutes : il peut mettre un peu de temps.\n- Regardez dans vos courriers indésirables (spam) ou vos promotions.\n- Vérifiez l'adresse saisie, puis demandez un nouveau lien.\n\nToujours rien ? Voyez « Comment nous contacter ? »."
     },
     {
@@ -1442,6 +1503,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Dans un Job Digest reçu par e-mail, cliquez sur « Ne plus recevoir le Job Digest de ce profil ». La page « Se désabonner du Job Digest » s'ouvre, sans vous connecter : cliquez sur « Me désabonner ». Elle confirme « C'est fait : vous ne recevrez plus ce Job Digest. »\n\nSeul le Job Digest de ce profil s'arrête ; ceux de vos autres profils continuent. Vous pouvez le réactiver à tout moment depuis la page du profil.\n\nSi la page affiche « Ce lien de désabonnement n'est plus valable », vous êtes peut-être déjà désabonné ; sinon, connectez-vous et désactivez le Job Digest depuis la page du profil."
     },
     {
@@ -1467,6 +1529,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox n'a pas de boîte de support : selon que vous avez un compte ou non, vous joignez l'équipe Jobbbox autrement.\n\nAvec un compte, connectez-vous et posez votre question dans « Aide et coach » : les articles de l'aide s'affichent d'abord, puis votre coach IA répond. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question, avec la réponse du coach, à l'équipe Jobbbox. Vous suivez sa réponse dans Mon compte, rubrique Mes signalements. Pour un problème ou une idée : « Signaler un problème » ou « Proposer une idée ».\n\nSans compte, écrivez à {{contact-email}}, l'adresse des mentions légales."
     },
     {
@@ -1542,6 +1605,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Dans Mon compte, rubrique Mes données : « Télécharger toutes mes données » vous donne un fichier avec tout ce que Jobbbox garde sur vous, y compris les versions des CGU et CGV que vous avez acceptées.\n\nAu même endroit, « Supprimer définitivement mon compte » le ferme tout de suite, après que vous avez saisi votre adresse e-mail pour confirmer. Vos profils, CV, candidatures et documents sont effacés, définitivement sous 30 jours au plus, et votre abonnement prend fin. Seule la preuve des conditions que vous avez acceptées (CGU et CGV : quelle version, quand) est gardée, sans votre nom ni votre adresse e-mail : 5 ans pour les CGU, 10 ans pour les CGV.\n\nTéléchargez vos données avant si vous souhaitez les garder."
     },
     {
@@ -1562,6 +1626,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Quand une candidature reste « Postulée » trop longtemps, votre coach propose un e-mail de relance dans la page de la candidature. Vous pouvez aussi lui demander d'en rédiger un.\n\nJobbbox n'envoie rien à votre place : copiez le texte, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé. La candidature passe à « Relancée ».\n\nLe délai avant la proposition se règle dans Mon compte, rubrique Relances."
     },
     {
@@ -1585,6 +1650,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », sous la zone de message de chaque conversation. Vous le trouvez aussi avec l'icône à côté de « Mon compte », en bas du menu. Le formulaire s'ouvre à côté de la conversation, sans la cacher (par-dessus, en plein écran, sur téléphone) ; « Fermer » ou la touche Échap le referme et votre brouillon est gardé.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox, dans le même formulaire.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Mon compte, rubrique Mes signalements.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
     },
     {
@@ -1605,6 +1671,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Non. L'aide ne fait appel à aucune IA pour vous répondre : ses articles sont relus et publiés par l'équipe Jobbbox, et la recherche les trouve à partir de vos mots. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nToute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Mon compte », en bas du menu, puis « Aide », sous « Aide et légal ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
     },
     {
@@ -1637,6 +1704,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "L'article 4 de l'AI Act demande à Jobbbox de soutenir la maîtrise de l'IA de toute personne qui utilise ou règle ses systèmes d'IA pour son compte : vous, dès que vous avez un rôle du back office. Aucun niveau ni certificat n'est exigé. Cet article est la base de cette maîtrise ; lisez-le à votre prise de rôle, avec la note interne « hors Annexe III », et relisez-le quand il change.\n\n**Ce que fait l'IA dans Jobbbox.** L'AI Coach et ses Playbook Agents, les documents rédigés (CV adapté, lettre de motivation, dossier d'entreprise, résumés d'offres), la lecture des CV et des offres, la lecture des emails d'offres, la recherche web et l'assistant du back office. Le Match Score et l'ATS Score reposent sur des règles, pas sur une IA. L'IA peut se tromper : elle aide le candidat, elle ne décide jamais à sa place, et elle ne classe jamais un candidat pour un employeur.\n\n**Les fournisseurs.** Chaque tâche IA a son fournisseur et son modèle, réglés dans Paramètres, onglet « IA ». Claude (Anthropic) est joint par son API directe, hors de l'UE. Mistral AI est dans l'UE. OpenAI, quand il est configuré sans résidence des données dans l'UE, et Perplexity, pour la recherche web, sont hors de l'UE. Le back office marque « hors UE » chaque choix hors de l'UE. Les données de Jobbbox restent stockées dans l'UE ; ce qui peut sortir, c'est le texte d'un appel.\n\n**La Redaction.** Avant qu'un appel parte chez un fournisseur, Jobbbox en retire chaque adresse e-mail et numéro de téléphone, et ce qu'il sait de l'identité du candidat : nom, nom de famille, adresse, e-mail, téléphone. Chacun devient un repère comme « [NOM] ». Le prénom reste, et le reste du CV part : employeurs, postes, dates, formations. Ce sont encore des données personnelles, pseudonymisées et non anonymes. Un nom que Jobbbox ne connaît pas passe, comme celui d'un référent. Ne dites jamais « anonymisé » ni « aucune donnée ne quitte l'UE ».\n\n**La voie Mistral.** Un candidat peut donner son consentement IA UE, daté et retirable dans son compte. Ses appels qui portent son identité vont alors, non expurgés, à Mistral dans l'UE ; sans ce consentement, ils partent expurgés au fournisseur de la tâche. La lecture des emails d'offres reste toujours dans l'UE. Paramètres refuse (`data_residency`) d'envoyer hors de l'UE la voie d'identité ou une tâche réservée à l'UE.\n\n**Les garde-fous.** Ils contrôlent les messages et les réponses de l'AI Coach, des Playbook Agents et de l'assistant, et les emails reçus, avec des règles fixes ou une IA. Ils ne bloquent que ce qu'ils détectent, et laissent passer quand le contrôle par IA est indisponible. En cas de détresse, le candidat reçoit le 3114 et personne n'est alerté. Seuls des playbooks et des messages validés par une personne sont servis en production.\n\n**Ce que vous ne devez jamais faire.**\n- Coller dans l'assistant du back office, ou dans un outil d'IA externe, l'e-mail, le message ou le CV d'un candidat.\n- Ouvrir un appel dans Activité › Appels IA ou la recherche d'un candidat sans en avoir besoin : chaque ouverture est inscrite dans Actions des administrateurs.\n- Valider une version que vous avez écrite, ou valider sur la seule foi d'un score ou d'un avis d'une IA.\n- Activer un destinataire hors UE, ou passer une tâche hors de l'UE, sans la version de la politique de confidentialité qui le couvre.\n- Écrire un secret ou une donnée personnelle dans un article d'aide, un playbook ou un message de garde-fou.\n- Utiliser l'IA de Jobbbox pour classer, trier ou recommander des candidats à un recruteur : ce serait un système à haut risque (voir la note « hors Annexe III »).\n- Promettre une sécurité garantie, « UE uniquement » ou « anonymisé ».\n\nEn cas de doute, demandez à un super-admin avant d'agir."
     },
     {
@@ -1666,6 +1734,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "**Note interne datée du 2 novembre 2026. Interne, jamais publiée. Ce n'est pas un avis juridique.**\n\n**Conclusion.** Aucune fonction actuelle de Jobbbox ne tombe dans l'Annexe III de l'AI Act. Les obligations des systèmes à haut risque ne s'appliquent donc pas, ni l'article 6(4), qui ne vise qu'un système relevant de l'Annexe III.\n\n**Pourquoi.** L'Annexe III, point 4(a), vise les systèmes d'IA destinés au recrutement ou à la sélection de personnes, notamment pour placer des offres d'emploi ciblées, filtrer les candidatures et évaluer les candidats. Le point 4(b) vise les décisions sur une relation de travail en cours. Jobbbox est un service pour le candidat, lancé et contrôlé par lui, en dehors du processus de l'employeur.\n- CV adapté, lettre de motivation, ATS Score : l'exemple 14 du Service Desk de la Commission (adapter son CV à une offre) est hors champ.\n- Recherche d'offres, entreprises cibles, Match Score, Job Digest, Email intake : l'exemple 15 (aider le candidat à trouver le bon poste, classement d'offres pour lui seul) est hors champ.\n- AI Coach, playbooks, dossier d'entreprise, message de prise de contact : conseil au candidat ; aucune sortie ne va à un employeur pour le sélectionner.\n- Coach humain : aucune IA ne classe le candidat pour un tiers.\n\nJobbbox reste fournisseur de ses systèmes d'IA (AI Coach, documents rédigés, assistant du back office), et déployeur de l'assistant. Il doit l'information au point d'usage de l'article 50 et la maîtrise de l'IA de l'article 4.\n\n**Quand revoir cette note.** Avant toute fonction, avant sa conception, qui ferait basculer Jobbbox dans le champ :\n- un rôle Organisation, une offre B2B ou un service d'outplacement où l'IA classe, présélectionne, note ou recommande des candidats à un employeur ou à un recruteur (exemples 1, 2 et 8) ;\n- des offres sponsorisées par des employeurs et ciblées sur des candidats par l'IA (exemple 7) ;\n- la parution des lignes directrices finales de la Commission sur la classification, attendues fin 2026 ;\n- au plus tard avant le 2 décembre 2027, date d'application des obligations de l'Annexe III.\n\nToute révision donne une nouvelle date à cette note.\n\n**À faire confirmer par un juriste.** Le « hors champ » une fois les lignes directrices finales parues, et avant toute fonction B2B ou Organisation ; le texte de l'article 6(4) après l'Omnibus numérique, à lire sur EUR-Lex.\n\n**Sources.**\n- AI Act, règlement (UE) 2024/1689 : articles 3, 4, 6 et 50, Annexe III point 4.\n- Omnibus numérique sur l'IA, règlement (UE) 2026/1744, en vigueur le 27 juillet 2026.\n- AI Act Service Desk de la Commission, page « Employment » : exemples 1, 2, 7, 8, 14 et 15.\n- Commission, projet de lignes directrices sur la classification des systèmes à haut risque, 19 mai 2026.\n- Recherche interne de l'issue #497 (`docs/research/issue-497.md`, vérifiée le 29 octobre 2026), décision de l'issue #503."
     },
     {
@@ -1690,6 +1759,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. Chaque texte se télécharge avec « Télécharger en PDF ».\n\nChaque texte porte sa date d'entrée en vigueur. Une version n'est jamais modifiée : une correction donne une nouvelle version. Le lien « Versions précédentes » mène à l'« Historique des versions » : chaque version, sa date, « Substantielle » ou « Mineure », et une ligne qui résume le changement.\n\nUne ancienne version reste lisible à son adresse datée, marquée « Version archivée : » avec le lien « voir la version en vigueur ». Une version substantielle à venir s'y lit déjà, marquée « Version à venir » avec sa date d'entrée en vigueur : l'e-mail qui vous en prévient y mène. Le texte français fait foi ; la traduction anglaise le rappelle en tête."
     },
     {
@@ -1711,6 +1781,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Toute l'aide de Jobbbox est dans le centre d'aide, ouvert à tous, sans compte : « Aide » en haut de chaque page publique, ou « Centre d'aide » en bas de page.\n\nSes articles sont rangés en quatre rubriques : « Découvrir Jobbbox », « L'extension », « Utiliser Jobbbox » et « Espace coach ». Le champ de recherche, en haut du centre d'aide, les parcourt toutes, sans IA. Les tutoriels y décrivent une tâche étape par étape.\n\nUne fois connecté, « Aide et légal », en bas du menu, mène au centre d'aide. Quand vous écrivez à votre coach, les articles qui correspondent s'affichent d'abord, « Dans l'aide, sans IA » ; un article ouvert là propose « Ouvrir dans le centre d'aide ».\n\nLes articles sont écrits par l'équipe Jobbbox, en français et en anglais."
     },
     {
@@ -1735,6 +1806,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox vous écrit quand il publie une version substantielle des Conditions générales d'utilisation, des Conditions générales de vente ou de la Politique de confidentialité : au moins 30 jours avant son entrée en vigueur. L'e-mail nomme le texte, sa date d'entrée en vigueur et ce qui change, avec « Lire la nouvelle version » et l'« Historique des versions ». Une version mineure, une coquille corrigée par exemple, ne donne lieu à aucun e-mail.\n\nC'est un e-mail de service : vous le recevez même si vous ne recevez pas nos actualités. Il ne contient ni image ni lien de suivi, et vous ne le recevez qu'une fois par version.\n\nPour les Conditions générales d'utilisation, Jobbbox vous demandera d'accepter la nouvelle version à votre première connexion à partir de sa date d'entrée en vigueur. Pour les Conditions générales de vente, elle s'appliquera à vos prochains achats. La Politique de confidentialité ne s'accepte pas : après sa date d'entrée en vigueur, un avis « Notre politique de confidentialité a changé le … » s'affiche une fois dans votre espace, et « J'ai compris » le ferme."
     },
     {
@@ -1754,6 +1826,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Chaque lundi à 0 h (heure de Paris). La barre « Hebdomadaire », en bas du menu, montre où vous en êtes ; « Votre utilisation cette semaine », dans Mon abonnement, le détaille par quota.\n\nParler à votre coach ne compte pas dans le quota. Une recherche d'offres qui échoue, ou que vous arrêtez avant qu'elle ait trouvé une offre, ne compte pas non plus.\n\nPour en avoir plus chaque semaine, changez d'offre depuis Mon abonnement."
     },
     {
@@ -1823,6 +1896,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Votre version de l'extension Jobbbox est trop ancienne : Jobbbox ne la prend plus en charge. Le panneau de l'extension l'indique par « Mettez à jour l'extension ».\n\nCliquez sur « Ouvrir la page de l'extension » : sa page sur le store de votre navigateur s'ouvre, d'où vous installez la dernière version. Votre navigateur met aussi l'extension à jour de lui-même, en général dans les heures qui suivent. Une fois à jour, cliquez sur « Réessayer ».\n\nL'offre et le CV de la session en cours restent dans votre navigateur pendant la mise à jour : vous n'avez rien à refaire."
     },
     {
@@ -1847,6 +1921,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox se sert de ce que vous lui confiez, votre CV, vos critères et vos candidatures, pour vous aider dans votre recherche d'emploi. Votre coach et plusieurs tâches, comme lire votre CV ou calculer un score de correspondance, font appel à l'IA ; votre coach dit toujours qu'il est une IA. L'aide, elle, n'utilise aucune IA.\n\nAvec votre accord, dans Mon compte, rubrique IA européenne, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. Vous pouvez retirer cet accord à tout moment.\n\nDans Mon compte, rubrique Mes données, vous téléchargez toutes vos données ou supprimez votre compte.\n\nLe détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -1871,6 +1946,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Le Match Score compare une offre à votre CV et à vos critères de recherche, sur cinq critères : « Compétences », « Expérience », « Lieu », « Salaire » et « Type de contrat ». Il est noté sur 100.\n\n« Pourquoi … ? », à côté du score d'une offre dans Jobbbox, ouvre le détail : une ligne par critère, avec ce qui correspond et ce qui ne correspond pas. Dans le panneau de l'extension, ce détail s'affiche sous le score, dans « Détail du Match Score ». Un critère dont l'offre ne dit rien ne compte pas : le score est alors partiel, ou « non calculable » si aucun critère n'a pu être comparé.\n\n« Recalculer le Match Score », dans le panneau de l'extension, calcule de nouveau le score de l'offre. Connecté, un nouveau calcul utilise un Match Score de votre forfait de la semaine : l'extension vous le demande d'abord, et vous validez avec « Confirmer le recalcul ». Le résultat ne change que si l'offre ou votre profil a changé ; le panneau vous dit s'il est inchangé, ou quel était le score d'avant.\n\nRecalculez par exemple après avoir mis à jour votre CV de référence, ou quand le panneau vous l'indique parce que le texte de l'offre n'a pas pu être lu."
     },
     {
@@ -1898,6 +1974,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota.\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
     },
     {
@@ -2011,6 +2088,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Sans compte, vous utilisez l'extension en invité. Votre CV et l'offre capturée restent dans votre navigateur, jamais dans un compte Jobbbox. Jobbbox lit votre CV pour calculer le Match Score, sans l'enregistrer.\n\nTout est effacé au plus tard 24 heures après votre première analyse, même si vous continuez d'utiliser l'extension, et dès que vous fermez votre navigateur. Le panneau affiche la date exacte : « Vos données seront effacées au plus tard le … ». Passé ce délai, l'offre n'est plus disponible : capturez-la de nouveau pour l'analyser.\n\nPour tout effacer avant, cliquez sur « Effacer mes données maintenant », dans le panneau de l'extension. Votre CV et l'offre sont aussitôt effacés de ce navigateur.\n\nPour garder votre travail, créez votre compte avant ce délai, sans fermer votre navigateur : votre CV devient votre premier profil et l'offre votre première candidature. Le tutoriel « Créer son compte depuis l'extension et garder son travail » explique comment."
     },
     {
@@ -2033,6 +2111,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Dans un e-mail de nouveautés, cliquez sur « Ne plus recevoir les nouveautés par e-mail ». La page « Se désabonner des e-mails de nouveautés » s'ouvre, sans vous connecter : cliquez sur « Me désabonner ». Elle confirme « C'est fait : vous ne recevrez plus les e-mails de nouveautés. »\n\nVous pouvez aussi, une fois connecté, décocher « Recevoir un e-mail quand Jobbbox annonce une nouveauté » dans Mon compte, rubrique Préférences. Vos autres e-mails, comme le Job Digest ou les rappels de rendez-vous, ne changent pas.\n\nSi la page affiche « Ce lien de désabonnement n'est plus valable », vous êtes peut-être déjà désabonné ; sinon, connectez-vous et décochez la case dans Mon compte, rubrique Préférences. Les nouveautés restent toujours lisibles sur la page Nouveautés."
     },
     {
@@ -2059,6 +2138,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "L'extension ajoute le bouton « Analyser cette offre » sur la page d'une offre d'emploi, quand elle la reconnaît. Elle reconnaît les principaux sites d'offres, dont LinkedIn, Indeed, Welcome to the Jungle, l'Apec, France Travail, HelloWork, Cadremploi et Glassdoor, et les pages d'offres de nombreux outils de recrutement des employeurs (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). L'équipe Jobbbox tient cette liste à jour sans que vous ayez à mettre l'extension à jour ; sur un site qu'elle vient d'ajouter, le bouton n'apparaît qu'une fois cochée la case « Détecter les offres sur tous les sites ».\n\nLe bouton apparaît quand une offre est ouverte, pas sur une simple liste de résultats : cliquez sur l'offre pour l'ouvrir.\n\nSur le site carrière d'un employeur, cochez « Détecter les offres sur tous les sites », en bas du panneau de l'extension. Votre navigateur vous demande l'autorisation ; les pages restent lues dans ce navigateur uniquement.\n\nSi le bouton n'apparaît toujours pas, ouvrez le panneau de l'extension depuis la barre du navigateur. S'il affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page » : la capture fonctionne sur n'importe quelle page. Si la page ne peut pas être lue, le panneau l'indique : « Cette page ne peut pas être capturée. » Ouvrez alors la page de l'offre elle-même et réessayez."
     },
     {
@@ -2081,6 +2161,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Quand des candidats ajoutent pour eux seuls un expéditeur d'offres que la liste de la plateforme n'a pas, il vous est proposé. L'accepter fait lire ses emails pour tous les candidats. Il vous faut le rôle Technique ou Super-admin.\n\n1. Ouvrez Paramètres (menu Plateforme), onglet « Sources », puis la fiche de MTA Jobbbox (Haraka).\n2. Dans « Expéditeurs proposés », lisez le domaine ou l'adresse, le nombre de candidats (jamais lesquels) et le « Dernier ajout ».\n3. Vérifiez que l'expéditeur envoie bien des offres : l'alerte d'un site d'emploi ou d'un site carrière, pas un particulier. Dans le doute, n'acceptez pas.\n4. Saisissez son libellé dans « Libellé de … », sous la forme « plateforme ou entreprise – site », 120 caractères au plus.\n5. Cliquez sur « Accepter … ». La page affiche « Expéditeur ajouté à la liste de la plateforme. » et il apparaît dans « Expéditeurs reconnus ».\n\nPour ajouter vous-même un expéditeur, remplissez « Ajouter un expéditeur » : le « Domaine ou adresse de l'expéditeur », puis le « Libellé », et cliquez sur « Ajouter l'expéditeur ». Un expéditeur se désactive ou se supprime depuis la même liste. Chaque changement est inscrit dans Actions des administrateurs."
     },
     {
@@ -2102,6 +2183,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Un coach humain est réservé par les candidats depuis son lien Cal.com et se connecte à Jobbbox avec l'adresse que vous indiquez. Il vous faut le rôle Responsable coaching ou Super-admin.\n\n1. Créez d'abord la page de réservation du coach dans Cal.com et copiez son lien en https.\n2. Ouvrez Coachs (menu Coaching).\n3. Dans « Ajouter un coach », saisissez son « Nom », son « Adresse e-mail de connexion », le « Lien de réservation Cal.com » et, si vous voulez, sa « Présentation (facultatif) ».\n4. Cliquez sur « Ajouter le coach ». La page affiche « Coach … ajouté. » et il apparaît dans « Coachs actifs ».\n5. Pour retirer un coach, cliquez sur « Retirer … » sur sa ligne. La page affiche « Coach retiré. Ses séances passées sont conservées. »\n\nUne adresse e-mail ne sert qu'à un coach à la fois. Chaque ajout et chaque retrait sont inscrits dans Actions des administrateurs."
     },
     {
@@ -2149,6 +2231,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Sans compte, l'extension Jobbbox compare votre CV à une offre d'emploi et calcule son Match Score.\n\n1. Ouvrez la page d'une offre d'emploi, puis cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ».\n2. Le panneau de l'extension s'ouvre à droite et montre l'offre capturée.\n3. Glissez votre CV dans « Glissez votre CV ici », ou cliquez sur « Choisir un fichier » pour le choisir.\n4. Cliquez sur « Calculer mon Match Score », en bas du panneau.\n5. Le score s'affiche sur 100, avec le « Détail du Match Score » : pour chaque critère, ce qui correspond et ce qui ne correspond pas.\n6. Pour comparer un autre CV, cliquez sur « Utiliser un autre CV ». Pour tout effacer, cliquez sur « Effacer mes données maintenant »."
     },
     {
@@ -2172,6 +2255,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures.\n\n1. Cliquez sur « Se connecter », en haut de chaque page publique. Sur « Se connecter à Jobbbox », saisissez « Votre adresse e-mail » puis cliquez sur « Recevoir mon lien de connexion ».\n2. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuite.\n3. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n4. Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ».\n5. Si vous avez un CV, choisissez « J'ai un CV », déposez-le (PDF ou Word .docx, 10 Mo maximum) puis cliquez sur « Lire mon CV ». Sinon, choisissez « Je n'ai pas de CV à jour », puis « Répondre aux questions de mon coach » : une question à la fois, une dizaine de minutes.\n6. Vérifiez votre CV et vos critères de recherche, comme le « Poste recherché » et le « Lieu », corrigez ce qui doit l'être, puis cliquez sur « Enregistrer mon profil ».\n\nVotre premier profil est prêt : votre coach peut chercher des offres pour vous."
     },
     {
@@ -2196,6 +2280,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Sans compte, votre CV et l'offre sont effacés au plus tard 24 heures après votre première analyse, ou dès que vous fermez votre navigateur. En créant votre compte, vous les gardez : votre CV devient votre premier profil, et l'offre votre première candidature.\n\n1. Dans le panneau de l'extension, une fois votre Match Score calculé, cliquez sur « Créer mon compte et garder cette offre ». Jobbbox s'ouvre dans un nouvel onglet.\n2. Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de connexion ».\n3. Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes : votre compte est créé, sans mot de passe.\n4. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».\n5. Revenez à l'onglet de l'offre : le panneau de l'extension se met à jour tout seul. Votre CV est devenu votre profil, et l'offre est enregistrée dans vos candidatures, au statut « À postuler ».\n6. Cliquez sur « Voir ma candidature » pour l'ouvrir dans Jobbbox.\n\nSi vous avez déjà un compte, le même bouton vous connecte à votre compte, avec le même lien reçu par e-mail ; avant le calcul du score, « J'ai déjà un compte · Se connecter » mène à la même page. Le tutoriel « Enregistrer une offre avec l'extension » explique la suite."
     },
     {
@@ -2218,6 +2303,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Le message d'un garde-fou s'affiche au candidat à la place de la réponse, sans dire quel garde-fou a agi. Il existe en français et en anglais, et chaque langue se valide à part. Il faut être super-admin pour l'écrire, et un autre super-admin pour le valider.\n\n1. Ouvrez Garde-fous (menu Coaching) et trouvez le garde-fou.\n2. Sous « Modifier le message en français », écrivez le « Texte du message » : clair, bref, au vouvoiement. Pour la détresse, il doit donner le 3114, le numéro national de prévention du suicide.\n3. Cliquez sur « Enregistrer le message ». La page affiche « Message enregistré : il doit être validé par un autre administrateur pour être servi en production. »\n4. Faites de même sous « Modifier le message en anglais ». La version anglaise dit la même chose ; pour la détresse, elle donne aussi le 3114.\n5. Demandez à un autre super-admin de relire chaque version. Sous « Valider le message en français, version … », puis en anglais, il saisit « Votre nom » et clique sur « Valider ce message ».\n\nTant qu'une langue n'est pas validée, la production sert le « Texte par défaut de Jobbbox » dans cette langue. Changer un message ne joue aucun cas d'évaluation, contrairement à un réglage. Chaque version et chaque validation sont inscrites dans Actions des administrateurs."
     },
     {
@@ -2242,7 +2328,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
-      "body": "Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi. Le panneau de l'extension affiche « Connecté en tant que … ».\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ».\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.\n5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.\n6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
+      "microAnimations": [
+        {
+          "id": "extension-side-panel",
+          "step": 2
+        }
+      ],
+      "body": "Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi. Le panneau de l'extension affiche « Connecté en tant que … ».\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ». Si l'icône Jobbbox n'est pas dans la barre, cliquez sur l'icône des extensions, la pièce de puzzle, puis sur l'épingle à côté de Jobbbox.\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.\n5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.\n6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
     },
     {
       "id": "tutorial-edit-restore-cv",
@@ -2315,6 +2407,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une offre payante est vendue par son produit Stripe : le tarif par défaut récurrent de ce produit est celui vendu au paiement, et tous ses tarifs donnent l'offre. Il vous faut le rôle Responsable des offres ou Super-admin.\n\n1. Dans Stripe, créez le produit avec un tarif par défaut récurrent (par jour, semaine, mois ou année), puis copiez l'identifiant du produit, qui commence par « prod_ ». Un identifiant de tarif (« price_… ») ne convient pas.\n2. Dans le back office, ouvrez Offres (menu Offre).\n3. Pour une nouvelle offre, remplissez la carte « Créer une offre » : la « Clé » (en minuscules, chiffres et tirets ; elle ne change plus), le « Nom en français », le « Nom en anglais », le « Produit Stripe » et ses « Fonctionnalités ». Cliquez sur « Créer l'offre ». Elle est créée masquée, au-dessus des autres, avec les quotas de l'offre juste en dessous.\n4. Pour une offre existante sans produit, saisissez l'identifiant dans le champ « Produit Stripe » de sa carte « Modifier l'offre … », puis cliquez sur « Enregistrer l'offre … ».\n5. Jobbbox vérifie le produit auprès de Stripe. S'il est refusé, le message en dit la raison : produit inconnu (vérifiez l'identifiant et le mode, test ou production), archivé, sans tarif par défaut récurrent, ou déjà celui d'une autre offre.\n6. Réglez les quotas de l'offre dans Quotas.\n7. Revenez sur sa carte, cochez « Proposée aux candidats » puis cliquez sur « Enregistrer l'offre … ». Elle apparaît dans la comparaison et au paiement.\n\nUne fois choisi, le produit Stripe ne change plus : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe. Les prix se changent aussi dans Stripe, jamais dans le back office."
     },
     {
@@ -2393,6 +2486,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Une question sans réponse montre un manque de l'aide. La combler, c'est écrire un article ou ajouter un synonyme à un article existant. Il vous faut le rôle Rédacteur de l'aide ou Super-admin.\n\n1. Ouvrez Questions sans réponse (menu Contenu). Les plus posées viennent d'abord ; filtrez si besoin avec « Filtrer par public », « Filtrer par page » et « Filtrer par langue ».\n2. Lisez la question et la « Réponse de l'IA ». C'est une matière première, jamais un article : vérifiez chaque fait et chaque libellé dans l'interface en vigueur.\n3. Cherchez d'abord un article proche, dans l'aide (/aide) ou dans l'aide du back office. S'il répond déjà, ajoutez à ses synonymes les mots de la question.\n4. Sinon, écrivez l'article en français d'abord, il fait foi, puis en anglais, avec un public et une rubrique, au vouvoiement, en citant les libellés mot pour mot. Les articles sont dans le dépôt, sous `packages/help/articles/`.\n5. Proposez le changement en revue. Une personne relit et fusionne : aucun article n'est servi avant cette fusion.\n6. Revenez sur la question et cliquez sur « Article écrit ». Pour une question qui n'est pas un manque de l'aide, cliquez sur « Écarter ».\n\nLa question est gardée masquée, sans le nom de qui l'a posée, puis effacée 30 jours après avoir été marquée."
     },
     {
@@ -2416,6 +2510,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Un signalement se traite du plus ancien au plus récent. Il vous faut le rôle Support ou Super-admin.\n\n1. Ouvrez Signalements (menu Candidats). Gardez « Filtrer par statut » sur « À traiter » et, si besoin, choisissez un type dans « Filtrer par type ».\n2. Cliquez sur « Ouvrir » sur le plus ancien. Lisez le message, son « Contexte » (page, version, navigateur, langue, taille du texte) et, pour une question, la « Question posée au coach IA » et la « Réponse du coach IA ».\n3. Cliquez sur « Marquer « Vu » » quand vous l'avez pris en compte sans encore répondre.\n4. Pour répondre, écrivez la « Réponse de l'équipe » (une seule réponse, 2 000 caractères au plus) puis cliquez sur « Enregistrer la réponse ». Le candidat la voit signée « L'équipe Jobbbox », jamais avec votre nom.\n5. Une fois le bug corrigé, l'idée notée ou la question répondue, cliquez sur « Marquer « Traité » ». Une question ne se marque « Traité » qu'une fois répondue, et la réponse ne se modifie plus ensuite.\n6. Cliquez sur « Tous les signalements » pour passer au suivant.\n\nUn bug reproductible devient une issue pour l'équipe technique ; une question qui montre un manque de l'aide mérite un article. Ne copiez jamais l'e-mail du candidat ni son message dans un outil d'IA."
     },
     {
@@ -2439,6 +2534,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "En production, l'AI Coach n'applique que la dernière version Human-validated d'un playbook. La valider, c'est attester que vous l'avez relue. Il vous faut le rôle Rédacteur de playbooks ou Super-admin, et ne pas avoir écrit cette version : une relecture par une IA ne compte jamais.\n\n1. Ouvrez Playbooks (menu Coaching), puis cliquez sur le nom du playbook.\n2. Dans « Versions », choisissez la dernière version : seule la dernière peut être validée. Lisez ses « Règles » et son Playbook Agent.\n3. Vérifiez ses « Cas d'évaluation ». S'il n'y en a aucun, ajoutez-en un avec « Ajouter un cas d'évaluation », puis « Ajouter ce cas ».\n4. Sous « Évaluer la version … », gardez « Le Playbook Agent de la version, tel qu'enregistré », puis cliquez sur « Lancer l'évaluation ». L'évaluation peut prendre quelques minutes.\n5. Lisez le résultat et les réponses notées par le juge IA. Aucun score ne bloque la validation : c'est à vous de juger, en lisant les réponses, à côté de la version servie.\n6. Sous « Valider la version … », saisissez « Votre nom », puis cliquez sur « Valider la version … ».\n\nLa page affiche « Version … validée. » et la production sert cette version. Si vous modifiez ensuite une version validée, l'enregistrer crée une nouvelle version, à évaluer et valider à son tour. La validation est inscrite dans Actions des administrateurs, avec votre nom et la date."
     }
   ],
@@ -2457,6 +2553,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/job-digests/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "A Job Digest's page is its conversation with your AI coach: it has the new job offers found for the profile and their Match Scores in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Refine my criteria ». A Job Digest never counts against a quota.\n\nOn the right, the Job Digest's fiche: its profile, the day it was sent and how many job offers it holds. In « Results », each job offer with its Match Score; in « Sections », « Job offers found » lists them all and « Settings » opens how often this profile's Job Digest comes, which you change in place, with the latest ones sent.\n\nA job offer or the settings open beside the conversation, without hiding it: save a job offer to follow it in your applications. « Close » or the Escape key closes them.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
     },
     {
@@ -2475,6 +2572,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/offres/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "It shows the job offer: the employer, the location, the contract type, remote work and the salary when given, the skills asked for and the job offer's text.\n\nThe Match Score says how well the Master CV of one of your profiles fits the job offer. Choose the profile to use, then « Save the job offer »: it becomes an application you follow in « My applications »."
     },
     {
@@ -2492,6 +2590,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/recherches/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "A job search's page is its conversation with your AI coach: it has the job offers found and their Match Scores with the profile in view. Until you have written anything, suggestions wait above the message box: « Which offers to pick? », « Widen my criteria », « Search again ».\n\nOn the right, the search's fiche: its status, the day it started and the profile's search criteria, which « Change the criteria » opens, then « Search again », or « Stop the search » while it is searching. In « Results », each job offer found with its Match Score; « Job offers found », in « Sections », lists them all.\n\nA job offer opens beside the conversation, without hiding it, with its score, what explains it, and « Save as an application » to follow it in your applications. « Close » or the Escape key closes it.\n\nThe offers you receive by email for this profile are not among a search's results: they are in « Received by email », on the Job searches page.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a job offer: « Close » closes them and brings you back to the conversation."
     },
     {
@@ -2516,6 +2615,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/profils/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "A profile's page is its conversation with your AI coach: it has the profile's Master CV and search criteria for one role in view. Until you have written anything, suggestions wait above the message box: « Improve my CV », « Understand my ATS Score », « Refine my criteria », « Which companies to target? ». The conversation is kept with the profile and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the profile and its CV stay.\n\nOn the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.\n\nIts sections: Suggestions, as long as your coach has fixes to propose, then Master CV, ATS Score, Target companies, Download and Manage. A section, a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it. « Close » or the Escape key closes it. Each section keeps its address.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one. Each time you save the Master CV, a new version is created, and you can go back to an earlier one. « Download » exports the Master CV as PDF or Word. « Manage » lets you rename, duplicate or archive the profile.\n\n« Target companies » lists the companies the job search aims at for this profile: those La Bonne Boite gives as likely to hire for your job and area, with their hiring potential, and those you add, marked « Added by you ». To add one, enter its name or SIREN in « Add a company »: it comes before La Bonne Boite's. Each company shows the job offers found there; « Company dossier », « Enriched contacts » and « Prepare a spontaneous application » open a spontaneous application, added to your applications as « To apply ». « Set aside » removes a company for good: it will not come back for this profile.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section: « Close » closes them and brings you back to the conversation."
     },
     {
@@ -2544,6 +2644,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/activite",
       "motion": null,
+      "microAnimations": [],
       "body": "Activity (Platform menu) gathers, in tabs, what the platform did: « Searches », « Received emails », « AI calls » and « Administrator actions ». Each tab shows only to the roles that read it. « Received emails » and « Administrator actions » each have their own article.\n\n**Searches** lists every Job discovery run, started by a Candidate's Job Search or to top up a Job Digest. Filter with « Trigger », « Period » and « Only switches to the fallback provider », then click « Show ». Each row gives the Profile (« Profile #… », never the Candidate's name), the searches, the provider, the pages read, the « New / extracted Job Offers », the stop, the duration and the cost. « Open » shows the « Funnel (Discovery metrics) », « The run's searches », the « Sources », the « Pages skipped » with their reason and « This run's AI calls ». Queries and criteria are erased after 30 days; the figures stay. A super-admin can « Open the Candidate's Job Search (recorded in Administrator actions) ».\n\n**AI calls** is the log of what each AI call said, as sent: the instructions, the messages after Redaction and the reply, keys and secrets masked, with the result (« OK », « Warning » or « Failed ») and its reason. Filter by « Task », « Model », « Candidate's email », « Day », result and reason, then click « Filter »; « Clear filters » goes back to the whole list. Each call opened shows « Call details », « Why » and, for a failure, the « Technical detail ». These texts hold personal data: only super-admins read them, every call opened is recorded in Administrator actions, and they are erased after 30 days. Open a call only to understand a problem.\n\nSuper-admins, Technique and Support read Searches; only super-admins read AI calls."
     },
     {
@@ -2568,6 +2669,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/activite/actions",
       "motion": null,
+      "microAnimations": [],
       "body": "Activity's « Administrator actions » tab is the back office's journal, formerly « Journal ». It records every change made in the back office: who, when, the section, the item, the action, and the values before and after. It also records every attempt refused or failed, with its reason but without the values entered, and every AI call or Candidate's Job Search a super-admin opened.\n\nSecret values are never recorded: a key shows « Value replaced (never recorded) » or « Value cleared: the environment variable is used again ». An unanswered question or a piece of feedback is named by its identifier, never by its words. Each entry is kept 3 years.\n\n« Show » filters by section: « All », « Roles », « Plans », « Coupons », « Human Coaches », « Coaching Playbooks », « Guardrails », « Feedback »… The « Tools » filter adds every call to an external tool (Stripe, Brevo, sign-in, connection tests, pages read), with its tool, operation, outcome and duration: no content, no Candidate, no secret. The « Linked mailboxes » filter adds the Linked mailboxes switched on, replaced, switched off or at their daily cap, with no Candidate or address. The most recent changes come first.\n\nSuper-admins and Technique read this journal. No one changes it or erases a line."
     },
     {
@@ -2588,7 +2690,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/candidatures/[id]",
       "motion": null,
-      "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
+      "microAnimations": [],
+      "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
     },
     {
       "id": "page-admin-help",
@@ -2608,6 +2711,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/aide",
       "motion": null,
+      "microAnimations": [],
       "body": "The back office help gathers the pages, tutorials and frequent questions the Jobbbox team writes for Administrators. It is never public: the Help Centre (/aide), its search and the sitemap never show it, and only Administrators open it, whatever their roles.\n\nArticles are sorted by topic: « Providers and Tools » first, then one topic per group of the back office menu, then « AI and compliance ». « Search the back office help » finds an article by its words, without AI.\n\nEach back office section also shows its article in the assistant, under « On this page ». The assistant answers from the articles it finds and cites them. When it finds none, click « Request a tutorial » under its reply: the help editors will see the question in « Unanswered questions », without your name."
     },
     {
@@ -2628,6 +2732,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/baisse",
       "motion": null,
+      "microAnimations": [],
       "body": "When we reduce what your paid plan includes, you get an email at least 30 days before the date of the change: what changes, why and on which date. If the change does not suit you, you can cancel at no cost.\n\nThis page, opened from the email or from My subscription, sets out what changes, the reason and the date. « Confirm the cancellation » stops your subscription at once: you are back on the Free plan, and we refund prorata the part of the paid period that will not have been used. The refund shows on your statement within 5 to 10 days.\n\nYou can cancel this way before the date of the change, or up to 30 days after it. If you keep your subscription, there is nothing to do."
     },
     {
@@ -2649,6 +2754,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/resiliation",
       "motion": null,
+      "microAnimations": [],
       "body": "This page cancels your subscription to a paid plan. It shows your plan and the date the contract ends, which is the end of the period already paid for: you keep your plan until that date, you are not charged again, and you then move to the Free plan.\n\n« Confirm the cancellation » records your request. You at once receive an acknowledgement by email, with the date of your request and the date the contract ends: keep it.\n\nChanged your mind? Until the end date, undo the cancellation from My subscription, with « Manage my subscription »."
     },
     {
@@ -2668,6 +2774,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/conversations/[id]",
       "motion": null,
+      "microAnimations": [],
       "body": "This page is one of your conversations with your AI coach, reopened from « Coach » in the menu. It holds your messages and its replies; under each reply, a quiet line says what produced it, and « Does this answer your question? » lets you say so.\n\nWrite in the message box at the foot of the page. While the coach is replying, « Stop » interrupts its reply.\n\nTo rename or delete the conversation, open its actions (« … ») beside its name in the menu. « Clear », at the top of the page, deletes all its messages; the coach's memory stays."
     },
     {
@@ -2686,6 +2793,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/profils/nouveau",
       "motion": null,
+      "microAnimations": [],
       "body": "A profile is a role you are aiming for: a Master CV and search criteria. You can have several, depending on your plan.\n\nIf you have a CV, upload it: your coach reads it and proposes a Master CV. If not, answer its questions about your career, one at a time; allow about ten minutes.\n\nEither way, you check and correct everything before saving. Nothing is added that you did not say."
     },
     {
@@ -2718,6 +2826,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/consommation-ia",
       "motion": null,
+      "microAnimations": [],
       "body": "The Dashboard is the back office's first page. It shows what the platform consumes and how Job discovery is doing. Each block shows only to the roles that read its section: with none, the page shows « No figures for your roles: the sidebar leads to your sections. »\n\nThe « Job discovery: consumption and budget » block gives, for the current month, the « Web search spend this month » against the alert threshold, the « Average cost of a run » against the « Budget per run », the « Cost per new Job Offer », the « Runs », the « Runs that fell back » (to the fallback provider) and the « Failed AI calls ». Its charts show the daily spend per Search provider, « Month to date against the alert threshold » with the month-end estimate, « Why runs stop » and « Where a run's cost goes (average) ». « Table view » gives the same figures as tables. « Every detail in AI consumption » opens the next page.\n\nAI consumption (Platform menu) counts every AI call, all tasks included, the tools the models use and the calls to external APIs (France Travail, contact enrichment, Stripe, Brevo, sign-in…). Choose the « Period » (« Last 7 days », « Last 30 days », « Last 90 days » or « Last 12 months, per month ») and click « Show ». The page then details the « Totals », « By provider, endpoint and model », « By task », « Per day » or « Per month », the « Tools » and the « External APIs ».\n\n« Failures and warnings per reason » counts the failed and warned calls per Failure Reason: the code and its wording only, never the technical reason. To read one call, a super-admin goes to Activity › AI calls.\n\nCosts are estimates at the providers' list prices, in dollars converted to euros, fixed when each call was made. A tool with no known price counts as 0 and shows « unknown price ». These are aggregates: no Candidate, no text. When web search reaches its monthly alert threshold, a banner says so and super-admins are emailed; nothing is cut. The threshold and the prices are set in Paramètres.\n\nSuper-admins, Technique and Support read both pages; no one changes anything there."
     },
     {
@@ -2744,6 +2853,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/activite/emails-recus",
       "motion": null,
+      "microAnimations": [],
       "body": "Email intake turns into Job Offers the offer emails Candidates forward to their Forwarding address: job-board alerts, a careers site's alerts, a recruiter's message. Only emails from a Recognised sender are read, by an AI hosted in the EU, after the « Booby-trapped email content » Guardrail.\n\nActivity's « Received emails » tab lists each offer email received: « Received », the « Sender's domain », the kind (« Alert », « Recruiter » or « Other »), the « Offers new / already stored », the « Guardrail » verdict and the outcome. That outcome can be « Offers found », « Unrecognised sender », « Set aside by a Guardrail », « Daily cap reached », « Forwarding confirmation », « Awaiting reading », « Other » or « Failed ». Filter with « Outcome », « Kind » and « Period », then click « Show ». No Candidate name, email or id here, and nothing of the emails' content.\n\nThe settings and the sender lists are in Paramètres, « Sources » tab, on the sheet of MTA Jobbbox (Haraka). « Recognised senders » lists the platform's, recognised by their domain, or by their full address when the domain sends for many companies. Each has a label; « Disable … » keeps it listed without reading it, « Remove … » takes it off. « Proposed senders » lists those Candidates added for themselves alone: how many Candidates, never which. Accepting one adds it for everyone.\n\nSuper-admins, Technique and Support read « Received emails ». Super-admins and Technique change the senders; each change is recorded in Administrator actions, section « Recognised senders (Email intake) »."
     },
     {
@@ -2770,6 +2880,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/signalements",
       "motion": null,
+      "microAnimations": [],
       "body": "Feedback (Candidates menu) lists the bugs, ideas and questions Candidates send from the app, oldest first. The number « to handle » shows next to the section's name for whoever can handle them. Feedback is read by the team only, never by an AI.\n\nThe type is « Bug », « Idea » or « Question ». A question arrives when the help or the AI Coach did not satisfy the Candidate: it carries a copy of their question and of the AI Coach's reply. The status is « New », « Seen » or « Handled ». Filter with « Filter by type » and « Filter by status » (« To handle » or « All »).\n\nEach row shows the date, the message, the page it came from, the Jobbbox version, the browser, the language, the text size, the Candidate and their Plan. « Open » gives the whole feedback, its « Context », its status and « The team's reply ». Opening feedback does not change its status.\n\nThe Candidate sees the reply signed « L'équipe Jobbbox », never with your name, and a notification when the team replied or marked it « Handled ». A question is marked « Handled » only once replied to. Feedback cannot be deleted from the back office.\n\nSupport and super-admins change the status and reply. Help editors see the questions only, without the Candidate's email or Plan. Each status change and each reply written are recorded in Administrator actions, without their words."
     },
     {
@@ -2798,6 +2909,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/garde-fous",
       "motion": null,
+      "microAnimations": [],
       "body": "Guardrails (Coaching menu) tunes the automatic checks on what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and on what they reply. They also check the emails Email intake receives before an AI reads them. Their list is fixed in code: « Prompt injection », « Personal data leak », « Secret disclosure », « Out-of-scope or harmful advice », « Distress » and « Booby-trapped email content ». Here, you tune each one and write the message it shows instead of the reply.\n\nThe « The guardrails and their setting » table gives, for each, « What it checks » and its « Setting ». Under « When it finds something », « Block » stops the message, or has the reply written again once and then replaces it with the Guardrail's message. « Flag only » lets everything through and counts the trigger. « Off » exists only for booby-trapped email content. Distress, personal data leak and secret disclosure always block (« Always blocks »).\n\nBefore a setting is saved with « Save the setting », the Guardrails' Eval Cases are played on it. It is refused if it lets through a case those three Guardrails must block; « See the Eval Run played on this setting » shows the result.\n\nEach message exists in French and in English. In production, it is served only once validated by a named Administrator other than its author, each language apart. Until then, « Jobbbox's default text » applies. The distress message must give 3114. No one is alerted when a Candidate expresses distress.\n\n« Triggers » counts, per day (Paris time) and per Guardrail, the messages « Blocked », « Flagged » and « Check unavailable », the last ones per reason. No Candidate, no conversation, no text: the text, if needed, stays in Activity › AI calls. When the AI check is unavailable, only the fixed rules apply and the message goes through.\n\nSuper-admins change the settings and messages; Support reads the page."
     },
     {
@@ -2817,6 +2929,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/",
       "motion": null,
+      "microAnimations": [],
       "body": "The home page is where you start in Jobbbox: a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nA question about Jobbbox? While you write, the help's matching articles show above the message box, « In the help, without AI », in place of the suggestions. An article opens beside the conversation, as « How does this page work? » does while the conversation is empty; « Ask the coach » there starts a question about it. « Activity », at the top of the page, opens beside the conversation what AI did for you and the conversation context.\n\nOn a phone, the conversation takes the whole screen. An article, « Activity » or a form opens over it, full screen: « Close » closes it and brings you back to the conversation. « Menu », at the top of the page, opens the menu.\n\nAt the foot of the menu, « My account » opens a small menu: under « Help and legal », the Help Centre (« Help »), the legal texts (« Legal ») and what's new in Jobbbox (« What's new »); then the My account page and « Sign out ». On a phone too, it is at the foot of the menu."
     },
     {
@@ -2840,6 +2953,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/coachs",
       "motion": null,
+      "microAnimations": [],
       "body": "Coaches (Coaching menu) opens « Human coaches »: the HR professionals Jobbbox selected, whom Candidates can book for paid sessions on top of the AI Coach. Jobbbox pays them outside the platform.\n\n« Active coaches » lists each coach: their « Name », their « Sign-in email address », their « Cal.com booking link » and their « Introduction (optional) ». A coach signs in to Jobbbox with the address given here and finds their coach space. The « Add a coach » card adds one; « Retire … » takes them off the list. Their past sessions are kept.\n\nCoach managers and super-admins add and retire coaches; Support reads the list. Each change is recorded in Administrator actions, section « Human Coaches »."
     },
     {
@@ -2861,6 +2975,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/agenda",
       "motion": null,
+      "microAnimations": [],
       "body": "The agenda is a conversation with your AI coach, the same one every visit. It shows your interviews and your sessions with a human coach: the list is a card there, your upcoming appointments day by day, and the sessions « To schedule ». Ask the coach to prepare an interview or to remind you what is coming.\n\n« Week » and « Month » open the calendar beside the conversation. « Add an interview » opens its form there, which closes once the interview is added; you can also add one from the « Interviews » section of an application at the « Interview » stage. On a phone, the calendar and the form open over the conversation, full screen: « Close » closes them.\n\nPast appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.\n\nFor 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Withdraw from the contract here » cancels it and refunds it in full; the coach is told."
     },
     {
@@ -2881,6 +2996,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/job-digests",
       "motion": null,
+      "microAnimations": [],
       "body": "« Job Digests » is a conversation with your AI coach, the same one every visit. A Job Digest is a selection of new job offers matching a profile's search criteria: you get it by email and find it here too.\n\nYour Job Digests are listed there in a card, by profile: how often it comes, which you set there, within your plan (every week on Monday at 7 am, or every day at 7 am, Paris time), then each Job Digest sent, with its date and its number of job offers. Click a line to open it, or ask the coach which job offers to look at first.\n\nOnly job offers you have not seen yet are in it. When there are none, nothing is sent.\n\nIn the menu, « Job Digests » unfolds into your most recent Job Digests; « See all » leads to this page."
     },
     {
@@ -2906,7 +3022,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/recherches",
       "motion": null,
-      "body": "« Job searches » is a conversation with your AI coach, the same one every visit. There your coach searches for job offers that meet a profile's search criteria.\n\nYour searches are listed there in the card « Your job searches by profile »: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email », at the bottom of the card, opens « Received by email » beside the conversation.\n\n« Received by email » shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score; save it as you would a job offer found by a search. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
+      "microAnimations": [],
+      "body": "« Job searches » is a conversation with your AI coach, the same one every visit. There your coach searches for job offers that meet a profile's search criteria.\n\nYour searches are listed there in the card « Your job searches by profile »: when each was started, where it stands and how many job offers it found; « New results » marks those you have not seen yet. Click a line to open the search, which you can stop while it is searching. To start one, use the « Start a search » suggestion above the message box, one per profile if you have several. « See the job offers received by email », at the bottom of the card, opens « Received by email » beside the conversation.\n\n« Received by email » shows the offers taken from the emails you forward to Jobbbox, by profile, newest first, with how many arrived this week. Each one says when and from which domain it was received, and its Match Score; save it as you would a job offer found by a search. The offers none of your profiles matches closely enough (match under 60) are in « Unclassified ». The emails that gave no offer this week are listed with their reason, for example « Unrecognised sender »: « It's a job alert » has that sender recognised for you from its next email. « Filter too broad » warns you when your mailbox forwards far more than your job alerts. As long as email intake is not switched on, « Set up forwarding step by step » guides you; it is set in My account, Email intake section. While no offer has arrived for a profile, « Show me how » shows how to forward a job offer's email.\n\nEach search counts once against your plan's quota. If it fails, or if you stop it before it has found a job offer, it does not count.\n\nIn the menu, « Job searches » unfolds into your most recent searches, those with results not seen yet marked with a dot; « See all » leads to this page."
     },
     {
       "id": "page-account",
@@ -2937,6 +3054,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/compte",
       "motion": null,
+      "microAnimations": [],
       "body": "My account gathers your settings, in sections: Profiles, Subscription, Follow-ups, Reminders, Email intake, European AI, Sign-in, Preferences, Tools, My feedback and My data. Each section has its own address; on a phone, « My account » takes you back to the list of sections.\n\nProfiles lists your active profiles, then the archived ones. Subscription shows your plan and how much of it you used this week: it has its own article, My subscription.\n\nIn Follow-ups, choose after how many working days your coach suggests a follow-up; in Reminders, the reminder email the day before your appointments.\n\nEmail intake lets you receive in Jobbbox the offers from your job alerts and from recruiters' messages. « Switch email intake on » gives you your forwarding address: forward those emails to it, « Copy the address » copies it, and « Set up forwarding step by step » guides you to do so from your mailbox. Only the text of forwarded emails is read, never their attachments. « Replace the address » gives you a new one and « Switch off » stops email intake: the old address stops working at once, the offers already received stay. In « Your sending addresses », add the addresses you forward from by hand; in « Your alert senders », add the address of an alert Jobbbox does not recognise yet, or switch off, for yourself alone, a sender « Recognised by Jobbbox ». The offers received show in « Received by email », on the Job searches page.\n\nEuropean AI: with your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. « Give my consent » switches it on, « Withdraw my consent » stops it, at any time; the section shows the date of your consent.\n\nSign-in shows your account's email address and the ways you can sign in.\n\nIn Preferences, change the interface language, the text size and the theme: Light, Dark, or System, which follows your device's setting. The theme and the text size are remembered on this device. The box « Get an email when Jobbbox announces something new » stays unticked until you tick it: ticked, you get at most one email a week when a new version brings something important, with no open or click tracking, and the box says since when you are subscribed. Untick it, or use the link at the bottom of the email, to stop receiving it.\n\nTools offers the Jobbbox Chrome extension.\n\nMy feedback lists the bugs, ideas and questions you sent the Jobbbox team, newest first, with their status (« Sent », « Read by the team » or « Done ») and the « Reply from the Jobbbox team ». Opening the section clears your feedback notifications. « Delete » removes a piece of feedback: the team no longer sees it. With none sent yet, « Report a problem » and « Suggest an idea » let you send one.\n\nMy data lets you download all your data or delete your account.\n\nUnder each section, « Jobbbox version » gives the version you are using, for example 0.1.0. On the beta, it is followed by the exact change served, for example 0.1.0 (main·3f9c2a1): quote it if you report a problem.\n\nMy account is not a conversation: « Help », at the top of the page, opens this article beside the page (over it, full screen, on a phone). « Ask the coach » there starts a new conversation with your AI coach about My account."
     },
     {
@@ -2958,7 +3076,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/candidatures",
       "motion": null,
-      "body": "« My applications » is a conversation with your AI coach, the same one at each visit. Each job offer you save becomes an application, linked to one of your profiles.\n\nYour applications in progress are listed there in a card: their status, their Match Score and those « to handle », when a follow-up is ready or an application still has no answer. Click a line to open the application, where you prepare your documents and record your interviews; « Show them » also shows the archived applications. Ask the coach which one to handle first, or start from a suggestion above the message box: « Add an application », « Search for job offers ».\n\nIn the menu, « My applications » unfolds into your most recent applications, and those to handle, marked with a dot; « See all » leads to this page. The arrow beside it folds or unfolds the list, and this browser remembers it."
+      "microAnimations": [],
+      "body": "« My applications » is a conversation with your AI coach, the same one at each visit. Each job offer you save becomes an application, linked to one of your profiles.\n\nYour applications in progress are listed there in a card: their status, their Match Score and those « to handle », when a follow-up is ready or an application still has no answer. Click a line to open the application, where you prepare your documents and record your interviews; « Show them » also shows the archived applications. While you have no application yet, « Show me how » shows in a few seconds where to pin the Jobbbox extension and how to open its panel. Ask the coach which one to handle first, or start from a suggestion above the message box: « Add an application », « Search for job offers ».\n\nIn the menu, « My applications » unfolds into your most recent applications, and those to handle, marked with a dot; « See all » leads to this page. The arrow beside it folds or unfolds the list, and this browser remembers it."
     },
     {
       "id": "page-human-coaches",
@@ -2979,6 +3098,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/coachs",
       "motion": null,
+      "microAnimations": [],
       "body": "« My human coaches » is a conversation with your AI coach, the same one every visit. Your sessions and the human coaches are two cards there. Ask the AI coach how to prepare a session.\n\nOn top of your AI coach, you can book a video session with an HR professional selected by Jobbbox. « Book a session with … » first opens the Your session order page: the summary, the box to accept the terms of sale and the request for the service to start at once. Pay for the session, then pick your time.\n\nWith your consent, a coach can read your profiles and applications, and comment on your application documents. They cannot change anything, and you can withdraw this access at any time."
     },
     {
@@ -3005,6 +3125,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement",
       "motion": null,
+      "microAnimations": [],
       "body": "This page, the Subscription section of My account, shows your plan (Free, Standard or Premium) and what it includes: the number of profiles, and each week the scores, job searches and enriched contacts. « Your usage this week » shows where you stand on each; the count starts again from zero every Monday. « Plans » compares them side by side: « Your Plan » marks yours, « Recommended » the one above it.\n\n« Cancel your contract » ends your subscription at the end of the period already paid for, in two clicks from this page. Once the cancellation is scheduled, the page shows « Your current Plan: … until … », and an acknowledgement is sent to you by email.\n\n« Manage my subscription » opens the secure page of Stripe, our payment provider: that is where you change plan or payment method, and where you undo a scheduled cancellation. Jobbbox never sees your card number. « Invoices and payment method » leads there too, to download your invoices.\n\n« Choose the … Plan » first opens the Your order page: the plan's summary, the box to accept the terms of sale and the request for the service to start at once, before payment on Stripe's page. On the Free plan, a « Promotion code » entered here, then « Apply », is checked, and will apply at payment for a new subscription.\n\nFor 14 days after you subscribe, « Withdraw from the contract here » lets you withdraw, without a reason: your subscription is cancelled at once and you are back on the Free plan. What you paid is refunded in full or, if you asked for the service to start at once, less the share of the days elapsed since the start of the period. Changing plan in Stripe does not start this period again.\n\nIf we reduce what your plan includes (fewer job searches a week, a feature removed…), you are told by email at least 30 days ahead, with the reason and the date. A « Your … plan changes on … » box also shows it on this page: its « Cancel at no cost » button stops your subscription at once, and the part of the paid period that will not have been used is refunded to you prorata. You can do so up to 30 days after the date of the change."
     },
     {
@@ -3024,6 +3145,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/acceptation",
       "motion": null,
+      "microAnimations": [],
       "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
     },
     {
@@ -3052,6 +3174,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/offres",
       "motion": null,
+      "microAnimations": [],
       "body": "The Plans and Coupons sections (Offer menu) set what Candidates can buy.\n\n**Plans** lists the Plans in the comparison's order, from the lowest to the highest. Each has a key, a name in French and in English, a status (« offered » or « hidden »), a « Stripe product » and its « Features ». Prices are set in Stripe: the product's default price is the one sold at checkout. Quotas are set in the Quotas section. Each Plan has its « Edit the … Plan » card; the arrows « Move the … Plan up » and « Move the … Plan down » change the order. The Free Plan is built in: always first and offered, with no Stripe product; only its name and quotas change. A Plan is never deleted. Hidden, it leaves the comparison, checkout and Upgrade Prompts, but its subscribers keep it. Once chosen, a paid Plan's Stripe product no longer changes. Removing a feature from a Plan Candidates pay for takes a reason and an effective date at least 30 days ahead.\n\n**Coupons** lists the codes Candidates type at checkout, or receive through a « Link to share ». Each shows its « Discount », « Plans », « Expires on », « Redemptions » and status. A code is created in Stripe, which counts its redemptions, with terms that no longer change. To change them, click « Deactivate the code … » and create another with « Create a coupon »: discounts already given run their course. Coaching Sessions take no coupon.\n\nPlans managers and super-admins change these sections; Support reads them. Each change is recorded in Administrator actions."
     },
     {
@@ -3080,6 +3203,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/playbooks",
       "motion": null,
+      "microAnimations": [],
       "body": "Playbooks (Coaching menu) opens « Coaching Playbooks »: the rules the AI Coach applies. The « Core Digest, Sources list and playbooks » table shows the « Core Digest », the « Sources list » and each playbook, with its « Latest version », its « Served version », its Playbook Agent (the specialist the AI Coach consults: provider, model and effort) and its status, « Active » or « Archived ». Further down, « AI task playbooks » gives the instructions of each AI task (reading a Job Offer or a CV, writing a document…) and the AI that runs it; the AI Coach never consults them. « Allowed models » lists the models offered, their hosting (« EU » or « outside EU ») and their effort.\n\nIn production, only the latest Human-validated version of each is served. Elsewhere, the latest version is served, validated or not: the page says so at the top.\n\nClick a playbook's name to open it. Its page lists its « Versions », then, for the version chosen, who wrote it, its « Validation », its « Rules » and the « Edit » card. Saving a version not yet validated changes it; saving a validated version makes the next version, to be validated in turn. Every version is kept.\n\nThen come the playbook's « Eval Cases » (fictional scenarios, scored by an AI judge) and its « Eval Runs ». A version is validated only after an Eval Run on it, whatever its score, and by someone who did not write it. « Archive this playbook » stops serving it without erasing anything; « Restore this playbook » serves it again. The Core Digest and the Sources list cannot be archived.\n\nA model « outside EU » receives calls redacted by Redaction. Playbook editors and super-admins edit, evaluate and validate; Support reads. Each change is recorded in Administrator actions."
     },
     {
@@ -3103,6 +3227,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/compte/outils",
       "motion": null,
+      "microAnimations": [],
       "body": "The Jobbbox Chrome extension saves into Jobbbox the job offer you are reading on a job site, and works out its match score, without copying and pasting. It installs in the Google Chrome browser, on a computer.\n\nTo install it, signed in: in My account, under Tools, click « Install the extension from the Chrome Web Store », then add it to Chrome from the page that opens. Without an account, « Extension », at the foot of the public pages, leads to the same page. Until it is published, Tools shows « The extension is coming soon to the Chrome Web Store. »\n\nOnce installed, pin it to Chrome's toolbar to find it again. On a job offer's page, it adds the « Analyse this offer » button; you can also open it and click « Capture this page ».\n\nWithout an account, the extension works out a job offer's Match Score with your CV, then deletes everything within 24 hours. To keep the offer in your applications, sign in: « Sign in », in the extension. The rest is explained step by step in the tutorial « Save a job offer with the extension »."
     },
     {
@@ -3125,6 +3250,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/sidepanel.html",
       "motion": null,
+      "microAnimations": [],
       "body": "The Jobbbox extension opens in a panel on the right-hand side of your browser, beside the job offer you are reading. To open it, click the Jobbbox icon in the browser's toolbar, or the « Analyse this offer » button it adds to job offer pages. Once open, the panel stays in view when you switch tabs and follows the job offer in front of you.\n\nAt the top, « Job offer analysis » is the panel's title. Without an account, « Guest » shows beside it: you are using the extension as a guest, and nothing is kept in an account.\n\nWhen the open page is a job offer, the panel shows « Job offer found on this page. » with its title. Otherwise, « Capture this page » reads the page as it shows. Until a job offer is captured, the panel says so: « No job offer captured yet. »\n\nOnce the job offer is captured, the panel shows its title, the employer and the location. Drop your CV in « Drop your CV here », or click « Choose a file », then « Compute my Match Score »: the score out of 100 shows, with the « Match Score breakdown », criterion by criterion. Your CV and the job offer stay in this browser for your guest session; the date they will be deleted is written in the panel.\n\nBefore your first CV is sent, a box asks you to accept the « terms of use for guests » and to confirm you have read the « information about my data ». It is never ticked for you, and without it your CV is not sent. Your choice stays in this browser, like your CV, and is deleted with it; once ticked, the box does not come back during the session.\n\nAt the end of the panel, the « Detect job offers on every site » box adds the « Analyse this offer » button to employers' own career sites.\n\nThe buttons stay at the foot of the panel. Before the calculation: « Compute my Match Score » and, if you already have an account, « I already have an account · Sign in ». After the calculation: « Create my account and keep this job offer », which opens Jobbbox in a new tab, to create your account or sign in; and « Delete my data now », which deletes your CV and the job offer from this browser at once.\n\nAt the very foot of the panel, « Help », « Privacy » and « Terms of use » open the Jobbbox site in a new tab: the help on the extension, the privacy policy and the terms of use."
     },
     {
@@ -3146,6 +3272,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/admin/questions-sans-reponse",
       "motion": null,
+      "microAnimations": [],
       "body": "This page lists the questions about using Jobbbox that no help article answered, most asked first. They come from two places:\n\n- a Candidate asked their AI coach, no article matched, and the AI coach said the question was about Jobbbox;\n- an Administrator clicked « Request a tutorial » in the back office assistant, after a reply without a help article. Nothing is sent without that click.\n\nEach question is kept redacted, without the name or address of whoever asked it: only its audience, the page or back office section it came from, and the language are kept.\n\nFilter the list with « Filter by audience » (Visitor, Guest, Candidate, Human Coach, Administrator), « Filter by page » and « Filter by language ». « The AI's answer » shows what the AI coach or the assistant replied: raw material, never a published article.\n\nOnce the article is written, or a synonym added to the help, click « Article written ». For a question that is not a gap in the help, click « Dismiss ». Help editors and super-admins mark the questions; Support reads them."
     },
     {
@@ -3170,6 +3297,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/connexion",
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox helps you with your job search, with an AI coach. It builds your master CV and search criteria with you, looks for the job offers that suit you, then prepares your applications: a CV tailored to each offer, a cover letter. You then follow your applications, interviews and follow-ups in one place.\n\nJobbbox is for anyone looking for a job, whether for the first time or after years in the same post. It is made to be read without effort: no jargon, a help article for every word to know, and text you can make larger.\n\nYour coach is an AI, and it says so. If you wish, human coaches can also support you, in sessions paid separately. The Jobbbox Chrome extension saves a job offer from the page where you read it.\n\nThis page, « Sign in to Jobbbox », is also where you create your account: no password, enter « Your email address » then click « Send me a sign-in link ». If you don't have an account yet, it is created, on the Free Plan: nothing to pay to start."
     },
     {
@@ -3190,6 +3318,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/retractation",
       "motion": null,
+      "microAnimations": [],
       "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it. A session booked with the request for the service to start at once can no longer be withdrawn from once it has taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirm the withdrawal » ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
     },
     {
@@ -3212,6 +3341,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/abonnement/commande",
       "motion": null,
+      "microAnimations": [],
       "body": "This page shows when you choose a plan, before payment. The summary gives the plan, its price including VAT, how often it is charged and that it renews: the subscription renews automatically until you cancel it.\n\nOnce our terms of sale are published, tick « I accept the terms of sale (version of …) » to go on; the link just above opens that version. The French text prevails. The box is never ticked for you.\n\nThe second box, « I ask for the service to start at once », is optional. Without it, you pay and your plan starts just the same, but a withdrawal is refunded in full. With it, a withdrawal refunds the amount paid, less the share of the days elapsed since the start of the period.\n\n« Go to payment » opens the secure page of Stripe, our payment provider. Once the payment is confirmed, you receive the confirmation of your order by email, with the link to the version of the terms of sale you accepted and where to withdraw from the contract: keep it.\n\nIf you already have a paid plan, you change plans on Stripe's page, from « Manage my subscription », without this page."
     },
     {
@@ -3234,6 +3364,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": "/coachs/commande",
       "motion": null,
+      "microAnimations": [],
       "body": "This page shows when you book a session with a human coach, before payment. The summary gives the coach and the session's price including VAT, a one-off payment that does not renew.\n\nOnce our terms of sale are published, tick « I accept the terms of sale (version of …) » to go on; the link just above opens that version. The French text prevails. The box is never ticked for you.\n\nThe second box is optional: « I ask for the service to start at once. I understand that if I withdraw, I will pay for the service already provided, and that I lose my right of withdrawal once the session has taken place. » Without it, you pay and book your session just the same, and a withdrawal within 14 days is refunded in full, even once the session has taken place. With it, you may withdraw as long as the session has not taken place, refunded in full; no longer afterwards.\n\n« Go to payment » opens the secure page of Stripe, our payment provider. Once the payment is confirmed, you receive the confirmation of your order by email: keep it."
     },
     {
@@ -3320,6 +3451,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Recruiters use applicant tracking systems (ATS) that read your CV before a person does. The ATS Score, out of 100, says whether this software will read your Master CV well for the role you are aiming for.\n\nIt combines readability (contact details, headline, dated jobs…) and the role's keywords. It is worked out without AI, by fixed rules, and does not depend on any job offer.\n\nThe fixes to improve it come from your coach: you find them in the profile's Suggestions."
     },
     {
@@ -3349,6 +3481,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A back office role says what an Administrator may see and change. Your roles show on the Dashboard. They are fixed in code; only super-admins grant and revoke them, in Administrators (Team menu), to someone who already has a Jobbbox account.\n\n- **Super-admin**: the whole back office, including Administrators, provider keys, Guardrails, Activity › AI calls and Administrator actions.\n- **Plans manager**: Plans, their quotas and coupons.\n- **Coach manager**: Human Coaches; reads the AI Coach cost.\n- **Playbook editor**: writes, evaluates, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.\n- **Help editor**: reads the unanswered questions and marks them « Article written » or dismisses them; reads the questions among the feedback, without the Candidate's email or Plan.\n- **Technique**: sets the non-secret settings, the search sources and sites and the prices of tools. Sees keys by their source and last 4 characters, without changing them. Reads the Dashboard, AI consumption, Tools, Activity › Searches, Received emails and Administrator actions.\n- **Support**: handles feedback and withdrawals; reads everything else without changing anything, except provider secrets, AI calls and Administrator actions.\n\nA section none of your roles reads is not in the menu. A section you read but cannot change shows read-only. A revoked role stops giving access from the next page. There is always at least one super-admin, and a permanent super-admin (ADMIN_EMAILS) cannot be revoked from the back office."
     },
     {
@@ -3366,6 +3499,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "« Clear », at the top of a page that is a conversation with your AI coach, deletes all the messages of that conversation. Jobbbox asks you to confirm first; « Cancel » deletes nothing. While the coach is replying, « Clear » waits: stop its reply first with « Stop ».\n\nThe coach's memory stays: what you asked it to remember is not cleared. The page becomes a new conversation again."
     },
     {
@@ -3384,6 +3518,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\n« Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
     },
     {
@@ -3403,6 +3538,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of the 40 the coach reads, and the tokens of its context out of the 12k ceiling. A token is a small piece of text, about four characters; it is not your quota.\n\nOn a job search, a job digest, an application or a job offer, the coach also reads the reference CV of the profile the offers are scored against, without your name or contact details, and the reasons behind each match score: skills present and missing, seniority, location, salary and contract. When you ask which offers suit you, it relies on your experience and skills; if it lacks something, such as your experience or what matters to you, it asks you for it.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays."
     },
     {
@@ -3453,6 +3589,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A Failure Reason says why something failed or warned, in two parts.\n\nThe **functional reason** is a stable code from a catalogue fixed in code, with a French wording: for example `provider_unavailable`, `key_missing`, `data_residency`, `test_failed`, `eval_refused`, `last_super_admin` or `invalid_value`. An unknown error is `other`, « Erreur inattendue ». The code is counted where figures are kept: AI consumption, « Failures and warnings per reason », and the Guardrails' triggers. Support reads it.\n\nThe **technical reason** is the error's type, the provider, the HTTP status and the message, with no key or secret, passed through Redaction and cut at 500 characters. It only shows with what it explains: a call's « Technical detail » in Activity › AI calls, kept 30 days, or a line of Administrator actions, kept 3 years. Only super-admins read it.\n\nFor a problem, start from the code in AI consumption, then open one of the calls in AI calls if you are a super-admin."
     },
     {
@@ -3472,6 +3609,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "The fiche is the column on the right of the conversation on the page of an application, a profile, a job search or a Job Digest: the object at a glance (for an application, its status and profile, which you change in place, its match, the job offer), then three groups, « Sections », « Activity » and « Results ». A click on a group's title folds or unfolds it.\n\nIt never hides the conversation: it pushes it aside. « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page. A section or a result of the fiche opens beside the conversation, where you act on it.\n\nOn a phone, the fiche opens over the conversation, full screen, with its title; « Close » or the Escape key closes it."
     },
     {
@@ -3490,6 +3628,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "An email your coach drafts when an application has stayed « Applied » or « Followed up » too long without news. It appears as a proposal in the application's page.\n\nJobbbox sends nothing to the employer: copy the text, send it from your own mailbox, then mark it as sent. The application then moves to « Followed up ».\n\nThe delay before a follow-up is set in My account, under Follow-ups."
     },
     {
@@ -3512,6 +3651,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A playbook version (of a Coaching Playbook, the Core Digest or an AI task) or a Guardrail message is Human-validated when a named Administrator, not one of its authors, has reviewed and approved it, with the date. The page shows it « validated by … on … ». A review by an AI never counts.\n\nIn production, only validated playbooks and Guardrail messages are served. Elsewhere, the latest version is served, validated or not. A playbook version is validated only after an Eval Run on it; no score blocks it, it is the person's call. A Guardrail message is validated language by language; until then, Jobbbox's default text applies.\n\nChanging a validated version makes a new one, to be validated in turn. Each validation is recorded in Administrator actions."
     },
     {
@@ -3530,6 +3670,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A regular email, also shown in Jobbbox, with the new job offers matching a profile's search criteria.\n\nYou turn it on profile by profile, every week (on Monday at 7 am) or every day (at 7 am), depending on your plan. It only holds job offers you have not seen yet, and never counts against your other quotas.\n\nYou can unsubscribe from the email, without signing in."
     },
     {
@@ -3546,6 +3687,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A search your coach runs for a profile, following its search criteria, on job sites. The job offers found are ranked by Match Score.\n\nYou start one from the Job searches page, or by asking your coach. It counts once against your plan's quota, unless it fails or you stop it before it has found a job offer."
     },
     {
@@ -3563,6 +3705,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your full CV for a profile: the one every Tailored CV starts from. Jobbbox never adds anything to it that you did not say.\n\nEach save creates a new version; you can look at earlier versions and go back to one of them."
     },
     {
@@ -3581,6 +3724,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A score out of 100 that says how well a CV fits a job offer: skills, experience, location, contract type and salary.\n\nThe breakdown shows, criterion by criterion, what matches and what is missing. A criterion the job offer or your criteria say nothing about does not count; when too few criteria could be compared, the score is called partial.\n\nIt is worked out with the profile's Master CV, and with your Tailored CV if you have one."
     },
     {
@@ -3621,6 +3765,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "What your plan includes: the number of profiles you can have, and each week the number of Match Scores, ATS Scores, job searches and enriched contacts, as well as the Job Digest frequency.\n\nThe « Weekly » bar, at the foot of the menu, shows where you stand; « Your usage this week », in My subscription, details it quota by quota. The count starts again from zero every Monday at midnight (Paris time).\n\nTalking to your coach does not count against the quota.\n\nAn increase in your plan applies at once. A reduction is announced to you by email at least 30 days ahead, and you can then cancel at no cost, with a prorata refund."
     },
     {
@@ -3668,6 +3813,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Results are what your AI coach made for an application and kept with it: the Tailored CV, the cover letter, the outreach message, the follow-ups it suggests. They are listed in the fiche's « Results » group, each with where it stands (« Draft of … », « Saved on … »).\n\nA result opens beside the conversation, on its own (over it, full screen, on a phone): you review, edit, download or copy it there. Nothing is sent without your click. « Close » or the Escape key closes it."
     },
     {
@@ -3685,6 +3831,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A copy of your Master CV adapted to one job offer: your coach rephrases, reorders, cuts and highlights what it says, and never invents anything.\n\nWhen the job offer asks for something your CV does not show, it asks you; it is added only if you confirm. You check the proposal before saving it.\n\nIt is prepared in the application's « Documents » section, with the Match Score before and after."
     },
     {
@@ -3724,6 +3871,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your right to renounce a contract made online, without a reason: for 14 days after you subscribe to a plan, or after you pay for a session with a human coach.\n\nOn Jobbbox, use « Withdraw from the contract here », on the My subscription page or on the session in the agenda. The contract stops at once and you get an acknowledgement by email. You are refunded in full, unless you asked at the order for the service to start at once: a subscription is then refunded less the share of the days elapsed, and a session that has taken place can no longer be withdrawn from."
     },
     {
@@ -3743,6 +3891,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your coach places proposals in your pages: CV fixes after an ATS Score, a follow-up to send, an application to mark as abandoned.\n\nYou accept or dismiss each one. Nothing is done without your consent: accepting applies the proposed change.\n\nA proposal your coach no longer makes disappears by itself."
     },
     {
@@ -3773,6 +3922,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Article 4 of the AI Act asks Jobbbox to support the AI literacy of everyone who uses or tunes its AI systems on its behalf: you, as soon as you hold a back office role. No level or certificate is required. This article is the basis of that literacy; read it when you are given a role, with the internal « outside Annex III » note, and read it again when it changes.\n\n**What AI does in Jobbbox.** The AI Coach and its Playbook Agents, the documents written (tailored CV, cover letter, Company Dossier, Job Offer summaries), reading CVs and Job Offers, reading offer emails, web search and the Back Office Assistant. The Match Score and the ATS Score rest on rules, not on an AI. AI can be wrong: it helps the Candidate, never decides for them, and never ranks a Candidate for an employer.\n\n**The providers.** Each AI task has its provider and model, set in Paramètres, « AI » tab. Claude (Anthropic) is reached through its direct API, outside the EU. Mistral AI is in the EU. OpenAI, when configured without EU data residency, and Perplexity, for web search, are outside the EU. The back office marks each choice outside the EU « outside EU ». Jobbbox's data stays stored in the EU; what may leave is the text of a call.\n\n**Redaction.** Before a call leaves for a provider, Jobbbox takes out every email address and phone number, and what it knows of the Candidate's identity: full name, last name, address, email, phone. Each becomes a placeholder such as « [NOM] ». The first name stays, and the rest of the CV goes: employers, job titles, dates, schools. That is still personal data, pseudonymised, not anonymous. A name Jobbbox does not know goes through, such as a referee's. Never say « anonymised » or « no data leaves the EU ».\n\n**The Mistral route.** A Candidate may give their EU AI Consent, dated and withdrawable from their account. Their calls carrying their identity then go, unredacted, to Mistral in the EU; without that consent, they go redacted to the task's provider. Reading offer emails always stays in the EU. Paramètres refuses (`data_residency`) to send the identity route or an EU-only task outside the EU.\n\n**Guardrails.** They check the messages and replies of the AI Coach, the Playbook Agents and the assistant, and the emails received, by fixed rules or with an AI. They only block what they detect, and let things through when the AI check is unavailable. In distress, the Candidate receives 3114 and no one is alerted. Only playbooks and messages validated by a person are served in production.\n\n**What you must never do.**\n- Paste a Candidate's email, message or CV into the Back Office Assistant, or into an outside AI tool.\n- Open a call in Activity › AI calls or a Candidate's Job Search without needing to: each opening is recorded in Administrator actions.\n- Validate a version you wrote, or validate on the strength of a score or an AI's opinion alone.\n- Switch on a recipient outside the EU, or move a task outside the EU, without the privacy policy version that covers it.\n- Write a secret or personal data into a help article, a playbook or a Guardrail message.\n- Use Jobbbox's AI to rank, sort or recommend Candidates to a recruiter: that would be a high-risk system (see the « outside Annex III » note).\n- Promise guaranteed safety, « EU only » or « anonymised ».\n\nWhen in doubt, ask a super-admin before acting."
     },
     {
@@ -3793,6 +3943,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "No. The help calls on no AI to answer you: its articles are checked and published by the Jobbbox team, and the search finds them from your own words. It works even when the AI is unavailable and never counts against a quota.\n\nOnly your coach answers with AI, and its replies say so. When the help has no answer, « Send to the coach » asks it your question.\n\nAll the help is also in the Help Centre, open without an account: « My account », at the foot of the menu, then « Help », under « Help and legal ». An article opened beside the conversation offers « Open in the Help Centre ».\n\nIf your coach had to answer a question about using Jobbbox, the question is noted, without your name, so the team can write the missing article."
     },
     {
@@ -3817,6 +3968,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox has no support mailbox: whether or not you have an account, you reach the Jobbbox team in a different way.\n\nWith an account, sign in and ask your question in « Help and coach »: the help's articles show first, then your AI coach answers. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question, with the coach's reply, to the Jobbbox team. You follow its answer in My account, under My feedback. For a problem or an idea: « Report a problem » or « Suggest an idea ».\n\nWithout an account, write to {{contact-email}}, the address of the legal notice."
     },
     {
@@ -3837,6 +3989,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "When an application stays « Applied » too long, your coach proposes a follow-up email in the application's page. You can also ask it to draft one.\n\nJobbbox sends nothing on your behalf: copy the text, send it from your own mailbox, then mark it as sent. The application moves to « Followed up ».\n\nThe delay before the proposal is set in My account, under Follow-ups."
     },
     {
@@ -3911,6 +4064,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "In My account, under My data: « Download all my data » gives you one file with everything Jobbbox keeps about you, including the versions of the Terms of use and Terms of sale you accepted.\n\nIn the same place, « Permanently delete my account » closes it at once, once you have typed your email address to confirm. Your profiles, CVs, applications and documents are erased, for good within 30 days at most, and your subscription ends. Only the proof of the terms you accepted (Terms of use and Terms of sale: which version, when) is kept, without your name or email address: 5 years for the Terms of use, 10 years for the Terms of sale.\n\nDownload your data first if you want to keep it."
     },
     {
@@ -3934,6 +4088,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "At the top of every public page, the « Text size » list offers Small, Standard, Medium and Large. The whole page's text changes at once.\n\nYour choice is kept on this device, signed in or not: once signed in, you find it in My account, under Preferences. On another computer or phone, set it again.\n\nYour browser's zoom also makes the page larger: Ctrl and + on a computer (Cmd and + on a Mac)."
     },
     {
@@ -3954,6 +4109,12 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [
+        {
+          "id": "text-size",
+          "step": null
+        }
+      ],
       "body": "In My account, under Preferences: the « Text size » slider has four steps, Small, Standard, Medium and Large.\n\nYour choice is kept on this device. On another computer or phone, set it again."
     },
     {
@@ -3977,6 +4138,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », under the message box of every conversation. You also find it with the icon beside « My account », at the foot of the menu. The form opens beside the conversation, without hiding it (over it, full screen, on a phone); « Close » or the Escape key closes it and your draft is kept.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team, in the same form.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in My account, My feedback section.\n\nThere is no support email address: feedback is how you reach a person."
     },
     {
@@ -4003,6 +4165,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox has no password. On the « Sign in to Jobbbox » page, enter « Your email address » then click « Send me a sign-in link ». You receive the email « Your Jobbbox sign-in link »: its button « Sign in to Jobbbox » signs you in. If you don't have an account yet, it is created then.\n\nThe link is valid for 15 minutes and works only once. A link that has expired or was already used shows « This sign-in link is no longer valid. Ask for a new one below. »\n\nDepending on the options on the page, « Continue with … » also signs you in with another account you already have, without waiting for an email.\n\nThe email doesn't arrive?\n- Wait a few minutes: it can take a little while.\n- Look in your junk mail (spam) or promotions.\n- Check the address you entered, then ask for a new link.\n\nStill nothing? See « How do I contact you? »."
     },
     {
@@ -4024,6 +4187,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "In a Job Digest received by email, click « Stop receiving this profile's Job Digest ». The page « Unsubscribe from the Job Digest » opens, without signing in: click « Unsubscribe ». It confirms « Done: you will no longer receive this Job Digest. »\n\nOnly this profile's Job Digest stops; those of your other profiles go on. You can turn it back on at any time from the profile's page.\n\nIf the page shows « This unsubscribe link is no longer valid », you may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile's page."
     },
     {
@@ -4053,6 +4217,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "**Internal note dated 2 November 2026. Internal, never published. This is not legal advice.**\n\n**Conclusion.** No current Jobbbox feature falls within Annex III of the AI Act. The obligations of high-risk systems therefore do not apply, nor does Article 6(4), which only covers a system within Annex III.\n\n**Why.** Annex III, point 4(a), covers AI systems intended for the recruitment or selection of people, notably to place targeted job advertisements, filter applications and evaluate candidates. Point 4(b) covers decisions on an ongoing work relationship. Jobbbox is a service for the candidate, started and controlled by them, outside the employer's process.\n- Tailored CV, cover letter, ATS Score: example 14 of the Commission's Service Desk (tailoring one's CV to a job offer) is out of scope.\n- Job discovery, Target Companies, Match Score, Job Digest, Email intake: example 15 (helping the candidate find the right job, ranking job offers for them alone) is out of scope.\n- AI Coach, playbooks, Company Dossier, outreach message: advice to the candidate; no output goes to an employer to select them.\n- Human Coach: no AI ranks the candidate for a third party.\n\nJobbbox remains the provider of its AI systems (AI Coach, documents written, Back Office Assistant), and the deployer of the assistant. It owes the information at the point of use of Article 50 and the AI literacy of Article 4.\n\n**When to review this note.** Before any feature, before it is designed, that would bring Jobbbox into scope:\n- an Organisation role, a B2B offer or an outplacement service where AI ranks, shortlists, scores or recommends candidates to an employer or a recruiter (examples 1, 2 and 8);\n- job offers sponsored by employers and targeted at candidates by AI (example 7);\n- the publication of the Commission's final guidelines on classification, expected at the end of 2026;\n- at the latest before 2 December 2027, when the Annex III obligations apply.\n\nEvery review gives this note a new date.\n\n**To be confirmed by a lawyer.** The « out of scope » finding once the final guidelines are out, and before any B2B or Organisation feature; the text of Article 6(4) after the Digital Omnibus, to be read on EUR-Lex.\n\n**Sources.**\n- AI Act, Regulation (EU) 2024/1689: Articles 3, 4, 6 and 50, Annex III point 4.\n- Digital Omnibus on AI, Regulation (EU) 2026/1744, in force on 27 July 2026.\n- The Commission's AI Act Service Desk, « Employment » page: examples 1, 2, 7, 8, 14 and 15.\n- Commission, draft guidelines on the classification of high-risk systems, 19 May 2026.\n- Internal research of issue #497 (`docs/research/issue-497.md`, checked on 29 October 2026), decision of issue #503."
     },
     {
@@ -4079,6 +4244,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "The extension adds the « Analyse this offer » button to a job offer's page when it recognises it. It recognises the main job sites, including LinkedIn, Indeed, Welcome to the Jungle, Apec, France Travail, HelloWork, Cadremploi and Glassdoor, and the job pages of many employers' recruiting tools (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). The Jobbbox team keeps this list up to date without you having to update the extension; on a site it has just added, the button only shows once the « Detect job offers on every site » box is ticked.\n\nThe button shows when a job offer is open, not on a plain list of results: click the offer to open it.\n\nOn an employer's career site, tick « Detect job offers on every site », at the bottom of the extension's panel. Your browser asks for your permission; pages are still read in this browser only.\n\nIf the button still does not show, open the extension's panel from the browser's toolbar. If it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page »: capturing works on any page. If the page cannot be read, the panel says so: « This page cannot be captured. » Open the job offer's own page and try again."
     },
     {
@@ -4100,6 +4266,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "In a what's-new email, click « Stop receiving what's new by email ». The page « Unsubscribe from what's-new emails » opens, without signing in: click « Unsubscribe ». It confirms « Done: you will no longer receive what's-new emails. »\n\nYou can also, once signed in, untick « Get an email when Jobbbox announces something new » in My account, under Preferences. Your other emails, such as the Job Digest or appointment reminders, do not change.\n\nIf the page shows « This unsubscribe link is no longer valid », you may already be unsubscribed; otherwise, sign in and untick the box in My account, under Preferences. What's new can always be read on the What's new page."
     },
     {
@@ -4126,6 +4293,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota.\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
     },
     {
@@ -4199,6 +4367,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "The Match Score compares a job offer with your CV and your search criteria, on five criteria: « Skills », « Experience », « Location », « Salary » and « Contract type ». It is out of 100.\n\n« Why …? », beside a job offer's score in Jobbbox, opens the breakdown: one line per criterion, with what matches and what does not. In the extension's panel, the breakdown shows under the score, in « Match Score breakdown ». A criterion the job offer says nothing about does not count: the score is then partial, or « not computable » if no criterion could be compared.\n\n« Rescore », in the extension's panel, works out the job offer's score again. Signed in, a new calculation uses one Match Score of your weekly plan: the extension asks you first, and you confirm with « Confirm the recalculation ». The result only changes if the job offer or your profile has changed; the panel tells you whether it is unchanged, or what the score was before.\n\nRescore, for example, after updating your master CV, or when the panel tells you to because the job offer's text could not be read."
     },
     {
@@ -4220,6 +4389,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Your version of the Jobbbox extension is too old: Jobbbox no longer supports it. The extension's panel says so with « Update the extension ».\n\nClick « Open the extension's page »: its page on your browser's store opens, where you install the latest version. Your browser also updates the extension by itself, usually within a few hours. Once it is up to date, click « Try again ».\n\nThe job offer and CV of your current session stay in your browser during the update: you have nothing to redo."
     },
     {
@@ -4244,6 +4414,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox uses what you entrust to it, your CV, your criteria and your applications, to help you with your job search. Your coach and several tasks, such as reading your CV or working out a match score, use AI; your coach always says it is an AI. The help, for its part, uses no AI.\n\nWith your consent, in My account, under European AI, each request to the AI that holds your identity data is handled by Mistral AI, a European AI provider. You can withdraw this consent at any time.\n\nIn My account, under My data, you download all your data or delete your account.\n\nThe details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
     },
     {
@@ -4288,6 +4459,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Every Monday at midnight (Paris time). The « Weekly » bar, at the foot of the menu, shows where you stand; « Your usage this week », in My subscription, details it quota by quota.\n\nTalking to your coach does not count against the quota. A job search that fails, or that you stop before it has found a job offer, does not count either.\n\nTo get more each week, change plan from My subscription."
     },
     {
@@ -4310,6 +4482,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "On the Legal page, open to everyone, with no account: the Terms of use, the Terms of sale, the Privacy policy (with its sections on cookies and on AI in Jobbbox) and the Legal notice. Each text downloads with « Download as PDF ».\n\nEach text shows the date it took effect. A version is never changed: a correction makes a new version. The « Previous versions » link leads to the « Version history »: each version, its date, « Substantial » or « Minor », and a line that sums up the change.\n\nAn earlier version stays readable at its dated address, marked « Archived version: » with the link « see the version in effect ». An upcoming substantial version can already be read there, marked « Upcoming version » with the date it takes effect: the email telling you of it leads there. The French text prevails; the English translation says so at the top."
     },
     {
@@ -4332,6 +4505,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "All of Jobbbox's help is in the Help Centre, open to everyone, no account needed: « Help » at the top of every public page, or « Help Centre » at the foot of the page.\n\nIts articles are sorted into four topics: « Discover Jobbbox », « The extension », « Using Jobbbox » and « Coach space ». The search field, at the top of the Help Centre, looks through all of them, without AI. Tutorials there walk you through a task step by step.\n\nOnce signed in, « Help and legal », at the foot of the menu, leads to the Help Centre. When you write to your coach, the matching articles show first, « In the help, without AI »; an article opened there offers « Open in the Help Centre ».\n\nThe articles are written by the Jobbbox team, in French and in English."
     },
     {
@@ -4440,6 +4614,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Jobbbox writes to you when it publishes a substantial version of the Terms of use, the Terms of sale or the Privacy policy: at least 30 days before it takes effect. The email names the text, the date it takes effect and what changes, with « Read the new version » and the « Version history ». A minor version, a typo corrected for instance, gets no email.\n\nIt is a service email: you get it even if you do not receive our news. It has no image and no tracking link, and you get it only once per version.\n\nFor the Terms of use, Jobbbox will ask you to accept the new version the first time you sign in from the date it takes effect. For the Terms of sale, it will apply to your next purchases. The Privacy policy is not accepted: after it takes effect, a notice « Our privacy policy changed on … » shows once in your workspace, and « Got it » closes it."
     },
     {
@@ -4465,6 +4640,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Without an account, you use the extension as a guest. Your CV and the captured job offer stay in your browser, never in a Jobbbox account. Jobbbox reads your CV to compute the Match Score, without saving it.\n\nEverything is deleted at the latest 24 hours after your first analysis, even if you keep using the extension, and as soon as you close your browser. The panel shows the exact date: « Your data will be deleted by … ». After that, the job offer is no longer available: capture it again to analyse it.\n\nTo delete everything sooner, click « Delete my data now », in the extension's panel. Your CV and the job offer are deleted from this browser at once.\n\nTo keep your work, create your account before then, without closing your browser: your CV becomes your first profile and the job offer your first application. The tutorial « Create your account from the extension and keep your work » explains how."
     },
     {
@@ -4486,6 +4662,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "When Candidates add for themselves an offer sender the platform's list lacks, it is proposed to you. Accepting it has its emails read for every Candidate. You need the Technique or Super-admin role.\n\n1. Open Paramètres (Platform menu), « Sources » tab, then the sheet of MTA Jobbbox (Haraka).\n2. Under « Proposed senders », read the domain or address, the number of Candidates (never which) and « Last added ».\n3. Check that the sender really sends Job Offers: a job board's or a careers site's alert, not a private person. When in doubt, do not accept.\n4. Enter its label in « Label of … », as « platform or company – site », at most 120 characters.\n5. Click « Accept … ». The page shows « Sender added to the platform's list. » and it appears under « Recognised senders ».\n\nTo add a sender yourself, fill in « Add a sender »: the « Sender's domain or address », then the « Label », and click « Add the sender ». A sender is disabled or removed from the same list. Each change is recorded in Administrator actions."
     },
     {
@@ -4530,6 +4707,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Candidates book a Human Coach through their Cal.com link, and the coach signs in to Jobbbox with the address you give. You need the Coach manager or Super-admin role.\n\n1. First create the coach's booking page in Cal.com and copy its https link.\n2. Open Coaches (Coaching menu).\n3. Under « Add a coach », enter their « Name », their « Sign-in email address », the « Cal.com booking link » and, if you like, their « Introduction (optional) ».\n4. Click « Add the coach ». The page shows « Coach … added. » and they appear under « Active coaches ».\n5. To retire a coach, click « Retire … » on their row. The page shows « Coach retired. Their past sessions are kept. »\n\nAn email address serves one coach at a time. Each addition and each retirement are recorded in Administrator actions."
     },
     {
@@ -4553,6 +4731,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Without an account, the Jobbbox extension compares your CV with a job offer and computes its Match Score.\n\n1. Open a job offer's page, then click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar: if it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page ».\n2. The extension's panel opens on the right and shows the captured job offer.\n3. Drop your CV in « Drop your CV here », or click « Choose a file » to pick it.\n4. Click « Compute my Match Score », at the foot of the panel.\n5. The score shows out of 100, with the « Match Score breakdown »: for each criterion, what matches and what does not.\n6. To compare another CV, click « Use another CV ». To delete everything, click « Delete my data now »."
     },
     {
@@ -4626,6 +4805,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Without an account, your CV and the job offer are deleted at the latest 24 hours after your first analysis, or as soon as you close your browser. By creating your account, you keep them: your CV becomes your first profile, and the job offer your first application.\n\n1. In the extension's panel, once your Match Score is computed, click « Create my account and keep this job offer ». Jobbbox opens in a new tab.\n2. Enter « Your email address », then click « Send me a sign-in link ».\n3. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes: your account is created, without a password.\n4. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n5. Go back to the job offer's tab: the extension's panel updates by itself. Your CV has become your profile, and the job offer is saved in your applications, as “To apply”.\n6. Click « See my application » to open it in Jobbbox.\n\nIf you already have an account, the same button signs you in to your account, with the same link sent by email; before the score is computed, « I already have an account · Sign in » leads to the same page. The tutorial « Save a job offer with the extension » explains what comes next."
     },
     {
@@ -4703,6 +4883,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A profile is a job you are aiming for: a master CV and search criteria. Your coach uses it to look for offers and prepare your applications.\n\n1. Click « Sign in », at the top of every public page. On « Sign in to Jobbbox », enter « Your email address » then click « Send me a sign-in link ».\n2. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan.\n3. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n4. In My account, under Profiles, click « Create my first profile ».\n5. If you have a CV, choose « I have a CV », drop it in (PDF or Word .docx, 10 MB maximum) then click « Read my CV ». Otherwise, choose « I don't have an up-to-date CV », then « Answer my coach's questions »: one question at a time, about ten minutes.\n6. Check your CV and search criteria, such as the « Target role » and the « Location », correct what needs it, then click « Save my profile ».\n\nYour first profile is ready: your coach can look for offers for you."
     },
     {
@@ -4727,7 +4908,13 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
-      "body": "Signed in, the Jobbbox extension works out a job offer's Match Score with one of your profiles, then saves it to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page. The extension's panel shows « Signed in as … ».\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar: if it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page ».\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. To compare the offer with another of your profiles, choose it in « Profile compared with this job offer »: the score is worked out again with it.\n5. At the foot of the panel, choose the profile for this application in « Profile used for this application ». If you uploaded a CV in the panel, « A new profile, from this CV » makes it a new profile.\n6. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
+      "microAnimations": [
+        {
+          "id": "extension-side-panel",
+          "step": 2
+        }
+      ],
+      "body": "Signed in, the Jobbbox extension works out a job offer's Match Score with one of your profiles, then saves it to your applications, without copying it out.\n\n1. Sign in to Jobbbox in your browser, then open a job offer's page. The extension's panel shows « Signed in as … ».\n2. Click « Analyse this offer », the button the extension adds to the page. If it does not show, open the Jobbbox extension from your browser's toolbar: if it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page ». If the Jobbbox icon is not in the toolbar, click the extensions icon, the jigsaw piece, then the pin beside Jobbbox.\n3. The extension's panel shows the offer and its Match Score, worked out with one of your profiles.\n4. To compare the offer with another of your profiles, choose it in « Profile compared with this job offer »: the score is worked out again with it.\n5. At the foot of the panel, choose the profile for this application in « Profile used for this application ». If you uploaded a CV in the panel, « A new profile, from this CV » makes it a new profile.\n6. Click « Save as an application ». The offer joins your applications, as “To apply”; « See my application » opens it in Jobbbox."
     },
     {
       "id": "tutorial-admin-plan-stripe",
@@ -4750,6 +4937,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A paid Plan is sold through its Stripe product: that product's recurring default price is the one sold at checkout, and every price of it gives the Plan. You need the Plans manager or Super-admin role.\n\n1. In Stripe, create the product with a recurring default price (each day, week, month or year), then copy the product's ID, which starts with « prod_ ». A price ID (« price_… ») will not do.\n2. In the back office, open Plans (Offer menu).\n3. For a new Plan, fill in the « Create a Plan » card: the « Key » (lower case letters, digits and dashes; it never changes), the « Name in French », the « Name in English », the « Stripe product » and its « Features ». Click « Create the Plan ». It is created hidden, above the others, with the quotas of the Plan just below.\n4. For an existing Plan with no product, enter the ID in the « Stripe product » field of its « Edit the … Plan » card, then click « Save the … Plan ».\n5. Jobbbox checks the product with Stripe. If it is refused, the message says why: unknown product (check the ID and the mode, test or live), archived, no recurring default price, or already another Plan's.\n6. Set the Plan's quotas in Quotas.\n7. Back on its card, tick « Offered to Candidates » and click « Save the … Plan ». It shows in the comparison and at checkout.\n\nOnce chosen, the Stripe product no longer changes: its subscribers stay on it. To move them to another Plan, use Stripe. Prices are changed in Stripe too, never in the back office."
     },
     {
@@ -4774,6 +4962,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "Feedback is handled oldest first. You need the Support or Super-admin role.\n\n1. Open Feedback (Candidates menu). Keep « Filter by status » on « To handle » and, if needed, choose a type in « Filter by type ».\n2. Click « Open » on the oldest one. Read the message, its « Context » (page, version, browser, language, text size) and, for a question, the « Question asked to the AI Coach » and « The AI Coach's reply ».\n3. Click « Mark “Seen” » once you have taken it in without replying yet.\n4. To reply, write « The team's reply » (one reply, at most 2,000 characters) and click « Save the reply ». The Candidate sees it signed « L'équipe Jobbbox », never with your name.\n5. Once the bug is fixed, the idea noted or the question answered, click « Mark “Handled” ». A question is marked « Handled » only once replied to, and the reply can no longer be changed afterwards.\n6. Click « All feedback » to move to the next one.\n\nA bug that can be reproduced becomes an issue for the technical team; a question that shows a gap in the help deserves an article. Never copy the Candidate's email or message into an AI tool."
     },
     {
@@ -4794,6 +4983,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "An unanswered question shows a gap in the help. Filling it means writing an article or adding a synonym to an existing one. You need the Help editor or Super-admin role.\n\n1. Open Unanswered questions (Content menu). The most asked come first; filter if needed with « Filter by audience », « Filter by page » and « Filter by language ».\n2. Read the question and « The AI's answer ». It is raw material, never an article: check each fact and each label in the current interface.\n3. First look for a close article, in the help (/aide) or in the back office help. If it already answers, add the question's words to its synonyms.\n4. Otherwise, write the article in French first, which is authoritative, then in English, with one audience and one topic, using « vous », quoting labels word for word. Articles live in the repository, under `packages/help/articles/`.\n5. Put the change up for review. A person reviews and merges it: no article is served before that merge.\n6. Back on the question, click « Article written ». For a question that is not a gap in the help, click « Dismiss ».\n\nThe question is kept redacted, without the name of whoever asked it, then erased 30 days after it was marked."
     },
     {
@@ -4817,6 +5007,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "In production, the AI Coach only applies a playbook's latest Human-validated version. Validating it confirms you have reviewed it. You need the Playbook editor or Super-admin role, and must not have written that version: a review by an AI never counts.\n\n1. Open Playbooks (Coaching menu), then click the playbook's name.\n2. Under « Versions », choose the latest version: only the latest can be validated. Read its « Rules » and its Playbook Agent.\n3. Check its « Eval Cases ». If there are none, add one with « Add an Eval Case », then « Add this case ».\n4. Under « Evaluate version … », keep « The version's Playbook Agent, as saved », then click « Start the Eval Run ». The Eval Run may take a few minutes.\n5. Read the result and the replies the AI judge scored. No score blocks validation: it is yours to judge, reading the replies, next to the served version.\n6. Under « Validate version … », enter « Your name », then click « Validate version … ».\n\nThe page shows « Version … validated. » and production serves that version. If you later change a validated version, saving it makes a new version, to be evaluated and validated in turn. The validation is recorded in Administrator actions, with your name and the date."
     },
     {
@@ -4838,6 +5029,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       ],
       "route": null,
       "motion": null,
+      "microAnimations": [],
       "body": "A Guardrail's message is shown to the Candidate instead of the reply, without saying which Guardrail acted. It exists in French and in English, and each language is validated apart. Writing it takes a super-admin, and validating it another super-admin.\n\n1. Open Guardrails (Coaching menu) and find the Guardrail.\n2. Under « Change the message in French », write the « Message text »: clear, short, using « vous ». For distress, it must give 3114, France's national suicide prevention line.\n3. Click « Save the message ». The page shows « Message saved: another Administrator must validate it before production serves it. »\n4. Do the same under « Change the message in English ». The English version says the same thing; for distress, it gives 3114 too.\n5. Ask another super-admin to review each version. Under « Validate the message in French, version … », then in English, they enter « Your name » and click « Validate this message ».\n\nWhile a language is not validated, production serves « Jobbbox's default text » in that language. Changing a message plays no Eval Case, unlike a setting. Each version and each validation are recorded in Administrator actions."
     }
   ]

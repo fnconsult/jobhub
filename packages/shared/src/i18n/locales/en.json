@@ -3550,7 +3550,7 @@
     "viewsLabel": "How applications are shown",
     "listView": "List",
     "boardView": "Board",
-    "none": "You have no applications yet. Save a job offer to follow it here.",
+    "none": "You have no applications yet. Save a job offer to follow it here: on the offer's page, open the Jobbbox extension from your browser's toolbar, where you pinned it.",
     "jobOffer": "Job offer",
     "profile": "Profile",
     "status": "Status",
@@ -4476,7 +4476,7 @@
     "fresh_other": "{{count}} new this week",
     "intro_one": "{{count}} offer taken from your offer emails for this profile, newest first.",
     "intro_other": "{{count}} offers taken from your offer emails for this profile, newest first.",
-    "none": "No offer received by email for this profile yet.",
+    "none": "No offer received by email for this profile yet. In your mailbox, open a job offer's email, choose « Forward », then paste your forwarding address as the recipient and send.",
     "off": "Get the offers of your job alerts and recruiters' messages here too, by forwarding them to Jobbbox.",
     "setUp": "Set up forwarding step by step",
     "listLabel": "Offers received by email for “{{profile}}”",
@@ -5391,5 +5391,15 @@
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
     "clear": "Clear the conversation"
+  },
+  "microAnimation": {
+    "show": "Show me how",
+    "replay": "Replay",
+    "hide": "Hide",
+    "art": {
+      "forward": "Forward",
+      "to": "To",
+      "send": "Send"
+    }
   }
 }

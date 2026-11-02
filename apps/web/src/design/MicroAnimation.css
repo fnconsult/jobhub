@@ -1,0 +1,390 @@
+@layer base, components;
+
+/*
+ * « Voir comment » and its Micro-animations (#569, ADR-0066). Every animated element's own style is its final state:
+ * its keyframes start elsewhere and end there (fill-mode both), so under prefers-reduced-motion, with no animation,
+ * the drawing is a still image of the final state. Each movement lasts --micro-animation-duration, set by the component
+ * from MICRO_ANIMATIONS, its keyframes in percent of it.
+ */
+@layer components {
+  .ds-micro-animation {
+    display: block;
+    margin-block: var(--space-2);
+  }
+
+  .ds-micro-animation__button {
+    display: inline-flex;
+    gap: var(--space-1);
+    align-items: center;
+    min-height: var(--size-control);
+    padding: 0 var(--space-2);
+    font: inherit;
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+    background: none;
+    border: 0;
+    border-radius: var(--radius-control);
+  }
+
+  .ds-micro-animation__button[aria-disabled="true"] {
+    cursor: default;
+  }
+
+  .ds-micro-animation__icon {
+    width: 1em;
+    height: 1em;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .ds-micro-animation__stage {
+    max-width: 22rem;
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .ma-art {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .ma-art * {
+    animation-duration: var(--micro-animation-duration, 4s);
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: 1;
+    animation-fill-mode: both;
+  }
+
+  .ma-surface {
+    fill: var(--color-background);
+  }
+
+  .ma-outline {
+    fill: none;
+    stroke: var(--color-border-strong);
+  }
+
+  .ma-surface.ma-outline {
+    fill: var(--color-background);
+  }
+
+  .ma-chrome {
+    fill: var(--color-surface);
+  }
+
+  .ma-field {
+    fill: var(--color-background);
+    stroke: var(--color-border-strong);
+  }
+
+  .ma-line {
+    fill: var(--color-border);
+  }
+
+  .ma-accent {
+    fill: var(--color-accent);
+  }
+
+  .ma-accent-soft {
+    fill: var(--color-accent-soft);
+  }
+
+  .ma-on-accent {
+    fill: var(--color-on-accent);
+  }
+
+  .ma-text {
+    fill: var(--color-text);
+  }
+
+  .ma-meta {
+    fill: var(--color-secondary);
+  }
+
+  .ma-icon {
+    fill: var(--color-secondary);
+  }
+
+  .ma-icon-stroke,
+  .ma-check {
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .ma-icon-stroke {
+    stroke: var(--color-secondary);
+  }
+
+  .ma-check {
+    stroke: var(--color-on-accent);
+  }
+
+  .ma-menu,
+  .ma-panel {
+    fill: var(--color-background);
+    stroke: var(--color-border-strong);
+  }
+
+  .ma-chip {
+    fill: var(--color-surface);
+    stroke: var(--color-border-strong);
+  }
+
+  .ma-pin {
+    fill: var(--color-accent);
+  }
+
+  .ma-notch {
+    fill: var(--color-background);
+    stroke: var(--color-border-strong);
+  }
+
+  .ma-pointer {
+    fill: var(--color-text);
+    stroke: var(--color-background);
+    stroke-width: 1.2;
+  }
+
+  /* Pin the extension, then open its Side Panel. */
+  .ma-esp__pointer {
+    transform: translate(184px, 24px);
+    animation-name: ma-esp-pointer;
+  }
+
+  .ma-esp__menu {
+    opacity: 0;
+    animation-name: ma-esp-menu;
+  }
+
+  .ma-esp__pinned {
+    opacity: 1;
+    animation-name: ma-esp-pinned;
+  }
+
+  .ma-esp__panel {
+    transform: translateX(0);
+    animation-name: ma-esp-panel;
+  }
+
+  @keyframes ma-esp-pointer {
+    0% { transform: translate(110px, 100px); }
+    18% { transform: translate(208px, 24px); }
+    21% { transform: translate(208px, 24px) scale(0.85); }
+    24%, 32% { transform: translate(208px, 24px); }
+    44% { transform: translate(210px, 52px); }
+    47% { transform: translate(210px, 52px) scale(0.85); }
+    50%, 56% { transform: translate(210px, 52px); }
+    68% { transform: translate(184px, 24px); }
+    71% { transform: translate(184px, 24px) scale(0.85); }
+    74%, 100% { transform: translate(184px, 24px); }
+  }
+
+  @keyframes ma-esp-menu {
+    0%, 22% { opacity: 0; }
+    25%, 52% { opacity: 1; }
+    56%, 100% { opacity: 0; }
+  }
+
+  @keyframes ma-esp-pinned {
+    0%, 47% { opacity: 0; }
+    51%, 100% { opacity: 1; }
+  }
+
+  @keyframes ma-esp-panel {
+    0%, 72% { transform: translateX(90px); }
+    88%, 100% { transform: translateX(0); }
+  }
+
+  /* Forward an offer's email to one's Forwarding address. */
+  .ma-fwd__pointer {
+    transform: translate(190px, 114px);
+    animation-name: ma-fwd-pointer;
+  }
+
+  .ma-fwd__compose {
+    opacity: 1;
+    transform: translateY(0);
+    animation-name: ma-fwd-compose;
+  }
+
+  .ma-fwd__address {
+    transform: scaleX(1);
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation-name: ma-fwd-address;
+  }
+
+  .ma-fwd__sent {
+    opacity: 1;
+    animation-name: ma-fwd-sent;
+  }
+
+  @keyframes ma-fwd-pointer {
+    0% { transform: translate(90px, 110px); }
+    18% { transform: translate(186px, 24px); }
+    21% { transform: translate(186px, 24px) scale(0.85); }
+    24%, 30% { transform: translate(186px, 24px); }
+    40% { transform: translate(120px, 78px); }
+    43% { transform: translate(120px, 78px) scale(0.85); }
+    46%, 62% { transform: translate(120px, 78px); }
+    76% { transform: translate(190px, 114px); }
+    79% { transform: translate(190px, 114px) scale(0.85); }
+    82%, 100% { transform: translate(190px, 114px); }
+  }
+
+  @keyframes ma-fwd-compose {
+    0%, 22% { opacity: 0; transform: translateY(20px); }
+    32%, 100% { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes ma-fwd-address {
+    0%, 44% { transform: scaleX(0); }
+    64%, 100% { transform: scaleX(1); }
+  }
+
+  @keyframes ma-fwd-sent {
+    0%, 80% { opacity: 0; }
+    86%, 100% { opacity: 1; }
+  }
+
+  /* « Taille du texte »: from Standard to Grand. */
+  .ma-size__thumb {
+    transform: translateX(199px);
+    animation-name: ma-size-thumb;
+  }
+
+  .ma-size__fill {
+    transform: scaleX(1);
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation-name: ma-size-fill;
+  }
+
+  .ma-size__sample {
+    transform: scale(1.3);
+    transform-box: fill-box;
+    transform-origin: left top;
+    animation-name: ma-size-sample;
+  }
+
+  .ma-size__pointer {
+    transform: translate(201px, 50px);
+    animation-name: ma-size-pointer;
+  }
+
+  @keyframes ma-size-thumb {
+    0%, 25% { transform: translateX(93px); }
+    50% { transform: translateX(146px); }
+    75%, 100% { transform: translateX(199px); }
+  }
+
+  @keyframes ma-size-fill {
+    0%, 25% { transform: scaleX(0.333); }
+    50% { transform: scaleX(0.667); }
+    75%, 100% { transform: scaleX(1); }
+  }
+
+  @keyframes ma-size-sample {
+    0%, 25% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    75%, 100% { transform: scale(1.3); }
+  }
+
+  @keyframes ma-size-pointer {
+    0% { transform: translate(130px, 110px); }
+    18% { transform: translate(95px, 50px); }
+    22% { transform: translate(95px, 50px) scale(0.85); }
+    25% { transform: translate(95px, 50px) scale(0.85); }
+    50% { transform: translate(148px, 50px) scale(0.85); }
+    75% { transform: translate(201px, 50px) scale(0.85); }
+    80%, 100% { transform: translate(201px, 50px); }
+  }
+
+  /* An Application's status set to « Entretien »: « Ajouter l'entretien » appears. */
+  .ma-itv__pointer {
+    transform: translate(70px, 104px);
+    animation-name: ma-itv-pointer;
+  }
+
+  .ma-itv__list {
+    opacity: 0;
+    animation-name: ma-itv-list;
+  }
+
+  .ma-itv__highlight {
+    opacity: 1;
+    animation-name: ma-itv-highlight;
+  }
+
+  .ma-itv__before {
+    opacity: 0;
+    animation-name: ma-itv-before;
+  }
+
+  .ma-itv__after {
+    opacity: 1;
+    animation-name: ma-itv-after;
+  }
+
+  .ma-itv__add {
+    opacity: 1;
+    transform: translateY(0);
+    animation-name: ma-itv-add;
+  }
+
+  @keyframes ma-itv-pointer {
+    0% { transform: translate(160px, 110px); }
+    18% { transform: translate(100px, 40px); }
+    21% { transform: translate(100px, 40px) scale(0.85); }
+    24%, 30% { transform: translate(100px, 40px); }
+    42% { transform: translate(60px, 87px); }
+    45% { transform: translate(60px, 87px) scale(0.85); }
+    48%, 64% { transform: translate(60px, 87px); }
+    84%, 100% { transform: translate(70px, 104px); }
+  }
+
+  @keyframes ma-itv-list {
+    0%, 21% { opacity: 0; }
+    24%, 48% { opacity: 1; }
+    52%, 100% { opacity: 0; }
+  }
+
+  @keyframes ma-itv-highlight {
+    0%, 34% { opacity: 0; }
+    40%, 100% { opacity: 1; }
+  }
+
+  @keyframes ma-itv-before {
+    0%, 48% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @keyframes ma-itv-after {
+    0%, 48% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+  }
+
+  @keyframes ma-itv-add {
+    0%, 56% { opacity: 0; transform: translateY(8px); }
+    68%, 100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* No movement for those who ask for none: each element rests on its final state, a still image. */
+  @media (prefers-reduced-motion: reduce) {
+    .ma-art,
+    .ma-art * {
+      animation: none !important;
+    }
+  }
+}

@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./motion-scripts-content": "./src/motion-scripts-content.ts"
+    "./motion-scripts-content": "./src/motion-scripts-content.ts",
+    "./micro-animations": "./src/micro-animations.ts"
   },
   "scripts": {
     "build": "tsx scripts/build-articles.ts",

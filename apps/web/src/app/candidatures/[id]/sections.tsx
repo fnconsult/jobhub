@@ -33,6 +33,7 @@ import { JobOfferSummary } from "@/components/JobOfferSummary";
 import { JobOfferTiles } from "@/components/JobOfferView";
 import { buttonClass } from "@/design/button-class";
 import { EmptyState } from "@/design/EmptyState";
+import { MicroAnimation } from "@/design/MicroAnimation";
 import { Pill } from "@/design/Pill";
 
 export type Params = { params: Promise<{ id: string }> };
@@ -264,7 +265,16 @@ function Interviews({ data: { application, t, locale, agendaHref } }: { data: Ap
           })}
         </ul>
       ) : (
-        <EmptyState title={t("application.interviewsNone")} headingLevel={3} help={<EmptyStateHelp of="agenda" />}>
+        <EmptyState
+          title={t("application.interviewsNone")}
+          headingLevel={3}
+          help={
+            <>
+              <EmptyStateHelp of="agenda" />
+              {application.status === "interview" ? null : <MicroAnimation id="interview-status" />}
+            </>
+          }
+        >
           {application.status === "interview" ? undefined : t("application.interviewsHint")}
         </EmptyState>
       )}

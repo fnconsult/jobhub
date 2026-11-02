@@ -293,6 +293,8 @@ test.describe("Aide et légal from the app, the coach space and the Back Office"
         await expect(footer(coach).getByRole("navigation", { name: column })).toBeVisible();
       }
       await expect(footer(coach).getByRole("link", { name: fr.publicFooter.legal.ia })).toHaveAttribute("href", "/legal/confidentialite#ia");
+      // #554: no help in context for a Human Coach; « Centre d'aide » opens the « Espace coach » topic.
+      await expect(footer(coach).getByRole("link", { name: fr.publicFooter.help.helpCentre })).toHaveAttribute("href", "/aide/espace-coach");
       await targetsAtLeast24px(footer(coach));
     } finally {
       await coach.context().close();

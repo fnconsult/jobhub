@@ -49,7 +49,6 @@ export function SecondStepCodeForm({ choice = false, submitLabel, locale, onDone
           onChange={(event) => setCode(event.target.value)}
           autoComplete="one-time-code"
           inputMode={choice && !backup ? "numeric" : "text"}
-          autoCapitalize="none"
           spellCheck={false}
           required
           autoFocus

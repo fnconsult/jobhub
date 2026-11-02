@@ -1,7 +1,8 @@
 # Deploys Jobbbox to the Hostinger VPS over SSH (docs/ops/hosting.md).
 #
 # Manual only: `gh workflow run deploy.yml -f target=staging` (from the ref to deploy,
-# default main). A push never deploys. Production also needs `confirm=jobbbox.ai`.
+# default main). A push never deploys. Production also needs `confirm=jobbbox.ai`, and runs only a Version's tag
+# vX.Y.Z on the prod branch, which the Promotion pushes (scripts/promote.ts, docs/ops/promotion.md, ADR-0063).
 #
 # One GitHub Environment per target (Settings → Environments), set up by
 # scripts/setup/deploy-vps.sh:
@@ -43,7 +44,26 @@ jobs:
     environment: ${{ inputs.target }}
     permissions:
       actions: read
+      contents: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/deploy
+      - name: Check that Production runs a Promoted Version
+        if: inputs.target == 'production'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub's comparison of this commit with prod: empty when prod does not exist (404), a failure otherwise.
+          if compare=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...prod" --jq .status 2>&1); then
+            export PROD_COMPARE="$compare"
+          elif printf '%s' "$compare" | grep -q 'HTTP 404'; then
+            export PROD_COMPARE=""
+          else
+            echo "::error::Could not compare $GITHUB_SHA with prod: $compare"
+            exit 1
+          fi
+          node scripts/deploy/check-production-ref.mjs
       - name: Check confirmation, configuration and CI
         env:
           TARGET: ${{ inputs.target }}

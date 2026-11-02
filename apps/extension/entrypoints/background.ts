@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 import { createAllSitesDetection } from "../src/all-sites-detection";
 import { readCandidateSession } from "../src/candidate-session";
+import { createExtensionUpdate } from "../src/extension-update";
 import { createGuestSession } from "../src/guest-session";
 import { createJobbboxApi } from "../src/jobbbox-api";
 import { createJobSites } from "../src/job-sites";
@@ -13,7 +14,8 @@ const EXPIRY_ALARM = "guest-session-expiry";
 
 export default defineBackground(() => {
   const session = createGuestSession(browser.storage.session);
-  const api = createJobbboxApi(WEB_ORIGIN);
+  // A Capture the web app refuses as from an outdated extension (#564) asks for the update, which the Side Panel shows.
+  const api = createJobbboxApi(WEB_ORIGIN, undefined, createExtensionUpdate(browser.storage.local));
   // The Job Sites set in the Back Office, for the badge (read from the web app, kept an hour).
   const jobSites = createJobSites({ origin: WEB_ORIGIN, fetch: (input, init) => fetch(input, init), storage: browser.storage.local });
 

@@ -14,4 +14,4 @@ Une question sur Jobbbox ? Pendant que vous écrivez, les articles de l'aide qui
 
 Sur téléphone, la conversation occupe tout l'écran. Un article, « Activité » ou un formulaire s'ouvrent par-dessus, en plein écran : « Fermer » les referme et vous ramène à la conversation. Le menu s'ouvre avec « Menu », en haut de la page.
 
-En bas du menu, « Aide et légal » mène au centre d'aide (« Aide »), aux textes légaux (« Légal ») et à ce qui change dans Jobbbox (« Nouveautés »). Sur téléphone, ces liens sont dans le menu.
+En bas du menu, « Mon compte » ouvre un petit menu : sous « Aide et légal », le centre d'aide (« Aide »), les textes légaux (« Légal ») et ce qui change dans Jobbbox (« Nouveautés ») ; puis la page Mon compte et « Se déconnecter ». Sur téléphone aussi, il est en bas du menu.

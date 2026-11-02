@@ -749,7 +749,8 @@ describe("Back Office Assistant: the Administrators' help (#551, ADR-0065)", () 
   });
 
   it("names « Request a tutorial » to an Administrator reading in English", async () => {
-    expect(await systemFor("How do I export a candidate's data?", "en")).toContain("« Request a tutorial »");
+    // A question no Administrator article covers.
+    expect(await systemFor("How do I rename the logo?", "en")).toContain("« Request a tutorial »");
   });
 });
 

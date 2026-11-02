@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { API_VERSION } from "@jobhub/shared";
 import { expect, test } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -15,10 +16,10 @@ const origin = process.env.E2E_WEB_ORIGIN!;
 const ADMINISTRATOR = "version-office@e2e.jobbbox.test";
 
 test.describe("the Version served (#559)", () => {
-  test("/api/health answers with the Version, the commit and the environment", async ({ request }) => {
+  test("/api/health answers with the Version, the commit, the environment and the API Version (#564)", async ({ request }) => {
     const response = await request.get("/api/health");
     expect(response.status()).toBe(200);
-    expect(await response.json()).toEqual({ status: "ok", version, commit: null, environment: "e2e" });
+    expect(await response.json()).toEqual({ status: "ok", version, commit: null, environment: "e2e", apiVersion: API_VERSION });
   });
 
   test("Mon compte shows « Version de Jobbbox » under its Sections", async ({ browser }) => {

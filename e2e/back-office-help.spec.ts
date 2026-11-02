@@ -130,6 +130,42 @@ test.describe("Back Office help: the assistant's articles, « Demander un tutori
     await expect(page.getByRole("row").filter({ hasText: ref })).toHaveCount(1);
   });
 
+  test("#558: each section's article « Sur cette page », a tutorial cited by the assistant, and « IA et conformité » with its dated note, for Administrators only", async ({ page, browser }) => {
+    await signInWithMagicLink(page, SUPER_ADMIN);
+    const guardrails = { title: "Garde-fous", path: "/admin/aide/coaching/page-admin-guardrails" };
+    await page.goto("/admin/garde-fous");
+    await openAssistant(page);
+    const intro = assistant(page).locator(".help-intro");
+    await expect(intro).toContainText(guardrails.title);
+    await intro.getByRole("button", { name: fr.coachPanel.help.readMoreAbout.replace("{{title}}", guardrails.title) }).click();
+    const card = assistant(page).getByRole("article", { name: guardrails.title });
+    await expect(card).toContainText("Quand il détecte quelque chose");
+    await expect(card.getByRole("link", { name: assistantTexts.help.openInBackOfficeHelpAbout.replace("{{title}}", guardrails.title) })).toHaveAttribute("href", guardrails.path);
+
+    // A tutorial, found without AI and given to the assistant with its link.
+    const show = showSystemPrompt();
+    await ask(page, `Comment valider un playbook ? ${show}`);
+    expect(await systemPromptShown(show)).toContain("### « Valider une version d'un playbook » (/admin/aide/coaching/tutorial-admin-validate-playbook)");
+
+    // « IA et conformité », last: the art. 4 article and the internal, dated « hors Annexe III » note.
+    const note = { id: "faq-admin-annex-iii-note", path: "/admin/aide/ia-et-conformite/faq-admin-annex-iii-note" };
+    await page.goto("/admin/aide/ia-et-conformite");
+    const list = page.getByRole("main").getByRole("link");
+    await expect(list.filter({ hasText: "Maîtrise de l'IA (AI Act, art. 4)" })).toHaveCount(1);
+    await list.filter({ hasText: "pourquoi Jobbbox n'est pas un système d'IA à haut risque" }).click();
+    await expect(page).toHaveURL(new RegExp(`${note.path}$`));
+    await expect(page.getByRole("main")).toContainText("Note interne datée du 2 novembre 2026");
+    await expect(page.getByRole("main")).toContainText("AI Act, règlement (UE) 2024/1689");
+
+    // Never public.
+    const candidate = await personPage(browser, newAddress("back-office-help-558-candidate"));
+    expect((await candidate.goto(note.path))?.status()).toBe(404);
+    expect((await candidate.goto(`/aide/ia-et-conformite/${note.id}`))?.status()).toBe(404);
+    const sitemap = await (await candidate.request.get("/sitemap.xml")).text();
+    expect(sitemap).not.toContain(note.id);
+    await candidate.context().close();
+  });
+
   test("/admin/aide: the Back Office's topics, « Fournisseurs et Tools » first, its search and its articles, for Administrators only, never indexed", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto("/admin");

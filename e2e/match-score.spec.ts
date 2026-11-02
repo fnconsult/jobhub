@@ -1,3 +1,4 @@
+import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { expect, request as playwrightRequest, test, type APIRequestContext } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
@@ -49,9 +50,10 @@ const tailoredCv = { ...masterCv, skills: [...masterCv.skills, "Power BI"] };
 
 const searchCriteria = { targetRole: "Directrice administrative et financière", locations: ["Lyon"], minSalary: 110_000, contractTypes: ["cdi"] };
 
-/** A browser or extension with no account: no cookies at all. */
+/** A browser or extension with no account: no cookies at all. The extension states its API Version, as it does on every call (#564). */
 async function guestFrom(requestOrigin: string): Promise<APIRequestContext> {
-  return playwrightRequest.newContext({ baseURL: origin, extraHTTPHeaders: { origin: requestOrigin } });
+  const apiVersion = requestOrigin === extensionOrigin ? { [API_VERSION_HEADER]: String(API_VERSION) } : {};
+  return playwrightRequest.newContext({ baseURL: origin, extraHTTPHeaders: { origin: requestOrigin, ...apiVersion } });
 }
 
 async function capture(api: APIRequestContext, offer: object, headers: Record<string, string> = {}) {

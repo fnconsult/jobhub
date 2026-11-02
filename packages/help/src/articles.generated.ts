@@ -23,6 +23,59 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'accueil est votre point de départ dans Jobbbox : une nouvelle conversation avec votre coach IA. Écrivez dans la zone de message, en bas de la page, ou choisissez une suggestion juste au-dessus : « Chercher des offres », « Ajouter une candidature », « Planifier un entretien », « Demander au coach ». La conversation est enregistrée à votre premier message et apparaît sous « Coach » dans le menu, où vous pouvez la renommer ou la supprimer. « Nouvelle conversation », en haut du menu, en commence une autre ; « Effacer », en haut de la page, en supprime tous les messages.\n\nPour commencer, créez un profil : votre CV de référence et vos critères de recherche. Votre coach s'en sert pour chercher des offres et préparer vos candidatures. Le menu mène à vos candidatures, à votre agenda, à vos recherches d'offres et à vos Job Digests ; « Mon compte » est en bas du menu.\n\nUne question sur Jobbbox ? Pendant que vous écrivez, les articles de l'aide qui correspondent s'affichent au-dessus de la zone de message, « Dans l'aide, sans IA », à la place des suggestions. Un article s'ouvre à côté de la conversation, comme « Comment marche cette page ? » tant que la conversation est vide ; « Demander au coach » y commence une question à son sujet. « Activité », en haut de la page, ouvre à côté de la conversation ce que l'IA a fait pour vous et le contexte de la conversation.\n\nSur téléphone, la conversation occupe tout l'écran. Un article, « Activité » ou un formulaire s'ouvrent par-dessus, en plein écran : « Fermer » les referme et vous ramène à la conversation. Le menu s'ouvre avec « Menu », en haut de la page.\n\nEn bas du menu, « Aide et légal » mène au centre d'aide (« Aide »), aux textes légaux (« Légal ») et à ce qui change dans Jobbbox (« Nouveautés »). Sur téléphone, ces liens sont dans le menu."
     },
     {
+      "id": "page-admin-audit",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Actions des administrateurs (journal)",
+      "synonyms": [
+        "journal",
+        "audit",
+        "actions des administrateurs",
+        "historique des modifications",
+        "qui a changé",
+        "avant après",
+        "tentative refusée",
+        "back office audit",
+        "filtre outils",
+        "boîtes reliées",
+        "traçabilité"
+      ],
+      "route": "/admin/activite/actions",
+      "motion": null,
+      "body": "L'onglet « Actions des administrateurs » d'Activité est le journal du back office, qui s'appelait « Journal ». Il enregistre chaque modification faite dans le back office : qui, quand, la section, l'élément, l'action, et les valeurs avant et après. Il enregistre aussi chaque tentative refusée ou échouée, avec sa raison mais sans les valeurs saisies, et chaque appel IA ou recherche d'offres d'un candidat qu'un super-admin a ouvert.\n\nLes valeurs secrètes ne sont jamais enregistrées : une clé apparaît « Valeur remplacée (jamais enregistrée) » ou « Valeur effacée : la variable d'environnement reprend le relais ». Une question sans réponse ou un signalement est nommé par son identifiant, jamais par ses mots. Chaque entrée est gardée 3 ans.\n\n« Afficher » filtre par section : « Tout », « Rôles », « Offres », « Codes promo », « Coachs humains », « Playbooks de coaching », « Garde-fous », « Signalements »… Le filtre « Outils » ajoute chaque appel aux outils externes (Stripe, Brevo, connexion, tests de connexion, pages lues), avec son outil, son opération, son résultat et sa durée : ni contenu, ni candidat, ni secret. Le filtre « Boîtes reliées » ajoute les boîtes reliées activées, remplacées, coupées ou à leur plafond du jour, sans candidat ni adresse. Les modifications les plus récentes viennent d'abord.\n\nLes super-admins et Technique lisent ce journal. Personne ne le modifie ni n'en efface une ligne."
+    },
+    {
+      "id": "page-admin-activity",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Activité",
+      "synonyms": [
+        "activité",
+        "recherches",
+        "runs",
+        "run",
+        "job discovery",
+        "recherche d'offres",
+        "entonnoir",
+        "pages écartées",
+        "secours",
+        "fournisseur de secours",
+        "appels ia",
+        "journal ia",
+        "prompt",
+        "réponse de l'ia",
+        "débogage",
+        "déclencheur"
+      ],
+      "route": "/admin/activite",
+      "motion": null,
+      "body": "Activité (menu Plateforme) réunit, en onglets, ce que la plateforme a fait : « Recherches », « Emails reçus », « Appels IA » et « Actions des administrateurs ». Chaque onglet n'apparaît qu'aux rôles qui le lisent. « Emails reçus » et « Actions des administrateurs » ont chacun leur article.\n\n**Recherches** liste chaque run de la recherche d'offres, lancé par une recherche d'offres d'un candidat ou pour compléter un Job Digest. Filtrez avec « Déclencheur », « Période » et « Bascules sur le fournisseur de secours seulement », puis cliquez sur « Afficher ». Chaque ligne donne le profil (« Profil #… », jamais le nom du candidat), les recherches, le fournisseur, les pages lues, les « Offres nouvelles / extraites », l'arrêt, la durée et le coût. « Ouvrir » montre l'« Entonnoir (Discovery metrics) », les « Recherches du run », les « Sources », les « Pages écartées » avec leur raison et « Appels IA de ce run ». Les requêtes et les critères sont effacés après 30 jours ; les chiffres restent. Un super-admin peut « Ouvrir la recherche d'offres du candidat » : cette consultation est inscrite dans Actions des administrateurs.\n\n**Appels IA** est le journal de ce que chaque appel à l'IA a dit, tel qu'il a été envoyé : les instructions, les messages après Redaction et la réponse, clés et secrets masqués, avec le résultat (« OK », « Avertissement » ou « Échec ») et sa raison. Filtrez par « Tâche », « Modèle », « E-mail du candidat », « Jour », résultat et raison, puis cliquez sur « Filtrer » ; « Effacer les filtres » revient à la liste entière. Chaque appel ouvert montre « Détails de l'appel », « Pourquoi » et le « Détail technique » d'un échec. Ces textes contiennent des données personnelles : seuls les super-admins les lisent, chaque appel ouvert est inscrit dans Actions des administrateurs, et ils sont effacés après 30 jours. N'ouvrez un appel que pour comprendre un problème.\n\nLes super-admins, Technique et le Support lisent Recherches ; seuls les super-admins lisent Appels IA."
+    },
+    {
       "id": "page-admin-help",
       "locale": "fr",
       "kind": "page",
@@ -41,6 +94,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/aide",
       "motion": null,
       "body": "L'aide du back office réunit les pages, tutoriels et questions fréquentes écrits par l'équipe Jobbbox pour les administrateurs. Elle n'est jamais publique : le centre d'aide (/aide), sa recherche et le plan du site ne la montrent pas, et seuls les administrateurs l'ouvrent, quels que soient leurs rôles.\n\nLes articles sont rangés par rubrique : « Fournisseurs et Tools » d'abord, puis une rubrique par groupe du menu du back office, puis « IA et conformité ». « Chercher dans l'aide du back office » trouve un article par ses mots, sans IA.\n\nChaque section du back office montre aussi son article dans l'assistant, sous « Sur cette page ». L'assistant répond à partir des articles qu'il trouve et les cite. S'il n'en trouve aucun, cliquez sur « Demander un tutoriel » sous sa réponse : les rédacteurs de l'aide verront la question dans « Questions sans réponse », sans votre nom."
+    },
+    {
+      "id": "page-admin-human-coaches",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Coachs humains",
+      "synonyms": [
+        "coachs",
+        "coachs humains",
+        "coach humain",
+        "human coach",
+        "cal.com",
+        "lien de réservation",
+        "séance",
+        "ajouter un coach",
+        "retirer un coach",
+        "coachs actifs",
+        "espace coach"
+      ],
+      "route": "/admin/coachs",
+      "motion": null,
+      "body": "Coachs (menu Coaching) ouvre « Coachs humains » : les professionnels RH que Jobbbox a choisis et que les candidats peuvent réserver pour des séances payantes, en plus de l'AI Coach. Jobbbox les rémunère en dehors de la plateforme.\n\n« Coachs actifs » liste chaque coach : son « Nom », son « Adresse e-mail de connexion », son « Lien de réservation Cal.com » et sa « Présentation (facultatif) ». Un coach se connecte à Jobbbox avec l'adresse indiquée ici et retrouve son espace coach. La carte « Ajouter un coach » en ajoute un ; « Retirer … » le retire de la liste. Ses séances passées sont conservées.\n\nLes responsables coaching et les super-admins ajoutent et retirent des coachs ; le Support lit la liste. Chaque changement est inscrit dans Actions des administrateurs, section « Coachs humains »."
     },
     {
       "id": "page-admin-sign-in",
@@ -105,6 +182,65 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Un profil, c'est un métier que vous visez : un CV de référence et des critères de recherche. Vous pouvez en avoir plusieurs, selon votre offre.\n\nSi vous avez un CV, déposez-le : votre coach le lit et vous propose un CV de référence. Sinon, répondez à ses questions sur votre parcours, une à la fois ; comptez une dizaine de minutes.\n\nDans les deux cas, vous vérifiez et corrigez tout avant d'enregistrer. Rien n'est ajouté que vous n'ayez dit."
     },
     {
+      "id": "page-admin-dashboard",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Dashboard et Consommation IA",
+      "synonyms": [
+        "dashboard",
+        "tableau de bord",
+        "consommation ia",
+        "coût",
+        "coûts",
+        "dépense",
+        "budget",
+        "seuil d'alerte",
+        "recherche web",
+        "tokens",
+        "appels ia",
+        "échecs",
+        "taux d'échec",
+        "prix inconnu",
+        "fournisseur",
+        "modèle",
+        "tâche",
+        "période",
+        "run"
+      ],
+      "route": "/admin/consommation-ia",
+      "motion": null,
+      "body": "Le Dashboard est la première page du back office. Il montre ce que la plateforme consomme et comment se porte la recherche d'offres. Chaque bloc n'apparaît qu'aux rôles qui lisent sa rubrique : sans aucun, la page affiche « Aucun indicateur pour vos rôles : la barre latérale mène à vos rubriques. »\n\nLe bloc « Recherche d'offres : consommation et budget » donne, pour le mois en cours, la « Dépense recherche web du mois » face au seuil d'alerte, le « Coût moyen d'un run » face au « Budget par run », le « Coût par nouvelle offre », les « Runs », les « Runs passés au secours » (sur le fournisseur de secours) et les « Appels IA en échec ». Ses graphiques montrent la dépense quotidienne par Search provider, le « Cumul du mois et seuil d'alerte » avec la fin de mois estimée, « Pourquoi les runs s'arrêtent » et « Où va le coût d'un run (moyenne) ». « Vue tableau » donne les mêmes chiffres en tableau. « Tout le détail dans Consommation IA » ouvre la page suivante.\n\nConsommation IA (menu Plateforme) compte chaque appel à l'IA, toutes tâches comprises, les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion…). Choisissez la « Période » (« 7 derniers jours », « 30 derniers jours », « 90 derniers jours » ou « 12 derniers mois, par mois ») puis cliquez sur « Afficher ». La page détaille ensuite les « Totaux », « Par fournisseur, point d'accès et modèle », « Par tâche », « Par jour » ou « Par mois », les « Outils » et les « API externes ».\n\n« Échecs et avertissements par raison » compte les appels échoués ou en avertissement par Failure Reason : le code et son libellé seulement, jamais la raison technique. Pour lire un appel précis, un super-admin passe par Activité › Appels IA.\n\nLes coûts sont des estimations aux prix publics des fournisseurs, en dollars convertis en euros, figées au moment de chaque appel. Un outil sans prix connu est compté 0 et signalé « prix inconnu ». Ce sont des agrégats : aucun candidat, aucun texte. Quand le seuil d'alerte mensuel de la recherche web est atteint, un bandeau le dit et les super-admins sont prévenus par e-mail ; rien n'est coupé. Le seuil et les prix se règlent dans Paramètres.\n\nLes super-admins, Technique et le Support lisent ces deux pages ; personne n'y modifie rien."
+    },
+    {
+      "id": "page-admin-email-intake",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Email intake (réception par email)",
+      "synonyms": [
+        "email intake",
+        "réception par email",
+        "emails reçus",
+        "email d'offres",
+        "alerte emploi",
+        "adresse de transfert",
+        "boîte reliée",
+        "expéditeur reconnu",
+        "expéditeurs proposés",
+        "expéditeur non reconnu",
+        "plafond atteint",
+        "écarté par un garde-fou",
+        "mta",
+        "transfert"
+      ],
+      "route": "/admin/activite/emails-recus",
+      "motion": null,
+      "body": "L'Email intake, ou réception par email, transforme en offres les emails d'offres que les candidats transfèrent à leur adresse de transfert : alertes des sites d'emploi, alertes d'un site carrière, message d'un recruteur. Seuls les emails d'un expéditeur reconnu sont lus, par une IA hébergée dans l'UE, une fois passé le garde-fou des emails piégés.\n\nL'onglet « Emails reçus » d'Activité liste chaque email d'offres reçu : « Reçu le », le « Domaine de l'expéditeur », le type (« Alerte », « Recruteur » ou « Autre »), les « Offres nouvelles / déjà là », le verdict du « Garde-fou » et le résultat. Ce résultat peut être « Offres trouvées », « Expéditeur non reconnu », « Écarté par un garde-fou », « Plafond atteint », « Confirmation de transfert », « En attente de lecture », « Autre » ou « Échec ». Filtrez avec « Résultat », « Type » et « Période », puis cliquez sur « Afficher ». Aucun nom, e-mail ni identifiant de candidat ici, et rien de ce que disent les emails.\n\nLes réglages et les listes d'expéditeurs sont dans Paramètres, onglet « Sources », sur la fiche de MTA Jobbbox (Haraka). « Expéditeurs reconnus » liste ceux de la plateforme, reconnus par leur domaine, ou par leur adresse complète quand le domaine envoie pour plusieurs entreprises. Chacun a un libellé ; « Désactiver … » le garde listé sans le lire, « Supprimer … » le retire. « Expéditeurs proposés » liste ceux que des candidats ont ajoutés pour eux seuls : combien de candidats, jamais lesquels. Les accepter les ajoute pour tous.\n\nLes super-admins, Technique et le Support lisent « Emails reçus ». Les super-admins et Technique modifient les expéditeurs ; chaque changement est inscrit dans Actions des administrateurs, section « Expéditeurs reconnus (Réception par email) »."
+    },
+    {
       "id": "page-agenda",
       "locale": "fr",
       "kind": "page",
@@ -124,6 +260,36 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/agenda",
       "motion": null,
       "body": "L'agenda est une conversation avec votre coach IA, la même à chaque visite. Il montre vos entretiens et vos séances avec un coach humain : la liste y est une carte, vos prochains rendez-vous jour par jour, et les séances « À planifier ». Demandez au coach de préparer un entretien ou de vous rappeler ce qui vient.\n\n« Semaine » et « Mois » ouvrent le calendrier à côté de la conversation. « Ajouter un entretien » y ouvre son formulaire, qui se ferme une fois l'entretien ajouté ; vous pouvez aussi l'ajouter depuis la rubrique « Entretiens » d'une candidature à l'étape « Entretien ». Sur téléphone, le calendrier et le formulaire s'ouvrent par-dessus la conversation, en plein écran : « Fermer » les referme.\n\nLes rendez-vous passés restent visibles, en plus pâle. La veille à 18 h, Jobbbox peut vous envoyer un e-mail de rappel : réglez-le dans Mon compte, rubrique Rappels.\n\nPendant les 14 jours qui suivent le paiement d'une séance avec un coach humain, et tant qu'elle n'a pas eu lieu, « Renoncer au contrat ici » l'annule et vous la rembourse en entier ; le coach est prévenu."
+    },
+    {
+      "id": "page-admin-guardrails",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Garde-fous",
+      "synonyms": [
+        "garde-fous",
+        "garde-fou",
+        "guardrail",
+        "guardrails",
+        "bloquer",
+        "signaler seulement",
+        "désactivé",
+        "injection d'instructions",
+        "fuite de données personnelles",
+        "divulgation de secrets",
+        "conseil dangereux",
+        "détresse",
+        "3114",
+        "email piégé",
+        "déclenchements",
+        "message du garde-fou",
+        "réglage"
+      ],
+      "route": "/admin/garde-fous",
+      "motion": null,
+      "body": "Garde-fous (menu Coaching) règle les contrôles automatiques sur ce que reçoivent le coach IA, ses Playbook Agents et l'assistant du back office, et sur ce qu'ils répondent. Ils contrôlent aussi les emails reçus par la réception par email avant qu'une IA ne les lise. Leur liste est fixée dans le code : « Injection d'instructions », « Fuite de données personnelles », « Divulgation de secrets », « Conseil hors rôle ou dangereux », « Détresse » et « Contenu piégé dans un email ». Ici, vous réglez chacun et écrivez le message qu'il affiche à la place de la réponse.\n\nLe tableau « Les garde-fous et leur réglage » dit, pour chacun, « Ce qu'il contrôle » et son « Réglage ». Dans « Quand il détecte quelque chose », « Bloquer » arrête le message, ou fait réécrire la réponse une fois puis la remplace par le message du garde-fou. « Signaler seulement » laisse tout passer et compte le déclenchement. « Désactivé » n'existe que pour le contenu piégé dans un email. La détresse, la fuite de données personnelles et la divulgation de secrets bloquent toujours (« Bloque toujours »).\n\nAvant d'enregistrer un réglage avec « Enregistrer le réglage », les cas d'évaluation des garde-fous sont joués avec lui. Il est refusé s'il laisse passer un cas que ces trois garde-fous doivent bloquer ; « Voir l'évaluation jouée sur ce réglage » montre le résultat.\n\nChaque message existe en français et en anglais. En production, il n'est servi qu'une fois validé par un administrateur nommé autre que son auteur, chaque langue à part. D'ici là, le « Texte par défaut de Jobbbox » s'applique. Le message de détresse doit donner le 3114. Personne n'est alerté quand un candidat exprime une détresse.\n\n« Déclenchements » compte, par jour (heure de Paris) et par garde-fou, les messages « Bloqués », « Signalés » et les « Contrôle indisponible », ces derniers par raison. Aucun candidat, aucune conversation, aucun texte : le texte, si besoin, reste dans Activité › Appels IA. Quand le contrôle par IA est indisponible, seules les règles fixes s'appliquent et le message passe.\n\nLes super-admins modifient les réglages et les messages ; le Support lit la page."
     },
     {
       "id": "page-job-digests",
@@ -349,6 +515,37 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Cet écran s'affiche après la connexion quand les conditions générales d'utilisation (CGU) attendent votre accord : la première fois, puis à chaque nouvelle version qui change vos droits. Une version mineure ne vous est pas redemandée.\n\n« Lire les CGU » ouvre la version à accepter, avec sa date. Cochez « J'accepte les CGU (version du JJ/MM/AAAA) », puis « Accepter et continuer » : vous revenez à la page que vous vouliez ouvrir. La case n'est jamais cochée pour vous, et l'écran ne revient pas pour la même version.\n\nTant que vous n'avez pas accepté, vous pouvez toujours ouvrir Mes données, pour télécharger vos données ou supprimer votre compte, et Abonnement, pour vous rétracter ou résilier. Votre abonnement continue de courir.\n\nEn anglais, l'écran rappelle que le texte français fait foi."
     },
     {
+      "id": "page-admin-plans",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "offre",
+      "title": "Offres et codes promo",
+      "synonyms": [
+        "offres",
+        "plans",
+        "plan",
+        "abonnement",
+        "stripe",
+        "produit stripe",
+        "prix",
+        "tarif",
+        "offre masquée",
+        "rang",
+        "fonctionnalités",
+        "codes promo",
+        "code promo",
+        "coupon",
+        "réduction",
+        "remise",
+        "lien à partager",
+        "désactiver un code"
+      ],
+      "route": "/admin/offres",
+      "motion": null,
+      "body": "Les sections Offres et Codes promo (menu Offre) règlent ce que les candidats peuvent acheter.\n\n**Offres** liste les offres dans l'ordre de la comparaison, de la plus basse à la plus haute. Chacune a une clé, un nom en français et en anglais, un statut (« proposée » ou « masquée »), un « Produit Stripe » et ses « Fonctionnalités ». Les prix se règlent dans Stripe : le tarif par défaut du produit est celui vendu au paiement. Les quotas se règlent dans la section Quotas. Chaque offre a sa carte « Modifier l'offre … » ; les flèches « Monter l'offre … » et « Descendre l'offre … » changent l'ordre. L'offre Gratuite est intégrée : toujours la première et proposée, sans produit Stripe ; seuls son nom et ses quotas changent. Une offre n'est jamais supprimée. Masquée, elle disparaît de la comparaison, du paiement et des invitations à passer à l'offre supérieure, mais ses abonnés la gardent. Une fois choisi, le produit Stripe d'une offre payante ne change plus. Retirer une fonctionnalité d'une offre que des candidats paient demande une raison et une date d'effet au moins 30 jours plus tard.\n\n**Codes promo** liste les codes que les candidats saisissent au paiement, ou reçoivent par un « Lien à partager ». Chacun montre sa « Réduction », ses « Offres », « Expire le », ses « Utilisations » et son statut. Un code est créé dans Stripe, qui compte ses utilisations, avec des conditions qui ne changent plus. Pour en changer, cliquez sur « Désactiver le code … » puis créez-en un autre avec « Créer un code promo » : les réductions déjà accordées vont à leur terme. Les séances de coaching ne prennent pas de code promo.\n\nLes responsables des offres et les super-admins modifient ces sections ; le Support les lit. Chaque modification est inscrite dans Actions des administrateurs."
+    },
+    {
       "id": "page-admin-tools",
       "locale": "fr",
       "kind": "page",
@@ -398,6 +595,36 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/parametres",
       "motion": null,
       "body": "Paramètres réunit les réglages de la plateforme, par type d'outil, en onglets : « Recherche web », « IA », « Sources », « Enrichissement de contacts », « E-mail », « Paiement », « Connexion », « Extension » et « Environnement ». L'onglet est dans l'adresse : un rechargement le garde.\n\nUn onglet de fournisseurs montre d'abord la carte « Fournisseur actif », avec les réglages de l'onglet, puis le tableau « Fournisseurs possibles » : chaque fournisseur avec ses clés, son « Dernier test », son « État » et ce qu'il sert (« Utilisé par »). Cliquez sur le nom d'un fournisseur pour ouvrir sa fiche sur le côté : ses clés, ses paramètres, ses prix et le lien « Ses appels, ses échecs et son coût dans Outils ». « Rendre actif » choisit le fournisseur de la recherche web ou des contacts enrichis.\n\nChaque réglage montre sa « Valeur en vigueur » et sa « Source » : une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur le « Défaut du code ». « Enregistrer » applique une nouvelle valeur en quelques secondes, sans redémarrage ; « Rétablir » efface la valeur du back office. Un réglage marqué « Se règle dans l'environnement » ne se change pas ici.\n\n« + Ajouter » ajoute ce que l'onglet contient : un fournisseur, une clé, un modèle, une source, un site ou un fournisseur de connexion. Chaque modification et chaque tentative refusée est inscrite dans Activité. Les super-admins changent tout ; « Technique » change les réglages et les sites sans jamais voir ni remplacer une clé ; le Support lit tout et ne change rien."
+    },
+    {
+      "id": "page-admin-playbooks",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Playbooks",
+      "synonyms": [
+        "playbooks",
+        "playbook",
+        "playbooks de coaching",
+        "socle",
+        "socle de coaching",
+        "liste des sources",
+        "playbook agent",
+        "playbook de tâche ia",
+        "règles du coach",
+        "version",
+        "version servie",
+        "évaluation",
+        "eval run",
+        "cas d'évaluation",
+        "archiver",
+        "modèle autorisé",
+        "effort"
+      ],
+      "route": "/admin/playbooks",
+      "motion": null,
+      "body": "Playbooks (menu Coaching) ouvre « Playbooks de coaching » : les règles que l'AI Coach applique. Le tableau « Socle, liste des sources et playbooks » montre le « Socle de coaching », la « Liste des sources » et chaque playbook, avec sa « Dernière version », sa « Version servie », son Playbook Agent (le spécialiste que l'AI Coach consulte : fournisseur, modèle et effort) et son état, « Actif » ou « Archivé ». Plus bas, « Playbooks des tâches IA » donne les consignes de chaque tâche IA (lire une offre ou un CV, rédiger un document…) et l'IA qui l'exécute ; l'AI Coach ne les consulte jamais. « Modèles autorisés » liste les modèles proposés, leur hébergement (« UE » ou « hors UE ») et leur effort.\n\nEn production, seule la dernière version validée par une personne (Human-validated) de chacun est servie. Ailleurs, la dernière version est servie, validée ou non : la page le rappelle en tête.\n\nCliquez sur le nom d'un playbook pour l'ouvrir. Sa page liste ses « Versions », puis, pour la version choisie, qui l'a écrite, sa « Validation », ses « Règles » et la carte « Modifier ». Enregistrer une version non validée la modifie ; enregistrer une version validée crée la version suivante, à valider à son tour. Toutes les versions sont gardées.\n\nViennent ensuite les « Cas d'évaluation » du playbook (des scénarios fictifs, notés par un juge IA) et ses « Évaluations ». Une version n'est validée qu'après une évaluation sur elle, quel que soit son score, et par une personne qui ne l'a pas écrite. « Archiver ce playbook » arrête de le servir sans rien effacer ; « Rétablir ce playbook » le sert de nouveau. Le socle et la liste des sources ne s'archivent pas.\n\nUn modèle « hors UE » reçoit des appels expurgés par la Redaction. Les rédacteurs de playbooks et les super-admins modifient, évaluent et valident ; le Support lit. Chaque changement est inscrit dans Actions des administrateurs."
     },
     {
       "id": "page-what-is-jobbbox",
@@ -526,6 +753,32 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/abonnement/resiliation",
       "motion": null,
       "body": "Cette page résilie votre abonnement à une offre payante. Elle indique votre offre et la date de fin du contrat, c'est-à-dire la fin de la période déjà payée : vous gardez votre offre jusqu'à cette date, aucun prélèvement ne suit, puis vous passez à l'offre Gratuite.\n\n« Confirmer la résiliation » enregistre votre demande. Vous recevez aussitôt par e-mail un accusé de réception avec la date de votre demande et la date de fin du contrat : conservez-le.\n\nVous changez d'avis ? Jusqu'à la date de fin, annulez la résiliation depuis Mon abonnement, avec « Gérer mon abonnement »."
+    },
+    {
+      "id": "page-admin-signalements",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "candidats",
+      "title": "Signalements",
+      "synonyms": [
+        "signalements",
+        "signalement",
+        "feedback",
+        "bug",
+        "idée",
+        "question à l'équipe",
+        "retour candidat",
+        "à traiter",
+        "nouveau",
+        "vu",
+        "traité",
+        "réponse de l'équipe",
+        "support"
+      ],
+      "route": "/admin/signalements",
+      "motion": null,
+      "body": "Signalements (menu Candidats) liste les bugs, idées et questions que les candidats envoient depuis l'application, du plus ancien au plus récent. Le nombre « à traiter » s'affiche à côté du nom de la section pour qui peut les traiter. Les signalements sont lus par l'équipe seulement, jamais par une IA.\n\nLe type est « Bug », « Idée » ou « Question ». Une question arrive quand l'aide ou le coach IA n'a pas suffi au candidat : elle porte une copie de sa question et de la réponse du coach IA. Le statut est « Nouveau », « Vu » ou « Traité ». Filtrez avec « Filtrer par type » et « Filtrer par statut » (« À traiter » ou « Tous »).\n\nChaque ligne montre la date, le message, la page d'où il vient, la version de Jobbbox, le navigateur, la langue, la taille du texte, le candidat et son offre. « Ouvrir » donne le signalement entier, son « Contexte », son statut et la « Réponse de l'équipe ». Ouvrir un signalement ne change pas son statut.\n\nLe candidat voit la réponse signée « L'équipe Jobbbox », jamais avec votre nom, et une notification quand l'équipe a répondu ou marqué « Traité ». Une question ne se marque « Traité » qu'une fois répondue. Un signalement ne se supprime pas depuis le back office.\n\nLe Support et les super-admins changent le statut et répondent. Les rédacteurs de l'aide voient les questions seulement, sans l'e-mail ni l'offre du candidat. Chaque statut changé et chaque réponse écrite sont inscrits dans Actions des administrateurs, sans leurs mots."
     },
     {
       "id": "page-admin-search-sites",
@@ -797,6 +1050,34 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Ce que votre offre comprend : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest.\n\nLa barre « Utilisation cette semaine », en bas du menu, montre où vous en êtes. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris).\n\nParler à votre coach ne compte pas dans le quota.\n\nUne hausse de votre offre s'applique tout de suite. Une baisse vous est annoncée par e-mail au moins 30 jours avant, et vous pouvez alors résilier sans frais, avec un remboursement au prorata."
     },
     {
+      "id": "glossary-admin-failure-reason",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Raison d'échec (Failure Reason)",
+      "synonyms": [
+        "raison d'échec",
+        "failure reason",
+        "code d'erreur",
+        "raison",
+        "pourquoi",
+        "échec",
+        "avertissement",
+        "erreur inattendue",
+        "raison technique",
+        "détail technique",
+        "provider_unavailable",
+        "key_missing",
+        "data_residency",
+        "test_failed",
+        "other"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Une raison d'échec dit pourquoi quelque chose a échoué ou averti, en deux parties.\n\nLa **raison fonctionnelle** est un code stable, tiré d'un catalogue fixé dans le code, avec un libellé en français : par exemple `provider_unavailable`, `key_missing`, `data_residency`, `test_failed`, `eval_refused`, `last_super_admin` ou `invalid_value`. Une erreur inconnue est `other`, « Erreur inattendue ». Le code est compté là où l'on garde des chiffres : Consommation IA, « Échecs et avertissements par raison », et les déclenchements des garde-fous. Le Support le lit.\n\nLa **raison technique** est le type d'erreur, le fournisseur, le statut HTTP et le message, sans clé ni secret, passé par la Redaction et coupé à 500 caractères. Elle n'apparaît qu'avec ce qu'elle explique : le « Détail technique » d'un appel dans Activité › Appels IA, gardé 30 jours, ou une ligne d'Actions des administrateurs, gardée 3 ans. Seuls les super-admins la lisent.\n\nPour un problème, partez du code dans Consommation IA, puis ouvrez un appel concerné dans Appels IA si vous êtes super-admin."
+    },
+    {
       "id": "glossary-job-search",
       "locale": "fr",
       "kind": "glossary",
@@ -869,6 +1150,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Votre droit de renoncer, sans motif, à un contrat conclu en ligne : pendant 14 jours après votre abonnement à une offre, ou après le paiement d'une séance avec un coach humain.\n\nSur Jobbbox, utilisez « Renoncer au contrat ici », sur la page Mon abonnement ou sur la séance dans l'agenda. Le contrat s'arrête tout de suite et vous recevez un accusé de réception par e-mail. Vous êtes remboursé en entier, sauf si, à la commande, vous avez demandé que le service commence immédiatement : un abonnement vous est alors remboursé moins la part des jours écoulés, et une séance qui a eu lieu ne peut plus faire l'objet d'une rétractation."
     },
     {
+      "id": "glossary-admin-back-office-roles",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "administrator",
+      "topic": "equipe",
+      "title": "Rôles du back office",
+      "synonyms": [
+        "rôles",
+        "rôle",
+        "back office role",
+        "droits",
+        "permissions",
+        "accès",
+        "super-admin",
+        "responsable des offres",
+        "responsable coaching",
+        "support",
+        "rédacteur de playbooks",
+        "rédacteur de l'aide",
+        "technique",
+        "donner un rôle",
+        "retirer un rôle",
+        "lecture seule"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Un rôle du back office dit ce qu'un administrateur peut voir et changer. Vos rôles s'affichent sur le Dashboard. Ils sont fixés dans le code ; seuls les super-admins les donnent et les retirent, dans Administrateurs (menu Équipe), à une personne qui a déjà un compte Jobbbox.\n\n- **Super-admin** : tout le back office, dont les administrateurs, les clés des fournisseurs, les garde-fous, Activité › Appels IA et Actions des administrateurs.\n- **Responsable des offres** : les offres, leurs quotas et les codes promo.\n- **Responsable coaching** : les coachs humains ; lit le coût de l'AI Coach.\n- **Rédacteur de playbooks** : écrit, évalue, valide et archive les playbooks de coaching, le socle et la liste des sources.\n- **Rédacteur de l'aide** : lit les questions sans réponse et les marque « Article écrit » ou les écarte ; lit les questions des signalements, sans l'e-mail ni l'offre du candidat.\n- **Technique** : règle les paramètres non secrets, les sources et sites de recherche et les prix des outils. Voit les clés par leur source et leurs 4 derniers caractères, sans les changer. Lit le Dashboard, Consommation IA, les outils, Activité › Recherches, Emails reçus et Actions des administrateurs.\n- **Support** : traite les signalements et les rétractations ; lit tout le reste sans rien modifier, sauf les secrets des fournisseurs, les appels IA et les actions des administrateurs.\n\nUne section qu'aucun de vos rôles ne lit n'apparaît pas dans le menu. Une section que vous lisez sans pouvoir la changer s'affiche en lecture seule. Un rôle retiré ne donne plus accès dès la page suivante. Il reste toujours au moins un super-admin, et un super-admin permanent (ADMIN_EMAILS) ne se retire pas depuis le back office."
+    },
+    {
       "id": "glossary-match-score",
       "locale": "fr",
       "kind": "glossary",
@@ -886,6 +1196,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Une note sur 100 qui dit à quel point un CV correspond à une offre : compétences, expérience, lieu, type de contrat et salaire.\n\nLe détail montre, critère par critère, ce qui correspond et ce qui manque. Un critère dont l'offre ou vos critères ne disent rien ne compte pas ; si trop peu de critères ont pu être comparés, le score est dit partiel.\n\nIl est calculé avec le CV de référence du profil, et avec votre CV adapté si vous en avez un."
+    },
+    {
+      "id": "glossary-admin-human-validated",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Validé par une personne (Human-validated)",
+      "synonyms": [
+        "human-validated",
+        "validé",
+        "validée",
+        "validation",
+        "validée par",
+        "non validée",
+        "relecture humaine",
+        "version servie",
+        "production",
+        "quatre yeux"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Une version d'un playbook (de coaching, du socle ou d'une tâche IA), ou un message de garde-fou, est validée par une personne quand un administrateur nommé, qui n'en est pas l'auteur, l'a relue et approuvée, avec la date. La page l'affiche « validée par … le … ». Une relecture par une IA ne compte jamais.\n\nEn production, seuls les playbooks et les messages de garde-fous validés sont servis. Ailleurs, la dernière version est servie, validée ou non. Une version de playbook ne se valide qu'après une évaluation sur elle ; aucun score ne bloque, c'est à la personne de juger. Un message de garde-fou se valide langue par langue ; d'ici là, le texte par défaut de Jobbbox s'applique.\n\nModifier une version validée en crée une nouvelle, à valider à son tour. Chaque validation est inscrite dans Actions des administrateurs."
     },
     {
       "id": "faq-text-size",
@@ -1114,6 +1447,67 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Non. L'aide ne fait appel à aucune IA pour vous répondre : ses articles sont relus et publiés par l'équipe Jobbbox, et la recherche les trouve à partir de vos mots. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nToute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Aide et légal », en bas du menu, puis « Aide ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
     },
     {
+      "id": "faq-admin-ai-literacy",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "administrator",
+      "topic": "ia-et-conformite",
+      "title": "Maîtrise de l'IA (AI Act, art. 4) : ce que chaque administrateur doit savoir",
+      "synonyms": [
+        "maîtrise de l'ia",
+        "ai literacy",
+        "ai act",
+        "article 4",
+        "formation ia",
+        "conformité",
+        "fournisseurs ia",
+        "anthropic",
+        "claude",
+        "mistral",
+        "openai",
+        "perplexity",
+        "hors ue",
+        "redaction",
+        "expurgé",
+        "eu ai consent",
+        "consentement ia ue",
+        "garde-fous",
+        "ce qu'il ne faut jamais faire"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "L'article 4 de l'AI Act demande à Jobbbox de soutenir la maîtrise de l'IA de toute personne qui utilise ou règle ses systèmes d'IA pour son compte : vous, dès que vous avez un rôle du back office. Aucun niveau ni certificat n'est exigé. Cet article est la base de cette maîtrise ; lisez-le à votre prise de rôle, avec la note interne « hors Annexe III », et relisez-le quand il change.\n\n**Ce que fait l'IA dans Jobbbox.** L'AI Coach et ses Playbook Agents, les documents rédigés (CV adapté, lettre de motivation, dossier d'entreprise, résumés d'offres), la lecture des CV et des offres, la lecture des emails d'offres, la recherche web et l'assistant du back office. Le Match Score et l'ATS Score reposent sur des règles, pas sur une IA. L'IA peut se tromper : elle aide le candidat, elle ne décide jamais à sa place, et elle ne classe jamais un candidat pour un employeur.\n\n**Les fournisseurs.** Chaque tâche IA a son fournisseur et son modèle, réglés dans Paramètres, onglet « IA ». Claude (Anthropic) est joint par son API directe, hors de l'UE. Mistral AI est dans l'UE. OpenAI, quand il est configuré sans résidence des données dans l'UE, et Perplexity, pour la recherche web, sont hors de l'UE. Le back office marque « hors UE » chaque choix hors de l'UE. Les données de Jobbbox restent stockées dans l'UE ; ce qui peut sortir, c'est le texte d'un appel.\n\n**La Redaction.** Avant qu'un appel parte chez un fournisseur, Jobbbox en retire chaque adresse e-mail et numéro de téléphone, et ce qu'il sait de l'identité du candidat : nom, nom de famille, adresse, e-mail, téléphone. Chacun devient un repère comme « [NOM] ». Le prénom reste, et le reste du CV part : employeurs, postes, dates, formations. Ce sont encore des données personnelles, pseudonymisées et non anonymes. Un nom que Jobbbox ne connaît pas passe, comme celui d'un référent. Ne dites jamais « anonymisé » ni « aucune donnée ne quitte l'UE ».\n\n**La voie Mistral.** Un candidat peut donner son consentement IA UE, daté et retirable dans son compte. Ses appels qui portent son identité vont alors, non expurgés, à Mistral dans l'UE ; sans ce consentement, ils partent expurgés au fournisseur de la tâche. La lecture des emails d'offres reste toujours dans l'UE. Paramètres refuse (`data_residency`) d'envoyer hors de l'UE la voie d'identité ou une tâche réservée à l'UE.\n\n**Les garde-fous.** Ils contrôlent les messages et les réponses de l'AI Coach, des Playbook Agents et de l'assistant, et les emails reçus, avec des règles fixes ou une IA. Ils ne bloquent que ce qu'ils détectent, et laissent passer quand le contrôle par IA est indisponible. En cas de détresse, le candidat reçoit le 3114 et personne n'est alerté. Seuls des playbooks et des messages validés par une personne sont servis en production.\n\n**Ce que vous ne devez jamais faire.**\n- Coller dans l'assistant du back office, ou dans un outil d'IA externe, l'e-mail, le message ou le CV d'un candidat.\n- Ouvrir un appel dans Activité › Appels IA ou la recherche d'un candidat sans en avoir besoin : chaque ouverture est inscrite dans Actions des administrateurs.\n- Valider une version que vous avez écrite, ou valider sur la seule foi d'un score ou d'un avis d'une IA.\n- Activer un destinataire hors UE, ou passer une tâche hors de l'UE, sans la version de la politique de confidentialité qui le couvre.\n- Écrire un secret ou une donnée personnelle dans un article d'aide, un playbook ou un message de garde-fou.\n- Utiliser l'IA de Jobbbox pour classer, trier ou recommander des candidats à un recruteur : ce serait un système à haut risque (voir la note « hors Annexe III »).\n- Promettre une sécurité garantie, « UE uniquement » ou « anonymisé ».\n\nEn cas de doute, demandez à un super-admin avant d'agir."
+    },
+    {
+      "id": "faq-admin-annex-iii-note",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "administrator",
+      "topic": "ia-et-conformite",
+      "title": "Note interne du 2 novembre 2026 : pourquoi Jobbbox n'est pas un système d'IA à haut risque (Annexe III)",
+      "synonyms": [
+        "annexe iii",
+        "annexe 3",
+        "haut risque",
+        "high-risk",
+        "système à haut risque",
+        "classification",
+        "ai act",
+        "article 6",
+        "emploi",
+        "embauche",
+        "sélection",
+        "note interne",
+        "conformité",
+        "organisation",
+        "b2b",
+        "outplacement"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "**Note interne datée du 2 novembre 2026. Interne, jamais publiée. Ce n'est pas un avis juridique.**\n\n**Conclusion.** Aucune fonction actuelle de Jobbbox ne tombe dans l'Annexe III de l'AI Act. Les obligations des systèmes à haut risque ne s'appliquent donc pas, ni l'article 6(4), qui ne vise qu'un système relevant de l'Annexe III.\n\n**Pourquoi.** L'Annexe III, point 4(a), vise les systèmes d'IA destinés au recrutement ou à la sélection de personnes, notamment pour placer des offres d'emploi ciblées, filtrer les candidatures et évaluer les candidats. Le point 4(b) vise les décisions sur une relation de travail en cours. Jobbbox est un service pour le candidat, lancé et contrôlé par lui, en dehors du processus de l'employeur.\n- CV adapté, lettre de motivation, ATS Score : l'exemple 14 du Service Desk de la Commission (adapter son CV à une offre) est hors champ.\n- Recherche d'offres, entreprises cibles, Match Score, Job Digest, Email intake : l'exemple 15 (aider le candidat à trouver le bon poste, classement d'offres pour lui seul) est hors champ.\n- AI Coach, playbooks, dossier d'entreprise, message de prise de contact : conseil au candidat ; aucune sortie ne va à un employeur pour le sélectionner.\n- Coach humain : aucune IA ne classe le candidat pour un tiers.\n\nJobbbox reste fournisseur de ses systèmes d'IA (AI Coach, documents rédigés, assistant du back office), et déployeur de l'assistant. Il doit l'information au point d'usage de l'article 50 et la maîtrise de l'IA de l'article 4.\n\n**Quand revoir cette note.** Avant toute fonction, avant sa conception, qui ferait basculer Jobbbox dans le champ :\n- un rôle Organisation, une offre B2B ou un service d'outplacement où l'IA classe, présélectionne, note ou recommande des candidats à un employeur ou à un recruteur (exemples 1, 2 et 8) ;\n- des offres sponsorisées par des employeurs et ciblées sur des candidats par l'IA (exemple 7) ;\n- la parution des lignes directrices finales de la Commission sur la classification, attendues fin 2026 ;\n- au plus tard avant le 2 décembre 2027, date d'application des obligations de l'Annexe III.\n\nToute révision donne une nouvelle date à cette note.\n\n**À faire confirmer par un juriste.** Le « hors champ » une fois les lignes directrices finales parues, et avant toute fonction B2B ou Organisation ; le texte de l'article 6(4) après l'Omnibus numérique, à lire sur EUR-Lex.\n\n**Sources.**\n- AI Act, règlement (UE) 2024/1689 : articles 3, 4, 6 et 50, Annexe III point 4.\n- Omnibus numérique sur l'IA, règlement (UE) 2026/1744, en vigueur le 27 juillet 2026.\n- AI Act Service Desk de la Commission, page « Employment » : exemples 1, 2, 7, 8, 14 et 15.\n- Commission, projet de lignes directrices sur la classification des systèmes à haut risque, 19 mai 2026.\n- Recherche interne de l'issue #497 (`docs/research/issue-497.md`, vérifiée le 29 octobre 2026), décision de l'issue #503."
+    },
+    {
       "id": "faq-legal-texts",
       "locale": "fr",
       "kind": "faq",
@@ -1248,6 +1642,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "L'onglet « Environnement » de Paramètres liste, sous « Variables qui ne servent plus », les variables que l'environnement du serveur définit encore mais que Jobbbox ne lit plus. La colonne « Remplacée par » dit ce qui les remplace, par exemple les Coaching Playbooks, réglés dans Playbooks. Leur valeur n'est jamais affichée.\n\nElles ne changent rien : vous pouvez les retirer du .env du serveur au prochain déploiement. Réglez à la place ce que « Remplacée par » indique. Sans variable inutilisée, la liste dit « Aucune variable inutilisée dans l'environnement. »\n\nÀ ne pas confondre avec deux autres cas :\n\n- « Réglages de l'environnement » : des variables encore lues, qui ne se changent pas dans le back office (« Pourquoi dans l'environnement » dit pourquoi) ;\n- l'avertissement « … réglages viennent de l'environnement et diffèrent de la valeur par défaut du code » et le badge « env » dans Outils : la variable est lue et remplace la valeur par défaut du code. Vérifiez qu'elle est voulue ; une valeur saisie dans le back office l'emporterait sur elle."
     },
     {
+      "id": "faq-extension-update",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "Que faire quand l'extension affiche « Mettez à jour l'extension » ?",
+      "synonyms": [
+        "mettre à jour",
+        "mise à jour",
+        "nouvelle version",
+        "ancienne version",
+        "extension",
+        "chrome web store",
+        "store",
+        "plus prise en charge"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Votre version de l'extension Jobbbox est trop ancienne : Jobbbox ne la prend plus en charge. Le panneau de l'extension l'indique par « Mettez à jour l'extension ».\n\nCliquez sur « Ouvrir la page de l'extension » : sa page sur le store de votre navigateur s'ouvre, d'où vous installez la dernière version. Votre navigateur met aussi l'extension à jour de lui-même, en général dans les heures qui suivent. Une fois à jour, cliquez sur « Réessayer ».\n\nL'offre et le CV de la session en cours restent dans votre navigateur pendant la mise à jour : vous n'avez rien à refaire."
+    },
+    {
       "id": "faq-data-and-ai",
       "locale": "fr",
       "kind": "faq",
@@ -1324,6 +1739,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Jobbbox a trois offres : Gratuite, Standard et Premium. L'offre Gratuite ne demande aucun paiement : c'est celle de votre compte à sa création.\n\nChaque offre a son quota : le nombre de profils que vous pouvez avoir, et chaque semaine le nombre de scores de correspondance, d'ATS Scores, de recherches d'offres et de contacts enrichis, ainsi que la fréquence du Job Digest. Le décompte repart à zéro chaque lundi à 0 h (heure de Paris). Parler à votre coach ne compte pas dans le quota.\n\nUne fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; « Choisir l'offre … » vous fait passer à une autre, avec paiement sur la page sécurisée de Stripe. Vous pouvez résilier à tout moment, et vous rétracter dans les 14 jours.\n\nLes séances avec un coach humain sont payées à part, en dehors des offres."
     },
     {
+      "id": "tutorial-admin-accept-sender",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Accepter un expéditeur proposé (Email intake)",
+      "synonyms": [
+        "accepter un expéditeur",
+        "expéditeurs proposés",
+        "expéditeur reconnu",
+        "ajouter un expéditeur",
+        "libellé",
+        "domaine de l'expéditeur",
+        "alerte emploi",
+        "réception par email",
+        "email intake"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Quand des candidats ajoutent pour eux seuls un expéditeur d'offres que la liste de la plateforme n'a pas, il vous est proposé. L'accepter fait lire ses emails pour tous les candidats. Il vous faut le rôle Technique ou Super-admin.\n\n1. Ouvrez Paramètres (menu Plateforme), onglet « Sources », puis la fiche de MTA Jobbbox (Haraka).\n2. Dans « Expéditeurs proposés », lisez le domaine ou l'adresse, le nombre de candidats (jamais lesquels) et le « Dernier ajout ».\n3. Vérifiez que l'expéditeur envoie bien des offres : l'alerte d'un site d'emploi ou d'un site carrière, pas un particulier. Dans le doute, n'acceptez pas.\n4. Saisissez son libellé dans « Libellé de … », sous la forme « plateforme ou entreprise – site », 120 caractères au plus.\n5. Cliquez sur « Accepter … ». La page affiche « Expéditeur ajouté à la liste de la plateforme. » et il apparaît dans « Expéditeurs reconnus ».\n\nPour ajouter vous-même un expéditeur, remplissez « Ajouter un expéditeur » : le « Domaine ou adresse de l'expéditeur », puis le « Libellé », et cliquez sur « Ajouter l'expéditeur ». Un expéditeur se désactive ou se supprime depuis la même liste. Chaque changement est inscrit dans Actions des administrateurs."
+    },
+    {
       "id": "tutorial-admin-contact-enrichment",
       "locale": "fr",
       "kind": "tutorial",
@@ -1369,6 +1806,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Un outil qui reçoit des données personnelles, ou des requêtes tirées d'elles, hors de l'UE (ou là où ce n'est pas établi) est un destinataire hors UE. En ajouter un change la politique de confidentialité de façon substantielle : sa nouvelle version, et son préavis de 30 jours, passent avant l'activation en production.\n\n1. Dans Outils, repérez l'outil : la colonne « Données traitées » dit « Hors UE » ou « Non établi ».\n2. Avant toute activation en production, demandez à l'équipe Jobbbox une nouvelle version de la politique de confidentialité qui le nomme. Le responsable produit la fait relire, fixe sa date d'effet et la publie : les personnes concernées sont prévenues 30 jours à l'avance.\n3. Une fois cette version en vigueur, activez l'outil dans Paramètres : saisissez sa clé, rendez-le actif ou activez sa source.\n4. Vérifiez qu'aucun avertissement « … : destinataire hors UE non couvert » ne s'affiche.\n\nParamètres ne bloque jamais l'activation, pour qu'un changement d'urgence reste possible. Activé sans être nommé par la politique en vigueur, l'outil déclenche l'avertissement « Ce destinataire est hors UE et la politique de confidentialité en vigueur ne le couvre pas. », dans Paramètres et sur sa page dans Outils, avec la version de la politique en vigueur. Une ligne « Destinataires hors UE » est écrite dans Actions des administrateurs. La Beta avertit aussi, pour le tester ; seule la production compte pour la liste des destinataires."
+    },
+    {
+      "id": "tutorial-admin-human-coach",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Ajouter ou retirer un coach humain",
+      "synonyms": [
+        "ajouter un coach",
+        "retirer un coach",
+        "nouveau coach",
+        "coach humain",
+        "human coach",
+        "cal.com",
+        "lien de réservation",
+        "adresse e-mail de connexion"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Un coach humain est réservé par les candidats depuis son lien Cal.com et se connecte à Jobbbox avec l'adresse que vous indiquez. Il vous faut le rôle Responsable coaching ou Super-admin.\n\n1. Créez d'abord la page de réservation du coach dans Cal.com et copiez son lien en https.\n2. Ouvrez Coachs (menu Coaching).\n3. Dans « Ajouter un coach », saisissez son « Nom », son « Adresse e-mail de connexion », le « Lien de réservation Cal.com » et, si vous voulez, sa « Présentation (facultatif) ».\n4. Cliquez sur « Ajouter le coach ». La page affiche « Coach … ajouté. » et il apparaît dans « Coachs actifs ».\n5. Pour retirer un coach, cliquez sur « Retirer … » sur sa ligne. La page affiche « Coach retiré. Ses séances passées sont conservées. »\n\nUne adresse e-mail ne sert qu'à un coach à la fois. Chaque ajout et chaque retrait sont inscrits dans Actions des administrateurs."
     },
     {
       "id": "tutorial-admin-add-provider",
@@ -1524,6 +1982,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Seuls les super-admins configurent un fournisseur de connexion. Gardez cet ordre : un fournisseur testé et autorisé pour les administrateurs d'abord, l'exigence ensuite, sinon l'équipe ne pourrait plus se reconnecter.\n\n1. Ouvrez Paramètres, onglet « Connexion ». Sous « Ajouter un fournisseur », ouvrez « Ajouter Google », « Ajouter Apple », « Ajouter Microsoft » ou « Ajouter OIDC ».\n2. Saisissez le « Nom affiché sur le bouton », l'« Identifiant client (client ID) » (l'« Identifiant de service (Service ID) » pour Apple) et chaque secret demandé : le « Secret client », ou pour Apple l'« Identifiant d'équipe (Team ID) », l'« Identifiant de clé (Key ID) » et la « Clé privée (.p8) ». Pour OIDC, ajoutez l'« Identifiant » (en minuscules, chiffres et tirets : il fait partie de l'URL de redirection et ne change plus) et l'« URL de découverte OIDC » ; pour Microsoft, le « Locataire (tenant) ».\n3. Laissez activé « Autoriser pour la connexion au back office » ; désactivez « Proposer aux candidats sur la page de connexion » si les candidats ne doivent pas le voir. Pour OIDC, n'activez « Associer automatiquement un compte de même adresse e-mail » que si ce fournisseur vérifie les adresses e-mail. Laissez « Activé » désactivé.\n4. Cliquez sur « Enregistrer le fournisseur ».\n5. Dans la liste « Fournisseurs », copiez son « URL de redirection » et collez-la dans la console du fournisseur, comme URI de redirection autorisée.\n6. Cliquez sur « Tester la connexion avec … ». Personne n'est connecté et aucun compte n'est créé ; le message « … : le test de connexion a réussi. Vous pouvez l'activer. » le confirme.\n7. Ouvrez « Modifier … », activez « Activé », puis « Enregistrer le fournisseur ».\n8. Connectez-vous une fois au back office avec ce fournisseur, pour vérifier qu'il vous laisse entrer.\n9. Dans la carte « Connexion de l'équipe », cochez « Exiger un fournisseur de connexion pour les administrateurs » et cliquez sur « Enregistrer ».\n\nUn administrateur connecté par un lien reçu par e-mail devra alors se reconnecter avec un fournisseur autorisé pour les administrateurs ; ses pages de candidat restent accessibles. Changer les identifiants d'un fournisseur demande un nouveau test avant de le réactiver."
     },
     {
+      "id": "tutorial-admin-guardrail-message",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Écrire le message d'un garde-fou, en français et en anglais",
+      "synonyms": [
+        "message du garde-fou",
+        "guardrail message",
+        "texte du message",
+        "valider un message",
+        "message en français",
+        "message en anglais",
+        "3114",
+        "détresse",
+        "texte par défaut"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Le message d'un garde-fou s'affiche au candidat à la place de la réponse, sans dire quel garde-fou a agi. Il existe en français et en anglais, et chaque langue se valide à part. Il faut être super-admin pour l'écrire, et un autre super-admin pour le valider.\n\n1. Ouvrez Garde-fous (menu Coaching) et trouvez le garde-fou.\n2. Sous « Modifier le message en français », écrivez le « Texte du message » : clair, bref, au vouvoiement. Pour la détresse, il doit donner le 3114, le numéro national de prévention du suicide.\n3. Cliquez sur « Enregistrer le message ». La page affiche « Message enregistré : il doit être validé par un autre administrateur pour être servi en production. »\n4. Faites de même sous « Modifier le message en anglais ». La version anglaise dit la même chose ; pour la détresse, elle donne aussi le 3114.\n5. Demandez à un autre super-admin de relire chaque version. Sous « Valider le message en français, version … », puis en anglais, il saisit « Votre nom » et clique sur « Valider ce message ».\n\nTant qu'une langue n'est pas validée, la production sert le « Texte par défaut de Jobbbox » dans cette langue. Changer un message ne joue aucun cas d'évaluation, contrairement à un réglage. Chaque version et chaque validation sont inscrites dans Actions des administrateurs."
+    },
+    {
       "id": "tutorial-extension-save-job-offer",
       "locale": "fr",
       "kind": "tutorial",
@@ -1542,6 +2022,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "L'extension Jobbbox enregistre dans vos candidatures l'offre d'emploi que vous lisez, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi.\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur et cliquez sur « Capturer cette page ».\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature.\n5. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
+    },
+    {
+      "id": "tutorial-admin-plan-stripe",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "offre",
+      "title": "Relier une offre à Stripe",
+      "synonyms": [
+        "relier une offre à stripe",
+        "produit stripe",
+        "prod_",
+        "identifiant de produit",
+        "créer une offre",
+        "proposer une offre",
+        "tarif par défaut",
+        "prix",
+        "abonnement payant",
+        "plan stripe"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Une offre payante est vendue par son produit Stripe : le tarif par défaut récurrent de ce produit est celui vendu au paiement, et tous ses tarifs donnent l'offre. Il vous faut le rôle Responsable des offres ou Super-admin.\n\n1. Dans Stripe, créez le produit avec un tarif par défaut récurrent (par jour, semaine, mois ou année), puis copiez l'identifiant du produit, qui commence par « prod_ ». Un identifiant de tarif (« price_… ») ne convient pas.\n2. Dans le back office, ouvrez Offres (menu Offre).\n3. Pour une nouvelle offre, remplissez la carte « Créer une offre » : la « Clé » (en minuscules, chiffres et tirets ; elle ne change plus), le « Nom en français », le « Nom en anglais », le « Produit Stripe » et ses « Fonctionnalités ». Cliquez sur « Créer l'offre ». Elle est créée masquée, au-dessus des autres, avec les quotas de l'offre juste en dessous.\n4. Pour une offre existante sans produit, saisissez l'identifiant dans le champ « Produit Stripe » de sa carte « Modifier l'offre … », puis cliquez sur « Enregistrer l'offre … ».\n5. Jobbbox vérifie le produit auprès de Stripe. S'il est refusé, le message en dit la raison : produit inconnu (vérifiez l'identifiant et le mode, test ou production), archivé, sans tarif par défaut récurrent, ou déjà celui d'une autre offre.\n6. Réglez les quotas de l'offre dans Quotas.\n7. Revenez sur sa carte, cochez « Proposée aux candidats » puis cliquez sur « Enregistrer l'offre … ». Elle apparaît dans la comparaison et au paiement.\n\nUne fois choisi, le produit Stripe ne change plus : ses abonnés restent dessus. Pour les faire changer d'offre, passez par Stripe. Les prix se changent aussi dans Stripe, jamais dans le back office."
     },
     {
       "id": "tutorial-admin-provider-secret",
@@ -1567,6 +2070,72 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Une clé de fournisseur (Provider Secret) saisie dans le back office est chiffrée et remplace celle de l'environnement en moins d'une minute, sans redéploiement. Seuls les super-admins la remplacent, l'effacent ou la testent ; « Technique » n'en voit que la source et les 4 derniers caractères.\n\n1. Ouvrez Paramètres, l'onglet du fournisseur, puis sa fiche en cliquant sur son nom dans « Fournisseurs possibles ».\n2. Dans la rubrique « Clés », repérez la clé : sa source (« Back office », « Environnement (repli) », « Absente » ou « Illisible : l'environnement prend le relais ») et sa fin.\n3. Pour la remplacer, ouvrez « Remplacer … », collez la nouvelle valeur dans « Nouvelle valeur de … » et cliquez sur « Tester et enregistrer … ».\n4. Si le fournisseur refuse la clé, rien n'est enregistré : vérifiez-la. Pour l'enregistrer malgré tout, par exemple pendant une panne du fournisseur, cochez « Enregistrer même si le test de connexion échoue » ; ce choix est inscrit dans Activité.\n5. Pour revenir à la valeur de l'environnement, cliquez sur « Effacer … (revenir à l'environnement) ». Sans valeur dans l'environnement, la clé devient « Absente » et les fonctions qui en dépendent s'arrêtent.\n6. « Tester … » refait le test de connexion de la clé en usage, sans rien changer.\n\nNe collez jamais une clé ailleurs que dans ce champ : ni dans l'assistant, ni dans un signalement. Le journal n'enregistre que le remplacement, jamais la valeur."
+    },
+    {
+      "id": "tutorial-admin-unanswered-question-article",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Transformer une question sans réponse en article",
+      "synonyms": [
+        "écrire un article d'aide",
+        "article écrit",
+        "combler un manque de l'aide",
+        "ajouter un synonyme",
+        "help article",
+        "rédacteur de l'aide",
+        "écarter une question"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Une question sans réponse montre un manque de l'aide. La combler, c'est écrire un article ou ajouter un synonyme à un article existant. Il vous faut le rôle Rédacteur de l'aide ou Super-admin.\n\n1. Ouvrez Questions sans réponse (menu Contenu). Les plus posées viennent d'abord ; filtrez si besoin avec « Filtrer par public », « Filtrer par page » et « Filtrer par langue ».\n2. Lisez la question et la « Réponse de l'IA ». C'est une matière première, jamais un article : vérifiez chaque fait et chaque libellé dans l'interface en vigueur.\n3. Cherchez d'abord un article proche, dans l'aide (/aide) ou dans l'aide du back office. S'il répond déjà, ajoutez à ses synonymes les mots de la question.\n4. Sinon, écrivez l'article en français d'abord, il fait foi, puis en anglais, avec un public et une rubrique, au vouvoiement, en citant les libellés mot pour mot. Les articles sont dans le dépôt, sous `packages/help/articles/`.\n5. Proposez le changement en revue. Une personne relit et fusionne : aucun article n'est servi avant cette fusion.\n6. Revenez sur la question et cliquez sur « Article écrit ». Pour une question qui n'est pas un manque de l'aide, cliquez sur « Écarter ».\n\nLa question est gardée masquée, sans le nom de qui l'a posée, puis effacée 30 jours après avoir été marquée."
+    },
+    {
+      "id": "tutorial-admin-triage-signalement",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "candidats",
+      "title": "Trier un signalement",
+      "synonyms": [
+        "trier un signalement",
+        "traiter un signalement",
+        "répondre à un candidat",
+        "marquer vu",
+        "marquer traité",
+        "réponse de l'équipe",
+        "bug",
+        "idée",
+        "question",
+        "à traiter"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Un signalement se traite du plus ancien au plus récent. Il vous faut le rôle Support ou Super-admin.\n\n1. Ouvrez Signalements (menu Candidats). Gardez « Filtrer par statut » sur « À traiter » et, si besoin, choisissez un type dans « Filtrer par type ».\n2. Cliquez sur « Ouvrir » sur le plus ancien. Lisez le message, son « Contexte » (page, version, navigateur, langue, taille du texte) et, pour une question, la « Question posée au coach IA » et la « Réponse du coach IA ».\n3. Cliquez sur « Marquer « Vu » » quand vous l'avez pris en compte sans encore répondre.\n4. Pour répondre, écrivez la « Réponse de l'équipe » (une seule réponse, 2 000 caractères au plus) puis cliquez sur « Enregistrer la réponse ». Le candidat la voit signée « L'équipe Jobbbox », jamais avec votre nom.\n5. Une fois le bug corrigé, l'idée notée ou la question répondue, cliquez sur « Marquer « Traité » ». Une question ne se marque « Traité » qu'une fois répondue, et la réponse ne se modifie plus ensuite.\n6. Cliquez sur « Tous les signalements » pour passer au suivant.\n\nUn bug reproductible devient une issue pour l'équipe technique ; une question qui montre un manque de l'aide mérite un article. Ne copiez jamais l'e-mail du candidat ni son message dans un outil d'IA."
+    },
+    {
+      "id": "tutorial-admin-validate-playbook",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Valider une version d'un playbook",
+      "synonyms": [
+        "valider un playbook",
+        "validation",
+        "human-validated",
+        "relire une version",
+        "évaluer la version",
+        "lancer l'évaluation",
+        "eval run",
+        "cas d'évaluation",
+        "version servie",
+        "production"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "En production, l'AI Coach n'applique que la dernière version Human-validated d'un playbook. La valider, c'est attester que vous l'avez relue. Il vous faut le rôle Rédacteur de playbooks ou Super-admin, et ne pas avoir écrit cette version : une relecture par une IA ne compte jamais.\n\n1. Ouvrez Playbooks (menu Coaching), puis cliquez sur le nom du playbook.\n2. Dans « Versions », choisissez la dernière version : seule la dernière peut être validée. Lisez ses « Règles » et son Playbook Agent.\n3. Vérifiez ses « Cas d'évaluation ». S'il n'y en a aucun, ajoutez-en un avec « Ajouter un cas d'évaluation », puis « Ajouter ce cas ».\n4. Sous « Évaluer la version … », gardez « Le Playbook Agent de la version, tel qu'enregistré », puis cliquez sur « Lancer l'évaluation ». L'évaluation peut prendre quelques minutes.\n5. Lisez le résultat et les réponses notées par le juge IA. Aucun score ne bloque la validation : c'est à vous de juger, en lisant les réponses, à côté de la version servie.\n6. Sous « Valider la version … », saisissez « Votre nom », puis cliquez sur « Valider la version … ».\n\nLa page affiche « Version … validée. » et la production sert cette version. Si vous modifiez ensuite une version validée, l'enregistrer crée une nouvelle version, à évaluer et valider à son tour. La validation est inscrite dans Actions des administrateurs, avec votre nom et la date."
     }
   ],
   "en": [
@@ -1639,6 +2208,58 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/profils/[id]",
       "motion": null,
       "body": "A profile's page is its conversation with your AI coach: it has the profile's Master CV and search criteria for one role in view. Until you have written anything, suggestions wait above the message box: « Improve my CV », « Understand my ATS Score », « Refine my criteria », « Which companies to target? ». The conversation is kept with the profile and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the profile and its CV stay.\n\nOn the right, the profile's fiche: whether it is active or archived, « Search for offers », its search criteria, which you change in place, and its ATS Score, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». A profile's results are the versions of its Master CV, newest first, and its download as PDF or Word. « Fiche », at the top of the page, opens or closes it.\n\nIts sections: Suggestions, Master CV, ATS Score, Target companies, Download and Manage. A section, a version of the Master CV, its history or the full CV editor opens beside the conversation, without hiding it. « Close » or the Escape key closes it. Each section keeps its address.\n\nStart with the ATS Score: it says whether recruitment software will read your CV well. The fixes your coach proposes appear in « Suggestions »; accept or dismiss them one by one. Each time you save the Master CV, a new version is created, and you can go back to an earlier one. « Manage » lets you rename, duplicate or archive the profile.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section: « Close » closes them and brings you back to the conversation."
+    },
+    {
+      "id": "page-admin-activity",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Activity",
+      "synonyms": [
+        "activity",
+        "searches",
+        "runs",
+        "run",
+        "job discovery",
+        "funnel",
+        "pages skipped",
+        "fallback",
+        "fallback provider",
+        "ai calls",
+        "ai message log",
+        "prompt",
+        "ai reply",
+        "debugging",
+        "trigger"
+      ],
+      "route": "/admin/activite",
+      "motion": null,
+      "body": "Activity (Platform menu) gathers, in tabs, what the platform did: « Searches », « Received emails », « AI calls » and « Administrator actions ». Each tab shows only to the roles that read it. « Received emails » and « Administrator actions » each have their own article.\n\n**Searches** lists every Job discovery run, started by a Candidate's Job Search or to top up a Job Digest. Filter with « Trigger », « Period » and « Only switches to the fallback provider », then click « Show ». Each row gives the Profile (« Profile #… », never the Candidate's name), the searches, the provider, the pages read, the « New / extracted Job Offers », the stop, the duration and the cost. « Open » shows the « Funnel (Discovery metrics) », « The run's searches », the « Sources », the « Pages skipped » with their reason and « This run's AI calls ». Queries and criteria are erased after 30 days; the figures stay. A super-admin can « Open the Candidate's Job Search (recorded in Administrator actions) ».\n\n**AI calls** is the log of what each AI call said, as sent: the instructions, the messages after Redaction and the reply, keys and secrets masked, with the result (« OK », « Warning » or « Failed ») and its reason. Filter by « Task », « Model », « Candidate's email », « Day », result and reason, then click « Filter »; « Clear filters » goes back to the whole list. Each call opened shows « Call details », « Why » and, for a failure, the « Technical detail ». These texts hold personal data: only super-admins read them, every call opened is recorded in Administrator actions, and they are erased after 30 days. Open a call only to understand a problem.\n\nSuper-admins, Technique and Support read Searches; only super-admins read AI calls."
+    },
+    {
+      "id": "page-admin-audit",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Administrator actions (the journal)",
+      "synonyms": [
+        "journal",
+        "audit",
+        "administrator actions",
+        "change history",
+        "who changed",
+        "before after",
+        "refused attempt",
+        "back office audit",
+        "tools filter",
+        "linked mailboxes",
+        "traceability"
+      ],
+      "route": "/admin/activite/actions",
+      "motion": null,
+      "body": "Activity's « Administrator actions » tab is the back office's journal, formerly « Journal ». It records every change made in the back office: who, when, the section, the item, the action, and the values before and after. It also records every attempt refused or failed, with its reason but without the values entered, and every AI call or Candidate's Job Search a super-admin opened.\n\nSecret values are never recorded: a key shows « Value replaced (never recorded) » or « Value cleared: the environment variable is used again ». An unanswered question or a piece of feedback is named by its identifier, never by its words. Each entry is kept 3 years.\n\n« Show » filters by section: « All », « Roles », « Plans », « Coupons », « Human Coaches », « Coaching Playbooks », « Guardrails », « Feedback »… The « Tools » filter adds every call to an external tool (Stripe, Brevo, sign-in, connection tests, pages read), with its tool, operation, outcome and duration: no content, no Candidate, no secret. The « Linked mailboxes » filter adds the Linked mailboxes switched on, replaced, switched off or at their daily cap, with no Candidate or address. The most recent changes come first.\n\nSuper-admins and Technique read this journal. No one changes it or erases a line."
     },
     {
       "id": "page-application",
@@ -1759,6 +2380,118 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "A profile is a role you are aiming for: a Master CV and search criteria. You can have several, depending on your plan.\n\nIf you have a CV, upload it: your coach reads it and proposes a Master CV. If not, answer its questions about your career, one at a time; allow about ten minutes.\n\nEither way, you check and correct everything before saving. Nothing is added that you did not say."
     },
     {
+      "id": "page-admin-dashboard",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Dashboard and AI consumption",
+      "synonyms": [
+        "dashboard",
+        "ai consumption",
+        "ai usage",
+        "cost",
+        "costs",
+        "spend",
+        "budget",
+        "alert threshold",
+        "web search",
+        "tokens",
+        "ai calls",
+        "failures",
+        "failure rate",
+        "unknown price",
+        "provider",
+        "model",
+        "task",
+        "period",
+        "run"
+      ],
+      "route": "/admin/consommation-ia",
+      "motion": null,
+      "body": "The Dashboard is the back office's first page. It shows what the platform consumes and how Job discovery is doing. Each block shows only to the roles that read its section: with none, the page shows « No figures for your roles: the sidebar leads to your sections. »\n\nThe « Job discovery: consumption and budget » block gives, for the current month, the « Web search spend this month » against the alert threshold, the « Average cost of a run » against the « Budget per run », the « Cost per new Job Offer », the « Runs », the « Runs that fell back » (to the fallback provider) and the « Failed AI calls ». Its charts show the daily spend per Search provider, « Month to date against the alert threshold » with the month-end estimate, « Why runs stop » and « Where a run's cost goes (average) ». « Table view » gives the same figures as tables. « Every detail in AI consumption » opens the next page.\n\nAI consumption (Platform menu) counts every AI call, all tasks included, the tools the models use and the calls to external APIs (France Travail, contact enrichment, Stripe, Brevo, sign-in…). Choose the « Period » (« Last 7 days », « Last 30 days », « Last 90 days » or « Last 12 months, per month ») and click « Show ». The page then details the « Totals », « By provider, endpoint and model », « By task », « Per day » or « Per month », the « Tools » and the « External APIs ».\n\n« Failures and warnings per reason » counts the failed and warned calls per Failure Reason: the code and its wording only, never the technical reason. To read one call, a super-admin goes to Activity › AI calls.\n\nCosts are estimates at the providers' list prices, in dollars converted to euros, fixed when each call was made. A tool with no known price counts as 0 and shows « unknown price ». These are aggregates: no Candidate, no text. When web search reaches its monthly alert threshold, a banner says so and super-admins are emailed; nothing is cut. The threshold and the prices are set in Paramètres.\n\nSuper-admins, Technique and Support read both pages; no one changes anything there."
+    },
+    {
+      "id": "page-admin-email-intake",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Email intake",
+      "synonyms": [
+        "email intake",
+        "received emails",
+        "offer email",
+        "job alert",
+        "forwarding address",
+        "linked mailbox",
+        "recognised sender",
+        "proposed senders",
+        "unrecognised sender",
+        "daily cap reached",
+        "set aside by a guardrail",
+        "mta",
+        "forward"
+      ],
+      "route": "/admin/activite/emails-recus",
+      "motion": null,
+      "body": "Email intake turns into Job Offers the offer emails Candidates forward to their Forwarding address: job-board alerts, a careers site's alerts, a recruiter's message. Only emails from a Recognised sender are read, by an AI hosted in the EU, after the « Booby-trapped email content » Guardrail.\n\nActivity's « Received emails » tab lists each offer email received: « Received », the « Sender's domain », the kind (« Alert », « Recruiter » or « Other »), the « Offers new / already stored », the « Guardrail » verdict and the outcome. That outcome can be « Offers found », « Unrecognised sender », « Set aside by a Guardrail », « Daily cap reached », « Forwarding confirmation », « Awaiting reading », « Other » or « Failed ». Filter with « Outcome », « Kind » and « Period », then click « Show ». No Candidate name, email or id here, and nothing of the emails' content.\n\nThe settings and the sender lists are in Paramètres, « Sources » tab, on the sheet of MTA Jobbbox (Haraka). « Recognised senders » lists the platform's, recognised by their domain, or by their full address when the domain sends for many companies. Each has a label; « Disable … » keeps it listed without reading it, « Remove … » takes it off. « Proposed senders » lists those Candidates added for themselves alone: how many Candidates, never which. Accepting one adds it for everyone.\n\nSuper-admins, Technique and Support read « Received emails ». Super-admins and Technique change the senders; each change is recorded in Administrator actions, section « Recognised senders (Email intake) »."
+    },
+    {
+      "id": "page-admin-signalements",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "candidats",
+      "title": "Feedback (Signalements)",
+      "synonyms": [
+        "feedback",
+        "signalements",
+        "signalement",
+        "bug",
+        "idea",
+        "question to the team",
+        "candidate feedback",
+        "to handle",
+        "new",
+        "seen",
+        "handled",
+        "team's reply",
+        "support"
+      ],
+      "route": "/admin/signalements",
+      "motion": null,
+      "body": "Feedback (Candidates menu) lists the bugs, ideas and questions Candidates send from the app, oldest first. The number « to handle » shows next to the section's name for whoever can handle them. Feedback is read by the team only, never by an AI.\n\nThe type is « Bug », « Idea » or « Question ». A question arrives when the help or the AI Coach did not satisfy the Candidate: it carries a copy of their question and of the AI Coach's reply. The status is « New », « Seen » or « Handled ». Filter with « Filter by type » and « Filter by status » (« To handle » or « All »).\n\nEach row shows the date, the message, the page it came from, the Jobbbox version, the browser, the language, the text size, the Candidate and their Plan. « Open » gives the whole feedback, its « Context », its status and « The team's reply ». Opening feedback does not change its status.\n\nThe Candidate sees the reply signed « L'équipe Jobbbox », never with your name, and a notification when the team replied or marked it « Handled ». A question is marked « Handled » only once replied to. Feedback cannot be deleted from the back office.\n\nSupport and super-admins change the status and reply. Help editors see the questions only, without the Candidate's email or Plan. Each status change and each reply written are recorded in Administrator actions, without their words."
+    },
+    {
+      "id": "page-admin-guardrails",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Guardrails",
+      "synonyms": [
+        "guardrails",
+        "guardrail",
+        "block",
+        "flag only",
+        "off",
+        "prompt injection",
+        "personal data leak",
+        "secret disclosure",
+        "harmful advice",
+        "distress",
+        "3114",
+        "booby-trapped email content",
+        "triggers",
+        "guardrail message",
+        "setting"
+      ],
+      "route": "/admin/garde-fous",
+      "motion": null,
+      "body": "Guardrails (Coaching menu) tunes the automatic checks on what the AI Coach, its Playbook Agents and the Back Office Assistant receive, and on what they reply. They also check the emails Email intake receives before an AI reads them. Their list is fixed in code: « Prompt injection », « Personal data leak », « Secret disclosure », « Out-of-scope or harmful advice », « Distress » and « Booby-trapped email content ». Here, you tune each one and write the message it shows instead of the reply.\n\nThe « The guardrails and their setting » table gives, for each, « What it checks » and its « Setting ». Under « When it finds something », « Block » stops the message, or has the reply written again once and then replaces it with the Guardrail's message. « Flag only » lets everything through and counts the trigger. « Off » exists only for booby-trapped email content. Distress, personal data leak and secret disclosure always block (« Always blocks »).\n\nBefore a setting is saved with « Save the setting », the Guardrails' Eval Cases are played on it. It is refused if it lets through a case those three Guardrails must block; « See the Eval Run played on this setting » shows the result.\n\nEach message exists in French and in English. In production, it is served only once validated by a named Administrator other than its author, each language apart. Until then, « Jobbbox's default text » applies. The distress message must give 3114. No one is alerted when a Candidate expresses distress.\n\n« Triggers » counts, per day (Paris time) and per Guardrail, the messages « Blocked », « Flagged » and « Check unavailable », the last ones per reason. No Candidate, no conversation, no text: the text, if needed, stays in Activity › AI calls. When the AI check is unavailable, only the fixed rules apply and the message goes through.\n\nSuper-admins change the settings and messages; Support reads the page."
+    },
+    {
       "id": "page-home",
       "locale": "en",
       "kind": "page",
@@ -1776,6 +2509,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/",
       "motion": null,
       "body": "The home page is where you start in Jobbbox: a new conversation with your AI coach. Write in the message box at the foot of the page, or pick a suggestion just above it: « Search for job offers », « Add an application », « Schedule an interview », « Ask the coach ». The conversation is saved with your first message and appears under « Coach » in the menu, where you can rename or delete it. « New conversation », at the top of the menu, starts another one; « Clear », at the top of the page, deletes all its messages.\n\nTo begin, create a profile: your Master CV and your search criteria. Your coach uses them to search for job offers and prepare your applications. The menu leads to your applications, your agenda, your job searches and your Job Digests; « My account » is at the foot of the menu.\n\nA question about Jobbbox? While you write, the help's matching articles show above the message box, « In the help, without AI », in place of the suggestions. An article opens beside the conversation, as « How does this page work? » does while the conversation is empty; « Ask the coach » there starts a question about it. « Activity », at the top of the page, opens beside the conversation what AI did for you and the conversation context.\n\nOn a phone, the conversation takes the whole screen. An article, « Activity » or a form opens over it, full screen: « Close » closes it and brings you back to the conversation. « Menu », at the top of the page, opens the menu.\n\nAt the foot of the menu, « Help and legal » leads to the Help Centre (« Help »), the legal texts (« Legal ») and what's new in Jobbbox (« What's new »). On a phone, these links are in the menu."
+    },
+    {
+      "id": "page-admin-human-coaches",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Human coaches",
+      "synonyms": [
+        "coaches",
+        "human coaches",
+        "human coach",
+        "cal.com",
+        "booking link",
+        "session",
+        "add a coach",
+        "retire a coach",
+        "active coaches",
+        "coach space"
+      ],
+      "route": "/admin/coachs",
+      "motion": null,
+      "body": "Coaches (Coaching menu) opens « Human coaches »: the HR professionals Jobbbox selected, whom Candidates can book for paid sessions on top of the AI Coach. Jobbbox pays them outside the platform.\n\n« Active coaches » lists each coach: their « Name », their « Sign-in email address », their « Cal.com booking link » and their « Introduction (optional) ». A coach signs in to Jobbbox with the address given here and finds their coach space. The « Add a coach » card adds one; « Retire … » takes them off the list. Their past sessions are kept.\n\nCoach managers and super-admins add and retire coaches; Support reads the list. Each change is recorded in Administrator actions, section « Human Coaches »."
     },
     {
       "id": "page-agenda",
@@ -1943,6 +2699,62 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/acceptation",
       "motion": null,
       "body": "This screen shows after you sign in when the Terms of use are waiting for your agreement: the first time, then for each new version that changes your rights. A minor version is not asked again.\n\n« Read the Terms of use » opens the version to accept, with its date. Tick « I accept the Terms of use (version of …) », then « Accept and continue »: you go back to the page you wanted to open. The box is never ticked for you, and the screen does not come back for the same version.\n\nUntil you accept, you can still open My data, to download your data or delete your account, and Subscription, to withdraw or cancel. Your subscription keeps running.\n\nIn English, the screen says the French text prevails."
+    },
+    {
+      "id": "page-admin-plans",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "offre",
+      "title": "Plans and coupons",
+      "synonyms": [
+        "plans",
+        "plan",
+        "subscription",
+        "stripe",
+        "stripe product",
+        "price",
+        "hidden plan",
+        "rank",
+        "features",
+        "coupons",
+        "coupon",
+        "promo code",
+        "discount",
+        "link to share",
+        "deactivate a code"
+      ],
+      "route": "/admin/offres",
+      "motion": null,
+      "body": "The Plans and Coupons sections (Offer menu) set what Candidates can buy.\n\n**Plans** lists the Plans in the comparison's order, from the lowest to the highest. Each has a key, a name in French and in English, a status (« offered » or « hidden »), a « Stripe product » and its « Features ». Prices are set in Stripe: the product's default price is the one sold at checkout. Quotas are set in the Quotas section. Each Plan has its « Edit the … Plan » card; the arrows « Move the … Plan up » and « Move the … Plan down » change the order. The Free Plan is built in: always first and offered, with no Stripe product; only its name and quotas change. A Plan is never deleted. Hidden, it leaves the comparison, checkout and Upgrade Prompts, but its subscribers keep it. Once chosen, a paid Plan's Stripe product no longer changes. Removing a feature from a Plan Candidates pay for takes a reason and an effective date at least 30 days ahead.\n\n**Coupons** lists the codes Candidates type at checkout, or receive through a « Link to share ». Each shows its « Discount », « Plans », « Expires on », « Redemptions » and status. A code is created in Stripe, which counts its redemptions, with terms that no longer change. To change them, click « Deactivate the code … » and create another with « Create a coupon »: discounts already given run their course. Coaching Sessions take no coupon.\n\nPlans managers and super-admins change these sections; Support reads them. Each change is recorded in Administrator actions."
+    },
+    {
+      "id": "page-admin-playbooks",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Playbooks",
+      "synonyms": [
+        "playbooks",
+        "playbook",
+        "coaching playbooks",
+        "core digest",
+        "sources list",
+        "playbook agent",
+        "ai task playbook",
+        "coach rules",
+        "version",
+        "served version",
+        "eval run",
+        "eval case",
+        "archive",
+        "allowed model",
+        "effort"
+      ],
+      "route": "/admin/playbooks",
+      "motion": null,
+      "body": "Playbooks (Coaching menu) opens « Coaching Playbooks »: the rules the AI Coach applies. The « Core Digest, Sources list and playbooks » table shows the « Core Digest », the « Sources list » and each playbook, with its « Latest version », its « Served version », its Playbook Agent (the specialist the AI Coach consults: provider, model and effort) and its status, « Active » or « Archived ». Further down, « AI task playbooks » gives the instructions of each AI task (reading a Job Offer or a CV, writing a document…) and the AI that runs it; the AI Coach never consults them. « Allowed models » lists the models offered, their hosting (« EU » or « outside EU ») and their effort.\n\nIn production, only the latest Human-validated version of each is served. Elsewhere, the latest version is served, validated or not: the page says so at the top.\n\nClick a playbook's name to open it. Its page lists its « Versions », then, for the version chosen, who wrote it, its « Validation », its « Rules » and the « Edit » card. Saving a version not yet validated changes it; saving a validated version makes the next version, to be validated in turn. Every version is kept.\n\nThen come the playbook's « Eval Cases » (fictional scenarios, scored by an AI judge) and its « Eval Runs ». A version is validated only after an Eval Run on it, whatever its score, and by someone who did not write it. « Archive this playbook » stops serving it without erasing anything; « Restore this playbook » serves it again. The Core Digest and the Sources list cannot be archived.\n\nA model « outside EU » receives calls redacted by Redaction. Playbook editors and super-admins edit, evaluate and validate; Support reads. Each change is recorded in Administrator actions."
     },
     {
       "id": "page-admin-settings",
@@ -2198,6 +3010,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Recruiters use applicant tracking systems (ATS) that read your CV before a person does. The ATS Score, out of 100, says whether this software will read your Master CV well for the role you are aiming for.\n\nIt combines readability (contact details, headline, dated jobs…) and the role's keywords. It is worked out without AI, by fixed rules, and does not depend on any job offer.\n\nThe fixes to improve it come from your coach: you find them in the profile's Suggestions."
     },
     {
+      "id": "glossary-admin-back-office-roles",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "administrator",
+      "topic": "equipe",
+      "title": "Back office roles",
+      "synonyms": [
+        "roles",
+        "role",
+        "back office role",
+        "rights",
+        "permissions",
+        "access",
+        "super-admin",
+        "plans manager",
+        "coach manager",
+        "support",
+        "playbook editor",
+        "help editor",
+        "technique",
+        "grant a role",
+        "revoke a role",
+        "read only"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "A back office role says what an Administrator may see and change. Your roles show on the Dashboard. They are fixed in code; only super-admins grant and revoke them, in Administrators (Team menu), to someone who already has a Jobbbox account.\n\n- **Super-admin**: the whole back office, including Administrators, provider keys, Guardrails, Activity › AI calls and Administrator actions.\n- **Plans manager**: Plans, their quotas and coupons.\n- **Coach manager**: Human Coaches; reads the AI Coach cost.\n- **Playbook editor**: writes, evaluates, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.\n- **Help editor**: reads the unanswered questions and marks them « Article written » or dismisses them; reads the questions among the feedback, without the Candidate's email or Plan.\n- **Technique**: sets the non-secret settings, the search sources and sites and the prices of tools. Sees keys by their source and last 4 characters, without changing them. Reads the Dashboard, AI consumption, Tools, Activity › Searches, Received emails and Administrator actions.\n- **Support**: handles feedback and withdrawals; reads everything else without changing anything, except provider secrets, AI calls and Administrator actions.\n\nA section none of your roles reads is not in the menu. A section you read but cannot change shows read-only. A revoked role stops giving access from the next page. There is always at least one super-admin, and a permanent super-admin (ADMIN_EMAILS) cannot be revoked from the back office."
+    },
+    {
       "id": "glossary-clear-conversation",
       "locale": "en",
       "kind": "glossary",
@@ -2252,6 +3093,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The conversation context is what your AI coach reads again before each reply: the conversation's latest messages and what it knows of you and of the page. « Activity », at the top of the page, shows it in a bar: the conversation's number of messages out of the 40 the coach reads, and the tokens of its context out of the 12k ceiling. A token is a small piece of text, about four characters; it is not your quota.\n\nThese figures come from Jobbbox: they are those of the context sent to the coach for its latest reply. From 80 %, the bar tells you that the coach reads only the latest messages and offers « Clear the conversation »: once you confirm, every message of the conversation is deleted, and the coach's memory stays."
     },
     {
+      "id": "glossary-admin-failure-reason",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Failure Reason",
+      "synonyms": [
+        "failure reason",
+        "error code",
+        "reason",
+        "why",
+        "failure",
+        "warning",
+        "unexpected error",
+        "technical reason",
+        "technical detail",
+        "provider_unavailable",
+        "key_missing",
+        "data_residency",
+        "test_failed",
+        "other"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "A Failure Reason says why something failed or warned, in two parts.\n\nThe **functional reason** is a stable code from a catalogue fixed in code, with a French wording: for example `provider_unavailable`, `key_missing`, `data_residency`, `test_failed`, `eval_refused`, `last_super_admin` or `invalid_value`. An unknown error is `other`, « Erreur inattendue ». The code is counted where figures are kept: AI consumption, « Failures and warnings per reason », and the Guardrails' triggers. Support reads it.\n\nThe **technical reason** is the error's type, the provider, the HTTP status and the message, with no key or secret, passed through Redaction and cut at 500 characters. It only shows with what it explains: a call's « Technical detail » in Activity › AI calls, kept 30 days, or a line of Administrator actions, kept 3 years. Only super-admins read it.\n\nFor a problem, start from the code in AI consumption, then open one of the calls in AI calls if you are a super-admin."
+    },
+    {
       "id": "glossary-fiche",
       "locale": "en",
       "kind": "glossary",
@@ -2287,6 +3155,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "An email your coach drafts when an application has stayed « Applied » or « Followed up » too long without news. It appears as a proposal in the application's page.\n\nJobbbox sends nothing to the employer: copy the text, send it from your own mailbox, then mark it as sent. The application then moves to « Followed up ».\n\nThe delay before a follow-up is set in My account, under Follow-ups."
+    },
+    {
+      "id": "glossary-admin-human-validated",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Human-validated",
+      "synonyms": [
+        "human-validated",
+        "validated",
+        "validation",
+        "validated by",
+        "not validated",
+        "human review",
+        "served version",
+        "production",
+        "four eyes"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "A playbook version (of a Coaching Playbook, the Core Digest or an AI task) or a Guardrail message is Human-validated when a named Administrator, not one of its authors, has reviewed and approved it, with the date. The page shows it « validated by … on … ». A review by an AI never counts.\n\nIn production, only validated playbooks and Guardrail messages are served. Elsewhere, the latest version is served, validated or not. A playbook version is validated only after an Eval Run on it; no score blocks it, it is the person's call. A Guardrail message is validated language by language; until then, Jobbbox's default text applies.\n\nChanging a validated version makes a new one, to be validated in turn. Each validation is recorded in Administrator actions."
     },
     {
       "id": "glossary-job-digest",
@@ -2448,6 +3338,36 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Your coach places proposals in your pages: CV fixes after an ATS Score, a follow-up to send, an application to mark as abandoned.\n\nYou accept or dismiss each one. Nothing is done without your consent: accepting applies the proposed change.\n\nA proposal your coach no longer makes disappears by itself."
+    },
+    {
+      "id": "faq-admin-ai-literacy",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "administrator",
+      "topic": "ia-et-conformite",
+      "title": "AI literacy (AI Act, Art. 4): what every Administrator must know",
+      "synonyms": [
+        "ai literacy",
+        "ai act",
+        "article 4",
+        "ai training",
+        "compliance",
+        "ai providers",
+        "anthropic",
+        "claude",
+        "mistral",
+        "openai",
+        "perplexity",
+        "outside the eu",
+        "redaction",
+        "redacted",
+        "eu ai consent",
+        "guardrails",
+        "what never to do"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Article 4 of the AI Act asks Jobbbox to support the AI literacy of everyone who uses or tunes its AI systems on its behalf: you, as soon as you hold a back office role. No level or certificate is required. This article is the basis of that literacy; read it when you are given a role, with the internal « outside Annex III » note, and read it again when it changes.\n\n**What AI does in Jobbbox.** The AI Coach and its Playbook Agents, the documents written (tailored CV, cover letter, Company Dossier, Job Offer summaries), reading CVs and Job Offers, reading offer emails, web search and the Back Office Assistant. The Match Score and the ATS Score rest on rules, not on an AI. AI can be wrong: it helps the Candidate, never decides for them, and never ranks a Candidate for an employer.\n\n**The providers.** Each AI task has its provider and model, set in Paramètres, « AI » tab. Claude (Anthropic) is reached through its direct API, outside the EU. Mistral AI is in the EU. OpenAI, when configured without EU data residency, and Perplexity, for web search, are outside the EU. The back office marks each choice outside the EU « outside EU ». Jobbbox's data stays stored in the EU; what may leave is the text of a call.\n\n**Redaction.** Before a call leaves for a provider, Jobbbox takes out every email address and phone number, and what it knows of the Candidate's identity: full name, last name, address, email, phone. Each becomes a placeholder such as « [NOM] ». The first name stays, and the rest of the CV goes: employers, job titles, dates, schools. That is still personal data, pseudonymised, not anonymous. A name Jobbbox does not know goes through, such as a referee's. Never say « anonymised » or « no data leaves the EU ».\n\n**The Mistral route.** A Candidate may give their EU AI Consent, dated and withdrawable from their account. Their calls carrying their identity then go, unredacted, to Mistral in the EU; without that consent, they go redacted to the task's provider. Reading offer emails always stays in the EU. Paramètres refuses (`data_residency`) to send the identity route or an EU-only task outside the EU.\n\n**Guardrails.** They check the messages and replies of the AI Coach, the Playbook Agents and the assistant, and the emails received, by fixed rules or with an AI. They only block what they detect, and let things through when the AI check is unavailable. In distress, the Candidate receives 3114 and no one is alerted. Only playbooks and messages validated by a person are served in production.\n\n**What you must never do.**\n- Paste a Candidate's email, message or CV into the Back Office Assistant, or into an outside AI tool.\n- Open a call in Activity › AI calls or a Candidate's Job Search without needing to: each opening is recorded in Administrator actions.\n- Validate a version you wrote, or validate on the strength of a score or an AI's opinion alone.\n- Switch on a recipient outside the EU, or move a task outside the EU, without the privacy policy version that covers it.\n- Write a secret or personal data into a help article, a playbook or a Guardrail message.\n- Use Jobbbox's AI to rank, sort or recommend Candidates to a recruiter: that would be a high-risk system (see the « outside Annex III » note).\n- Promise guaranteed safety, « EU only » or « anonymised ».\n\nWhen in doubt, ask a super-admin before acting."
     },
     {
       "id": "faq-help-and-ai",
@@ -2674,6 +3594,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "In a Job Digest received by email, click « Stop receiving this profile's Job Digest ». The page « Unsubscribe from the Job Digest » opens, without signing in: click « Unsubscribe ». It confirms « Done: you will no longer receive this Job Digest. »\n\nOnly this profile's Job Digest stops; those of your other profiles go on. You can turn it back on at any time from the profile's page.\n\nIf the page shows « This unsubscribe link is no longer valid », you may already be unsubscribed; otherwise, sign in and turn the Job Digest off from the profile's page."
     },
     {
+      "id": "faq-admin-annex-iii-note",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "administrator",
+      "topic": "ia-et-conformite",
+      "title": "Internal note of 2 November 2026: why Jobbbox is not a high-risk AI system (Annex III)",
+      "synonyms": [
+        "annex iii",
+        "annex 3",
+        "high risk",
+        "high-risk",
+        "high-risk system",
+        "classification",
+        "ai act",
+        "article 6",
+        "employment",
+        "recruitment",
+        "selection",
+        "internal note",
+        "compliance",
+        "organisation",
+        "b2b",
+        "outplacement"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "**Internal note dated 2 November 2026. Internal, never published. This is not legal advice.**\n\n**Conclusion.** No current Jobbbox feature falls within Annex III of the AI Act. The obligations of high-risk systems therefore do not apply, nor does Article 6(4), which only covers a system within Annex III.\n\n**Why.** Annex III, point 4(a), covers AI systems intended for the recruitment or selection of people, notably to place targeted job advertisements, filter applications and evaluate candidates. Point 4(b) covers decisions on an ongoing work relationship. Jobbbox is a service for the candidate, started and controlled by them, outside the employer's process.\n- Tailored CV, cover letter, ATS Score: example 14 of the Commission's Service Desk (tailoring one's CV to a job offer) is out of scope.\n- Job discovery, Target Companies, Match Score, Job Digest, Email intake: example 15 (helping the candidate find the right job, ranking job offers for them alone) is out of scope.\n- AI Coach, playbooks, Company Dossier, outreach message: advice to the candidate; no output goes to an employer to select them.\n- Human Coach: no AI ranks the candidate for a third party.\n\nJobbbox remains the provider of its AI systems (AI Coach, documents written, Back Office Assistant), and the deployer of the assistant. It owes the information at the point of use of Article 50 and the AI literacy of Article 4.\n\n**When to review this note.** Before any feature, before it is designed, that would bring Jobbbox into scope:\n- an Organisation role, a B2B offer or an outplacement service where AI ranks, shortlists, scores or recommends candidates to an employer or a recruiter (examples 1, 2 and 8);\n- job offers sponsored by employers and targeted at candidates by AI (example 7);\n- the publication of the Commission's final guidelines on classification, expected at the end of 2026;\n- at the latest before 2 December 2027, when the Annex III obligations apply.\n\nEvery review gives this note a new date.\n\n**To be confirmed by a lawyer.** The « out of scope » finding once the final guidelines are out, and before any B2B or Organisation feature; the text of Article 6(4) after the Digital Omnibus, to be read on EUR-Lex.\n\n**Sources.**\n- AI Act, Regulation (EU) 2024/1689: Articles 3, 4, 6 and 50, Annex III point 4.\n- Digital Omnibus on AI, Regulation (EU) 2026/1744, in force on 27 July 2026.\n- The Commission's AI Act Service Desk, « Employment » page: examples 1, 2, 7, 8, 14 and 15.\n- Commission, draft guidelines on the classification of high-risk systems, 19 May 2026.\n- Internal research of issue #497 (`docs/research/issue-497.md`, checked on 29 October 2026), decision of issue #503."
+    },
+    {
       "id": "faq-plans-and-quotas",
       "locale": "en",
       "kind": "faq",
@@ -2698,6 +3647,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Jobbbox has three Plans: Free, Standard and Premium. The Free Plan needs no payment: it is your account's Plan when it is created.\n\nEach Plan has its quota: the number of profiles you can have, and each week the number of match scores, ATS Scores, job searches and enriched contacts, as well as how often the Job Digest comes. The count starts again from zero every Monday at midnight (Paris time). Talking to your coach doesn't count towards the quota.\n\nOnce signed in, My subscription shows your Plan and what it includes; « Choose the … Plan » moves you to another, with payment on Stripe's secure page. You can cancel at any time, and withdraw within 14 days.\n\nSessions with a human coach are paid separately, outside the Plans."
+    },
+    {
+      "id": "faq-extension-update",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "guest",
+      "topic": "extension",
+      "title": "What do I do when the extension says « Update the extension »?",
+      "synonyms": [
+        "update",
+        "new version",
+        "old version",
+        "outdated",
+        "extension",
+        "chrome web store",
+        "store",
+        "no longer supported"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Your version of the Jobbbox extension is too old: Jobbbox no longer supports it. The extension's panel says so with « Update the extension ».\n\nClick « Open the extension's page »: its page on your browser's store opens, where you install the latest version. Your browser also updates the extension by itself, usually within a few hours. Once it is up to date, click « Try again ».\n\nThe job offer and CV of your current session stay in your browser during the update: you have nothing to redo."
     },
     {
       "id": "faq-admin-retired-variable",
@@ -2882,6 +3852,27 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "A tool is « Awaiting access » when its key is valid but its provider refuses it an API at the latest connection test. Today, that is France Travail's case until the Offres d'emploi API is opened to the application.\n\nIn Tools, it shows « Unavailable: access refused by France Travail ». In the « Sources » tab of Settings, the source shows « Awaiting access »: job searches go on without it, with the other sources.\n\nTo know which API is missing, open France Travail's sheet in the « Sources » tab: the « France Travail API access » table gives each API's « State » (« ok », « access refused » or « error ») at the latest test. Ask for access to the refused API in your France Travail partner space; once granted, a super-admin clicks « Test … » on the sheet. Once the test passes, the tool is back to « Configured », with nothing else to change."
     },
     {
+      "id": "tutorial-admin-accept-sender",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "plateforme",
+      "title": "Accept a proposed sender (Email intake)",
+      "synonyms": [
+        "accept a sender",
+        "proposed senders",
+        "recognised sender",
+        "add a sender",
+        "label",
+        "sender's domain",
+        "job alert",
+        "email intake"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "When Candidates add for themselves an offer sender the platform's list lacks, it is proposed to you. Accepting it has its emails read for every Candidate. You need the Technique or Super-admin role.\n\n1. Open Paramètres (Platform menu), « Sources » tab, then the sheet of MTA Jobbbox (Haraka).\n2. Under « Proposed senders », read the domain or address, the number of Candidates (never which) and « Last added ».\n3. Check that the sender really sends Job Offers: a job board's or a careers site's alert, not a private person. When in doubt, do not accept.\n4. Enter its label in « Label of … », as « platform or company – site », at most 120 characters.\n5. Click « Accept … ». The page shows « Sender added to the platform's list. » and it appears under « Recognised senders ».\n\nTo add a sender yourself, fill in « Add a sender »: the « Sender's domain or address », then the « Label », and click « Add the sender ». A sender is disabled or removed from the same list. Each change is recorded in Administrator actions."
+    },
+    {
       "id": "tutorial-admin-add-provider",
       "locale": "en",
       "kind": "tutorial",
@@ -2930,6 +3921,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Super-admins and « Technique » add the sites and the sources; Support only reads them.\n\nFor a job board to show the extension's « Analyse this offer » badge (a Job Site):\n\n1. Open Settings, « Extension » tab.\n2. Under « Add a site to the extension », type the « Address pattern »: an https pattern, for example https://*.example.com/* for the site and its subdomains. Never every site.\n3. If its posting pages publish no JobPosting data, fill in « Posting pages (optional) » with a pattern on the same site.\n4. Click « Add the site to the extension ». The message « Site added to the extension. » confirms it; the extension gets it within minutes to hours.\n\nFor a job discovery source (Job discovery):\n\n1. Open Settings, « Sources » tab. The « Job discovery sources » table gives each source's « Availability ».\n2. For a disabled source, click « Enable … » in its « Switch » column, or « + Add », type « Source », choose it in « Source to enable » and click « Enable the source ».\n3. If its « Availability » says « Unavailable: key missing (…) », open its provider's sheet and enter its key.\n\nFor web search to look at a site on purpose, open the « Web search » tab and, under « Add a site », type its « Domain », for example apec.fr, then « Add the site ». A site whose terms of use forbid crawling is refused: only the extension covers it."
+    },
+    {
+      "id": "tutorial-admin-human-coach",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Add or retire a Human Coach",
+      "synonyms": [
+        "add a coach",
+        "retire a coach",
+        "new coach",
+        "human coach",
+        "cal.com",
+        "booking link",
+        "sign-in email address"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Candidates book a Human Coach through their Cal.com link, and the coach signs in to Jobbbox with the address you give. You need the Coach manager or Super-admin role.\n\n1. First create the coach's booking page in Cal.com and copy its https link.\n2. Open Coaches (Coaching menu).\n3. Under « Add a coach », enter their « Name », their « Sign-in email address », the « Cal.com booking link » and, if you like, their « Introduction (optional) ».\n4. Click « Add the coach ». The page shows « Coach … added. » and they appear under « Active coaches ».\n5. To retire a coach, click « Retire … » on their row. The page shows « Coach retired. Their past sessions are kept. »\n\nAn email address serves one coach at a time. Each addition and each retirement are recorded in Administrator actions."
     },
     {
       "id": "tutorial-admin-ai-task-route",
@@ -3123,6 +4134,117 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Enriched contacts stay off until the DPA (the data processing agreement) with their provider is marked signed, whatever the provider and its key. The code cannot check the DPA: marking it signed is a deliberate step, confirmed and recorded in Activity.\n\n1. Have the DPA signed with the chosen provider, outside Jobbbox. Lusha and Apollo process data outside the EU, Kaspr where that is not established: read « Switch on a recipient outside the EU » first.\n2. Open Settings, « Contact enrichment » tab.\n3. A super-admin opens the provider's sheet and enters its key, as in « Add a provider and make it active ».\n4. In « Possible providers », click « Make active » on the provider's row. The « Enriched Contacts provider » takes its value.\n5. In the « Active provider » card, on the « Data processing agreement (DPA) signed » row, choose true in « New value of CONTACT_ENRICHMENT_DPA_SIGNED » and click « Save ».\n6. Asked « Mark the DPA signed? », click « Yes, the DPA is signed » if it is true, else « Cancel ».\n\nEnriched contacts then turn on. To stop them, set the same setting back to false, or click « Restore »."
+    },
+    {
+      "id": "tutorial-admin-plan-stripe",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "offre",
+      "title": "Tie a Plan to Stripe",
+      "synonyms": [
+        "tie a plan to stripe",
+        "stripe product",
+        "prod_",
+        "product id",
+        "create a plan",
+        "offer a plan",
+        "default price",
+        "price",
+        "paid subscription",
+        "stripe plan"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "A paid Plan is sold through its Stripe product: that product's recurring default price is the one sold at checkout, and every price of it gives the Plan. You need the Plans manager or Super-admin role.\n\n1. In Stripe, create the product with a recurring default price (each day, week, month or year), then copy the product's ID, which starts with « prod_ ». A price ID (« price_… ») will not do.\n2. In the back office, open Plans (Offer menu).\n3. For a new Plan, fill in the « Create a Plan » card: the « Key » (lower case letters, digits and dashes; it never changes), the « Name in French », the « Name in English », the « Stripe product » and its « Features ». Click « Create the Plan ». It is created hidden, above the others, with the quotas of the Plan just below.\n4. For an existing Plan with no product, enter the ID in the « Stripe product » field of its « Edit the … Plan » card, then click « Save the … Plan ».\n5. Jobbbox checks the product with Stripe. If it is refused, the message says why: unknown product (check the ID and the mode, test or live), archived, no recurring default price, or already another Plan's.\n6. Set the Plan's quotas in Quotas.\n7. Back on its card, tick « Offered to Candidates » and click « Save the … Plan ». It shows in the comparison and at checkout.\n\nOnce chosen, the Stripe product no longer changes: its subscribers stay on it. To move them to another Plan, use Stripe. Prices are changed in Stripe too, never in the back office."
+    },
+    {
+      "id": "tutorial-admin-triage-signalement",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "candidats",
+      "title": "Triage feedback",
+      "synonyms": [
+        "triage feedback",
+        "handle feedback",
+        "reply to a candidate",
+        "mark seen",
+        "mark handled",
+        "team's reply",
+        "bug",
+        "idea",
+        "question",
+        "to handle",
+        "signalement"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Feedback is handled oldest first. You need the Support or Super-admin role.\n\n1. Open Feedback (Candidates menu). Keep « Filter by status » on « To handle » and, if needed, choose a type in « Filter by type ».\n2. Click « Open » on the oldest one. Read the message, its « Context » (page, version, browser, language, text size) and, for a question, the « Question asked to the AI Coach » and « The AI Coach's reply ».\n3. Click « Mark “Seen” » once you have taken it in without replying yet.\n4. To reply, write « The team's reply » (one reply, at most 2,000 characters) and click « Save the reply ». The Candidate sees it signed « L'équipe Jobbbox », never with your name.\n5. Once the bug is fixed, the idea noted or the question answered, click « Mark “Handled” ». A question is marked « Handled » only once replied to, and the reply can no longer be changed afterwards.\n6. Click « All feedback » to move to the next one.\n\nA bug that can be reproduced becomes an issue for the technical team; a question that shows a gap in the help deserves an article. Never copy the Candidate's email or message into an AI tool."
+    },
+    {
+      "id": "tutorial-admin-unanswered-question-article",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "contenu",
+      "title": "Turn an unanswered question into an article",
+      "synonyms": [
+        "write a help article",
+        "article written",
+        "fill a help gap",
+        "add a synonym",
+        "help article",
+        "help editor",
+        "dismiss a question"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "An unanswered question shows a gap in the help. Filling it means writing an article or adding a synonym to an existing one. You need the Help editor or Super-admin role.\n\n1. Open Unanswered questions (Content menu). The most asked come first; filter if needed with « Filter by audience », « Filter by page » and « Filter by language ».\n2. Read the question and « The AI's answer ». It is raw material, never an article: check each fact and each label in the current interface.\n3. First look for a close article, in the help (/aide) or in the back office help. If it already answers, add the question's words to its synonyms.\n4. Otherwise, write the article in French first, which is authoritative, then in English, with one audience and one topic, using « vous », quoting labels word for word. Articles live in the repository, under `packages/help/articles/`.\n5. Put the change up for review. A person reviews and merges it: no article is served before that merge.\n6. Back on the question, click « Article written ». For a question that is not a gap in the help, click « Dismiss ».\n\nThe question is kept redacted, without the name of whoever asked it, then erased 30 days after it was marked."
+    },
+    {
+      "id": "tutorial-admin-validate-playbook",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Validate a playbook version",
+      "synonyms": [
+        "validate a playbook",
+        "validation",
+        "human-validated",
+        "review a version",
+        "evaluate the version",
+        "start the eval run",
+        "eval run",
+        "eval case",
+        "served version",
+        "production"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "In production, the AI Coach only applies a playbook's latest Human-validated version. Validating it confirms you have reviewed it. You need the Playbook editor or Super-admin role, and must not have written that version: a review by an AI never counts.\n\n1. Open Playbooks (Coaching menu), then click the playbook's name.\n2. Under « Versions », choose the latest version: only the latest can be validated. Read its « Rules » and its Playbook Agent.\n3. Check its « Eval Cases ». If there are none, add one with « Add an Eval Case », then « Add this case ».\n4. Under « Evaluate version … », keep « The version's Playbook Agent, as saved », then click « Start the Eval Run ». The Eval Run may take a few minutes.\n5. Read the result and the replies the AI judge scored. No score blocks validation: it is yours to judge, reading the replies, next to the served version.\n6. Under « Validate version … », enter « Your name », then click « Validate version … ».\n\nThe page shows « Version … validated. » and production serves that version. If you later change a validated version, saving it makes a new version, to be evaluated and validated in turn. The validation is recorded in Administrator actions, with your name and the date."
+    },
+    {
+      "id": "tutorial-admin-guardrail-message",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "administrator",
+      "topic": "coaching",
+      "title": "Write a Guardrail's message, in French and in English",
+      "synonyms": [
+        "guardrail message",
+        "message text",
+        "validate a message",
+        "message in french",
+        "message in english",
+        "3114",
+        "distress",
+        "default text"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "A Guardrail's message is shown to the Candidate instead of the reply, without saying which Guardrail acted. It exists in French and in English, and each language is validated apart. Writing it takes a super-admin, and validating it another super-admin.\n\n1. Open Guardrails (Coaching menu) and find the Guardrail.\n2. Under « Change the message in French », write the « Message text »: clear, short, using « vous ». For distress, it must give 3114, France's national suicide prevention line.\n3. Click « Save the message ». The page shows « Message saved: another Administrator must validate it before production serves it. »\n4. Do the same under « Change the message in English ». The English version says the same thing; for distress, it gives 3114 too.\n5. Ask another super-admin to review each version. Under « Validate the message in French, version … », then in English, they enter « Your name » and click « Validate this message ».\n\nWhile a language is not validated, production serves « Jobbbox's default text » in that language. Changing a message plays no Eval Case, unlike a setting. Each version and each validation are recorded in Administrator actions."
     }
   ]
 };

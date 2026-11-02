@@ -246,7 +246,8 @@ test.describe("the AI Coach in the pages' conversations", () => {
     // The home page's new conversation: no Profile in view.
     await page.goto("/");
     await expect(coachPanel(page)).toContainText(fr.coachPanel.aiDisclosure);
-    await expect(coachPanel(page)).toContainText(fr.coachPanel.nothingInView);
+    // Nothing in view, no line under the box.
+    await expect(coachPanel(page).locator(".coach-panel-context")).toHaveCount(0);
     await askCoach(page, "Bonjour");
     await expect(coachPanel(page)).toContainText("Je ne vois aucun profil. (1 message)");
 

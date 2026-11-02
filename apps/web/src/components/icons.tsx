@@ -46,6 +46,7 @@ import {
   Plus,
   RefreshCw,
   Scale,
+  Sparkles,
   Search,
   SearchCheck,
   ServerCrash,
@@ -163,6 +164,8 @@ const LUCIDE = {
   // « Mémoire du coach » in the Sidebar and « Aide » in the Top Bar (#602).
   memory: Brain,
   help: CircleHelp,
+  // « Nouveautés » in Mon compte's menu, beside Aide and Légal.
+  nouveautes: Sparkles,
   // « Fiche » in the Top Bar of an object's page (#603).
   fiche: PanelRight,
 } as const satisfies Record<string, LucideIcon>;

@@ -1,5 +1,6 @@
-import type { CvContent, JobOffer, MatchScore } from "@jobhub/shared";
+import { API_VERSION, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
+import { createExtensionUpdate, type UpdateStorage } from "./extension-update";
 import { createJobbboxApi } from "./jobbbox-api";
 
 const WEB_ORIGIN = "https://app.jobbbox.fr";
@@ -26,6 +27,28 @@ describe("the Jobbbox API, from the extension", () => {
 
     expect(await createJobbboxApi(WEB_ORIGIN, app.fetch).capture(captured)).toEqual({ ok: true, jobOffer });
     expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include", body: JSON.stringify(captured) });
+  });
+
+  it("states the API Version it speaks on every call (#564)", async () => {
+    const app = webApp({
+      "/api/job-offers": () => Response.json(jobOffer),
+      "/api/cv/draft": () => Response.json({ masterCv: cv, searchCriteria: {} }),
+      "/api/match-score": () => Response.json(matchScore),
+      "/api/profiles": () => Response.json([]),
+      "/api/applications": () => Response.json({ id: "a-1" }),
+    });
+    const api = createJobbboxApi(WEB_ORIGIN, app.fetch);
+    await api.capture({ source: {}, title: "DAF", content: "Poste." });
+    await api.readCv(new File(["%PDF"], "cv.pdf"));
+    await api.score("jo-1", { profileId: "p-1" });
+    await api.profiles();
+    await api.createProfile(cv, { targetRole: "DAF", locations: ["Lyon"] });
+    await api.saveApplication("jo-1", "p-1");
+
+    expect(app.calls).toHaveLength(6);
+    for (const { init } of app.calls) expect(new Headers(init.headers).get("Jobbbox-Api-Version")).toBe(String(API_VERSION));
+    // The JSON calls still say what they send.
+    expect(new Headers(app.calls[0]?.init.headers).get("content-type")).toBe("application/json");
   });
 
   it("reads a CV file and scores it against a Job Offer", async () => {
@@ -186,12 +209,37 @@ describe("the Jobbbox API, from the extension", () => {
     const path = "/api/legal/cgu/in-effect";
     const inEffect = webApp({ [path]: () => Response.json({ version: "2026-06-01", url: "/legal/cgu/2026-06-01" }) });
     expect(await createJobbboxApi(WEB_ORIGIN, inEffect.fetch).cguInEffect()).toEqual({ ok: true, cgu: { version: "2026-06-01", url: "/legal/cgu/2026-06-01" } });
-    expect(inEffect.calls).toEqual([{ url: `${WEB_ORIGIN}${path}`, init: { method: "GET", credentials: "include" } }]);
+    expect(inEffect.calls).toHaveLength(1);
+    expect(inEffect.calls[0]).toMatchObject({ url: `${WEB_ORIGIN}${path}`, init: { method: "GET", credentials: "include" } });
+    expect(inEffect.calls[0]?.init.body).toBeUndefined();
 
     expect(await createJobbboxApi(WEB_ORIGIN, webApp({ [path]: () => Response.json({ version: null }) }).fetch).cguInEffect()).toEqual({ ok: true, cgu: null });
     // Not known, rather than none: the box is not dropped because the web app could not say.
     expect(await createJobbboxApi(WEB_ORIGIN, webApp({}).fetch).cguInEffect()).toEqual({ ok: false, error: "unreachable" });
     expect(await createJobbboxApi(WEB_ORIGIN, webApp({ [path]: () => new Response("", { status: 503 }) }).fetch).cguInEffect()).toEqual({ ok: false, error: "unreachable" });
     expect(await createJobbboxApi(WEB_ORIGIN, webApp({ [path]: () => Response.json({ version: 1 }) }).fetch).cguInEffect()).toEqual({ ok: false, error: "unreachable" });
+  });
+
+  it("is told to update on a 426, remembers it for the Side Panel, and forgets it once served again (#564)", async () => {
+    const items: Record<string, unknown> = {};
+    const storage: UpdateStorage = {
+      get: async (key) => (key in items ? { [key]: items[key] } : {}),
+      set: async (values) => void Object.assign(items, values),
+      remove: async (key) => void delete items[key],
+    };
+    const update = createExtensionUpdate(storage);
+    const store = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+    let outdated = true;
+    const answer = () => (outdated ? Response.json({ error: "extension_outdated", storeUrl: store, apiVersion: 2 }, { status: 426 }) : Response.json(jobOffer));
+    const api = createJobbboxApi(WEB_ORIGIN, webApp({ "/api/job-offers": answer, "/api/profiles": answer }).fetch, update);
+
+    expect(await api.capture({ source: {}, title: "DAF", content: "Poste." })).toEqual({ ok: false, error: "unreachable" });
+    expect(await update.required()).toEqual({ storeUrl: store });
+    expect(await api.profiles()).toEqual({ ok: false, error: "unreachable" });
+    expect(await update.required()).toEqual({ storeUrl: store });
+
+    outdated = false;
+    expect(await api.capture({ source: {}, title: "DAF", content: "Poste." })).toEqual({ ok: true, jobOffer });
+    expect(await update.required()).toBeNull();
   });
 });

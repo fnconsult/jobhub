@@ -101,6 +101,13 @@ body {
   margin: 0;
 }
 
+/* « Mettez à jour l'extension » (#564): its title, in the Note's words. */
+.update__title {
+  margin: 0;
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+}
+
 /* The Job Offer, and its Match Score's ring beside it. */
 .job-offer {
   display: flex;

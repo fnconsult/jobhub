@@ -1,4 +1,5 @@
 {
   "extName": { "message": "Jobbbox" },
+  "extNameBeta": { "message": "Jobbbox (bêta)" },
   "extDescription": { "message": "Capturez une offre d'emploi et préparez votre candidature avec votre coach Jobbbox." }
 }

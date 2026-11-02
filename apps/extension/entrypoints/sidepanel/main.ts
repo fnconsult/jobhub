@@ -6,6 +6,7 @@ import { ALL_SITES } from "../../src/all-sites-detection";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
 import { openAnalysisPage } from "../../src/analysis-page";
 import { readCandidateSession } from "../../src/candidate-session";
+import { createExtensionUpdate, UPDATE_STORAGE_KEY, updateHref, type UpdateRequired } from "../../src/extension-update";
 import { choosePage } from "../../src/frame-choice";
 import { createGuestSession } from "../../src/guest-session";
 import { GUEST_TERMS_LINKS, guestTermsToAccept, sentenceParts, SIDE_PANEL_LINKS, siteHref, siteLanguage, versionDay, type CguVersion } from "../../src/guest-terms";
@@ -46,7 +47,9 @@ document.documentElement.lang = i18n.language;
 document.title = `${t("extension.analysis.title")} – Jobbbox`;
 
 const session = createGuestSession(browser.storage.session);
-const api = createJobbboxApi(WEB_ORIGIN);
+// An extension the web app no longer serves (#564) is asked to update; the background's calls answer for it too.
+const update = createExtensionUpdate(browser.storage.local);
+const api = createJobbboxApi(WEB_ORIGIN, undefined, update);
 const saving = createApplicationSaving({ api, session });
 // Shown again on reopen rather than computed again: each Match Score uses the Candidate's Plan Quota (#51).
 const scoring = createMatchScoring({ api, session });
@@ -589,6 +592,28 @@ function show(body: (Node | string)[], foot: (Node | string)[]) {
   app.replaceChildren(header(), main, footer);
 }
 
+/**
+ * « Mettez à jour l'extension » (#564): the web app no longer serves this build's API Version. The link leads to the
+ * extension's store page; the Guest session is kept, and its Job Offer still shown. « Réessayer » asks the web app again.
+ */
+function updateNotice(asked: UpdateRequired, jobOffer: JobOffer | undefined): HTMLElement[] {
+  const link = element("a", t("extension.updateRequired.action"), buttonClass("primary", true));
+  Object.assign(link, { href: updateHref(asked, WEB_ORIGIN), target: "_blank", rel: "noopener" });
+  const retry = button(
+    t("extension.updateRequired.retry"),
+    () => {
+      retry.disabled = true;
+      void update.answered(null).then(() => render());
+    },
+    "quiet",
+    true,
+  );
+  const notice = note("warn", element("h2", t("extension.updateRequired.title"), "update__title"), element("p", t("extension.updateRequired.text")), link, retry);
+  notice.classList.add("update");
+  notice.setAttribute("role", "alert");
+  return jobOffer ? [notice, jobOfferHead(jobOffer).node] : [notice];
+}
+
 /** The Job Offer last shown: another one in the Guest session (captured from a badge, say) is shown at once. */
 let shownJobOfferId: string | undefined;
 
@@ -602,6 +627,16 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
   const renderId = ++renders;
   if (candidate.signedIn && !outcome) outcome = await saving.open();
   if (renderId !== renders) return;
+  // Asked to update (#564): nothing more is asked of the web app until then.
+  const asked = await update.required();
+  if (renderId !== renders) return;
+  if (asked) {
+    const { jobOffer } = await session.read();
+    if (renderId !== renders) return;
+    shownJobOfferId = jobOffer?.id;
+    show(updateNotice(asked, jobOffer), []);
+    return;
+  }
   if (outcome?.state === "saved") {
     shownJobOfferId = undefined;
     show([...inViewNote(outcome.jobOffer), jobOfferHead(outcome.jobOffer).node, savedNotice(outcome), extrasFor(outcome.jobOffer)], []);
@@ -731,6 +766,11 @@ browser.storage.session.onChanged.addListener(() => {
   void session.read().then(({ jobOffer }) => {
     if (jobOffer?.id !== shownJobOfferId) void render();
   });
+});
+
+// Asked to update by an answer of the web app (#564), here or in the background (a Capture), or no longer: shown at once.
+browser.storage.local.onChanged.addListener((changes) => {
+  if (UPDATE_STORAGE_KEY in changes) void render();
 });
 
 // The session is watched before the first render, which a Match Score waiting on another page's can hold up (#66).

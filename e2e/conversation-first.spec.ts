@@ -269,16 +269,16 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await expect(conversation(page)).toBeVisible();
     const pane = page.getByRole("complementary").filter({ has: page.locator(".work-pane-head") });
 
-    // « Signaler un problème », under the box: its form in the Work Pane, sent from there.
-    await conversation(page).getByRole("button", { name: fr.coachPanel.team.reportProblem }).click();
+    // The Signalement icon beside « Mon compte » (the box has no links under it): its form in the Work Pane, sent from there.
+    const icon = page.locator(".sidebar-docked").getByRole("button", { name: fr.signalement.open });
+    await icon.click();
     await expect(pane.getByRole("heading", { level: 2, name: fr.signalement.title })).toBeFocused();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await pane.getByRole("textbox").fill("Le bouton Envoyer ne répond pas sur la page des offres.");
     await pane.getByRole("button", { name: fr.signalement.send }).click();
     await expect(pane.getByText(fr.signalement.thanks)).toBeVisible();
 
-    // The icon beside « Mon compte » too.
-    const icon = page.locator(".sidebar-docked").getByRole("button", { name: fr.signalement.open });
+    // Opened again, Escape gives the focus back to the icon.
     await icon.click();
     await expect(pane.getByRole("heading", { level: 2, name: fr.signalement.title })).toBeFocused();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -337,20 +337,11 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await expect(menu).toBeFocused();
   });
 
-  test("« Proposer une idée » and « Poser la question à l'équipe » open their form in the Work Pane, no Drawer", async ({ browser }) => {
+  test("« Poser la question à l'équipe » opens its form in the Work Pane, no Drawer", async ({ browser }) => {
     const page = await signedIn(browser, newAddress("work-pane-team"));
     await page.goto("/");
     await expect(conversation(page)).toBeVisible();
     const pane = page.getByRole("complementary").filter({ has: page.locator(".work-pane-head") });
-
-    // « Proposer une idée », under the box.
-    const idea = conversation(page).getByRole("button", { name: fr.coachPanel.team.suggestIdea, exact: true });
-    await idea.click();
-    await expect(pane).toHaveCount(1);
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.keyboard.press("Escape");
-    await expect(pane).toHaveCount(0);
-    await expect(idea).toBeFocused();
 
     // « Non » under a coach reply offers « Poser la question à l'équipe »: its form opens in the Work Pane.
     await send(page, "Comment changer l'adresse e-mail de mon compte ?");

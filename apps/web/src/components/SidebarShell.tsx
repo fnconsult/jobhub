@@ -65,7 +65,8 @@ function setHidden(hidden: boolean) {
 
 /**
  * The sidebar layout (#132, #134), whatever the sidebar holds: a skip link, the
- * sidebar (brand, `top`, the `nav`, signing out), the Top
+ * sidebar (brand and the button hiding it, `top` and the `nav` scrolling under it, the foot pinned at the bottom,
+ * signing out), the Top
  * Bar with the Menu button, the page's `title`, the AI Activity button and the
  * Coach Panel button (or `topBarEnd` in its place), and the page as `<main>`, `beside` it (the Work Pane), then AI Activity's pane (both
  * only inside an AiActivityProvider: Candidate pages, never the Back Office). `title` is the page's `<h1>`: a string, or an element that
@@ -90,6 +91,7 @@ export function SidebarShell({
   topBarActivity = <AiActivityButton />,
   beside,
   pageInert = false,
+  signOut = true,
   children,
 }: {
   brand: { href: string; label: string };
@@ -107,6 +109,8 @@ export function SidebarShell({
   beside?: ReactNode;
   /** A column open over the page, full screen on a phone (#608): the Top Bar and the page are out of reach behind it. */
   pageInert?: boolean;
+  /** « Se déconnecter » at the end of the foot; false when the foot signs out itself (the Candidate's Mon compte menu). */
+  signOut?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -212,49 +216,58 @@ export function SidebarShell({
             <Icons.close />
             {t("sidebar.close")}
           </button>
-        ) : null}
-      </div>
-      {showSections && !inDrawer ? (
-        // No room beside the page for its Sections: the sidebar lists them, the main menu one arrow away.
-        <>
-          <button ref={switchButton} className="button button-quiet sidebar-switch" type="button" onClick={() => switchMenu(true)}>
-            <Icons.back />
-            {t("sidebar.mainMenu")}
-          </button>
-          <nav className="sidebar-nav" aria-label={sectionsMenu.label}>
-            <p className="sidebar-group-label">{sectionsMenu.title}</p>
-            <ul>
-              {sectionsMenu.items.map((item) => (
-                <li key={item.href}>
-                  <Link className="sidebar-link" href={item.href} aria-current={item.current ? CURRENT : undefined}>
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </>
-      ) : (
-        <>
-          {top}
-          {sectionsInSidebar && !inDrawer ? (
-            <button ref={switchButton} className="button button-quiet sidebar-switch sidebar-switch-forward" type="button" onClick={() => switchMenu(false)}>
-              {sectionsMenu.title}
-              <Icons.chevron />
-            </button>
-          ) : null}
-          {nav(closeDrawer, inDrawer ? closeDrawerThen : runNow)}
-        </>
-      )}
-      <div className="sidebar-foot">
-        {foot?.(closeDrawer, inDrawer ? closeDrawerThen : runNow)}
-        <SignOutButton />
-        {inDrawer ? null : (
-          <button ref={collapseButton} className="button button-quiet sidebar-collapse" type="button" aria-controls={`${id}-sidebar`} onClick={hide}>
+        ) : (
+          // Its icon alone, at the right of the brand, named by its words (and their tooltip).
+          <button
+            ref={collapseButton}
+            className="button button-quiet sidebar-collapse"
+            type="button"
+            aria-label={t("sidebar.collapse")}
+            title={t("sidebar.collapse")}
+            aria-controls={`${id}-sidebar`}
+            onClick={hide}
+          >
             <Icons.collapse />
-            {t("sidebar.collapse")}
           </button>
         )}
+      </div>
+      <div className="sidebar-scroll">
+        {showSections && !inDrawer ? (
+          // No room beside the page for its Sections: the sidebar lists them, the main menu one arrow away.
+          <>
+            <button ref={switchButton} className="button button-quiet sidebar-switch" type="button" onClick={() => switchMenu(true)}>
+              <Icons.back />
+              {t("sidebar.mainMenu")}
+            </button>
+            <nav className="sidebar-nav" aria-label={sectionsMenu.label}>
+              <p className="sidebar-group-label">{sectionsMenu.title}</p>
+              <ul>
+                {sectionsMenu.items.map((item) => (
+                  <li key={item.href}>
+                    <Link className="sidebar-link" href={item.href} aria-current={item.current ? CURRENT : undefined}>
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </>
+        ) : (
+          <>
+            {top}
+            {sectionsInSidebar && !inDrawer ? (
+              <button ref={switchButton} className="button button-quiet sidebar-switch sidebar-switch-forward" type="button" onClick={() => switchMenu(false)}>
+                {sectionsMenu.title}
+                <Icons.chevron />
+              </button>
+            ) : null}
+            {nav(closeDrawer, inDrawer ? closeDrawerThen : runNow)}
+          </>
+        )}
+      </div>
+      <div className="sidebar-foot">
+        {foot?.(closeDrawer, inDrawer ? closeDrawerThen : runNow)}
+        {signOut ? <SignOutButton /> : null}
       </div>
     </>
   );
@@ -275,8 +288,8 @@ export function SidebarShell({
             side="left"
             className="sidebar sidebar-drawer"
             onOpenAutoFocus={(event) => {
-              // Focus starts on the current page's link, where the person is.
-              const here = (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(`.sidebar-link[aria-current="${CURRENT}"]`);
+              // Focus starts on the current page's link (or Mon compte's menu button, on its pages), where the person is.
+              const here = (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(`.sidebar-link[aria-current="${CURRENT}"], .sidebar-link[data-current]`);
               if (here) {
                 event.preventDefault();
                 here.focus();

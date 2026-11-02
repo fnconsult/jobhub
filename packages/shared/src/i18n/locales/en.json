@@ -66,6 +66,12 @@
   },
   "extension": {
     "title": "Jobbbox",
+    "updateRequired": {
+      "title": "Update the extension",
+      "text": "Jobbbox no longer supports this version of the extension. Install the latest version from its page on your browser's store: this session's job offer and CV stay in this browser.",
+      "action": "Open the extension's page",
+      "retry": "Try again"
+    },
     "description": "Capture a job offer from the page you are viewing.",
     "signedInAs": "Signed in as {{email}}",
     "signedOut": "Sign in to Jobbbox to save your job offers.",

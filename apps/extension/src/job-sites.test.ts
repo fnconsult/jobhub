@@ -1,4 +1,4 @@
-import { BUILT_IN_JOB_SITES, type ExtensionJobSiteList } from "@jobhub/shared";
+import { API_VERSION, BUILT_IN_JOB_SITES, type ExtensionJobSiteList } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { JOB_SITES, type PageSnapshot } from "./job-page";
 import { badgeShows, BUILT_IN_JOB_SITE_LIST, createJobSites, JOB_SITES_MAX_AGE_MS, JOB_SITES_RETRY_MS, jobSiteListFrom, type JobSitesStorage } from "./job-sites";
@@ -89,6 +89,7 @@ describe("reading the Job Sites from the web app", () => {
   function setup(answer: () => Promise<Response>) {
     let time = 1_000_000;
     const requests: string[] = [];
+    const apiVersions: (string | null)[] = [];
     const stored = new Map<string, unknown>();
     const storage: JobSitesStorage = {
       async get(key) {
@@ -98,8 +99,9 @@ describe("reading the Job Sites from the web app", () => {
         for (const [key, value] of Object.entries(items)) stored.set(key, structuredClone(value));
       },
     };
-    const fetch = (async (input: string | URL | Request) => {
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       requests.push(String(input));
+      apiVersions.push(new Headers(init?.headers).get("Jobbbox-Api-Version"));
       return answer();
     }) as typeof globalThis.fetch;
     const options = { origin: ORIGIN, fetch, storage, now: () => time };
@@ -108,14 +110,16 @@ describe("reading the Job Sites from the web app", () => {
       /** The extension started again (its background is stopped by the browser now and then): only storage.local is left. */
       restarted: () => createJobSites(options),
       requests,
+      apiVersions,
       later: (ms: number) => (time += ms),
     };
   }
 
   it("reads them from the web app and keeps them an hour, across restarts of the extension", async () => {
-    const { jobSites, restarted, requests, later } = setup(async () => Response.json(FROM_WEB_APP));
+    const { jobSites, restarted, requests, apiVersions, later } = setup(async () => Response.json(FROM_WEB_APP));
 
     expect(await jobSites.current()).toEqual(FROM_WEB_APP);
+    expect(apiVersions).toEqual([String(API_VERSION)]);
     expect(await restarted().current()).toEqual(FROM_WEB_APP);
     expect(requests).toEqual([`${ORIGIN}/api/job-sites`]);
 

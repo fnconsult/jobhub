@@ -3,16 +3,16 @@ kind: page
 audience: candidate
 topic: utiliser
 title: Mon abonnement
-synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation]
+synonyms: [abonnement, prix, payer, paiement, premium, standard, gratuite, résilier, résiliation, rétractation, factures, code promo, utilisation, quota]
 route: /abonnement
 ---
-Cette page montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis.
+Cette page, rubrique Abonnement de Mon compte, montre votre offre (Gratuite, Standard ou Premium) et ce qu'elle comprend : le nombre de profils, et chaque semaine les scores, les recherches d'offres et les contacts enrichis. « Votre utilisation cette semaine » montre où vous en êtes de chacun ; le décompte repart à zéro chaque lundi. « Les offres » les compare côte à côte : « Votre offre » marque la vôtre, « Conseillée » celle au-dessus.
 
-« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : <offre> jusqu'au <date> ».
+« Résilier votre contrat » arrête votre abonnement à la fin de la période déjà payée, en deux clics depuis cette page. Une fois la résiliation programmée, la page affiche « Votre offre actuelle : … jusqu'au … », et un accusé de réception vous est envoyé par e-mail.
 
-« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte.
+« Gérer mon abonnement » ouvre la page sécurisée de Stripe, notre prestataire de paiement : c'est là que vous changez d'offre ou de moyen de paiement, et que vous annulez une résiliation programmée. Jobbbox ne voit jamais votre numéro de carte. « Factures et moyen de paiement » y mène aussi, pour télécharger vos factures.
 
-« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe.
+« Choisir l'offre … » ouvre d'abord la page Votre commande : le récapitulatif de l'offre, la case d'acceptation des CGV et la demande que le service commence immédiatement, avant le paiement sur la page de Stripe. Sur l'offre Gratuite, un « Code promo » saisi ici puis « Appliquer » est vérifié, et s'appliquera au paiement d'un nouvel abonnement.
 
 Pendant les 14 jours qui suivent votre abonnement, « Renoncer au contrat ici » vous permet de vous rétracter, sans motif : votre abonnement est annulé tout de suite et vous repassez à l'offre Gratuite. Le montant payé vous est remboursé en entier, ou, si vous avez demandé que le service commence immédiatement, moins la part des jours écoulés depuis le début de la période. Changer d'offre dans Stripe ne fait pas repartir ce délai.
 

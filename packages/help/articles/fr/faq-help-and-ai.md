@@ -9,6 +9,6 @@ Non. L'aide ne fait appel à aucune IA pour vous répondre : ses articles sont r
 
 Seul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.
 
-Toute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Aide et légal », en bas du menu, puis « Aide ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».
+Toute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Mon compte », en bas du menu, puis « Aide », sous « Aide et légal ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».
 
 Si votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque.

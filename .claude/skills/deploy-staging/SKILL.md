@@ -30,7 +30,7 @@ VERSION=$(node -p "require('./package.json').version")
 La CI de ce commit doit être verte : `deploy.yml` refuse sinon. Vérifiez-le avant de lancer :
 
 ```bash
-gh api "repos/fnconsult/jobhub/commits/$SHA/check-runs" --jq '.check_runs[] | "\(.name) \(.status) \(.conclusion)"'
+gh api --paginate "repos/fnconsult/jobhub/commits/$SHA/check-runs?per_page=100" --jq '.check_runs[] | "\(.name) \(.status) \(.conclusion)"'
 ```
 
 Si un check est rouge ou encore en cours, dites-le et arrêtez-vous (ou attendez qu'il finisse) : ne relancez pas la CI par un commit vide.
@@ -56,14 +56,19 @@ Une phrase, recopiée telle quelle dans le rapport : la Release Note `releases/{
 En mode à blanc, affichez cette commande et passez à l'étape 6.
 
 ```bash
+SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 gh workflow run deploy.yml --ref main -f target=staging
 ```
 
 ## 5. Suivre le workflow
 
 ```bash
-sleep 5
-RUN=$(gh run list --workflow deploy.yml --branch main --limit 1 --json databaseId --jq '.[0].databaseId')
+# The run this dispatch started: on this commit, dispatched since $SINCE. GitHub may take a few seconds to list it.
+for attempt in 1 2 3 4 5 6; do
+  RUN=$(gh run list --workflow deploy.yml --event workflow_dispatch --commit "$SHA" --limit 5 --json databaseId,createdAt --jq "[.[] | select(.createdAt >= \"$SINCE\")] | last | .databaseId // empty")
+  [ -n "$RUN" ] && break
+  sleep 5
+done
 gh run watch "$RUN" --exit-status
 ```
 

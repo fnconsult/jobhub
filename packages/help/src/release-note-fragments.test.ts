@@ -67,6 +67,7 @@ describe("readReleaseNoteFragments — the fragments waiting in releases/unrelea
     ["an unknown section", fragment().replace("## en", "## English"), "unreleased/601.md: section « English » is not one of fr, en"],
     ["a line that is no list item", fragment({ fr: "Une ligne." }), "unreleased/601.md: ## fr: a line is a list item"],
     ["more French lines than English ones", fragment({ fr: "- Une.\n- Deux." }), "unreleased/601.md: 2 French lines but 1 English ones"],
+    ["a kind given by a heading, as before #562", fragment({ fr: "### Amélioré\n- Une ligne." }), "unreleased/601.md: « ### Amélioré »: a fragment's only headings are ## fr and ## en"],
   ])("refuses %s, naming the file", (_case, markdown, problem) => {
     expect(() => readReleaseNoteFragments(releasesDir({ "unreleased/601.md": markdown }))).toThrow(problem);
   });
@@ -74,14 +75,12 @@ describe("readReleaseNoteFragments — the fragments waiting in releases/unrelea
   it("refuses a file not named after its pull request, and lists every problem at once", () => {
     const run = () => readReleaseNoteFragments(releasesDir({ "unreleased/entreprises.md": fragment(), "unreleased/602.md": fragment({ en: "" }) }));
     expect(run).toThrow(HelpContentError);
-    expect(run).toThrow(/unreleased\/602\.md: its en line is missing[\s\S]*unreleased\/entreprises\.md: a fragment is named after its pull request/);
+    expect(run).toThrow(/unreleased\/602\.md: its en line is missing[\s\S]*unreleased\/entreprises\.md: a fragment is named after its pull request[\s\S]*docs\/agents\/documentation\.md/);
   });
 
   it("accepts a second fragment of the same pull request: <pr>-<n>.md", () => {
-    expect(readReleaseNoteFragments(releasesDir({ "unreleased/601-2.md": fragment({ kind: "fixed" }), "unreleased/601.md": fragment() })).map((each) => each.file)).toEqual([
-      "601-2.md",
-      "601.md",
-    ]);
+    const files = { "unreleased/601-10.md": fragment(), "unreleased/601-2.md": fragment({ kind: "fixed" }), "unreleased/601.md": fragment(), "unreleased/600.md": fragment() };
+    expect(readReleaseNoteFragments(releasesDir(files)).map((each) => each.file)).toEqual(["600.md", "601.md", "601-2.md", "601-10.md"]);
   });
 });
 
@@ -171,11 +170,16 @@ describe("releaseNoteStatus — what the deploy-staging report says, without blo
 
   it.each([
     [{ "fr/0.2.0.md": note, "en/0.2.0.md": note }, "Release Note 0.2.0 : écrite en français et en anglais ; aucun fragment en attente."],
-    [{ "fr/0.2.0.md": note, "en/0.2.0.md": note, "unreleased/601.md": fragment() }, "Release Note 0.2.0 : écrite en français et en anglais ; 1 fragment en attente dans releases/unreleased/."],
+    [{ "fr/0.2.0.md": note, "en/0.2.0.md": note, "unreleased/601.md": fragment() }, "Release Note 0.2.0 : écrite en français et en anglais ; 1 fragment en attente dans releases/unreleased/, à y assembler avant la Promotion (npm run release-note -w @jobhub/help)."],
     [three, "Release Note 0.2.0 : pas encore assemblée (fr et en manquant) ; 3 fragments en attente dans releases/unreleased/, à assembler avant la Promotion (npm run release-note -w @jobhub/help)."],
     [{}, "Release Note 0.2.0 : absente (fr et en) et aucun fragment en attente. À écrire avant la Promotion, sauf si rien de visible pour un Candidat n'a changé (--rien-de-visible)."],
   ])("%#", (files, sentence) => {
     expect(describeReleaseNoteStatus(releaseNoteStatus({ dir: releasesDir(files), version: "0.2.0" }))).toBe(sentence);
+  });
+
+  it("says when a fragment waiting is invalid, and why", () => {
+    const sentence = describeReleaseNoteStatus(releaseNoteStatus({ dir: releasesDir({ "unreleased/601.md": fragment({ en: "" }) }), version: "0.2.0" }));
+    expect(sentence).toMatch(/^Release Note 0\.2\.0 : 1 fragment en attente dans releases\/unreleased\/, dont certains invalides, à corriger avant de les assembler :\nunreleased\/601\.md: its en line is missing/);
   });
 });
 

@@ -89,6 +89,8 @@ async function expectSections(page: Page, allowed: Section[], tabs: ActivityTab[
     admin.nav.dashboard,
     ...allowed.map((section) => (section === "signalements" ? new RegExp(`^${admin.sections[section]}`) : admin.sections[section])),
     admin.nav.account,
+    // The Back Office's own help, every Administrator's (#551).
+    admin.nav.help,
     // The public Légal (#544).
     admin.nav.publicLegal,
   ]);

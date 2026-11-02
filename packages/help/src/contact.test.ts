@@ -13,6 +13,10 @@ describe("fillContactEmail (#552)", () => {
     expect(fillContactEmail(`Write to ${CONTACT_EMAIL_TOKEN}.`, "", "en")).toBe("Write to the address given in the legal notice.");
   });
 
+  it("writes the bare address for a text shown without Markdown", () => {
+    expect(fillContactEmail(`Écrivez à ${CONTACT_EMAIL_TOKEN}.`, "bonjour@jobbbox.fr", "fr", { plain: true })).toBe("Écrivez à bonjour@jobbbox.fr.");
+  });
+
   it("leaves a text without the token alone", () => {
     expect(fillContactEmail("Rien à remplir.", "bonjour@jobbbox.fr", "fr")).toBe("Rien à remplir.");
   });

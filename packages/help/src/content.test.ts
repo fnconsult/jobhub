@@ -85,6 +85,7 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     ["an empty body", page(valid, ""), /the body is empty/],
     ["an image", page(valid, "Voyez ![la page](capture.png)."), /no images/],
     ["a link out of the site", page(valid, "Voyez [l'Apec](https://www.apec.fr)."), /a link leads to a page of this site \(\/legal\/…\), never elsewhere: https:\/\/www\.apec\.fr/],
+    ["a link out of the site through a backslash", page(valid, "Voyez [ceci](/\\evil.example)."), /a link leads to a page of this site/],
     ["a mailto link", page(valid, "Écrivez à [l'équipe](mailto:equipe@jobbbox.fr)."), /a link leads to a page of this site/],
     ["an email address written out", page(valid, "Écrivez à bonjour@jobbbox.fr."), /no email address written out: \{\{contact-email\}\} stands for the legal notice's/],
   ])("fails on %s, naming the file", (_case, markdown, problem) => {

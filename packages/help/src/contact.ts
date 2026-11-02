@@ -18,9 +18,12 @@ const NO_ADDRESS: Record<HelpLocale, string> = {
   en: "the address given in the legal notice",
 };
 
-/** `text` with each CONTACT_EMAIL_TOKEN replaced by `email` as a mailto link, or, without one, by words sending the reader to the legal notice. */
-export function fillContactEmail(text: string, email: string | undefined, locale: HelpLocale): string {
+/**
+ * `text` with each CONTACT_EMAIL_TOKEN replaced by `email` as a mailto link (`plain`: the bare address, for a text
+ * shown without Markdown), or, without one, by words sending the reader to the legal notice.
+ */
+export function fillContactEmail(text: string, email: string | undefined, locale: HelpLocale, { plain = false }: { plain?: boolean } = {}): string {
   const address = email?.trim();
-  const shown = address ? `[${address}](mailto:${address})` : NO_ADDRESS[locale];
+  const shown = !address ? NO_ADDRESS[locale] : plain ? address : `[${address}](mailto:${address})`;
   return text.split(CONTACT_EMAIL_TOKEN).join(shown);
 }

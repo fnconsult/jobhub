@@ -22,7 +22,8 @@ export function withPublicContactEmail<T extends { version: LegalTextVersion }>(
     ...shown,
     version: {
       ...version,
-      inBrief: version.inBrief.map((line) => fillContactEmail(line, email, version.locale)),
+      // The summary is shown as plain text, never as Markdown: the bare address.
+      inBrief: version.inBrief.map((line) => fillContactEmail(line, email, version.locale, { plain: true })),
       sections: version.sections.map((section) => ({ ...section, body: fillContactEmail(section.body, email, version.locale) })),
     },
   };

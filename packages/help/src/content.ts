@@ -117,7 +117,7 @@ function articleProblems(article: HelpArticle): string[] {
   if (!article.body) problems.push("the body is empty");
   if (/!\[[^\]]*\]\(/.test(article.body) || /<img\b/i.test(article.body)) problems.push("no images in a Help Article");
   for (const [, target] of article.body.matchAll(/\[[^\]\n]+\]\(([^)\s]+)\)/g))
-    if (!/^\/(?!\/)/.test(target!)) problems.push(`a link leads to a page of this site (/legal/…), never elsewhere: ${target}`);
+    if (!/^\/(?![/\\])/.test(target!) || target!.includes("\\")) problems.push(`a link leads to a page of this site (/legal/…), never elsewhere: ${target}`);
   if (/[\w.+-]+@[\w-]+\.[\w.-]+/.test(article.body.split(CONTACT_EMAIL_TOKEN).join("")))
     problems.push(`no email address written out: ${CONTACT_EMAIL_TOKEN} stands for the legal notice's`);
   return problems;

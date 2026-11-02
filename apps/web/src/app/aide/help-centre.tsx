@@ -23,7 +23,7 @@ export async function helpCentreHref(path: string): Promise<string> {
  */
 export async function helpArticleLinks(): Promise<LinkPolicy> {
   const page = { url: await getUrlLocale(), lang: await getChosenLocale() };
-  return (href) => (href.startsWith("mailto:") ? href : /^\/(?!\/)/.test(href) ? shellHref(href, page) : null);
+  return (href) => (href.startsWith("mailto:") ? href : /^\/(?![/\\])/.test(href) && !href.includes("\\") ? shellHref(href, page) : null);
 }
 
 /** The topic of an address, or a 404: /aide/<anything else> is no page. */

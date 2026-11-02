@@ -62,7 +62,7 @@ test.describe("the Signalement form (#375, #608)", () => {
     await page.goto("/candidatures");
 
     // An icon alone, on Mon compte's row, to its right, a 44 px target.
-    const account = page.locator(".sidebar-docked").getByRole("link", { name: fr.nav.account });
+    const account = page.locator(".sidebar-docked").getByRole("button", { name: fr.nav.account, exact: true });
     const icon = page.locator(".sidebar-docked").getByRole("button", { name: s.open, exact: true });
     await expect(icon).toBeVisible();
     // No words beside it: its name shows only as the tooltip.

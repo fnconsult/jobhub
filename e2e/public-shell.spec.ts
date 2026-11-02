@@ -237,21 +237,24 @@ async function personPage(browser: Browser, email: string, viewport = DESKTOP): 
 }
 
 test.describe("Aide et légal from the app, the coach space and the Back Office", () => {
-  test("the Candidate's Sidebar shows « Aide et légal », on a desktop and in the phone's drawer", async ({ browser }) => {
+  test("the Candidate's Sidebar has « Aide et légal » in Mon compte's menu, on a desktop and in the phone's drawer", async ({ browser }) => {
     const page = await personPage(browser, newAddress("public-shell.candidate"));
     try {
       await page.goto("/compte");
-      const block = page.locator(".sidebar-docked").getByRole("navigation", { name: fr.sidebar.helpAndLegal });
-      await expect(block.getByRole("link")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes]);
-      await expect(block.getByRole("link", { name: fr.publicSite.legal })).toHaveAttribute("href", "/legal/cgu");
-      await targetsAtLeast24px(block);
+      await page.locator(".sidebar-docked").getByRole("button", { name: fr.nav.account, exact: true }).click();
+      const menu = page.getByRole("menu");
+      await expect(menu).toContainText(fr.sidebar.helpAndLegal);
+      // Aide et légal first, then Mon compte's page and « Se déconnecter », nearest the button.
+      await expect(menu.getByRole("menuitem")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes, fr.nav.account, fr.account.signOut]);
+      await expect(menu.getByRole("menuitem", { name: fr.publicSite.legal })).toHaveAttribute("href", "/legal/cgu");
+      for (const item of await menu.getByRole("menuitem").all()) expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+      await page.keyboard.press("Escape");
 
       await page.setViewportSize(PHONE);
       await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
       const drawer = page.getByRole("dialog", { name: fr.sidebar.menu });
-      const inDrawer = drawer.getByRole("navigation", { name: fr.sidebar.helpAndLegal });
-      await expect(inDrawer.getByRole("link")).toHaveText([fr.publicSite.help, fr.publicSite.legal, fr.publicSite.nouveautes]);
-      await inDrawer.getByRole("link", { name: fr.publicSite.nouveautes }).click();
+      await drawer.getByRole("button", { name: fr.nav.account, exact: true }).click();
+      await page.getByRole("menu").getByRole("menuitem", { name: fr.publicSite.nouveautes }).click();
       await expect(page).toHaveURL(`${origin}/nouveautes`);
       // Signed in, the public header and footer lead to « Mon compte ».
       await expect(header(page).getByRole("link", { name: fr.nav.account })).toHaveAttribute("href", "/compte");

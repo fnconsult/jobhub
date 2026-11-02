@@ -1,13 +1,17 @@
 /**
- * Unanswered Questions (#344, ADR-0035): the Candidates' questions to the AI Coach that the help missed, for Help
- * editors to turn into Help Articles or synonyms. An AI answer never becomes help by itself.
+ * Unanswered Questions (#344, ADR-0035, ADR-0065): the questions about using Jobbbox the help missed, for Help editors
+ * to turn into Help Articles or synonyms. An AI answer never becomes help by itself. Each names its audience: a
+ * Candidate's, asked the AI Coach, or an Administrator's, asked the Back Office Assistant (#551).
  *
  * One deep module in front of Postgres. `createUnansweredQuestions(database, { identityOf })` answers:
  *  - `notice` an AI Coach reply: its question is recorded only when no Help Article matched it (the search the
  *    Coach Panel's box runs, see ../coach-help), the AI Coach replied (not blocked, not distress, not unavailable)
  *    and marked it as asking how to use Jobbbox. The same question again (same words as the search reads them,
- *    same page, same Interface Language) raises its `count`;
- *  - `open` the ones not marked yet, most asked first, by page (route pattern) and by language;
+ *    same page, same Interface Language, same audience) raises its `count`;
+ *  - `request` a tutorial (« Demander un tutoriel », #551): an Administrator's question to the Back Office Assistant,
+ *    recorded only on their click, never automatically, with its audience (`administrator`) and the Back Office
+ *    section in view, never the Administrator: no id is ever given to it;
+ *  - `open` the ones not marked yet, most asked first, by page (route pattern), by language and by audience;
  *  - `mark` one « Article écrit » (written) or « Écarter » (dismissed), on the Back Office's transaction.
  * and `purgeUnansweredQuestions(database, now)` (the worker, daily) and `migrateUnansweredQuestions(database)`.
  *
@@ -18,7 +22,7 @@
  * MARKED_RETENTION_DAYS after it was marked written or dismissed.
  */
 import { redactIdentity, type CandidateIdentity } from "@jobhub/ai";
-import { questionKey } from "@jobhub/help";
+import { HELP_AUDIENCES, questionKey, type HelpAudience } from "@jobhub/help";
 import type { Pool } from "pg";
 import type { CoachReplyOutcome } from "../coach";
 import { helpLocale, helpSuggestions } from "../coach-help";
@@ -34,15 +38,23 @@ export const isUnansweredQuestionMark = (value: unknown): value is UnansweredQue
 export const UNANSWERED_QUESTION_LANGUAGES = ["fr", "en"] as const;
 export type UnansweredQuestionLanguage = (typeof UNANSWERED_QUESTION_LANGUAGES)[number];
 
+/** Who asked (ADR-0065): the audience whose help missed the question. */
+export const UNANSWERED_QUESTION_AUDIENCES = HELP_AUDIENCES;
+export type UnansweredQuestionAudience = HelpAudience;
+export const isUnansweredQuestionAudience = (value: unknown): value is UnansweredQuestionAudience =>
+  (UNANSWERED_QUESTION_AUDIENCES as readonly unknown[]).includes(value);
+
 export interface UnansweredQuestion {
   id: string;
-  /** The Candidate's question, redacted. The first one asked of its group. */
+  /** Whose help missed it: `candidate` (the AI Coach), `administrator` (the Back Office Assistant's « Demander un tutoriel »). */
+  audience: UnansweredQuestionAudience;
+  /** The question, redacted. The first one asked of its group. */
   question: string;
-  /** The AI Coach's answer to it, redacted. */
+  /** The AI's answer to it (the AI Coach's or the Back Office Assistant's), redacted. */
   answer: string;
-  /** The route pattern of the page it was asked from (`/candidatures/[id]`); null when it is not known. */
+  /** The route pattern of the page or Back Office section it was asked from (`/candidatures/[id]`); null when it is not known. */
   route: string | null;
-  /** The Candidate's Interface Language. */
+  /** The asker's Interface Language. */
   language: UnansweredQuestionLanguage;
   count: number;
   firstAskedAt: Date;
@@ -59,11 +71,27 @@ export interface NoticedReply {
   language: UnansweredQuestionLanguage;
 }
 
+/** « Demander un tutoriel » (#551): what the Back Office Assistant was asked and answered, where, in which language; never who asked. */
+export interface TutorialRequest {
+  question: string;
+  /** The Back Office Assistant's reply, kept as raw material for the Help editor. */
+  answer: string;
+  /** The address of the Back Office section in view; taken down to its route pattern. */
+  route?: string | null;
+  language: UnansweredQuestionLanguage;
+}
+
 export interface UnansweredQuestions {
   /** Records `asked` when the help missed a question about using Jobbbox (see above); whether it did. Never throws for the reply's content. */
   notice(candidateId: string, asked: NoticedReply): Promise<boolean>;
-  /** The open ones, most asked first (then the latest asked), of one route pattern, one language, or both. */
-  open(filter?: { route?: string; language?: string }): Promise<UnansweredQuestion[]>;
+  /**
+   * Records an Administrator's « Demander un tutoriel » (#551) as an Unanswered Question of the `administrator` audience,
+   * redacted by shape (every email address and phone number), with no Administrator id: it takes none. Whether it was
+   * recorded: false for a question with no words the search reads.
+   */
+  request(asked: TutorialRequest): Promise<boolean>;
+  /** The open ones, most asked first (then the latest asked), of one route pattern, one language, one audience, or any of them. */
+  open(filter?: { route?: string; language?: string; audience?: string }): Promise<UnansweredQuestion[]>;
   /** Marks an open one written or dismissed, on `within` (the Back Office's transaction); null when there is no open one with that id. */
   mark(id: string, status: UnansweredQuestionMark, within?: Queryable): Promise<{ before: UnansweredQuestion; after: UnansweredQuestion } | null>;
 }
@@ -80,8 +108,10 @@ export const RETENTION_MONTHS = 12;
 /** How long an Unanswered Question is kept once marked written or dismissed. */
 export const MARKED_RETENTION_DAYS = 30;
 
-/** Longest answer kept: enough for a Help editor to see what the AI Coach said. */
+/** Longest answer kept: enough for a Help editor to see what the AI said. */
 const MAX_ANSWER_LENGTH = 4_000;
+/** Longest question kept: what the Back Office Assistant's box takes. */
+const MAX_QUESTION_LENGTH = 4_000;
 const MAX_SEGMENTS = 8;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -104,6 +134,7 @@ function helpMissed({ question, reply, language }: NoticedReply): boolean {
 
 interface Row {
   id: string;
+  audience: UnansweredQuestionAudience;
   question: string;
   answer: string;
   route: string | null;
@@ -114,10 +145,11 @@ interface Row {
   status: UnansweredQuestionStatus;
 }
 
-const COLUMNS = "id::text, question, answer, route, language, count, first_asked_at, last_asked_at, status";
+const COLUMNS = "id::text, audience, question, answer, route, language, count, first_asked_at, last_asked_at, status";
 
 const fromRow = (row: Row): UnansweredQuestion => ({
   id: row.id,
+  audience: row.audience,
   question: row.question,
   answer: row.answer,
   route: row.route,
@@ -141,29 +173,43 @@ export function createUnansweredQuestions(database: Queryable, deps: UnansweredQ
     return [question!, answer!];
   }
 
+  /** Keeps one asked question, or counts it once more when the same one is open (same words, page, language and audience). */
+  async function record(audience: UnansweredQuestionAudience, key: string, question: string, answer: string, route: string | null, language: UnansweredQuestionLanguage) {
+    const at = now();
+    await database.query(
+      `INSERT INTO unanswered_question (audience, question, answer, question_key, route, language, count, first_asked_at, last_asked_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $7)
+       ON CONFLICT (audience, language, question_key, coalesce(route, '')) WHERE status = 'open'
+       DO UPDATE SET count = unanswered_question.count + 1, last_asked_at = greatest(unanswered_question.last_asked_at, EXCLUDED.last_asked_at)`,
+      [audience, question, answer, key, routePattern(route), language, at],
+    );
+  }
+
   return {
     async notice(candidateId, asked) {
       if (!helpMissed(asked)) return false;
       const key = questionKey(asked.question);
       if (!key) return false;
       const [question, answer] = await redacted(candidateId, [asked.question.trim(), asked.reply.text.trim().slice(0, MAX_ANSWER_LENGTH)]);
-      const at = now();
-      await database.query(
-        `INSERT INTO unanswered_question (question, answer, question_key, route, language, count, first_asked_at, last_asked_at)
-         VALUES ($1, $2, $3, $4, $5, 1, $6, $6)
-         ON CONFLICT (language, question_key, coalesce(route, '')) WHERE status = 'open'
-         DO UPDATE SET count = unanswered_question.count + 1, last_asked_at = greatest(unanswered_question.last_asked_at, EXCLUDED.last_asked_at)`,
-        [question, answer, key, routePattern(asked.route), asked.language, at],
-      );
+      await record("candidate", key, question, answer, asked.route ?? null, asked.language);
       return true;
     },
 
-    async open({ route, language } = {}) {
+    async request(asked) {
+      const key = questionKey(asked.question);
+      if (!key) return false;
+      // No identity to take out: an Administrator is never named here. Every email address and phone number goes by its shape.
+      const [question, answer] = redactIdentity([asked.question.trim().slice(0, MAX_QUESTION_LENGTH), asked.answer.trim().slice(0, MAX_ANSWER_LENGTH)], null).texts;
+      await record("administrator", key, question!, answer!, asked.route ?? null, asked.language);
+      return true;
+    },
+
+    async open({ route, language, audience } = {}) {
       const { rows } = await database.query<Row>(
         `SELECT ${COLUMNS} FROM unanswered_question
-          WHERE status = 'open' AND ($1::text IS NULL OR route = $1) AND ($2::text IS NULL OR language = $2)
+          WHERE status = 'open' AND ($1::text IS NULL OR route = $1) AND ($2::text IS NULL OR language = $2) AND ($3::text IS NULL OR audience = $3)
           ORDER BY count DESC, last_asked_at DESC, route NULLS FIRST, language, question`,
-        [route ?? null, language ?? null],
+        [route ?? null, language ?? null, audience ?? null],
       );
       return rows.map(fromRow);
     },
@@ -211,8 +257,13 @@ export async function migrateUnansweredQuestions(database: Pool): Promise<void> 
       status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'written', 'dismissed')),
       status_changed_at timestamptz
     );
-    -- One open row per question, page and language; a question asked again once marked opens a new one.
-    CREATE UNIQUE INDEX IF NOT EXISTS unanswered_question_open_idx ON unanswered_question (language, question_key, coalesce(route, '')) WHERE status = 'open';
+    -- Whose help missed it (#551): every question kept before was a Candidate's.
+    ALTER TABLE unanswered_question ADD COLUMN IF NOT EXISTS audience text NOT NULL DEFAULT 'candidate'
+      CHECK (audience IN (${HELP_AUDIENCES.map((audience) => `'${audience}'`).join(", ")}));
+    -- One open row per audience, question, page and language; a question asked again once marked opens a new one.
+    DROP INDEX IF EXISTS unanswered_question_open_idx;
+    CREATE UNIQUE INDEX IF NOT EXISTS unanswered_question_open_audience_idx
+      ON unanswered_question (audience, language, question_key, coalesce(route, '')) WHERE status = 'open';
     CREATE INDEX IF NOT EXISTS unanswered_question_last_asked_idx ON unanswered_question (last_asked_at);
   `);
 }

@@ -3,7 +3,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
-import { CoachConversationPage, CoachPanel } from "./CoachPanel";
+import { CoachConversationPage } from "./CoachConversationPage";
+import { PageHelpProvider } from "./page-help";
 import { HelpTerm } from "./HelpTerm";
 import { ConversationFirstProvider } from "./conversation-first";
 import { WorkPane, WorkPaneProvider } from "./WorkPane";
@@ -126,23 +127,23 @@ describe("the help of a page that is a conversation, in the Work Pane (#602, ADR
   });
 });
 
-describe("a HelpTerm under « Conversation au centre » (#602)", () => {
-  it("opens its Help Article in the Work Pane, never in the Coach Panel", async () => {
+describe("a HelpTerm on a Candidate's page (#602, #608)", () => {
+  it("opens its Help Article in the Work Pane", async () => {
     const user = userEvent.setup();
-    // As the app nests them: the Coach Panel around every page, the Work Pane in the page's layout.
+    // As the Candidate's layout nests them (SidebarLayout).
     renderInFrench(
-      <CoachPanel>
-        <ConversationFirstProvider conversations={[]}>
-          <WorkPaneProvider version="1.2.3">
+      <ConversationFirstProvider conversations={[]}>
+        <WorkPaneProvider version="1.2.3">
+          <PageHelpProvider>
             <main>
               <p>
                 Votre première <HelpTerm term="followUp">Relance</HelpTerm>
               </p>
             </main>
             <WorkPane />
-          </WorkPaneProvider>
-        </ConversationFirstProvider>
-      </CoachPanel>,
+          </PageHelpProvider>
+        </WorkPaneProvider>
+      </ConversationFirstProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: /^Relance/ }));

@@ -4,6 +4,7 @@ import { expect as baseExpect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { workPaneOf } from "./support/conversation";
 
 // Issue #409: « Entreprises cibles », a Section of the Profile's page. The Profile's Target Companies (#406): La
 // Bonne Boite's, credited to France Travail, and those the Candidate adds by name (resolved in the company register,
@@ -101,10 +102,9 @@ test.describe("« Entreprises cibles » on the Profile", () => {
 
     await openSection(page, profileId);
 
-    await expect(page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel }).getByRole("link", { name: fr.profilePage.sections["entreprises-cibles"] })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    // The Section shown, in the Work Pane, which its title names (#605).
+    const title = fr.profilePage.sections["entreprises-cibles"];
+    await expect(workPaneOf(page, title).getByRole("heading", { level: 2, name: title })).toBeVisible();
     await expect(sectionOf(page).getByRole("img", { name: "France Travail" })).toBeVisible();
     // Best hiring first.
     await expect(companiesOf(page).getByRole("heading")).toHaveText(["GAMMA CONSEIL", "BETA LOGISTIQUE"]);

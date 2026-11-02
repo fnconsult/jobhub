@@ -6,15 +6,19 @@ import { SIGNALEMENT_GLYPHS } from "../apps/web/src/components/signalement-glyph
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
-// Issue #375: the Signalement dialog, opened by the icon beside « Mon compte » in the Sidebar's foot. Bug / Idée, a
+// Issue #375: the Signalement form, opened by the icon beside « Mon compte » in the Sidebar's foot. Bug / Idée, a
 // message of 10 to 2,000 characters, its context attached automatically and stored through POST /api/signalements
-// (#374); the title's icon follows the type, morphing with SMIL only when motion is allowed. Driven in the browser.
+// (#374); the title's icon follows the type, morphing with SMIL only when motion is allowed. Since #602 and #608 the
+// form opens in the Work Pane beside the page, not in a dialog: the pane's title takes the focus as it opens, its ✕,
+// Escape or « Annuler » closes it, the focus back on the icon. Driven in the browser.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const s = fr.signalement;
 const databaseUrl = process.env.E2E_DATABASE_URL!;
 
 const iconOf = (page: Page) => page.getByRole("button", { name: s.open, exact: true });
-const dialogOf = (page: Page) => page.getByRole("dialog", { name: s.title });
+/** The form, in the Work Pane, named by its title. */
+const dialogOf = (page: Page) => page.getByRole("complementary", { name: s.title });
+const titleOf = (page: Page) => dialogOf(page).getByRole("heading", { level: 2, name: s.title });
 const messageOf = (page: Page) => dialogOf(page).getByRole("textbox");
 const sendOf = (page: Page) => dialogOf(page).getByRole("button", { name: s.send, exact: true });
 const titlePathOf = (page: Page) => dialogOf(page).locator(".signalement-title svg path");
@@ -41,7 +45,7 @@ async function expectNoAxeViolations(page: Page, selector: string) {
 /** Counts every `<animate>` added under the dialog's title from now on, even one removed once played. */
 async function countAnimatesAdded(page: Page) {
   await page.evaluate(() => {
-    const title = document.querySelector("[role=dialog] .signalement-title")!;
+    const title = document.querySelector(".work-pane .signalement-title")!;
     const w = window as unknown as { animatesAdded: number };
     w.animatesAdded = 0;
     new MutationObserver((records) => {
@@ -51,8 +55,8 @@ async function countAnimatesAdded(page: Page) {
   return () => page.evaluate(() => (window as unknown as { animatesAdded: number }).animatesAdded);
 }
 
-test.describe("the Signalement dialog (#375)", () => {
-  test("the icon beside Mon compte opens the dialog; a Bug and an Idée are stored with their context, and the dialog thanks", async ({ page }) => {
+test.describe("the Signalement form (#375, #608)", () => {
+  test("the icon beside Mon compte opens the form in the Work Pane; a Bug and an Idée are stored with their context, and the form thanks", async ({ page }) => {
     const email = newAddress("signalement-dialog-send");
     await signInWithMagicLink(page, email);
     await page.goto("/candidatures");
@@ -76,8 +80,10 @@ test.describe("the Signalement dialog (#375)", () => {
 
     await icon.click();
     await expect(dialogOf(page)).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(dialogOf(page).getByRole("radio", { name: s.types.bug })).toBeChecked();
-    await expect(dialogOf(page).getByLabel(s.label.bug)).toBeFocused();
+    await expect(titleOf(page)).toBeFocused();
+    await expect(dialogOf(page).getByLabel(s.label.bug)).toBeVisible();
     await expect(messageOf(page)).toHaveAttribute("placeholder", s.placeholder.bug);
     await expect(dialogOf(page)).toContainText(s.notice);
     await expect(dialogOf(page)).toContainText(s.readBy);
@@ -93,7 +99,7 @@ test.describe("the Signalement dialog (#375)", () => {
     await expect(dialogOf(page)).toContainText(`${bugMessage.length} / 2000`);
     await sendOf(page).click();
     await expect(dialogOf(page).getByRole("status")).toContainText(s.thanks);
-    await dialogOf(page).getByRole("button", { name: s.close, exact: true }).click();
+    await dialogOf(page).locator(".signalement-actions").getByRole("button", { name: s.close, exact: true }).click();
     await expect(dialogOf(page)).toBeHidden();
     await expect(icon).toBeFocused();
 
@@ -188,7 +194,7 @@ test.describe("the Signalement dialog (#375)", () => {
     await expect(page.locator(".sidebar-docked .signalement-open path")).toHaveAttribute("d", SIGNALEMENT_GLYPHS.bug);
   });
 
-  test("axe passes on the open dialog; the icon is named « Signalement » and focus returns to it on close; the phone drawer has it too", async ({ page }) => {
+  test("axe passes on the open form; the icon is named « Signalement » and focus returns to it on close; the phone drawer has it too", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("signalement-dialog-a11y"));
 
     await expect(iconOf(page)).toHaveAccessibleName(s.open);
@@ -196,26 +202,31 @@ test.describe("the Signalement dialog (#375)", () => {
     await expect(page.locator(".sidebar-docked .signalement-tip")).toBeVisible();
     await iconOf(page).press("Enter");
     await expect(dialogOf(page)).toBeVisible();
+    await expect(titleOf(page)).toBeFocused();
     await dialogOf(page).getByRole("button", { name: s.showDetail }).click();
-    await expectNoAxeViolations(page, "[role=dialog]");
-    // Focus stays inside the dialog.
-    for (let n = 0; n < 12; n++) {
-      await page.keyboard.press("Tab");
-      expect(await page.evaluate(() => Boolean(document.activeElement?.closest("[role=dialog]")))).toBe(true);
-    }
+    await expectNoAxeViolations(page, ".work-pane");
+    // Beside the page, not over it: from its title, Tab goes on through the pane's own controls first (#608).
+    await titleOf(page).focus();
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => Boolean(document.activeElement?.closest(".work-pane")))).toBe(true);
     await dialogOf(page).getByRole("button", { name: s.cancel, exact: true }).click();
     await expect(iconOf(page)).toBeFocused();
 
-    // On a phone: the same icon in the drawer, a dialog over the whole screen.
+    // On a phone: the same icon in the drawer; the drawer closes and the form opens over the whole screen, the page behind
+    // out of reach; closing it gives the focus to the Menu button, the drawer's icon being gone with it (#608).
     await page.setViewportSize({ width: 390, height: 800 });
-    await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
+    const menu = page.getByRole("button", { name: fr.sidebar.menu, exact: true });
+    await menu.click();
     const drawerIcon = page.locator(".sidebar-drawer").getByRole("button", { name: s.open, exact: true });
     await drawerIcon.click();
     await expect(dialogOf(page)).toBeVisible();
+    await expect(titleOf(page)).toBeFocused();
     const box = (await dialogOf(page).boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(389);
-    await expectNoAxeViolations(page, "[role=dialog]");
+    await expect(page.locator("main")).toHaveAttribute("inert", "");
+    await expectNoAxeViolations(page, ".work-pane");
     await page.keyboard.press("Escape");
-    await expect(drawerIcon).toBeFocused();
+    await expect(dialogOf(page)).toHaveCount(0);
+    await expect(menu).toBeFocused();
   });
 });

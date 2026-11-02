@@ -49,10 +49,28 @@ describe("Mes candidatures as its menu conversation's card and its Sidebar objec
     });
 
     expect(menu.rows).toEqual([
-      { id: "a1", title: "DAF H/F", employer: "Acme", status: "applied", matchScore: 85, toHandle: "follow_up" },
-      { id: "a2", title: "Contrôleur de gestion", employer: null, status: "to_apply", matchScore: null, toHandle: null },
+      { id: "a1", title: "DAF H/F", employer: "Acme", status: "applied", matchScore: 85, toHandle: "follow_up", expired: false, reportedByYou: false },
+      { id: "a2", title: "Contrôleur de gestion", employer: null, status: "to_apply", matchScore: null, toHandle: null, expired: false, reportedByYou: false },
     ]);
     expect(menu.toHandle).toBe(1);
+  });
+
+  it("flags an Application on an Expired Job Offer, or one the Candidate reported unavailable, its status as they left it", () => {
+    const menu = applicationsMenu({
+      applications: [
+        application("a1", { status: "interview", jobOffer: { id: "o1", title: "DAF H/F", expiredAt: new Date(Date.UTC(2026, 9, 20)) } }),
+        application("a2", { status: "applied", reportedUnavailableAt: new Date(Date.UTC(2026, 9, 25)) }),
+        application("a3"),
+      ],
+      notices: [],
+      matchScores: new Map(),
+    });
+
+    expect(menu.rows.map(({ id, status, expired, reportedByYou }) => ({ id, status, expired, reportedByYou }))).toEqual([
+      { id: "a1", status: "interview", expired: true, reportedByYou: false },
+      { id: "a2", status: "applied", expired: true, reportedByYou: true },
+      { id: "a3", status: "to_apply", expired: false, reportedByYou: false },
+    ]);
   });
 
   it("leaves out Archived Applications, counting them, until the Candidate asks for them", () => {

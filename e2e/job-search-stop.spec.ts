@@ -6,6 +6,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { startJobSearch } from "./support/conversation";
 import { subscribe } from "./support/plan";
 
 // Issue #331: the Candidate stops a Job Search; a stopped or failed one keeps the Job Offers it had found, and one
@@ -44,7 +45,6 @@ test.use({ baseURL: origin });
 
 let worker: ChildProcess | undefined;
 let workerOutput = "";
-let profileId = "";
 let scenario = 0;
 
 /** A worker for a fresh set of postings (a Job Search finding only Job Offers already known runs in no time). */
@@ -112,12 +112,9 @@ async function jobSearchesUsed(page: Page): Promise<string> {
   return (await page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd").innerText()).trim();
 }
 
-/** Clicks « Chercher des offres » for the Profile and returns the Job Search's id once on its page. */
+/** Clicks « Lancer une recherche » on Recherches d'offres (#606) and returns the Job Search's id once on its page. */
 async function startSearch(page: Page): Promise<string> {
-  await page.goto(`/recherches?profil=${profileId}`);
-  await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
-  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
-  return new URL(page.url()).pathname.split("/").pop()!;
+  return startJobSearch(page);
 }
 
 /** Waits until the worker has read at least one posting of the running Job Search (its live steps, as the pages poll them). */
@@ -170,7 +167,6 @@ test.describe("Stopping a Job Search, and the Job Offers a stopped or failed one
     page = await signedInCandidate(browser, "search-stop");
     const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria } });
     expect(created.status(), await created.text()).toBe(201);
-    profileId = (await created.json()).id;
   });
 
   test.afterAll(async () => {
@@ -205,12 +201,13 @@ test.describe("Stopping a Job Search, and the Job Offers a stopped or failed one
     // Any other page tells when it stopped, and that it kept them.
     await expect(notifications.getByText(/^Recherche arrêtée à \d{2}:\d{2} : \d offres? trouvées? pour « Directeur administratif et financier », gardées?\.$/)).toBeVisible({ timeout: 10_000 });
 
-    // Its page shows it stopped, with the Job Offers kept.
+    // Its page shows it stopped, on its Fiche (#605), with the Job Offers kept, its Section.
     await page.goto(`/recherches/${jobSearchId}`);
     await expect(page.getByText("Arrêtée", { exact: true })).toBeVisible();
     await expect(page.getByText(new RegExp(`Vous avez arrêté cette recherche : (l'offre trouvée jusque-là est gardée|les ${row.job_offer_ids.length} offres trouvées jusque-là sont gardées)\\.`))).toBeVisible();
-    await expect(page.getByRole("link", { name: "Lire l'offre" })).toHaveCount(row.job_offer_ids.length);
     await expect(page.getByRole("button", { name: "Arrêter la recherche", exact: true })).toHaveCount(0);
+    await page.goto(`/recherches/${jobSearchId}/offres`);
+    await expect(page.getByRole("link", { name: "Lire l'offre" })).toHaveCount(row.job_offer_ids.length);
 
     // It counts in the week's Job Searches.
     const [usedBefore, of] = before.split(" sur ");
@@ -256,8 +253,8 @@ test.describe("Stopping a Job Search, and the Job Offers a stopped or failed one
       ).toBeVisible({ timeout: 10_000 });
       await expect(notifications.getByText(/^Les sites d'offres d'emploi n'ont pas pu être consultés\. (L'offre trouvée avant l'échec est gardée|Les \d offres trouvées avant l'échec sont gardées)\./)).toBeVisible();
 
-      // Its page lists them.
-      await page.goto(`/recherches/${jobSearchId}`);
+      // Its page lists them, its Section (#605).
+      await page.goto(`/recherches/${jobSearchId}/offres`);
       await expect(page.getByRole("link", { name: "Lire l'offre" })).toHaveCount(row.job_offer_ids.length);
     } finally {
       rmSync(searchDownFlag, { force: true });

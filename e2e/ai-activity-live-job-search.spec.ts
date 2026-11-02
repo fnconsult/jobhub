@@ -7,6 +7,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { activityOf, activityUnderWayOf, openActivity } from "./support/conversation";
 import { subscribe } from "./support/plan";
 
 // Issue #333: AI Activity live, for a Job Search. Started, then left for another page, the search keeps its Activity's glyph
@@ -45,7 +46,6 @@ test.use({ baseURL: origin });
 
 let worker: ChildProcess | undefined;
 let workerOutput = "";
-let profileId = "";
 let scenario = 0;
 
 /** A worker for a fresh set of postings, each page taking 2.5 s to answer. */
@@ -106,10 +106,10 @@ async function statusOf(jobSearchId: string): Promise<string> {
   }
 }
 
-/** Clicks « Chercher des offres » for the Profile and returns the Job Search's id once on its page. */
+/** Clicks « Lancer une recherche », Recherches d'offres' suggestion (#606), and returns the Job Search's id once on its page. */
 async function startSearch(page: Page): Promise<string> {
-  await page.goto(`/recherches?profil=${profileId}`);
-  await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
+  await page.goto("/recherches");
+  await page.getByRole("navigation", { name: fr.quickActions.label }).getByRole("button", { name: fr.jobSearchesMenu.start, exact: true }).click();
   await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
   return new URL(page.url()).pathname.split("/").pop()!;
 }
@@ -120,9 +120,9 @@ async function toApplications(page: Page) {
   await expect(page).toHaveURL(/\/candidatures$/);
 }
 
-const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 const stopIconOf = (region: Locator) => region.getByRole("button", { name: fr.aiActivity.live.stop.job_search, exact: true });
-const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
+/** Where the page's AI Activity shows: an object's Fiche, in its Activity group, or the Activité column. */
+const paneOf = (page: Page) => activityOf(page);
 const announcerOf = (page: Page) => page.locator(".ai-activity-announcer");
 
 /** Records everything AI Activity's live region says from now on, while the app is not loaded again. */
@@ -171,7 +171,6 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await subscribe(page, email, "standard");
     const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria } });
     expect(created.status(), await created.text()).toBe(201);
-    profileId = (await created.json()).id;
   });
 
   test.afterAll(async () => {
@@ -180,54 +179,24 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     rmSync(workDir, { recursive: true, force: true });
   });
 
-  test("on another page the button keeps its glyph and step, « En cours ailleurs » links to it; stopped from the closed button", async () => {
+  test("on another page « Activité » keeps its glyph live, « En cours ailleurs » links to it; stopped from there", async () => {
     await freshWorker();
     const jobSearchId = await startSearch(page);
     await listenToAnnouncements(page);
     await toApplications(page);
 
-    // The closed button: the Activity's glyph and the step under way, a stop icon beside it.
-    const button = aiActivityButton(page);
-    await expect(button.locator("svg.activity-glyph")).toBeVisible({ timeout: 30_000 });
-    await expect(button).toHaveAccessibleName(new RegExp(STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")), { timeout: 30_000 });
-    const glyph = button.locator("svg.activity-glyph");
+    // The closed button: the Activity's glyph, live (#603). It moves while the step runs: its strokes are drawn anew.
+    const glyph = activityUnderWayOf(page);
+    await expect(glyph).toBeVisible({ timeout: 30_000 });
     expect(await glyph.getAttribute("aria-hidden")).toBe("true");
-    // It moves while the step runs: its strokes are drawn anew, frame after frame.
     const drawn = await strokesOf(glyph);
     await expect.poll(() => strokesOf(glyph), { timeout: 5_000 }).not.toBe(drawn);
-    const banner = page.getByRole("banner");
-    const stopIcon = stopIconOf(banner);
-    await expect(stopIcon).toBeVisible();
-    await expect(stopIcon).toHaveAttribute("title", fr.aiActivity.live.stop.job_search);
-    // #369: the glyph alone in the frame, the step in words left of it; the stop icon beside the words, between them
-    // and the frame, on their row (as #333 had it, and prototype a6d65a8c).
-    const frame = button.locator(".ai-activity-frame");
-    const stepWords = banner.locator(".ai-activity-summary");
-    await expect(frame.locator("svg.activity-glyph")).toBeVisible();
-    await expect(frame).toHaveText("");
-    const [wordsBox, frameBox, stopBox] = [(await stepWords.boundingBox())!, (await frame.boundingBox())!, (await stopIcon.boundingBox())!];
-    expect(wordsBox.x + wordsBox.width).toBeLessThanOrEqual(stopBox.x);
-    expect(stopBox.x + stopBox.width).toBeLessThanOrEqual(frameBox.x);
-    expect(stopBox.y + stopBox.height / 2).toBeCloseTo(frameBox.y + frameBox.height / 2, 0);
-    expect(wordsBox.y + wordsBox.height / 2).toBeCloseTo(frameBox.y + frameBox.height / 2, 0);
     // Start announced, never a step.
     await expect(announcerOf(page)).toHaveText(fr.aiActivity.live.announce.started.job_search);
+    await expectNoAxeViolations(page, "header.topbar");
 
-    // The step stays part of the button's name, in metadata style.
-    await expect(button).toHaveAccessibleName(new RegExp(`^${fr.aiActivity.label} .+`));
-    const words = await stepWords.evaluate((element) => {
-      const css = getComputedStyle(element);
-      return { color: css.color, rem: parseFloat(css.fontSize) / parseFloat(getComputedStyle(document.documentElement).fontSize), whiteSpace: css.whiteSpace, textOverflow: css.textOverflow };
-    });
-    expect(words).toEqual({ color: "rgb(104, 105, 120)", rem: 0.8125, whiteSpace: "nowrap", textOverflow: "ellipsis" });
-
-    // The pane: « En cours ailleurs », the search with its steps, a link to its page and its stop icon.
-    // Clicking the step's words opens the pane too; open, the close icon alone in the frame and no words.
-    await stepWords.click();
-    await expect(button).toHaveAttribute("aria-expanded", "true");
-    await expect(stepWords).toHaveCount(0);
-    await expect(frame).toHaveText("");
-    await expect(frame.locator("svg")).toHaveCount(1);
+    // AI Activity: « En cours ailleurs », the search with its steps, a link to its page and its stop icon.
+    await openActivity(page);
     const pane = paneOf(page);
     const elsewhere = pane.locator(".ai-activity-elsewhere");
     await expect(elsewhere.getByRole("heading", { name: fr.aiActivity.live.elsewhere })).toBeVisible();
@@ -235,19 +204,19 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await expect(search).toContainText(`${fr.aiActivity.kinds.job_search} · `);
     await expect(search).toContainText(/En cours · \d/);
     await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).getByRole("listitem").first()).toBeVisible({ timeout: 30_000 });
-    // Each step shows its hour.
+    // Each step shows its hour, and its label in words.
     await expect(search.getByRole("list", { name: fr.aiActivity.live.steps }).getByRole("listitem").first().locator("time")).toHaveText(/^\d{2}:\d{2}$/);
+    await expect(search.getByRole("list", { name: fr.aiActivity.live.steps })).toContainText(new RegExp(STEP_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")));
     await expect(search.getByRole("link", { name: fr.aiActivity.live.open.job_search })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
-    await expect(stopIconOf(search)).toBeVisible();
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
-    await pane.getByRole("button", { name: fr.aiActivity.close }).click();
-    await expectNoAxeViolations(page, "header.topbar");
+    const stopIcon = stopIconOf(search);
+    await expect(stopIcon).toBeVisible();
+    await expect(stopIcon).toHaveAttribute("title", fr.aiActivity.live.stop.job_search);
+    await expectNoAxeViolations(page, ".fiche-activity");
 
-    // Stop from the closed button: the search is stopped.
+    // Stopped from there: the search is stopped.
     await stopIcon.click();
     await expect.poll(() => statusOf(jobSearchId), { timeout: 90_000, message: workerOutput }).toBe("stopped");
-    await expect(stopIconOf(banner)).toHaveCount(0, { timeout: 10_000 });
-    await button.click();
+    await expect(glyph).toHaveCount(0, { timeout: 10_000 });
     const stopped = paneOf(page).locator(".ai-activity-live");
     await expect(stopped).toContainText(/Arrêtée à \d{2}:\d{2}/);
     expect(await stopped.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(stopped));
@@ -263,8 +232,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     try {
       await freshWorker();
       const jobSearchId = await startSearch(page);
-      const button = aiActivityButton(page);
-      const glyph = button.locator("svg.activity-glyph");
+      const glyph = activityUnderWayOf(page);
       await expect(glyph).toBeVisible({ timeout: 30_000 });
       expect(await glyph.evaluate((element) => element.getAnimations().length)).toBe(0);
       // Its still drawing: React's paths, none drawn from JavaScript (those carry an opacity), even a while later.
@@ -272,7 +240,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
       await page.waitForTimeout(800);
       expect(await glyph.evaluate((svg) => svg.querySelectorAll("path[opacity], path:not([d])").length)).toBe(0);
 
-      await button.click();
+      await openActivity(page);
       // On its own page it is this page's action, not « En cours ailleurs ».
       const pane = paneOf(page);
       await expect(pane.locator(".ai-activity-elsewhere")).toHaveCount(0);
@@ -293,8 +261,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     await freshWorker();
     const jobSearchId = await startSearch(page);
     await toApplications(page);
-    const button = aiActivityButton(page);
-    await button.click();
+    await openActivity(page);
     const search = paneOf(page).locator(".ai-activity-live");
     // Once a posting is read, Perplexity goes down: the run's next web search fails.
     await expect(search.getByRole("listitem").filter({ hasText: fr.aiActivity.steps.read }).first()).toBeVisible({ timeout: 60_000 });
@@ -304,7 +271,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
       await expect(search).toContainText(/Échec à \d{2}:\d{2}, pendant l'étape « Recherche web »/, { timeout: 10_000 });
       await expect(search).toContainText(fr.jobSearch.failureReasons.discovery_failed);
       expect(await search.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(await dangerSurface(search));
-      await expectNoAxeViolations(page, "aside.ai-activity-pane");
+      await expectNoAxeViolations(page, ".fiche-activity");
     } finally {
       rmSync(searchDownFlag, { force: true });
     }
@@ -315,7 +282,7 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     const jobSearchId = await startSearch(page);
     await toApplications(page);
     await listenToAnnouncements(page);
-    await aiActivityButton(page).click();
+    await openActivity(page);
     const search = paneOf(page).locator(".ai-activity-live");
     await expect(search).toBeVisible({ timeout: 30_000 });
 
@@ -340,6 +307,6 @@ test.describe("AI Activity live: a Job Search (#333)", () => {
     const said = await announcements(page);
     expect(said).not.toContain(fr.aiActivity.live.announce.done.job_search);
     for (const text of said) expect(ANNOUNCEMENTS).toContain(text);
-    await expectNoAxeViolations(page, "aside.ai-activity-pane");
+    await expectNoAxeViolations(page, ".fiche-activity");
   });
 });

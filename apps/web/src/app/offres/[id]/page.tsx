@@ -7,7 +7,6 @@ import { getApplications } from "@/applications/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { SaveJobOfferForm } from "@/components/ApplicationControls";
-import { CoachInView } from "@/components/CoachPanel";
 import { ExpiredJobOfferNotice, JobOfferView } from "@/components/JobOfferView";
 import { matchScoreFigure, matchScoreReasons } from "@/components/job-search-words";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
@@ -47,11 +46,9 @@ export default async function JobOfferPage({ params, searchParams }: Params & Se
   const jobOffer = await jobOfferOrNotFound((await params).id);
   const { profil } = await searchParams;
   const [t, locale, candidate] = await Promise.all([getServerT(), getRequestLocale(), getCurrentCandidate()]);
-  const inView = { kind: "job_offer", id: jobOffer.id, name: jobOffer.title } as const;
   const page = (
     <>
       {candidate ? null : <h1>{jobOffer.title}</h1>}
-      {candidate ? <CoachInView {...inView} /> : null}
       <ExpiredJobOfferNotice jobOffer={jobOffer} t={t} locale={locale} />
       <section className="stack" aria-labelledby="save-job-offer">
         <h2 id="save-job-offer">{t("jobOffer.saveTitle")}</h2>

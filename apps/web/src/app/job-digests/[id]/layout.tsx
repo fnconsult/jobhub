@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { pagesAreConversations } from "@/components/ObjectConversation";
 import { JobDigestConversation } from "./conversation";
 import { loadJobDigestPage, type Params } from "./job-digest-page";
 
@@ -9,6 +8,5 @@ import { loadJobDigestPage, type Params } from "./job-digest-page";
  * lays itself out.
  */
 export default async function JobDigestLayout({ params, children }: Params & { children: ReactNode }) {
-  if (!pagesAreConversations()) return children;
   return <JobDigestConversation data={await loadJobDigestPage((await params).id)}>{children}</JobDigestConversation>;
 }

@@ -113,7 +113,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
 
     // The redirect back from Checkout grants nothing: only Stripe's signed webhook does.
     await page.goto("/coachs?session=paid");
-    await expect(page.getByRole("status")).toHaveText(hc.paidPending);
+    await expect(page.getByRole("status").filter({ hasText: hc.paidPending })).toHaveText(hc.paidPending);
     await expect(page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveCount(0);
 
     const event = checkoutSessionEvent("checkout.session.completed", {
@@ -132,7 +132,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     }
 
     await page.goto("/coachs?session=paid");
-    await expect(page.getByRole("status")).toHaveText(hc.paid);
+    await expect(page.getByRole("status").filter({ hasText: hc.paid })).toHaveText(hc.paid);
     const pickSlot = page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) });
     await expect(pickSlot).toHaveCount(1);
     await expect(pickSlot).toHaveAttribute("href", coach.bookingUrl);
@@ -501,7 +501,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     expect(refused.status()).toBe(400);
 
     await page.goto("/coachs?session=paid");
-    await expect(page.getByRole("status")).toHaveText(hc.paidPending);
+    await expect(page.getByRole("status").filter({ hasText: hc.paidPending })).toHaveText(hc.paidPending);
     await expect(page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveCount(0);
 
     // Human Coaches are paid outside the platform: Jobbbox never asks Stripe for a transfer or payout.

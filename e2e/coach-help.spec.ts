@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { showSystemPrompt, systemPromptShown } from "./support/system-prompt";
+import { toConversation } from "./support/conversation";
 
 // Issue #342 (ADR-0035): the Coach Panel's single box. While the Candidate types, Help Articles are suggested above the
 // box without AI; one opens as a card that lives in the browser only; the AI Coach is told its title alone; when the
@@ -17,15 +18,17 @@ const titleOf = (id: string) => /^title: (.+)$/m.exec(article(id))![1]!;
 const bodyOf = (id: string) => article(id).split(/^---$/m)[2]!.trim();
 const QUOTA_FAQ = titleOf("faq-quota-renewal");
 
-const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const panelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const boxOf = (page: Page) => panelOf(page).getByLabel(fr.coachPanel.messageLabel);
 const suggestionsOf = (page: Page) => panelOf(page).getByRole("list", { name: help.suggestions });
 const messagesOf = (page: Page) => panelOf(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).locator("> li");
-const cardOf = (page: Page, title: string) => panelOf(page).getByRole("article", { name: title });
+/** A Help Article, opened in the Work Pane beside the conversation (#602), named by its title. */
+const cardOf = (page: Page, title: string) => page.getByRole("complementary", { name: title });
 
+/** The page's conversation (#608: the Coach Panel left the Candidate's pages), the focus in its box. */
 async function openPanel(page: Page) {
-  await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-  await expect(boxOf(page)).toBeFocused();
+  await toConversation(page);
+  await boxOf(page).focus();
 }
 
 /** Every request the page makes to the server's API from now on. */
@@ -43,15 +46,15 @@ async function expectNoAxeViolations(page: Page, selector: string) {
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
 
-test.describe("the Coach Panel's single box: help first, the AI Coach for the rest (#342)", () => {
+test.describe("a conversation's single box: help first, the AI Coach for the rest (#342, #608)", () => {
   test("typing « quota » shows the quota FAQ before anything is sent, with no network call to the AI", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-help-quota"));
     await openPanel(page);
     // An empty conversation: help comes first, the page in view's article, three frequent questions.
     await expect(messagesOf(page)).toHaveCount(1);
     await expect(panelOf(page)).toContainText(help.greeting);
-    await expect(panelOf(page).getByRole("heading", { name: help.onThisPage })).toBeVisible();
-    await expect(panelOf(page).getByRole("button", { name: new RegExp(`^${help.readMore}`) })).toBeVisible();
+    // The page's own article is offered, to open beside the conversation (#602).
+    await expect(panelOf(page).getByRole("button", { name: fr.conversationFirst.howThisPageWorks })).toBeVisible();
     await expect(panelOf(page).getByRole("heading", { name: help.oftenAsked })).toBeVisible();
     await expect(panelOf(page).getByRole("button", { name: QUOTA_FAQ })).toBeVisible();
     await expect(panelOf(page).getByRole("button", { name: fr.coachPanel.send, exact: true })).toBeVisible();
@@ -82,10 +85,10 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
     await expect(card).toBeVisible();
     await expect(card).toContainText(help.cardLabel);
     await expect(card).toContainText(bodyOf("faq-quota-renewal").split("\n")[0]!.slice(0, 40));
-    await expect(card.getByRole("heading", { name: QUOTA_FAQ })).toBeFocused();
+    await expect(card.getByRole("heading", { level: 2, name: QUOTA_FAQ })).toBeFocused();
 
-    // « Non, demander au coach » starts a question about it.
-    await card.getByRole("button", { name: help.no }).click();
+    // « Demander au coach » starts a question about it.
+    await card.getByRole("button", { name: fr.conversationFirst.askCoach }).click();
     await expect(boxOf(page)).toBeFocused();
     await expect(boxOf(page)).toHaveValue(`À propos de « ${QUOTA_FAQ} » : `);
     const show = showSystemPrompt();
@@ -96,9 +99,10 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
     const body = (await sent).postDataJSON();
     expect(body.helpArticle).toEqual({ id: "faq-quota-renewal", title: QUOTA_FAQ });
     expect(JSON.stringify(body)).not.toContain(bodyOf("faq-quota-renewal").slice(0, 40));
-    // The disclosure, the card, the question and the reply. Wait for the reply before reading the system prompt: the
-    // choice of Playbook Agents prints its own prompt first, and the log's latest line must be the reply's.
-    await expect(messagesOf(page)).toHaveCount(4);
+    // The disclosure, the question and the reply: the article stays in the Work Pane, never in the thread. Wait for the
+    // reply before reading the system prompt: the choice of Playbook Agents prints its own prompt first, and the log's
+    // latest line must be the reply's.
+    await expect(messagesOf(page)).toHaveCount(3);
     const system = await systemPromptShown(show);
     expect(system).toContain(`« ${QUOTA_FAQ} »`);
     expect(system).not.toContain(bodyOf("faq-quota-renewal").slice(0, 40));
@@ -154,34 +158,39 @@ test.describe("the Coach Panel's single box: help first, the AI Coach for the re
     await page.keyboard.press("ArrowDown");
     const second = (await suggestions.nth(1).locator(".coach-help-suggestion-title").textContent())!;
     await page.keyboard.press("Enter");
-    await expect(cardOf(page, second).getByRole("heading", { name: second })).toBeFocused();
+    await expect(cardOf(page, second).getByRole("heading", { level: 2, name: second })).toBeFocused();
+    // Escape closes the Work Pane, the focus back on the suggestion that opened it; Escape again, back to the box.
+    await page.keyboard.press("Escape");
+    await expect(cardOf(page, second)).toHaveCount(0);
+    await expect(suggestions.nth(1)).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(boxOf(page)).toBeFocused();
     await expect(panelOf(page)).toBeVisible();
 
-    await expectNoAxeViolations(page, "aside.coach-panel");
+    await expectNoAxeViolations(page, ".page-conversation");
   });
 
-  test("phone width: the panel takes the whole screen and the button reads « Aide »", async ({ page }) => {
+  test("phone width: the conversation takes the whole screen, and an article opens over it, full screen (#608)", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await signInWithMagicLink(page, newAddress("coach-help-phone"));
-    const button = page.getByRole("button", { name: fr.coachPanel.openShort, exact: true });
-    await expect(button).toBeVisible();
-    await expect(button).toHaveText(fr.coachPanel.openShort, { useInnerText: true });
-
-    await button.click();
-    const box = (await panelOf(page).boundingBox())!;
-    expect(box.x).toBe(0);
-    expect(box.width).toBe(375);
-    expect(box.y).toBe(0);
-    expect(box.height).toBe(812);
+    await openPanel(page);
+    await expect(page.getByRole("button", { name: fr.coachPanel.openShort, exact: true })).toHaveCount(0);
+    const conversation = (await panelOf(page).boundingBox())!;
+    expect(conversation.width).toBeGreaterThan(375 - 2 * 24);
     await boxOf(page).fill("quota");
     await expect(suggestionsOf(page).getByRole("button", { name: QUOTA_FAQ })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
 
-    // Wider, it reads « Aide et coach ».
-    await panelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(page.getByRole("button", { name: fr.coachPanel.open, exact: true })).toBeVisible();
+    await suggestionsOf(page).getByRole("button", { name: QUOTA_FAQ }).click();
+    const box = (await cardOf(page, QUOTA_FAQ).boundingBox())!;
+    expect(box.x).toBe(0);
+    expect(box.width).toBe(375);
+    expect(box.y).toBe(0);
+    expect(box.height).toBe(812);
+    // The page behind is out of reach until it closes.
+    await expect(page.locator("main")).toHaveAttribute("inert", "");
+    await cardOf(page, QUOTA_FAQ).getByRole("button", { name: fr.conversationFirst.close }).click();
+    await expect(cardOf(page, QUOTA_FAQ)).toHaveCount(0);
+    await expect(page.locator("main")).not.toHaveAttribute("inert", "");
   });
 });

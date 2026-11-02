@@ -5,8 +5,9 @@ import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { PgBoss } from "pg-boss";
-import { renderedTexts } from "./support/accessibility";
+import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { conversationOf, ficheOf } from "./support/conversation";
 import { placeInput, placeNames, placeOptions, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
@@ -91,24 +92,34 @@ async function jobSearchesUsed(page: Page): Promise<string> {
   return (await page.locator("dl > div").filter({ has: page.getByText("Recherches d'offres", { exact: true }) }).locator("dd").innerText()).trim();
 }
 
-/** Clicks "Chercher des offres" on Recherches d'offres for the Profile and returns the Job Search's id once on its page. */
-async function searchFromProfile(page: Page, profileId: string): Promise<string> {
-  await page.goto(`/recherches?profil=${profileId}`);
-  await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
+/** « Lancer une recherche » on Recherches d'offres, one per active Profile when the Candidate has several (#606). */
+const startButton = (page: Page, profileName?: string) =>
+  page.getByRole("navigation", { name: "Actions rapides" }).getByRole("button", { name: profileName ? `Lancer une recherche · ${profileName}` : "Lancer une recherche", exact: true });
+
+/** Clicks « Lancer une recherche », Recherches d'offres' suggestion (#606), and returns the Job Search's id once on its page. */
+async function searchFromProfile(page: Page): Promise<string> {
+  await page.goto("/recherches");
+  await startButton(page).click();
   await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
   return new URL(page.url()).pathname.split("/").pop()!;
+}
+
+/** Opens the Job Offers a Job Search found, its Section, from its Fiche: in the Work Pane beside its conversation (#605). */
+async function openFound(page: Page) {
+  await ficheOf(page).getByRole("link", { name: "Offres trouvées", exact: true }).click();
+  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+\/offres$/);
 }
 
 /** The worker's "failed" report lines for this Profile's Job discovery runs. */
 const failedRuns = (profileId: string) => workerOutput.split("\n").filter((line) => line.startsWith(`[job-discovery] profile ${profileId}: failed`)).length;
 
 /**
- * "Modifier les critères" (#237): the button opens a dialog named after the Profile with only its Search Criteria,
- * each saved on change. The minimum salary is set to 90 000 €, the dialog closed with its Close button, the focus
- * back on the button, and the page's criteria line says the change.
+ * "Modifier les critères" (#237): the button in `scope` (a Job Search's Fiche, #605) opens a dialog named after the
+ * Profile with only its Search Criteria, each saved on change. The minimum salary is set to 90 000 €, the dialog closed
+ * with its Close button, the focus back on the button, and the criteria line says the change.
  */
-async function changeMinSalaryInDialog(page: Page, criteriaLine: Locator, profileName: string) {
-  const button = page.getByRole("main").getByRole("button", { name: "Modifier les critères" });
+async function changeMinSalaryInDialog(page: Page, scope: Locator, criteriaLine: Locator, profileName: string) {
+  const button = scope.getByRole("button", { name: "Modifier les critères" });
   await button.click();
   const dialog = page.getByRole("dialog", { name: `Critères de recherche · ${profileName}` });
   await expect(dialog).toBeVisible();
@@ -143,8 +154,8 @@ async function changeMinSalaryInDialog(page: Page, criteriaLine: Locator, profil
   await expect(criteriaLine).toContainText(/^Lyon · CDI · 90\s000 € brut par an minimum/);
 }
 
-/** The Job Offers listed on a Job Search page, top to bottom (not the lines of "Pourquoi 86 ?" inside them). */
-const foundJobOffers = (page: Page) => page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+/** The Job Offers a Job Search found, in its Section (see openFound), top to bottom (not the lines of "Pourquoi 86 ?" inside them). */
+const foundJobOffers = (page: Page) => page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3 }) });
 
 /**
  * The Match Scores shown on a Job Search page, top to bottom. The faked postings state no skills, so their
@@ -193,13 +204,14 @@ test.describe("On-demand AI Coach job search", () => {
 
   test("starts from a Profile, shows the Job Offers found by Match Score with their key facts, and saves one in one click", async ({ page }) => {
     const profileId = await signInWithProfile(page);
-    await page.goto(`/recherches?profil=${profileId}`);
+    await page.goto("/recherches");
 
-    await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
+    await startButton(page).click();
 
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);
-    // The page refreshes itself until the worker has finished.
+    // Its Job Offers, its Section in the Work Pane: the page refreshes itself until the worker has finished.
+    await openFound(page);
     const results = foundJobOffers(page);
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
 
@@ -223,32 +235,33 @@ test.describe("On-demand AI Coach job search", () => {
     await daf.getByRole("link", { name: "Voir ma candidature" }).click();
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Directeur administratif et financier (H/F) – réf. ${tag}`);
-    await expect(page.getByLabel("Profil utilisé")).toHaveValue(profileId);
+    await expect(ficheOf(page).getByLabel("Profil utilisé")).toHaveValue(profileId);
   });
 
   // Issue #135: the page as the approved prototype (#132) lays it out, inside the sidebar layout.
   test.describe("the results page, as in the prototype", () => {
     test("reads like a document: what was searched, when and against which Search Criteria, then the Job Offers best first", async ({ page }) => {
-      const profileId = await signInWithProfile(page);
-      await searchFromProfile(page, profileId);
-      const results = foundJobOffers(page);
-      await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
+      await signInWithProfile(page);
+      const searchId = await searchFromProfile(page);
 
-      const main = page.getByRole("main");
-      await expect(main.getByText("Recherche d'offres", { exact: true })).toBeVisible();
-      const properties = main.locator("dl.props");
+      // Its Fiche's card (#605): its status, when it started, the Search Criteria, how it stands.
+      const card = ficheOf(page).locator(".job-search-card");
+      const properties = card.locator("dl.props");
       await expect(properties.getByRole("term")).toHaveText(["Statut", "Lancée le", "Critères"]);
-      await expect(properties.getByRole("definition").nth(0)).toHaveText("Terminée");
-      await expect(properties.getByRole("definition").nth(1)).toHaveText(/^\S+ \d{1,2} \S+ \d{4} à \d{1,2}:\d{2}$/);
+      await expect(properties.getByRole("definition").nth(0)).toHaveText("Terminée", { timeout: 90_000 });
+      await expect(properties.getByRole("definition").nth(1)).toHaveText(/^\d{1,2} \S+ \d{4} à \d{1,2}:\d{2}$/);
       await expect(properties.getByRole("definition").nth(2)).toContainText("Lyon · CDI");
-      await changeMinSalaryInDialog(page, properties.getByRole("definition").nth(2), searchCriteria.targetRole);
-      await expect(main.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
+      await changeMinSalaryInDialog(page, card, properties.getByRole("definition").nth(2), searchCriteria.targetRole);
+      await expect(card.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
 
       // Each Job Offer: its title leads to it, its Match Score with a meter, and why it has that score.
+      await openFound(page);
+      const results = foundJobOffers(page);
+      await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
       const responsable = results.filter({ hasText: `Responsable financier (lu par l'IA) – réf. ${tag}` });
-      const title = responsable.getByRole("heading", { level: 2 }).getByRole("link");
-      // The Job Offer page it leads to scores it against this Job Search's Profile (#163).
-      await expect(title).toHaveAttribute("href", new RegExp(`^/offres/[0-9a-f-]+\\?profil=${profileId}$`));
+      const title = responsable.getByRole("heading", { level: 3 }).getByRole("link");
+      // It opens in the Work Pane, one of the Job Search's Results, scored against its Profile (#163, #605).
+      await expect(title).toHaveAttribute("href", new RegExp(`^/recherches/${searchId}/offres/[0-9a-f-]+$`));
       await expect(responsable.getByRole("link", { name: "Lire l'offre" })).toHaveAttribute("href", (await title.getAttribute("href"))!);
       await expect(responsable.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/)).toBeVisible();
       // The ring around the figure only draws it (#467): the score is said in words.
@@ -262,25 +275,27 @@ test.describe("On-demand AI Coach job search", () => {
       await expect(reasons.getByRole("listitem").filter({ hasText: "Lieu : Lyon, recherché : Lyon" })).toContainText("Correspond");
       await expect(reasons.getByRole("listitem").filter({ hasText: "Type de contrat : CDI, recherché : CDI" })).toContainText("Correspond");
 
-      // The Job Offer page gives the same Match Score, and why, for the same Profile (#163).
+      // The Job Offer, opened, gives the same Match Score, and why, for the same Profile (#163).
       await title.click();
-      await expect(page).toHaveURL(/\/offres\/[0-9a-f-]+\?profil=/);
-      await expect(page.getByLabel("Profil à utiliser pour cette candidature")).toHaveValue(profileId);
-      await expect(page.getByText(`Score de correspondance avec le profil « ${searchCriteria.targetRole} » : ${score} / 100`)).toBeVisible();
-      await page.getByText(`Pourquoi ${score} ?`, { exact: true }).click();
-      await expect(page.getByRole("listitem").filter({ hasText: "Type de contrat : CDI, recherché : CDI" })).toContainText("Correspond");
-      await page.goBack();
+      await expect(page).toHaveURL(new RegExp(`/recherches/${searchId}/offres/[0-9a-f-]+$`));
+      const offer = page.getByRole("complementary", { name: `Responsable financier (lu par l'IA) – réf. ${tag}` });
+      await expect(offer.getByText(`Score de correspondance avec le profil « ${searchCriteria.targetRole} » : ${score} / 100`)).toBeVisible();
+      await offer.getByText(`Pourquoi ${score} ?`, { exact: true }).click();
+      await expect(offer.getByRole("listitem").filter({ hasText: "Type de contrat : CDI, recherché : CDI" })).toContainText("Correspond");
+      await offer.getByRole("button", { name: "Fermer", exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/recherches/${searchId}$`));
 
-      // Then: search again, or go back to the Profile.
-      await expect(main.getByRole("button", { name: "Relancer une recherche" })).toBeVisible();
-      await expect(main.getByRole("link", { name: "Retour au profil" })).toHaveAttribute("href", `/profils/${profileId}`);
-      // It sits in the sidebar layout, the Job Searches link marked as the current page.
-      await expect(page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Recherches d'offres" })).toHaveAttribute("aria-current", "page");
+      // Then: search again, from its Fiche, the Profile it is for in the Sidebar's switcher.
+      await expect(card.getByRole("button", { name: "Relancer une recherche" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Sélecteur de profil" }).getByRole("button")).toHaveText(`Profil : ${searchCriteria.targetRole}`);
+      // It sits in the sidebar layout, under Recherches d'offres, the Job Search itself marked as the current page (#606).
+      await expect(page.getByRole("navigation", { name: "Navigation principale" }).locator('[aria-current="page"]')).toHaveAttribute("href", `/recherches/${searchId}`);
     });
 
     test("meets the ADR-0009 floor: 16px text at AA contrast, 44px targets, and no sideways scrolling on a phone", async ({ page }) => {
-      const profileId = await signInWithProfile(page);
-      await searchFromProfile(page, profileId);
+      await signInWithProfile(page);
+      await searchFromProfile(page);
+      await openFound(page);
       const results = foundJobOffers(page);
       await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
       for (const why of await page.getByText(/^Pourquoi \d+ \?$/).all()) await why.click();
@@ -290,11 +305,12 @@ test.describe("On-demand AI Coach job search", () => {
 
       for (const size of [{ width: 1440, height: 900 }, { width: 900, height: 1000 }, { width: 375, height: 812 }]) {
         await page.setViewportSize(size);
-        const main = page.getByRole("main");
+        // Its Job Offers in the Work Pane (#605), over the conversation on a phone (#608).
+        const main = page.locator(".work-pane");
         // The page's title is in the Top Bar (ADR-0024).
         await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toBeVisible();
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
-          expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
+          expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(fontFloorOf(text));
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
         }
         for (const target of await main.locator("a, button, summary").all()) {
@@ -309,29 +325,29 @@ test.describe("On-demand AI Coach job search", () => {
     });
   });
 
-  test("starts from the Coach Panel, for the Profile in view", async ({ page }) => {
+  test("starts from the Profile's conversation, for the Profile in view", async ({ page }) => {
     const profileId = await signInWithProfile(page);
     await page.goto(`/profils/${profileId}`);
-    await page.getByRole("button", { name: "Aide et coach" }).click();
 
-    // The search sits under the one line saying what the coach sees, opened on demand (ADR-0024).
-    const panel = page.getByRole("complementary");
-    await panel.locator("summary", { hasText: /^Vous consultez : le profil/ }).click();
-    await panel.getByRole("button", { name: "Chercher des offres pour ce profil" }).click();
+    // The search sits under the box's one line saying what the coach sees, opened on demand (ADR-0024, #605).
+    const conversation = conversationOf(page);
+    await conversation.locator("summary", { hasText: /^Vous consultez : le profil/ }).click();
+    await conversation.getByRole("button", { name: "Chercher des offres pour ce profil" }).click();
 
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);
+    await openFound(page);
     await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first()).toBeVisible({ timeout: 90_000 });
   });
 
   // Issue #74: only a Job Search that can run counts against the Plan Quota.
   test("a Job Search that finds Job Offers uses one Job Search of the Plan Quota", async ({ page }) => {
-    const profileId = await signInWithProfile(page);
+    await signInWithProfile(page);
     expect(await jobSearchesUsed(page)).toBe("0 sur 1");
 
-    await searchFromProfile(page, profileId);
-    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
-    await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
+    await searchFromProfile(page);
+    await openFound(page);
+    await expect(foundJobOffers(page), workerOutput).toHaveCount(2, { timeout: 90_000 });
 
     expect(await jobSearchesUsed(page)).toBe("1 sur 1");
   });
@@ -341,13 +357,14 @@ test.describe("On-demand AI Coach job search", () => {
     const profileId = await signInWithProfile(page, "standard");
     const candidateId = await candidateIdOf(page);
     // One search that works, so the count has something to lose if a failure were given back twice.
-    await searchFromProfile(page, profileId);
+    await searchFromProfile(page);
+    await openFound(page);
     await expect(page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).first(), workerOutput).toBeVisible({ timeout: 90_000 });
     expect(await jobSearchesUsed(page)).toBe("1 sur 7");
 
     writeFileSync(searchDownFlag, "");
     try {
-      const jobSearchId = await searchFromProfile(page, profileId);
+      const jobSearchId = await searchFromProfile(page);
       await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants."), workerOutput).toBeVisible({ timeout: 90_000 });
       await expect.poll(() => failedRuns(profileId), { message: workerOutput }).toBe(1);
       expect(await jobSearchesUsed(page)).toBe("1 sur 7");
@@ -370,7 +387,7 @@ test.describe("On-demand AI Coach job search", () => {
   });
 
   test("a Job Search that cannot be queued for the worker shows as failed and leaves the Plan Quota unchanged", async ({ page }) => {
-    const profileId = await signInWithProfile(page);
+    await signInWithProfile(page);
     const candidateId = await candidateIdOf(page);
     expect(await jobSearchesUsed(page)).toBe("0 sur 1");
 
@@ -390,7 +407,7 @@ test.describe("On-demand AI Coach job search", () => {
         CREATE TRIGGER ${trigger} BEFORE INSERT ON pgboss.job FOR EACH ROW EXECUTE FUNCTION pgboss.${trigger}();
       `);
 
-      await searchFromProfile(page, profileId);
+      await searchFromProfile(page);
       await expect(page.getByText("La recherche n'a pas abouti. Réessayez dans quelques instants.")).toBeVisible();
       expect(await jobSearchesUsed(page)).toBe("0 sur 1");
     } finally {
@@ -411,22 +428,23 @@ test.describe("On-demand AI Coach job search", () => {
         .poll(async () => (await (await page.request.get(`/recherches/${id}`)).text()).includes("Votre coach cherche des offres"), { timeout: 90_000 })
         .toBe(false);
     }
-    await page.goto(`/recherches?profil=${profileId}`);
+    await page.goto("/recherches");
 
-    await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
+    await startButton(page).click();
 
     const prompt = page.getByRole("alert").filter({ hasText: "Vous avez atteint la limite de votre offre" });
     await expect(prompt).toContainText("Vous avez utilisé la recherche d'offres comprise cette semaine dans l'offre Gratuite.");
     await expect(prompt.getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute("href", "/abonnement");
-    await expect(page).toHaveURL(new RegExp(`/recherches\\?profil=${profileId}$`));
+    await expect(page).toHaveURL(new RegExp("/recherches$"));
   });
 
   // Issue #16: a Job Offer no longer published at its source is left out of Job Search results.
   test("leaves Expired Job Offers out of the results", async ({ page }) => {
     // Standard: two Job Searches, more than the Free Plan's one a week.
-    const profileId = await signInWithProfile(page, "standard");
-    await searchFromProfile(page, profileId);
-    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+    await signInWithProfile(page, "standard");
+    await searchFromProfile(page);
+    await openFound(page);
+    const results = foundJobOffers(page);
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
     const expiredTitle = `Directeur administratif et financier (H/F) – réf. ${tag}`;
 
@@ -437,9 +455,10 @@ test.describe("On-demand AI Coach job search", () => {
       const marked = await client.query("UPDATE job_offer SET expired_at = now() WHERE title = $1", [expiredTitle]);
       expect(marked.rowCount).toBeGreaterThan(0);
       try {
-        await searchFromProfile(page, profileId);
+        await searchFromProfile(page);
+        await openFound(page);
         await expect(results, workerOutput).toHaveCount(1, { timeout: 90_000 });
-        await expect(page.getByRole("heading", { level: 2, name: expiredTitle })).toHaveCount(0);
+        await expect(page.getByRole("heading", { level: 3, name: expiredTitle })).toHaveCount(0);
       } finally {
         await client.query("UPDATE job_offer SET expired_at = NULL WHERE title = $1", [expiredTitle]);
       }
@@ -447,7 +466,10 @@ test.describe("On-demand AI Coach job search", () => {
       await client.end();
     }
   });
-  // ADR-0025: the Recherches d'offres page, from the sidebar: one Profile's Job Searches, or all active Profiles' at once.
+  // ADR-0025, then ADR-0070 (#606): Recherches d'offres, from the sidebar, is its menu's conversation: the Job Searches of
+  // each active Profile a card in its thread, « Lancer une recherche » a suggestion above its box, one per Profile when
+  // the Candidate has several. Its Profile chooser and its « every Profile at once » search, with their tabs and
+  // swimlanes, went with the page they were on.
   test.describe("the Recherches d'offres page", () => {
     const secondRole = "Contrôleuse de gestion";
     const archivedRole = "Consultante en transformation financière";
@@ -468,64 +490,67 @@ test.describe("On-demand AI Coach job search", () => {
       return { first, second, archived };
     }
 
-    const chooser = (page: Page) => page.getByRole("form", { name: "Choisir le profil" });
     const sidebarLink = (page: Page) => page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Recherches d'offres" });
-    /** The Job Offers listed under a heading of the page's own (`level`: their titles' heading level). */
-    const offersIn = (scope: Locator, page: Page, level: number) => scope.getByRole("listitem").filter({ has: page.getByRole("heading", { level }) });
+    /** An active Profile's Job Searches on the card, under its name. */
+    const searchesOf = (page: Page, profileName: string) => conversationOf(page).getByRole("region", { name: profileName, exact: true });
 
-    test("for one Profile: its Search Criteria, the search button, a search running, then its latest Job Offers", async ({ page }) => {
-      // Standard: two Job Searches, more than the Free Plan's one a week.
-      const profileId = await signInWithProfile(page, "standard");
-      // No Profile named: the first active one.
-      await page.goto("/recherches");
-      await expect(page).toHaveURL(`${origin}/recherches?profil=${profileId}`);
+    test("each active Profile's Job Searches: one started elsewhere shows as running and the page follows it; « Lancer une recherche » for each", async ({ page }) => {
+      const { first } = await signInWithProfiles(page);
       await page.goto("/compte");
       await sidebarLink(page).click();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=${profileId}`);
+      await expect(page).toHaveURL(`${origin}/recherches`);
       await expect(page.getByRole("banner").getByRole("heading", { level: 1 })).toHaveText("Recherches d'offres");
       await expect(sidebarLink(page)).toHaveAttribute("aria-current", "page");
 
-      const main = page.getByRole("main");
-      const properties = main.locator("dl.job-searches-criteria__list");
-      await expect(properties.getByRole("term")).toHaveText(["Profil", "Critères"]);
-      await expect(properties.getByRole("link", { name: searchCriteria.targetRole })).toHaveAttribute("href", `/profils/${profileId}`);
-      await expect(properties.getByRole("definition").nth(1)).toContainText("Lyon · CDI");
-      await changeMinSalaryInDialog(page, properties.getByRole("definition").nth(1), searchCriteria.targetRole);
-      await expect(main.getByText("Aucune recherche d'offres pour ce profil pour l'instant.", { exact: false })).toBeVisible();
+      // The active Profiles, each its group, its name leading to its page; the archived one left out.
+      const firstGroup = searchesOf(page, searchCriteria.targetRole);
+      await expect(firstGroup.getByRole("link", { name: searchCriteria.targetRole })).toHaveAttribute("href", `/profils/${first}`);
+      await expect(firstGroup.getByText("Aucune recherche pour ce profil pour l'instant.")).toBeVisible();
+      await expect(searchesOf(page, secondRole)).toBeVisible();
+      await expect(searchesOf(page, archivedRole)).toHaveCount(0);
+      // « Lancer une recherche », one for each active Profile, named after it.
+      await expect(startButton(page, searchCriteria.targetRole)).toBeVisible();
+      await expect(startButton(page, secondRole)).toBeVisible();
+      await expect(startButton(page, archivedRole)).toHaveCount(0);
 
-      // A Job Search started elsewhere (the Coach Panel, another tab) shows as running, and the page follows it.
-      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
+      // A Job Search started elsewhere (a Profile's conversation, another tab) shows as running, and the page follows it.
+      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId: first } });
       expect(started.status(), await started.text()).toBe(201);
       const jobSearchId = (await started.json()).id as string;
       await page.reload();
-      const latest = main.getByRole("region", { name: "Dernières offres trouvées" });
-      // Unless the worker was quicker than the reload, the search is said to be running, with no second button meanwhile.
-      if ((await latest.count()) === 0) {
-        await expect(main.getByRole("status").getByRole("link", { name: "Suivre la recherche en cours" })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
-        await expect(main.getByRole("button", { name: "Chercher des offres", exact: true })).toHaveCount(0);
-      }
-      // The page refreshes itself until the worker has finished.
-      await expect(offersIn(latest, page, 3), workerOutput).toHaveCount(2, { timeout: 90_000 });
-      await expect(latest.getByRole("link", { name: "Voir cette recherche" })).toHaveAttribute("href", `/recherches/${jobSearchId}`);
-      await expect(latest.getByText(/^Recherche du \d{1,2} \S+ \d{4} à \d{1,2}:\d{2}/)).toBeVisible();
-      await expect(latest.getByText("2 offres trouvées, de la plus proche à la moins proche de votre CV de référence.")).toBeVisible();
-      await expect(offersIn(latest, page, 3).getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/)).toHaveCount(2);
+      const row = firstGroup.getByRole("table", { name: `Recherches pour « ${searchCriteria.targetRole} »` }).getByRole("row").nth(1);
+      await expect(row.getByRole("link")).toHaveAttribute("href", `/recherches/${jobSearchId}`);
+      // The page refreshes itself until the worker has finished: 2 Job Offers found.
+      await expect(row, workerOutput).toContainText("Terminée", { timeout: 90_000 });
+      await expect(row).toContainText("2");
 
-      // Its button searches again.
-      await main.getByRole("button", { name: "Chercher des offres", exact: true }).click();
+      // Its button for the second Profile searches for it.
+      await startButton(page, secondRole).click();
       await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
-      await expect(offersIn(page.getByRole("main"), page, 2), workerOutput).toHaveCount(2, { timeout: 90_000 });
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${secondRole} »`);
+      await openFound(page);
+      await expect(foundJobOffers(page), workerOutput).toHaveCount(2, { timeout: 90_000 });
     });
 
     test("\"Modifier les critères\": a named dialog, focus trapped, Escape closing it, on the ADR-0009 floor at 1280px and 375px (#237)", async ({ page }) => {
       const profileId = await signInWithProfile(page);
+      // A Job Search's Fiche holds its Search Criteria (#605).
+      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
+      expect(started.status(), await started.text()).toBe(201);
+      const jobSearchId = (await started.json()).id as string;
+      // Finished first, so its Fiche is measured whole, its AI Activity's tokens and time with the rest, however fast the worker.
+      await expect
+        .poll(async () => (await (await page.request.get(`/recherches/${jobSearchId}`)).text()).includes("Votre coach cherche des offres"), { timeout: 90_000, message: workerOutput })
+        .toBe(false);
       // With JOB_SEARCH_SCREENSHOTS_DIR set, the dialog is also captured at each width.
       const screenshots = process.env.JOB_SEARCH_SCREENSHOTS_DIR;
       if (screenshots) mkdirSync(screenshots, { recursive: true });
       for (const size of [{ width: 1280, height: 800 }, { width: 375, height: 812 }]) {
         await page.setViewportSize(size);
-        await page.goto(`/recherches?profil=${profileId}`);
-        const button = page.getByRole("main").getByRole("button", { name: "Modifier les critères" });
+        await page.goto(`/recherches/${jobSearchId}`);
+        // On a phone the Fiche starts closed: « Fiche » opens it over the conversation (#608).
+        if (size.width === 375) await page.getByRole("banner").getByRole("button", { name: "Fiche", exact: true }).click();
+        const button = ficheOf(page).getByRole("button", { name: "Modifier les critères" });
         await button.focus();
         await page.keyboard.press("Enter");
         const dialog = page.getByRole("dialog", { name: `Critères de recherche · ${searchCriteria.targetRole}` });
@@ -541,7 +566,7 @@ test.describe("On-demand AI Coach job search", () => {
         await placeInput(dialog).fill("loire");
         await expect(placeOptions(dialog)).toHaveCount(4);
         for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
-          expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(16);
+          expect.soft(text.fontSizePx, `font size of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(fontFloorOf(text));
           expect.soft(text.contrast, `contrast of "${text.text}" at ${size.width}px`).toBeGreaterThanOrEqual(4.5);
         }
         // Every control is at least the Confort Density's control height, 2.5rem (ADR-0053; the Drawer's « Fermer », #462),
@@ -575,134 +600,6 @@ test.describe("On-demand AI Coach job search", () => {
         await expect(dialog).toHaveCount(0);
         await expect(button).toBeFocused();
       }
-    });
-
-    test("switches Profile with the chooser, kept in the address; archived Profiles are not offered", async ({ page }) => {
-      const { first, second, archived } = await signInWithProfiles(page);
-      await page.goto(`/recherches?profil=${first}`);
-      const select = chooser(page).getByLabel("Profil", { exact: true });
-      await expect(select).toHaveValue(first);
-      await expect(select.locator("option")).toHaveText([searchCriteria.targetRole, secondRole, "Tous mes profils"]);
-
-      await select.selectOption(second);
-      await chooser(page).getByRole("button", { name: "Afficher" }).click();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=${second}`);
-      await expect(page.getByRole("main").locator("dl.job-searches-criteria__list").getByRole("link", { name: secondRole })).toBeVisible();
-      // The sidebar's Profile is the one shown, and its Job Searches link leads back here.
-      await expect(page.getByRole("navigation", { name: "Sélecteur de profil" }).getByRole("button")).toHaveText(`Profil : ${secondRole}`);
-      await expect(sidebarLink(page)).toHaveAttribute("href", `/recherches?profil=${second}`);
-
-      await chooser(page).getByLabel("Profil", { exact: true }).selectOption({ label: "Tous mes profils" });
-      await chooser(page).getByRole("button", { name: "Afficher" }).click();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=tous`);
-      await expect(page.getByRole("button", { name: "Chercher pour mes 2 profils (2 recherches)" })).toBeVisible();
-
-      // An archived Profile's address shows the first active Profile instead.
-      await page.goto(`/recherches?profil=${archived}`);
-      await expect(page).toHaveURL(`${origin}/recherches?profil=${first}`);
-    });
-
-    test("searches for every active Profile at once, one Job Search each, then shows each one's Job Offers in tabs or swimlanes", async ({ page }) => {
-      const { first, second } = await signInWithProfiles(page);
-      await page.goto("/recherches?profil=tous");
-
-      await page.getByRole("button", { name: "Chercher pour mes 2 profils (2 recherches)" }).click();
-      await expect(page.getByRole("main").getByRole("status").getByText("2 recherches lancées.")).toBeVisible();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=tous`);
-
-      // Tabs by default: one per active Profile, the archived one left out.
-      const tablist = page.getByRole("tablist", { name: "Résultats par profil" });
-      await expect(tablist.getByRole("tab")).toHaveText([searchCriteria.targetRole, secondRole]);
-      await expect(page.getByRole("navigation", { name: "Affichage des résultats" }).getByRole("link", { name: "Onglets" })).toHaveAttribute("aria-current", "page");
-      const panel = page.getByRole("tabpanel");
-      await expect(panel).toHaveCount(1);
-      // The page refreshes itself until both Job Searches are done.
-      await expect(offersIn(panel, page, 4), workerOutput).toHaveCount(2, { timeout: 90_000 });
-      await expect(panel.getByRole("heading", { level: 3 })).toHaveText(`Offres pour « ${searchCriteria.targetRole} »`);
-      await expect(panel.getByRole("link", { name: "Voir cette recherche" })).toHaveAttribute("href", /^\/recherches\/[0-9a-f-]+$/);
-      // The keyboard moves between tabs.
-      await tablist.getByRole("tab", { name: searchCriteria.targetRole }).focus();
-      await page.keyboard.press("ArrowRight");
-      await expect(tablist.getByRole("tab", { name: secondRole })).toHaveAttribute("aria-selected", "true");
-      await expect(panel.getByRole("heading", { level: 3 })).toHaveText(`Offres pour « ${secondRole} »`);
-      await expect(offersIn(panel, page, 4), workerOutput).toHaveCount(2, { timeout: 90_000 });
-
-      // One Job Search each, both counted against the Plan Quota.
-      expect(await jobSearchesUsed(page)).toBe("2 sur 7");
-      const searchIds: string[] = [];
-      for (const profileId of [first, second]) {
-        await page.goto(`/recherches?profil=${profileId}`);
-        const href = await page.getByRole("region", { name: "Dernières offres trouvées" }).getByRole("link", { name: "Voir cette recherche" }).getAttribute("href");
-        searchIds.push(href!);
-      }
-      expect(new Set(searchIds).size).toBe(2);
-
-      // Swimlanes: one row per Profile, its Job Offers side by side.
-      await page.goto("/recherches?profil=tous");
-      await page.getByRole("navigation", { name: "Affichage des résultats" }).getByRole("link", { name: "Couloirs" }).click();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=tous&vue=couloirs`);
-      await expect(page.getByRole("navigation", { name: "Affichage des résultats" }).getByRole("link", { name: "Couloirs" })).toHaveAttribute("aria-current", "page");
-      await expect(page.getByRole("tablist")).toHaveCount(0);
-      const firstLane = page.getByRole("region", { name: `Offres trouvées pour « ${searchCriteria.targetRole} », à faire défiler de côté` });
-      const secondLane = page.getByRole("region", { name: `Offres trouvées pour « ${secondRole} », à faire défiler de côté` });
-      await expect(offersIn(firstLane, page, 4)).toHaveCount(2);
-      await expect(offersIn(secondLane, page, 4)).toHaveCount(2);
-      await expect(page.getByRole("link", { name: "Voir cette recherche" })).toHaveCount(2);
-      const [left, right] = [(await offersIn(firstLane, page, 4).nth(0).boundingBox())!, (await offersIn(firstLane, page, 4).nth(1).boundingBox())!];
-      expect(Math.abs(left.y - right.y)).toBeLessThan(1);
-      expect(right.x).toBeGreaterThan(left.x);
-      // Choosing all Profiles again from the chooser stays in swimlanes.
-      await chooser(page).getByRole("button", { name: "Afficher" }).click();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=tous&vue=couloirs`);
-
-      // ADR-0009 on a phone: only a swimlane scrolls sideways, never the page, and the keyboard scrolls it.
-      await page.setViewportSize({ width: 375, height: 812 });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), "sideways scroll at 375px").toBe(0);
-      expect(await firstLane.evaluate((lane) => lane.scrollWidth > lane.clientWidth)).toBe(true);
-      await firstLane.focus();
-      await page.keyboard.press("ArrowRight");
-      await expect.poll(() => firstLane.evaluate((lane) => lane.scrollLeft)).toBeGreaterThan(0);
-      for (const text of (await renderedTexts(page)).filter((item) => item.fontSizePx > 0)) {
-        expect.soft(text.fontSizePx, `font size of "${text.text}"`).toBeGreaterThanOrEqual(16);
-        expect.soft(text.contrast, `contrast of "${text.text}"`).toBeGreaterThanOrEqual(4.5);
-      }
-      for (const target of await page.getByRole("main").locator("a, button, summary, select").all()) {
-        if (!(await target.isVisible())) continue;
-        const box = (await target.boundingBox())!;
-        expect.soft(box.height, `height of "${await target.innerText()}"`).toBeGreaterThanOrEqual(44);
-      }
-
-      // Back to tabs.
-      await page.getByRole("navigation", { name: "Affichage des résultats" }).getByRole("link", { name: "Onglets" }).click();
-      await expect(page).toHaveURL(`${origin}/recherches?profil=tous`);
-      await expect(page.getByRole("tablist", { name: "Résultats par profil" })).toBeVisible();
-    });
-
-    test("says which Profile got no Job Search when the Plan Quota is used up", async ({ page }) => {
-      const profileId = await signInWithProfile(page);
-      // The Free Plan's one Job Search of the week.
-      const started = await page.request.post("/api/job-searches", { headers: { origin }, data: { profileId } });
-      expect(started.status(), await started.text()).toBe(201);
-      const searches: string[] = [(await started.json()).id];
-      // Let this worker finish them, so no Job discovery is left queued for the next spec's worker.
-      for (const id of searches) {
-        await expect
-          .poll(async () => (await (await page.request.get(`/recherches/${id}`)).text()).includes("Votre coach cherche des offres"), { timeout: 90_000 })
-          .toBe(false);
-      }
-      await page.goto("/recherches?profil=tous");
-
-      await page.getByRole("button", { name: "Chercher pour mon profil (1 recherche)" }).click();
-
-      await expect(
-        page.getByRole("alert").getByText(`Pas de recherche pour « ${searchCriteria.targetRole} » : vous avez utilisé toutes les recherches d'offres de votre offre cette semaine.`),
-      ).toBeVisible();
-      await expect(page.getByRole("alert").filter({ hasText: "Vous avez atteint la limite de votre offre" }).getByRole("link", { name: "Découvrir l'offre Standard" })).toHaveAttribute(
-        "href",
-        "/abonnement",
-      );
-      await expect(page.getByRole("main").getByText(/recherches? lancées?\./)).toHaveCount(0);
-      expect(await jobSearchesUsed(page)).toBe("1 sur 1");
     });
   });
 

@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { ficheOf, workPaneOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 
 // Issue #136: the Application page is redesigned as in the approved prototype
@@ -67,8 +68,10 @@ async function openApplication(page: Page, label: string): Promise<{ id: string;
   return { id, sourceUrl };
 }
 
-/** The link to one of the Application's Sections (ADR-0024). */
-const sectionLink = (page: Page, name: string) => page.getByRole("navigation", { name: fr.application.sections.sectionsLabel }).getByRole("link", { name });
+/** The link to one of the Application's Sections (ADR-0024), in its Fiche (#603): the Section opens in the Work Pane. */
+const sectionLink = (page: Page, name: string) => ficheOf(page).getByRole("link", { name, exact: true });
+/** The Job Offer's Section, in the Work Pane: its facts and its Job Offer Summary first, then its full text (#603). */
+const offerSection = (page: Page) => workPaneOf(page, fr.application.sections.offre);
 const documents = (page: Page) => page.getByRole("region", { name: fr.application.documentsTitle });
 const tab = (page: Page, name: string) => documents(page).getByRole("tab", { name, exact: true });
 const panel = (page: Page, name: string) => documents(page).getByRole("tabpanel", { name, exact: true });
@@ -84,27 +87,32 @@ async function expectAccessibilityFloor(page: Page) {
 test.describe("the Application page", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
+  // Since #603 (ADR-0070) the page is the Application's conversation: its properties are its Fiche's card, beside it, and
+  // the Job Offer at a glance its Section « L'offre », in the Work Pane.
   test("reads as a document: the title, the Job Offer at a glance and the Application's properties", async ({ page }) => {
     const { id, sourceUrl } = await openApplication(page, "application-page-head");
-    const head = page.getByRole("main").locator("header").first();
+    const card = ficheOf(page).locator(".application-card");
 
-    await expect(head.getByRole("link", { name: fr.application.backToApplications })).toHaveAttribute("href", "/candidatures");
-    // The Job Offer Summary, written by the AI once the page is shown (faked from the offer's title), labelled so, above the facts.
-    const summary = head.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`);
+    // The Job Offer Summary, written by the AI once its Section is shown (faked from the offer's title), labelled so, above the facts.
+    await sectionLink(page, fr.application.sections.offre).click();
+    await expect(page).toHaveURL(new RegExp(`/candidatures/${id}/offre$`));
+    const summary = offerSection(page).locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`);
     await expect(summary.locator("dt")).toHaveText(fr.jobOffer.summaryLabel);
     await expect(summary.locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
-    await expect(head.getByText(fr.jobOffer.summaryPending)).toHaveCount(0);
+    await expect(offerSection(page).getByText(fr.jobOffer.summaryPending)).toHaveCount(0);
     // Stored: shown straight away when the page is shown again.
     await page.reload();
     await expect(summary.locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
     // The Job Offer's facts, one framed tile each, the salary first (ADR-0024).
-    const facts = head.locator(`dl[aria-label="${fr.jobOffer.details}"]`);
+    const facts = offerSection(page).locator(`dl[aria-label="${fr.jobOffer.details}"]`);
     // The facts the offer states, in this order; the AI's reading of its text may add more after them.
     await expect(facts.locator("dt")).toContainText([fr.jobOffer.salary, fr.jobOffer.employer, fr.jobOffer.location, fr.jobOffer.contractType]);
-    await expect(facts.locator("dd")).toContainText(["De 95 000 à 110 000 € brut par an", "Groupe Ferlac", "Villeurbanne (69)", "CDI"]);
+    await expect(facts.locator("dd")).toContainText(["De 95 000 à 110 000 € brut par an", "Groupe Ferlac", "Villeurbanne (69)", "CDI"]);
+    await offerSection(page).getByRole("button", { name: fr.conversationFirst.close, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/candidatures/${id}$`));
 
-    // Properties: a label beside each value.
-    const propList = head.locator("dl.props");
+    // Properties, on the Fiche's card: a label beside each value.
+    const propList = card.locator("dl.props");
     const props = propList.getByRole("definition");
     await expect(propList.getByRole("term")).toHaveText([
       fr.application.statusLabel,
@@ -116,21 +124,20 @@ test.describe("the Application page", () => {
     await expect(props.nth(0).getByRole("combobox", { name: fr.application.statusLabel })).toHaveValue("to_apply");
     await expect(props.nth(1).getByRole("combobox", { name: fr.application.profileLabel })).toHaveAccessibleDescription(fr.application.profileHint);
     await expect(props.nth(2).getByText(/^\d{1,3} \/ 100$/)).toBeVisible();
-    await expect(props.nth(3)).toHaveText(new Intl.DateTimeFormat("fr", { dateStyle: "full", timeZone: "Europe/Paris" }).format(new Date()));
+    await expect(props.nth(3)).toHaveText(new Intl.DateTimeFormat("fr", { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date()));
     await expect(props.nth(4).getByRole("link", { name: "Voir l'offre sur apec.fr" })).toHaveAttribute("href", sourceUrl);
 
     // The status is changed in place, and kept.
     await props.nth(0).getByRole("combobox").selectOption({ label: fr.applicationStatuses.applied });
     await expect(props.nth(0).getByRole("status")).toHaveText(fr.application.statusSaved);
     await page.reload();
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("applied");
+    await expect(ficheOf(page).getByLabel(fr.application.statusLabel)).toHaveValue("applied");
 
-    // "Voir le détail" leads to the Match Score's breakdown.
-    await head.getByRole("link", { name: fr.application.matchDetail }).click();
+    // "Voir le détail" leads to the Match Score's breakdown, in the Work Pane, which its title names.
+    await card.getByRole("link", { name: fr.application.matchDetail }).click();
     await expect(page).toHaveURL(new RegExp(`/candidatures/${id}/correspondance$`));
-    // Its heading is said by the Top Bar (only screen readers hear it in the page, ADR-0024).
     await expect(page.getByRole("region", { name: fr.matchScore.title })).toBeInViewport();
-    await expect(page.getByRole("banner")).toContainText(fr.application.sections.correspondance);
+    await expect(workPaneOf(page, fr.application.sections.correspondance).getByRole("heading", { level: 2, name: fr.application.sections.correspondance })).toBeFocused();
 
     await expectAccessibilityFloor(page);
   });
@@ -145,17 +152,20 @@ test.describe("the Application page", () => {
       await summaryHeld;
       await route.continue();
     });
-    await openApplication(page, "application-page-summary-pending");
-    const head = page.getByRole("main").locator("header").first();
-    await expect(head.getByText(fr.jobOffer.summaryPending)).toBeVisible();
+    // Wide enough for the Fiche beside the Section, in the Work Pane (Fiche.tsx).
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    const { id } = await openApplication(page, "application-page-summary-pending");
+    await page.goto(`/candidatures/${id}/offre`);
+    await expect(offerSection(page).getByText(fr.jobOffer.summaryPending)).toBeVisible();
 
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.applied });
-    await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
-    await expect(head.getByText(fr.jobOffer.summaryPending)).toBeVisible();
+    await ficheOf(page).getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.applied });
+    // The one status that says something: the conversation's live region beside it is empty until a reply comes.
+    await expect(page.getByRole("status").filter({ hasText: /\S/ })).toHaveText(fr.application.statusSaved);
+    await expect(offerSection(page).getByText(fr.jobOffer.summaryPending)).toBeVisible();
 
     releaseSummary();
-    await expect(head.locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`).locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
-    await expect(head.getByText(fr.jobOffer.summaryPending)).toHaveCount(0);
+    await expect(offerSection(page).locator(`dl[aria-label="${fr.jobOffer.summaryLabel}"]`).locator("dd")).toHaveText(`Résumé du poste : ${TITLE}.`);
+    await expect(offerSection(page).getByText(fr.jobOffer.summaryPending)).toHaveCount(0);
   });
 
   test("the Match Score's breakdown gives each criterion's verdict in words first", async ({ page }) => {
@@ -164,7 +174,9 @@ test.describe("the Application page", () => {
     await sectionLink(page, fr.application.sections.correspondance).click();
     await expect(page).toHaveURL(/\/correspondance$/);
     const score = page.getByRole("region", { name: fr.matchScore.title });
-    await expect(score.getByRole("heading", { level: 2 })).toHaveText(fr.matchScore.title);
+    // Its own heading still names it; the Work Pane's title says it on screen (#603).
+    await expect(score).toBeVisible();
+    await expect(workPaneOf(page, fr.application.sections.correspondance).getByRole("heading", { level: 2, name: fr.application.sections.correspondance })).toBeFocused();
     await expect(score.getByText(/^\d{1,3} \/ 100$/)).toBeVisible();
 
     const criteria = score.getByRole("listitem").filter({ has: page.locator(".breakdown-criterion") });
@@ -180,7 +192,9 @@ test.describe("the Application page", () => {
   test("the Tailored Documents are tabs, worked with the keyboard, and keep unsaved edits from one tab to another", async ({ page }) => {
     const { id } = await openApplication(page, "application-page-tabs");
     await page.goto(`/candidatures/${id}/documents`);
-    await expect(documents(page).getByRole("heading", { level: 2 })).toHaveText(fr.application.documentsTitle);
+    // In the Work Pane, which its title names (#603).
+    await expect(documents(page)).toBeVisible();
+    await expect(workPaneOf(page, fr.application.sections.documents).getByRole("heading", { level: 2, name: fr.application.sections.documents })).toBeVisible();
     await expect(documents(page).getByRole("tab")).toHaveText([fr.tailoredCv.tailored, td.coverLetter.title, td.outreachMessage.title]);
     await expect(tab(page, fr.tailoredCv.tailored)).toHaveAttribute("aria-selected", "true");
     await expect(panel(page, fr.tailoredCv.tailored).getByRole("button", { name: fr.tailoredCv.propose })).toBeVisible();
@@ -215,11 +229,14 @@ test.describe("the Application page", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await openApplication(page, "application-page-phone");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
-    // Each label sits above its value.
-    const head = page.getByRole("main").locator("header").first();
-    const label = (await head.getByRole("term").first().boundingBox())!;
-    const value = (await head.getByRole("definition").first().boundingBox())!;
+    await expectAccessibilityFloor(page);
+    // « Fiche » opens it over the conversation, full screen (#608): each label sits above its value.
+    await page.getByRole("banner").getByRole("button", { name: fr.fiche.label, exact: true }).click();
+    const card = ficheOf(page).locator(".application-card");
+    const label = (await card.getByRole("term").first().boundingBox())!;
+    const value = (await card.getByRole("definition").first().boundingBox())!;
     expect(value.y).toBeGreaterThanOrEqual(label.y + label.height - 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
     await expectAccessibilityFloor(page);
   });
 
@@ -229,7 +246,8 @@ test.describe("the Application page", () => {
       .getByRole("main")
       .evaluate((main) =>
         Array.from(main.querySelectorAll("button, a[href]"))
-          .filter((el) => (el as HTMLElement).offsetParent !== null && !(el as HTMLElement).innerText.trim())
+          // Shown: not inside a closed <details>, whose content keeps an offsetParent but renders no text.
+          .filter((el) => (el as HTMLElement).checkVisibility() && !(el as HTMLElement).innerText.trim())
           .map((el) => el.outerHTML),
       );
     expect(unlabelled).toEqual([]);

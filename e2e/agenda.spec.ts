@@ -4,6 +4,7 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
+import { toConversation } from "./support/conversation";
 
 // Issue #246: the Agenda (« Entretiens et rendez-vous »), from the Sidebar right
 // after Mes candidatures, lists the Candidate's Interviews: upcoming ones by day in
@@ -77,8 +78,8 @@ const weekNav = (page: Page) => page.getByRole("navigation", { name: fr.agenda.w
 const monthNav = (page: Page) => page.getByRole("navigation", { name: fr.agenda.monthNavLabel });
 /** The month grid's day buttons. */
 const dayButtons = (page: Page) => page.getByRole("table").getByRole("button");
-/** The day chosen in the month grid, its items listed below it. */
-const chosenDay = (page: Page) => page.locator("section.agenda-day");
+/** The day chosen in the month grid, its items listed below it, in the Work Pane (the list's days stay on the card, #606). */
+const chosenDay = (page: Page) => page.locator(".work-pane section.agenda-day");
 const sidebarNav = (page: Page) => page.getByRole("navigation", { name: fr.sidebar.label });
 const agendaLink = (page: Page) => sidebarNav(page).getByRole("link", { name: fr.sidebar.agenda, exact: true });
 
@@ -87,9 +88,10 @@ test.describe("the Agenda", () => {
 
   test("is in the Sidebar after Mes candidatures, and says when there is nothing", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-empty"));
-    const links = sidebarNav(page).getByRole("link");
-    await expect(links.nth(0)).toHaveText(fr.nav.applications);
-    await expect(links.nth(1)).toHaveText(fr.sidebar.agenda);
+    // After « Nouvelle conversation » and « Coach » (#601), the menus: the Agenda right after Mes candidatures.
+    const names = (await sidebarNav(page).getByRole("link").allInnerTexts()).map((name) => name.trim());
+    expect(names).toContain(fr.nav.applications);
+    expect(names.indexOf(fr.sidebar.agenda)).toBe(names.indexOf(fr.nav.applications) + 1);
 
     await agendaLink(page).click();
     await expect(page).toHaveURL(/\/agenda$/);
@@ -131,11 +133,11 @@ test.describe("the Agenda", () => {
     await expect(agendaLink(page)).toHaveAttribute("aria-current", "page");
   });
 
-  test("is what the Coach Panel has in view (#254)", async ({ page }) => {
+  test("is what its conversation has in view (#254, #608)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-coach"));
     await page.goto("/agenda");
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    const coachPanel = page.getByRole("complementary", { name: fr.coachPanel.title });
+    await toConversation(page);
+    const coachPanel = page.getByRole("region", { name: fr.conversationFirst.label });
     await expect(coachPanel).toContainText(`Vous consultez : ${fr.coachPanel.inViewAgenda}`);
   });
 
@@ -157,8 +159,11 @@ test.describe("the Agenda", () => {
 test.describe("adding an Interview from the Agenda", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  const addButton = (page: Page) => page.getByRole("button", { name: fr.agenda.add, exact: true });
-  const dialog = (page: Page) => page.getByRole("dialog", { name: fr.agenda.addDialog.title });
+  /** « Ajouter un entretien » on the Agenda's card, in its conversation (#606). */
+  const addButton = (page: Page) => page.locator(".agenda-actions").getByRole("link", { name: fr.agendaMenu.addInterview, exact: true });
+  /** Its form, in the Work Pane beside the conversation (#606, #608), named by its title. */
+  const dialog = (page: Page) => page.getByRole("complementary", { name: fr.agenda.addDialog.title });
+  const titleOf = (page: Page) => dialog(page).getByRole("heading", { level: 2, name: fr.agenda.addDialog.title });
 
   test("moves an Application at « Postulée » to « Entretien » and adds the Interview, its link clickable", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-add-move"));
@@ -169,9 +174,11 @@ test.describe("adding an Interview from the Agenda", () => {
 
     await page.goto("/agenda");
     await addButton(page).click();
+    await expect(page).toHaveURL(/\/agenda\?ajouter=entretien$/);
     const form = dialog(page);
+    // The Work Pane takes the focus on its title as it opens (#602, #608).
+    await expect(titleOf(page)).toBeFocused();
     const picker = form.getByLabel(fr.agenda.addDialog.application);
-    await expect(picker).toBeFocused();
     await expect(picker.locator("option")).toHaveText([fr.agenda.addDialog.chooseApplication, `DAF H/F · Acme Industrie · ${fr.applicationStatuses.applied}`]);
     await picker.selectOption({ label: `DAF H/F · Acme Industrie · ${fr.applicationStatuses.applied}` });
     const move = form.getByRole("checkbox", { name: fr.agenda.addDialog.moveToInterview });
@@ -183,6 +190,7 @@ test.describe("adding an Interview from the Agenda", () => {
     await form.getByRole("button", { name: fr.agenda.addDialog.submit }).click();
 
     await expect(dialog(page)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/agenda$/);
     await expect(addButton(page)).toBeFocused();
     const item = page.getByRole("region", { name: fr.agenda.upcomingTitle }).getByRole("listitem");
     await expect(item).toHaveCount(1);
@@ -229,19 +237,22 @@ test.describe("adding an Interview from the Agenda", () => {
     await addButton(page).focus();
     await page.keyboard.press("Enter");
     await expect(dialog(page)).toBeVisible();
-    await expect(dialog(page).getByLabel(fr.agenda.addDialog.application)).toBeFocused();
+    await expect(titleOf(page)).toBeFocused();
     // At « Entretien » already: no box to check.
     await dialog(page).getByLabel(fr.agenda.addDialog.application).selectOption({ label: `DAF H/F · Acme Industrie · ${fr.applicationStatuses.interview}` });
     await expect(dialog(page).getByRole("checkbox")).toHaveCount(0);
     await page.keyboard.press("Escape");
     await expect(dialog(page)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/agenda$/);
     await expect(addButton(page)).toBeFocused();
 
+    // Tab goes on from the pane's title into the pane, beside the conversation (not a dialog: nothing is trapped); its
+    // ✕ « Fermer » closes it, the focus back on « Ajouter un entretien ».
     await page.keyboard.press("Enter");
+    await expect(titleOf(page)).toBeFocused();
     await page.keyboard.press("Tab");
-    await page.keyboard.press("Shift+Tab");
-    await expect(dialog(page).getByLabel(fr.agenda.addDialog.application)).toBeFocused();
-    await dialog(page).getByRole("button", { name: fr.designSystem.close }).press("Enter");
+    expect(await page.evaluate(() => Boolean(document.activeElement?.closest(".work-pane")))).toBe(true);
+    await dialog(page).getByRole("button", { name: fr.conversationFirst.close, exact: true }).press("Enter");
     await expect(dialog(page)).toHaveCount(0);
     await expect(addButton(page)).toBeFocused();
   });
@@ -388,7 +399,7 @@ test.describe("the Data export (#247)", () => {
 test.describe("the Agenda's week and month views", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test("each view and period has its own address, which back and reload keep; the last view picked comes back from the Sidebar", async ({ page }) => {
+  test("each view and period has its own address, which back and reload keep; the Sidebar's link brings back the list", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-views"));
     const today = parisDay(0);
     await page.goto("/agenda");
@@ -422,14 +433,18 @@ test.describe("the Agenda's week and month views", () => {
     await page.reload();
     await expect(page.getByRole("table")).toBeVisible();
 
-    // The Sidebar's link names no view: this browser brings back the month, last picked.
-    await agendaLink(page).click();
-    await expect(page).toHaveURL(/\/agenda\?vue=mois$/);
     await expect(viewSwitch(page).getByRole("link", { name: fr.agenda.monthView })).toHaveAttribute("aria-current", "page");
+
+    // The week and the month open beside the list, in the Work Pane (#606): « Liste » closes them, and so does the
+    // Sidebar's link, which names no view.
     await viewSwitch(page).getByRole("link", { name: fr.agenda.listView }).click();
-    await expect(page).toHaveURL(/\/agenda\?vue=liste$/);
+    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(viewSwitch(page).getByRole("link", { name: fr.agenda.listView })).toHaveAttribute("aria-current", "page");
+    await viewSwitch(page).getByRole("link", { name: fr.agenda.weekView }).click();
+    await expect(days).toHaveCount(7);
     await agendaLink(page).click();
     await expect(page).toHaveURL(/\/agenda$/);
+    await expect(days).toHaveCount(0);
     await expect(page.getByRole("heading", { name: fr.agenda.upcomingTitle })).toBeVisible();
   });
 
@@ -562,12 +577,13 @@ test.describe("the Agenda's week view beside the Sidebar", () => {
         expect(tops.size === 1 || tops.size === 7, `${width} px, ${textSize} text: ${[...tops].join(", ")}`).toBe(true);
       }
     }
-    // A 1440 px desktop at the standard text size has room for the seven columns.
+    // In the Work Pane (#606), at most 32rem wide beside the conversation, a 1440 px desktop at the standard text size has
+    // no room for the seven columns: the days are stacked.
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => localStorage.setItem("jobbbox.textSize", "standard"));
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-text-size", "standard");
-    expect(new Set(await weekDayTops(page)).size).toBe(1);
+    expect(new Set(await weekDayTops(page)).size).toBe(7);
   });
 });
 

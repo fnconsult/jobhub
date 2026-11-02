@@ -60,7 +60,6 @@ test.describe("« Conversation au centre »: the Activité column and the Contex
       JOBHUB_IGNORE_ROOT_ENV: "1",
       AUTH_SECRET: "e2e-conversation-activity-e2e-conversation-activity",
       MAIL_TRANSPORT: "console",
-      CONVERSATION_FIRST: "true",
       AI_SCORING_PROVIDER: "mistral",
       AI_WRITING_PROVIDER: "mistral",
       AI_COACHING_PROVIDER: "mistral",

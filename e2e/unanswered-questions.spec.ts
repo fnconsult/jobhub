@@ -26,7 +26,6 @@ const tag = () => Array.from({ length: 10 }, () => String.fromCharCode(97 + Math
 
 const panelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const boxOf = (page: Page) => panelOf(page).getByLabel(fr.coachPanel.messageLabel);
-const messagesOf = (page: Page) => panelOf(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).locator("> li");
 const suggestionsOf = (page: Page) => panelOf(page).getByRole("list", { name: fr.coachPanel.help.suggestions });
 const rowOf = (page: Page, text: string) => page.getByRole("row").filter({ hasText: text });
 

@@ -8,7 +8,6 @@ import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
-import { chooseInPanelMenu } from "./support/coach-panel";
 import { toConversation } from "./support/conversation";
 
 // Issue #5: a Candidate without a CV builds their Master CV with the AI Coach's
@@ -160,9 +159,12 @@ test.describe("onboarding with the AI Coach", () => {
     // Saved as a Profile with version 1 of its Master CV, like an uploaded CV.
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
-    await expect(page.getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
+    // Its Master CV, a Section opened in the Work Pane beside the Profile's conversation (#605).
+    const profilePath = new URL(page.url()).pathname;
+    await page.goto(`${profilePath}/cv-de-reference`);
+    await expect(page.locator("aside.work-pane").getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
     // The whole Master CV, as its version page shows it.
-    await page.goto(`${new URL(page.url()).pathname}/versions/1`);
+    await page.goto(`${profilePath}/versions/1`);
     await expect(page.getByText("Marie Dupont", { exact: true })).toBeVisible();
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2024")).toBeVisible();
     await expect(page.getByText("Responsable du contrôle de gestion · Renault · Paris · 2005 – 2015")).toBeVisible();
@@ -229,39 +231,31 @@ test.describe("onboarding with the AI Coach", () => {
   });
 });
 
-test.describe("the Coach Panel", () => {
-  test("can be opened from any page and knows which Profile is in view", async ({ page }) => {
+test.describe("the AI Coach in the pages' conversations", () => {
+  test("each page is its own conversation, which knows which Profile is in view (#601, #605, #608)", async ({ page }) => {
     const email = newAddress("panel");
     await signInWithMagicLink(page, email);
     const profileId = await createProfile(page, "Directrice financière");
 
+    // No « Aide et coach » left on the Candidate's pages.
     for (const path of ["/", "/compte", "/profils/nouveau", `/profils/${profileId}`]) {
       await page.goto(path);
-      await expect(page.getByRole("button", { name: fr.coachPanel.open, exact: true }), `Coach Panel button on ${path}`).toBeVisible();
+      await expect(page.getByRole("button", { name: fr.coachPanel.open, exact: true }), `no Coach Panel button on ${path}`).toHaveCount(0);
     }
 
-    // On the account page, no Profile is in view.
-    await page.goto("/compte");
-    await toConversation(page);
+    // The home page's new conversation: no Profile in view.
+    await page.goto("/");
     await expect(coachPanel(page)).toContainText(fr.coachPanel.aiDisclosure);
     await expect(coachPanel(page)).toContainText(fr.coachPanel.nothingInView);
-    await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
     await askCoach(page, "Bonjour");
     await expect(coachPanel(page)).toContainText("Je ne vois aucun profil. (1 message)");
 
-    // The conversation follows the Candidate to the Profile page, which the AI Coach now sees.
-    await page.getByRole("link", { name: "Directrice financière" }).click();
-    await expect(page).toHaveURL(`${origin}/profils/${profileId}`);
+    // The Profile's page is the Profile's own conversation, which the AI Coach sees.
+    await page.goto(`/profils/${profileId}`);
     await expect(coachPanel(page)).toContainText("Vous consultez : le profil « Directrice financière »");
-    await expect(coachPanel(page)).toContainText("Je ne vois aucun profil. (1 message)");
+    await expect(coachPanel(page)).not.toContainText("Je ne vois aucun profil.");
     await askCoach(page, "Que pensez-vous de mon CV ?");
-    await expect(coachPanel(page)).toContainText("Je vois votre profil « Directrice financière ». (3 messages)");
-
-    // Escape closes it and gives focus back to its button.
-    await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).press("Escape");
-    await expect(coachPanel(page)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: fr.coachPanel.open, exact: true })).toBeFocused();
-    await expect(page.getByRole("button", { name: fr.coachPanel.open, exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(coachPanel(page)).toContainText("Je vois votre profil « Directrice financière ». (1 message)");
   });
 
   test("tells the Candidate when the AI Coach cannot reply, and gives their message back", async ({ page }) => {
@@ -290,80 +284,32 @@ test.describe("the Coach Panel", () => {
     await expect(messages.nth(1)).toContainText("message 1");
   });
 
-  test("keeps the conversation after a reload, and lets the Candidate list, reopen, rename and delete conversations", async ({ page }) => {
+  test("keeps a page's conversation after a reload; a Free conversation is listed under « Coach » (#601, #605)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("panel-saved"));
     const profileId = await createProfile(page, "Directrice financière");
     const messages = coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 
-    // A first conversation, started on the Profile page.
+    // The Profile's conversation.
     await page.goto(`/profils/${profileId}`);
-    await toConversation(page);
     await askCoach(page, "Mon CV est-il bon ?");
     await expect(messages.last()).toHaveText(/Je vois votre profil « Directrice financière »\. \(1 message\)/);
 
     // Saved: a reload keeps it.
     await page.reload();
-    await toConversation(page);
-    await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Mon CV est-il bon ?" })).toBeVisible();
     await expect(messages).toHaveCount(3);
     await askCoach(page, "Et ma formation ?");
     await expect(messages.last()).toHaveText(/\(3 messages\)/);
 
-    // A second conversation, started on the account page: no Profile in view.
-    await page.goto("/compte");
-    await toConversation(page);
-    await expect(messages).toHaveCount(5);
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.newConversation);
+    // A Free conversation, from the home page: no Profile in view, and listed under « Coach » in the Sidebar.
+    await page.goto("/");
     await expect(messages).toHaveCount(1);
-    await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
     await askCoach(page, "Comment préparer un entretien ?");
     await expect(messages.last()).toHaveText(/Je ne vois aucun profil\. \(1 message\)/);
-
-    // Both are listed, most recent first, the first one with the Profile it started on.
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
-    const list = coachPanel(page).getByRole("region", { name: fr.coachPanel.conversations });
-    await expect(list.getByRole("heading", { level: 3, name: fr.coachPanel.conversations })).toBeFocused();
-    const items = list.getByRole("article");
-    await expect(items).toHaveCount(2);
-    await expect(items.nth(0)).toContainText("Comment préparer un entretien ?");
-    await expect(items.nth(1)).toContainText("Mon CV est-il bon ?");
-    await expect(items.nth(1)).toContainText("Commencée sur le profil « Directrice financière »");
-
-    // Reopen the first one.
-    await items.nth(1).getByRole("button", { name: "Mon CV est-il bon ?" }).click();
-    await expect(messages).toHaveCount(5);
-    await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
-
-    // Rename it; Escape in the name field cancels without closing the panel.
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
-    const first = list.getByRole("article", { name: "Mon CV est-il bon ?" });
-    await first.getByRole("button", { name: fr.coachPanel.rename }).click();
-    await expect(first.getByLabel(fr.coachPanel.renameLabel)).toBeFocused();
-    await first.getByLabel(fr.coachPanel.renameLabel).press("Escape");
-    await expect(coachPanel(page)).toBeVisible();
-    await expect(first.getByRole("button", { name: fr.coachPanel.rename })).toBeFocused();
-    await first.getByRole("button", { name: fr.coachPanel.rename }).click();
-    await first.getByLabel(fr.coachPanel.renameLabel).fill("Relecture du CV");
-    await first.getByRole("button", { name: fr.coachPanel.save }).click();
-    await expect(list.getByRole("status")).toHaveText(fr.coachPanel.renamed);
-    const renamed = list.getByRole("article", { name: "Relecture du CV" });
-    await expect(renamed.getByRole("button", { name: fr.coachPanel.rename })).toBeFocused();
-
-    // Delete the other one, after confirming.
-    const second = list.getByRole("article", { name: "Comment préparer un entretien ?" });
-    await second.getByRole("button", { name: fr.coachPanel.delete }).click();
-    await expect(second).toContainText(fr.coachPanel.confirmDelete.replace("{{title}}", "Comment préparer un entretien ?"));
-    await second.getByRole("button", { name: fr.coachPanel.confirmDeleteButton }).click();
-    await expect(list.getByRole("status")).toHaveText(fr.coachPanel.deleted);
-    await expect(items).toHaveCount(1);
-
-    // All of it holds after a reload.
-    await page.reload();
-    await toConversation(page);
-    await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Relecture du CV" })).toBeVisible();
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
-    await expect(items).toHaveCount(1);
-    await expect(items.first()).toContainText("Relecture du CV");
+    await expect(page).toHaveURL(/\/conversations\/[0-9a-f-]{36}$/);
+    const sidebar = page.locator(".sidebar-docked");
+    await expect(sidebar.getByRole("link", { name: "Comment préparer un entretien ?" })).toHaveAttribute("aria-current", "page");
+    // The Profile's conversation is the Profile's page's, never listed among the Free ones.
+    await expect(sidebar.getByRole("link", { name: "Mon CV est-il bon ?" })).toHaveCount(0);
   });
 
   test("a conversation is kept 12 months after its last message, then the worker's nightly purge deletes it", async ({ page }) => {
@@ -389,21 +335,6 @@ test.describe("the Coach Panel", () => {
     // The Coach Panel then starts a new conversation.
     await toConversation(page);
     await expect(coachPanel(page).getByRole("heading", { level: 3, name: fr.coachPanel.newConversation })).toBeVisible();
-  });
-
-  test("the list of conversations meets the ADR-0009 floor", async ({ page }) => {
-    await signInWithMagicLink(page, newAddress("panel-list-floor"));
-    await toConversation(page);
-    await askCoach(page, "Bonjour");
-    await expect(coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem")).toHaveCount(3);
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
-    const list = coachPanel(page).getByRole("region", { name: fr.coachPanel.conversations });
-    await list.getByRole("button", { name: fr.coachPanel.delete }).click();
-    await expect(list.getByRole("button", { name: fr.coachPanel.confirmDeleteButton })).toBeVisible();
-    for (const t of await renderedTexts(page)) {
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
-      expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
-    }
   });
 
   test("is not shown to signed-out visitors", async ({ page }) => {
@@ -469,7 +400,8 @@ test.describe("Action Cards", () => {
     await proposeActionCard(email, profileId, "Ajoutez « SAP » à vos compétences", "Les offres de Directrice financière le demandent souvent.");
     await proposeActionCard(email, profileId, "Raccourcissez votre résumé", "Trois lignes suffisent.");
 
-    await page.goto(`/profils/${profileId}`);
+    // Propositions, a Section of the Profile, in the Work Pane beside its conversation (#605).
+    await page.goto(`/profils/${profileId}/propositions`);
     const cards = page.getByRole("region", { name: fr.actionCards.title });
     const first = cards.getByRole("article", { name: "Ajoutez « SAP » à vos compétences" });
     const second = cards.getByRole("article", { name: "Raccourcissez votre résumé" });
@@ -483,8 +415,9 @@ test.describe("Action Cards", () => {
     await expect(second).toHaveCount(0);
 
     // Decided once and for all.
-    await page.reload();
-    await expect(page.getByRole("region", { name: fr.actionCards.title })).toHaveCount(0);
+    await page.goto(`/profils/${profileId}/propositions`);
+    await expect(page.getByRole("article", { name: "Ajoutez « SAP » à vos compétences" })).toHaveCount(0);
+    await expect(page.getByRole("article", { name: "Raccourcissez votre résumé" })).toHaveCount(0);
   });
 
   test("a Profile without proposals shows no Action Cards", async ({ page }) => {

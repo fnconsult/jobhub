@@ -148,6 +148,10 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:nowhere}}"))).toThrow(/fr\/tutorial-x\.md: no Micro-animation is called nowhere/);
     expect(build(tutorial("1. Ouvrez {{voir-comment:text-size}} puis.\n2. Cliquez."))).toThrow(/a « Voir comment » reference ends its line/);
     expect(build(tutorial("1. Ouvrez.\n2. Cliquez.\n\n{{voir-comment:text-size}}"))).toThrow(/a tutorial's « Voir comment » ends one of its numbered steps/);
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:text-size}}\n\nPuis :\n\n1. Fermez.\n2. Rouvrez."))).toThrow(
+      /numbers its steps once, from 1 and in order \(1, 2, 1, 2\)/,
+    );
+    expect(build(tutorial("1. Ouvrez.\n2) Cliquez. {{voir-comment:text-size}}"))().fr[0]!.microAnimations).toEqual([{ id: "text-size", step: 2 }]);
     expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:text-size}}"), tutorial("1. Open.\n2. Click."))).toThrow(
       /en\/tutorial-x\.md: its Micro-animations \(none\) differ from the French ones \(text-size@2\)/,
     );

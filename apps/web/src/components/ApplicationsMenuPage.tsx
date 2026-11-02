@@ -112,7 +112,7 @@ function ApplicationsCard({ rows, toHandle, archivedHidden, showArchived, t }: {
       {rows.length === 0 ? (
         <>
           <p>{t("applications.none")}</p>
-          <MicroAnimation id="extension-side-panel" />
+          {archivedHidden === 0 ? <MicroAnimation id="extension-side-panel" /> : null}
         </>
       ) : <Table label={t("applications.title")} columns={columns} rows={rows} rowKey={(row) => row.id} data-row-links="" />}
       {archivedHidden > 0 ? (

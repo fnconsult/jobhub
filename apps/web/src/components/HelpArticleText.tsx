@@ -8,10 +8,10 @@ import { MicroAnimation } from "@/design/MicroAnimation";
  * FAQ's after its answer. `text` is the body as shown (its contact address filled in, #552).
  */
 export function HelpArticleText({ article, text = article.body, links }: { article: HelpArticle; text?: string; links?: LinkPolicy }) {
-  const at = (step: number | null) => (article.microAnimations ?? []).filter((shown) => shown.step === step).map(({ id }) => <MicroAnimation key={id} id={id} />);
+  const at = (step: number | null) => article.microAnimations.filter((shown) => shown.step === step).map(({ id }) => <MicroAnimation key={id} id={id} />);
   return (
     <>
-      <CoachReplyText text={text} links={links} afterStep={(step) => at(step)} />
+      <CoachReplyText text={text} links={links} afterStep={at} />
       {at(null)}
     </>
   );

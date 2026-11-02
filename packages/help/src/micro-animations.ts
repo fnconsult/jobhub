@@ -1,7 +1,7 @@
 /**
  * The Micro-animations (ADR-0066, #569): movements of 2 to 5 s that show a gesture hard to find by reading, played once
- * when the reader clicks « Voir comment ». Drawn in CSS/SVG in the web app (`apps/web/src/micro-animations`), one per id
- * below; this list is what the build checks a Help Article's references against.
+ * when the reader clicks « Voir comment ». Drawn in CSS/SVG in the web app (`apps/web/src/design/micro-animation-art.tsx`
+ * and `MicroAnimation.css`), one per id below; this list is what the build checks a Help Article's references against.
  *
  * A Tutorial references one on a numbered step, a FAQ after its answer, by a token at the end of the line:
  *
@@ -43,6 +43,9 @@ export interface MicroAnimationPlacement {
 const REFERENCE_AT_END = /[ \t]*\{\{voir-comment:([^}]*)\}\}[ \t]*$/;
 const ANY_REFERENCE = /\{\{voir-comment:/;
 
+/** A numbered list item, « 2. » or « 2) », as the Help Centre renders one (apps/web's coach/reply-text). */
+export const NUMBERED_LINE = /^\s*(\d+)[.)]\s+\S/;
+
 /**
  * A body's Micro-animation references, taken out of its text. `step` is the numbered step a reference ends, null for
  * one on any other line. `problems` lists a reference not at the end of its line, or naming no Micro-animation.
@@ -60,7 +63,7 @@ export function takeMicroAnimations(body: string): { body: string; references: {
     if (ANY_REFERENCE.test(text)) problems.push(`one « Voir comment » reference per line: ${line.trim()}`);
     const id = reference[1]!.trim();
     if (!isMicroAnimationId(id)) problems.push(`no Micro-animation is called ${id}: one of ${MICRO_ANIMATION_IDS.join(", ")}`);
-    const step = /^\s*(\d+)\.\s+\S/.exec(text);
+    const step = NUMBERED_LINE.exec(text);
     references.push({ id, step: step ? Number(step[1]) : null });
     return text;
   });

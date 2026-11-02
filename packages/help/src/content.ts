@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTACT_EMAIL_TOKEN } from "./contact";
-import { takeMicroAnimations, type MicroAnimationPlacement } from "./micro-animations";
+import { NUMBERED_LINE, takeMicroAnimations, type MicroAnimationPlacement } from "./micro-animations";
 import { HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
@@ -112,6 +112,11 @@ function articleProblems(article: HelpArticle): string[] {
     problems.push("only a tutorial (on a numbered step) or a FAQ (after its answer) shows a Micro-animation");
   if (article.kind === "tutorial" && article.microAnimations.some(({ step }) => step === null))
     problems.push("a tutorial's « Voir comment » ends one of its numbered steps (« 2. … {{voir-comment:<id>}} »)");
+  // The Help Centre numbers a list's items 1, 2, 3… from its first: a step's « Voir comment » lands on the step its
+  // number names only if the article numbers its lines once, in order.
+  const numbers = article.body.split(/\r?\n/).flatMap((line) => NUMBERED_LINE.exec(line)?.[1] ?? []).map(Number);
+  if (article.microAnimations.some(({ step }) => step !== null) && numbers.some((number, index) => number !== index + 1))
+    problems.push(`a tutorial with a « Voir comment » numbers its steps once, from 1 and in order (${numbers.join(", ")})`);
   const shown = article.microAnimations.map(({ id, step }) => `${id}@${step}`);
   if (new Set(shown).size !== shown.length) problems.push("a Micro-animation is referenced twice at the same place");
   if (!(HELP_ARTICLE_KINDS as readonly string[]).includes(article.kind)) problems.push(`kind must be ${orList(HELP_ARTICLE_KINDS)}`);
@@ -144,11 +149,11 @@ function orList(values: readonly string[]): string {
   return values.join(", ").replace(/, (?=[^,]*$)/, " or ");
 }
 
-/** The numbered steps of a tutorial's body: its lines « 1. … », « 2. … », counted from 1 while they follow each other. */
+/** The numbered steps of a tutorial's body: its lines « 1. … » (or « 1) … »), « 2. … », counted from 1 while they follow each other. */
 export function numberedSteps(body: string): number {
   let next = 1;
   for (const line of body.split(/\r?\n/)) {
-    const step = /^\s*(\d+)\.\s+\S/.exec(line);
+    const step = NUMBERED_LINE.exec(line);
     if (step && Number(step[1]) === next) next++;
   }
   return next - 1;

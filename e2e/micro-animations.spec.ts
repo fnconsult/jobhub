@@ -17,8 +17,11 @@ async function axeViolations(page: Page) {
   return results.violations.map((violation) => `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`);
 }
 
-/** The animations running in the page (CSS animations of the drawing). */
-const running = (page: Page) => page.evaluate(() => document.getAnimations().filter((animation) => animation.playState === "running").length);
+/** The animations running in the page's « Voir comment » drawings. */
+const running = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll(".ds-micro-animation")].flatMap((widget) => widget.getAnimations({ subtree: true })).filter((animation) => animation.playState === "running").length,
+  );
 
 test.describe("« Voir comment » (#569)", () => {
   test("beside a Tutorial's step: nothing plays before the click, it plays once, then « Revoir »", async ({ page }) => {

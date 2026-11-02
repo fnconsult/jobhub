@@ -227,7 +227,12 @@
       "planQuota": "quota",
       "masterCv": "Master CV",
       "tailoredCv": "tailored CV",
-      "proposals": "proposals"
+      "proposals": "proposals",
+      "aiCoach": "AI coach",
+      "coachMemory": "coach memory",
+      "coachAccess": "access",
+      "euAiConsent": "your consent",
+      "targetCompany": "target company"
     }
   },
   "emptyStateHelp": {

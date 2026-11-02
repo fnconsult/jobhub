@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Home
 synonyms: [home, start, get started, beginning, where to start, new conversation]
 route: /

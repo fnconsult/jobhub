@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Nos conditions d'utilisation
 synonyms: [CGU, conditions d'utilisation, accepter, acceptation, nouvelle version, case à cocher, accepter et continuer]
 route: /acceptation

@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Recherche d'offres
 synonyms: [recherche, chercher des offres, trouver des offres, job search]
 ---

@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Votre commande de séance
 synonyms: [commande, séance, coach humain, payer, paiement, cgv, conditions générales de vente, exécution immédiate, demande expresse]
 route: /coachs/commande

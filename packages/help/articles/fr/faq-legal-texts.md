@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Où lire les conditions et la politique de confidentialité ?
 synonyms: [CGU, CGV, conditions générales, conditions d'utilisation, conditions de vente, confidentialité, cookies, mentions légales, légal, version, historique]
 ---

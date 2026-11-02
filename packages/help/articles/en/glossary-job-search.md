@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Job search
 synonyms: [search, look for job offers, find job offers]
 ---

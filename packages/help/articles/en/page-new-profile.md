@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Create a profile
 synonyms: [new profile, create, upload my cv, questionnaire, start]
 route: /profils/nouveau

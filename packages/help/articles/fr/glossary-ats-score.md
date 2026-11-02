@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: ATS Score
 synonyms: [score ats, logiciel de recrutement, robot, lisibilité, mots-clés, lecture du cv]
 ---

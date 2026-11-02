@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Job Digest
 synonyms: [digest, "sélection d'offres", offres par e-mail, alerte, newsletter]
 ---

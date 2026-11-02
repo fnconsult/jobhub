@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Pourquoi ai-je reçu un e-mail sur les conditions ?
 synonyms: [e-mail, mail, préavis, conditions, CGU, CGV, confidentialité, nouvelle version, changement, accepter, politique de confidentialité]
 ---

@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Results
 synonyms: [results, result, produced documents, tailored cv, cover letter, outreach message, follow-up]
 ---

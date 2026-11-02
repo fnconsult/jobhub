@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: CV de référence
 synonyms: [cv principal, cv complet, master cv, version]
 ---

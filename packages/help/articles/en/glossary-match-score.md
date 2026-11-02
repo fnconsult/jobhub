@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Match Score
 synonyms: [match, fit, compatibility, rating, percentage]
 ---

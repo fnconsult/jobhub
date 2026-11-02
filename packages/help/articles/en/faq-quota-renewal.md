@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: When does my quota renew?
 synonyms: [renewal, renew, reset, monday, limit reached, usage]
 ---

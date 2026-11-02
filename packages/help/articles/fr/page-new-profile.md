@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Créer un profil
 synonyms: [nouveau profil, créer, déposer mon cv, questionnaire, commencer]
 route: /profils/nouveau

@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: La page d'un profil
 synonyms: [profil, métier, critères, versions, télécharger, archiver, dupliquer]
 route: /profils/[id]

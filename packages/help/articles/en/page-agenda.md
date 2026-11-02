@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Interviews and appointments
 synonyms: [agenda, calendar, interview, appointment, week, month, session, to schedule]
 route: /agenda

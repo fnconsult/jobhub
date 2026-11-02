@@ -151,7 +151,7 @@ test.describe("the public shell on a desktop", () => {
     await page.goto("/aide");
     await expect(page.locator("html")).toHaveAttribute("data-text-size", "xlarge");
     await expect(header(page).getByLabel(fr.textSize.label)).toHaveValue("xlarge");
-    await expect(page.getByRole("heading", { name: fr.helpCentre.comingSoonTitle })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.helpCentre.title);
   });
 
   test("the keyboard reaches every link of the header, then of the footer, in reading order, each target 24px at least", async ({ page }) => {

@@ -51,6 +51,9 @@ jobs:
             echo "::error::extension-v$version already exists: raise the Extension Version in apps/extension/package.json"; exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      # The extension's tsconfig extends .wxt/tsconfig.json, which WXT generates.
+      - run: npx wxt prepare
+        working-directory: apps/extension
       - run: npx vitest run apps/extension
       - run: npm run zip -w @jobhub/extension
       - run: npm run zip:beta -w @jobhub/extension

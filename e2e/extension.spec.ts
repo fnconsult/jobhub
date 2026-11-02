@@ -120,11 +120,12 @@ test.describe("browser extension", () => {
     await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
     const foot = page.getByRole("navigation", { name: frCatalogue.extension.links.label });
     await expect(foot.getByRole("link")).toHaveCount(3);
-    const hrefs = await foot.getByRole("link").evaluateAll((links) => links.map((link) => [link.getAttribute("href"), link.getAttribute("target")]));
-    expect(hrefs).toEqual([
-      ["http://localhost:3000/en/aide/extension", "_blank"],
-      ["http://localhost:3000/en/legal/confidentialite", "_blank"],
-      ["http://localhost:3000/en/legal/cgu", "_blank"],
+    // The web app this build talks to, whichever it is: the paths and the new tab are what the browser's language decides.
+    const links = await foot.getByRole("link").evaluateAll((all) => all.map((link) => [new URL(link.getAttribute("href")!).pathname, link.getAttribute("target")]));
+    expect(links).toEqual([
+      ["/en/aide/extension", "_blank"],
+      ["/en/legal/confidentialite", "_blank"],
+      ["/en/legal/cgu", "_blank"],
     ]);
   });
 

@@ -1762,6 +1762,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Le dossier entreprise rassemble les informations publiques sur l'employeur d'une candidature : son identité, son adresse, ses chiffres clés, les fonctions de ses dirigeants, les fonctions à contacter et ses actualités. Ouvrez la rubrique « Dossier entreprise » de la candidature, puis cliquez sur « Constituer le dossier entreprise ».\n\nLe dossier dit d'où viennent ses informations. « Source officielle. » : le registre des entreprises françaises. « Sources web, fiabilité moindre. » : des sites web, à vérifier, par exemple pour un employeur étranger. Pour une entreprise française, les dirigeants sont donnés par leur fonction, jamais par leur nom.\n\nSi l'offre est publiée par un cabinet de recrutement, Jobbbox propose l'employeur réel qu'il devine : confirmez-le, ou indiquez le bon, avec « Confirmer l'employeur ». S'il n'en devine aucun, indiquez l'employeur, puis cliquez sur « Constituer le dossier pour cet employeur ». Aucune recherche n'est faite avant votre confirmation, ni sur un entrepreneur individuel. « Ce n'est pas le bon employeur ? » permet de donner son nom ou son SIREN.\n\n« Mettre à jour le dossier » le refait, avec les actualités récentes. Le dossier d'une entreprise cible s'ouvre aussi depuis la rubrique « Entreprises cibles » du profil."
     },
     {
+      "id": "faq-expired-job-offer",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Que devient ma candidature quand une offre expire ?",
+      "synonyms": [
+        "offre expirée",
+        "expirée",
+        "expire",
+        "plus publiée",
+        "retirée",
+        "supprimée",
+        "annonce disparue",
+        "offre fermée",
+        "poste pourvu",
+        "signaler"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Jobbbox vérifie que les offres sont toujours publiées. Quand une offre ne l'est plus sur son site d'origine, sa page l'indique : « Offre expirée : elle n'est plus publiée sur son site d'origine depuis le … ».\n\nVotre candidature, elle, ne change pas : « Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite. » Ses documents, son dossier entreprise et ses contacts restent aussi. Une offre retirée n'est pas toujours un poste pourvu : une relance reste possible.\n\nSi vous voyez qu'une offre n'est plus publiée avant Jobbbox, cliquez sur « Signaler que cette offre n'est plus publiée », dans la fiche de la candidature. C'est pour vous seulement : l'offre ne change pas pour les autres. « Annuler le signalement » le retire.\n\nPour clore une candidature, mettez son statut à « Abandonnée » ou « Refusée »."
+    },
+    {
       "id": "faq-extension-update",
       "locale": "fr",
       "kind": "faq",
@@ -1829,29 +1852,6 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "Le Match Score compare une offre à votre CV et à vos critères de recherche, sur cinq critères : « Compétences », « Expérience », « Lieu », « Salaire » et « Type de contrat ». Il est noté sur 100.\n\n« Pourquoi … ? », à côté du score d'une offre dans Jobbbox, ouvre le détail : une ligne par critère, avec ce qui correspond et ce qui ne correspond pas. Dans le panneau de l'extension, ce détail s'affiche sous le score, dans « Détail du Match Score ». Un critère dont l'offre ne dit rien ne compte pas : le score est alors partiel, ou « non calculable » si aucun critère n'a pu être comparé.\n\n« Recalculer le Match Score », dans le panneau de l'extension, calcule de nouveau le score de l'offre. Connecté, un nouveau calcul utilise un Match Score de votre forfait de la semaine : l'extension vous le demande d'abord, et vous validez avec « Confirmer le recalcul ». Le résultat ne change que si l'offre ou votre profil a changé ; le panneau vous dit s'il est inchangé, ou quel était le score d'avant.\n\nRecalculez par exemple après avoir mis à jour votre CV de référence, ou quand le panneau vous l'indique parce que le texte de l'offre n'a pas pu être lu."
-    },
-    {
-      "id": "faq-expired-job-offer",
-      "locale": "fr",
-      "kind": "faq",
-      "audience": "candidate",
-      "topic": "utiliser",
-      "title": "Que se passe-t-il quand une offre expire ?",
-      "synonyms": [
-        "offre expirée",
-        "expirée",
-        "expire",
-        "plus publiée",
-        "retirée",
-        "supprimée",
-        "annonce disparue",
-        "offre fermée",
-        "poste pourvu",
-        "signaler"
-      ],
-      "route": null,
-      "motion": null,
-      "body": "Jobbbox vérifie que les offres sont toujours publiées. Quand une offre ne l'est plus sur son site d'origine, sa page l'indique : « Offre expirée : elle n'est plus publiée sur son site d'origine depuis le … ».\n\nVotre candidature, elle, ne change pas : « Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite. » Ses documents, son dossier entreprise et ses contacts restent aussi. Une offre retirée n'est pas toujours un poste pourvu : une relance reste possible.\n\nSi vous voyez qu'une offre n'est plus publiée avant Jobbbox, cliquez sur « Signaler que cette offre n'est plus publiée », dans la fiche de la candidature. C'est pour vous seulement : l'offre ne change pas pour les autres. « Annuler le signalement » le retire.\n\nPour clore une candidature, mettez son statut à « Abandonnée » ou « Refusée »."
     },
     {
       "id": "faq-plans-and-quotas",
@@ -1933,7 +1933,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "10 mo",
         "scanné",
         "image",
-        "mot de passe",
+        "protégé",
         "cv illisible",
         "pas de cv"
       ],
@@ -4116,6 +4116,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Each profile has its search criteria: « Target role », « Locations », « Minimum gross annual salary (in euros) », « Contract type », « Remote work », « Sectors », « Subsectors » and « Domains ». Jobbbox uses them for the Match Score, the ATS Score's target keyword and the job search.\n\nThey are in the profile's fiche: click « Change the criteria », then change a value. It is saved at once, and « Criteria saved » confirms it. You can give up to 5 locations: a job offer near one of them suits you. For contract, remote work and sectors, tick everything that suits you; nothing ticked means no preference.\n\nChanging the criteria does not rename the profile. A job search's scores are recomputed with the profile's current criteria. An archived profile must be restored before you change its criteria.\n\nTo help you choose them, click the « Refine my criteria » suggestion in the profile's conversation."
     },
     {
+      "id": "faq-expired-job-offer",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "What becomes of my application when a job offer expires?",
+      "synonyms": [
+        "expired job offer",
+        "expired",
+        "expires",
+        "no longer published",
+        "withdrawn",
+        "deleted",
+        "posting gone",
+        "closed offer",
+        "position filled",
+        "report"
+      ],
+      "route": null,
+      "motion": null,
+      "body": "Jobbbox checks that job offers are still published. When one no longer is on its original site, its page says so: « Expired job offer: no longer published on its original site since … ».\n\nYour application does not change: « Your application and its status stay as they are: you decide what happens next. » Its documents, its company dossier and its contacts stay too. A withdrawn job offer is not always a filled position: a follow-up is still possible.\n\nIf you see that a job offer is no longer published before Jobbbox does, click « Report this job offer as no longer published », in the application's fiche. It is for you only: the job offer does not change for others. « Undo the report » removes it.\n\nTo close an application, set its status to « Abandoned » or « Rejected »."
+    },
+    {
       "id": "faq-rescore-why-match-score",
       "locale": "en",
       "kind": "faq",
@@ -4207,29 +4230,6 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "body": "The company dossier gathers the public information about an application's employer: its identity, its address, its key figures, its executives' roles, the roles to contact and its news. Open the application's « Company dossier » section, then click « Build the company dossier ».\n\nThe dossier says where its information comes from. « Official source. »: the French company register. « Web sources, less reliable. »: websites, to be checked, for a foreign employer for example. For a French company, executives are given by their role, never by their name.\n\nIf the job offer is posted by a recruitment agency, Jobbbox suggests the real employer it guesses: confirm it, or give the right one, with « Confirm the employer ». If it guesses none, give the employer, then click « Build the dossier for this employer ». No lookup is made before you confirm, nor on a sole trader. « Not the right employer? » lets you give its name or its SIREN.\n\n« Update the dossier » rebuilds it, with recent news. A target company's dossier also opens from the profile's « Target companies » section."
-    },
-    {
-      "id": "faq-expired-job-offer",
-      "locale": "en",
-      "kind": "faq",
-      "audience": "candidate",
-      "topic": "utiliser",
-      "title": "What happens when a job offer expires?",
-      "synonyms": [
-        "expired job offer",
-        "expired",
-        "expires",
-        "no longer published",
-        "withdrawn",
-        "deleted",
-        "posting gone",
-        "closed offer",
-        "position filled",
-        "report"
-      ],
-      "route": null,
-      "motion": null,
-      "body": "Jobbbox checks that job offers are still published. When one no longer is on its original site, its page says so: « Expired job offer: no longer published on its original site since … ».\n\nYour application does not change: « Your application and its status stay as they are: you decide what happens next. » Its documents, its company dossier and its contacts stay too. A withdrawn job offer is not always a filled position: a follow-up is still possible.\n\nIf you see that a job offer is no longer published before Jobbbox does, click « Report this job offer as no longer published », in the application's fiche. It is for you only: the job offer does not change for others. « Undo the report » removes it.\n\nTo close an application, set its status to « Abandoned » or « Rejected »."
     },
     {
       "id": "faq-quota-renewal",

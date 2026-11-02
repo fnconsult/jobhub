@@ -2,7 +2,7 @@
 kind: faq
 audience: candidate
 topic: utiliser
-title: Que se passe-t-il quand une offre expire ?
+title: Que devient ma candidature quand une offre expire ?
 synonyms: [offre expirée, expirée, expire, plus publiée, retirée, supprimée, annonce disparue, offre fermée, poste pourvu, signaler]
 ---
 Jobbbox vérifie que les offres sont toujours publiées. Quand une offre ne l'est plus sur son site d'origine, sa page l'indique : « Offre expirée : elle n'est plus publiée sur son site d'origine depuis le … ».

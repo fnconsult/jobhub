@@ -2,7 +2,7 @@
 kind: faq
 audience: candidate
 topic: utiliser
-title: What happens when a job offer expires?
+title: What becomes of my application when a job offer expires?
 synonyms: [expired job offer, expired, expires, no longer published, withdrawn, deleted, posting gone, closed offer, position filled, report]
 ---
 Jobbbox checks that job offers are still published. When one no longer is on its original site, its page says so: « Expired job offer: no longer published on its original site since … ».

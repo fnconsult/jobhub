@@ -3,7 +3,7 @@ kind: faq
 audience: candidate
 topic: utiliser
 title: Quels formats de CV puis-je importer ?
-synonyms: [format, formats, pdf, word, docx, doc, fichier, importer, importer mon cv, taille, 10 mo, scanné, image, mot de passe, cv illisible, pas de cv]
+synonyms: [format, formats, pdf, word, docx, doc, fichier, importer, importer mon cv, taille, 10 mo, scanné, image, protégé, cv illisible, pas de cv]
 ---
 Jobbbox lit un CV au format PDF ou Word (.docx), de 10 Mo au plus. Vous l'importez en créant un profil : « J'ai un CV », puis « Lire mon CV ». Vous vérifiez et corrigez ce qui a été lu avant de l'enregistrer.
 

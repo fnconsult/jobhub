@@ -82,6 +82,16 @@ describe("« Utiliser Jobbbox », new topics (#556)", () => {
   });
 
   it.each([
+    ["fr", "Où est passé le losange vert ?"],
+    ["fr", "Pourquoi suis-je bloqué à cinq tentatives ?"],
+    ["fr", "Comment négocier mon salaire ?"],
+    ["en", "Where did the green diamond go?"],
+  ] as const)("leaves the Unanswered Questions' test question unanswered, in %s: « %s » (#344)", (locale, query) => {
+    const ours = search(query, locale, { scope: "coachPanel" }).filter((article) => article.id in NEW_ARTICLES);
+    expect(ours.map((article) => article.id)).toEqual([]);
+  });
+
+  it.each([
     ["fr", "transférer mes alertes", "tutorial-email-intake-forward"],
     ["fr", "quels mails lit jobbbox", "faq-email-intake-what-is-read"],
     ["fr", "coach intelligence artificielle", "glossary-ai-coach"],

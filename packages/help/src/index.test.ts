@@ -75,6 +75,19 @@ describe("articleFor — the Help Article of the page in view", () => {
     expect(articleFor("/admin/quotas", "fr")).toBeNull();
   });
 
+  it("gives a tab its own article when its pattern names it, the page's otherwise (#557)", () => {
+    const page = (id: string, route: string) => ({ id, locale: "fr" as const, kind: "page" as const, audience: "administrator" as const, topic: "fournisseurs-et-tools", title: id, synonyms: [], route, motion: null, body: id });
+    const from = [page("settings", "/admin/parametres"), page("sign-in", "/admin/parametres?tab=connexion"), page("both", "/admin/parametres?tab=sources&vue=liste")];
+    expect(articleFor("/admin/parametres?tab=connexion", "fr", { from })?.id).toBe("sign-in");
+    expect(articleFor("/admin/parametres?saved=google&tab=connexion#form", "fr", { from })?.id).toBe("sign-in");
+    expect(articleFor("/admin/parametres?tab=ia", "fr", { from })?.id).toBe("settings");
+    expect(articleFor("/admin/parametres", "fr", { from })?.id).toBe("settings");
+    // Every parameter it names, with its value.
+    expect(articleFor("/admin/parametres?tab=sources", "fr", { from })?.id).toBe("settings");
+    expect(articleFor("/admin/parametres?vue=liste&tab=sources", "fr", { from })?.id).toBe("both");
+    expect(articleFor("/admin/parametres/autre?tab=connexion", "fr", { from })?.id).toBe("sign-in");
+  });
+
   it("explains the sign-in page and Mon compte's Outils to a Visitor (#552)", () => {
     expect([articleFor("/connexion", "fr")?.id, articleFor("/connexion", "fr")?.audience]).toEqual(["page-what-is-jobbbox", "visitor"]);
     expect(articleFor("/compte/outils", "en")?.id).toBe("page-install-extension");

@@ -23,8 +23,9 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * A link in the message is read as a Job Offer: `jobOffer` is then the reply's Job Offer card { id, title, employer?, followed }.
  * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
  * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
- * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
- * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation }.
+ * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens }.
+ * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
+ * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation, context }.
  *
  * Live (#328), with `Accept: application/x-ndjson`: 200, one JSON event per line as the reply runs:
  *   { type: "conversation", conversation }      the conversation the message goes to (a new one is named already)
@@ -53,12 +54,12 @@ export async function POST(request: Request) {
   return NextResponse.json(failureOf(result), { status: STATUS[result.error] });
 }
 
-function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer }: Extract<SendResult, { ok: true }>) {
-  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer };
+function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer, context }: Extract<SendResult, { ok: true }>) {
+  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer, context };
 }
 
 function failureOf(result: Extract<SendResult, { ok: false }>) {
-  if (result.error === "stopped") return { error: result.error, conversation: result.conversation };
+  if (result.error === "stopped") return { error: result.error, conversation: result.conversation, context: result.context };
   if (result.error === "unavailable") return { error: result.error, reason: result.reason };
   return { error: result.error };
 }

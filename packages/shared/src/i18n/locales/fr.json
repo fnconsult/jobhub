@@ -5271,5 +5271,11 @@
     },
     "noResults": "Aucun résultat pour l'instant : ce que le coach produit ici s'ajoute à cette liste.",
     "matchScore": "Match Score : {{score}}"
+  },
+  "contextBar": {
+    "title": "Contexte de la conversation",
+    "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
+    "nearlyFull": "Le coach ne lit que les messages les plus récents.",
+    "clear": "Effacer la conversation"
   }
 }

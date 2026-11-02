@@ -6,6 +6,7 @@ import { createContext, useContext, useEffect, useId, useMemo, useRef, useState,
 import { useTranslation } from "react-i18next";
 import { AiActivityContent, useAiActivityUnderWay } from "@/components/AiActivity";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
+import { ContextBar } from "@/components/ContextBar";
 import { Icons } from "@/components/icons";
 import { CURRENT } from "@/components/SidebarShell";
 import { useWorkPane } from "@/components/work-pane";
@@ -90,6 +91,8 @@ function onRoomChange(onChange: () => void) {
 }
 
 type Control = {
+  /** An object's page, with a Fiche; otherwise the home page's or a menu's, whose column is Activité alone (#607). */
+  object: boolean;
   /** As the Candidate left it: open or not, its groups folded or not. */
   state: FicheState;
   /** Open, it has given its place to the Work Pane for want of room (ADR-0070), so is not shown. */
@@ -112,15 +115,18 @@ const FicheControl = createContext<Control | null>(null);
  * Without room for both beside the conversation, the Work Pane takes the Fiche's place while it is open, and the Fiche
  * comes back as it was when it closes. « Fiche » and « Activité » then say it is not shown, and bring it back, closing the
  * Work Pane.
+ *
+ * `object={false}`: the home page's or a menu's (#607), which have no Fiche: the column is Activité alone, which
+ * « Activité » opens and closes, closed when the page loads; it gives way to the Work Pane as the Fiche does.
  */
-export function FicheProvider({ children }: { children: ReactNode }) {
+export function FicheProvider({ object = true, children }: { object?: boolean; children: ReactNode }) {
   const wide = useSyncExternalStore(noSubscription, wideScreen, wideOnServer);
   const room = useSyncExternalStore(onRoomChange, roomForBoth, wideOnServer);
   const workPane = useWorkPane();
   const givenWay = !room && workPane?.item != null;
   // Untouched, the Fiche is as the screen has it; once « Fiche », « Activité » or a group is used, as the Candidate left it.
   const [changed, setChanged] = useState<FicheState | null>(null);
-  const state = useMemo(() => changed ?? { open: wide, folded: UNFOLDED }, [changed, wide]);
+  const state = useMemo(() => changed ?? { open: object && wide, folded: UNFOLDED }, [changed, object, wide]);
   const [activityAsked, setActivityAsked] = useState(0);
   const ficheId = useId();
   const control = useMemo<Control>(() => {
@@ -130,6 +136,7 @@ export function FicheProvider({ children }: { children: ReactNode }) {
       if (givenWay) workPane?.close();
     };
     return {
+      object,
       state,
       givenWay,
       ficheId: `${ficheId}-fiche`,
@@ -139,19 +146,21 @@ export function FicheProvider({ children }: { children: ReactNode }) {
       },
       toggleActivity: () => {
         bringBack();
-        setChanged(toggleActivity(shown));
+        // Without a Fiche, the column is Activité alone: it opens or closes.
+        setChanged(object ? toggleActivity(shown) : toggleFiche(shown));
         setActivityAsked((n) => n + 1);
       },
       toggleGroup: (group) => setChanged(toggleGroup(state, group)),
       activityAsked,
     };
-  }, [state, givenWay, workPane, ficheId, activityAsked]);
+  }, [object, state, givenWay, workPane, ficheId, activityAsked]);
   return <FicheControl.Provider value={control}>{children}</FicheControl.Provider>;
 }
 
 /**
  * « Fiche » and « Activité » in the Top Bar of an object's page (#603): they alone open and close the Fiche, « Activité »
- * on its Activity group, its glyph live while an AI action of the page is under way. Nothing outside a FicheProvider.
+ * on its Activity group, its glyph live while an AI action of the page is under way. On the home page and the menus
+ * (#607), « Activité » alone, which opens and closes the Activité column. Nothing outside a FicheProvider.
  */
 export function FicheButtons() {
   const { t } = useTranslation();
@@ -164,16 +173,18 @@ export function FicheButtons() {
   const activity = activityShown(state);
   return (
     <>
-      <button
-        className={`${buttonClass()} topbar-fiche`}
-        type="button"
-        aria-expanded={state.open}
-        aria-controls={state.open ? ficheId : undefined}
-        onClick={control.toggleFiche}
-      >
-        <Icons.fiche />
-        {t("fiche.label")}
-      </button>
+      {control.object ? (
+        <button
+          className={`${buttonClass()} topbar-fiche`}
+          type="button"
+          aria-expanded={state.open}
+          aria-controls={state.open ? ficheId : undefined}
+          onClick={control.toggleFiche}
+        >
+          <Icons.fiche />
+          {t("fiche.label")}
+        </button>
+      ) : null}
       <button
         className={`${buttonClass()} topbar-activity`}
         type="button"
@@ -234,11 +245,30 @@ export function Fiche({ content }: { content: FicheContent }) {
         {links(content.sections)}
       </Group>
       <Group group={ACTIVITY} label={t("fiche.groups.activity")} state={state} toggle={control.toggleGroup} anchor={activity}>
+        <ContextBar />
         <AiActivityContent />
       </Group>
       <Group group={RESULTS} label={t("fiche.groups.results")} state={state} toggle={control.toggleGroup}>
         {content.results.length > 0 ? links(content.results) : <p className="hint">{t("fiche.noResults")}</p>}
       </Group>
+    </aside>
+  );
+}
+
+/**
+ * The Activité column of the home page and the menus (#607, ADR-0070), beside the conversation, never over it: the
+ * Context bar of the page's conversation, then AI Activity (the actions under way and those of late), with no heading
+ * nor ✕ (the Top Bar's « Activité » closes it). Nothing while it is closed, or outside a FicheProvider; hidden while it
+ * has given way to the Work Pane.
+ */
+export function ActivityColumn() {
+  const { t } = useTranslation();
+  const control = useContext(FicheControl);
+  if (!control || control.object || !control.state.open) return null;
+  return (
+    <aside id={control.ficheId} className="fiche activity-column" aria-label={t("fiche.activity")} hidden={control.givenWay}>
+      <ContextBar />
+      <AiActivityContent />
     </aside>
   );
 }

@@ -386,6 +386,27 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     expect(sent.at(-1)).toEqual({ role: "user", content: "message 41" });
   });
 
+  it("says how many jetons the context it sent holds, by the estimate its context is fitted with: its system text and the messages it read (#607)", async () => {
+    const { coach, provider } = coachWith();
+    const messages = Array.from({ length: 45 }, (_, i) => ({ from: i % 2 === 0 ? ("candidate" as const) : ("coach" as const), text: `message ${i + 1}` }));
+
+    const result = await coach.reply("marie", { messages });
+
+    if (!result.ok) throw new Error("no reply");
+    const call = provider.calls[0]!;
+    const read = (call.messages as { content: string }[]).reduce((sum, message) => sum + estimateTokens(message.content), 0);
+    expect(result.contextTokens).toBe(estimateTokens(call.system!) + read);
+  });
+
+  it("sent no context for a reply it did not write: a Job Offer link's (#607)", async () => {
+    const read = vi.fn(async (): Promise<JobOfferLinkResult> => ({ ok: true, jobOffer }));
+    const { coach } = coachWith({ jobOfferLinks: { read } });
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "https://example.fr/offre/42" }] });
+
+    expect(result).toMatchObject({ ok: true, contextTokens: null });
+  });
+
   it("windows the Coach Panel's conversation to what the AI Coach accepts, starting with a Candidate message", () => {
     const messages = Array.from({ length: 101 }, (_, i) => ({ from: i % 2 === 0 ? ("candidate" as const) : ("coach" as const), text: `message ${i + 1}` }));
 

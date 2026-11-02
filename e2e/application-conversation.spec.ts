@@ -155,6 +155,15 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(topBar(page).getByRole("button", { name: fiche.activity, exact: true })).toHaveAttribute("aria-expanded", "true");
   });
 
+  test("the Fiche's Activité group carries the Context bar: messages out of 40, jetons out of 12k (#607)", async ({ browser }) => {
+    const { page, id } = await withApplication(browser);
+    await page.goto(`/candidatures/${id}`);
+    const contextBar = ficheOf(page).getByRole("group", { name: fr.contextBar.title });
+    await expect(contextBar).toContainText(/\d+ \/ 40 messages · [\d,]+k? \/ 12k jetons/);
+    await expect(contextBar).not.toContainText("tokens");
+    await expect(contextBar.getByRole("button", { name: fr.contextBar.clear })).toHaveCount(0);
+  });
+
   test("a group folds; a Section and a Result open in the Work Pane at their own address", async ({ browser }) => {
     const { page, id } = await withApplication(browser);
     await page.goto(`/candidatures/${id}`);

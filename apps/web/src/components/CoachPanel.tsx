@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import type { CoachFocus } from "@/coach";
-import type { CoachMessage, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
+import type { CoachMessage, ConversationContext, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import type { SubjectRef } from "@/coach-conversations";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
 import { useConversationFirst } from "@/components/conversation-first";
@@ -256,7 +256,7 @@ type LiveEvent =
   | { type: "step_started"; id: number; step: StartedStep; label: StepLabel }
   | { type: "step_ended"; id: number; step: ProvenanceStep }
   | ({ type: "reply" } & ReplyBody)
-  | { type: "stopped"; conversation: ConversationSummary }
+  | { type: "stopped"; conversation: ConversationSummary; context?: ConversationContext }
   | { type: "failed"; error: string; reason?: string };
 
 /** A saved reply, as the server gives it back. */
@@ -269,6 +269,8 @@ type ReplyBody = {
   at?: string;
   /** The AI Coach could not answer the question (#345). */
   couldNotAnswer?: boolean;
+  /** The conversation's Context bar's figures, once the message is saved (#607). */
+  context?: ConversationContext;
 };
 
 /** The tokens a step spent: none for one stopped or failed (providers say nothing then). */
@@ -461,11 +463,13 @@ function JobOfferCard({ jobOffer }: { jobOffer: JobOfferCardData }) {
 async function fetchConversation(
   endpoint: string,
   conversationId: string,
-): Promise<{ conversation: ConversationSummary & { aiDisclosure: boolean; messages: CoachMessage[] } } | { gone: boolean }> {
+): Promise<{ conversation: ConversationSummary & { aiDisclosure: boolean; messages: CoachMessage[]; context: ConversationContext | null } } | { gone: boolean }> {
   const response = await fetch(`${endpoint}/${encodeURIComponent(conversationId)}`).catch(() => null);
   if (!response?.ok) return { gone: response?.status === 404 };
-  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { aiDisclosure?: boolean; messages: ServerMessage[] } };
-  return { conversation: { ...conversation, aiDisclosure: conversation.aiDisclosure === true, messages: conversation.messages.map(asPanelMessage) } };
+  const { conversation } = (await response.json()) as { conversation: ConversationSummary & { aiDisclosure?: boolean; messages: ServerMessage[]; context?: ConversationContext } };
+  return {
+    conversation: { ...conversation, aiDisclosure: conversation.aiDisclosure === true, messages: conversation.messages.map(asPanelMessage), context: conversation.context ?? null },
+  };
 }
 
 /**
@@ -503,6 +507,8 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
   const [open, setOpen] = useState(isPage);
   const [inView, setInViewState] = useState<InView | null>(page?.inView ?? null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
+  // Its Context bar's figures, as the server says them (#607): none until it is saved.
+  const [context, setContext] = useState<ConversationContext | null>(null);
   // Whether the conversation in view opened with the AI disclosure: a new one does, until it is saved.
   const [aiDisclosure, setAiDisclosure] = useState(true);
   const [messages, setMessages] = useState<PanelMessage[]>([]);
@@ -592,8 +598,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     void fetchConversation(panel.conversations, pageConversationId).then((found) => {
       if (!shown) return;
       if ("conversation" in found) {
-        const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
+        const { messages: saved, aiDisclosure: disclosed, context: savedContext, ...summary } = found.conversation;
         setConversation(summary);
+        setContext(savedContext);
         setAiDisclosure(disclosed);
         setMessages((opened) => [...saved, ...opened.filter(isHelpCard)]);
       } else if (!subject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
@@ -631,13 +638,14 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     registerPage({
       conversationId: conversationOnPage,
       replying,
+      context,
       clear: () => pageActions.current?.clear() ?? Promise.resolve(false),
       // An object's or a menu's page is not a new Free conversation: « Nouvelle conversation » leads to the home page.
       startNew: subject ? null : () => pageActions.current?.startNew(),
       askAbout: (article) => pageActions.current?.askAbout(article),
     });
     return () => registerPage(null);
-  }, [isPage, registerPage, conversationOnPage, replying, subject]);
+  }, [isPage, registerPage, conversationOnPage, replying, subject, context]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
   async function openPanel(): Promise<Conversation | null> {
@@ -651,8 +659,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     const found = await fetchConversation(panel.conversations, conversationId);
     let reopened: Conversation | null = null;
     if ("conversation" in found) {
-      const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
+      const { messages: saved, aiDisclosure: disclosed, context: savedContext, ...summary } = found.conversation;
       setConversation(summary);
+      setContext(savedContext);
       setAiDisclosure(disclosed);
       // A Help Article opened meanwhile (the panel opened on it) stays after the saved messages.
       setMessages((shown) => [...saved, ...shown.filter(isHelpCard)]);
@@ -747,6 +756,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
 
   function startNewConversation() {
     setConversation(null);
+    setContext(null);
     setAiDisclosure(true);
     setMessages([]);
     setReadArticle(null);
@@ -827,8 +837,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       if (found.gone) setConversations((list) => list?.filter((item) => item.id !== conversationId) ?? null);
       return false;
     }
-    const { messages: saved, aiDisclosure: disclosed, ...summary } = found.conversation;
+    const { messages: saved, aiDisclosure: disclosed, context: savedContext, ...summary } = found.conversation;
     setConversation(summary);
+    setContext(savedContext);
     setAiDisclosure(disclosed);
     setMessages(saved);
     setStatus("idle");
@@ -902,6 +913,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
     const answered = (body: ReplyBody) => {
       if (abandoned()) return;
       setConversation(body.conversation);
+      if (body.context) setContext(body.context);
       remember(storageKey, body.conversation.id);
       savedOnPage(body.conversation);
       // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
@@ -928,6 +940,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       if (abandoned()) return;
       // Deleted meanwhile (another tab, or kept past its 12 months): the message starts a new one.
       setConversation(null);
+      setContext(null);
       setAiDisclosure(true);
       remember(storageKey, null);
       if (isPage && !subject && window.location.pathname !== routes.home) window.history.replaceState(null, "", routes.home);
@@ -937,8 +950,9 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
       shownLive?.end("failed");
     };
     // Stopped (#316 answer 11): the question stays, saved in its conversation; « Réponse arrêtée » stands in for the reply.
-    const stopped = (where: ConversationSummary | null) => {
+    const stopped = (where: ConversationSummary | null, saved?: ConversationContext) => {
       if (abandoned()) return;
+      if (saved) setContext(saved);
       if (where) {
         setConversation(where);
         remember(storageKey, where.id);
@@ -983,7 +997,7 @@ export function CoachPanel({ kind = "coach", page, children }: { kind?: PanelKin
           } else {
             ended = true;
             if (event.type === "reply") answered(event);
-            else if (event.type === "stopped") stopped(event.conversation);
+            else if (event.type === "stopped") stopped(event.conversation, event.context);
             else if (event.error === "not_found") gone();
             else giveBack(event.error === "invalid" ? "invalid" : "unavailable", event.reason);
           }

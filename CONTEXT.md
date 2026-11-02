@@ -925,6 +925,10 @@ _Avoid_: Sub-processor outside the EU
 An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
+**Two-step verification**:
+A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office.
+_Avoid_: 2FA, MFA, double authentication, two-factor
+
 **Require SSO for Administrators**:
 A super-admin setting, off by default: the Back Office asks an Administrator signed in by magic link to sign in again with a Sign-in Provider allowed for Administrators. Their Candidate pages are unaffected, and `ADMIN_EMAILS` super-admins are exempt.
 _Avoid_: Enforced SSO, mandatory SSO

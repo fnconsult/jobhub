@@ -170,4 +170,15 @@ describe.skipIf(!connectionString)("Two-step verification (needs Postgres: DATAB
     expect(await twoStep.verify(marie, backupCodes[0]!)).toEqual({ ok: false, error: "not_enabled" });
     expect(await twoStep.disable(marie.candidateId)).toBe(false);
   });
+
+  it("turned off, signs out the sessions still waiting for their second step, and only those", async () => {
+    await turnOn();
+    const pending = await signedIn("marie.dupont@example.fr");
+    await database.query(`UPDATE session SET "twoStepPending" = true WHERE id = $1`, [pending.sessionId]);
+
+    await twoStep.disable(marie.candidateId);
+
+    const { rows } = await database.query(`SELECT id FROM session WHERE "userId" = $1`, [marie.candidateId]);
+    expect(rows.map((row) => row.id)).toEqual([marie.sessionId]);
+  });
 });

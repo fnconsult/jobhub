@@ -20,6 +20,7 @@ import { createHash, randomInt } from "node:crypto";
 import type { ExternalApiLog } from "@jobhub/shared";
 import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 import type { Pool, PoolClient } from "pg";
+import { inTransaction } from "../database/pool";
 import { newTotpSecret, totpUri, verifyTotp } from "./totp";
 
 /** Wrong codes in a row before every code is refused for a while. */
@@ -76,7 +77,7 @@ export interface TwoStepVerification {
   verify(by: SecondStepBy, code: string): Promise<SecondStepResult>;
   /** New backup codes, the old ones no longer working; null while it is off. */
   regenerateBackupCodes(candidateId: string): Promise<string[] | null>;
-  /** Turns it off, forgetting the app and the codes. False when it was not on. */
+  /** Turns it off, forgetting the app and the codes, and signs out the sessions still pending. False when it was not on. */
   disable(candidateId: string): Promise<boolean>;
 }
 
@@ -160,21 +161,6 @@ export function createTwoStepVerification(
     }
   }
 
-  async function inTransaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await database.connect();
-    try {
-      await client.query("BEGIN");
-      const result = await work(client);
-      await client.query("COMMIT");
-      return result;
-    } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
   const lockedRow = async (client: PoolClient, candidateId: string) =>
     (
       await client.query<Row>(
@@ -206,7 +192,7 @@ export function createTwoStepVerification(
 
     async confirmSetup(by, code) {
       const started = clock();
-      const result = await inTransaction(async (client): Promise<SetupResult> => {
+      const result = await inTransaction(database, async (client): Promise<SetupResult> => {
         const row = await lockedRow(client, by.candidateId);
         if (!row) return { ok: false, error: "no_setup" };
         if (row.enabled_at) return { ok: false, error: "already_enabled" };
@@ -230,7 +216,7 @@ export function createTwoStepVerification(
 
     async verify(by, code) {
       const started = clock();
-      const result = await inTransaction(async (client): Promise<SecondStepResult> => {
+      const result = await inTransaction(database, async (client): Promise<SecondStepResult> => {
         const row = await lockedRow(client, by.candidateId);
         if (!row?.enabled_at) return { ok: false, error: "not_enabled" };
         const at = now();
@@ -281,8 +267,12 @@ export function createTwoStepVerification(
     },
 
     async disable(candidateId) {
-      const { rowCount } = await database.query(`DELETE FROM two_step_verification WHERE candidate_id = $1 AND enabled_at IS NOT NULL`, [candidateId]);
-      return (rowCount ?? 0) > 0;
+      return inTransaction(database, async (client) => {
+        const { rowCount } = await client.query(`DELETE FROM two_step_verification WHERE candidate_id = $1 AND enabled_at IS NOT NULL`, [candidateId]);
+        // A session still waiting for its second step could never finish it: it is signed out.
+        await client.query(`DELETE FROM session WHERE "userId" = $1 AND "twoStepPending"`, [candidateId]);
+        return (rowCount ?? 0) > 0;
+      });
     },
   };
 }

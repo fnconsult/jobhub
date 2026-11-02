@@ -194,7 +194,9 @@
       "help": "Aide",
       "privacy": "Confidentialité",
       "terms": "CGU"
-    }
+    },
+    "secondStep": "Terminez votre connexion sur Jobbbox",
+    "secondStepLink": "Terminer la connexion"
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",
@@ -335,7 +337,8 @@
       "tools": "Outils",
       "signalements": "Mes signalements",
       "data": "Mes données",
-      "reminders": "Rappels"
+      "reminders": "Rappels",
+      "security": "Sécurité"
     },
     "tools": {
       "title": "Outils",
@@ -546,6 +549,72 @@
     "give": "Donner mon accord",
     "withdraw": "Retirer mon accord",
     "error": "Une erreur est survenue. Réessayez."
+  },
+  "twoStep": {
+    "secondStep": {
+      "title": "Vérification en deux étapes",
+      "intro": "Pour terminer votre connexion, saisissez le code à 6 chiffres affiché par votre application d'authentification.",
+      "introBackup": "Pour terminer votre connexion, saisissez l'un de vos codes de secours. Chacun ne sert qu'une fois.",
+      "codeLabel": "Code de l'application",
+      "backupCodeLabel": "Code de secours",
+      "submit": "Vérifier",
+      "sending": "Vérification…",
+      "useBackupCode": "Utiliser un code de secours",
+      "useApp": "Utiliser l'application d'authentification",
+      "invalid": "Ce code n'est pas valide. Vérifiez-le et réessayez.",
+      "locked": "Trop de codes erronés. Réessayez à {{time}}.",
+      "error": "Le code n'a pas pu être vérifié. Réessayez.",
+      "signOut": "Se déconnecter"
+    },
+    "security": {
+      "title": "Vérification en deux étapes",
+      "explanation": "Une fois activée, chaque connexion par lien magique vous demande aussi un code de votre application d'authentification. Une connexion avec un fournisseur, comme Google, ne le demande pas.",
+      "off": "Désactivée",
+      "onSince": "Activée depuis le {{date}}",
+      "enable": "Activer",
+      "scan": "Scannez ce QR code avec votre application d'authentification (Google Authenticator, Microsoft Authenticator, 1Password…).",
+      "qrLabel": "QR code à scanner avec votre application d'authentification",
+      "keyLabel": "Ou saisissez cette clé dans l'application",
+      "confirmLabel": "Code affiché par l'application",
+      "confirm": "Confirmer",
+      "cancel": "Annuler",
+      "invalidCode": "Ce code n'est pas valide. Vérifiez l'heure de votre téléphone et réessayez.",
+      "locked": "Trop de codes erronés. Réessayez à {{time}}.",
+      "authenticatorApp": "Application d'authentification",
+      "backupCodes": "Codes de secours",
+      "addedOn": "ajoutée le {{date}}",
+      "codesAddedOn": "créés le {{date}}",
+      "lastUsed": "dernière utilisation le {{date}}",
+      "neverUsed": "jamais utilisée",
+      "codesNeverUsed": "aucun utilisé",
+      "codesLeft_one": "{{count}} code restant",
+      "codesLeft_other": "{{count}} codes restants",
+      "codesTitle": "Vos codes de secours",
+      "codesIntro": "Gardez ces 10 codes en lieu sûr : ils ne seront plus affichés. Chacun vous permet de vous connecter une fois sans votre application.",
+      "copy": "Copier",
+      "copied": "Codes copiés",
+      "download": "Télécharger",
+      "done": "J'ai gardé mes codes",
+      "regenerate": "Régénérer les codes de secours",
+      "disable": "Désactiver",
+      "confirmIdentity": "Pour continuer, saisissez un code de votre application ou un code de secours.",
+      "codeOrBackupLabel": "Code de l'application ou code de secours",
+      "continue": "Continuer",
+      "error": "La modification n'a pas pu être enregistrée. Réessayez.",
+      "fileName": "jobbbox-codes-de-secours.txt",
+      "fileHeader": "Codes de secours Jobbbox. Chaque code ne sert qu'une fois."
+    },
+    "email": {
+      "enabledSubject": "Vérification en deux étapes activée",
+      "enabledTitle": "La vérification en deux étapes est activée",
+      "enabledBody": "La vérification en deux étapes a été activée sur votre compte Jobbbox le {{date}}. Chaque connexion par lien magique vous demandera désormais un code.",
+      "disabledSubject": "Vérification en deux étapes désactivée",
+      "disabledTitle": "La vérification en deux étapes est désactivée",
+      "disabledBody": "La vérification en deux étapes a été désactivée sur votre compte Jobbbox le {{date}}. Vos connexions par lien magique ne demandent plus de code.",
+      "notYou": "Si ce n'est pas vous, connectez-vous et vérifiez la rubrique Sécurité de Mon compte.",
+      "action": "Ouvrir la rubrique Sécurité",
+      "reason": "Vous recevez cet e-mail parce que la sécurité de votre compte Jobbbox a changé."
+    }
   },
   "acceptance": {
     "title": "Nos conditions d'utilisation",

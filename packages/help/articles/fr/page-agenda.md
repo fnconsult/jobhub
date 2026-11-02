@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Entretiens et rendez-vous
 synonyms: [agenda, calendrier, entretien, rendez-vous, semaine, mois, séance, à planifier]
 route: /agenda

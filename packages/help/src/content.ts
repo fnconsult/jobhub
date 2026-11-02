@@ -8,7 +8,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HELP_ARTICLE_KINDS, HELP_LOCALES, type HelpArticle, type HelpLocale } from "./types";
+import { HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
 export class HelpContentError extends Error {
@@ -27,7 +27,7 @@ export const generatedModulePath = path.join(packageDir, "src", "articles.genera
 
 const KIND_ORDER = Object.fromEntries(HELP_ARTICLE_KINDS.map((kind, index) => [kind, index]));
 
-/** The source of `articles.generated.ts`: every article, page articles first, then the glossary, then the questions, each by title. */
+/** The source of `articles.generated.ts`: every article, page articles first, then the glossary, the questions and the tutorials, each by title. */
 export function renderArticlesModule(content: HelpContent): string {
   const sorted = Object.fromEntries(
     HELP_LOCALES.map((locale) => [
@@ -75,6 +75,8 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
       if (locale !== "fr" && french) {
         if (article.kind !== french.kind) problems.push(`${where}: its kind ${article.kind} differs from the French one (${french.kind})`);
         else if (article.route !== french.route) problems.push(`${where}: its route ${article.route} differs from the French one (${french.route})`);
+        if (article.audience !== french.audience) problems.push(`${where}: its audience ${article.audience} differs from the French one (${french.audience})`);
+        if (article.topic !== french.topic) problems.push(`${where}: its topic ${article.topic} differs from the French one (${french.topic})`);
       }
       if (article.kind !== "page" || !article.route) continue;
       const other = explained.get(article.route);
@@ -96,8 +98,17 @@ function markdownFiles(dir: string): string[] {
 /** What is wrong with one article on its own. */
 function articleProblems(article: HelpArticle): string[] {
   const problems: string[] = [];
-  if (!(HELP_ARTICLE_KINDS as readonly string[]).includes(article.kind)) problems.push(`kind must be ${HELP_ARTICLE_KINDS.join(", ").replace(/, (?=[^,]*$)/, " or ")}`);
+  if (!(HELP_ARTICLE_KINDS as readonly string[]).includes(article.kind)) problems.push(`kind must be ${orList(HELP_ARTICLE_KINDS)}`);
+  if (!article.audience) problems.push(`audience is missing: one of ${orList(HELP_AUDIENCES)}`);
+  else if (!(HELP_AUDIENCES as readonly string[]).includes(article.audience)) problems.push(`audience must be ${orList(HELP_AUDIENCES)}`);
+  const publicTopic = (PUBLIC_HELP_TOPICS as readonly string[]).includes(article.topic);
+  if (!article.topic) problems.push("topic is missing");
+  else if (article.audience === "administrator") {
+    if (publicTopic) problems.push(`an administrator article's topic is a Back Office one, never a public topic (${article.topic})`);
+    else if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(article.topic)) problems.push("topic must be a slug: lower-case letters, digits and hyphens");
+  } else if (!publicTopic) problems.push(`topic must be ${orList(PUBLIC_HELP_TOPICS)}`);
   if (!article.title) problems.push("title is missing");
+  if (article.kind === "tutorial" && numberedSteps(article.body) < 2) problems.push("a tutorial needs at least two numbered steps (« 1. … », « 2. … »)");
   if (!Array.isArray(article.synonyms)) problems.push("synonyms must be a list: [word, other word]");
   if (article.kind === "page" && !article.route) problems.push("a page article needs its route");
   if (article.kind !== "page" && article.route) problems.push("only a page article has a route");
@@ -105,6 +116,21 @@ function articleProblems(article: HelpArticle): string[] {
   if (!article.body) problems.push("the body is empty");
   if (/!\[[^\]]*\]\(/.test(article.body) || /<img\b/i.test(article.body)) problems.push("no images in a Help Article");
   return problems;
+}
+
+/** « a, b or c ». */
+function orList(values: readonly string[]): string {
+  return values.join(", ").replace(/, (?=[^,]*$)/, " or ");
+}
+
+/** The numbered steps of a tutorial's body: its lines « 1. … », « 2. … », counted from 1 while they follow each other. */
+export function numberedSteps(body: string): number {
+  let next = 1;
+  for (const line of body.split(/\r?\n/)) {
+    const step = /^\s*(\d+)\.\s+\S/.exec(line);
+    if (step && Number(step[1]) === next) next++;
+  }
+  return next - 1;
 }
 
 /** The article as its file says, unchecked: `articleProblems` says what is wrong with it. */
@@ -115,6 +141,8 @@ function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArt
     id,
     locale,
     kind: text(frontmatter.kind) as HelpArticle["kind"],
+    audience: text(frontmatter.audience) as HelpArticle["audience"],
+    topic: text(frontmatter.topic),
     title: text(frontmatter.title),
     synonyms: frontmatter.synonyms as string[],
     route: text(frontmatter.route) || null,

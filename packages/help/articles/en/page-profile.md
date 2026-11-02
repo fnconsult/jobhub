@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: A profile's page
 synonyms: [profile, role, criteria, versions, download, archive, duplicate]
 route: /profils/[id]

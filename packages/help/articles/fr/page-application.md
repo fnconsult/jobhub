@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: La page d'une candidature
 synonyms: [candidature, documents, correspondance, entretiens, dossier entreprise, lettre de motivation, statut]
 route: /candidatures/[id]

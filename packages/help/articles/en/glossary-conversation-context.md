@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Conversation context
 synonyms: [context, conversation context, tokens, context bar, the coach forgets, messages read]
 ---

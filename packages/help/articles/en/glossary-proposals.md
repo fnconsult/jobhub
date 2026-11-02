@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Your coach's proposals
 synonyms: [proposal, suggestion, card, accept, dismiss, reject]
 ---

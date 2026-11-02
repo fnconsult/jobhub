@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Recherches d'offres
 synonyms: [recherche, chercher, trouver, nouvelles offres, lancer, lancer une recherche, reçues par email, tout voir]
 route: /recherches

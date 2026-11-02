@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Propositions de votre coach
 synonyms: [proposition, suggestion, carte, accepter, ignorer, refuser]
 ---

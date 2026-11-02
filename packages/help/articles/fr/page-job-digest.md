@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Un Job Digest
 synonyms: [digest, sélection, offres reçues]
 route: /job-digests/[id]

@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Comment agrandir le texte ?
 synonyms: [taille du texte, police, agrandir, écriture, petit, gros caractères, zoom]
 ---

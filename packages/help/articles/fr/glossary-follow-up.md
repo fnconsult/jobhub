@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Relance
 synonyms: [relancer, rappeler, sans réponse, e-mail de relance]
 ---

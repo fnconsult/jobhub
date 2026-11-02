@@ -5053,6 +5053,11 @@ textarea.title-edit {
   color: var(--color-meta);
 }
 
+/* « Ouvrir dans le centre d'aide » (#549), under the article's text. */
+.help-card-open {
+  margin: 0;
+}
+
 .help-card-title {
   margin: 0;
   font-size: var(--font-size-body);

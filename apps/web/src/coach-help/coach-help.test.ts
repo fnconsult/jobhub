@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { helpForUnanswered, helpLocale, helpSuggestions, oftenAsked, onThisPage } from "./index";
+import { helpArticle, helpCentreAddress, helpForUnanswered, helpLocale, helpSuggestions, oftenAsked, onThisPage } from "./index";
 
 const ids = (articles: { id: string }[]) => articles.map((article) => article.id);
 
@@ -48,5 +48,19 @@ describe("the Coach Panel's single box: Help Articles first, without AI (#342)",
     expect(helpLocale("en-GB")).toBe("en");
     expect(helpLocale("fr")).toBe("fr");
     expect(helpLocale(undefined)).toBe("fr");
+  });
+});
+
+describe("the Coach Panel and the Help Centre (#549, ADR-0065)", () => {
+  it("finds the « extension » topic's articles, and never a Visitor's", () => {
+    expect(ids(helpSuggestions("enregistrer une offre avec l'extension", "fr"))).toContain("tutorial-extension-save-job-offer");
+    expect(ids(helpSuggestions("save a job offer with the extension", "en"))).toContain("tutorial-extension-save-job-offer");
+    expect(ids(helpSuggestions("où trouver l'aide de Jobbbox", "fr"))).not.toContain("faq-where-to-find-help");
+  });
+
+  it("leads a card to its article in the Help Centre, the English one under /en", () => {
+    expect(helpCentreAddress(helpArticle("tutorial-extension-save-job-offer", "fr")!)).toBe("/aide/extension/tutorial-extension-save-job-offer");
+    expect(helpCentreAddress(helpArticle("faq-text-size", "en")!)).toBe("/en/aide/utiliser/faq-text-size");
+    expect(helpCentreAddress({ ...helpArticle("faq-text-size", "fr")!, audience: "administrator", topic: "parametres" })).toBeNull();
   });
 });

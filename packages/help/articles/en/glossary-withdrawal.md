@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Withdrawal
 synonyms: [withdraw, renounce, cooling-off period, 14 days, refund]
 ---

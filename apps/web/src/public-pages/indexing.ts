@@ -1,11 +1,11 @@
-import { LEGAL_TEXTS, type LegalTextId } from "@jobhub/help";
+import { LEGAL_TEXTS, PUBLIC_HELP_TOPICS, type LegalTextId } from "@jobhub/help";
 import { SUPPORTED_LOCALES, type Locale } from "@jobhub/shared/i18n";
 import type { Metadata, MetadataRoute } from "next";
 import { localePath } from "./public-shell";
 
 /**
  * What search engines may index of the public site (#545, decided by #501, amended by #503 and ADR-0065):
- * - the indexed pages, in French and in English (`/en`): the home page, the Help Centre and its public Help Articles
+ * - the indexed pages, in French and in English (`/en`): the home page, the Help Centre, its four topics and its public Help Articles
  *   (never an Administrator's), each Legal Text in effect, the recipient list once #338 serves it, Nouveautés. Each
  *   carries its `canonical` and reciprocal `hreflang` (`fr`, `en`, `x-default` = French), and `sitemap.xml` lists them;
  * - every other page is `noindex`, the root layout's default: dated Legal Text Versions, sign-in, the unsubscribe page,
@@ -103,6 +103,7 @@ export function indexedPages({ helpArticles, legalTextInEffect }: IndexSources):
   return [
     everywhere("/"),
     everywhere("/aide"),
+    ...PUBLIC_HELP_TOPICS.map((topic) => everywhere(`/aide/${topic}`)),
     ...helpCentrePaths(helpArticles).map(everywhere),
     ...LEGAL_TEXTS.map((text) => ({ path: `/legal/${text}`, indexedIn: legalTextIndexedIn(text, legalTextInEffect) })).filter((page) => page.indexedIn.length > 0),
     ...INDEXED_LEGAL_PAGES.map(everywhere),

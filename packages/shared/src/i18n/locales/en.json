@@ -953,8 +953,11 @@
       "kinds": {
         "page": "Page",
         "glossary": "Word to know",
-        "faq": "Frequent question"
-      }
+        "faq": "Frequent question",
+        "tutorial": "Tutorial"
+      },
+      "openInHelpCentre": "Open in the Help Centre",
+      "openInHelpCentreAbout": "Open in the Help Centre: {{title}}"
     },
     "team": {
       "answered": "Does this answer your question?",
@@ -5113,8 +5116,39 @@
   "helpCentre": {
     "eyebrow": "Help",
     "title": "Help Centre",
-    "comingSoonTitle": "The Help Centre is coming soon",
-    "comingSoon": "Its articles will answer your questions about Jobbbox here. Until then, the legal texts and what's new are at the foot of every page."
+    "subtitle": "Answers written by the Jobbbox team, sorted by task. The search calls on no AI.",
+    "searchLabel": "Search the help",
+    "searchSubmit": "Search",
+    "results_one": "{{count}} article for “{{query}}”",
+    "results_other": "{{count}} articles for “{{query}}”",
+    "noResults": "No article matches “{{query}}”. Try other words, or browse the topics.",
+    "topicsTitle": "Topics",
+    "topics": {
+      "decouvrir": {
+        "title": "Discover Jobbbox",
+        "description": "What Jobbbox does, and where to find help."
+      },
+      "extension": {
+        "title": "The extension",
+        "description": "Save and analyse a job offer from your browser."
+      },
+      "utiliser": {
+        "title": "Using Jobbbox",
+        "description": "Your profiles, your applications, your coach and your account, page by page."
+      },
+      "espace-coach": {
+        "title": "Coach space",
+        "description": "For human coaches: your sessions and your candidates."
+      }
+    },
+    "articleCount_one": "{{count}} article",
+    "articleCount_other": "{{count}} articles",
+    "emptyTopic": "Articles coming soon",
+    "emptyTopicText": "The Jobbbox team is writing this topic's articles. Meanwhile, the search looks through all the help.",
+    "writtenBy": "Written by the Jobbbox team",
+    "related": "Related articles",
+    "breadcrumb": "Breadcrumb",
+    "inTopic": "The topic's articles"
   },
   "release": {
     "line": "Jobbbox version: {{version}}"

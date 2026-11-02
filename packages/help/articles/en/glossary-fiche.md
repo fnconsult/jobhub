@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Fiche
 synonyms: [fiche, application fiche, right column, sections, right panel, details]
 ---

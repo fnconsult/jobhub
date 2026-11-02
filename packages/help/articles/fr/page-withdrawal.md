@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Renoncer au contrat ici
 synonyms: [rétractation, rétracter, renoncer, remboursement, rembourser, annuler, 14 jours, délai de rétractation]
 route: /abonnement/retractation

@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Mes candidatures
 synonyms: [candidatures, suivi, offres suivies, tableau, liste, statut, archivée, à traiter, tout voir]
 route: /candidatures

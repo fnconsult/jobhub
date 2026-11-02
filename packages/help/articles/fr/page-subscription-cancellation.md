@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Résilier votre contrat
 synonyms: [résilier, résiliation, arrêter, annuler, abonnement, désabonner, fin du contrat, prélèvement]
 route: /abonnement/resiliation

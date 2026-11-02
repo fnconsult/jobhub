@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Conversation avec le coach
 synonyms: [conversation, discussion, coach, coach IA, renommer une conversation, supprimer une conversation]
 route: /conversations/[id]

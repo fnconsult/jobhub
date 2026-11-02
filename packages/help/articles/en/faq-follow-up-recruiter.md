@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: How do I follow up with a recruiter?
 synonyms: [follow-up, follow up, chase, no answer, no reply, contact again, email]
 ---

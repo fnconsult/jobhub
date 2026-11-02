@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Withdraw from the contract here
 synonyms: [withdrawal, withdraw, renounce, refund, cancel, 14 days, cooling-off period]
 route: /abonnement/retractation

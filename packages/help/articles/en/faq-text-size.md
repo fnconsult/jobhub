@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: How do I make the text larger?
 synonyms: [text size, font, larger, bigger, small, large print, zoom]
 ---

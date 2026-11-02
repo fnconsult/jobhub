@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Le résultat d'une recherche
 synonyms: [résultat, offres trouvées, recherche terminée]
 route: /recherches/[id]

@@ -14,4 +14,4 @@ A question about Jobbbox? While you write, the help's matching articles show abo
 
 On a phone, the conversation takes the whole screen. An article, « Activity » or a form opens over it, full screen: « Close » closes it and brings you back to the conversation. « Menu », at the top of the page, opens the menu.
 
-At the foot of the menu, « Help and legal » leads to the Help Centre (« Help »), the legal texts (« Legal ») and what's new in Jobbbox (« What's new »). On a phone, these links are in the menu.
+At the foot of the menu, « My account » opens a small menu: under « Help and legal », the Help Centre (« Help »), the legal texts (« Legal ») and what's new in Jobbbox (« What's new »); then the My account page and « Sign out ». On a phone too, it is at the foot of the menu.

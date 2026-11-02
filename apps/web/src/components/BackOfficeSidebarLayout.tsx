@@ -16,7 +16,7 @@ const isUnder = (pathname: string, path: string) => pathname === path || pathnam
  * The Back Office's sidebar layout (#204, Notion design language of map #123):
  * the sections an Administrator's roles cover, by group, each group named; the
  * Back Office Assistant in the top bar, on every page. `groups` holds only what they may see; the Dashboard, the
- * Back Office's home, comes first for everyone (#408). Last, Mon compte and the public Légal (#544).
+ * Back Office's home, comes first for everyone (#408). Last, Mon compte, the Back Office's help (#551) and the public Légal (#544).
  * Its foot names the Version served, `release` (#559).
  */
 export function BackOfficeSidebarLayout({
@@ -89,7 +89,19 @@ export function BackOfficeSidebarLayout({
                 {t("admin.nav.account")}
               </Link>
             </li>
-            {/* The public Légal (#544); the Back Office's own help, /admin/aide, joins it with #551. */}
+            {/* The Back Office's own help (#551): the Administrators' Help Articles, never public. */}
+            <li>
+              <Link
+                className="sidebar-link"
+                href={routes.adminHelp}
+                aria-current={isUnder(pathname, routes.adminHelp) ? CURRENT : undefined}
+                onClick={closeDrawer}
+              >
+                <Icons.help />
+                {t("admin.nav.help")}
+              </Link>
+            </li>
+            {/* The public Légal (#544). */}
             <li>
               <Link className="sidebar-link" href={routes.legal()} onClick={closeDrawer}>
                 <Icons.legal />

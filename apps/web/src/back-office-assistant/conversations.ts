@@ -49,7 +49,16 @@ export interface AssistantConversation extends AssistantConversationSummary {
 
 /** `provenance`: what served the reply (#327); `at`: when it was saved, an ISO date. */
 export type AssistantSendResult =
-  | { ok: true; conversation: AssistantConversationSummary; reply: string; blocked: { message: boolean; reply: boolean }; provenance: Provenance; at: string }
+  | {
+      ok: true;
+      conversation: AssistantConversationSummary;
+      reply: string;
+      blocked: { message: boolean; reply: boolean };
+      provenance: Provenance;
+      at: string;
+      /** No Administrator's Help Article covered the question (#551): never saved, said with this reply only. */
+      helpMissed: boolean;
+    }
   | { ok: false; error: "invalid" | "not_found" | "unavailable" };
 
 export type AssistantRenameResult = { ok: true; conversation: AssistantConversationSummary } | { ok: false; error: "invalid" | "not_found" };
@@ -206,7 +215,7 @@ export function createAssistantConversations(database: Pool, deps: AssistantConv
       }
       const conversation = id ? await find(administrator.id, id) : null;
       if (!conversation) return { ok: false, error: "not_found" }; // deleted meanwhile
-      return { ok: true, conversation, reply: answer.reply, blocked, provenance: answer.provenance, at: sentAt.toISOString() };
+      return { ok: true, conversation, reply: answer.reply, blocked, provenance: answer.provenance, at: sentAt.toISOString(), helpMissed: answer.helpMissed === true };
     },
 
     async list(administratorId) {

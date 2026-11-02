@@ -1344,7 +1344,8 @@
         "team": "Équipe"
       },
       "toHandle": "{{count}} à traiter",
-      "publicLegal": "Légal (site public)"
+      "publicLegal": "Légal (site public)",
+      "help": "Aide du back office"
     },
     "sections": {
       "signalements": "Signalements",
@@ -2803,8 +2804,8 @@
     "unansweredQuestions": {
       "title": "Questions sans réponse",
       "subtitle": "Les questions sur Jobbbox auxquelles l'aide n'a pas répondu.",
-      "intro": "Les questions posées au coach IA sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu. Écrivez l'article ou ajoutez un synonyme dans l'aide, puis marquez la question « Article écrit » ; écartez celles qui ne sont pas des manques de l'aide. Une réponse de l'IA ne devient jamais de l'aide d'elle-même.",
-      "privacy": "Chaque question est gardée masquée, sans lien avec le candidat qui l'a posée, 12 mois au plus après la dernière fois qu'elle a été posée, et 30 jours après avoir été marquée.",
+      "intro": "Les questions sur l'utilisation de Jobbbox auxquelles aucun article d'aide n'a répondu : celles posées au coach IA par les candidats, et celles qu'un administrateur a envoyées depuis l'assistant du back office avec « Demander un tutoriel ». Écrivez l'article ou ajoutez un synonyme dans l'aide, puis marquez la question « Article écrit » ; écartez celles qui ne sont pas des manques de l'aide. Une réponse de l'IA ne devient jamais de l'aide d'elle-même.",
+      "privacy": "Chaque question est gardée masquée, sans lien avec le candidat ou l'administrateur qui l'a posée, 12 mois au plus après la dernière fois qu'elle a été posée, et 30 jours après avoir été marquée.",
       "routeFilter": "Filtrer par page",
       "allRoutes": "Toutes les pages",
       "unknownRoute": "Page inconnue",
@@ -2820,8 +2821,8 @@
       "count": "Nombre",
       "firstAskedAt": "Première fois",
       "lastAskedAt": "Dernière fois",
-      "answer": "Réponse du coach IA",
-      "answerOf": "Réponse du coach IA : {{question}}",
+      "answer": "Réponse de l'IA",
+      "answerOf": "Réponse de l'IA : {{question}}",
       "actions": "Actions",
       "markWritten": "Article écrit",
       "markWrittenLabel": "Article écrit : {{question}}",
@@ -2840,6 +2841,15 @@
       },
       "journalFields": {
         "status": "Statut"
+      },
+      "audienceFilter": "Filtrer par public",
+      "allAudiences": "Tous les publics",
+      "audiences": {
+        "visitor": "Visiteur",
+        "guest": "Invité",
+        "candidate": "Candidat",
+        "human-coach": "Coach humain",
+        "administrator": "Administrateur"
       }
     },
     "signalements": {
@@ -3426,6 +3436,52 @@
         "due": "À rembourser",
         "dueUnknown": "Inconnu : à calculer dans Stripe"
       }
+    },
+    "help": {
+      "title": "Aide du back office",
+      "subtitle": "Les pages, tutoriels et questions fréquentes du back office, écrits par l'équipe Jobbbox pour les administrateurs. La recherche ne fait appel à aucune IA.",
+      "searchLabel": "Chercher dans l'aide du back office",
+      "searchSubmit": "Chercher",
+      "results_one": "{{count}} article pour « {{query}} »",
+      "results_other": "{{count}} articles pour « {{query}} »",
+      "noResults": "Aucun article ne correspond à « {{query}} ». Essayez avec d'autres mots, ou demandez un tutoriel depuis l'assistant.",
+      "topicsTitle": "Rubriques",
+      "emptyTopic": "Bientôt des articles ici",
+      "breadcrumb": "Fil d'Ariane",
+      "topics": {
+        "fournisseurs-et-tools": {
+          "title": "Fournisseurs et Tools",
+          "description": "Paramètres, Outils, clés des fournisseurs, connexion et sites de recherche."
+        },
+        "candidats": {
+          "title": "Candidats",
+          "description": "Signalements et rétractations."
+        },
+        "offre": {
+          "title": "Offre",
+          "description": "Offres, quotas et codes promo."
+        },
+        "coaching": {
+          "title": "Coaching",
+          "description": "Coachs humains, coût du coach IA, playbooks et garde-fous."
+        },
+        "contenu": {
+          "title": "Contenu",
+          "description": "Questions sans réponse et aide."
+        },
+        "plateforme": {
+          "title": "Plateforme",
+          "description": "Consommation IA, Activité et Design System."
+        },
+        "equipe": {
+          "title": "Équipe",
+          "description": "Administrateurs et rôles du back office."
+        },
+        "ia-et-conformite": {
+          "title": "IA et conformité",
+          "description": "Ce que l'IA fait dans Jobbbox et les règles qu'elle suit."
+        }
+      }
     }
   },
   "backOfficeAssistant": {
@@ -3443,6 +3499,16 @@
     "send": "Envoyer",
     "explain": {
       "question": "Explique-moi « {{label}} » ici."
+    },
+    "help": {
+      "greeting": "Posez votre question : je cherche d'abord dans l'aide du back office, sans IA, puis l'assistant répond à partir de ses articles et de vos sections.",
+      "no": "Non, demander à l'assistant",
+      "noTutorial": "Aucun tutoriel ne couvre encore ce point.",
+      "requestTutorial": "Demander un tutoriel",
+      "requested": "Demande envoyée : les rédacteurs de l'aide la verront dans « Questions sans réponse », sans votre nom.",
+      "requestFailed": "La demande n'a pas pu être envoyée. Réessayez dans quelques instants.",
+      "openInBackOfficeHelp": "Ouvrir dans l'aide du back office",
+      "openInBackOfficeHelpAbout": "Ouvrir dans l'aide du back office : {{title}}"
     }
   },
   "applicationStatuses": {

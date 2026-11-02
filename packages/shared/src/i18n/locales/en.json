@@ -1344,7 +1344,8 @@
         "team": "Team"
       },
       "toHandle": "{{count}} to handle",
-      "publicLegal": "Legal (public site)"
+      "publicLegal": "Legal (public site)",
+      "help": "Back office help"
     },
     "sections": {
       "signalements": "Feedback",
@@ -2803,8 +2804,8 @@
     "unansweredQuestions": {
       "title": "Unanswered questions",
       "subtitle": "The questions about Jobbbox the help did not answer.",
-      "intro": "The questions asked to the AI Coach about using Jobbbox that no help article answered. Write the article or add a synonym in the help, then mark the question « Article written »; dismiss those that are not gaps in the help. An AI answer never becomes help by itself.",
-      "privacy": "Each question is kept redacted, with no link to the Candidate who asked it, 12 months at most after it was last asked, and 30 days once marked.",
+      "intro": "The questions about using Jobbbox that no help article answered: those Candidates asked the AI Coach, and those an Administrator sent from the back office assistant with « Request a tutorial ». Write the article or add a synonym in the help, then mark the question « Article written »; dismiss those that are not gaps in the help. An AI answer never becomes help by itself.",
+      "privacy": "Each question is kept redacted, with no link to the Candidate or Administrator who asked it, 12 months at most after it was last asked, and 30 days once marked.",
       "routeFilter": "Filter by page",
       "allRoutes": "All pages",
       "unknownRoute": "Unknown page",
@@ -2820,8 +2821,8 @@
       "count": "Count",
       "firstAskedAt": "First asked",
       "lastAskedAt": "Last asked",
-      "answer": "The AI Coach's answer",
-      "answerOf": "AI Coach answer: {{question}}",
+      "answer": "The AI's answer",
+      "answerOf": "AI answer: {{question}}",
       "actions": "Actions",
       "markWritten": "Article written",
       "markWrittenLabel": "Article written: {{question}}",
@@ -2840,6 +2841,15 @@
       },
       "journalFields": {
         "status": "Status"
+      },
+      "audienceFilter": "Filter by audience",
+      "allAudiences": "All audiences",
+      "audiences": {
+        "visitor": "Visitor",
+        "guest": "Guest",
+        "candidate": "Candidate",
+        "human-coach": "Human Coach",
+        "administrator": "Administrator"
       }
     },
     "signalements": {
@@ -3426,6 +3436,52 @@
         "due": "To refund",
         "dueUnknown": "Unknown: work it out in Stripe"
       }
+    },
+    "help": {
+      "title": "Back office help",
+      "subtitle": "The back office's pages, tutorials and frequent questions, written by the Jobbbox team for Administrators. The search calls on no AI.",
+      "searchLabel": "Search the back office help",
+      "searchSubmit": "Search",
+      "results_one": "{{count}} article for “{{query}}”",
+      "results_other": "{{count}} articles for “{{query}}”",
+      "noResults": "No article matches “{{query}}”. Try other words, or request a tutorial from the assistant.",
+      "topicsTitle": "Topics",
+      "emptyTopic": "Articles coming soon",
+      "breadcrumb": "Breadcrumb",
+      "topics": {
+        "fournisseurs-et-tools": {
+          "title": "Providers and Tools",
+          "description": "Settings, Tools, provider keys, sign-in and search sites."
+        },
+        "candidats": {
+          "title": "Candidates",
+          "description": "Signalements and withdrawals."
+        },
+        "offre": {
+          "title": "Offer",
+          "description": "Plans, quotas and coupons."
+        },
+        "coaching": {
+          "title": "Coaching",
+          "description": "Human Coaches, AI Coach cost, playbooks and guardrails."
+        },
+        "contenu": {
+          "title": "Content",
+          "description": "Unanswered questions and help."
+        },
+        "plateforme": {
+          "title": "Platform",
+          "description": "AI usage, Activity and the Design System."
+        },
+        "equipe": {
+          "title": "Team",
+          "description": "Administrators and back office roles."
+        },
+        "ia-et-conformite": {
+          "title": "AI and compliance",
+          "description": "What AI does in Jobbbox and the rules it follows."
+        }
+      }
     }
   },
   "backOfficeAssistant": {
@@ -3443,6 +3499,16 @@
     "send": "Send",
     "explain": {
       "question": "Explain « {{label}} » to me here."
+    },
+    "help": {
+      "greeting": "Ask your question: I look in the back office help first, without AI, then the assistant answers from its articles and your sections.",
+      "no": "No, ask the assistant",
+      "noTutorial": "No tutorial covers this yet.",
+      "requestTutorial": "Request a tutorial",
+      "requested": "Request sent: the help editors will see it in « Unanswered questions », without your name.",
+      "requestFailed": "The request could not be sent. Try again in a few moments.",
+      "openInBackOfficeHelp": "Open in the back office help",
+      "openInBackOfficeHelpAbout": "Open in the back office help: {{title}}"
     }
   },
   "applicationStatuses": {

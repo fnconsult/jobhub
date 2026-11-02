@@ -4,6 +4,7 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
+import { toConversation } from "./support/conversation";
 
 // Issue #246: the Agenda (« Entretiens et rendez-vous »), from the Sidebar right
 // after Mes candidatures, lists the Candidate's Interviews: upcoming ones by day in
@@ -134,8 +135,8 @@ test.describe("the Agenda", () => {
   test("is what the Coach Panel has in view (#254)", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("agenda-coach"));
     await page.goto("/agenda");
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    const coachPanel = page.getByRole("complementary", { name: fr.coachPanel.title });
+    await toConversation(page);
+    const coachPanel = page.getByRole("region", { name: fr.conversationFirst.label });
     await expect(coachPanel).toContainText(`Vous consultez : ${fr.coachPanel.inViewAgenda}`);
   });
 

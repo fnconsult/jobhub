@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { toConversation } from "./support/conversation";
 
 // Issue #333: AI Activity live, for an AI Coach reply. While the reply is on its way, the top bar's button shows its step
 // (the Activity's glyph and its label) with a stop icon; the pane has a section for it, on the page it was asked from, and
@@ -17,7 +18,7 @@ const ANNOUNCEMENTS: string[] = Object.values(fr.aiActivity.live.announce as Rec
 const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 const stopIconOf = (region: Locator) => region.getByRole("button", { name: fr.aiActivity.live.stop.coach_reply, exact: true });
 const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
-const coachPanelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 async function query<T extends pg.QueryResultRow>(sql: string, values: unknown[]): Promise<T[]> {
   const db = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
@@ -31,7 +32,7 @@ async function query<T extends pg.QueryResultRow>(sql: string, values: unknown[]
 
 /** Asks the AI Coach from the page in view, then closes the Coach Panel while the reply is on its way. */
 async function askThenClose(page: Page, message: string) {
-  await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+  await toConversation(page);
   const panel = coachPanelOf(page);
   await panel.getByLabel(fr.coachPanel.messageLabel).fill(message);
   await panel.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
@@ -136,12 +137,12 @@ test.describe("AI Activity live: an AI Coach reply (#333)", () => {
     await paneOf(page).getByRole("button", { name: fr.aiActivity.close }).click();
 
     // The Coach Panel says it too.
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanelOf(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).locator("> li").last()).toContainText(fr.coachPanel.stopped);
     await coachPanelOf(page).getByRole("button", { name: fr.coachPanel.close }).click();
 
     // A failed reply: the stopped one before it gives way.
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     const panel = coachPanelOf(page);
     await panel.getByLabel(fr.coachPanel.messageLabel).fill("Bonjour E2E_AI_DOWN");
     await panel.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();

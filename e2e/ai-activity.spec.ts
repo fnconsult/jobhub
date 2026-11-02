@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { toConversation } from "./support/conversation";
 
 // Issue #332: AI Activity, the Candidate's top-bar button left of « Aide et coach », and the « Cette page » pane it opens,
 // read from each element's stored Provenance: the page's content and the AI Coach replies about its object. The AI is
@@ -45,10 +46,10 @@ async function storedJobOffer(title: string): Promise<string> {
 
 const aiActivityButton = (page: Page) => page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
 const paneOf = (page: Page) => page.getByRole("complementary", { name: fr.aiActivity.label });
-const coachPanelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 async function askTheCoach(page: Page, message: string) {
-  await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+  await toConversation(page);
   const panel = coachPanelOf(page);
   const replies = panel.getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
   const before = await replies.count();
@@ -200,7 +201,7 @@ test.describe("AI Activity (#332)", () => {
     await page.setViewportSize({ width: 1200, height: 800 });
     await signInWithMagicLink(page, newAddress("ai-activity-drawer"));
     await page.goto(`/offres/${await storedJobOffer("DAF Lyon")}`);
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanelOf(page)).toBeVisible();
     const button = aiActivityButton(page);
     await button.click();

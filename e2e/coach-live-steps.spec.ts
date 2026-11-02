@@ -4,6 +4,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { toConversation } from "./support/conversation";
 
 // Issue #328: before each AI Coach reply the Coach Panel shows each step live (its Activity's glyph and its label), then
 // the reply and its line. While a reply is on its way « Envoyer » becomes « Arrêter »: a Stop aborts the AI call (AI Usage
@@ -12,14 +13,14 @@ import { newAddress } from "./support/mailbox";
 // "E2E_COACH_SLOW=<ms>" makes the reply take that long, "E2E_AI_DOWN" makes Mistral answer 503.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
-const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const panelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const messagesOf = (panel: Locator) => panel.getByRole("list", { name: fr.coachPanel.messagesLabel }).locator("> li");
 const stepOf = (panel: Locator) => panel.locator(".coach-panel-step");
 
 async function openPanel(page: Page, who: string): Promise<{ email: string; panel: Locator }> {
   const email = newAddress(who);
   await signInWithMagicLink(page, email);
-  await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+  await toConversation(page);
   return { email, panel: panelOf(page) };
 }
 
@@ -58,9 +59,9 @@ test.describe("each step of an AI Coach reply live, and Stop", () => {
     await expect(step.locator("svg.activity-glyph")).toBeVisible();
     // Only the start and the end are announced: the step line is not a live region.
     expect(await step.evaluate((element) => element.closest("[aria-live], [role=status], [role=alert]"))).toBeNull();
-    await expect(panel.getByRole("status")).toHaveText(fr.coachPanel.thinking);
+    await expect(panel.getByRole("status").filter({ hasText: fr.coachPanel.thinking })).toHaveText(fr.coachPanel.thinking);
     await expect(panel.getByRole("button", { name: fr.coachPanel.stop, exact: true })).toBeVisible();
-    const axe = await new AxeBuilder({ page }).include("aside.coach-panel").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const axe = await new AxeBuilder({ page }).include(".page-conversation").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(axe.violations.map(({ id }) => id)).toEqual([]);
 
     const messages = messagesOf(panel);
@@ -110,7 +111,7 @@ test.describe("each step of an AI Coach reply live, and Stop", () => {
     await expect(messagesOf(panel)).toHaveCount(5);
     await expect.poll(async () => (await savedMessages(email)).map((message) => message.author)).toEqual(["candidate", "candidate", "coach"]);
     await page.reload();
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(messagesOf(panelOf(page))).toHaveCount(4);
   });
 

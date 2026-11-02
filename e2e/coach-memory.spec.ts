@@ -3,17 +3,17 @@ import { expect, test, type Page } from "@playwright/test";
 import { renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { chooseInPanelMenu } from "./support/coach-panel";
+import { openCoachMemory, startNewConversation, toConversation } from "./support/conversation";
 
 // Issue #125: the AI Coach proposes key facts from a Coach Conversation; the
 // Candidate confirms each before it reaches their Coach Memory, which they see,
-// edit and delete in the Coach Panel, and which goes with every AI Coach message.
+// edit and delete in the Work Pane (« Mémoire du coach » under « Coach », #602), and which goes with every AI Coach message.
 // The AI Coach is faked inside the server (fake-mistral.mjs): it proposes each
 // Candidate message as a goal, and says how many Coach Memory items it was told.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
-const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const messages = (page: Page) => coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 /** The words of the latest message, without the Provenance line under a reply (#327). */
 const lastWords = (page: Page) => messages(page).last().locator("p").last();
@@ -30,7 +30,7 @@ async function memoryItems(page: Page): Promise<{ kind: string; text: string }[]
 test.describe("Coach Memory", () => {
   test("the Candidate confirms what the AI Coach proposes to remember, then edits and deletes it; it goes with every message", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-memory"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await askCoach(page, "Je vise un poste de DAF à Lyon");
     await expect(lastWords(page)).toHaveText(/Je ne vois aucun profil\. \(1 message\)$/);
     await askCoach(page, "Je ne veux plus travailler dans la banque");
@@ -51,14 +51,13 @@ test.describe("Coach Memory", () => {
     expect(await memoryItems(page)).toEqual([{ kind: "goal", text: "Je vise un poste de DAF à Lyon" }]);
 
     // The Coach Memory goes with the next message, in this conversation or a new one.
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.newConversation);
+    await startNewConversation(page);
     await askCoach(page, "Par où commencer ?");
     await expect(lastWords(page)).toHaveText(/\(1 message\) Mémoire : 1 élément\.$/);
 
-    // The Candidate sees it in the Coach Panel, and edits its kind and words.
-    await chooseInPanelMenu(coachPanel(page), fr.coachMemory.open);
-    const memory = coachPanel(page).getByRole("region", { name: fr.coachMemory.title });
-    await expect(memory.getByRole("heading", { level: 3, name: fr.coachMemory.title })).toBeFocused();
+    // The Candidate sees it in the Work Pane, and edits its kind and words.
+    const memory = await openCoachMemory(page);
+    await expect(memory.getByRole("heading", { level: 2, name: fr.coachMemory.title })).toBeFocused();
     const item = memory.getByRole("article");
     await expect(item).toHaveCount(1);
     await expect(item).toContainText(`${fr.coachMemory.kinds.goal} Je vise un poste de DAF à Lyon`);
@@ -81,7 +80,7 @@ test.describe("Coach Memory", () => {
     await expect(memory.getByRole("status")).toContainText(fr.coachMemory.deleted);
     await expect(memory).toContainText(fr.coachMemory.empty);
     expect(await memoryItems(page)).toEqual([]);
-    await chooseInPanelMenu(coachPanel(page), fr.coachPanel.backToConversation);
+    await memory.getByRole("button", { name: fr.conversationFirst.close }).click();
     await askCoach(page, "Et ensuite ?");
     await expect(lastWords(page)).toHaveText(/\(3 messages\)$/);
   });
@@ -113,9 +112,8 @@ test.describe("Coach Memory", () => {
   test("meets the ADR-0009 floor", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-memory-floor"));
     await page.request.post("/api/coach/memory", { headers: { origin }, data: { kind: "constraint", text: "Pas plus de 2 jours de déplacement par mois" } });
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
-    await chooseInPanelMenu(coachPanel(page), fr.coachMemory.open);
-    const memory = coachPanel(page).getByRole("region", { name: fr.coachMemory.title });
+    await toConversation(page);
+    const memory = await openCoachMemory(page);
     await memory.getByRole("button", { name: fr.coachMemory.delete }).click();
     await expect(memory.getByRole("button", { name: fr.coachMemory.confirmDeleteButton })).toBeVisible();
     for (const t of await renderedTexts(page)) {

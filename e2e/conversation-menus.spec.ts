@@ -110,7 +110,6 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
       JOBHUB_IGNORE_ROOT_ENV: "1",
       AUTH_SECRET: "e2e-menus-secret-e2e-menus-secret-e2e-menus",
       MAIL_TRANSPORT: "console",
-      CONVERSATION_FIRST: "true",
       AI_SCORING_PROVIDER: "mistral",
       AI_WRITING_PROVIDER: "mistral",
       AI_COACHING_PROVIDER: "mistral",
@@ -283,7 +282,7 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
         const article = readFileSync(`packages/help/articles/${locale}/${name}.md`, "utf8");
         expect(article, `${locale}/${name}`).toMatch(/^kind: page$/m);
         expect(article, `${locale}/${name}`).toContain(`route: ${route}`);
-        expect(article, `${locale}/${name}`).toMatch(locale === "fr" ? /nouvelle présentation/ : /new layout/);
+        expect(article, `${locale}/${name}`).toMatch(locale === "fr" ? /conversation avec votre coach IA/ : /conversation with your AI coach/);
       }
     }
     const fragment = readFileSync("packages/help/releases/unreleased/627.md", "utf8");

@@ -14,7 +14,7 @@ const SUFFIX = fr.helpTerms.suffix;
 const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const termNamed = (term: string) => new RegExp(`^${escaped(`${term} ${SUFFIX}`)}$`, "i");
 
-const panelOf = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const panelOf = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const cardOf = (page: Page, title: string) => panelOf(page).getByRole("article", { name: title });
 const termButton = (page: Page, term: string) => page.locator("main").getByRole("button", { name: termNamed(term) });
 

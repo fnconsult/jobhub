@@ -9,6 +9,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { chooseInPanelMenu } from "./support/coach-panel";
+import { toConversation } from "./support/conversation";
 
 // Issue #5: a Candidate without a CV builds their Master CV with the AI Coach's
 // Onboarding Questionnaire; the Coach Panel is on every page and knows the
@@ -77,7 +78,7 @@ async function reply(page: Page, question: string, value: string | "skip" | "yes
   }
 }
 
-const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 async function askCoach(page: Page, text: string) {
   await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).fill(text);
@@ -241,7 +242,7 @@ test.describe("the Coach Panel", () => {
 
     // On the account page, no Profile is in view.
     await page.goto("/compte");
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanel(page)).toContainText(fr.coachPanel.aiDisclosure);
     await expect(coachPanel(page)).toContainText(fr.coachPanel.nothingInView);
     await expect(coachPanel(page).getByLabel(fr.coachPanel.messageLabel)).toBeFocused();
@@ -265,7 +266,7 @@ test.describe("the Coach Panel", () => {
 
   test("tells the Candidate when the AI Coach cannot reply, and gives their message back", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("panel-down"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await askCoach(page, "Bonjour E2E_AI_DOWN");
 
     // Why, by its Failure Reason in words (#328): never the provider's technical message.
@@ -275,7 +276,7 @@ test.describe("the Coach Panel", () => {
 
   test("keeps answering past MAX_MESSAGES, from the most recent messages, and keeps the whole conversation on screen", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("panel-long"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     const messages = coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem");
 
     // 20 exchanges reach MAX_MESSAGES (40); the 21st and 22nd still get a reply.
@@ -296,13 +297,13 @@ test.describe("the Coach Panel", () => {
 
     // A first conversation, started on the Profile page.
     await page.goto(`/profils/${profileId}`);
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await askCoach(page, "Mon CV est-il bon ?");
     await expect(messages.last()).toHaveText(/Je vois votre profil « Directrice financière »\. \(1 message\)/);
 
     // Saved: a reload keeps it.
     await page.reload();
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Mon CV est-il bon ?" })).toBeVisible();
     await expect(messages).toHaveCount(3);
     await askCoach(page, "Et ma formation ?");
@@ -310,7 +311,7 @@ test.describe("the Coach Panel", () => {
 
     // A second conversation, started on the account page: no Profile in view.
     await page.goto("/compte");
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(messages).toHaveCount(5);
     await chooseInPanelMenu(coachPanel(page), fr.coachPanel.newConversation);
     await expect(messages).toHaveCount(1);
@@ -358,7 +359,7 @@ test.describe("the Coach Panel", () => {
 
     // All of it holds after a reload.
     await page.reload();
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanel(page).getByRole("heading", { level: 3, name: "Relecture du CV" })).toBeVisible();
     await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
     await expect(items).toHaveCount(1);
@@ -386,13 +387,13 @@ test.describe("the Coach Panel", () => {
     expect((await (await page.request.get("/api/coach/conversations")).json()).conversations).toEqual([]);
 
     // The Coach Panel then starts a new conversation.
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanel(page).getByRole("heading", { level: 3, name: fr.coachPanel.newConversation })).toBeVisible();
   });
 
   test("the list of conversations meets the ADR-0009 floor", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("panel-list-floor"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await askCoach(page, "Bonjour");
     await expect(coachPanel(page).getByRole("list", { name: fr.coachPanel.messagesLabel }).getByRole("listitem")).toHaveCount(3);
     await chooseInPanelMenu(coachPanel(page), fr.coachPanel.conversations);
@@ -412,7 +413,7 @@ test.describe("the Coach Panel", () => {
 
   test("meets the ADR-0009 floor", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("panel-floor"));
-    await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+    await toConversation(page);
     await expect(coachPanel(page)).toBeVisible();
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);

@@ -39,7 +39,7 @@ const menuButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.m
 const collapseButton = (page: Page) => page.getByRole("button", { name: fr.sidebar.collapse });
 // « Aide et coach », « Aide » below 48rem (#342).
 const coachButton = (page: Page) => page.getByRole("button", { name: new RegExp(`^(${fr.coachPanel.open}|${fr.coachPanel.openShort})$`) });
-const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 const drawer = (page: Page) => page.getByRole("dialog", { name: fr.sidebar.menu });
 
 const NAV_LABELS = [fr.nav.applications, fr.sidebar.agenda, fr.sidebar.jobSearches, fr.sidebar.jobDigests, fr.account.humanCoaches];

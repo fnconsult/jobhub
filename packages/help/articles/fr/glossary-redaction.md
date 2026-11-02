@@ -9,4 +9,4 @@ Avant l'envoi, Jobbbox retire votre identité de chaque demande à l'IA et de ch
 
 Ses limites sont dites en clair : votre prénom reste ; un nom que Jobbbox ne connaît pas, celui d'un ancien responsable par exemple, passe tel quel ; et le reste de votre CV, vos employeurs, vos postes, vos dates, part avec la demande. Ce sont donc encore des données personnelles.
 
-Quand la réponse revient, Jobbbox remet vos informations à leur place : une lettre de motivation est bien signée de votre nom. Avec l'accord « IA européenne », les demandes qui contiennent vos données d'identité sont traitées dans l'Union européenne.
+Quand la réponse revient, Jobbbox remet vos informations à leur place : une lettre de motivation est bien signée de votre nom. Ce retrait vaut pour chaque demande, avec ou sans l'accord « IA européenne » ; avec l'accord, les demandes qui contiennent vos données d'identité sont en plus traitées dans l'Union européenne.

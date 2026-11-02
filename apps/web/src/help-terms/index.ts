@@ -22,7 +22,6 @@ export const HELP_TERMS = {
   coachMemory: "glossary-coach-memory",
   coachAccess: "glossary-coach-access",
   euAiConsent: "glossary-eu-ai-consent",
-  redaction: "glossary-redaction",
   targetCompany: "glossary-target-company",
 } as const;
 export type HelpTermName = keyof typeof HELP_TERMS;

@@ -11,8 +11,8 @@ Vos alertes d'offres (sites d'emploi, sites carrière) et les messages de recrut
 2. À la question « Quelle messagerie reçoit vos alertes d'offres ? », choisissez la vôtre, puis cliquez sur « Continuer ».
 3. Lisez ce qui est lu et ce qui est gardé, puis cliquez sur « Activer et continuer ». La date d'activation est enregistrée.
 4. Cliquez sur « Copier l'adresse » : c'est votre adresse de transfert, à vous seul.
-5. Sur un ordinateur, ouvrez votre messagerie et suivez le guide affiché : un filtre Gmail, ou une règle Outlook.com ou iCloud Mail, qui transfère seulement vos alertes à cette adresse, jamais tout votre courrier. Avec Orange et les autres messageries, transférez vos alertes à la main, depuis l'une de « Vos adresses d'envoi ».
-6. Avec Gmail, Jobbbox reçoit le code de confirmation de Gmail et vous le montre : saisissez-le dans Gmail, ou cliquez sur « Confirmer avec le lien de Gmail ».
+5. Avec Gmail, sur un ordinateur, ajoutez cette adresse de transfert dans les paramètres de Gmail, comme le guide l'indique. Jobbbox reçoit le code de confirmation de Gmail et vous le montre : saisissez-le dans Gmail, ou cliquez sur « Confirmer avec le lien de Gmail ». Créez ensuite le filtre Gmail qui transfère seulement vos alertes à cette adresse, jamais tout votre courrier.
+6. Avec Outlook.com ou iCloud Mail, sur un ordinateur, créez la règle que décrit le guide, qui transfère seulement vos alertes à cette adresse. Avec Orange et les autres messageries, transférez vos alertes à la main, depuis l'une de « Vos adresses d'envoi ».
 7. Attendez votre prochaine alerte, ou transférez-en une à la main : « Premier email reçu le … » confirme que le transfert marche. Cela peut prendre quelques minutes, parfois plus.
 8. Ouvrez la page Recherches d'offres : les offres de vos emails arrivent dans « Reçues par email », sous le profil qui leur correspond le mieux, ou dans « Non classées » quand aucun profil n'atteint 60.
 

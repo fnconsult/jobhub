@@ -63,16 +63,18 @@ describe("« Utiliser Jobbbox », new topics (#556)", () => {
     expect(said).toEqual([]);
   });
 
-  it("describes the identity's removal in #503's words, and both sides of European AI without a recommendation", () => {
+  it("describes the identity's removal in #503's words, and both sides of European AI as the AI layer routes them, without a recommendation", () => {
     const redaction = helpCentreArticle("utiliser", "glossary-redaction", "fr")!;
     expect(redaction.body).toContain("Avant l'envoi, Jobbbox retire votre identité");
     expect(redaction.body).toMatch(/pseudonymisation/);
     expect(redaction.body).toMatch(/votre prénom reste/);
     const consent = helpCentreArticle("utiliser", "glossary-eu-ai-consent", "fr")!;
-    expect(consent.body).toMatch(/^- Avec l'accord : /m);
-    expect(consent.body).toMatch(/^- Sans l'accord : avant l'envoi, Jobbbox retire votre identité/m);
-    expect(consent.body).toContain("Aucun des deux n'est recommandé");
-    expect(helpCentreArticle("utiliser", "glossary-eu-ai-consent", "en")!.body).toContain("Neither is recommended");
+    expect(consent.body).toMatch(/^- Avec l'accord : .*Mistral AI, dans l'Union européenne/m);
+    expect(consent.body).toMatch(/^- Sans l'accord : .*fournisseur habituel/m);
+    // Every call is redacted, with or without the consent (packages/ai, ADR-0007 amendment).
+    expect(consent.body).toContain("Dans les deux cas, avant l'envoi, Jobbbox retire votre identité de chaque demande");
+    expect(consent.body).toContain("Aucun des deux choix n'est recommandé");
+    expect(helpCentreArticle("utiliser", "glossary-eu-ai-consent", "en")!.body).toContain("Neither choice is recommended");
   });
 
   it.each(HELP_LOCALES)("links Email intake's FAQ to the privacy policy's AI section, in %s", (locale: HelpLocale) => {

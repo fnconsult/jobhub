@@ -9,4 +9,4 @@ Before sending, Jobbbox removes your identity from every AI request and every we
 
 Its limits are stated plainly: your first name stays; a name Jobbbox does not know, a former manager's for example, goes through as it is; and the rest of your CV, your employers, your jobs, your dates, goes with the request. So it is still personal data.
 
-When the reply comes back, Jobbbox puts your details back in place: a cover letter is still signed with your name. With the « European AI » consent, requests that contain your identity data are processed in the European Union.
+When the reply comes back, Jobbbox puts your details back in place: a cover letter is still signed with your name. This removal applies to every request, with or without the « European AI » consent; with the consent, the requests that contain your identity data are also processed in the European Union.

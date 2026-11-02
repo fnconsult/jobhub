@@ -258,10 +258,9 @@ test.describe("the AI, its consents and Target Companies open their glossary ent
     await opensItsArticle(page, fr.helpTerms.words.coachMemory, "glossary-coach-memory");
     await opensItsArticle(page, fr.helpTerms.words.coachAccess, "glossary-coach-access");
 
-    // IA européenne: the consent, and what the other requests go without.
+    // IA européenne: the consent.
     await page.goto("/compte/ia-europeenne");
     await opensItsArticle(page, fr.helpTerms.words.euAiConsent, "glossary-eu-ai-consent");
-    await opensItsArticle(page, fr.helpTerms.words.redaction, "glossary-redaction");
 
     // Mes coachs humains: the access a coach is given.
     await page.goto("/coachs");

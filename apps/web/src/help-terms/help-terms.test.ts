@@ -118,7 +118,6 @@ describe("the Help Article each term and each empty state opens", () => {
       "matchScore",
       "planQuota",
       "proposals",
-      "redaction",
       "tailoredCv",
       "targetCompany",
     ]);

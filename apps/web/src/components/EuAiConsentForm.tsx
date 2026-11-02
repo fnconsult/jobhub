@@ -38,7 +38,7 @@ export function EuAiConsentForm({ givenAt: initial, locale }: { givenAt: Date | 
     <Card title={t("euAiConsent.title")} headingId={`${id}-title`}>
       <div className="stack">
         <p>
-          <HelpText terms={{ euAiConsent: t("helpTerms.words.euAiConsent"), redaction: t("helpTerms.words.redaction") }}>{t("euAiConsent.explanation")}</HelpText>
+          <HelpText terms={{ euAiConsent: t("helpTerms.words.euAiConsent") }}>{t("euAiConsent.explanation")}</HelpText>
         </p>
         <p role="status" className="account-status">
           {date ? <Pill tone="success">{t("euAiConsent.givenOn", { date })}</Pill> : <Pill>{t("euAiConsent.notGiven")}</Pill>}

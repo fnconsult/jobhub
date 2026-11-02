@@ -262,6 +262,9 @@ export function CoachConversationPage(page: PagePlacement) {
     tellAiActivity?.(true);
     return () => tellAiActivity?.(false);
   }, [tellAiActivity]);
+  // A reply on its way when the Candidate moves on to another page: its end is AI Activity's to say (#608).
+  const replyOnItsWay = useRef<RequestActionLive | null>(null);
+  useEffect(() => () => replyOnItsWay.current?.leave(), []);
 
   // A page that shows a saved conversation brings it back (#601); gone (deleted meanwhile), the page is a new one.
   useEffect(() => {
@@ -429,7 +432,15 @@ export function CoachConversationPage(page: PagePlacement) {
     // The conversation the message goes to, once the server says (a new one is named already): where a Stop keeps it.
     let asked: ConversationSummary | null = current;
     setLive({ step: null, tokens: 0 });
-    const shownLive: RequestActionLive | null = aiActivity ? aiActivity.requestAction("coach_reply", pathname, () => stop.abort()) : null;
+    const requested: RequestActionLive | null = aiActivity ? aiActivity.requestAction("coach_reply", pathname, () => stop.abort()) : null;
+    replyOnItsWay.current = requested;
+    const shownLive: RequestActionLive | null = requested && {
+      ...requested,
+      end: (outcome, reason) => {
+        if (replyOnItsWay.current === requested) replyOnItsWay.current = null;
+        requested.end(outcome, reason);
+      },
+    };
 
     const giveBack = (error: Status, reason?: unknown) => {
       if (abandoned()) return;

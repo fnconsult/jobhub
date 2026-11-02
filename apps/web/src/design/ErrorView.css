@@ -98,6 +98,13 @@
     overflow-wrap: anywhere;
   }
 
+  /* « Continuer vers <site> » names a site of any length: it wraps rather than widen the page on a phone. */
+  .ds-error__continue {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .ds-error__countdown {
     margin: 0;
     color: var(--color-secondary);

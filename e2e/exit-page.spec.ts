@@ -47,6 +47,16 @@ test.describe("the Exit Page", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.errorPage.exit.title);
   });
 
+  test("fits a phone's width, even for a long site's name", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: origin, viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    const longSite = "https://careers.a-very-long-company-name-for-a-job-board.example/offre/1";
+    await page.goto(`/sortie?url=${encodeURIComponent(longSite)}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.errorPage.exit.title);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    await context.close();
+  });
+
   test("is not found for a destination Jobbbox would not take anyone to", async ({ page }) => {
     for (const url of ["javascript:alert(1)", "/compte", `https://jobbbox.ai@${host}/`]) {
       const response = await page.goto(`/sortie?url=${encodeURIComponent(url)}`);

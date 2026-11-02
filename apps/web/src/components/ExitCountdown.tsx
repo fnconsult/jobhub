@@ -45,7 +45,7 @@ export function ExitCountdown({ url, site, home }: { url: string; site: string; 
             : t("errorPage.exit.check")}
       </p>
       <div className="ds-error__actions">
-        <a className={buttonClass({ variant: "primary" })} href={url} rel="noopener noreferrer nofollow" onClick={() => setPhase("cancelled")}>
+        <a className={`${buttonClass({ variant: "primary" })} ds-error__continue`} href={url} rel="noopener noreferrer nofollow" onClick={() => setPhase("cancelled")}>
           {t("errorPage.exit.continue", { site })}
         </a>
         {phase === "counting" ? (

@@ -3,13 +3,19 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { newAddress } from "./support/mailbox";
-import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
+import {
+  signInByEmail,
+  startOwnServer,
+  type OwnServer,
+} from "./support/own-server";
 
 // Issue #608 (ADR-0070): on a phone the conversation takes the whole screen, the Fiche and the Work Pane open full screen
 // over it and close with ✕, the Sidebar stays a drawer; each column is a named region, focus enters the Work Pane when it
 // opens and returns to its opener when it closes, the replies are announced as before, and the Tab order runs from the
 // conversation to the columns. Runs on a server of its own; the AI Coach is faked inside it (fake-mistral.mjs).
-const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
+const fr = JSON.parse(
+  readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"),
+);
 const texts = fr.conversationFirst;
 const fiche = fr.fiche;
 const PORT_OFFSET = 608;
@@ -20,7 +26,15 @@ const masterCv = {
   phone: "",
   location: "Lyon",
   summary: "",
-  experience: [{ title: "Responsable logistique", employer: "Carrefour Supply", location: "Lyon", period: "2010 – 2024", description: "Pilotage des entrepôts." }],
+  experience: [
+    {
+      title: "Responsable logistique",
+      employer: "Carrefour Supply",
+      location: "Lyon",
+      period: "2010 – 2024",
+      description: "Pilotage des entrepôts.",
+    },
+  ],
   education: [],
   skills: ["Supply chain", "WMS"],
   languages: [],
@@ -28,18 +42,30 @@ const masterCv = {
 
 let server: OwnServer;
 
-async function withProfile(page: Page, size: { width: number; height: number }): Promise<string> {
+async function withProfile(
+  page: Page,
+  size: { width: number; height: number },
+): Promise<string> {
   await page.setViewportSize(size);
   await signInByEmail(page, server, newAddress("conversation-phone"));
-  const created = await page.request.post("/api/profiles", { data: { masterCv, searchCriteria: { targetRole: "Logistique", locations: ["Lyon"] } }, headers: { origin: server.origin } });
+  const created = await page.request.post("/api/profiles", {
+    data: {
+      masterCv,
+      searchCriteria: { targetRole: "Logistique", locations: ["Lyon"] },
+    },
+    headers: { origin: server.origin },
+  });
   expect(created.status(), await created.text()).toBe(201);
   return (await created.json()).id as string;
 }
 
-const conversation = (page: Page) => page.getByRole("region", { name: texts.label });
-const ficheOf = (page: Page) => page.getByRole("complementary", { name: fiche.label });
+const conversation = (page: Page) =>
+  page.getByRole("region", { name: texts.label });
+const ficheOf = (page: Page) =>
+  page.getByRole("complementary", { name: fiche.label });
 const topBar = (page: Page) => page.getByRole("banner");
-const ficheButton = (page: Page) => topBar(page).getByRole("button", { name: fiche.label, exact: true });
+const ficheButton = (page: Page) =>
+  topBar(page).getByRole("button", { name: fiche.label, exact: true });
 
 test.describe("« Conversation au centre »: the phone and the accessibility of the columns (#608)", () => {
   test.beforeAll(async () => {
@@ -63,7 +89,13 @@ test.describe("« Conversation au centre »: the phone and the accessibility of 
       STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
-      NODE_OPTIONS: ["fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
+      NODE_OPTIONS: [
+        "fake-google.mjs",
+        "fake-mistral.mjs",
+        "fake-reference-data.mjs",
+      ]
+        .map((fake) => `--import=${path.resolve("e2e/support", fake)}`)
+        .join(" "),
     });
   });
 
@@ -71,15 +103,22 @@ test.describe("« Conversation au centre »: the phone and the accessibility of 
     await server?.stop();
   });
 
-  test("phone: the conversation fills the screen; the Fiche and a Section open full screen over it and close with ✕", async ({ browser }) => {
-    const context = await browser.newContext({ baseURL: server.origin, locale: "en-US" });
+  test("phone: the conversation fills the screen; the Fiche and a Section open full screen over it and close with ✕", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      baseURL: server.origin,
+      locale: "en-US",
+    });
     const page = await context.newPage();
     const profileId = await withProfile(page, { width: 375, height: 812 });
     await page.goto(`/profils/${profileId}`);
 
     const box = (await conversation(page).boundingBox())!;
     expect(box.width).toBeGreaterThan(375 - 2 * 24);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(375);
     // The Fiche is closed on a phone: it is not beside the conversation.
     await expect(ficheOf(page)).toHaveCount(0);
 
@@ -87,7 +126,9 @@ test.describe("« Conversation au centre »: the phone and the accessibility of 
     await ficheButton(page).click();
     await expect(ficheOf(page)).toBeVisible();
     const sheet = (await ficheOf(page).boundingBox())!;
-    expect([sheet.x, sheet.y, sheet.width, sheet.height]).toEqual([0, 0, 375, 812]);
+    expect([sheet.x, sheet.y, sheet.width, sheet.height]).toEqual([
+      0, 0, 375, 812,
+    ]);
     await expect(page.locator("main")).toHaveAttribute("inert", "");
     await ficheOf(page).getByRole("button", { name: texts.close }).click();
     await expect(ficheOf(page)).toHaveCount(0);
@@ -95,11 +136,17 @@ test.describe("« Conversation au centre »: the phone and the accessibility of 
 
     // A Section opens in the Work Pane, full screen too; ✕ returns to the Profile.
     await ficheButton(page).click();
-    await ficheOf(page).getByRole("link", { name: fr.profilePage.sections.gerer, exact: true }).click();
+    await ficheOf(page)
+      .getByRole("link", { name: fr.profilePage.sections.gerer, exact: true })
+      .click();
     await expect(page).toHaveURL(`${server.origin}/profils/${profileId}/gerer`);
-    const pane = page.getByRole("complementary", { name: fr.profilePage.sections.gerer });
+    const pane = page.getByRole("complementary", {
+      name: fr.profilePage.sections.gerer,
+    });
     const paneBox = (await pane.boundingBox())!;
-    expect([paneBox.x, paneBox.y, paneBox.width, paneBox.height]).toEqual([0, 0, 375, 812]);
+    expect([paneBox.x, paneBox.y, paneBox.width, paneBox.height]).toEqual([
+      0, 0, 375, 812,
+    ]);
     await pane.getByRole("button", { name: texts.close }).click();
     await expect(page).toHaveURL(`${server.origin}/profils/${profileId}`);
     await expect(pane).toHaveCount(0);
@@ -108,9 +155,13 @@ test.describe("« Conversation au centre »: the phone and the accessibility of 
     await expect(ficheOf(page)).toHaveCount(0);
 
     // The Sidebar stays a drawer: a dialog opened from the Menu button, not a column.
-    await page.getByRole("button", { name: fr.sidebar.menu, exact: true }).click();
+    await page
+      .getByRole("button", { name: fr.sidebar.menu, exact: true })
+      .click();
     const drawer = page.getByRole("dialog");
-    await expect(drawer.getByRole("navigation", { name: fr.sidebar.label })).toBeVisible();
+    await expect(
+      drawer.getByRole("navigation", { name: fr.sidebar.label }),
+    ).toBeVisible();
     const drawerBox = (await drawer.boundingBox())!;
     expect(drawerBox.width).toBeLessThan(375);
     await page.keyboard.press("Escape");
@@ -118,41 +169,72 @@ test.describe("« Conversation au centre »: the phone and the accessibility of 
     await context.close();
   });
 
-  test("wide screen: each column is a named region, the Tab order runs from the conversation to the Fiche, replies are announced", async ({ browser }) => {
-    const context = await browser.newContext({ baseURL: server.origin, locale: "en-US" });
+  test("wide screen: each column is a named region, the Tab order runs from the conversation to the Fiche, replies are announced", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({
+      baseURL: server.origin,
+      locale: "en-US",
+    });
     const page = await context.newPage();
     const profileId = await withProfile(page, { width: 1600, height: 1000 });
     await page.goto(`/profils/${profileId}`);
 
     await expect(conversation(page)).toBeVisible();
     await expect(ficheOf(page)).toBeVisible();
-    await expect(page.getByRole("navigation", { name: fr.sidebar.label }).first()).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: fr.sidebar.label }).first(),
+    ).toBeVisible();
 
     // Replies are announced as they were: the message list is a polite live region.
-    await expect(conversation(page).getByRole("list", { name: fr.coachPanel.messagesLabel })).toHaveAttribute("aria-live", "polite");
+    await expect(
+      conversation(page).getByRole("list", {
+        name: fr.coachPanel.messagesLabel,
+      }),
+    ).toHaveAttribute("aria-live", "polite");
 
     // Tab order: from the box in the conversation, the next focusable thing past it is in the Fiche, never before it.
     const order = await page.evaluate(() => {
       const conv = document.querySelector(".page-conversation")!;
       const fiche = document.querySelector(".fiche")!;
-      return Boolean(conv.compareDocumentPosition(fiche) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return Boolean(
+        conv.compareDocumentPosition(fiche) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
     });
     expect(order).toBe(true);
-    await conversation(page).getByRole("textbox", { name: fr.coachPanel.messageLabel }).focus();
+    await conversation(page)
+      .getByRole("textbox", { name: fr.coachPanel.messageLabel })
+      .focus();
     let reached = false;
     for (let i = 0; i < 15 && !reached; i++) {
       await page.keyboard.press("Tab");
-      reached = await page.evaluate(() => Boolean(document.activeElement?.closest(".fiche")));
+      reached = await page.evaluate(() =>
+        Boolean(document.activeElement?.closest(".fiche")),
+      );
     }
     expect(reached).toBe(true);
 
     // Focus enters the Work Pane when a Section opens, and returns to its opener when it closes.
-    const section = ficheOf(page).getByRole("link", { name: fr.profilePage.sections.gerer, exact: true });
+    const section = ficheOf(page).getByRole("link", {
+      name: fr.profilePage.sections.gerer,
+      exact: true,
+    });
     await section.click();
-    const pane = page.getByRole("complementary", { name: fr.profilePage.sections.gerer });
-    await expect(pane.getByRole("heading", { level: 2, name: fr.profilePage.sections.gerer })).toBeFocused();
+    const pane = page.getByRole("complementary", {
+      name: fr.profilePage.sections.gerer,
+    });
+    await expect(
+      pane.getByRole("heading", {
+        level: 2,
+        name: fr.profilePage.sections.gerer,
+      }),
+    ).toBeFocused();
     await expect(pane.getByRole("button", { name: texts.close })).toBeVisible();
-    const axe = await new AxeBuilder({ page }).include(".page-conversation").include(".fiche").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    const axe = await new AxeBuilder({ page })
+      .include(".page-conversation")
+      .include(".fiche")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze();
     expect(axe.violations.map(({ id }) => id)).toEqual([]);
     await pane.getByRole("button", { name: texts.close }).click();
     await expect(pane).toHaveCount(0);

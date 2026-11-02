@@ -376,8 +376,9 @@ test("screenshots at 3 widths", async ({ page }, testInfo) => {
     ]);
     for (const [name, show] of shots) {
       await show();
-      // Let the drawer finish sliding in.
-      await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+      // Let the drawer finish sliding in. A transition another one replaces (the menu button's background, when the focus
+      // or the pointer moves) is cancelled, which rejects `finished`: it is over all the same.
+      await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => undefined))));
       const path = dir ? `${dir}/${width}-${name}.png` : testInfo.outputPath(`${width}-${name}.png`);
       await page.screenshot({ path });
       await testInfo.attach(`${width}px ${name}`, { path, contentType: "image/png" });

@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: My human coaches
 synonyms: [human coach, session, video call, professional, hr, coach access, book, paid sessions]
 route: /coachs

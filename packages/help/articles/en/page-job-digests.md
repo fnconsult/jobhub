@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Job Digests
 synonyms: [digest, selection, offers by email, receive, frequency, alert, see all]
 route: /job-digests

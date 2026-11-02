@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: My subscription
 synonyms: [subscription, price, pay, payment, premium, standard, free, cancel, cancellation]
 route: /abonnement

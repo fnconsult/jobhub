@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Cancel your contract
 synonyms: [cancel, cancellation, stop, end, subscription, unsubscribe, end of the contract, charge]
 route: /abonnement/resiliation

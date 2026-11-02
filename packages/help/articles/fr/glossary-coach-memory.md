@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Mémoire du coach
 synonyms: [mémoire, mémoire du coach, retenir, ce que le coach retient, souvenirs, oublier]
 ---

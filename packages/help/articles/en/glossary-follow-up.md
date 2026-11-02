@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Follow-up
 synonyms: [follow up, chase, no answer, no reply, reminder email]
 ---

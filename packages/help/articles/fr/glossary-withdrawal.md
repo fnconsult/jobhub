@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Rétractation
 synonyms: [rétracter, renoncer, délai de rétractation, 14 jours, remboursement]
 ---

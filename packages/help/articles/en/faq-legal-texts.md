@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Where can I read the terms and the privacy policy?
 synonyms: [terms of use, terms of sale, terms and conditions, privacy, cookies, legal notice, legal, version, history]
 ---

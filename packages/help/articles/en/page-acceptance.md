@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Our terms of use
 synonyms: [terms of use, accept, acceptance, new version, checkbox, accept and continue]
 route: /acceptation

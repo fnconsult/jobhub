@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Your session order
 synonyms: [order, session, human coach, pay, payment, terms of sale, cgv, immediate performance, start at once]
 route: /coachs/commande

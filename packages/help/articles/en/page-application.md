@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: An application's page
 synonyms: [application, documents, match, interviews, company dossier, cover letter, status]
 route: /candidatures/[id]

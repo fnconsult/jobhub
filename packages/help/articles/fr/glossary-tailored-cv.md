@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: CV adapté
 synonyms: [cv personnalisé, cv sur mesure, adapter, tailored cv]
 ---

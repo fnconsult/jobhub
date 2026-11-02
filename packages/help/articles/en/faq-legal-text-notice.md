@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Why did I get an email about the terms?
 synonyms: [email, mail, notice, terms, terms of use, terms of sale, privacy, new version, change, accept, privacy policy]
 ---

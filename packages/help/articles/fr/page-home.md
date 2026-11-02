@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Accueil
 synonyms: [accueil, démarrer, commencer, début, par où commencer, nouvelle conversation]
 route: /

@@ -1,5 +1,7 @@
 ---
 kind: page
+audience: candidate
+topic: utiliser
 title: Your order
 synonyms: [order, buy, pay, payment, terms of sale, cgv, summary, immediate performance, start at once]
 route: /abonnement/commande

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { articles, isPublic } from "@jobhub/help";
 import { helpCentrePaths, indexedPages, publicPageMetadata, robotsFile, siteOrigin, sitemapEntries, type IndexSources } from "./indexing";
 
 const ORIGIN = "https://app.jobbbox.fr";
@@ -56,6 +57,7 @@ describe("sitemap.xml (#545)", () => {
       `${ORIGIN}/en`,
       `${ORIGIN}/aide`,
       `${ORIGIN}/en/aide`,
+      ...["decouvrir", "extension", "utiliser", "espace-coach"].flatMap((topic) => [`${ORIGIN}/aide/${topic}`, `${ORIGIN}/en/aide/${topic}`]),
       `${ORIGIN}/aide/extension/faq-extension`,
       `${ORIGIN}/en/aide/extension/faq-extension`,
       `${ORIGIN}/legal/cgu`,
@@ -69,8 +71,16 @@ describe("sitemap.xml (#545)", () => {
     });
   });
 
+  it("lists every public Help Article this build carries, under its topic, in both languages (#549)", () => {
+    const built = sitemapEntries({ origin: ORIGIN, beta: false, sources: { helpArticles: articles("fr"), legalTextInEffect: () => false } }).map((entry) => entry.url);
+    for (const found of articles("fr").filter(isPublic)) {
+      expect(built).toContain(`${ORIGIN}/aide/${found.topic}/${found.id}`);
+      expect(built).toContain(`${ORIGIN}/en/aide/${found.topic}/${found.id}`);
+    }
+  });
+
   it("lists no Administrator article and no noindex page", () => {
-    expect(urls.some((url) => url.includes("tutorial-parametres"))).toBe(false);
+    expect(urls.some((url) => url.includes("tutorial-parametres") || url.includes("/parametres"))).toBe(false);
     for (const noindex of ["/connexion", "/desabonnement", "/compte/supprime", "/legal/cgu/", "/legal/cgv", "/admin", "/espace-coach", "/compte"]) {
       expect(urls.some((url) => url.replace(/\/en(?=\/|$)/, "").startsWith(`${ORIGIN}${noindex}`)), noindex).toBe(false);
     }

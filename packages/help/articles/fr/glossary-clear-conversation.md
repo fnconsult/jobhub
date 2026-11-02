@@ -1,5 +1,7 @@
 ---
 kind: glossary
+audience: candidate
+topic: utiliser
 title: Effacer la conversation
 synonyms: [effacer, vider la conversation, supprimer les messages, recommencer la conversation]
 ---

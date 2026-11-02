@@ -1,5 +1,7 @@
 ---
 kind: faq
+audience: candidate
+topic: utiliser
 title: Comment récupérer ou supprimer mes données ?
 synonyms: [données, rgpd, supprimer, effacer, export, télécharger, vie privée, fermer mon compte]
 ---

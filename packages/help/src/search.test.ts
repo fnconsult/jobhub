@@ -37,6 +37,16 @@ describe("search — Help Articles matching a Candidate's words, without AI", ()
     expect(ids("renouvellement du quota")[0]).toBe("faq-quota-renewal");
   });
 
+  it("does not take a short word for the start of another: « passé » is not « passkey »", () => {
+    // « passé » once stemmed to « pass », the start of the passkey articles' « passkey » synonym (#664):
+    // every « Où est passé… ? » found them, and the question was never kept as an Unanswered Question (#344).
+    const coachPanel = (query: string, locale: "fr" | "en" = "fr") => search(query, locale, { scope: "coachPanel" }).map((entry) => entry.id);
+    expect(coachPanel("Où est passé le losange vert ?")).toEqual([]);
+    expect(coachPanel("I passed the green diamond, where is it?", "en")).toEqual([]);
+    expect(coachPanel("passkey")).toContain("glossary-passkey");
+    expect(coachPanel("passkeys", "en")).toContain("glossary-passkey");
+  });
+
   it("ranks a word in the title or synonyms above the same word in the body", () => {
     // « ATS » is the ATS Score's title; the Profile page only mentions it in its body.
     const found = ids("score ats");

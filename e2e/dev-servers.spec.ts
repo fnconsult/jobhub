@@ -68,7 +68,7 @@ function start(args: string[], env: NodeJS.ProcessEnv): DevServer {
 /**
  * Stops the whole group and waits until none of it is left (e2e/support/process-group.ts). npm exits on SIGTERM at
  * once, but the server underneath may not: Vite's dev server closes itself first, and holds its port until it has;
- * `next dev` writes its cache. The next test must not find either there.
+ * `next dev` its lock in apps/web/.next/dev. The next test must not find either there.
  */
 const stop = (server: DevServer | undefined) => stopGroup(server?.proc.pid);
 

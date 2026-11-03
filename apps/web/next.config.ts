@@ -9,8 +9,14 @@ loadRootEnv();
 const nextConfig: NextConfig = {
   // Self-contained server bundle, deployable as a container in an EU region (ADR-0007).
   output: "standalone",
-  // forbidden() and its forbidden.tsx (#542): the only way a page answers a real 403 (still experimental in Next 16).
-  experimental: { authInterrupts: true },
+  experimental: {
+    // forbidden() and its forbidden.tsx (#542): the only way a page answers a real 403 (still experimental in Next 16).
+    authInterrupts: true,
+    // `next dev` keeps Turbopack's work in .next/dev/cache between sessions (on by default since 16.1). The e2e suite
+    // starts many `next dev` one after the other on changed Legal Text Versions, and one restored from an earlier
+    // session can answer 404 for routes it has (#673): the suite turns it off (JOBHUB_DEV_CACHE=off, playwright.config.ts).
+    turbopackFileSystemCacheForDev: process.env.JOBHUB_DEV_CACHE !== "off",
+  },
   transpilePackages: ["@jobhub/shared", "@jobhub/ai", "@jobhub/coach-knowledge", "@jobhub/help"],
   // The Unicode fonts a PDF export embeds are read from node_modules at run time (src/export/fonts.ts).
   // `npm run build` checks they all made it into the standalone output (scripts/check-standalone-fonts.ts).

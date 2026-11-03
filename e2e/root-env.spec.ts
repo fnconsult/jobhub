@@ -88,7 +88,7 @@ async function startWebApp(command: string[], port: number, env: NodeJS.ProcessE
   return server;
 }
 
-/** Once it is gone: `next dev` writes its cache as it stops, and the next test's server reads it (#673). */
+/** Once it is gone: the next test starts its own `next dev` in apps/web. */
 const stop = (server: Server) => stopGroup(server.process.pid);
 
 /** Asks the web app for a sign-in link, the request the /connexion page makes. */

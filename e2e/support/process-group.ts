@@ -1,14 +1,11 @@
 // Stopping a server a spec started in its own process group (`spawn(..., { detached: true })`): the whole group, and
 // only once none of it is left (#673).
 //
-// `next dev` persists Turbopack's cache (apps/web/.next/dev/cache) as it stops, and every `next dev` of the suite reads
-// that same cache as it starts. Killed while writing it, the server leaves a torn cache, and the next `next dev` serves
-// 404 for routes it has: from its first request (`/api/health` never answers), or later (the magic-link request).
-// So: SIGTERM, then wait for the group to be gone before the next server starts. NEXT_EXIT_TIMEOUT_MS, set in
-// playwright.config.ts, lets `next dev` give its server that time instead of SIGKILLing it after 100 ms.
+// Every `next dev` in apps/web shares .next/dev, its lock and its port range: the next one must not start while the
+// last is still stopping. So: SIGTERM, then wait for the group to be gone, and SIGKILL what is still there after that.
 
-/** Long enough for `next dev` to write its cache on a loaded CI runner; what is left after it is killed. */
-export const GROUP_EXIT_TIMEOUT_MS = 60_000;
+/** How long a server is given to stop before it is killed. */
+export const GROUP_EXIT_TIMEOUT_MS = 30_000;
 
 /** Whether any process of the group `pgid` is still alive. */
 export function groupAlive(pgid: number): boolean {

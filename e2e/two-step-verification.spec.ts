@@ -20,7 +20,7 @@ test.afterAll(async () => {
 const secondStepCalls = async () => Number((await database.query(`SELECT count(*) FROM external_api_usage WHERE provider = 'two_step_verification' AND operation = 'second_step'`)).rows[0].count);
 
 /** Turns Two-step verification on from Mon compte, as a signed-in Candidate; returns the key and the 10 backup codes. */
-async function turnOn(page: Page, locale: "fr" | "en" = "fr") {
+async function turnOn(page: Page) {
   await page.goto("/compte/securite");
   const section = page.getByRole("region", { name: fr.twoStep.security.title });
   await section.getByRole("button", { name: fr.twoStep.security.enable }).click();

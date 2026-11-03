@@ -1,10 +1,12 @@
 import { DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
+import { permanentSuperAdminsFromEnv } from "@/admin/access";
 import { getAuth, getMailer } from "@/auth/server";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { sharedPool } from "@/database/pool";
 import { routes } from "@/routes";
 import { twoStepChangeEmail } from "./email";
 import { createTwoStepVerification, type TwoStepVerification } from "./index";
+import { mustHaveTwoStepVerification } from "./obligation";
 
 let instance: TwoStepVerification | undefined;
 
@@ -12,6 +14,11 @@ let instance: TwoStepVerification | undefined;
 export function getTwoStepVerification(): TwoStepVerification {
   instance ??= createTwoStepVerification(sharedPool(), { secret: String(getAuth().options.secret), externalApis: getExternalApiLog() });
   return instance;
+}
+
+/** Whether the Candidate must have Two-step verification now (#665): an Administrator (ADMIN_EMAILS included) or a Human Coach. */
+export function mustHaveIt(candidateId: string): Promise<boolean> {
+  return mustHaveTwoStepVerification(sharedPool(), candidateId, permanentSuperAdminsFromEnv(process.env).emails);
 }
 
 /**

@@ -1,6 +1,7 @@
 /**
- * What a session pending its second step reaches (ADR-0075): the second step's page, its endpoint and sign-out (or a
- * new sign-in by magic link), nothing else. Any other page sends it to the second step, to come back afterwards; any other API route, Better
+ * What a session pending its second step reaches (ADR-0075): the second step's page, its endpoint, the setup's
+ * endpoint (for an account that must have Two-step verification and has no factor yet, #665, which alone it answers)
+ * and sign-out (or a new sign-in by magic link), nothing else. Any other page sends it to the second step, to come back afterwards; any other API route, Better
  * Auth's own and those the extension calls included, and a Server Action posted to a page answer 401 with the stable
  * code SECOND_STEP_REQUIRED. Applied by the proxy (src/proxy.ts) before anything else of the app's runs, the CGU
  * Acceptance gate (ADR-0062) included.
@@ -14,6 +15,8 @@ export { SECOND_STEP_REQUIRED };
 export const SECOND_STEP_PAGE = routes.secondStep;
 /** Where the second step's page (and Mon compte, to confirm turning it off) posts a code. */
 export const SECOND_STEP_ENDPOINT = "/api/two-step-verification/second-step";
+/** Where the second step's page sets up an authenticator app, for an account that must have it and has no factor yet (#665). */
+export const SETUP_ENDPOINT = "/api/two-step-verification/setup";
 /**
  * Better Auth's endpoints it reaches: signing out, and following a magic link, which signs in afresh (a new session,
  * pending again if the account has Two-step verification): a link opened from the email must not answer 401.
@@ -29,7 +32,7 @@ export type GateDecision = "open" | "redirect" | "refuse";
 /** What a request at `path` (with its query) made with `method` gets from a session pending its second step. */
 export function pendingSessionGate(path: string, method: string): GateDecision {
   const pathname = path.split(/[?#]/, 1)[0]!;
-  if (pathname === SECOND_STEP_ENDPOINT || AUTH_OPEN.includes(pathname)) return "open";
+  if (pathname === SECOND_STEP_ENDPOINT || pathname === SETUP_ENDPOINT || AUTH_OPEN.includes(pathname)) return "open";
   if (pathname === "/api" || pathname.startsWith("/api/")) return "refuse";
   if (FILES.some((prefix) => pathname.startsWith(prefix)) || FILE_PATHS.includes(pathname)) return "open";
   if (method !== "GET" && method !== "HEAD") return "refuse";

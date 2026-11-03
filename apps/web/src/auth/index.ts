@@ -16,6 +16,7 @@
  */
 import type { ExternalApiLog } from "@jobhub/shared";
 import { DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
+import { passkey } from "@better-auth/passkey";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
 import { getMigrations } from "better-auth/db/migration";
@@ -30,6 +31,7 @@ import { recordingSignInCalls } from "./sign-in-calls";
 import { MAGIC_LINK, SIGN_IN_ERRORS, TEST_SIGN_IN, type SignInConfiguration } from "../sign-in-providers/catalog";
 import { betterAuthSignIn, oauthSignInDecision, trustedProviderIds } from "../sign-in-providers/policy";
 import { hasTwoStepVerification, migrateTwoStepVerification } from "../two-step-verification/index";
+import { relyingPartyOf } from "../two-step-verification/passkeys";
 
 /** An email ready to send. Plain text keeps it readable in every mail client. */
 export interface MailMessage {
@@ -267,10 +269,19 @@ async function verifiedWhileLinking(): Promise<{ emailVerified?: true }> {
 const ID_TOKEN_PATHS = ["/sign-in/social", "/link-social"];
 
 /**
+ * The passkey plugin's endpoints Jobbbox does not serve (ADR-0075, #664): signing in with a passkey alone, without a
+ * magic link (its options and its check, which would open a session that is no second step's), and deleting a passkey
+ * past Mon compte's own endpoint, which turns Two-step verification off with its last factor, after a recent second step.
+ */
+const PASSKEY_PATHS_REFUSED = ["/passkey/generate-authenticate-options", "/passkey/verify-authentication", "/passkey/delete-passkey"];
+
+/**
  * Refuses a sign-in or a link made with a provider's ID token posted by the client: no page or
  * client of ours does it, and it would skip the callback where the sign-in policy is applied.
+ * Refuses the passkey endpoints above too.
  */
-const refuseIdTokenSignIn = createAuthMiddleware(async (ctx) => {
+const refuseUnservedEndpoints = createAuthMiddleware(async (ctx) => {
+  if (PASSKEY_PATHS_REFUSED.includes(ctx.path)) throw new APIError("NOT_FOUND", { code: "NOT_SUPPORTED", message: "Not supported" });
   if (!ID_TOKEN_PATHS.includes(ctx.path)) return;
   const body = ctx.body as { idToken?: unknown } | undefined;
   if (body?.idToken !== undefined) {
@@ -305,7 +316,7 @@ function authOptions(config: AuthConfig) {
       },
     },
     databaseHooks: signInHooks(signIn, config.baseURL, (candidateId) => hasTwoStepVerification(config.database, candidateId)),
-    hooks: { before: refuseIdTokenSignIn },
+    hooks: { before: refuseUnservedEndpoints },
     // The account of a person looking for a job is a Candidate (CONTEXT.md).
     user: {
       modelName: "candidate",
@@ -327,6 +338,8 @@ function authOptions(config: AuthConfig) {
         twoStepPending: { type: "boolean", required: false, defaultValue: false, input: false },
         // When its second step was last done: turning the verification off asks for one less than 10 minutes old.
         twoStepVerifiedAt: { type: "date", required: false, input: false },
+        // The challenge of the passkey second step asked last in this session (#664): used once, never sent to the client.
+        twoStepChallenge: { type: "string", required: false, input: false, returned: false },
       },
     },
     plugins: [
@@ -340,6 +353,8 @@ function authOptions(config: AuthConfig) {
           await config.mailer.send({ to: email, ...signInEmail({ url, minutes: MAGIC_LINK_MINUTES }, isSupportedLocale(language) ? language : DEFAULT_LOCALE) });
         },
       }),
+      // Passkeys (#664, ADR-0075), added in Mon compte as a second step: never a way to sign in (PASSKEY_PATHS_REFUSED).
+      passkey({ rpID: relyingPartyOf(config.baseURL).id, rpName: "Jobbbox", origin: relyingPartyOf(config.baseURL).origin }),
       // Generic OIDC providers, through the same sign-in and callback endpoints as the social ones.
       genericOAuth({ config: providers.genericOAuth.map((provider) => ({ ...provider, mapProfileToUser: verifiedWhileLinking })) }),
     ],

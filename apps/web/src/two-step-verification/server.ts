@@ -5,12 +5,17 @@ import { sharedPool } from "@/database/pool";
 import { routes } from "@/routes";
 import { twoStepChangeEmail } from "./email";
 import { createTwoStepVerification, type TwoStepVerification } from "./index";
+import { relyingPartyOf } from "./passkeys";
 
 let instance: TwoStepVerification | undefined;
 
-/** The app's Two-step verification, on the database named by DATABASE_URL, its secrets encrypted with AUTH_SECRET. */
+/**
+ * The app's Two-step verification, on the database named by DATABASE_URL, its secrets encrypted with AUTH_SECRET, its
+ * passkeys made for APP_URL's host.
+ */
 export function getTwoStepVerification(): TwoStepVerification {
-  instance ??= createTwoStepVerification(sharedPool(), { secret: String(getAuth().options.secret), externalApis: getExternalApiLog() });
+  const { secret, baseURL } = getAuth().options;
+  instance ??= createTwoStepVerification(sharedPool(), { secret: String(secret), relyingParty: relyingPartyOf(String(baseURL)), externalApis: getExternalApiLog() });
   return instance;
 }
 

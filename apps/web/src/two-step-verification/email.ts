@@ -1,8 +1,11 @@
 import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import { renderEmail, type RenderedEmail } from "../emails";
 
-/** The email telling the account its Two-step verification was turned on or off (#663), dated in French time, in its Interface Language. */
-export function twoStepChangeEmail({ change, at, securityUrl }: { change: "enabled" | "disabled"; at: Date; securityUrl: string }, language: Locale): RenderedEmail {
+/** What happened to the account's Two-step verification: turned on or off (#663), or reset by a super-admin (#665). */
+export type TwoStepChange = "enabled" | "disabled" | "reset";
+
+/** The email telling the account its Two-step verification changed, dated in French time, in its Interface Language. */
+export function twoStepChangeEmail({ change, at, securityUrl }: { change: TwoStepChange; at: Date; securityUrl: string }, language: Locale): RenderedEmail {
   const i18n = createI18n(language);
   const { t } = i18n;
   const date = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: "Europe/Paris" }).format(at);

@@ -602,7 +602,8 @@
       "continue": "Continue",
       "error": "The change could not be saved. Try again.",
       "fileName": "jobbbox-backup-codes.txt",
-      "fileHeader": "Jobbbox backup codes. Each code works only once."
+      "fileHeader": "Jobbbox backup codes. Each code works only once.",
+      "mandatory": "It is mandatory for administrators and coaches: you cannot turn it off. If you lose your app and your backup codes, a super-admin can reset it."
     },
     "email": {
       "enabledSubject": "Two-step verification turned on",
@@ -613,7 +614,13 @@
       "disabledBody": "Two-step verification was turned off for your Jobbbox account on {{date}}. Your sign-ins by magic link no longer ask for a code.",
       "notYou": "If this was not you, sign in and check the Security section of My account.",
       "action": "Open the Security section",
-      "reason": "You are receiving this email because the security of your Jobbbox account changed."
+      "reason": "You are receiving this email because the security of your Jobbbox account changed.",
+      "resetSubject": "Two-step verification reset",
+      "resetTitle": "Your two-step verification was reset",
+      "resetBody": "A Jobbbox super-admin reset the two-step verification of your account on {{date}}: your authenticator app and your backup codes no longer work, and your sessions were signed out. The next time you sign in by magic link, you will set it up again."
+    },
+    "setup": {
+      "intro": "Your account opens the back office or the coach space: two-step verification is mandatory there. Set up an authenticator app to go on."
     }
   },
   "acceptance": {
@@ -2361,6 +2368,23 @@
         "permanent": "This super-admin is permanent (ADMIN_EMAILS): their role cannot be revoked here.",
         "last_super_admin": "There must always be at least one super-admin.",
         "forbidden": "Only super-admins grant and revoke roles."
+      },
+      "twoStep": "Two-step verification",
+      "twoStepOn": "On",
+      "twoStepNone": "No factor",
+      "twoStepNoneHelp": "An administrator with no factor can only sign in through a sign-in provider: a magic link first asks them to set up two-step verification.",
+      "reset": {
+        "title": "Reset two-step verification",
+        "intro": "For someone who lost their authenticator app and their backup codes. Their app, their backup codes and their sessions are deleted, and an email tells them. An administrator or a coach sets it up again the next time they sign in by magic link.",
+        "email": "Email address of the account",
+        "confirm": "I confirm: this account's factors, backup codes and sessions will be deleted.",
+        "submit": "Reset two-step verification",
+        "done": "The account's two-step verification is reset: its factors and its sessions are deleted, and an email tells them.",
+        "refused": "Tick the confirmation to reset two-step verification.",
+        "errors": {
+          "unknown_account": "No Jobbbox account uses this email address.",
+          "forbidden": "Only super-admins reset two-step verification."
+        }
       }
     },
     "journal": {

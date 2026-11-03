@@ -102,6 +102,8 @@ const COACH_SPACE_ARTICLES = {
   "page-coach-space": "page",
   "faq-coach-access": "faq",
   "faq-retired-human-coach": "faq",
+  // #665: why a Human Coach is asked for Two-step verification.
+  "faq-coach-two-step-verification": "faq",
   "tutorial-coach-session-date": "tutorial",
   "tutorial-coach-review": "tutorial",
 } as const;
@@ -147,7 +149,7 @@ describe("this build's Help Articles (#549)", () => {
     expect(search(query, locale, { scope: "coachPanel" }).map((article) => article.id)).toContain(id);
   });
 
-  it("has the « Espace coach » articles (#554): 1 page, 2 questions and 2 tutorials, a Human Coach's, in French and English, under the topic", () => {
+  it("has the « Espace coach » articles (#554, #665): 1 page, 3 questions and 2 tutorials, a Human Coach's, in French and English, under the topic", () => {
     for (const locale of ["fr", "en"] as const) {
       const topic = helpCentreTopics(locale).find((entry) => entry.topic === "espace-coach");
       expect(topic?.articles.map((found) => found.id).sort()).toEqual(Object.keys(COACH_SPACE_ARTICLES).sort());

@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { linkIn, waitForEmail, emailsTo, type Email } from "./mailbox";
+import { forgetTwoStepVerification, setUpTwoStepVerification, setUpTwoStepVerificationWhenAsked, twoStepSetup } from "./two-step";
 
 /**
  * Signs `email` in (or up) through the sign-in page and the emailed link, the
@@ -31,14 +32,27 @@ export async function requestSignInLink(page: Page, email: string, submitLabel: 
 }
 
 export async function signInWithMagicLink(page: Page, email: string, submitLabel = /Recevoir mon lien|Send me a sign-in link/): Promise<Email> {
+  // An Administrator or a Human Coach sets up Two-step verification afresh (#665), rather than being asked for a
+  // code from an app an earlier test set up.
+  await forgetTwoStepVerification(process.env.E2E_DATABASE_URL, email);
   const already = emailsTo(email).length;
   await fromNewAddress(page);
   await page.goto("/connexion");
   await requestSignInLink(page, email, submitLabel);
   const message = await waitForEmail(email, already);
   await page.goto(linkIn(message));
+  await setUpTwoStepVerificationIfAsked(page);
   await expect(page).toHaveURL(/\/compte$/);
   return message;
+}
+
+/**
+ * After a magic link: sets up Two-step verification when the page asks an Administrator or a Human Coach with no factor
+ * to (#665), and from then on whenever it asks again (a role given, or a coach added, while signed in).
+ */
+export async function setUpTwoStepVerificationIfAsked(page: Page): Promise<void> {
+  if (await twoStepSetup(page).count()) await setUpTwoStepVerification(page);
+  await setUpTwoStepVerificationWhenAsked(page);
 }
 
 /**

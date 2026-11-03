@@ -390,11 +390,14 @@ const SECTION_TEXT: Partial<Record<BackOfficeResource, (sources: BackOfficeAssis
     // Counted, never named: who holds a role is on the Administrateurs page.
     const lines = BACK_OFFICE_ROLES.map((role) => `- ${ROLE_NAMES[role]} : ${administrators.filter((one) => one.roles.includes(role)).length}`);
     const permanent = administrators.filter((one) => one.permanent).length;
+    const withoutFactor = administrators.filter((one) => !one.twoStepVerification).length;
     return [
       heading("roles"),
       "Rôles : Super-admin (tout, y compris les rôles, les clés des fournisseurs, la connexion SSO et les appels IA), Responsable des offres (offres et quotas), Responsable coaching (coachs humains, lecture du coût du coach IA), Technique (paramètres non secrets, sources et sites de recherche, prix des outils ; voit les clés par leur source et leurs 4 derniers caractères sans les changer ; lit la consommation IA, les outils, les recherches et les actions des administrateurs d'Activité, jamais les appels IA), Support (lecture seule, dont les recherches d'Activité, sans secrets ni appels IA). Seuls les super-admins donnent ou retirent des rôles ; les super-admins permanents (ADMIN_EMAILS) ne peuvent pas être retirés.",
       `${administrators.length} Administrateur(s), dont ${permanent} super-admin(s) permanent(s). Par rôle :`,
       ...lines,
+      "La vérification en deux étapes est obligatoire pour les Administrateurs et les coachs humains : après un lien magique, celui qui n'a aucun facteur la configure avant toute autre page, et ne peut pas la désactiver. Une connexion par un fournisseur de connexion (Google, Microsoft…) ne la demande pas. Un super-admin réinitialise celle d'un compte qui a perdu ses facteurs, sur la page Administrateurs ; chaque réinitialisation est inscrite dans Activité › Actions des administrateurs.",
+      `${withoutFactor} Administrateur(s) sans aucun facteur de vérification en deux étapes : cela ne peut arriver qu'à ceux qui se connectent par un fournisseur de connexion (qui est : voir la page Administrateurs).`,
     ].join("\n");
   },
 

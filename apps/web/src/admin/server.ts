@@ -16,6 +16,7 @@ import { getSearchSites } from "@/search-sites/server";
 import { needsSsoForBackOffice } from "@/sign-in-providers/policy";
 import { getQuotaReductions } from "@/quota-reductions/server";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
+import { tellTwoStepChange } from "@/two-step-verification/server";
 import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission } from "./access";
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
 import { createBackOffice, type BackOffice } from "./back-office";
@@ -47,9 +48,13 @@ export function getBackOffice(): BackOffice {
   return backOffice;
 }
 
-/** The app's Administrators and their Back Office Roles; ADMIN_EMAILS names the permanent super-admins. */
+/** The app's Administrators and their Back Office Roles; ADMIN_EMAILS names the permanent super-admins. A reset of Two-step verification is emailed. */
 export function getAdministrators(): Administrators {
-  administrators ??= createAdministrators(sharedPool(), { backOffice: getBackOffice(), isPermanentSuperAdmin: permanentSuperAdminsFromEnv(process.env) });
+  administrators ??= createAdministrators(sharedPool(), {
+    backOffice: getBackOffice(),
+    isPermanentSuperAdmin: permanentSuperAdminsFromEnv(process.env),
+    tellTwoStepReset: (account) => tellTwoStepChange(account, "reset"),
+  });
   return administrators;
 }
 

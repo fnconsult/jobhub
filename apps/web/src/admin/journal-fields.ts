@@ -65,6 +65,7 @@ export function journalFieldName(t: TFunction, section: BackOfficeSection, field
   if (section === "human_coaches" && HUMAN_COACH_FIELDS.includes(field as HumanCoachField)) return t(`admin.humanCoaches.${field as HumanCoachField}`);
   if (section === "roles" && field === "roles") return t("admin.administrators.roles");
   if (section === "roles" && field === "email") return t("admin.administrators.email");
+  if (section === "roles" && field === "twoStepVerification") return t("admin.administrators.twoStep");
   if (SEARCH_SITES_SECTIONS.includes(section) && field === "enabled") return t("admin.searchSites.status");
   if (section === "job_sites" && field === "postingPages") return t("admin.searchSites.jobSites.postingPages");
   if (section === "recognised_senders" && field === "label") return t("admin.emailIntake.senders.label");

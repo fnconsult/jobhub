@@ -602,7 +602,8 @@
       "continue": "Continuer",
       "error": "La modification n'a pas pu être enregistrée. Réessayez.",
       "fileName": "jobbbox-codes-de-secours.txt",
-      "fileHeader": "Codes de secours Jobbbox. Chaque code ne sert qu'une fois."
+      "fileHeader": "Codes de secours Jobbbox. Chaque code ne sert qu'une fois.",
+      "mandatory": "Elle est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas la désactiver. Si vous perdez votre application et vos codes de secours, un super-admin peut la réinitialiser."
     },
     "email": {
       "enabledSubject": "Vérification en deux étapes activée",
@@ -613,7 +614,13 @@
       "disabledBody": "La vérification en deux étapes a été désactivée sur votre compte Jobbbox le {{date}}. Vos connexions par lien magique ne demandent plus de code.",
       "notYou": "Si ce n'est pas vous, connectez-vous et vérifiez la rubrique Sécurité de Mon compte.",
       "action": "Ouvrir la rubrique Sécurité",
-      "reason": "Vous recevez cet e-mail parce que la sécurité de votre compte Jobbbox a changé."
+      "reason": "Vous recevez cet e-mail parce que la sécurité de votre compte Jobbbox a changé.",
+      "resetSubject": "Vérification en deux étapes réinitialisée",
+      "resetTitle": "Votre vérification en deux étapes a été réinitialisée",
+      "resetBody": "Un super-admin de Jobbbox a réinitialisé la vérification en deux étapes de votre compte le {{date}} : votre application d'authentification et vos codes de secours ne servent plus, et vos sessions ont été fermées. À votre prochaine connexion par lien magique, vous la configurerez de nouveau."
+    },
+    "setup": {
+      "intro": "Votre compte donne accès au back office ou à l'Espace coach : la vérification en deux étapes y est obligatoire. Configurez une application d'authentification pour continuer."
     }
   },
   "acceptance": {
@@ -2361,6 +2368,23 @@
         "permanent": "Ce super-admin est permanent (ADMIN_EMAILS) : son rôle ne peut pas être retiré ici.",
         "last_super_admin": "Il doit rester au moins un super-admin.",
         "forbidden": "Seuls les super-admins donnent et retirent des rôles."
+      },
+      "twoStep": "Vérification en deux étapes",
+      "twoStepOn": "Activée",
+      "twoStepNone": "Aucun facteur",
+      "twoStepNoneHelp": "Un administrateur sans facteur ne peut se connecter que par un fournisseur de connexion : un lien magique lui demande d'abord de configurer la vérification en deux étapes.",
+      "reset": {
+        "title": "Réinitialiser la vérification en deux étapes",
+        "intro": "Pour quelqu'un qui a perdu son application d'authentification et ses codes de secours. Son application, ses codes de secours et ses sessions sont supprimés, et un e-mail l'en informe. Un administrateur ou un coach la configure de nouveau à sa prochaine connexion par lien magique.",
+        "email": "Adresse e-mail du compte",
+        "confirm": "Je confirme : les facteurs, les codes de secours et les sessions de ce compte seront supprimés.",
+        "submit": "Réinitialiser la vérification en deux étapes",
+        "done": "La vérification en deux étapes du compte est réinitialisée : ses facteurs et ses sessions sont supprimés, et un e-mail l'en informe.",
+        "refused": "Cochez la confirmation pour réinitialiser la vérification en deux étapes.",
+        "errors": {
+          "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail.",
+          "forbidden": "Seuls les super-admins réinitialisent la vérification en deux étapes."
+        }
       }
     },
     "journal": {

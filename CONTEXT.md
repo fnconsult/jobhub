@@ -930,8 +930,12 @@ A second step after a magic-link sign-in: a code from an authenticator app, a pa
 _Avoid_: 2FA, MFA, double authentication, two-factor
 
 **Factor**:
-A way to pass the second step of Two-step verification: an authenticator app, the backup codes, later a passkey. The Administrateurs page shows each Administrator as « Activée » or « Aucun facteur »; the Back Office Assistant is told only how many have none.
+A way to pass the second step of Two-step verification: an authenticator app, a passkey, the backup codes. The Administrateurs page shows each Administrator as « Activée » or « Aucun facteur »; the Back Office Assistant is told only how many have none.
 _Avoid_: Method, device
+
+**Passkey**:
+A device credential (Face ID, Touch ID, Windows Hello, a security key) that serves as a second step of Two-step verification, alongside or instead of an authenticator app. It never signs anyone in on its own, and it must belong to the account of the pending session. Removing the last Factor (no app, no other passkey; backup codes do not count) turns Two-step verification off with it; for an Administrator or a Human Coach, who cannot turn it off, removing it is refused. A super-admin's reset deletes the passkeys with the other Factors. French: « clé d'accès ».
+_Avoid_: Security key, WebAuthn credential
 
 **Require SSO for Administrators**:
 A super-admin setting, off by default: the Back Office asks an Administrator signed in by magic link to sign in again with a Sign-in Provider allowed for Administrators. Their Candidate pages are unaffected, and `ADMIN_EMAILS` super-admins are exempt.

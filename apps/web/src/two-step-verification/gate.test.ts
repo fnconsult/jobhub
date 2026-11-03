@@ -1,6 +1,6 @@
 import { SECOND_STEP_PATH } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { pendingSessionGate, secondStepHref, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SETUP_ENDPOINT } from "./gate";
+import { pendingSessionGate, secondStepHref, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT } from "./gate";
 
 describe("what a session pending its second step reaches (ADR-0075)", () => {
   it("is the page the extension links to", () => {
@@ -12,6 +12,13 @@ describe("what a session pending its second step reaches (ADR-0075)", () => {
     expect(pendingSessionGate(`${SECOND_STEP_PAGE}?suite=%2Fcompte`, "GET")).toBe("open");
     expect(pendingSessionGate(SECOND_STEP_ENDPOINT, "POST")).toBe("open");
     expect(pendingSessionGate("/api/auth/sign-out", "POST")).toBe("open");
+  });
+
+  it("reaches the second step with a passkey, never Better Auth's passkey endpoints (#664)", () => {
+    expect(pendingSessionGate(SECOND_STEP_PASSKEY_ENDPOINT, "POST")).toBe("open");
+    for (const endpoint of ["generate-register-options", "verify-registration", "list-user-passkeys", "update-passkey", "verify-authentication"]) {
+      expect(pendingSessionGate(`/api/auth/passkey/${endpoint}`, "POST"), endpoint).toBe("refuse");
+    }
   });
 
   it("reaches the endpoint that sets up an authenticator app, for an account that must have it and has no factor yet (#665)", () => {

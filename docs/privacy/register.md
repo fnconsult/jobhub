@@ -254,21 +254,37 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | In the Candidate's data export (`quotaReductionNotices`: each refund with its status, made, still to make or made by the team, and its amount; without Stripe identifiers or error codes); erased with the account. |
 | Security | Scheduling and cancelling a Quota Reduction check the Administrator's Back Office Roles and are written to the Back Office Audit; cancelling over one checks the signed-in Candidate. |
 
-## Two-step verification (#663, ADR-0075)
+## Two-step verification (#663, #664, ADR-0075)
 
 | | |
 | --- | --- |
-| Purpose | Protect a Candidate's account beyond their mailbox: once they turn it on, every sign-in by magic link asks for a second step (a code from their authenticator app, or a backup code) before the session reaches anything. Part of the same authentication processing as the magic link and the Sign-in Providers. |
+| Purpose | Protect a Candidate's account beyond their mailbox: once they turn it on, every sign-in by magic link asks for a second step (a passkey, a code from their authenticator app, or a backup code) before the session reaches anything. Part of the same authentication processing as the magic link and the Sign-in Providers. |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)), as for signing in: a security measure the Candidate chooses (art. 32). Off by default. |
 | People concerned | Candidates who turn it on in Mon compte, « Sécurité ». |
-| Data | Per Candidate: the authenticator app's TOTP secret, encrypted (AES-256-GCM under AUTH_SECRET, Better Auth's cipher); the backup codes not used yet, each as its SHA-256 hash only; when it was turned on, when the app and the codes were added and last used, the last 30-second period whose code was accepted, the count of wrong codes in a row and until when codes are refused. Per session: whether it waits for its second step, and when its second step was last done. Each attempt is counted under the Tool « Vérification en deux étapes » in AI Usage's external API calls (its outcome, no Candidate, never the code). The email telling the account it was turned on or off goes to its address; its text is not kept. |
-| Source | The Candidate, in Mon compte (`/api/account/two-step-verification`) and on the second step's page (`/api/two-step-verification/second-step`). |
-| Processors | None new: the codes are checked within Jobbbox; Brevo (EU) sends the emails, already a processor for emails. No recipient outside the EU. |
-| Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it; nobody can read the secret or a backup code back. |
-| Storage | The `two_step_verification` table and the `session` table's `twoStepPending` and `twoStepVerifiedAt` columns in the app's Postgres database (EU). |
-| Retention | Until the Candidate turns it off (the row is deleted, and the sessions still waiting for their second step are signed out) or the account is deleted (`ON DELETE CASCADE`). |
-| Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, the backup codes left; never the secret nor a code); erased with the account. |
-| Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
+| Data | Per Candidate: the authenticator app's TOTP secret, encrypted (AES-256-GCM under AUTH_SECRET, Better Auth's cipher); the backup codes not used yet, each as its SHA-256 hash only; when it was turned on, when the app and the codes were added and last used, the last 30-second period whose code was accepted, the count of wrong codes in a row and until when codes are refused. Per passkey (#664, Better Auth's passkey plugin): the WebAuthn public key and credential id, the signature counter, the device type (single- or multi-device) and whether it is backed up, the transports, the authenticator model's AAGUID (from which the device's name is shown when it is known, e.g. « Windows Hello »; Apple devices send none), the name the Candidate gave it (a device name such as « iPhone de Marie »), when it was added and last used. Per session: whether it waits for its second step, when its second step was last done, and the passkey challenge asked last (used once). A passkey's private key never leaves the Candidate's device: Jobbbox never has it. Each attempt is counted under the Tool « Vérification en deux étapes » in AI Usage's external API calls (its outcome, no Candidate, never the code). The email telling the account it was turned on or off goes to its address; its text is not kept. |
+| Source | The Candidate, in Mon compte (`/api/account/two-step-verification`, and Better Auth's `/api/auth/passkey/*` to add and rename a passkey) and on the second step's page (`/api/two-step-verification/second-step`, `/api/two-step-verification/second-step/passkey`); a passkey's public key comes from their device or security key. |
+| Processors | None new: the codes and passkeys are checked within Jobbbox (SimpleWebAuthn, a library); Brevo (EU) sends the emails, already a processor for emails. No recipient outside the EU. |
+| Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it; nobody can read the secret or a backup code back. A passkey's public key is never shown nor exported. |
+| Storage | The `two_step_verification` and `passkey` tables and the `session` table's `twoStepPending`, `twoStepVerifiedAt` and `twoStepChallenge` columns in the app's Postgres database (EU). |
+| Retention | A passkey until the Candidate removes it. Until the Candidate turns it off, or removes their last factor (the row and every passkey are deleted, and the sessions still waiting for their second step are signed out), or the account is deleted (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, each passkey's name and device when known, the backup codes left; never the secret, a code nor a passkey's public key or credential id); erased with the account. |
+| Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off, removing the last factor or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A passkey is checked against the pending session's own account only, on Jobbbox's host (its RP ID); each challenge serves one answer, and a refused passkey counts towards the same lock as a wrong code. Signing in with a passkey alone, without a magic link, is refused. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
+
+## Livraison: the delivery status (Back Office)
+
+| | |
+| --- | --- |
+| Purpose | Show the team what is being built and where it runs (Back Office › Livraison), read live from GitHub's issues, pull requests and deployments. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)) in following the delivery of the product. |
+| People concerned | Contributors to the GitHub repository. No Candidate: GitHub receives nothing from Jobbbox, the page only reads it. |
+| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers, shown on the page. |
+| Source | GitHub's API, read by the web app with a read-only token (Provider Secret `GITHUB_STATUS_TOKEN`); each call is recorded in `external_api_usage` (Tool GitHub) without its answer. |
+| Processors | GitHub (outside the EU), which is only read. No new recipient of personal data: `receivesPersonalData` is false. |
+| Who can read it | Super-admins, Technique and Support. |
+| Storage | Nothing stored: the status is kept in the web app's memory for 5 minutes, then read again. |
+| Retention | 5 minutes in memory; the recorded calls as `external_api_usage`. |
+| Rights | A contributor's login comes from GitHub: removing them from a ticket there removes them from the page within 5 minutes. |
+| Security | A read-only token, encrypted as a Provider Secret; the page checks the Administrator's Back Office Roles, and a refused opening is recorded (#264). |
 
 ## Livraison: the delivery status (Back Office and its daily email)
 

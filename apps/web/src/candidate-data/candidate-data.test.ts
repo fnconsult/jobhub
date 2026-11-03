@@ -34,6 +34,7 @@ import { createSignalements } from "../signalements";
 import { createDiscoveryRuns } from "../discovery-runs";
 import { createTargetCompanies } from "../target-companies";
 import { createTwoStepVerification } from "../two-step-verification";
+import { addTestPasskey } from "../two-step-verification/test-authenticator";
 import { totpAt } from "../two-step-verification/totp";
 import { createCandidateData, type CandidateData } from "./index";
 
@@ -291,6 +292,25 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const text = JSON.stringify(exported);
     expect(text).not.toContain(secret);
     for (const code of confirmed.ok ? confirmed.backupCodes : []) expect(text).not.toContain(code);
+  });
+
+  it("the export holds each passkey with its name and dates, never its public key (#664)", async () => {
+    const cookie = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+    const { id } = await addTestPasskey(testAuth, cookie, "iPhone de Marie");
+    const at = new Date("2026-11-03T09:30:00Z");
+    const sessionId = (await database.query(`SELECT id FROM session WHERE "userId" = $1 LIMIT 1`, [candidateId])).rows[0].id;
+    await createTwoStepVerification(database, { secret: "test-secret-test-secret-test-secret-0123", now: () => at }).enableWithPasskey({ candidateId, sessionId });
+
+    const exported = await candidateData.export(candidateId);
+
+    expect(exported.twoStepVerification.factors).toEqual([
+      { kind: "passkey", id, name: "iPhone de Marie", device: null, addedAt: expect.any(Date), lastUsedAt: null },
+      { kind: "backup_codes", addedAt: at, lastUsedAt: null },
+    ]);
+    const { publicKey, credentialID } = (await database.query(`SELECT "publicKey", "credentialID" FROM passkey WHERE id = $1`, [id])).rows[0];
+    const text = JSON.stringify(exported);
+    expect(text).not.toContain(publicKey);
+    expect(text).not.toContain(credentialID);
   });
 
   it("the export holds the Legal Text notices emailed to the Candidate and the privacy policy changes they closed (#547)", async () => {

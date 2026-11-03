@@ -30,6 +30,8 @@ export const BACK_OFFICE_PAGES = {
   aiMessages: { href: routes.adminAiMessages(), resource: "aiMessages" },
   searchSites: { href: routes.adminSearchSites, resource: "searchSites" },
   tools: { href: routes.adminTools, resource: "tools" },
+  // Livraison: what is being built and where it runs, live from GitHub; super-admins, Technique and Support.
+  deliveryStatus: { href: routes.adminDeliveryStatus, resource: "deliveryStatus" },
   // The Design System page (#463, ADR-0053): the reference screens are checked against, read by every Back Office Role.
   designSystem: { href: routes.adminDesignSystem, resource: null },
   administrators: { href: routes.adminAdministrators, resource: "roles" },
@@ -52,7 +54,7 @@ const GROUPS = [
   { key: "offer", sections: ["plans", "planQuotas", "coupons"] },
   { key: "coaching", sections: ["humanCoaches", "coachCost", "coachingPlaybooks", "guardrails"] },
   { key: "content", sections: ["unansweredQuestions"] },
-  { key: "platform", sections: ["platformSettings", "aiUsage", "activity", "tools", "designSystem"] },
+  { key: "platform", sections: ["platformSettings", "aiUsage", "activity", "tools", "deliveryStatus", "designSystem"] },
   { key: "team", sections: ["administrators"] },
 ] as const satisfies ReadonlyArray<{ key: string; sections: readonly BackOfficePage[] }>;
 

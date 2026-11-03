@@ -22,28 +22,13 @@ export const ENVIRONMENTS = ["staging", "production"] as const;
 export type EnvironmentName = (typeof ENVIRONMENTS)[number];
 
 /** A ticket's Stage, from the earliest to the furthest. */
-export const STAGES = [
-  "triage",
-  "readyHuman",
-  "readyAgent",
-  "blocked",
-  "claimed",
-  "implementing",
-  "inReview",
-  "merged",
-  "onStaging",
-  "onProduction",
-  "closedNoPr",
-  "dropped",
-] as const;
+export const STAGES = ["triage", "readyHuman", "readyAgent", "blocked", "claimed", "implementing", "inReview", "merged", "onStaging", "onProduction", "closedNoPr", "dropped"] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** The Stages where someone is working on the ticket now. */
-export const ACTIVE_STAGES: ReadonlySet<Stage> = new Set([
-  "claimed",
-  "implementing",
-  "inReview",
-]);
+export const ACTIVE_STAGES: ReadonlySet<Stage> = new Set(["claimed", "implementing", "inReview"]);
+/** Why a closed issue counts as dropped (GitHub's state reasons, lower-cased). */
+const DROPPED_REASONS: ReadonlySet<string> = new Set(["not_planned", "duplicate"]);
 const DONE_STAGES: ReadonlySet<Stage> = new Set(["onProduction", "dropped"]);
 
 export interface PullRequestRef {
@@ -74,13 +59,7 @@ export interface Ticket {
 }
 
 /** A Feature's one-line state: what is being built, or how far its tickets got. */
-export type Headline =
-  | { kind: "notSplit" }
-  | { kind: "building"; tickets: number[] }
-  | { kind: "shipped" }
-  | { kind: "awaitingDeploy" }
-  | { kind: "notInProduction" }
-  | { kind: "idle" };
+export type Headline = { kind: "notSplit" } | { kind: "building"; tickets: number[] } | { kind: "shipped" } | { kind: "awaitingDeploy" } | { kind: "notInProduction" } | { kind: "idle" };
 
 export interface Feature {
   number: number;
@@ -114,17 +93,10 @@ export interface EnvironmentStatus {
     url: string | null;
     runUrl: string | null;
   } | null;
-  live:
-    | { checked: true; revision: string }
-    | { checked: false; reason: LiveReason }
-    | null;
+  live: { checked: true; revision: string } | { checked: false; reason: LiveReason } | null;
 }
 
-export type LiveReason =
-  | { kind: "noUrl" }
-  | { kind: "status"; status: number }
-  | { kind: "noCommit" }
-  | { kind: "unreachable" };
+export type LiveReason = { kind: "noUrl" } | { kind: "status"; status: number } | { kind: "noCommit" } | { kind: "unreachable" };
 
 /** What the status cannot vouch for. */
 export type Caveat =
@@ -222,73 +194,40 @@ interface RawListedIssue {
 const labelsOf = (t: RawTicket) => t.labels.nodes.map((l) => l.name);
 
 /** Research, grilling and prototype tickets, and the wayfinder task that splits the map. */
-export function isDiscovery(t: {
-  labels: { nodes: { name: string }[] };
-}): boolean {
+export function isDiscovery(t: { labels: { nodes: { name: string }[] } }): boolean {
   const labels = t.labels.nodes.map((l) => l.name);
-  if (labels.some((l) => /^wayfinder:(research|grilling|prototype)$/.test(l)))
-    return true;
-  return (
-    labels.includes("wayfinder:task") &&
-    !labels.some((l) => l.startsWith("ready-for-"))
-  );
+  if (labels.some((l) => /^wayfinder:(research|grilling|prototype)$/.test(l))) return true;
+  return labels.includes("wayfinder:task") && !labels.some((l) => l.startsWith("ready-for-"));
 }
 
 /** A Feature's headline and Stage counts, from its tickets. */
-export function rollUp(
-  tickets: readonly Ticket[],
-): Pick<Feature, "headline" | "counts"> {
+export function rollUp(tickets: readonly Ticket[]): Pick<Feature, "headline" | "counts"> {
   const counts = STAGES.map((stage) => ({
     stage,
     count: tickets.filter((t) => t.stage === stage).length,
   })).filter((c) => c.count > 0);
   const active = tickets.filter((t) => ACTIVE_STAGES.has(t.stage));
-  const left = tickets.filter(
-    (t) =>
-      !DONE_STAGES.has(t.stage) &&
-      t.stage !== "onStaging" &&
-      t.stage !== "merged",
-  );
+  const left = tickets.filter((t) => !DONE_STAGES.has(t.stage) && t.stage !== "onStaging" && t.stage !== "merged");
   let headline: Headline;
   if (!tickets.length) headline = { kind: "notSplit" };
-  else if (active.length)
-    headline = { kind: "building", tickets: active.map((t) => t.number) };
-  else if (!left.length)
-    headline = tickets.every((t) => DONE_STAGES.has(t.stage))
-      ? { kind: "shipped" }
-      : tickets.some((t) => t.stage === "merged")
-        ? { kind: "awaitingDeploy" }
-        : { kind: "notInProduction" };
+  else if (active.length) headline = { kind: "building", tickets: active.map((t) => t.number) };
+  else if (!left.length) headline = tickets.every((t) => DONE_STAGES.has(t.stage)) ? { kind: "shipped" } : tickets.some((t) => t.stage === "merged") ? { kind: "awaitingDeploy" } : { kind: "notInProduction" };
   else headline = { kind: "idle" };
   return { headline, counts };
 }
 
 /** The delivery status of `options.repository`, read live from GitHub through `github`. */
-export async function deliveryStatus(
-  github: GitHubReader,
-  options: DeliveryStatusOptions,
-): Promise<DeliveryStatus> {
+export async function deliveryStatus(github: GitHubReader, options: DeliveryStatusOptions): Promise<DeliveryStatus> {
   const { repository } = options;
   const [owner = "", name = ""] = repository.split("/");
   const closedDays = options.closedDays ?? 14;
   const now = options.now ?? new Date();
-  const fetchHealth =
-    options.fetchHealth ??
-    ((url: string) => fetch(url, { signal: AbortSignal.timeout(10_000) }));
+  const fetchHealth = options.fetchHealth ?? ((url: string) => fetch(url, { signal: AbortSignal.timeout(10_000) }));
   const caveats: Caveat[] = [];
-  const recent = (state: string, closedAt: string | null) =>
-    state.toLowerCase() === "open" ||
-    (closedAt !== null &&
-      (now.getTime() - Date.parse(closedAt)) / 864e5 <= closedDays);
+  const recent = (state: string, closedAt: string | null) => state.toLowerCase() === "open" || (closedAt !== null && (now.getTime() - Date.parse(closedAt)) / 864e5 <= closedDays);
 
   // ---------- environments ----------
-  const environmentNames = new Set(
-    (
-      await github.rest<{ environments: { name: string }[] }>(
-        `repos/${repository}/environments`,
-      )
-    ).environments.map((e) => e.name),
-  );
+  const environmentNames = new Set((await github.rest<{ environments: { name: string }[] }>(`repos/${repository}/environments`)).environments.map((e) => e.name));
   const environments: EnvironmentStatus[] = [];
   for (const environment of ENVIRONMENTS) {
     if (!environmentNames.has(environment)) {
@@ -300,9 +239,7 @@ export async function deliveryStatus(
       });
       continue;
     }
-    const deployments = await github.rest<
-      { id: number; sha: string; ref: string }[]
-    >(`repos/${repository}/deployments?environment=${environment}&per_page=30`);
+    const deployments = await github.rest<{ id: number; sha: string; ref: string }[]>(`repos/${repository}/deployments?environment=${environment}&per_page=30`);
     let deployment: EnvironmentStatus["deployment"] = null;
     for (const d of deployments) {
       const statuses = await github.rest<
@@ -388,35 +325,21 @@ export async function deliveryStatus(
       let stage: Stage = "merged";
       for (const env of environments) {
         if (!env.deployment) continue;
-        const inEnv = await contains(
-          env.deployment.sha,
-          merged.mergeCommit!.oid,
-        );
-        if (inEnv === null)
-          evidence.uncompared = [...(evidence.uncompared ?? []), env.name];
-        if (inEnv)
-          stage =
-            env.name === "production"
-              ? "onProduction"
-              : stage === "onProduction"
-                ? stage
-                : "onStaging";
+        const inEnv = await contains(env.deployment.sha, merged.mergeCommit!.oid);
+        if (inEnv === null) evidence.uncompared = [...(evidence.uncompared ?? []), env.name];
+        if (inEnv) stage = env.name === "production" ? "onProduction" : stage === "onProduction" ? stage : "onStaging";
       }
       return { ...base, stage, evidence };
     }
     if (t.state === "CLOSED")
       return {
         ...base,
-        stage:
-          t.stateReason === "NOT_PLANNED" || t.stateReason === "DUPLICATE"
-            ? "dropped"
-            : "closedNoPr",
+        stage: DROPPED_REASONS.has(t.stateReason?.toLowerCase() ?? "") ? "dropped" : "closedNoPr",
         evidence: {},
       };
     const open = prs.find((p) => p.state === "OPEN");
     if (open) {
-      const checks =
-        open.commits.nodes[0]?.commit.statusCheckRollup?.state?.toLowerCase();
+      const checks = open.commits.nodes[0]?.commit.statusCheckRollup?.state?.toLowerCase();
       return {
         ...base,
         stage: open.isDraft ? "implementing" : "inReview",
@@ -425,53 +348,29 @@ export async function deliveryStatus(
         },
       };
     }
-    const blockers = t.blockedBy.nodes
-      .filter((b) => b.state === "OPEN")
-      .map((b) => b.number);
-    if (blockers.length)
-      return { ...base, stage: "blocked", evidence: { blockedBy: blockers } };
+    const blockers = t.blockedBy.nodes.filter((b) => b.state === "OPEN").map((b) => b.number);
+    if (blockers.length) return { ...base, stage: "blocked", evidence: { blockedBy: blockers } };
     const assignees = t.assignees.nodes.map((a) => a.login);
-    if (assignees.length)
-      return { ...base, stage: "claimed", evidence: { assignees } };
+    if (assignees.length) return { ...base, stage: "claimed", evidence: { assignees } };
     const labels = labelsOf(t);
-    if (labels.includes("ready-for-agent"))
-      return { ...base, stage: "readyAgent", evidence: {} };
-    if (labels.includes("ready-for-human"))
-      return { ...base, stage: "readyHuman", evidence: {} };
+    if (labels.includes("ready-for-agent")) return { ...base, stage: "readyAgent", evidence: {} };
+    if (labels.includes("ready-for-human")) return { ...base, stage: "readyHuman", evidence: {} };
     return { ...base, stage: "triage", evidence: { labels } };
   };
 
   const withSubIssues = async (numbers: number[]): Promise<RawParent[]> => {
     if (!numbers.length) return [];
-    const fields = numbers
-      .map(
-        (n) =>
-          `i${n}: issue(number: ${n}) { ${TICKET_FIELDS} subIssues(first: 100) { nodes { ${TICKET_FIELDS} } } }`,
-      )
-      .join("\n");
+    const fields = numbers.map((n) => `i${n}: issue(number: ${n}) { ${TICKET_FIELDS} subIssues(first: 100) { nodes { ${TICKET_FIELDS} } } }`).join("\n");
     const data = await github.graphql<{
       repository: Record<string, RawParent | null>;
-    }>(
-      `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields} } }`,
-      { owner, name },
-    );
-    return numbers
-      .map((n) => data.repository[`i${n}`])
-      .filter((i): i is RawParent => i !== null);
+    }>(`query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields} } }`, { owner, name });
+    return numbers.map((n) => data.repository[`i${n}`]).filter((i): i is RawParent => i !== null);
   };
 
   // ---------- epics, features, tickets ----------
-  const epicList = (
-    await github.rest<RawListedIssue[]>(
-      `repos/${repository}/issues?labels=${encodeURIComponent("wayfinder:map")}&state=all&per_page=100`,
-    )
-  ).filter((i) => !i.pull_request && recent(i.state, i.closed_at));
-  const featureSearch = await github.rest<{ items: RawListedIssue[] }>(
-    `search/issues?q=${encodeURIComponent(`repo:${repository} is:issue in:title Suivi`)}&per_page=100`,
-  );
-  const featureList = featureSearch.items.filter(
-    (i) => /^Suivi\s*:/.test(i.title) && recent(i.state, i.closed_at),
-  );
+  const epicList = (await github.rest<RawListedIssue[]>(`repos/${repository}/issues?labels=${encodeURIComponent("wayfinder:map")}&state=all&per_page=100`)).filter((i) => !i.pull_request && recent(i.state, i.closed_at));
+  const featureSearch = await github.rest<{ items: RawListedIssue[] }>(`search/issues?q=${encodeURIComponent(`repo:${repository} is:issue in:title Suivi`)}&per_page=100`);
+  const featureList = featureSearch.items.filter((i) => /^Suivi\s*:/.test(i.title) && recent(i.state, i.closed_at));
 
   const featureOf = async (
     raw:
@@ -485,9 +384,7 @@ export async function deliveryStatus(
         },
   ): Promise<Feature> => {
     const direct = "direct" in raw;
-    const tickets = await Promise.all(
-      (direct ? raw.tickets : raw.subIssues.nodes).map(stageOf),
-    );
+    const tickets = await Promise.all((direct ? raw.tickets : raw.subIssues.nodes).map(stageOf));
     return {
       number: raw.number,
       title: raw.title,
@@ -509,14 +406,11 @@ export async function deliveryStatus(
 
   const rawEpics = await withSubIssues(epicList.map((e) => e.number));
   const byEpic = new Map<number | null, Feature[]>();
-  for (const { epic, feature } of features)
-    byEpic.set(epic, [...(byEpic.get(epic) ?? []), feature]);
+  for (const { epic, feature } of features) byEpic.set(epic, [...(byEpic.get(epic) ?? []), feature]);
 
   const epics: Epic[] = [];
   for (const e of rawEpics) {
-    const children = e.subIssues.nodes.filter(
-      (c) => !featureNumbers.has(c.number),
-    );
+    const children = e.subIssues.nodes.filter((c) => !featureNumbers.has(c.number));
     const discovery = children.filter(isDiscovery);
     const direct = children.filter((c) => !isDiscovery(c));
     const epicFeatures = [...(byEpic.get(e.number) ?? [])];
@@ -559,13 +453,8 @@ export async function deliveryStatus(
         )
     : null;
 
-  const groups = [
-    ...epics.flatMap((e) => e.features),
-    ...orphans.flatMap((o) => o.features),
-  ];
-  const tracked = new Set(
-    groups.flatMap((f) => f.tickets.map((t) => t.number)),
-  );
+  const groups = [...epics.flatMap((e) => e.features), ...orphans.flatMap((o) => o.features)];
+  const tracked = new Set(groups.flatMap((f) => f.tickets.map((t) => t.number)));
   const openPrs = await github.graphql<{
     repository: {
       pullRequests: {
@@ -583,11 +472,7 @@ export async function deliveryStatus(
     { owner, name },
   );
   const inFlight: InFlight = {
-    tickets: groups.flatMap((f) =>
-      f.tickets
-        .filter((t) => ACTIVE_STAGES.has(t.stage))
-        .map((ticket) => ({ ticket, under: f.number })),
-    ),
+    tickets: groups.flatMap((f) => f.tickets.filter((t) => ACTIVE_STAGES.has(t.stage)).map((ticket) => ({ ticket, under: f.number }))),
     pullRequests: openPrs.repository.pullRequests.nodes
       .map((pr) => ({
         number: pr.number,
@@ -619,34 +504,25 @@ export async function deliveryStatus(
   };
 }
 
-async function liveRevision(
-  baseUrl: string | null,
-  fetchHealth: (url: string) => Promise<Response>,
-): Promise<NonNullable<EnvironmentStatus["live"]>> {
+async function liveRevision(baseUrl: string | null, fetchHealth: (url: string) => Promise<Response>): Promise<NonNullable<EnvironmentStatus["live"]>> {
   if (!baseUrl) return { checked: false, reason: { kind: "noUrl" } };
   try {
-    const response = await fetchHealth(
-      `${baseUrl.replace(/\/$/, "")}/api/health`,
-    );
+    const response = await fetchHealth(`${baseUrl.replace(/\/$/, "")}/api/health`);
     if (!response.ok)
       return {
         checked: false,
         reason: { kind: "status", status: response.status },
       };
     const body = (await response.json()) as { commit?: string };
-    return body.commit
-      ? { checked: true, revision: body.commit }
-      : { checked: false, reason: { kind: "noCommit" } };
+    return body.commit ? { checked: true, revision: body.commit } : { checked: false, reason: { kind: "noCommit" } };
   } catch {
     return { checked: false, reason: { kind: "unreachable" } };
   }
 }
 
-/** GitHub's API, read with `token` through `fetch` (a recording one in the app, so each call is traced under the Tool `github`). */
-export function gitHubReader(
-  token: string,
-  fetchImpl: (url: string, init: RequestInit) => Promise<Response> = fetch,
-): GitHubReader {
+/** GitHub's API (`apiUrl`: a fake one in e2e), read with `token` through `fetch` (a recording one in the app, so each call is traced under the Tool `github`). */
+export function gitHubReader(token: string, fetchImpl: (url: string, init: RequestInit) => Promise<Response> = fetch, apiUrl = "https://api.github.com"): GitHubReader {
+  const base = apiUrl.replace(/\/$/, "");
   const headers = {
     authorization: `Bearer ${token}`,
     accept: "application/vnd.github+json",
@@ -660,14 +536,14 @@ export function gitHubReader(
   return {
     rest: async (path) =>
       answer(
-        await fetchImpl(`https://api.github.com/${path}`, {
+        await fetchImpl(`${base}/${path}`, {
           headers,
           signal: AbortSignal.timeout(15_000),
         }),
       ),
     async graphql<T>(query: string, variables: Record<string, string>) {
       const body = await answer<{ data?: T; errors?: { message: string }[] }>(
-        await fetchImpl("https://api.github.com/graphql", {
+        await fetchImpl(`${base}/graphql`, {
           method: "POST",
           headers: { ...headers, "content-type": "application/json" },
           body: JSON.stringify({ query, variables }),
@@ -686,9 +562,7 @@ export class GitHubApiError extends Error {
     readonly status: number,
     detail?: string,
   ) {
-    super(
-      `GitHub API: HTTP ${status}${detail ? ` ${detail.slice(0, 200)}` : ""}`,
-    );
+    super(`GitHub API: HTTP ${status}${detail ? ` ${detail.slice(0, 200)}` : ""}`);
     this.name = "GitHubApiError";
   }
 }

@@ -59,11 +59,21 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
     expect(requests[0]!.headers.get("authorization")).toBe("Bearer tvly-key");
   });
 
+  it("tests a GitHub token on its rate limit, which costs nothing", async () => {
+    const { fetch, requests } = fakeFetch(200, { rate: { remaining: 5000 } });
+
+    expect(await createConnectionTester({ fetch })("github", { GITHUB_STATUS_TOKEN: "github_pat_x" })).toEqual({ ok: true });
+
+    expect(requests[0]!.url).toBe("https://api.github.com/rate_limit");
+    expect(requests[0]!.headers.get("authorization")).toBe("Bearer github_pat_x");
+  });
+
   it.each<[SecretProvider, string, number]>([
     ["brave", "BRAVE_SEARCH_API_KEY", 401],
     ["brave", "BRAVE_SEARCH_API_KEY", 429],
     ["tavily", "TAVILY_API_KEY", 401],
     ["tavily", "TAVILY_API_KEY", 432],
+    ["github", "GITHUB_STATUS_TOKEN", 401],
   ])("%s: a key refused (%s, HTTP %i) fails, a missing one fails without a call", async (provider, name, status) => {
     const refused = fakeFetch(status, { detail: "nope" });
     const none = fakeFetch();
@@ -242,6 +252,7 @@ describe("a connection test, as recorded", () => {
     ["perplexity", { PERPLEXITY_API_KEY: "pplx-abcdefgh" }, "perplexity"],
     ["brave", { BRAVE_SEARCH_API_KEY: "bsa-abcdefgh" }, "brave"],
     ["tavily", { TAVILY_API_KEY: "tvly-abcdefgh" }, "tavily"],
+    ["github", { GITHUB_STATUS_TOKEN: "github_pat_abcdefgh" }, "github"],
     ["anthropic", { ANTHROPIC_API_KEY: "sk-ant-abcdefgh" }, "anthropic"],
     ["bedrock", { AWS_BEARER_TOKEN_BEDROCK: "bk-abcdefgh" }, "anthropic_bedrock"],
     ["france-travail", { FRANCE_TRAVAIL_CLIENT_ID: "id-abcdefgh", FRANCE_TRAVAIL_CLIENT_SECRET: "secret-abcdefgh" }, "france_travail"],

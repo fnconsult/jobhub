@@ -384,6 +384,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
                 <SettingsTable ctx={ctx} caption={t("admin.platformSettings.active.settingsCaption", { tab: t("admin.platformSettings.tabs.environment") })} names={tab.settings} settings={settings} envOnly={[]} />
               </Card>
               <EnvironmentSection ctx={ctx} rows={envOnly} retired={retiredSettingsSet(process.env)} />
+              {/* Its Tools (GitHub, which Livraison reads with its token): their keys are replaced on their sheets. */}
+              {rows.length ? <ProvidersSection ctx={ctx} rows={rows} settings={settings} envOnly={envOnly} /> : null}
             </>
           ) : (
             <ProvidersSection ctx={ctx} rows={rows} settings={settings} envOnly={envOnly} />

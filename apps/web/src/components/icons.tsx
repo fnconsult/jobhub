@@ -41,6 +41,7 @@ import {
   MessageSquare,
   Minus,
   NotebookText,
+  PackageCheck,
   Palette,
   PanelLeftClose,
   PanelRight,
@@ -137,6 +138,8 @@ const LUCIDE = {
   // An envelope: Activité › Emails reçus, Email intake's Received offer emails (#449).
   receivedEmails: Mail,
   tools: Wrench,
+  // A parcel ticked: Livraison, what is built and where it runs.
+  deliveryStatus: PackageCheck,
   // A palette: the Design System page (#463).
   designSystem: Palette,
   administrators: ShieldCheck,

@@ -57,6 +57,8 @@ const statements = {
   signalements: ["read", "write"],
   /** Withdrawals (Rétractations, #511): every one and its refunds; write covers trying a failed refund again. */
   withdrawals: ["read", "write"],
+  /** Livraison: what is being built and where it runs, read live from GitHub; read-only, never a Candidate. */
+  deliveryStatus: ["read"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;
@@ -79,7 +81,7 @@ const ROLES = {
   "help-editor": control.newRole({ unansweredQuestions: ["read", "write"], signalements: READ }),
   // « Technique » (#397, ADR-0042): changes every non-secret setting of Paramètres (the Tools' prices among them), the
   // Job discovery sources and sites and the Job Sites; sees Provider Secrets by their source and last 4 characters only,
-  // never replaces one; reads what the Dashboard sums up, the Back Office Audit, the Job discovery runs and the Emails reçus. Never the AI Message Log.
+  // never replaces one; reads what the Dashboard sums up, the Back Office Audit, the Job discovery runs, the Emails reçus and Livraison. Never the AI Message Log.
   "platform-manager": control.newRole({
     platformSettings: ["read", "write"],
     searchSites: ["read", "write"],
@@ -90,6 +92,7 @@ const ROLES = {
     audit: READ,
     discoveryRuns: READ,
     receivedEmails: READ,
+    deliveryStatus: READ,
   }),
   // Reads everything but Provider Secrets, the AI Message Log and the Job Search behind a run, triages Signalements and follows
   // Withdrawals (trying a failed refund again, #511); the team's own
@@ -113,6 +116,7 @@ const ROLES = {
     withdrawals: ["read", "write"],
     discoveryRuns: READ,
     receivedEmails: READ,
+    deliveryStatus: READ,
   }),
 } satisfies Record<BackOfficeRole, unknown>;
 

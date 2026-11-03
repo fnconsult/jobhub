@@ -39,6 +39,7 @@ describe("the Back Office navigation", () => {
           ["aiUsage", "/admin/consommation-ia"],
           ["activity", "/admin/activite"],
           ["tools", "/admin/outils"],
+          ["deliveryStatus", "/admin/livraison"],
           ["designSystem", "/admin/design-system"],
         ],
       ],
@@ -95,9 +96,15 @@ describe("the Back Office navigation", () => {
         ["aiUsage", "/admin/consommation-ia"],
         ["activity", "/admin/activite"],
         ["tools", "/admin/outils"],
+        ["deliveryStatus", "/admin/livraison"],
         ["designSystem", "/admin/design-system"],
       ],
     ]);
+    // Technique reads Livraison too; the other roles do not.
+    for (const role of BACK_OFFICE_ROLES) {
+      const keys = backOfficeNav(backOfficeAccess([role])).flatMap((group) => group.sections.map((section) => section.key));
+      expect(keys.includes("deliveryStatus"), role).toBe(["super-admin", "platform-manager", "support"].includes(role));
+    }
     // A Playbook editor sees the Coaching Playbooks, under Coaching (#225), and the Design System page.
     expect(sections(backOfficeNav(backOfficeAccess(["playbook-editor"])))).toEqual([
       ["coaching", [["coachingPlaybooks", "/admin/playbooks"]]],

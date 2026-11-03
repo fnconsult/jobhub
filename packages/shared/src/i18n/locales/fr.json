@@ -1473,7 +1473,8 @@
       "discoveryRuns": "Recherches",
       "designSystem": "Design System",
       "receivedEmails": "Emails reçus",
-      "withdrawals": "Rétractations"
+      "withdrawals": "Rétractations",
+      "deliveryStatus": "Livraison"
     },
     "signInProviders": {
       "title": "Connexion",
@@ -1952,7 +1953,8 @@
         "apollo": "Apollo",
         "stripe": "Stripe",
         "brevo": "Brevo",
-        "email-intake": "Réception par email (MTA de Jobbbox)"
+        "email-intake": "Réception par email (MTA de Jobbbox)",
+        "github": "GitHub"
       },
       "replaceLegend": "Remplacer {{name}}",
       "newValue": "Nouvelle valeur de {{name}}",
@@ -2358,7 +2360,7 @@
         "support": "Consulte tout, sauf les secrets des fournisseurs, sans rien modifier.",
         "playbook-editor": "Écrit, versionne, valide et archive les playbooks de coaching, le socle et la liste des sources.",
         "help-editor": "Lit les questions sans réponse et les marque « Article écrit » ou les écarte.",
-        "platform-manager": "Règle les paramètres non secrets, les sources et sites de recherche et les prix des outils ; voit les clés par leur source et leurs 4 derniers caractères, sans les changer ; lit la consommation, les outils, les recherches et les actions des administrateurs d'Activité."
+        "platform-manager": "Règle les paramètres non secrets, les sources et sites de recherche et les prix des outils ; voit les clés par leur source et leurs 4 derniers caractères, sans les changer ; lit la consommation, les outils, la livraison, les recherches et les actions des administrateurs d'Activité."
       },
       "errors": {
         "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail. La personne doit d'abord créer son compte.",
@@ -2413,6 +2415,7 @@
         "ai_usage": "Consommation IA",
         "search_sites": "Sites de recherche",
         "tool_pages": "Pages Outils",
+        "delivery_status": "Livraison",
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
@@ -3185,7 +3188,8 @@
         "mail": "E-mail",
         "sign_in": "Connexion",
         "geolocation": "Géolocalisation",
-        "reference_data": "Référentiels"
+        "reference_data": "Référentiels",
+        "delivery": "Livraison"
       },
       "tool": "Outil",
       "purpose": "Usage",
@@ -3266,6 +3270,118 @@
       "settingsTitle": "Paramètres",
       "settingsIntro": "Les réglages de la plateforme dont dépend cet outil, en lecture seule : ils se changent dans Paramètres.",
       "settingsCaption": "Paramètres de {{name}}"
+    },
+    "deliveryStatus": {
+      "title": "Livraison",
+      "subtitle": "Ce qui est en cours de construction et où cela tourne, lu en direct sur GitHub.",
+      "intro": "Livraison lit GitHub en direct : les chantiers (cartes wayfinder), leurs fonctionnalités (issues « Suivi »), leurs tickets et pull requests, et le dernier déploiement réussi de la Beta et de la Production, vérifié sur le /api/health de chaque environnement. Chaque étape repose sur une preuve : un ticket est « En Beta » quand le commit de sa pull request fusionnée fait partie du commit déployé. GitHub est relu au plus toutes les {{minutes}} minutes, ou tout de suite avec « Actualiser ». Rien ne s'y modifie.",
+      "readAt": "Lu sur GitHub ({{repository}}) le {{at}}. Les éléments fermés depuis plus de {{days}} jours sont omis.",
+      "refresh": "Actualiser",
+      "ticket": "Ticket",
+      "stage": "Étape",
+      "evidenceHeader": "Preuve",
+      "pullRequest": "PR #{{number}}",
+      "count_one": "{{count}} {{stage}}",
+      "count_other": "{{count}} {{stage}}",
+      "directTickets": "Tickets directement sous le chantier",
+      "stages": {
+        "triage": "À trier",
+        "readyHuman": "Prêt (humain)",
+        "readyAgent": "Prêt (agent)",
+        "blocked": "Bloqué",
+        "claimed": "Pris",
+        "implementing": "En développement",
+        "inReview": "En revue",
+        "merged": "Fusionné",
+        "onStaging": "En Beta",
+        "onProduction": "En Production",
+        "closedNoPr": "Fermé sans PR",
+        "dropped": "Abandonné"
+      },
+      "evidence": {
+        "merged": "fusionnée le {{date}} ({{commit}})",
+        "checks": "vérifications : {{state}}",
+        "blockedBy": "bloqué par {{issues}}",
+        "assigned": "assigné à {{people}}, sans PR",
+        "noTriageLabel": "aucune étiquette de tri",
+        "uncompared": "non comparé avec : {{environments}}"
+      },
+      "headlines": {
+        "notSplit": "Pas encore découpé en tickets",
+        "building": "En construction : {{tickets}}",
+        "shipped": "Livré",
+        "awaitingDeploy": "Fusionné, en attente de déploiement",
+        "notInProduction": "En Beta, pas en Production",
+        "idle": "À l'arrêt : rien en cours"
+      },
+      "environments": {
+        "title": "Environnements",
+        "names": {
+          "staging": "Beta",
+          "production": "Production"
+        },
+        "environment": "Environnement",
+        "commit": "Commit déployé",
+        "when": "Quand",
+        "from": "Depuis",
+        "run": "exécution",
+        "live": "Vérification en direct",
+        "missing": "Aucun environnement GitHub : jamais déployé par le workflow Deploy",
+        "noDeployment": "Aucun déploiement réussi",
+        "liveMatches": "Le site sert ce commit",
+        "liveDiffers": "Le site sert {{commit}}",
+        "unverified": {
+          "noUrl": "Non vérifié : pas d'adresse",
+          "status": "Non vérifié : /api/health a répondu {{status}}",
+          "noCommit": "Non vérifié : /api/health ne donne pas son commit",
+          "unreachable": "Non vérifié : /api/health injoignable"
+        },
+        "mainAhead_one": "main a {{count}} commit d'avance sur la Beta.",
+        "mainAhead_other": "main a {{count}} commits d'avance sur la Beta.",
+        "mainBehind_one": "Et {{count}} de retard.",
+        "mainBehind_other": "Et {{count}} de retard."
+      },
+      "inFlight": {
+        "title": "En cours",
+        "none": "Rien en cours.",
+        "under": "Sous",
+        "closesUntracked": "ferme {{issues}} (hors d'un « Suivi »)",
+        "closesNothing": "ne ferme aucun ticket"
+      },
+      "epics": {
+        "title": "Chantiers et fonctionnalités",
+        "none": "Aucun chantier récent.",
+        "closed": "fermé",
+        "discovery": "Découverte : {{closed}}/{{total}} tickets wayfinder fermés.",
+        "noDiscovery": "Aucun ticket de découverte.",
+        "noTickets": "Pas encore de tickets de construction.",
+        "otherEpic": "{{epic}} (chantier fermé ou qui n'est pas une carte)",
+        "noEpic": "Fonctionnalités sans chantier"
+      },
+      "caveats": {
+        "title": "Ce que cette page ne garantit pas",
+        "branchDeployed": "{{environment}} tourne sur la branche {{ref}}, pas sur main : il peut contenir du code absent de main.",
+        "liveDiffers": "{{environment}} sert {{live}} alors que le dernier déploiement réussi sur GitHub est {{deployed}} : un déploiement a eu lieu hors du workflow Deploy, ou un déploiement est en cours.",
+        "liveUnverified": "{{environment}} n'a pas pu être vérifié en direct : « En {{environment}} » ne repose que sur le déploiement enregistré par GitHub.",
+        "openButMerged": "{{issue}} est encore ouvert alors que sa PR {{pullRequest}} est fusionnée.",
+        "subIssuesOnly": "Un ticket ne compte que s'il est une sous-issue GitHub d'un « Suivi » ou d'un chantier ; un ticket seulement cité dans un tableau n'est pas vu.",
+        "closesOnly": "Le code d'un ticket est retrouvé par les PR qui disent « Closes #n » ; un travail fusionné sous une autre PR n'est pas vu."
+      },
+      "unavailable": {
+        "sheet": "Ouvrir la fiche GitHub",
+        "missingToken": {
+          "title": "Jeton GitHub manquant",
+          "text": "Livraison lit GitHub avec un jeton en lecture seule, GITHUB_STATUS_TOKEN, qui n'est pas renseigné."
+        },
+        "refused": {
+          "title": "Jeton GitHub refusé",
+          "text": "GitHub refuse le jeton GITHUB_STATUS_TOKEN : il a expiré, ou n'a pas les droits de lecture nécessaires."
+        },
+        "failed": {
+          "title": "GitHub n'a pas pu être lu",
+          "text": "GitHub n'a pas répondu ou a répondu une erreur. Réessayez avec « Actualiser » dans un moment."
+        }
+      }
     },
     "activity": {
       "title": "Activité",

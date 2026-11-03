@@ -76,6 +76,7 @@ export const BACK_OFFICE_SECTIONS = [
   "ai_usage",
   "search_sites",
   "tool_pages",
+  "delivery_status",
   "journal",
 ] as const;
 export type BackOfficeSection = (typeof BACK_OFFICE_SECTIONS)[number];
@@ -247,6 +248,7 @@ const DENIED_SECTIONS = {
   unansweredQuestions: "unanswered_questions",
   signalements: "signalements",
   withdrawals: "withdrawals",
+  deliveryStatus: "delivery_status",
 } as const satisfies Record<BackOfficeResource, BackOfficeSection>;
 
 /** The page an Administrator was denied `resource` on: the Back Office page it covers; Eval Runs are played from the Coaching Playbooks. */

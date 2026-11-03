@@ -27,6 +27,7 @@ export const TOOL_CATEGORIES = [
   "sign_in",
   "geolocation",
   "reference_data",
+  "delivery",
 ] as const;
 export type ToolCategory = (typeof TOOL_CATEGORIES)[number];
 
@@ -613,6 +614,22 @@ export const TOOLS = [
     residency: "eu",
     receivesPersonalData: false,
     residencyNote: { fr: "Service public français ; ne reçoit aucune donnée.", en: "French public service; receives no data." },
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    purpose: {
+      fr: "API de GitHub, lue avec un jeton en lecture seule : la page Livraison (tickets, pull requests et déploiements de Jobbbox). Ne reçoit aucune donnée de Jobbbox.",
+      en: "GitHub's API, read with a read-only token: the Livraison page (Jobbbox's tickets, pull requests and deployments). Receives no Jobbbox data.",
+    },
+    category: "delivery",
+    module: "apps/web/src/delivery-status/server.ts",
+    runsIn: "web",
+    keys: ["GITHUB_STATUS_TOKEN"],
+    usage: { table: "external_api_usage", provider: "github" },
+    residency: "outside_eu",
+    receivesPersonalData: false,
+    residencyNote: { fr: "Société américaine ; lue seulement, aucune donnée personnelle envoyée.", en: "US company; only read, no personal data sent." },
   },
 ] as const satisfies readonly Tool[];
 

@@ -8,7 +8,7 @@
  */
 
 /** Who a Provider Secret is for; keys of one provider are tested together. */
-export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo", "email-intake"] as const;
+export const SECRET_PROVIDERS = ["mistral", "perplexity", "brave", "tavily", "anthropic", "bedrock", "france-travail", "fantastic-jobs", "lusha", "kaspr", "apollo", "stripe", "brevo", "email-intake", "github"] as const;
 export type SecretProvider = (typeof SECRET_PROVIDERS)[number];
 
 export const PROVIDER_SECRETS = [
@@ -35,6 +35,8 @@ export const PROVIDER_SECRETS = [
   { name: "SMTP_URL", provider: "brevo" },
   // Email intake (#580): the secret its own MTA sends with each email it posts to the app; the MTA holds the same one.
   { name: "EMAIL_INTAKE_INBOUND_SECRET", provider: "email-intake" },
+  // GitHub: the read-only token Back Office › Livraison reads the delivery status with.
+  { name: "GITHUB_STATUS_TOKEN", provider: "github" },
 ] as const satisfies ReadonlyArray<{ name: string; provider: SecretProvider }>;
 
 export type ProviderSecretName = (typeof PROVIDER_SECRETS)[number]["name"];

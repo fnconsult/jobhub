@@ -1473,7 +1473,8 @@
       "discoveryRuns": "Searches",
       "designSystem": "Design System",
       "receivedEmails": "Received emails",
-      "withdrawals": "Withdrawals"
+      "withdrawals": "Withdrawals",
+      "deliveryStatus": "Delivery"
     },
     "signInProviders": {
       "title": "Sign-in",
@@ -1952,7 +1953,8 @@
         "apollo": "Apollo",
         "stripe": "Stripe",
         "brevo": "Brevo",
-        "email-intake": "Email intake (Jobbbox's MTA)"
+        "email-intake": "Email intake (Jobbbox's MTA)",
+        "github": "GitHub"
       },
       "replaceLegend": "Replace {{name}}",
       "newValue": "New value of {{name}}",
@@ -2358,7 +2360,7 @@
         "support": "Reads everything except provider secrets, and changes nothing.",
         "playbook-editor": "Writes, versions, validates and archives the Coaching Playbooks, the Core Digest and the Sources list.",
         "help-editor": "Reads the unanswered questions and marks them « Article written » or dismisses them.",
-        "platform-manager": "Sets the non-secret settings, the search sources and sites and the tools' prices; sees keys by their source and last 4 characters, without changing them; reads the consumption, the tools, and Activity's searches and Administrator actions."
+        "platform-manager": "Sets the non-secret settings, the search sources and sites and the tools' prices; sees keys by their source and last 4 characters, without changing them; reads the consumption, the tools, the delivery status, and Activity's searches and Administrator actions."
       },
       "errors": {
         "unknown_account": "No Jobbbox account uses this email address. The person must create their account first.",
@@ -2413,6 +2415,7 @@
         "ai_usage": "AI consumption",
         "search_sites": "Search sites",
         "tool_pages": "Tools pages",
+        "delivery_status": "Delivery",
         "journal": "Activity › Administrator actions",
         "unanswered_questions": "Unanswered questions",
         "signalements": "Feedback",
@@ -3185,7 +3188,8 @@
         "mail": "Email",
         "sign_in": "Sign-in",
         "geolocation": "Geolocation",
-        "reference_data": "Reference data"
+        "reference_data": "Reference data",
+        "delivery": "Delivery"
       },
       "tool": "Tool",
       "purpose": "Purpose",
@@ -3266,6 +3270,118 @@
       "settingsTitle": "Settings",
       "settingsIntro": "The platform settings this Tool depends on, read-only: they are changed on Settings.",
       "settingsCaption": "Settings of {{name}}"
+    },
+    "deliveryStatus": {
+      "title": "Delivery",
+      "subtitle": "What is being built and where it runs, read live from GitHub.",
+      "intro": "Delivery reads GitHub live: the epics (wayfinder maps), their features (« Suivi » issues), their tickets and pull requests, and the latest successful deployment of the Beta and of Production, checked against each environment's /api/health. Every stage rests on evidence: a ticket is « On Beta » when its merged pull request's commit is part of the deployed commit. GitHub is read again at most every {{minutes}} minutes, or at once with « Refresh ». Nothing can be changed here.",
+      "readAt": "Read from GitHub ({{repository}}) on {{at}}. Items closed more than {{days}} days ago are left out.",
+      "refresh": "Refresh",
+      "ticket": "Ticket",
+      "stage": "Stage",
+      "evidenceHeader": "Evidence",
+      "pullRequest": "PR #{{number}}",
+      "count_one": "{{count}} {{stage}}",
+      "count_other": "{{count}} {{stage}}",
+      "directTickets": "Tickets directly under the epic",
+      "stages": {
+        "triage": "To triage",
+        "readyHuman": "Ready (human)",
+        "readyAgent": "Ready (agent)",
+        "blocked": "Blocked",
+        "claimed": "Claimed",
+        "implementing": "Implementing",
+        "inReview": "In review",
+        "merged": "Merged",
+        "onStaging": "On Beta",
+        "onProduction": "On Production",
+        "closedNoPr": "Closed, no PR",
+        "dropped": "Dropped"
+      },
+      "evidence": {
+        "merged": "merged on {{date}} ({{commit}})",
+        "checks": "checks: {{state}}",
+        "blockedBy": "blocked by {{issues}}",
+        "assigned": "assigned to {{people}}, no PR",
+        "noTriageLabel": "no triage label",
+        "uncompared": "not compared with: {{environments}}"
+      },
+      "headlines": {
+        "notSplit": "Not split into tickets yet",
+        "building": "Building: {{tickets}}",
+        "shipped": "Shipped",
+        "awaitingDeploy": "Merged, awaiting deploy",
+        "notInProduction": "On Beta, not in Production",
+        "idle": "Idle: nothing in progress"
+      },
+      "environments": {
+        "title": "Environments",
+        "names": {
+          "staging": "Beta",
+          "production": "Production"
+        },
+        "environment": "Environment",
+        "commit": "Deployed commit",
+        "when": "When",
+        "from": "From",
+        "run": "run",
+        "live": "Live check",
+        "missing": "No GitHub Environment: never deployed by the Deploy workflow",
+        "noDeployment": "No successful deployment",
+        "liveMatches": "The site serves this commit",
+        "liveDiffers": "The site serves {{commit}}",
+        "unverified": {
+          "noUrl": "Unverified: no address",
+          "status": "Unverified: /api/health answered {{status}}",
+          "noCommit": "Unverified: /api/health does not give its commit",
+          "unreachable": "Unverified: /api/health unreachable"
+        },
+        "mainAhead_one": "main is {{count}} commit ahead of the Beta.",
+        "mainAhead_other": "main is {{count}} commits ahead of the Beta.",
+        "mainBehind_one": "And {{count}} behind it.",
+        "mainBehind_other": "And {{count}} behind it."
+      },
+      "inFlight": {
+        "title": "In flight",
+        "none": "Nothing in progress.",
+        "under": "Under",
+        "closesUntracked": "closes {{issues}} (not under a « Suivi »)",
+        "closesNothing": "closes no ticket"
+      },
+      "epics": {
+        "title": "Epics and features",
+        "none": "No recent epic.",
+        "closed": "closed",
+        "discovery": "Discovery: {{closed}}/{{total}} wayfinder tickets closed.",
+        "noDiscovery": "No discovery tickets.",
+        "noTickets": "No build tickets yet.",
+        "otherEpic": "{{epic}} (epic closed, or not a map)",
+        "noEpic": "Features without an epic"
+      },
+      "caveats": {
+        "title": "What this page cannot vouch for",
+        "branchDeployed": "{{environment}} runs branch {{ref}}, not main: it may hold code main does not.",
+        "liveDiffers": "{{environment}} serves {{live}} but GitHub's latest successful deployment is {{deployed}}: a deploy happened outside the Deploy workflow, or one is half done.",
+        "liveUnverified": "{{environment}} could not be checked live: « On {{environment}} » rests on GitHub's deployment record only.",
+        "openButMerged": "{{issue}} is still open although its PR {{pullRequest}} is merged.",
+        "subIssuesOnly": "A ticket only counts when it is a GitHub sub-issue of a « Suivi » or of an epic; a ticket only listed in a table is not seen.",
+        "closesOnly": "A ticket's code is found through the PRs that say « Closes #n »; work merged under another PR is not seen."
+      },
+      "unavailable": {
+        "sheet": "Open the GitHub sheet",
+        "missingToken": {
+          "title": "GitHub token missing",
+          "text": "Delivery reads GitHub with a read-only token, GITHUB_STATUS_TOKEN, which is not set."
+        },
+        "refused": {
+          "title": "GitHub token refused",
+          "text": "GitHub refuses the GITHUB_STATUS_TOKEN token: it has expired, or lacks the read rights it needs."
+        },
+        "failed": {
+          "title": "GitHub could not be read",
+          "text": "GitHub did not answer, or answered an error. Try again with « Refresh » in a moment."
+        }
+      }
     },
     "activity": {
       "title": "Activity",

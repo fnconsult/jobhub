@@ -14,6 +14,7 @@ describe("the Tools", () => {
       ["sign_in", ["google", "apple", "microsoft", "oidc", "two-step-verification"]],
       ["geolocation", ["geo-api-gouv"]],
       ["reference_data", ["insee-naf", "rome-open-data"]],
+      ["delivery", ["github"]],
     ]);
   });
 

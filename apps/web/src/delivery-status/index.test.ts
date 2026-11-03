@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  deliveryStatus,
-  gitHubReader,
-  GitHubApiError,
-  rollUp,
-  type GitHubReader,
-  type Ticket,
-} from "./index";
+import { deliveryStatus, gitHubReader, GitHubApiError, rollUp, type GitHubReader, type Ticket } from "./index";
 
 const REPO = "acme/app";
 const NOW = new Date("2026-11-03T12:00:00Z");
@@ -39,11 +32,7 @@ function ticket(
   };
 }
 
-const pr = (
-  number: number,
-  state: "OPEN" | "MERGED",
-  extra: Partial<{ isDraft: boolean; oid: string; checks: string }> = {},
-) => ({
+const pr = (number: number, state: "OPEN" | "MERGED", extra: Partial<{ isDraft: boolean; oid: string; checks: string }> = {}) => ({
   number,
   url: `https://github.com/${REPO}/pull/${number}`,
   state,
@@ -76,10 +65,8 @@ function fakeGitHub(
     calls,
     async rest<T>(path: string) {
       calls.push(path);
-      if (path.endsWith("/environments"))
-        return { environments: [{ name: "staging" }] } as T;
-      if (path.includes("/deployments?environment=staging"))
-        return [{ id: 1, sha: "stg", ref: "main" }] as T;
+      if (path.endsWith("/environments")) return { environments: [{ name: "staging" }] } as T;
+      if (path.includes("/deployments?environment=staging")) return [{ id: 1, sha: "stg", ref: "main" }] as T;
       if (path.endsWith("/deployments/1/statuses"))
         return [
           {
@@ -117,20 +104,15 @@ function fakeGitHub(
         return {
           repository: { pullRequests: { nodes: options.openPrs ?? [] } },
         } as T;
-      const numbers = [...query.matchAll(/i(\d+): issue/g)].map((m) =>
-        Number(m[1]),
-      );
+      const numbers = [...query.matchAll(/i(\d+): issue/g)].map((m) => Number(m[1]));
       return {
-        repository: Object.fromEntries(
-          numbers.map((n) => [`i${n}`, parents[n] ?? null]),
-        ),
+        repository: Object.fromEntries(numbers.map((n) => [`i${n}`, parents[n] ?? null])),
       } as T;
     },
   };
 }
 
-const healthy = (commit: string) => async () =>
-  new Response(JSON.stringify({ commit }), { status: 200 });
+const healthy = (commit: string) => async () => new Response(JSON.stringify({ commit }), { status: 200 });
 
 describe("deliveryStatus", () => {
   it("puts each ticket at the Stage its evidence shows, under its Feature and epic", async () => {
@@ -192,9 +174,7 @@ describe("deliveryStatus", () => {
     });
 
     const feature = status.epics[0]!.features[0]!;
-    expect(
-      Object.fromEntries(feature.tickets.map((t) => [t.number, t.stage])),
-    ).toEqual({
+    expect(Object.fromEntries(feature.tickets.map((t) => [t.number, t.stage]))).toEqual({
       11: "onStaging",
       12: "merged",
       13: "inReview",
@@ -205,17 +185,13 @@ describe("deliveryStatus", () => {
       18: "triage",
       19: "dropped",
     });
-    expect(
-      feature.tickets.find((t) => t.number === 13)!.evidence.pullRequest,
-    ).toMatchObject({ number: 103, checks: "success" });
+    expect(feature.tickets.find((t) => t.number === 13)!.evidence.pullRequest).toMatchObject({ number: 103, checks: "success" });
     expect(feature.headline).toEqual({
       kind: "building",
       tickets: [13, 14, 16],
     });
     expect(status.epics[0]!.discovery).toEqual({ closed: 1, total: 1 });
-    expect(
-      status.inFlight.tickets.map((t) => [t.ticket.number, t.under]),
-    ).toEqual([
+    expect(status.inFlight.tickets.map((t) => [t.ticket.number, t.under])).toEqual([
       [13, 10],
       [14, 10],
       [16, 10],
@@ -303,9 +279,7 @@ describe("deliveryStatus", () => {
       issue: 11,
       pullRequest: 101,
     });
-    expect(status.orphans).toEqual([
-      { epic: 99, features: [expect.objectContaining({ number: 10 })] },
-    ]);
+    expect(status.orphans).toEqual([{ epic: 99, features: [expect.objectContaining({ number: 10 })] }]);
   });
 
   it("asks GitHub once per merge commit and deployment", async () => {
@@ -330,9 +304,7 @@ describe("deliveryStatus", () => {
       now: NOW,
       fetchHealth: healthy("stg"),
     });
-    expect(
-      github.calls.filter((c) => c.includes("compare/a...stg")),
-    ).toHaveLength(1);
+    expect(github.calls.filter((c) => c.includes("compare/a...stg"))).toHaveLength(1);
   });
 });
 
@@ -358,9 +330,7 @@ describe("rollUp", () => {
     expect(rollUp([t("readyAgent"), t("onStaging")]).headline).toEqual({
       kind: "idle",
     });
-    expect(
-      rollUp([t("readyAgent"), t("readyAgent"), t("merged")]).counts,
-    ).toEqual([
+    expect(rollUp([t("readyAgent"), t("readyAgent"), t("merged")]).counts).toEqual([
       { stage: "readyAgent", count: 2 },
       { stage: "merged", count: 1 },
     ]);
@@ -379,8 +349,6 @@ describe("gitHubReader", () => {
     expect((error as GitHubApiError).status).toBe(401);
     expect(String(error)).not.toContain("ghp_secret");
     expect(seen[0]!.url).toBe("https://api.github.com/repos/acme/app");
-    expect(
-      (seen[0]!.init.headers as Record<string, string>).authorization,
-    ).toBe("Bearer ghp_secret");
+    expect((seen[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer ghp_secret");
   });
 });

@@ -3,6 +3,7 @@ import { expect as baseExpect, test, type Browser, type Page } from "@playwright
 import { Client } from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { openApplication } from "./support/company-dossier";
+import { exitHref } from "./support/exit-page";
 
 // Issue #403 (ADR-0042): each Tool's billed unit has a price, its list price in code by default, overridden on the Tool's
 // sheet in Paramètres; AI Usage records each call at the price in use. Here a super-admin overrides Perplexity's (the
@@ -84,7 +85,7 @@ test.describe("prices of the Tools' billed units (#403)", () => {
     const sheet = page.locator("[data-sheet='perplexity']");
     await expect(sheet.getByRole("heading", { name: texts.sheet.pricesTitle })).toBeVisible();
     await expect(sheet.locator(`li[data-list-price="${PRICE}"]`)).toContainText(tr(texts.sheet.listPrice, { name: PRICE, price: "0.001", unit: texts.sheet.units.call, date: "2026-10-27" }));
-    await expect(sheet.locator(`li[data-list-price="${PRICE}"]`).getByRole("link", { name: texts.sheet.listPriceSource })).toHaveAttribute("href", "https://docs.perplexity.ai/docs/getting-started/pricing");
+    await expect(sheet.locator(`li[data-list-price="${PRICE}"]`).getByRole("link", { name: texts.sheet.listPriceSource })).toHaveAttribute("href", exitHref("https://docs.perplexity.ai/docs/getting-started/pricing", "backOffice"));
     const price = row(page, PRICE);
     await expect(price.getByRole("cell").nth(1)).toContainText(texts.sources.default);
     await price.getByRole("textbox", { name: tr(texts.newValue, { name: PRICE }) }).fill("0.002");

@@ -63,6 +63,12 @@ jobs:
           E2E_SCREENSHOTS: "0"
       # A failed run's traces, and what its web servers printed (#673): the suite's (its log is the Candidates' mailbox),
       # the ones specs start for themselves (e2e/support/server-log.ts) and `next dev`'s own log.
+      - name: Print the servers' logs
+        if: failure()
+        run: |
+          for f in test-results/e2e-*/servers/*.log apps/web/.next/dev/logs/*; do
+            echo "::group::$f"; tail -c 200000 "$f"; echo "::endgroup::"
+          done
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

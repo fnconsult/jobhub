@@ -18,9 +18,9 @@ export async function POST(request: Request) {
 }
 
 /**
- * Turns Two-step verification on with the app's first code (a second step done, too), and emails the account. The 10
- * backup codes come back once. Body: { code }.
- * 200 { backupCodes } · 400 { error: "invalid_code" } · 401 · 403 · 409 { error: "no_setup" | "already_enabled" }
+ * Turns Two-step verification on (a second step done, too), and emails the account: with the app's first code, body
+ * { code }, or with the passkeys just added in Mon compte (#664), body { passkey: true }. The 10 backup codes come back once.
+ * 200 { backupCodes } · 400 { error: "invalid_code" } · 401 · 403 · 409 { error: "no_setup" | "no_passkey" | "already_enabled" }
  */
 export async function PUT(request: Request) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -29,7 +29,9 @@ export async function PUT(request: Request) {
   const body: unknown = await request.json().catch(() => undefined);
   const code = typeof body === "object" && body !== null && "code" in body && typeof body.code === "string" ? body.code.slice(0, 64) : "";
 
-  const result = await getTwoStepVerification().confirmSetup({ candidateId: current.user.id, sessionId: current.session.id }, code);
+  const by = { candidateId: current.user.id, sessionId: current.session.id };
+  const withPasskey = typeof body === "object" && body !== null && "passkey" in body && body.passkey === true;
+  const result = withPasskey ? await getTwoStepVerification().enableWithPasskey(by) : await getTwoStepVerification().confirmSetup(by, code);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.error === "invalid_code" ? 400 : 409 });
   await tellTwoStepChange(current.user, "enabled");
   return NextResponse.json({ backupCodes: result.backupCodes }, { headers: { "Cache-Control": "no-store" } });

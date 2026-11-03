@@ -320,19 +320,7 @@ textarea.input {
   font-weight: 600;
 }
 
-/* Creating a Profile: the two ways to start, side by side in reading order. */
-.onboarding-path {
-  margin-top: var(--space-8);
-  padding: var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.onboarding-path > h2 {
-  margin-top: 0;
-}
-
-/* A conversation with the AI Coach (Onboarding Questionnaire, Coach Panel). */
+/* A conversation with the AI Coach (the Candidate's pages, the Onboarding Questionnaire, the Coach Panel). */
 .chat {
   display: flex;
   flex-direction: column;
@@ -398,10 +386,6 @@ textarea.input {
 
 .job-offer-card .job-offer-card-title {
   font-weight: 600;
-}
-
-.chat-form {
-  width: 100%;
 }
 
 /* The Coach Panel (#134, ADR-0024), the Back Office Assistant's alone since the Candidate's conversation became their

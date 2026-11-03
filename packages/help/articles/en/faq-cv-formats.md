@@ -9,6 +9,6 @@ Jobbbox reads a CV in PDF or Word (.docx) format, of 10 MB at most. You import i
 
 An old Word file (.doc) is not read: save it as .docx or PDF first. A scanned CV, which is only an image, holds no text to read: import the original PDF or Word version instead. A password-protected file cannot be opened.
 
-No up-to-date CV? Choose « I don't have an up-to-date CV », then « Answer my coach's questions »: your coach asks you about your career, one question at a time, and builds your Master CV with you.
+No up-to-date CV? Click « Answer my coach's questions », above the message box: your coach asks you about your career, one question at a time, and builds your Master CV with you.
 
 Your CVs then download as PDF or Word (.docx), in the template of your choice.

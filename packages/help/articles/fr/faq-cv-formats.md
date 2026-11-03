@@ -9,6 +9,6 @@ Jobbbox lit un CV au format PDF ou Word (.docx), de 10 Mo au plus. Vous l'import
 
 Un ancien fichier Word (.doc) n'est pas lu : enregistrez-le d'abord au format .docx ou PDF. Un CV scanné, qui n'est qu'une image, ne contient aucun texte à lire : importez plutôt la version PDF ou Word d'origine. Un fichier protégé par un mot de passe ne peut pas être ouvert.
 
-Pas de CV à jour ? Choisissez « Je n'ai pas de CV à jour », puis « Répondre aux questions de mon coach » : votre coach vous pose des questions sur votre parcours, une à la fois, et construit votre CV de référence avec vous.
+Pas de CV à jour ? Cliquez sur « Répondre aux questions de mon coach », au-dessus de la zone de message : votre coach vous pose des questions sur votre parcours, une à la fois, et construit votre CV de référence avec vous.
 
 Vos CV se téléchargent ensuite en PDF ou en Word (.docx), dans le modèle de votre choix.

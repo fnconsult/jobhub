@@ -38,8 +38,9 @@ test.describe("creating the first Profile from a CV", () => {
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
-    // The parsed CV and pre-filled Search Criteria, ready for review.
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    // The parsed CV and pre-filled Search Criteria, ready for review in the Work Pane beside the page's conversation (ADR-0070).
+    await expect(page.locator("aside.work-pane").getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    await expect(page.getByRole("list", { name: fr.questionnaire.transcript })).toContainText(fr.cvReview.intro);
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière (lu par l'IA)");
     await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon"]);
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");

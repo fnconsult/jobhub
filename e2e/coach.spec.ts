@@ -92,12 +92,13 @@ test.describe("onboarding with the AI Coach", () => {
 
     await expect(page).toHaveURL(`${origin}/profils/nouveau`);
     await expect(page).toHaveTitle(`${fr.newProfile.title} · ${fr.app.name}`);
-    await expect(page.getByRole("heading", { level: 2, name: fr.newProfile.withCv })).toBeVisible();
-    await expect(page.getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: fr.newProfile.withoutCv })).toBeVisible();
-    await page.getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
+    // The page is a conversation (ADR-0070): the CV's drop zone a card in its thread, the Questionnaire a suggestion above its box.
+    const conversation = page.getByRole("region", { name: fr.newProfile.conversation });
+    await expect(transcript(page)).toContainText(fr.newProfile.intro);
+    await expect(transcript(page).getByRole("heading", { level: 2, name: fr.newProfile.withCv })).toBeVisible();
+    await expect(transcript(page).getByLabel(fr.cvUpload.fileLabel)).toBeVisible();
+    await conversation.getByRole("group", { name: fr.conversationFirst.suggestions }).getByRole("button", { name: fr.newProfile.startQuestionnaire }).click();
 
-    await expect(page.getByRole("heading", { level: 2, name: fr.questionnaire.title })).toBeVisible();
     await expect(transcript(page)).toContainText(fr.questionnaire.welcome);
     await expect(transcript(page).getByRole("listitem").last()).toContainText(q.fullName);
     await expect(answerBox(page)).toBeFocused();

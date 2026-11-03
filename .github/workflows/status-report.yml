@@ -4,9 +4,16 @@
 # is not 18:00 in Europe/Paris skips itself: 16:00 UTC in summer (CEST), 17:00 UTC in winter (CET).
 # Scheduled runs can start a few minutes late when GitHub is busy.
 #
-# The report is posted as a comment on the issue labelled `status-report` (created on the first
-# run), so whoever watches that issue gets it by notification and email. The run's summary and
-# artifact hold it too. Run it by hand: `gh workflow run status-report.yml`.
+# The report is emailed to STATUS_REPORT_TO (default dev@jobbbox.ai) through Brevo's API, the
+# provider the app sends with (ADR-0007), and posted as a comment on the issue labelled
+# `status-report` (created on the first run). The run's summary and artifact hold it too.
+# Run it by hand: `gh workflow run status-report.yml`.
+#
+# Settings → Secrets and variables → Actions:
+#   secret    BREVO_API_KEY       a Brevo API key (xkeysib-…); without it the email step fails
+#   variable  STATUS_REPORT_FROM  the sender, an address Brevo has verified (e.g. MAIL_FROM's)
+#   variable  STATUS_REPORT_TO    optional, comma-separated recipients
+# Privacy register: docs/privacy/register.md, « Delivery status report ».
 name: Status report
 
 on:
@@ -88,3 +95,36 @@ jobs:
               "$(TZ=Europe/Paris date '+%Y-%m-%d %H:%M')" "$run_url" > comment.md
           fi
           gh issue comment "$issue" --body-file comment.md
+
+      - name: Email it
+        if: steps.when.outputs.run == 'true'
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          FROM: ${{ vars.STATUS_REPORT_FROM }}
+          TO: ${{ vars.STATUS_REPORT_TO || 'dev@jobbbox.ai' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$BREVO_API_KEY" ] || [ -z "$FROM" ]; then
+            echo "::error::Set the BREVO_API_KEY secret and the STATUS_REPORT_FROM variable to email the report."
+            exit 1
+          fi
+          node --input-type=module - <<'JS'
+          import { readFileSync } from "node:fs";
+          const md = readFileSync("status-report.md", "utf8");
+          const day = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", dateStyle: "long" }).format(new Date());
+          const escape = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const text = `${md}\n\nExécution : ${process.env.RUN_URL}\n`;
+          const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: { "api-key": process.env.BREVO_API_KEY, "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify({
+              sender: { email: process.env.FROM, name: "Jobbbox status report" },
+              to: process.env.TO.split(",").map((email) => ({ email: email.trim() })).filter((r) => r.email),
+              subject: `Rapport de livraison du ${day}`,
+              textContent: text,
+              htmlContent: `<pre style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;white-space:pre-wrap">${escape(text)}</pre>`,
+            }),
+          });
+          if (!res.ok) { console.error(`Brevo answered ${res.status}: ${await res.text()}`); process.exit(1); }
+          console.log("Emailed to", process.env.TO);
+          JS

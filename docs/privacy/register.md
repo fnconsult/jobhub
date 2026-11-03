@@ -206,3 +206,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | As long as the Candidate's account: deleted with it (`ON DELETE CASCADE`). A Quota Reduction (no personal data but the Administrator's id and email) is kept with the Plan's history. |
 | Rights | In the Candidate's data export (`quotaReductionNotices`: each refund with its status, made, still to make or made by the team, and its amount; without Stripe identifiers or error codes); erased with the account. |
 | Security | Scheduling and cancelling a Quota Reduction check the Administrator's Back Office Roles and are written to the Back Office Audit; cancelling over one checks the signed-in Candidate. |
+
+## Delivery status report (#636)
+
+| | |
+| --- | --- |
+| Purpose | Tell the team each day at 18:00 (Paris) what is being built and where it runs (`scripts/status-report.mjs`, `.github/workflows/status-report.yml`). |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)) in following the delivery of the product. |
+| People concerned | Contributors to the GitHub repository. No Candidate data: the report reads only GitHub issues, pull requests and deployments, and each environment's `/api/health`. |
+| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers. |
+| Source | GitHub's API, read by the workflow with its own token. |
+| Processors | GitHub (Actions runs it; the report is kept in the run's summary and artifact and as a comment on the `status-report` issue); Brevo (EU, ADR-0007, already a processor for emails), which sends it to `dev@jobbbox.ai`. |
+| Who can read it | The repository's collaborators, and the recipients of `dev@jobbbox.ai`. |
+| Storage | GitHub (the artifact is kept 30 days; the issue comments until deleted); the recipients' mailboxes. |
+| Retention | Artifact 30 days. Issue comments and emails until deleted by the team. |
+| Rights | A contributor asks the team to delete the comments or emails naming them. |
+| Security | The workflow's token is read-only but for issues; the Brevo key is an Actions secret. |

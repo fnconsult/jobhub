@@ -188,6 +188,7 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   unansweredQuestions: { name: "Questions sans réponse (Unanswered Questions) : ce que l'aide n'a pas couvert", page: routes.adminUnansweredQuestions() },
   // Read by people only (#283): no Signalement is ever given to the assistant, only where they are.
   signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe seulement, jamais par une IA", page: routes.adminSignalements() },
+  deliveryStatus: { name: "Livraison : ce qui est en cours de construction et où cela tourne (Beta, Production), lu en direct sur GitHub", page: routes.adminDeliveryStatus },
   withdrawals: { name: "Rétractations (Withdrawals) des Candidats et leurs remboursements Stripe, un remboursement échoué relancé", page: routes.adminWithdrawals },
 };
 
@@ -440,6 +441,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   ai_usage: "consommation IA",
   search_sites: "sites de recherche",
   tool_pages: "pages Outils",
+  delivery_status: "livraison",
   journal: "actions des administrateurs",
 };
 

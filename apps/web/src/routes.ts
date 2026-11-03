@@ -223,6 +223,8 @@ export const routes = {
   adminSearchSites: "/admin/parametres?tab=sources",
   /** The Tools (Outils, #233): every external tool the app calls, and one Tool's latest calls; super-admins and Support. */
   adminTools: "/admin/outils",
+  /** Livraison: the delivery status, live from GitHub; super-admins, Technique and Support. */
+  adminDeliveryStatus: "/admin/livraison",
   adminTool: (id: string) => `/admin/outils/${encodeURIComponent(id)}`,
   /**
    * The Platform Settings (Paramètres, #298), in tabs by kind of Tool (#396): super-admins and Support. A tab's address,

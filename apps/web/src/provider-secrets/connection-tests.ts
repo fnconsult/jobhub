@@ -47,6 +47,7 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider | null> = {
   stripe: "stripe",
   brevo: "brevo",
   "email-intake": null,
+  github: "github",
 };
 
 /** The shortest inbound secret taken: the MTA and the app share it, and it is the door's only key from the network. */
@@ -238,6 +239,11 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       const found = keys(env, "EMAIL_INTAKE_INBOUND_SECRET");
       if ("missing" in found) return failed(`missing ${found.missing}`);
       return found.EMAIL_INTAKE_INBOUND_SECRET.length >= MIN_INBOUND_SECRET_LENGTH ? ok : failed(`EMAIL_INTAKE_INBOUND_SECRET must be at least ${MIN_INBOUND_SECRET_LENGTH} characters`);
+    },
+    // GitHub's rate limit: costs nothing and needs only a valid token.
+    async github(env, { bearer }) {
+      const found = keys(env, "GITHUB_STATUS_TOKEN");
+      return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.github.com/rate_limit", found.GITHUB_STATUS_TOKEN);
     },
   };
 

@@ -146,6 +146,14 @@ describe("Back Office access", () => {
     for (const role of ["plans-manager", "coach-manager", "playbook-editor"] as const) expect(backOfficeAccess([role]).can("platformSettings", "read"), role).toBe(false);
   });
 
+  it("super-admins, Technique and Support read Livraison; no one changes it, no other role sees it", () => {
+    for (const role of ["super-admin", "platform-manager", "support"] as const) {
+      expect(backOfficeAccess([role]).can("deliveryStatus", "read"), role).toBe(true);
+      expect(backOfficeAccess([role]).can("deliveryStatus", "write"), role).toBe(false);
+    }
+    for (const role of ["plans-manager", "coach-manager", "playbook-editor", "help-editor"] as const) expect(backOfficeAccess([role]).can("deliveryStatus", "read"), role).toBe(false);
+  });
+
   it("Technique changes the non-secret settings, the search sites and the Tools' prices, sees keys without changing them, and reads the Dashboard and the Audit; never the AI Message Log (#397)", () => {
     const technique = backOfficeAccess(["platform-manager"]);
 

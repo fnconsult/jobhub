@@ -53,7 +53,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 
 | | |
 | --- | --- |
-| Purpose | Let super-admins replace the third-party keys the app uses (AI providers, France Travail, Fantastic.jobs, contact enrichment, Stripe, Brevo) without a deployment, and show who last changed each one. |
+| Purpose | Let super-admins replace the third-party keys the app uses (AI providers, France Travail, Fantastic.jobs, contact enrichment, Stripe, Brevo, GitHub) without a deployment, and show who last changed each one. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)): security and accountability of Jobbbox's own administration. |
 | People concerned | Administrators (super-admins) who replaced a key. |
 | Data | Per key: the value, encrypted (AES-256-GCM, ADR-0020); the email address of the super-admin who last replaced it, and when. No Candidate id. |
@@ -269,6 +269,22 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | A passkey until the Candidate removes it. Until the Candidate turns it off, or removes their last factor (the row and every passkey are deleted, and the sessions still waiting for their second step are signed out), or the account is deleted (`ON DELETE CASCADE`). |
 | Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, each passkey's name and device when known, the backup codes left; never the secret, a code nor a passkey's public key or credential id); erased with the account. |
 | Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off, removing the last factor or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A passkey is checked against the pending session's own account only, on Jobbbox's host (its RP ID); each challenge serves one answer, and a refused passkey counts towards the same lock as a wrong code. Signing in with a passkey alone, without a magic link, is refused. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
+
+## Livraison: the delivery status (Back Office)
+
+| | |
+| --- | --- |
+| Purpose | Show the team what is being built and where it runs (Back Office › Livraison), read live from GitHub's issues, pull requests and deployments. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)) in following the delivery of the product. |
+| People concerned | Contributors to the GitHub repository. No Candidate: GitHub receives nothing from Jobbbox, the page only reads it. |
+| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers, shown on the page. |
+| Source | GitHub's API, read by the web app with a read-only token (Provider Secret `GITHUB_STATUS_TOKEN`); each call is recorded in `external_api_usage` (Tool GitHub) without its answer. |
+| Processors | GitHub (outside the EU), which is only read. No new recipient of personal data: `receivesPersonalData` is false. |
+| Who can read it | Super-admins, Technique and Support. |
+| Storage | Nothing stored: the status is kept in the web app's memory for 5 minutes, then read again. |
+| Retention | 5 minutes in memory; the recorded calls as `external_api_usage`. |
+| Rights | A contributor's login comes from GitHub: removing them from a ticket there removes them from the page within 5 minutes. |
+| Security | A read-only token, encrypted as a Provider Secret; the page checks the Administrator's Back Office Roles, and a refused opening is recorded (#264). |
 
 ## Delivery status report (#636)
 

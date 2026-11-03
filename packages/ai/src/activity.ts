@@ -68,6 +68,7 @@ export const TOOL_STEPS = {
   "geo-api-gouv": "not_a_step",
   "insee-naf": "not_a_step",
   "rome-open-data": "not_a_step",
+  github: "not_a_step",
 } as const satisfies Record<ToolId, Activity | "by_task" | "not_a_step">;
 
 /** A Tool that is a step of its own in an AI action. */

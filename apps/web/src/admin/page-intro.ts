@@ -26,6 +26,7 @@ export const INTRO_PAGES = [
   "administrators",
   "aiUsage",
   "withdrawals",
+  "deliveryStatus",
 ] as const;
 export type IntroPage = (typeof INTRO_PAGES)[number];
 
@@ -56,6 +57,7 @@ const TEXTS = {
   guardrails: { line: "admin.guardrails.subtitle", explanation: ["admin.guardrails.intro"] },
   unansweredQuestions: { line: "admin.unansweredQuestions.subtitle", explanation: ["admin.unansweredQuestions.intro", "admin.unansweredQuestions.privacy"] },
   tools: { line: "admin.tools.subtitle", explanation: ["admin.tools.intro"] },
+  deliveryStatus: { line: "admin.deliveryStatus.subtitle", explanation: ["admin.deliveryStatus.intro"] },
   administrators: { line: "admin.administrators.subtitle", explanation: ["admin.administrators.intro"] },
   aiUsage: { line: "admin.aiUsage.subtitle", explanation: ["admin.aiUsage.intro"] },
   withdrawals: { line: "admin.withdrawals.subtitle", explanation: ["admin.withdrawals.intro"] },

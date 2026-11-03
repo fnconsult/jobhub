@@ -32,6 +32,7 @@ const SECTIONS = {
   aiUsage: "/admin/consommation-ia",
   activity: "/admin/activite",
   tools: "/admin/outils",
+  deliveryStatus: "/admin/livraison",
   designSystem: "/admin/design-system",
   administrators: "/admin/administrateurs",
 } as const;
@@ -126,7 +127,7 @@ async function submitAs(page: Page, formPage: Page, path: string, buttonName: st
 test.describe("Back Office Roles", () => {
   test("an ADMIN_EMAILS member is a permanent super-admin: every section, marked permanent, never revocable", async ({ page }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
-    await expectSections(page, ["signalements", "withdrawals", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
+    await expectSections(page, ["signalements", "withdrawals", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "deliveryStatus", "designSystem", "administrators"], ["discoveryRuns", "aiMessages", "journal"]);
 
     await page.goto(SECTIONS.administrators);
     await expect(page).toHaveTitle(`${admin.administrators.title} · ${admin.title}`);
@@ -186,7 +187,7 @@ test.describe("Back Office Roles", () => {
     await expect(coachesPage.getByRole("button", { name: admin.humanCoaches.add })).toBeVisible();
 
     // Support reads Activité's Recherches, never its Appels IA nor its Actions des administrateurs (#404).
-    await expectSections(supportPage, ["signalements", "withdrawals", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "designSystem"], ["discoveryRuns"]);
+    await expectSections(supportPage, ["signalements", "withdrawals", "plans", "planQuotas", "coupons", "humanCoaches", "coachCost", "coachingPlaybooks", "guardrails", "unansweredQuestions", "platformSettings", "aiUsage", "activity", "tools", "deliveryStatus", "designSystem"], ["discoveryRuns"]);
     await supportPage.goto(SECTIONS.plans);
     await expect(supportPage.getByText(admin.readOnly)).toBeVisible();
     await expect(supportPage.getByRole("main").locator("form")).toHaveCount(0);
@@ -241,7 +242,7 @@ test.describe("Back Office Roles", () => {
     await grant(page, technique, ["platform-manager"]);
 
     // The keys, the Sign-in Providers and the search sites are on Paramètres' tabs (#396).
-    await expectSections(techniquePage, ["platformSettings", "aiUsage", "activity", "tools", "designSystem"], ["discoveryRuns", "journal"]);
+    await expectSections(techniquePage, ["platformSettings", "aiUsage", "activity", "tools", "deliveryStatus", "designSystem"], ["discoveryRuns", "journal"]);
     // Changes the search sites: the Sources' switches and the Job discovery sites (Recherche web tab).
     await techniquePage.goto(SOURCES);
     await expect(techniquePage.getByText(admin.readOnly)).toHaveCount(0);

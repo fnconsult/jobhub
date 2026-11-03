@@ -54,7 +54,7 @@ test.describe("Tools (Outils)", () => {
     await page.goto("/admin/outils");
     await expect(page).toHaveTitle(`${tools.title} · ${admin.title}`);
     await expect(page.getByRole("navigation", { name: admin.nav.label }).getByRole("link", { name: admin.sections.tools })).toHaveAttribute("aria-current", "page");
-    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data"]) {
+    for (const category of ["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data", "delivery"]) {
       await expect(page.getByRole("heading", { level: 2, name: tools.categories[category] })).toBeVisible();
     }
     for (const name of ["Perplexity", "Brave Search", "Tavily"]) await expect(toolRow(page, "web_search", name)).toBeVisible();

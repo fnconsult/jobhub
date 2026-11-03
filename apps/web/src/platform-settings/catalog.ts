@@ -287,6 +287,8 @@ export const ENV_ONLY_SETTINGS = {
   NEXT_RUNTIME: { kind: "deployment", shown: false },
   // The deployed commit (deploy/compose.yml): the Jobbbox version a Signalement keeps (#374).
   JOBHUB_REVISION: { kind: "deployment", shown: false },
+  // The repository Livraison reads (default fnconsult/jobhub).
+  GITHUB_STATUS_REPOSITORY: { kind: "deployment", shown: false },
   // The commit .github/workflows/deploy.yml bakes into the image (#559): the Version's « (main·sha) » on the Beta, /api/health.
   JOBHUB_COMMIT: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
@@ -300,6 +302,7 @@ export const ENV_ONLY_SETTINGS = {
   STRIPE_API_URL: { kind: "test", shown: false },
   CONTACT_ENRICHMENT_API_URL: { kind: "test", shown: false },
   FANTASTIC_JOBS_API_URL: { kind: "test", shown: false },
+  GITHUB_API_URL: { kind: "test", shown: false },
   // The e2e suite's server leaves a developer's repo-root .env unread (env/root-env.ts).
   JOBHUB_IGNORE_ROOT_ENV: { kind: "test", shown: false },
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;

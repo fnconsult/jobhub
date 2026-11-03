@@ -32,12 +32,27 @@ export async function setUpTwoStepVerification(page: Page): Promise<{ secret: st
 
 /**
  * From now on, whenever `page` shows the setup (someone given a Back Office Role, or made a Human Coach, while signed
- * in, ADR-0075), sets it up before Playwright's next action or assertion, which then runs where the page was headed.
+ * in, ADR-0075), sets it up: right after a `page.goto` that leads to it, which then answers with the page asked for
+ * (a spec reads its status), and otherwise before Playwright's next action or assertion, which then runs where the
+ * page was headed.
  */
 export async function setUpTwoStepVerificationWhenAsked(page: Page): Promise<void> {
-  await page.addLocatorHandler(twoStepSetup(page), async () => {
-    await setUpTwoStepVerification(page);
-  });
+  const setup = twoStepSetup(page);
+  const handle = () => page.addLocatorHandler(setup, async () => void (await setUpTwoStepVerification(page)));
+  const goto = page.goto.bind(page);
+  page.goto = async (url, options) => {
+    const response = await goto(url, options);
+    if (!(await setup.count())) return response;
+    // Set up here, its own actions not handed back to the handler.
+    await page.removeLocatorHandler(setup);
+    try {
+      await setUpTwoStepVerification(page);
+    } finally {
+      await handle();
+    }
+    return goto(url, options);
+  };
+  await handle();
 }
 
 /**

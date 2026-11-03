@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
+import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { expect, test, type Page } from "@playwright/test";
+import pg from "pg";
 import { totpAt } from "../apps/web/src/two-step-verification/totp";
-import { fromNewAddress, requestSignInLink, signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, fromNewAddress, requestSignInLink, signInWithMagicLink } from "./support/candidate";
+import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
 import { emailsTo, linkIn, newAddress } from "./support/mailbox";
 
 // #663, ADR-0075: a Candidate turns on Two-step verification in Mon compte (« Sécurité ») with an authenticator app;
@@ -9,6 +12,27 @@ import { emailsTo, linkIn, newAddress } from "./support/mailbox";
 // everywhere else.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
+
+const database = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
+test.afterAll(async () => {
+  await database.end();
+});
+const secondStepCalls = async () => Number((await database.query(`SELECT count(*) FROM external_api_usage WHERE provider = 'two_step_verification' AND operation = 'second_step'`)).rows[0].count);
+
+/** Turns Two-step verification on from Mon compte, as a signed-in Candidate; returns the key and the 10 backup codes. */
+async function turnOn(page: Page, locale: "fr" | "en" = "fr") {
+  await page.goto("/compte/securite");
+  const section = page.getByRole("region", { name: fr.twoStep.security.title });
+  await section.getByRole("button", { name: fr.twoStep.security.enable }).click();
+  const secret = (await section.locator("[data-two-step-key]").innerText()).replace(/\s/g, "");
+  await section.getByLabel(fr.twoStep.security.confirmLabel).fill(totpAt(secret, new Date()));
+  await section.getByRole("button", { name: fr.twoStep.security.confirm }).click();
+  const codesCard = page.getByRole("region", { name: fr.twoStep.security.codesTitle });
+  const codes = await codesCard.locator("[data-backup-codes] li").allInnerTexts();
+  await codesCard.getByRole("button", { name: fr.twoStep.security.done }).click();
+  await expect(section.getByRole("status")).toHaveText(/^Activée depuis le /);
+  return { secret, codes };
+}
 
 async function signOut(page: Page) {
   await page.goto("/compte");
@@ -115,5 +139,74 @@ test.describe("Two-step verification", () => {
   test("the account endpoints are for signed-in Candidates only", async ({ request }) => {
     expect((await request.post("/api/account/two-step-verification", { headers: { origin } })).status()).toBe(401);
     expect((await request.post("/api/two-step-verification/second-step", { headers: { origin }, data: { code: "123456" } })).status()).toBe(401);
+  });
+
+  test("five wrong codes lock the second step for a while, each failure counted without the code; the extension's requests are refused too", async ({ page }) => {
+    const email = newAddress("two-step-lock");
+    await signInWithMagicLink(page, email);
+    const { secret } = await turnOn(page);
+    await signOut(page);
+    await signInAgain(page, email);
+
+    // The extension (a trusted origin) asks with the same pending session: 401 and the stable code.
+    const extensionOrigin = `chrome-extension://${unpackedExtensionId(e2eExtensionDir)}`;
+    const fromExtension = await page.request.get("/api/profiles", { headers: { origin: extensionOrigin, [API_VERSION_HEADER]: String(API_VERSION) } });
+    expect(fromExtension.status()).toBe(401);
+    expect(await fromExtension.json()).toEqual({ error: "second_step_required" });
+
+    const before = await secondStepCalls();
+    const wrong = totpAt(secret, new Date(Date.now() + 10 * 60_000)); // another window's code, valid for no one now
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await page.getByLabel(fr.twoStep.secondStep.codeLabel).fill(wrong);
+      await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
+      await expect(page.getByRole("alert").filter({ hasText: attempt < 4 ? fr.twoStep.secondStep.invalid : "Trop de codes erronés" })).toBeVisible();
+    }
+    expect(await secondStepCalls()).toBe(before + 5);
+    const logged = await database.query(`SELECT * FROM external_api_usage WHERE provider = 'two_step_verification' ORDER BY id DESC LIMIT 5`);
+    expect(JSON.stringify(logged.rows)).not.toContain(wrong);
+
+    // Locked: even the right code is refused, and the session stays pending.
+    await page.getByLabel(fr.twoStep.secondStep.codeLabel).fill(totpAt(secret, new Date()));
+    await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Trop de codes erronés" })).toBeVisible();
+    expect((await page.request.get("/api/profiles")).status()).toBe(401);
+  });
+
+  test("the Data export tells the state and the factors, never the secret nor a backup code", async ({ page }) => {
+    const email = newAddress("two-step-export");
+    await signInWithMagicLink(page, email);
+    const { secret, codes } = await turnOn(page);
+    const response = await page.request.get("/api/account/export");
+    expect(response.status()).toBe(200);
+    const text = await response.text();
+    const exported = JSON.parse(text);
+    expect(exported.twoStepVerification.enabledAt).toBeTruthy();
+    expect(exported.twoStepVerification.backupCodesLeft).toBe(10);
+    expect(exported.twoStepVerification.factors.map((factor: { kind: string }) => factor.kind)).toEqual(["authenticator_app", "backup_codes"]);
+    for (const factor of exported.twoStepVerification.factors) expect(Object.keys(factor).sort()).toEqual(["addedAt", "kind", "lastUsedAt"]);
+    expect(text).not.toContain(secret);
+    for (const code of codes) expect(text).not.toContain(code);
+  });
+
+  test("a Sign-in Provider's sign-in never leaves the session pending, and the change email speaks the interface language", async ({ page }) => {
+    const email = newAddress("two-step-google");
+    await signInWithMagicLink(page, email);
+    await page.goto("/compte/preferences");
+    await page.getByLabel(fr.account.interfaceLanguage).selectOption("en");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await page.goto("/compte/securite");
+    const section = page.getByRole("region", { name: "Two-step verification" });
+    await section.getByRole("button", { name: "Turn on" }).click();
+    const secret = (await section.locator("[data-two-step-key]").innerText()).replace(/\s/g, "");
+    await section.getByRole("textbox").fill(totpAt(secret, new Date()));
+    await section.getByRole("button", { name: "Confirm" }).click();
+    await expect.poll(() => emailsTo(email).map((message) => message.subject)).toContain("Two-step verification turned on");
+
+    await page.context().clearCookies();
+    await approveAtGoogle(page, { sub: `google-${email}`, email, email_verified: true, name: "Via Google" }, origin);
+    await page.goto("/connexion");
+    await page.getByRole("button", { name: /Google/ }).click();
+    await expect(page).toHaveURL(`${origin}/compte`);
+    expect((await page.request.get("/api/profiles")).status()).toBe(200);
   });
 });

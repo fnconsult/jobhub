@@ -135,6 +135,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "master_cv_version",
         "nouveautes_email_sent", // issue #566: the Nouveautés emails sent, one per Candidate and per Version
         "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
+        "passkey", // issue #664: a Candidate's passkeys (Better Auth's plugin), their public keys, as a second step
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
         "plan_quota_reduction", // issue #514: Quota Reductions, and the notice each paying subscriber is sent
@@ -277,6 +278,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // The Nouveautés email (issue #566) follows its Candidate.
         { from_table: "nouveautes_email_sent", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "nouveautes_email_subscription", from_column: "candidate_id", to_table: "candidate" },
+        // Passkeys (issue #664) go with their Candidate.
+        { from_table: "passkey", from_column: "userId", to_table: "candidate" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
         { from_table: "plan_quota_reduction", from_column: "plan", to_table: "plan" },

@@ -1,6 +1,7 @@
 import { permanentSuperAdminsFromEnv } from "../admin/access";
 import { sharedPool } from "../database/pool";
 import { configurationFromEnv } from "../sign-in-providers/index";
+import { mustHaveTwoStepVerification } from "../two-step-verification/obligation";
 import type { AuthConfig, Mailer } from "./index";
 import { mailerFromEnv } from "./mailers";
 
@@ -27,8 +28,10 @@ export function authConfigFromEnv(env: Env, options: { mailer?: Mailer } = {}): 
   };
   const permanentSuperAdmin = permanentSuperAdminsFromEnv(env);
 
+  const database = sharedPool(env);
+
   return {
-    database: sharedPool(env),
+    database,
     baseURL: required("APP_URL", "http://localhost:3000"),
     secret: required("AUTH_SECRET", DEV_SECRET),
     mailer: options.mailer ?? mailerFromEnv(env),
@@ -37,5 +40,6 @@ export function authConfigFromEnv(env: Env, options: { mailer?: Mailer } = {}): 
       .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
+    mustHaveTwoStepVerification: (candidateId) => mustHaveTwoStepVerification(database, candidateId, permanentSuperAdmin.emails),
   };
 }

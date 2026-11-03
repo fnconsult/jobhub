@@ -62,6 +62,8 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(page).toHaveURL(`${origin}/aide/decouvrir`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.helpCentre.topics.decouvrir.title);
     await expect(main(page).getByRole("list", { name: fr.helpCentre.inTopic }).getByRole("link", { name: titleOf("fr", WHERE) })).toBeVisible();
+    // Reached by a click, the page sets its <title> after it draws: wait for it, or axe can read none (document-title).
+    await expect(page).not.toHaveTitle("");
     expect(await axeViolations(page)).toEqual([]);
   });
 
@@ -229,9 +231,9 @@ test.describe("« L'extension » (#553)", () => {
 // Issue #554: the « Espace coach » articles, a Human Coach's. Listed under their topic in French and English, the
 // tutorials a numbered list of the coach space's labels; the coach space's footer leads there (e2e/public-shell.spec.ts).
 test.describe("« Espace coach » (#554)", () => {
-  const COACH_SPACE = ["page-coach-space", "faq-coach-access", "faq-retired-human-coach", "tutorial-coach-session-date", "tutorial-coach-review"];
+  const COACH_SPACE = ["page-coach-space", "faq-coach-access", "faq-retired-human-coach", "tutorial-coach-session-date", "tutorial-coach-review", "faq-coach-two-step-verification"];
 
-  test("/aide/espace-coach and /en/aide/espace-coach list #554's 5 articles", async ({ page }) => {
+  test("/aide/espace-coach and /en/aide/espace-coach list the coach space's articles (#554, #665)", async ({ page }) => {
     for (const [locale, prefix] of [["fr", ""], ["en", "/en"]] as const) {
       await page.goto(`${prefix}/aide/espace-coach`);
       const list = main(page).getByRole("list", { name: (locale === "fr" ? fr : en).helpCentre.inTopic });

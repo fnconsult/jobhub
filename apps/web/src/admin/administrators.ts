@@ -5,6 +5,7 @@
  *  - what may this person do in the Back Office    `access`, read from the database every time
  *  - who are the Administrators                     `list`
  *  - change who holds which role                    `grant`, `revoke`
+ *  - reset an account's Two-step verification       `resetTwoStepVerification` (#665)
  * and `migrateAdministratorRoles(database)`.
  *
  * Roles live in `administrator_role`, one row per Candidate and role; the
@@ -13,10 +14,12 @@
  * super-admins grant and revoke, never their own super-admin role nor the last
  * one, and only to an existing, verified Candidate account. Every grant and revoke
  * is checked, made and recorded in the Back Office Audit in one transaction, one
- * at a time.
+ * at a time. So is a reset of an account's Two-step verification, by super-admins alone.
  */
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
+import { resetTwoStepVerification } from "../two-step-verification/index";
+import { hasFactorSql } from "../two-step-verification/obligation";
 import { backOfficeAccess, BACK_OFFICE_ROLES, isBackOfficeRole, type BackOfficeAccess, type BackOfficeRole, type PermanentSuperAdmins } from "./access";
 import type { BackOffice, BackOfficeAttempt, BackOfficeChange } from "./back-office";
 
@@ -38,6 +41,8 @@ export interface AdministratorsDeps {
   backOffice: Pick<BackOffice, "record">;
   /** The permanent super-admins (ADMIN_EMAILS). */
   isPermanentSuperAdmin: PermanentSuperAdmins;
+  /** Emails the account its Two-step verification was reset, in its Interface Language; never fails. Default: nobody is told. */
+  tellTwoStepReset?: (account: { email: string; interfaceLanguage: unknown }) => Promise<void>;
 }
 
 /** One Administrator, as the Administrateurs page lists them. */
@@ -47,12 +52,18 @@ export interface Administrator {
   roles: BackOfficeRole[];
   /** Listed in ADMIN_EMAILS: a super-admin nobody can revoke. */
   permanent: boolean;
+  /**
+   * Has a factor of Two-step verification (ADR-0075, #665). One without signs in through a Sign-in Provider alone: a
+   * magic link first asks them to set it up.
+   */
+  twoStepVerification: boolean;
 }
 
 type GrantError = "forbidden" | "no_role" | "unknown_account" | "unverified_account";
 type RevokeError = "forbidden" | "own_super_admin" | "permanent" | "last_super_admin";
 export type GrantResult = { ok: true } | { ok: false; error: GrantError };
 export type RevokeResult = { ok: true } | { ok: false; error: RevokeError };
+export type TwoStepResetResult = { ok: true; email: string } | { ok: false; error: "forbidden" | "unknown_account" };
 
 /** What a grant or revoke's transaction did: refused (on the account with `email`, when known), or changed one account's roles. */
 type Outcome<Error> = { refused: Error; email?: string } | { email: string; before: BackOfficeRole[]; after: BackOfficeRole[] };
@@ -81,6 +92,12 @@ export interface Administrators {
    * an ADMIN_EMAILS member's, never the last super-admin's (recorded as a refused attempt, #263).
    */
   revoke(actor: Person, candidateId: string, role: unknown): Promise<RevokeResult>;
+  /**
+   * `actor` resets the Two-step verification of the account with `email` (#665): its factors, its backup codes and its
+   * sessions are deleted, the reset recorded in the Back Office Audit (who, when, which account, never a secret), and
+   * the account emailed once it is done. Super-admins only; an email with no account is recorded as a refused attempt.
+   */
+  resetTwoStepVerification(actor: Person, email: string): Promise<TwoStepResetResult>;
 }
 
 /** Roles in their canonical order, each once. */
@@ -144,8 +161,9 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
     access,
 
     async list() {
-      const { rows } = await database.query<{ id: string; email: string; emailVerified: boolean; roles: string[] }>(
-        `SELECT c.id, lower(c.email) AS email, c."emailVerified", coalesce(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
+      const { rows } = await database.query<{ id: string; email: string; emailVerified: boolean; roles: string[]; two_step: boolean }>(
+        `SELECT c.id, lower(c.email) AS email, c."emailVerified", coalesce(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles,
+                ${hasFactorSql("c.id")} AS two_step
          FROM candidate c LEFT JOIN administrator_role r ON r.candidate_id = c.id
          WHERE r.role IS NOT NULL OR (c."emailVerified" AND lower(c.email) = ANY($1::text[]))
          GROUP BY c.id ORDER BY lower(c.email)`,
@@ -154,7 +172,7 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
       return rows
         .map((row) => {
           const permanent = deps.isPermanentSuperAdmin(row);
-          return { candidateId: row.id, email: row.email, roles: inOrder(permanent ? [...row.roles, "super-admin"] : row.roles), permanent };
+          return { candidateId: row.id, email: row.email, roles: inOrder(permanent ? [...row.roles, "super-admin"] : row.roles), permanent, twoStepVerification: row.two_step };
         })
         .filter((administrator) => administrator.roles.length > 0);
     },
@@ -219,6 +237,33 @@ export function createAdministrators(database: Pool, deps: AdministratorsDeps): 
               : rolesChange(done.email, done.before, done.after),
       );
       return outcome !== null && "refused" in outcome ? { ok: false, error: outcome.refused } : { ok: true };
+    },
+
+    async resetTwoStepVerification(actor, email) {
+      type Done = { refused: "forbidden" } | { refused: "unknown_account"; email: string } | { email: string; interfaceLanguage: unknown; hadFactor: boolean };
+      const done = await deps.backOffice.record(
+        actor,
+        async (within): Promise<Done> => {
+          if (!(await isSuperAdminWithin(within, actor.id))) return { refused: "forbidden" };
+          const { rows } = await within.query<{ id: string; email: string; interfaceLanguage: unknown }>(
+            `SELECT id, lower(email) AS email, "interfaceLanguage" FROM candidate WHERE lower(email) = lower($1) FOR UPDATE`,
+            [email.trim()],
+          );
+          const account = rows[0];
+          if (!account) return { refused: "unknown_account", email: email.trim().toLowerCase() };
+          const { hadFactor } = await resetTwoStepVerification(within, account.id);
+          return { email: account.email, interfaceLanguage: account.interfaceLanguage, hadFactor };
+        },
+        (outcome): BackOfficeAttempt | null =>
+          "refused" in outcome
+            ? outcome.refused === "unknown_account"
+              ? { section: "roles", target: outcome.email, tried: "reset", reason: "unknown_account", field: "email" }
+              : null
+            : { section: "roles", target: outcome.email, action: "reset", before: { twoStepVerification: outcome.hadFactor }, after: { twoStepVerification: false } },
+      );
+      if ("refused" in done) return { ok: false, error: done.refused };
+      await deps.tellTwoStepReset?.({ email: done.email, interfaceLanguage: done.interfaceLanguage });
+      return { ok: true, email: done.email };
     },
   };
 }

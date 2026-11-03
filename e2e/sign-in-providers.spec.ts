@@ -277,6 +277,34 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
     await support.context().close();
   });
 
+  test("an Administrator who signs in with a provider is never asked for Two-step verification (#665, ADR-0075), and the Administrateurs page flags them", async ({ browser }) => {
+    const email = newAddress("sso.provider-only");
+    // A Candidate with no factor links the provider from Mon compte, then is given a role.
+    const person = await personPage(browser, email);
+    await person.goto(`${server.origin}/compte/connexion`);
+    await approveAtIssuer(person, { sub: `sso-${email}`, email, email_verified: true, name: "Provider only" }, SSO.clientId);
+    await person.getByRole("button", { name: tr(fr.signInMethods.link, { provider: SSO.name }) }).click();
+    await expect(person.getByText(tr(fr.signInMethods.linked, { provider: SSO.name }))).toBeVisible();
+    await superAdmin.goto(`${server.origin}/admin/administrateurs`);
+    await superAdmin.getByLabel(fr.admin.administrators.grantEmail).fill(email);
+    await superAdmin.getByRole("checkbox", { name: fr.admin.roles.support }).check();
+    await superAdmin.getByRole("button", { name: fr.admin.administrators.grant }).click();
+    await expect(superAdmin.getByRole("status")).toBeVisible();
+
+    // Signed in again with the provider only: the Back Office opens, no second step, no setup.
+    await person.context().clearCookies();
+    await person.goto(`${server.origin}/connexion/back-office`);
+    await person.getByRole("button", { name: continueWithSso }).click();
+    await expect(person).toHaveURL(`${server.origin}/admin`);
+    await expect(person.getByRole("heading", { level: 1 })).toHaveText(fr.admin.dashboard.title);
+    expect((await person.request.get(`${server.origin}/api/profiles`)).status()).toBe(200);
+
+    await superAdmin.goto(`${server.origin}/admin/administrateurs`);
+    await expect(superAdmin.getByRole("row").filter({ hasText: email })).toContainText(fr.admin.administrators.twoStepNone);
+    await expect(superAdmin.getByText(fr.admin.administrators.twoStepNoneHelp)).toBeVisible();
+    await person.context().close();
+  });
+
   test("Apple: the client secret is signed from the .p8 key as soon as it is saved, with its next signature date; the key is never sent back", async () => {
     const privateKey = generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey.export({ format: "pem", type: "pkcs8" }).toString();
     await superAdmin.goto(`${server.origin}/admin/parametres?tab=connexion`);

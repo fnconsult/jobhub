@@ -4,6 +4,8 @@ import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } f
 import { permanentSuperAdminsFromEnv } from "./access";
 import { createAdministrators, migrateAdministratorRoles, type Administrators, type Person } from "./administrators";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice } from "./back-office";
+import { createTwoStepVerification } from "../two-step-verification/index";
+import { totpAt } from "../two-step-verification/totp";
 
 describe.skipIf(!connectionString)("Administrators and their Back Office Roles (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
@@ -14,6 +16,7 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
   let claire: Person;
   let paul: Person;
   let marie: Person;
+  let told: { email: string }[];
 
   async function signUp(email: string): Promise<Person> {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -31,7 +34,12 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
       throw new Error("not used here");
     };
     backOffice = createBackOffice(database, { billing: { setPlanQuotas: unused, resetWeeklyUsage: unused, createPlan: unused, updatePlan: unused, movePlan: unused, checkStripeProduct: unused, plans: unused, createCoupon: unused, deactivateCoupon: unused, reactivateCoupon: unused }, humanCoaches: { add: unused, retire: unused } });
-    administrators = createAdministrators(database, { backOffice, isPermanentSuperAdmin: permanentSuperAdminsFromEnv({ ADMIN_EMAILS: "claire@jobbbox.fr" }) });
+    told = [];
+    administrators = createAdministrators(database, {
+      backOffice,
+      isPermanentSuperAdmin: permanentSuperAdminsFromEnv({ ADMIN_EMAILS: "claire@jobbbox.fr" }),
+      tellTwoStepReset: async (account) => void told.push({ email: account.email }),
+    });
     claire = await signUp("claire@jobbbox.fr");
     paul = await signUp("paul@jobbbox.fr");
     marie = await signUp("marie.dupont@example.fr");
@@ -153,9 +161,79 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
     await administrators.grant(claire, "paul@jobbbox.fr", ["support", "plans-manager"]);
 
     expect(await administrators.list()).toEqual([
-      { candidateId: claire.id, email: "claire@jobbbox.fr", roles: ["super-admin"], permanent: true },
-      { candidateId: paul.id, email: "paul@jobbbox.fr", roles: ["plans-manager", "support"], permanent: false },
+      { candidateId: claire.id, email: "claire@jobbbox.fr", roles: ["super-admin"], permanent: true, twoStepVerification: false },
+      { candidateId: paul.id, email: "paul@jobbbox.fr", roles: ["plans-manager", "support"], permanent: false, twoStepVerification: false },
     ]);
+  });
+
+  /** Turns Two-step verification on for `person`, signed in by magic link: returns their session's cookie. */
+  async function withTwoStepVerification(person: Person): Promise<string> {
+    const cookie = await signInWithMagicLink(testAuth, person.email);
+    const { session } = await (await testAuth.request("/api/auth/get-session", { cookie })).json();
+    const twoStep = createTwoStepVerification(database, { secret: testAuth.config.secret });
+    const { secret } = await twoStep.startSetup(person.id, person.email);
+    await twoStep.confirmSetup({ candidateId: person.id, sessionId: session.id }, totpAt(secret, new Date()));
+    return cookie;
+  }
+
+  it("says which Administrators have Two-step verification: one without a factor signs in through a provider alone (#665)", async () => {
+    await administrators.grant(claire, "paul@jobbbox.fr", ["support"]);
+    await withTwoStepVerification(paul);
+
+    expect((await administrators.list()).map(({ email, twoStepVerification }) => ({ email, twoStepVerification }))).toEqual([
+      { email: "claire@jobbbox.fr", twoStepVerification: false },
+      { email: "paul@jobbbox.fr", twoStepVerification: true },
+    ]);
+  });
+
+  describe("resetting an account's Two-step verification (#665)", () => {
+    it("a super-admin deletes its factors, its backup codes and its sessions, tells the account, and the Journal says who, when and which account", async () => {
+      const cookie = await withTwoStepVerification(marie);
+      await signInWithMagicLink(testAuth, marie.email);
+
+      expect(await administrators.resetTwoStepVerification(claire, " Marie.Dupont@example.fr ")).toEqual({ ok: true, email: "marie.dupont@example.fr" });
+
+      expect((await database.query("SELECT 1 FROM two_step_verification WHERE candidate_id = $1", [marie.id])).rowCount).toBe(0);
+      expect((await database.query(`SELECT 1 FROM session WHERE "userId" = $1`, [marie.id])).rowCount).toBe(0);
+      expect(await (await testAuth.request("/api/auth/get-session", { cookie })).json()).toBeNull();
+      expect(told).toEqual([{ email: "marie.dupont@example.fr" }]);
+      const [entry] = await backOffice.journal();
+      expect(entry).toMatchObject({
+        actor: { candidateId: claire.id, email: "claire@jobbbox.fr" },
+        section: "roles",
+        target: "marie.dupont@example.fr",
+        action: "reset",
+        before: { twoStepVerification: true },
+        after: { twoStepVerification: false },
+        outcome: "succeeded",
+      });
+      expect(entry!.at).toBeInstanceOf(Date);
+    });
+
+    it("signs out an account that had no factor too", async () => {
+      await signInWithMagicLink(testAuth, paul.email);
+
+      expect(await administrators.resetTwoStepVerification(claire, "paul@jobbbox.fr")).toEqual({ ok: true, email: "paul@jobbbox.fr" });
+      expect((await database.query(`SELECT 1 FROM session WHERE "userId" = $1`, [paul.id])).rowCount).toBe(0);
+      expect((await backOffice.journal())[0]).toMatchObject({ action: "reset", before: { twoStepVerification: false }, after: { twoStepVerification: false } });
+    });
+
+    it("only a super-admin resets it", async () => {
+      await administrators.grant(claire, "paul@jobbbox.fr", ["support", "coach-manager"]);
+      await withTwoStepVerification(marie);
+
+      expect(await administrators.resetTwoStepVerification(paul, "marie.dupont@example.fr")).toEqual({ ok: false, error: "forbidden" });
+      expect((await database.query("SELECT 1 FROM two_step_verification WHERE candidate_id = $1", [marie.id])).rowCount).toBe(1);
+      expect(told).toEqual([]);
+    });
+
+    it("refuses an email with no account, and records the refusal", async () => {
+      expect(await administrators.resetTwoStepVerification(claire, " Nobody@jobbbox.fr ")).toEqual({ ok: false, error: "unknown_account" });
+      expect(await backOffice.journal()).toMatchObject([
+        { section: "roles", target: "nobody@jobbbox.fr", action: "refused", outcome: "failed", failure: { reason: "unknown_account", tried: "reset", field: "email" } },
+      ]);
+      expect(told).toEqual([]);
+    });
   });
 
   it("refuses an account whose email address is not verified: its roles would give no access", async () => {

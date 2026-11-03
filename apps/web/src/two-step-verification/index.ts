@@ -25,7 +25,7 @@ import { createHash, randomInt } from "node:crypto";
 import type { ExternalApiLog } from "@jobhub/shared";
 import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 import type { Pool, PoolClient } from "pg";
-import { inTransaction } from "../database/pool";
+import { inTransaction, type Queryable } from "../database/pool";
 import { checkedPasskey, credentialIdOf, deviceOf, passkeyRequest, type PasskeyRequest, type RelyingParty, type StoredPasskey } from "./passkeys";
 import { newTotpSecret, totpUri, verifyTotp } from "./totp";
 
@@ -172,6 +172,18 @@ export async function twoStepStatusOf(database: Pick<Pool, "query">, candidateId
 export async function hasTwoStepVerification(database: Pick<Pool, "query">, candidateId: string): Promise<boolean> {
   const { rowCount } = await database.query(`SELECT 1 FROM two_step_verification WHERE candidate_id = $1 AND enabled_at IS NOT NULL`, [candidateId]);
   return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Resets the Candidate's Two-step verification (#665, ADR-0075), for someone who lost their factors: a super-admin's
+ * Back Office action, run in its Back Office Audit's transaction (`within`). Forgets their authenticator app and
+ * backup codes, and signs out every session of theirs. An Administrator or a Human Coach sets it up again on their next
+ * sign-in by magic link. Says whether they had a factor.
+ */
+export async function resetTwoStepVerification(within: Queryable, candidateId: string): Promise<{ hadFactor: boolean }> {
+  const { rows } = await within.query<{ enabled_at: Date | null }>(`DELETE FROM two_step_verification WHERE candidate_id = $1 RETURNING enabled_at`, [candidateId]);
+  await within.query(`DELETE FROM session WHERE "userId" = $1`, [candidateId]);
+  return { hadFactor: rows.some((row) => row.enabled_at !== null) };
 }
 
 /** A backup code as compared: lower case, without its hyphen or spaces. */

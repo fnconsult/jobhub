@@ -93,26 +93,3 @@
 .theme-choice-label {
   font-weight: 600;
 }
-
-/* « Sécurité » (#663): the key to type into an authenticator app, and the backup codes shown once, two columns of
-   fixed-width codes that read as written. The QR code keeps its own light ground in the dark theme. */
-.two-step-key {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.05em;
-  overflow-wrap: anywhere;
-}
-
-.account-section .ds-card ul.two-step-codes {
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
-  gap: var(--space-2) var(--space-6);
-  padding: 0;
-  list-style: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.qr-code {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}

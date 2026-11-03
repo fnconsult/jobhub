@@ -1,6 +1,6 @@
 import { SECOND_STEP_PATH } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { pendingSessionGate, secondStepHref, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SECOND_STEP_PASSKEY_ENDPOINT } from "./gate";
+import { pendingSessionGate, secondStepHref, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT } from "./gate";
 
 describe("what a session pending its second step reaches (ADR-0075)", () => {
   it("is the page the extension links to", () => {
@@ -19,6 +19,13 @@ describe("what a session pending its second step reaches (ADR-0075)", () => {
     for (const endpoint of ["generate-register-options", "verify-registration", "list-user-passkeys", "update-passkey", "verify-authentication"]) {
       expect(pendingSessionGate(`/api/auth/passkey/${endpoint}`, "POST"), endpoint).toBe("refuse");
     }
+  });
+
+  it("reaches the endpoint that sets up an authenticator app, for an account that must have it and has no factor yet (#665)", () => {
+    expect(SETUP_ENDPOINT).toBe("/api/two-step-verification/setup");
+    expect(pendingSessionGate(SETUP_ENDPOINT, "POST")).toBe("open");
+    expect(pendingSessionGate(SETUP_ENDPOINT, "PUT")).toBe("open");
+    expect(pendingSessionGate("/api/account/two-step-verification", "POST")).toBe("refuse");
   });
 
   it("is sent to the second step from any other page", () => {

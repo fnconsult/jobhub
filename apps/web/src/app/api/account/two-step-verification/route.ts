@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentSession, isFromTrustedOrigin } from "@/auth/server";
 import { isRecentSecondStep } from "@/two-step-verification";
-import { getTwoStepVerification, tellTwoStepChange } from "@/two-step-verification/server";
+import { getTwoStepVerification, mustHaveIt, tellTwoStepChange } from "@/two-step-verification/server";
 
 /**
  * Mon compte, « Sécurité » (#663): starts setting up an authenticator app, or starts again. The secret is shown once,
@@ -39,13 +39,14 @@ export async function PUT(request: Request) {
 
 /**
  * Turns Two-step verification off, and emails the account. It takes a second step done less than 10 minutes ago in
- * this session (ADR-0075): the page asks for one first.
- * 204 · 401 · 403 { error: "forbidden" | "recent_second_step_required" } · 409 { error: "not_enabled" }
+ * this session (ADR-0075): the page asks for one first. An Administrator or a Human Coach cannot (#665).
+ * 204 · 401 · 403 { error: "forbidden" | "mandatory" | "recent_second_step_required" } · 409 { error: "not_enabled" }
  */
 export async function DELETE(request: Request) {
   if (!isFromTrustedOrigin(request)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const current = await getCurrentSession();
   if (!current) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (await mustHaveIt(current.user.id)) return NextResponse.json({ error: "mandatory" }, { status: 403 });
   if (!isRecentSecondStep(current.session.twoStepVerifiedAt)) return NextResponse.json({ error: "recent_second_step_required" }, { status: 403 });
 
   if (!(await getTwoStepVerification().disable(current.user.id))) return NextResponse.json({ error: "not_enabled" }, { status: 409 });

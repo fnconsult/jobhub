@@ -926,11 +926,15 @@ An identity provider, besides the magic link, that people sign in with: Google, 
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
 **Two-step verification**:
-A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office.
+A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office (Back Office Audit, section `roles`): the Factors, backup codes and sessions are deleted and the person is emailed. An account that must have it but has no Factor is asked to set one up before anything else (the setup step, distinct from the second step); an `ADMIN_EMAILS` super-admin is not exempt.
 _Avoid_: 2FA, MFA, double authentication, two-factor
 
+**Factor**:
+A way to pass the second step of Two-step verification: an authenticator app, a passkey, the backup codes. The Administrateurs page shows each Administrator as « Activée » or « Aucun facteur »; the Back Office Assistant is told only how many have none.
+_Avoid_: Method, device
+
 **Passkey**:
-A device credential (Face ID, Touch ID, Windows Hello, a security key) that serves as a second step of Two-step verification, alongside or instead of an authenticator app. It never signs anyone in on its own, and it must belong to the account of the pending session. Removing the last factor (no app, no other passkey; backup codes do not count) turns Two-step verification off with it. French: « clé d'accès ».
+A device credential (Face ID, Touch ID, Windows Hello, a security key) that serves as a second step of Two-step verification, alongside or instead of an authenticator app. It never signs anyone in on its own, and it must belong to the account of the pending session. Removing the last Factor (no app, no other passkey; backup codes do not count) turns Two-step verification off with it. French: « clé d'accès ».
 _Avoid_: Security key, WebAuthn credential
 
 **Require SSO for Administrators**:

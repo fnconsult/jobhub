@@ -7,6 +7,7 @@ import type { AgendaView, CalendarPeriod, CalendarView } from "@/agenda/calendar
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { AgendaDayButton } from "@/components/AgendaControls";
 import { CancelAgendaItemButton } from "@/components/CancelAgendaItemButton";
+import { ExternalLink } from "@/components/ExternalLink";
 import { EmptyStateHelp } from "@/components/HelpTerm";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { InterviewFacts, InterviewTimes } from "@/components/InterviewDetails";
@@ -340,9 +341,9 @@ export function ToSchedule({ sessions, withdrawable, formats, t }: { sessions: U
               <RescheduleHistory reschedules={session.reschedules} coachName={session.coach.name} dateTime={formats.changedAt} t={t} />
             </div>
             <div className="agenda-unscheduled-actions">
-              <a className={buttonClass({ variant: "primary" })} href={session.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
+              <ExternalLink className={buttonClass({ variant: "primary" })} href={session.coach.bookingUrl}>
                 {t("humanCoaches.pickSlot", { name: session.coach.name })}
-              </a>
+              </ExternalLink>
               <CoachingSessionDialog session={{ id: session.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={session.coach.name} />
               {withdrawable.has(session.id) ? <WithdrawalLink sessionId={session.id} coachName={session.coach.name} t={t} /> : null}
             </div>

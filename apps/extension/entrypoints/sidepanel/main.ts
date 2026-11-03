@@ -1,6 +1,6 @@
 import { designTokens, followTheme, PREFERS_DARK, renderDesignCss, trackScrolling } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
-import type { JobOffer, MatchScore } from "@jobhub/shared";
+import { SECOND_STEP_PATH, type JobOffer, type MatchScore } from "@jobhub/shared";
 import { browser } from "wxt/browser";
 import { ALL_SITES } from "../../src/all-sites-detection";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
@@ -41,6 +41,7 @@ trackScrolling(document);
 // Shared with the web app (ADR-0011): read again when the panel comes back into view, so
 // signing up or in on the web app, in another tab, is seen here (and the Guest's work kept).
 const candidate = await readCandidateSession(WEB_ORIGIN);
+const secondStepPending = !candidate.signedIn && candidate.secondStepPending === true;
 const i18n = createI18n(candidate.signedIn ? candidate.candidate.interfaceLanguage : undefined);
 const { t } = i18n;
 document.documentElement.lang = i18n.language;
@@ -575,7 +576,7 @@ function eraseTime(expiresAt: number): HTMLElement {
 function header(): HTMLElement {
   const head = element("header", "", "panel-head");
   head.append(element("span", t("app.name"), "wordmark"), element("h1", t("extension.analysis.title")));
-  if (!candidate.signedIn) {
+  if (!candidate.signedIn && !secondStepPending) {
     const pill = element("span", t("extension.guest"), "ds-pill");
     pill.dataset.tone = "accent";
     head.append(pill);
@@ -635,6 +636,12 @@ async function render(message?: Message, changingCv = false, outcome?: SavingSta
     if (renderId !== renders) return;
     shownJobOfferId = jobOffer?.id;
     show(updateNotice(asked, jobOffer), []);
+    return;
+  }
+  // Signed in by magic link, the second step not done yet (ADR-0075): nothing of the account answers until it is.
+  if (secondStepPending) {
+    shownJobOfferId = undefined;
+    show([note("info", t("extension.secondStep"))], [webLink(t("extension.secondStepLink"), SECOND_STEP_PATH, buttonClass("primary"))]);
     return;
   }
   if (outcome?.state === "saved") {

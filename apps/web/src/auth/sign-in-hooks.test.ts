@@ -36,4 +36,21 @@ describe("the sign-in hooks", () => {
 
     await expect(hooks.account.create.before({ userId: "nobody" }, callbackContext({}))).rejects.toMatchObject({ body: { code: "account_not_linked" } });
   });
+
+  it("never start a session pending its second step after a Sign-in Provider, whatever the account (ADR-0075)", async () => {
+    const hooks = signInHooks(testSignIn([sso]), BASE_URL, async () => true);
+    const users = { "marie-id": { id: "marie-id", email: "marie@example.fr", emailVerified: true } };
+
+    const created = await hooks.session.create.before({ userId: "marie-id" }, callbackContext(users));
+
+    expect(created).toEqual({ data: { signInMethod: sso.id } });
+  });
+
+  it("start a magic link's session pending when the account has Two-step verification, and only then", async () => {
+    const magicLink = { ...callbackContext({}), path: "/magic-link/verify", params: {} };
+    const withIt = signInHooks(testSignIn([sso]), BASE_URL, async (id) => id === "marie-id");
+
+    expect(await withIt.session.create.before({ userId: "marie-id" }, magicLink)).toEqual({ data: { signInMethod: "magic-link", twoStepPending: true } });
+    expect(await withIt.session.create.before({ userId: "jean-id" }, magicLink)).toEqual({ data: { signInMethod: "magic-link" } });
+  });
 });

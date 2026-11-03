@@ -122,5 +122,5 @@ export function sitemapEntries({ origin, beta, sources }: { origin: string; beta
 /** `robots.txt`: the public site allowed, the Back Office, the API and the coach space not, and the sitemap; on the Beta, nothing. */
 export function robotsFile({ origin, beta }: { origin: string; beta: boolean }): MetadataRoute.Robots {
   if (beta) return { rules: { userAgent: "*", disallow: "/" } };
-  return { rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api", "/espace-coach"] }, sitemap: `${origin}/sitemap.xml` };
+  return { rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api", "/espace-coach", "/sortie"] }, sitemap: `${origin}/sitemap.xml` };
 }

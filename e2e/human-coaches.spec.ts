@@ -5,6 +5,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 import { orderToStripe } from "./support/stripe-checkout";
+import { exitHref } from "./support/exit-page";
 
 // Issue #24: Human Coaches, added in the Back Office with their Cal.com booking
 // link; Coaching Sessions paid through Stripe Checkout at the single Coaching
@@ -135,7 +136,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(page.getByRole("status").filter({ hasText: hc.paid })).toHaveText(hc.paid);
     const pickSlot = page.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) });
     await expect(pickSlot).toHaveCount(1);
-    await expect(pickSlot).toHaveAttribute("href", coach.bookingUrl);
+    await expect(pickSlot).toHaveAttribute("href", exitHref(coach.bookingUrl));
     await admin.context().close();
   });
 
@@ -160,7 +161,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await page.goto("/agenda");
     const toSchedule = page.getByRole("region", { name: fr.agenda.toSchedule });
     await expect(toSchedule).toBeVisible();
-    await expect(toSchedule.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveAttribute("href", coach.bookingUrl);
+    await expect(toSchedule.getByRole("link", { name: tr(hc.pickSlot, { name: coach.name }) })).toHaveAttribute("href", exitHref(coach.bookingUrl));
     await expect(page.getByText(fr.agenda.none)).toBeVisible();
 
     // 23:30 in Paris is the next day in UTC: it stays on its own day.
@@ -196,7 +197,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/coachs#seance-${sessionId}$`));
     const session = page.locator(`#seance-${sessionId}`);
-    await expect(session.getByRole("link", { name: tr(hc.joinVideo, { name: coach.name }) })).toHaveAttribute("href", "https://meet.google.com/abc-defg-hij");
+    await expect(session.getByRole("link", { name: tr(hc.joinVideo, { name: coach.name }) })).toHaveAttribute("href", exitHref("https://meet.google.com/abc-defg-hij"));
     await session.getByRole("link", { name: hc.seeInAgenda }).click();
     await expect(page).toHaveURL(/\/agenda$/);
 
@@ -350,7 +351,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     await expect(dialog).toHaveCount(0);
     await expect(session).toContainText("18:15");
     await expect(session).not.toContainText(space.sessionToSchedule);
-    await expect(session.getByRole("link", { name: tr(space.joinVideo, { name: "Marie D." }) })).toHaveAttribute("href", "https://meet.google.com/coa-chco-ach");
+    await expect(session.getByRole("link", { name: tr(space.joinVideo, { name: "Marie D." }) })).toHaveAttribute("href", exitHref("https://meet.google.com/coa-chco-ach", "coachSpace"));
     const sessionId = (await session.getAttribute("id"))!.replace("seance-", "");
 
     await page.goto("/agenda");
@@ -453,7 +454,7 @@ test.describe("Human Coaches, Coaching Sessions and Coach Access", () => {
     const coach = await addCoach(admin, newAddress("coach"));
     const active = admin.getByRole("region", { name: fr.admin.humanCoaches.listTitle });
     await expect(active).toContainText(coach.name);
-    await expect(active.getByRole("link", { name: coach.bookingUrl })).toHaveAttribute("href", coach.bookingUrl);
+    await expect(active.getByRole("link", { name: coach.bookingUrl })).toHaveAttribute("href", exitHref(coach.bookingUrl, "backOffice"));
 
     await signInWithMagicLink(page, newAddress("retired-coach-candidate"));
     await page.goto("/coachs");

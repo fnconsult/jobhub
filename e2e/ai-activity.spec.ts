@@ -5,6 +5,7 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityButtonOf, activityOf, openActivity } from "./support/conversation";
+import { EXIT_LINK_REL } from "./support/exit-page";
 
 // Issue #332: AI Activity, read from each element's stored Provenance: the page's content and the AI Coach replies about
 // its object, which « Activité » in the Candidate's Top Bar shows (#603, #607, #608). The AI is
@@ -134,7 +135,7 @@ test.describe("AI Activity (#332)", () => {
     const link = pane.getByRole("link", { name: /welcometothejungle\.com\/fr\/companies\/seb\/jobs\/daf-lyon/ });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
-    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(link).toHaveAttribute("rel", EXIT_LINK_REL);
     await expectNoAxeViolations(page, ".activity-column");
 
     // « Activité » closes the column, from the keyboard too.

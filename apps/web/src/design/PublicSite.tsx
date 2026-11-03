@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCurrentCandidate } from "@/auth/server";
+import { ExternalLink } from "@/components/ExternalLink";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { getChosenLocale, getRequestLocale, getServerT, getUrlLocale } from "@/i18n/server";
 import { extensionStorePage } from "@/platform-settings/extension-store";
@@ -97,7 +98,7 @@ export async function PublicFooter({ signInLink = true, helpCentre }: { signInLi
             <ul>
               {column.links.map((link) => (
                 <li key={link.key}>
-                  {link.href.startsWith("/") ? <Link href={shellHref(link.href, url)}>{t(link.label)}</Link> : <a href={link.href}>{t(link.label)}</a>}
+                  {link.href.startsWith("/") ? <Link href={shellHref(link.href, url)}>{t(link.label)}</Link> : <ExternalLink href={link.href} newTab={false}>{t(link.label)}</ExternalLink>}
                 </li>
               ))}
             </ul>

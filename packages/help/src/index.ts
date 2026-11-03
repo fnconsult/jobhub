@@ -36,6 +36,7 @@ export {
   type LegalTextVersionRecord,
 } from "./legal-texts";
 export { CONTACT_EMAIL_TOKEN, fillContactEmail } from "./contact";
+export { routeAddresses } from "./route-addresses";
 export { addDays, earliestNoticedEffective, isNoticed, LEGAL_NOTICE_DAYS, legalNoticesDue, NOTICED_LEGAL_TEXTS, privacyChangeInEffect } from "./legal-notices";
 export {
   MOTION_FILES,
@@ -309,20 +310,33 @@ export function article(id: string, locale: HelpLocale): HelpArticle | null {
  * The page article of `route`: a route pattern (`/candidatures/[id]`) or the address of a page in view
  * (`/candidatures/0b6c…/documents?vue=liste`). A page's Sections get the article of their page; when two
  * patterns match, the one with more segments, then more fixed ones, wins (`/profils/nouveau` over `/profils/[id]`).
+ * A pattern may name query parameters (`/admin/parametres?tab=connexion`, a tab of Paramètres, #557): it matches only an
+ * address holding each of them with that value, or one of the values `|` separates (`?tab=sources|extension`), and
+ * wins over the same pattern without them.
  * With `scope`, only an article of that scope (`backOffice`: an Administrator's, « Sur cette page » in the Back Office).
  * Null for a page without an article.
  */
 export function articleFor(route: string, locale: HelpLocale, { scope, from = ARTICLES[locale] }: { scope?: HelpScope; from?: readonly HelpArticle[] } = {}): HelpArticle | null {
-  const path = segments(route.split(/[?#]/)[0]!);
-  let best: { entry: HelpArticle; rank: [number, number] } | null = null;
+  const [address = "", query = ""] = route.split("#")[0]!.split("?");
+  const path = segments(address);
+  const params = new URLSearchParams(query);
+  let best: { entry: HelpArticle; rank: number[] } | null = null;
   for (const entry of from) {
     if (!entry.route || (scope && !IN_SCOPE[scope](entry))) continue;
-    const pattern = segments(entry.route);
-    if (!patternMatches(pattern, path)) continue;
-    const rank: [number, number] = [pattern.length, pattern.filter((segment) => !isDynamic(segment)).length];
-    if (!best || rank[0] > best.rank[0] || (rank[0] === best.rank[0] && rank[1] > best.rank[1])) best = { entry, rank };
+    const [patternAddress = "", patternQuery = ""] = entry.route.split("?");
+    const pattern = segments(patternAddress);
+    const wanted = [...new URLSearchParams(patternQuery)];
+    if (!patternMatches(pattern, path) || !wanted.every(([name, values]) => values.split("|").includes(params.get(name) ?? ""))) continue;
+    const rank = [pattern.length, pattern.filter((segment) => !isDynamic(segment)).length, wanted.length];
+    if (!best || outranks(rank, best.rank)) best = { entry, rank };
   }
   return best?.entry ?? null;
+}
+
+/** `rank` before `other`, compared one figure after the other. */
+function outranks(rank: readonly number[], other: readonly number[]): boolean {
+  const differing = rank.findIndex((figure, index) => figure !== other[index]);
+  return differing >= 0 && rank[differing]! > other[differing]!;
 }
 
 function segments(path: string): string[] {

@@ -33,6 +33,8 @@ import { createAppointmentReminders } from "../appointment-reminders";
 import { createSignalements } from "../signalements";
 import { createDiscoveryRuns } from "../discovery-runs";
 import { createTargetCompanies } from "../target-companies";
+import { createTwoStepVerification } from "../two-step-verification";
+import { totpAt } from "../two-step-verification/totp";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -267,6 +269,28 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
     expect((await candidateData.export(candidateId)).euAiConsent).toEqual({ givenAt: new Date("2026-09-01T08:00:00Z") });
     expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
+  });
+
+  it("the export holds the Candidate's Two-step verification and its factors with their dates, never the app's secret nor a backup code (#663)", async () => {
+    expect((await candidateData.export(candidateId)).twoStepVerification).toEqual({ enabledAt: null, factors: [], backupCodesLeft: 0 });
+    const at = new Date("2026-11-02T09:30:00Z");
+    const twoStep = createTwoStepVerification(database, { secret: "test-secret-test-secret-test-secret-0123", now: () => at });
+    const { secret } = await twoStep.startSetup(candidateId, "marie.dupont@example.fr");
+    const sessionId = (await database.query(`SELECT id FROM session WHERE "userId" = $1 LIMIT 1`, [candidateId])).rows[0].id;
+    const confirmed = await twoStep.confirmSetup({ candidateId, sessionId }, totpAt(secret, at));
+
+    const exported = await candidateData.export(candidateId);
+    expect(exported.twoStepVerification).toEqual({
+      enabledAt: at,
+      factors: [
+        { kind: "authenticator_app", addedAt: at, lastUsedAt: null },
+        { kind: "backup_codes", addedAt: at, lastUsedAt: null },
+      ],
+      backupCodesLeft: 10,
+    });
+    const text = JSON.stringify(exported);
+    expect(text).not.toContain(secret);
+    for (const code of confirmed.ok ? confirmed.backupCodes : []) expect(text).not.toContain(code);
   });
 
   it("the export holds the Legal Text notices emailed to the Candidate and the privacy policy changes they closed (#547)", async () => {

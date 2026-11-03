@@ -40,6 +40,13 @@ describe("readCandidateSession", () => {
     expect(await readCandidateSession(WEB_ORIGIN, offline)).toEqual({ signedIn: false });
   });
 
+  it("is waiting for its second step when the web app says so (ADR-0075): neither signed in nor a Guest", async () => {
+    const pending = async () => Response.json({ error: "second_step_required" }, { status: 401 });
+
+    expect(await readCandidateSession(WEB_ORIGIN, pending)).toEqual({ signedIn: false, secondStepPending: true });
+    expect(await readCandidateSession(WEB_ORIGIN, async () => Response.json({ error: "unauthorized" }, { status: 401 }))).toEqual({ signedIn: false });
+  });
+
   it("falls back to French for an Interface Language it does not know", async () => {
     const app = webApp({ email: "marie.dupont@example.fr", name: "", interfaceLanguage: "de" });
     const session = await readCandidateSession(WEB_ORIGIN, app.fetch);

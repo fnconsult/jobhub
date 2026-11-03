@@ -925,6 +925,10 @@ _Avoid_: Sub-processor outside the EU
 An identity provider, besides the magic link, that people sign in with: Google, Apple, Microsoft or a generic OIDC provider. Super-admins configure them in the Back Office's Connexion section; each is enabled only after a test sign-in, and is shown to Candidates, allowed for Administrators, or both. Trusted for linking, it signs a person into the existing account with the same email; otherwise they sign in by magic link first and link it from Mon compte. Its client secret (Apple: its Team ID, Key ID and .p8 key) is a Provider Secret.
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
+**Two-step verification**:
+A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office.
+_Avoid_: 2FA, MFA, double authentication, two-factor
+
 **Require SSO for Administrators**:
 A super-admin setting, off by default: the Back Office asks an Administrator signed in by magic link to sign in again with a Sign-in Provider allowed for Administrators. Their Candidate pages are unaffected, and `ADMIN_EMAILS` super-admins are exempt.
 _Avoid_: Enforced SSO, mandatory SSO
@@ -1066,6 +1070,10 @@ _Avoid_: GIF, hint, coach mark
 **Motion Script**:
 The reviewed text of an Explainer Video, one per language, kept with its Tutorial: the narration, which says everything shown on screen, and the one source of its captions and transcript. Declares the pages it films, so a change to them flags the video to regenerate.
 _Avoid_: Storyboard, voice-over text
+
+**Exit Page**:
+The page « Vous quittez Jobbbox » that every link to a site outside Jobbbox goes through, for every role and in the role's shell, as an error page: it names the site and shows its full address, says Jobbbox is not responsible for it, then takes the person there after 5 seconds unless they click « Annuler », or at once with « Continuer vers <site> ». It counts down only for a person who came from a page of Jobbbox; reached from anywhere else, it waits for the click, so its address cannot send someone elsewhere unawares under Jobbbox's name. The destination is not told which page of Jobbbox the person came from. Only an absolute `http` or `https` address without a user name is taken; any other is a page not found.
+_Avoid_: Interstitial, redirect page, outbound link page
 
 **Help Centre**:
 The public part of the site that lists every public Help Article (not the Administrators') by topic, named after the task rather than the role, with one search across them; readable by a Visitor, in French and in English. The Candidate's pages show the same articles in context: suggested above the box while typing and opened in the Work Pane.

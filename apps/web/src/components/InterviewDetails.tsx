@@ -1,4 +1,5 @@
 import { interviewEndsAt, interviewPlaceParts, type Interview } from "@/applications";
+import { ExternalLink } from "@/components/ExternalLink";
 import type { getServerT } from "@/i18n/server";
 
 type T = Awaited<ReturnType<typeof getServerT>>;
@@ -32,9 +33,9 @@ export function InterviewFacts({ interview, t }: { interview: Pick<Interview, "f
         <span className="interview-place">
           {place.map((part, index) =>
             part.href ? (
-              <a key={index} href={part.href} rel="noopener noreferrer" target="_blank">
+              <ExternalLink key={index} href={part.href}>
                 {part.text}
-              </a>
+              </ExternalLink>
             ) : (
               <span key={index}>{part.text}</span>
             ),

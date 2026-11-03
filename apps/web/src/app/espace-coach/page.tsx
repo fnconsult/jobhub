@@ -3,6 +3,7 @@ import Link from "next/link";
 import { INTERVIEW_TIME_ZONE, interviewWallClock } from "@/applications";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
+import { ExternalLink } from "@/components/ExternalLink";
 import type { CoachedSession, SessionEditor } from "@/human-coaches";
 import { getHumanCoaches, requireHumanCoach } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -87,9 +88,9 @@ function CoachedSessionItem({ session, formats, t }: { session: CoachedSession; 
       )}
       {session.videoLink ? (
         <p>
-          <a href={session.videoLink} rel="noopener noreferrer" target="_blank">
+          <ExternalLink href={session.videoLink}>
             {t("coachSpace.joinVideo", { name })}
-          </a>
+          </ExternalLink>
         </p>
       ) : null}
       <p className="hint">{t("coachSpace.sessionPaidOn", { date: formats.date.format(session.paidAt) })}</p>

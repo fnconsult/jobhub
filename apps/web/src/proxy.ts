@@ -8,6 +8,7 @@ import { legalRedirect } from "@/public-pages/legal-redirects";
 import { betaRobotsHeader } from "@/public-pages/indexing";
 import { currentRelease } from "@/release";
 import { REQUEST_PATH_HEADER } from "@/request-path";
+import { pendingSessionAnswer } from "@/two-step-verification/proxy-gate";
 
 /**
  * Every request but Next's static files:
@@ -22,9 +23,11 @@ import { REQUEST_PATH_HEADER } from "@/request-path";
  * - on the public pages, passes their URL's `lang` on as LOCALE_HEADER, so the root layout's <html lang> matches the
  *   page's text; elsewhere, as VISITOR_LOCALE_HEADER, which only a Visitor's page heeds (an error page under the
  *   public site's header); and the URL's own language as URL_LOCALE_HEADER, which the shell's links and `hreflang` follow;
+ * - sends a session pending its second step (ADR-0075) to the second step, or answers it 401, whatever it asks but
+ *   the second step and sign-out (pendingSessionGate): before any page or route runs, the CGU Acceptance gate included;
  * - on the Beta, says `X-Robots-Tag: noindex` on every answer (#545): nothing of it is indexed.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const prefixed = splitLocalePrefix(pathname);
   if (!staysOpen(pathname)) {
@@ -35,6 +38,8 @@ export function proxy(request: NextRequest) {
   if (outdated) return noindexOnBeta(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
   const moved = legalRedirect(prefixed.pathname, request.nextUrl.searchParams);
   if (moved) return noindexOnBeta(NextResponse.redirect(new URL(prefixed.pathname === pathname ? moved : `${ENGLISH_PREFIX}${moved}`, request.url), 308));
+  const pending = await pendingSessionAnswer(request);
+  if (pending) return noindexOnBeta(pending);
   const headers = new Headers(request.headers);
   for (const header of [LOCALE_HEADER, VISITOR_LOCALE_HEADER, URL_LOCALE_HEADER]) headers.delete(header);
   headers.set(REQUEST_PATH_HEADER, `${pathname}${search}`);

@@ -1,7 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
@@ -128,13 +128,15 @@ function remembered(): string | null {
  * message, there is no Coach Memory.
  *
  * Its help (#551, ADR-0065): the Administrators' Help Articles alone, found without AI, are suggested while typing and
- * open as cards; an empty conversation shows the section's article « Sur cette page ». The server gives the assistant
+ * open as cards; an empty conversation shows the section's article « Sur cette page », a tab's own when it has one. The server gives the assistant
  * the articles it finds; a reply none covered offers « Demander un tutoriel », which alone records the question.
  */
 export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
   const id = useId();
   const pathname = usePathname();
+  // « Sur cette page » reads the tab too: Paramètres' Connexion and Sources tabs have their own article (#557).
+  const pageQuery = useSearchParams()?.toString() ?? "";
   const locale = helpLocale(i18n.language);
   const [open, setOpen] = useState(false);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
@@ -485,7 +487,7 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                       <span className="visually-hidden">{t("backOfficeAssistant.author")}</span>
                       <p>{t("backOfficeAssistant.welcome")}</p>
                       {/* An empty conversation opens on the help (#551): the section's article « Sur cette page ». */}
-                      {messages.every(isHelpCard) ? <HelpIntro pathname={pathname} locale={locale} audience={AUDIENCE} onOpen={showArticle} /> : null}
+                      {messages.every(isHelpCard) ? <HelpIntro pathname={pageQuery ? `${pathname}?${pageQuery}` : pathname} locale={locale} audience={AUDIENCE} onOpen={showArticle} /> : null}
                     </li>
                   )}
                   {messages.map((message, index) =>

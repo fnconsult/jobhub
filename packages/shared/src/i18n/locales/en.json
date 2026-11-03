@@ -39,6 +39,16 @@
       "title": "Something went wrong",
       "message": "We could not display this page. Your data is safe. Please try again in a moment."
     },
+    "exit": {
+      "title": "You are leaving Jobbbox",
+      "message": "This link leads to a site outside Jobbbox. Jobbbox is not responsible for its content or for what it does with your data.",
+      "countdown_one": "You will be taken to {{site}} in {{count}} second.",
+      "countdown_other": "You will be taken to {{site}} in {{count}} seconds.",
+      "check": "Check the address before you continue.",
+      "cancelled": "Redirect cancelled.",
+      "continue": "Continue to {{site}}",
+      "cancel": "Cancel"
+    },
     "actions": {
       "retry": "Try again",
       "back": "Previous page",
@@ -184,7 +194,9 @@
       "help": "Help",
       "privacy": "Privacy",
       "terms": "Terms of use"
-    }
+    },
+    "secondStep": "Finish signing in on Jobbbox",
+    "secondStepLink": "Finish signing in"
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",
@@ -325,7 +337,8 @@
       "tools": "Tools",
       "signalements": "My feedback",
       "data": "My data",
-      "reminders": "Reminders"
+      "reminders": "Reminders",
+      "security": "Security"
     },
     "tools": {
       "title": "Tools",
@@ -536,6 +549,72 @@
     "give": "Give my consent",
     "withdraw": "Withdraw my consent",
     "error": "Something went wrong. Please try again."
+  },
+  "twoStep": {
+    "secondStep": {
+      "title": "Two-step verification",
+      "intro": "To finish signing in, enter the 6-digit code your authenticator app shows.",
+      "introBackup": "To finish signing in, enter one of your backup codes. Each one works only once.",
+      "codeLabel": "App code",
+      "backupCodeLabel": "Backup code",
+      "submit": "Verify",
+      "sending": "Verifying…",
+      "useBackupCode": "Use a backup code",
+      "useApp": "Use the authenticator app",
+      "invalid": "This code is not valid. Check it and try again.",
+      "locked": "Too many wrong codes. Try again at {{time}}.",
+      "error": "The code could not be checked. Try again.",
+      "signOut": "Sign out"
+    },
+    "security": {
+      "title": "Two-step verification",
+      "explanation": "Once it is on, every sign-in by magic link also asks for a code from your authenticator app. Signing in with a provider, such as Google, does not ask for it.",
+      "off": "Off",
+      "onSince": "On since {{date}}",
+      "enable": "Turn on",
+      "scan": "Scan this QR code with your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…).",
+      "qrLabel": "QR code to scan with your authenticator app",
+      "keyLabel": "Or enter this key in the app",
+      "confirmLabel": "Code the app shows",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "invalidCode": "This code is not valid. Check your phone's time and try again.",
+      "locked": "Too many wrong codes. Try again at {{time}}.",
+      "authenticatorApp": "Authenticator app",
+      "backupCodes": "Backup codes",
+      "addedOn": "added on {{date}}",
+      "codesAddedOn": "created on {{date}}",
+      "lastUsed": "last used on {{date}}",
+      "neverUsed": "never used",
+      "codesNeverUsed": "none used",
+      "codesLeft_one": "{{count}} code left",
+      "codesLeft_other": "{{count}} codes left",
+      "codesTitle": "Your backup codes",
+      "codesIntro": "Keep these 10 codes somewhere safe: they will not be shown again. Each one lets you sign in once without your app.",
+      "copy": "Copy",
+      "copied": "Codes copied",
+      "download": "Download",
+      "done": "I have kept my codes",
+      "regenerate": "Renew the backup codes",
+      "disable": "Turn off",
+      "confirmIdentity": "To go on, enter a code from your app or a backup code.",
+      "codeOrBackupLabel": "App code or backup code",
+      "continue": "Continue",
+      "error": "The change could not be saved. Try again.",
+      "fileName": "jobbbox-backup-codes.txt",
+      "fileHeader": "Jobbbox backup codes. Each code works only once."
+    },
+    "email": {
+      "enabledSubject": "Two-step verification turned on",
+      "enabledTitle": "Two-step verification is on",
+      "enabledBody": "Two-step verification was turned on for your Jobbbox account on {{date}}. Every sign-in by magic link will now ask for a code.",
+      "disabledSubject": "Two-step verification turned off",
+      "disabledTitle": "Two-step verification is off",
+      "disabledBody": "Two-step verification was turned off for your Jobbbox account on {{date}}. Your sign-ins by magic link no longer ask for a code.",
+      "notYou": "If this was not you, sign in and check the Security section of My account.",
+      "action": "Open the Security section",
+      "reason": "You are receiving this email because the security of your Jobbbox account changed."
+    }
   },
   "acceptance": {
     "title": "Our terms of use",

@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTACT_EMAIL_TOKEN } from "./contact";
 import { NUMBERED_LINE, takeMicroAnimations, type MicroAnimationPlacement } from "./micro-animations";
+import { routeAddresses } from "./route-addresses";
 import { BACK_OFFICE_HELP_TOPICS, HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
@@ -84,9 +85,11 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
         if (article.topic !== french.topic) problems.push(`${where}: its topic ${article.topic} differs from the French one (${french.topic})`);
       }
       if (article.kind !== "page" || !article.route) continue;
-      const other = explained.get(article.route);
-      if (other) problems.push(`${where}: ${other} already explains ${article.route}`);
-      else explained.set(article.route, article.id);
+      for (const route of routeAddresses(article.route)) {
+        const other = explained.get(route);
+        if (other) problems.push(`${where}: ${other} already explains ${route}`);
+        else explained.set(route, article.id);
+      }
     }
   }
 

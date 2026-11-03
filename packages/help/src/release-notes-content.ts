@@ -28,6 +28,12 @@ export const releaseNotesModulePath = path.join(packageDir, "src", "release-note
 
 const VERSION_FILE = /^(\d+\.\d+\.\d+)\.md$/;
 
+/**
+ * The title and introduction of a draft `npm run release-note -w @jobhub/help` assembles: the build refuses them until
+ * they are written (#562).
+ */
+export const DRAFT_PLACEHOLDER: Record<HelpLocale, string> = { fr: "À écrire", en: "To be written" };
+
 /** The source of `release-notes.generated.ts`: every Release Note, by Version, newest first. */
 export function renderReleaseNotesModule(notes: ReleaseNotes): string {
   const sorted = Object.fromEntries(HELP_LOCALES.map((locale) => [locale, [...notes[locale]].sort((a, b) => compareVersions(b.version, a.version))]));
@@ -65,6 +71,8 @@ export function readReleaseNotes(dir: string = releasesDir): ReleaseNotes {
         }
         const { note, problems: own } = parseReleaseNote(locale, readFileSync(path.join(dir, locale, file), "utf8"));
         if (note.version !== name[1]) own.push(`version ${note.version || "(none)"} is not the file's (${name[1]})`);
+        if (note.title === DRAFT_PLACEHOLDER[locale] || note.intro === DRAFT_PLACEHOLDER[locale])
+          own.push(`the draft's title and introduction are still to write (« ${DRAFT_PLACEHOLDER[locale]} »)`);
         problems.push(...own.map((problem) => `${where}: ${problem}`));
         return [note];
       }),
@@ -91,7 +99,7 @@ function markdownFiles(dir: string): string[] {
 }
 
 /** The Release Note as its file says, and what is wrong with it. */
-function parseReleaseNote(locale: HelpLocale, markdown: string): { note: ReleaseNote; problems: string[] } {
+export function parseReleaseNote(locale: HelpLocale, markdown: string): { note: ReleaseNote; problems: string[] } {
   const problems: string[] = [];
   const { frontmatter, body } = parseFrontmatter(markdown);
   const text = (value: string | string[] | undefined) => (typeof value === "string" ? value : "");

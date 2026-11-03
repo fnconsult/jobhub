@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { LegalTextView } from "@/design/LegalTextView";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { withPublicContactEmail } from "@/public-pages/contact-email";
 import { legalTextMetadata } from "@/public-pages/indexing-server";
 
 type Params = { params: Promise<{ text: string }> };
@@ -24,10 +25,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function LegalTextPage({ params }: Params) {
   const { text } = await params;
   if (!isLegalTextId(text)) notFound();
+  const shown = legalText(text, await getRequestLocale(), { on: parisDay() });
   return (
     <PublicSite current="legal">
       <main id="main" className="ds-site__page">
-        <LegalTextView text={text} shown={legalText(text, await getRequestLocale(), { on: parisDay() })} />
+        <LegalTextView text={text} shown={shown && withPublicContactEmail(shown)} />
       </main>
     </PublicSite>
   );

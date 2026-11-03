@@ -5,6 +5,7 @@ import { catalogueStrings, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
+import { openSearchCriteria, profileSectionLink } from "./support/conversation";
 
 // Issue #4: a signed-in Candidate uploads a PDF or Word CV; it is read into a
 // Master CV and Search Criteria they review and correct, then saved as their
@@ -37,8 +38,9 @@ test.describe("creating the first Profile from a CV", () => {
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
 
-    // The parsed CV and pre-filled Search Criteria, ready for review.
-    await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    // The parsed CV and pre-filled Search Criteria, ready for review in the Work Pane beside the page's conversation (ADR-0070).
+    await expect(page.locator("aside.work-pane").getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
+    await expect(page.getByRole("list", { name: fr.questionnaire.transcript })).toContainText(fr.cvReview.intro);
     await expect(criteriaOf(page).getByLabel(fr.cvReview.targetRole, { exact: true })).toHaveValue("Directrice financière (lu par l'IA)");
     await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon"]);
     await expect(page.getByLabel(fr.cvReview.fullName)).toHaveValue("Marie Dupont");
@@ -81,7 +83,8 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page).toHaveURL(/\/profils\/[0-9a-f-]{36}$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice administrative et financière");
     await expect(page).toHaveTitle(`Directrice administrative et financière · ${fr.app.name}`);
-    const savedCriteria = page.getByRole("group", { name: fr.cvReview.searchCriteria });
+    // Its Search Criteria, in the dialog its Fiche's « Modifier les critères » opens (#605).
+    const savedCriteria = await openSearchCriteria(page);
     await expect(savedCriteria.getByLabel(fr.cvReview.minSalary)).toHaveValue("110000");
     const option = (legend: string, name: string) => savedCriteria.getByRole("group", { name: legend }).getByRole("checkbox", { name, exact: true });
     const checked = (legend: string) => savedCriteria.getByRole("group", { name: legend }).getByRole("checkbox", { checked: true });
@@ -91,9 +94,12 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(option(fr.cvReview.remoteWork, fr.cvReview.remoteWorkOptions.hybrid)).toBeChecked();
     await expect(checked(fr.cvReview.remoteWork)).toHaveCount(1);
     await expect(placeNames(savedCriteria)).toHaveText(["Lyon", "Grenoble (38)"]);
+    await page.keyboard.press("Escape");
+    // Its Master CV, in the Work Pane (#605).
+    await profileSectionLink(page, fr.profilePage.sections["cv-de-reference"]).click();
     await expect(page.getByRole("region", { name: fr.profile.masterCv }).getByText(/^Version 1 · /)).toBeVisible();
     // The whole Master CV, as its version page shows it.
-    await page.goto(`${new URL(page.url()).pathname}/versions/1`);
+    await page.goto(`${new URL(page.url()).pathname.replace(/\/cv-de-reference$/, "")}/versions/1`);
     await expect(page.getByText("Directrice financière · Groupe Seb · Lyon · 2015 – 2025")).toBeVisible();
     await expect(page.getByText("Contrôleuse de gestion · Renault")).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: "SAP" })).toBeVisible();

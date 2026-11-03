@@ -84,7 +84,6 @@ test.describe("« Conversation au centre »: an Application's page is its conver
       JOBHUB_IGNORE_ROOT_ENV: "1",
       AUTH_SECRET: "e2e-application-conversation-e2e-application-conversation",
       MAIL_TRANSPORT: "console",
-      CONVERSATION_FIRST: "true",
       AI_SCORING_PROVIDER: "mistral",
       AI_WRITING_PROVIDER: "mistral",
       AI_COACHING_PROVIDER: "mistral",

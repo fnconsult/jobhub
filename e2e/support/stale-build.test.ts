@@ -56,6 +56,8 @@ describe("staleBuild: is the web app's build older than its sources?", () => {
     file("packages/shared/src/index.test.ts", AFTER);
     file("apps/web/tsconfig.tsbuildinfo", AFTER);
     file("apps/web/next-env.d.ts", AFTER);
+    file("packages/motions/src/capture.ts", AFTER);
+    file("packages/motions/fixtures/fr/essai.md", AFTER);
     expect(check()).toEqual({ missing: false, newer: [] });
   });
 });

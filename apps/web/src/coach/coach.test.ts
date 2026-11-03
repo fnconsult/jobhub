@@ -1585,3 +1585,76 @@ describe("whether the AI Coach could not answer the Candidate's question (#345, 
     expect(result).toMatchObject({ ok: true, outcome: "blocked_message", couldNotAnswer: false });
   });
 });
+
+describe("a fit question: grounded in the Candidate's own data (#653)", () => {
+  const FIT_QUESTION = "Parmi les offres trouvées, lesquelles me correspondent le mieux, et pourquoi ?";
+
+  it.each<[CoachFocus["kind"], Partial<Workspace>, string]>([
+    ["job_search", { jobSearches: [jobSearch] }, jobSearch.id],
+    ["job_digest", { jobDigests: [jobDigest] }, jobDigest.id],
+    ["application", { applications: [application] }, application.id],
+  ])("a %s In view: each Job Offer's Match Score with its reasons", async (kind, workspace, id) => {
+    const { coach, provider } = coachWith({ workspace });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: FIT_QUESTION }], focus: { kind, id } });
+
+    const context = contextOf(provider);
+    expect(context).toContain("compétences présentes : IFRS");
+    expect(context).toContain("compétences manquantes : Power BI");
+    expect(context).toContain("séniorité non précisé dans l'offre (19 ans d'expérience au CV)");
+    expect(context).toContain("lieu conforme");
+    expect(context).toContain("contrat conforme");
+  });
+
+  it.each<[CoachFocus["kind"], Partial<Workspace>, string]>([
+    ["job_search", { jobSearches: [jobSearch] }, jobSearch.id],
+    ["job_digest", { jobDigests: [jobDigest] }, jobDigest.id],
+    ["application", { applications: [application] }, application.id],
+    ["job_offer", { jobOffers: [jobOffer] }, jobOffer.id],
+  ])("a %s In view: the Master CV of the Profile it is scored against, without the Candidate's identity", async (kind, workspace, id) => {
+    const { coach, provider } = coachWith({ workspace });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: FIT_QUESTION }], focus: { kind, id } });
+
+    const context = contextOf(provider);
+    expect(context).toContain("CV de référence du profil « Directrice financière » (version 2), contre lequel les scores sont calculés :");
+    expect(context).toContain("- Directrice financière, Groupe Seb (Lyon), 2005 – 2024 : Consolidation IFRS.");
+    for (const identity of ["Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "rue de la République"]) expect(context).not.toContain(identity);
+  });
+
+  it("the Profile the Job Search ran for, not another active one", async () => {
+    const other: Profile = { ...profile, id: "77777777-7777-4777-8777-777777777777", name: "Contrôleuse de gestion", masterCv: { version: 1, content: { ...profile.masterCv.content, experience: [{ title: "Contrôleuse de gestion", employer: "Bonduelle", location: "Lille", period: "2000 – 2005", description: "" }] } } };
+    const { coach, provider } = coachWith({ workspace: { profiles: [other, profile], jobSearches: [jobSearch] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: FIT_QUESTION }], focus: { kind: "job_search", id: jobSearch.id } });
+
+    const context = contextOf(provider);
+    expect(context).toContain("CV de référence du profil « Directrice financière »");
+    expect(context).not.toContain("CV de référence du profil « Contrôleuse de gestion »");
+  });
+
+  it("tells the AI Coach to explain fit from the Candidate's own data, and to name and ask for what is missing", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobSearches: [jobSearch] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: FIT_QUESTION }], focus: { kind: "job_search", id: jobSearch.id } });
+
+    const context = contextOf(provider);
+    expect(context).toContain("explique chaque score par ses raisons");
+    expect(context).toContain("dis précisément laquelle manque et demande-la");
+  });
+
+  it("trims the CV's descriptions before the Job Offers' reasons, when the context is full", async () => {
+    const words = (tokens: number, word: string) => `${word} `.repeat(Math.ceil((tokens * 4) / (word.length + 1)));
+    const longCv: Profile = { ...profile, masterCv: { ...profile.masterCv, content: { ...profile.masterCv.content, experience: [{ ...profile.masterCv.content.experience[0]!, description: words(9_000, "mission") }] } } };
+    const many = Array.from({ length: 30 }, (_, n) => ({ jobOffer: { ...jobOffer, id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title: `Offre ${n} ${words(60, "intitulé")}` }, matchScore, applicationId: null }));
+    const { coach, provider } = coachWith({ workspace: { profiles: [longCv], jobSearches: [{ ...jobSearch, results: many }] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: FIT_QUESTION }], focus: { kind: "job_search", id: jobSearch.id } });
+
+    const context = contextOf(provider);
+    expect(estimateTokens(context)).toBeLessThanOrEqual(COACH_CONTEXT_MAX_TOKENS);
+    expect(context.match(/compétences manquantes : Power BI/g)).toHaveLength(30);
+    expect(context).toContain("- Directrice financière, Groupe Seb (Lyon), 2005 – 2024");
+    expect(context).not.toContain("mission mission");
+  });
+});

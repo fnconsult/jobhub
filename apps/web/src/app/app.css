@@ -320,19 +320,7 @@ textarea.input {
   font-weight: 600;
 }
 
-/* Creating a Profile: the two ways to start, side by side in reading order. */
-.onboarding-path {
-  margin-top: var(--space-8);
-  padding: var(--space-6);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.onboarding-path > h2 {
-  margin-top: 0;
-}
-
-/* A conversation with the AI Coach (Onboarding Questionnaire, Coach Panel). */
+/* A conversation with the AI Coach (the Candidate's pages, the Onboarding Questionnaire, the Coach Panel). */
 .chat {
   display: flex;
   flex-direction: column;
@@ -400,27 +388,11 @@ textarea.input {
   font-weight: 600;
 }
 
-.chat-form {
-  width: 100%;
-}
-
-/* The Coach Panel (#134, ADR-0024): docked beside the page from 64rem, the
-   page then scrolling in its own column so its scrollbar never lands on the
-   panel; the whole screen below. Agrandir widens it into a modal drawer over
-   the page. Its button sits in the sidebar layout's top bar; pages outside
-   that layout get a floating one. Either steps aside while the panel is open. */
-.coach-panel-toggle-floating {
-  position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  z-index: 20;
-  box-shadow: var(--shadow-menu);
-}
-
-body:has(.app-shell) .coach-panel-toggle-floating {
-  display: none;
-}
-
+/* The Coach Panel (#134, ADR-0024), the Back Office Assistant's alone since the Candidate's conversation became their
+   page (ADR-0070, #608): docked beside the page from 64rem, the page then scrolling in its own column so its scrollbar
+   never lands on the panel; the whole screen below. Agrandir widens it into a modal drawer over the page. Its button
+   sits in the Top Bar and steps aside while the panel is open. Its thread and box are drawn as the Candidate's
+   conversation's (.page-conversation). */
 .coach-panel {
   position: fixed;
   top: 0;
@@ -451,21 +423,6 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   .coach-panel-wide {
     width: min(64rem, 92vw);
     box-shadow: var(--shadow-overlay);
-  }
-}
-
-/* « Aide et coach », « Aide » below 48rem (#342, ADR-0035): a visible label at every width (ADR-0009). */
-.coach-panel-toggle-short {
-  display: none;
-}
-
-@media (width < 48rem) {
-  .coach-panel-toggle-long {
-    display: none;
-  }
-
-  .coach-panel-toggle-short {
-    display: inline;
   }
 }
 
@@ -886,17 +843,8 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   color: var(--color-text);
 }
 
-/* The panel's foot (#345): « Signaler un problème » and « Proposer une idée », under every view. */
-.coach-panel-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  align-items: center;
-  padding: 0 var(--space-4) var(--space-2);
-}
-
-.coach-panel-foot .link-action,
-.reply-feedback .link-action {
+.reply-feedback .link-action,
+.help-intro .link-action {
   min-height: var(--control-height);
 }
 
@@ -951,10 +899,6 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   border-top: 0;
 }
 
-.page-conversation-foot .coach-panel-foot {
-  padding-inline: var(--space-1);
-}
-
 .page-conversation-foot .notice {
   margin: 0;
 }
@@ -978,6 +922,15 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 
   .page-conversation-suggestions .quick-actions > * {
     flex: none;
+  }
+
+  /* A menu's card holds its whole width on a phone (#608): a long button or pill (« Réserver avec … », « Reporté ·
+     initialement prévu le … ») wraps rather than pushing the page sideways. */
+  .page-conversation .chat-card :is(.ds-button, .ds-pill) {
+    max-width: 100%;
+    height: auto;
+    white-space: normal;
+    text-align: start;
   }
 }
 
@@ -1025,6 +978,23 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 .work-pane-head .icon {
   width: 1.125em;
   height: 1.125em;
+}
+
+/* What a Section holds stays within the pane: a long button or Pill (« Modifier l'entretien du … ») wraps (#608). */
+.work-pane-body :is(.ds-button, .ds-pill) {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: start;
+}
+
+.work-pane-body .ds-button {
+  padding-block: var(--space-2);
+}
+
+/* Its ✕ and its actions, and the Fiche's ✕ on a phone, reach the 44px target floor of the Candidate's pages (ADR-0009). */
+:is(.work-pane-head, .fiche-head) .ds-button {
+  min-height: var(--control-height);
 }
 
 .work-pane-body {
@@ -1110,10 +1080,49 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   box-shadow: var(--shadow-card);
 }
 
+/* The object's card, first in its Fiche (the prototype's, #586): rounded, like its Sections and Results under it. */
 .fiche-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* Its head: the employer's initial, the job and where, over a line. */
+.fiche-object-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding-bottom: var(--space-3);
+  margin-inline: calc(-1 * var(--space-4));
+  padding-inline: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fiche-object-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.fiche-object-name {
+  min-width: 0;
+}
+
+.fiche-object-title {
+  margin: 0;
+  font-weight: 600;
+  line-height: var(--line-height-heading);
 }
 
 .fiche-card :is(p, dd) {
@@ -1145,7 +1154,8 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   color: var(--color-text-secondary);
 }
 
-/* In the Fiche's width, each property's label sits above its value. */
+/* In the Fiche's width, each property's label sits above its value; the Application's Statut on its own row, for its
+   longest status at every Text Size, then Enregistrée le and Correspondance side by side, as in the prototype (#586). */
 .fiche .props {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -1156,10 +1166,52 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   margin-top: var(--space-2);
 }
 
+.fiche .application-card .props {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.fiche .application-card .prop {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fiche .application-card .prop:first-child,
+.fiche .application-card .prop:nth-child(n + 4) {
+  grid-column: 1 / -1;
+}
+
+.fiche .application-card .props dt {
+  margin-top: 0;
+}
+
+.fiche .application-card .props dd {
+  min-height: 0;
+  font-weight: 500;
+}
+
+/* Its selects read as the prototype's status pill: rounded, their own width, in the Fiche's width. */
+.fiche .application-card select.inline-edit {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: 0;
+  padding-inline: var(--space-3);
+  font-weight: 500;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.fiche .application-card select.inline-edit:hover {
+  background-color: var(--color-hover);
+}
+
 .fiche-group-head {
   margin: var(--space-3) 0 0;
   font-size: inherit;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .fiche-group-head button {
@@ -1211,6 +1263,32 @@ body:has(.app-shell) .coach-panel-toggle-floating {
 
 .fiche-links a:hover {
   background: var(--color-hover);
+}
+
+/* The Sections, one rounded list, a line between them, as in the prototype (#586); the Results stay a card each. */
+.fiche-group[data-group="sections"] .fiche-links {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.fiche-group[data-group="sections"] .fiche-links a {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 0;
+}
+
+.fiche-group[data-group="sections"] .fiche-links li + li a {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Decoration: its alternative text is empty, so the chevron is not read in the link's name. */
+.fiche-group[data-group="sections"] .fiche-links a::after {
+  color: var(--color-meta);
+  content: "›" / "";
 }
 
 .fiche-links a[aria-current="page"] {
@@ -1295,6 +1373,15 @@ body:has(.app-shell) .coach-panel-toggle-floating {
     max-height: calc(100dvh - var(--topbar-height, 3.5rem) - 2 * var(--space-4));
     margin: var(--space-4) var(--space-4) var(--space-4) 0;
   }
+
+  /* The Fiche, and the Activité column, have no frame of their own beside the conversation: their cards are (the
+     prototype's, #586). */
+  .fiche {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 
 /* The Context bar (#607), in Activité: a thin pill like the Usage Meter's, in the accent, in the warning colour from 80 %. */
@@ -1353,15 +1440,54 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   display: none;
 }
 
-/* On a phone the Fiche takes the whole screen, under the Work Pane (#608 finishes the phone's layout). */
+/* On a phone (below 64rem) the Fiche, and the Activité column, open over the conversation and take the whole screen, as
+   the Work Pane does (#608): titled, closed by their ✕, the page behind out of reach (SidebarShell's pageInert). */
 @media (width < 64rem) {
   .fiche {
     position: fixed;
-    inset: var(--topbar-height, 3.5rem) 0 0;
+    inset: 0;
     z-index: 25;
+    padding-top: 0;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
     border: 0;
     border-radius: 0;
   }
+}
+
+.fiche-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+  margin-inline: calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fiche-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-h3);
+}
+
+.fiche-head h2:focus {
+  outline: none;
+}
+
+.fiche-head h2:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.fiche-head .icon {
+  width: 1.125em;
+  height: 1.125em;
 }
 
 /* « Mémoire du coach » under « Coach », a button among the Free conversations' links, like « Coach » itself. */
@@ -1410,13 +1536,30 @@ body:has(.app-shell) .coach-panel-toggle-floating {
   transform: rotate(-90deg);
 }
 
+/* As in the prototype (#586): a thin line down the left of a menu's objects, under its icon; the object shown in the
+   accent, its words bold, not marked by colour alone. */
 .sidebar-nav .sidebar-sublist {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 0;
-  padding: 0 0 0 var(--space-6);
+  margin: 0 0 var(--space-1) calc(var(--space-2) + 0.5625em);
+  padding: 0 0 0 var(--space-2);
   list-style: none;
+  border-left: 1px solid var(--color-border-strong);
+}
+
+.sidebar-sublist .sidebar-link {
+  color: var(--color-text-secondary);
+}
+
+.sidebar-sublist .sidebar-link:hover {
+  color: var(--color-text);
+}
+
+.sidebar-sublist .sidebar-link[aria-current="page"] {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  box-shadow: none;
 }
 
 /* A Sidebar menu with objects (#604): its link, then the button that unfolds it into them. */
@@ -2177,11 +2320,16 @@ blockquote.signalement-text {
   background: var(--color-hover);
 }
 
+/* No margin, padding or border: the AI Activity announcer, a <p> after the sidebar layout, otherwise lengthened the
+   page past it, and at the end of a scroll the sidebar and the Top Bar rose with it. */
 .visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
+  border: 0;
   white-space: nowrap;
   clip-path: inset(50%);
 }
@@ -2222,8 +2370,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-2) var(--space-3);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--color-nav);
   border-right: 1px solid var(--color-border);
 }
@@ -2234,9 +2381,36 @@ html[data-sidebar="closed"] .sidebar-docked {
   height: 100dvh;
 }
 
-/* A long menu scrolls the whole sidebar: nothing in it is squeezed (the drawer's head, wrapped on a phone). */
+/* The head and the foot stay put, nothing in them squeezed (the drawer's head, wrapped on a phone); a long menu
+   scrolls between them. */
 .sidebar > * {
   flex-shrink: 0;
+}
+
+.sidebar > .sidebar-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar-scroll > * {
+  flex-shrink: 0;
+}
+
+/* « Masquer le menu », its icon alone at the right of the brand. */
+.sidebar-head .sidebar-collapse {
+  width: var(--size-control);
+  padding: 0;
+  color: var(--color-secondary);
+}
+
+.sidebar-head .sidebar-collapse:hover {
+  color: var(--color-text);
+  background: var(--color-hover);
 }
 
 /* The workspace at the top: the « Jobbbox » wordmark, in text (the logo's stand-in, #542). */
@@ -2393,7 +2567,6 @@ html[data-sidebar="closed"] .sidebar-docked {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: auto;
   padding: var(--space-2) 0 0;
   border-top: 1px solid var(--color-border);
 }
@@ -2520,7 +2693,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   font-weight: 600;
 }
 
-/* Se déconnecter and Masquer le menu read as the links above them: icon and words, full width, no frame. */
+/* Se déconnecter reads as the links above it: icon and words, full width, no frame. */
 .sidebar-foot .button-quiet {
   display: flex;
   gap: var(--space-2);
@@ -2693,11 +2866,31 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
     padding-left: var(--space-4);
   }
 
-  /* On a phone the title gets a row of its own, under Menu and the coach button. */
+  /* On a phone the title gets a row of its own, under Menu and the page's buttons. */
   .topbar-title {
     flex-basis: 100%;
     order: 1;
   }
+
+  /* The page's buttons (« Fiche », « Activité », « Effacer » or « Aide ») keep together at the right of Menu, closer set,
+     so the conversation keeps the screen (#608). */
+  .topbar .topbar-actions {
+    flex: 1;
+    gap: var(--space-2);
+  }
+
+  .topbar :is(.menu-toggle, .topbar-actions .ds-button) {
+    padding-inline: var(--space-3);
+  }
+}
+
+/* The Candidate's page buttons in the Top Bar, one group at its end (#608). */
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: flex-end;
 }
 
 /* Reached by the skip link: the page itself needs no ring. */
@@ -2764,37 +2957,6 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 /* ---------- Signalement (#375): its icon beside « Mon compte », and its dialog ----------
    An icon alone, on Mon compte's row, to its right, a 44 px target (ADR-0009 amendment #375: never the only way in, the Coach
    Panel's foot keeps labelled links, #345). Named « Signalement », with that tooltip on hover and focus. */
-/* « Aide et légal » (#544): the public Aide, Légal and Nouveautés, on one row, at the top of the sidebar's foot. */
-.sidebar-help {
-  padding: var(--space-1) var(--space-2) var(--space-2);
-}
-
-.sidebar-help-title {
-  margin: 0;
-  color: var(--color-meta);
-}
-
-.sidebar-help ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-3);
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-/* Each link at least 24px tall (WCAG 2.2, 2.5.8). */
-.sidebar-help a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  color: var(--color-secondary);
-}
-
-.sidebar-help a:hover {
-  color: var(--color-text);
-}
-
 .sidebar-account-row {
   display: flex;
   gap: var(--space-1);
@@ -2804,6 +2966,80 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 .sidebar-account-row .sidebar-link {
   flex: 1;
   min-width: 0;
+}
+
+/* « Mon compte », a menu button reading as a sidebar link (AccountMenu). */
+.account-menu-button {
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.account-menu-button:hover,
+.account-menu-button[data-state="open"] {
+  background: var(--color-hover);
+}
+
+.account-menu-button[data-current] {
+  font-weight: 600;
+}
+
+.account-menu-button .icon:last-child {
+  margin-left: auto;
+  transform: rotate(180deg);
+}
+
+/* Its menu, over the sidebar (and its drawer): « Aide et légal », Mon compte's page, « Se déconnecter » nearest the button. */
+.account-menu {
+  z-index: 60;
+  min-width: var(--radix-dropdown-menu-trigger-width);
+  max-width: min(24rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-1);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+/* Lined up with the items' icons. */
+.account-menu-label {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-meta);
+}
+
+.account-menu [role="menuitem"] {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--size-control);
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  outline-offset: -3px;
+}
+
+.account-menu [role="menuitem"][data-highlighted] {
+  background: var(--color-hover);
+}
+
+.account-menu [role="menuitem"][aria-current="page"] {
+  font-weight: 600;
+}
+
+.account-menu .icon {
+  width: 1.125em;
+  height: 1.125em;
+  color: var(--color-secondary);
+}
+
+.account-menu-separator {
+  height: 1px;
+  margin: var(--space-1) calc(-1 * var(--space-1));
+  background: var(--color-border);
 }
 
 .signalement-open {
@@ -3258,9 +3494,11 @@ html[data-sidebar="closed"] .topbar .menu-toggle {
 }
 
 /* On the Candidate's pages (Confort, no Density scope set), the Design System's buttons, links drawn as one and « Pourquoi
-   92 ? » included, reach the 44px target floor (ADR-0009) at every Text Size; the Back Office and the Design System
-   page's previews, each in a Density scope, keep the Density's control height (#467). */
-.workspace > .page .ds-button:not([data-density] .ds-button) {
+   92 ? » included, reach the 44px target floor (ADR-0009) at every Text Size, in the columns beside the page too (the
+   Work Pane and the Fiche, #602, #603, #608); the Back Office and the Design System page's previews, each in a Density
+   scope, keep the Density's control height (#467). */
+.workspace > .page .ds-button:not([data-density] .ds-button),
+.workspace :is(.work-pane, .fiche) .ds-button:not([data-density] .ds-button) {
   min-height: var(--control-height);
 }
 
@@ -4982,9 +5220,9 @@ textarea.title-edit {
   gap: var(--space-2);
 }
 
-/* « Souvent demandé » and the help's proposals: pills on the surface. */
+/* « Souvent demandé » and the help's proposals: pills on the surface, at the Candidate's 44px target (ADR-0009, #467). */
 .help-chip.button {
-  min-height: var(--size-control);
+  min-height: var(--control-height);
   padding: var(--space-1) var(--space-3);
   text-align: left;
   background: var(--color-surface);

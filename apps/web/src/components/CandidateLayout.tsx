@@ -14,7 +14,6 @@ import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import type { SidebarMenus } from "@/components/conversation-first";
 import { getFollowUps } from "@/follow-ups/server";
-import { conversationFirst } from "@/conversation-first";
 import { getRequestLocale } from "@/i18n/server";
 import { currentHumanCoach } from "@/human-coaches/server";
 import { jobDigestsMenu } from "@/job-digests/menu";
@@ -23,7 +22,6 @@ import { jobSearchesMenu } from "@/job-searches/menu";
 import { getJobSearches } from "@/job-searches/server";
 import { PrivacyChangeNotice } from "@/components/PrivacyChangeNotice";
 import { getLegalTextNotices } from "@/legal-text-notices/server";
-import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { getProfiles } from "@/profiles/server";
 import { objectDay } from "@/sidebar-menus";
 import { getSignalements, jobbboxVersion } from "@/signalements/server";
@@ -50,11 +48,10 @@ async function weekUsage(candidateId: string): Promise<UsageMeter | null> {
 }
 
 /**
- * The Candidate's Free conversations for the Sidebar, most recently active first, while « Conversation au centre » is on
- * (#601, ADR-0070); null while it is off. Never fails the page: without them, the Sidebar lists none.
+ * The Candidate's Free conversations for the Sidebar, most recently active first (#601, ADR-0070). Never fails the page:
+ * without them, the Sidebar lists none.
  */
-async function freeConversations(candidateId: string): Promise<{ id: string; title: string }[] | null> {
-  if (!conversationFirst(getPlatformSettingsResolver().current())) return null;
+async function freeConversations(candidateId: string): Promise<{ id: string; title: string }[]> {
   try {
     const conversations = await getCoachConversations().list(candidateId);
     return conversations.filter((conversation) => conversation.subject === null).map(({ id, title }) => ({ id, title }));
@@ -65,12 +62,11 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
 }
 
 /**
- * What the Sidebar's menus with objects unfold into, while « Conversation au centre » is on: Mes candidatures'
- * Applications (#604), Recherches d'offres' Job Searches and the Job Digests (#606), the active Profiles' only. Never
- * fails the page: without them, the menus are plain links.
+ * What the Sidebar's menus with objects unfold into: Mes candidatures' Applications (#604), Recherches d'offres' Job
+ * Searches and the Job Digests (#606), the active Profiles' only. Never fails the page: without them, the menus are plain
+ * links.
  */
-async function sidebarMenus(candidateId: string, on: boolean): Promise<SidebarMenus | undefined> {
-  if (!on) return undefined;
+async function sidebarMenus(candidateId: string): Promise<SidebarMenus> {
   try {
     const [applications, notices, profiles, searches, digests, locale] = await Promise.all([
       getApplications().list(candidateId),
@@ -104,8 +100,9 @@ async function sidebarMenus(candidateId: string, on: boolean): Promise<SidebarMe
  * `title` is the page's `<h1>`, shown in the Top Bar (see SidebarShell).
  * `wide` gives the page room for a board. `aiActivity`: the page's elements for
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
- * page with no AI content. Under « Conversation au centre » (#601), the Sidebar lists the Free conversations,
- * Mes candidatures, Recherches d'offres and Job Digests unfold into their objects (#604, #606), and `fiche`, an object's Fiche, stands beside its conversation (#603).
+ * page with no AI content. The Sidebar lists the Free conversations (#601, ADR-0070), Mes candidatures, Recherches
+ * d'offres and Job Digests unfold into their objects (#604, #606), and `fiche`, an object's Fiche, stands beside its
+ * conversation (#603).
  * While a CGU version waits for the Candidate's Acceptance (ADR-0062), only their data and
  * subscription pages render: the others send them to the Acceptance screen (acceptances/gate.ts).
  */
@@ -127,7 +124,6 @@ export async function CandidateLayout({
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
-  const on = conversationFirst(getPlatformSettingsResolver().current());
   const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
@@ -139,7 +135,7 @@ export async function CandidateLayout({
     weekUsage(candidateId),
     privacyChange(candidateId),
     freeConversations(candidateId),
-    sidebarMenus(candidateId, on),
+    sidebarMenus(candidateId),
   ]);
   return (
     <SidebarLayout

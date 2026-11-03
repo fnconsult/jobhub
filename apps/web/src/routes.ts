@@ -49,6 +49,8 @@ export const routes = {
   signIn: "/connexion",
   /** The Back Office sign-in: the providers allowed for Administrators; where Require SSO sends an Administrator. */
   backOfficeSignIn: "/connexion/back-office",
+  /** The second step after a magic link (ADR-0075): all a session pending it reaches, besides signing out. */
+  secondStep: "/connexion/deuxieme-etape",
   account: "/compte",
   /** Mon compte's Sections (ADR-0024); `account` itself shows the first, the Profiles. */
   accountProfiles: "/compte/profils",
@@ -59,6 +61,8 @@ export const routes = {
   accountEmailIntake: "/compte/reception-email",
   accountEmailIntakeWizard: "/compte/reception-email/assistant",
   accountSignIn: "/compte/connexion",
+  /** « Sécurité » (#663): Two-step verification. */
+  accountSecurity: "/compte/securite",
   accountPreferences: "/compte/preferences",
   accountTools: "/compte/outils",
   /** « Mes signalements » (#377): the Candidate's Signalements and the team's replies; where the Signalement notification leads. */
@@ -143,6 +147,8 @@ export const routes = {
   acceptance: "/acceptation",
   /** Where a Job Digest email's unsubscribe link leads (no sign-in needed). */
   jobDigestUnsubscribe: "/desabonnement",
+  /** Where a Nouveautés email's unsubscribe link leads (#566, no sign-in needed). */
+  nouveautesEmailUnsubscribe: "/desabonnement/nouveautes",
   /** The Help Centre (#549, ADR-0065): its four topics and its search (`?q=`); public. */
   help: "/aide",
   /** A topic of the Help Centre: its public articles, or « Bientôt des articles ici ». */
@@ -154,6 +160,8 @@ export const routes = {
   helpArticle: (topic: string, id: string, locale?: "fr" | "en") => `${locale === "en" ? "/en" : ""}/aide/${encodeURIComponent(topic)}/${encodeURIComponent(id)}`,
   /** Nouveautés (#470, ADR-0063): the Release Notes, newest first; public. */
   nouveautes: "/nouveautes",
+  /** One Version's Release Note on Nouveautés (#566), where the Nouveautés email leads; public. */
+  nouveautesVersion: (version: string) => `/nouveautes/${encodeURIComponent(version)}`,
   /**
    * Légal (ADR-0062): a Legal Text (the CGU by default), the version in effect; or `version`, its permanent dated
    * address. Public.
@@ -191,11 +199,26 @@ export const routes = {
     return `/admin/signalements${query ? `?${query}` : ""}`;
   },
   adminSignalement: (id: string) => `/admin/signalements/${encodeURIComponent(id)}`,
-  /** « Questions sans réponse » (#344): the open Unanswered Questions, of one page (`route`, a route pattern) or language, or all. */
-  adminUnansweredQuestions: (filter: { route?: string; language?: string } = {}) => {
-    const query = new URLSearchParams({ ...(filter.route ? { page: filter.route } : {}), ...(filter.language ? { langue: filter.language } : {}) }).toString();
+  /**
+   * « Questions sans réponse » (#344): the open Unanswered Questions, of one page (`route`, a route pattern), language or
+   * audience (`public`, #551), or all.
+   */
+  adminUnansweredQuestions: (filter: { route?: string; language?: string; audience?: string } = {}) => {
+    const query = new URLSearchParams({
+      ...(filter.audience ? { public: filter.audience } : {}),
+      ...(filter.route ? { page: filter.route } : {}),
+      ...(filter.language ? { langue: filter.language } : {}),
+    }).toString();
     return `/admin/questions-sans-reponse${query ? `?${query}` : ""}`;
   },
+  /** The Back Office's help (#551, ADR-0065): its topics and its search (`?q=`); Administrators only, never indexed. */
+  adminHelp: "/admin/aide",
+  /** A topic of the Back Office's help: its Administrator articles. */
+  adminHelpTopic: (topic: string) => `/admin/aide/${encodeURIComponent(topic)}`,
+  /** An Administrator's Help Article in the Back Office's help. */
+  adminHelpArticle: (topic: string, id: string) => `/admin/aide/${encodeURIComponent(topic)}/${encodeURIComponent(id)}`,
+  /** « Demander un tutoriel » (#551): an Administrator's question the help missed, kept as an Unanswered Question without them. */
+  adminTutorialRequest: "/api/admin/aide/demande",
   /** The Job discovery sources: Paramètres' Sources tab (#396); Job discovery sites are on Recherche web, Job Sites on Extension. */
   adminSearchSites: "/admin/parametres?tab=sources",
   /** The Tools (Outils, #233): every external tool the app calls, and one Tool's latest calls; super-admins and Support. */

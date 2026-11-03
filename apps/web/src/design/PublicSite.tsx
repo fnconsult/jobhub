@@ -2,11 +2,11 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCurrentCandidate } from "@/auth/server";
+import { ExternalLink } from "@/components/ExternalLink";
 import { TextSizeControl } from "@/components/TextSizeControl";
 import { getChosenLocale, getRequestLocale, getServerT, getUrlLocale } from "@/i18n/server";
 import { extensionStorePage } from "@/platform-settings/extension-store";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
-import { publicContactEmail } from "@/public-pages/contact-email";
 import { footerColumns, HEADER_LINKS, languageLinks, shellHref, type PublicPage } from "@/public-pages/public-shell";
 import { REQUEST_PATH_HEADER } from "@/request-path";
 import { routes } from "@/routes";
@@ -79,13 +79,14 @@ async function LanguageSwitch({ label, signedIn }: { label: string; signedIn: bo
 
 /**
  * The public footer (#544): Légal, Aide and Jobbbox in three columns, then the FR/EN switch and « © Jobbbox ». On every
- * public page, and under the coach space's pages. Without `signInLink` (a sign-in page), no « Se connecter ».
+ * public page, and under the coach space's pages. Without `signInLink` (a sign-in page), no « Se connecter ». `helpCentre`
+ * is where « Centre d'aide » leads: the coach space's, its « Espace coach » topic (#554).
  */
-export async function PublicFooter({ signInLink = true }: { signInLink?: boolean }) {
+export async function PublicFooter({ signInLink = true, helpCentre }: { signInLink?: boolean; helpCentre?: string }) {
   const t = await getServerT();
   const url = { url: await getUrlLocale(), lang: await getChosenLocale() };
   const account = signInLink ? ((await getCurrentCandidate()) ? "account" : "signIn") : null;
-  const columns = footerColumns({ contactEmail: publicContactEmail(), extensionStore: extensionStorePage(getPlatformSettingsResolver().current()), account });
+  const columns = footerColumns({ extensionStore: extensionStorePage(getPlatformSettingsResolver().current()), account, helpCentre });
   return (
     <footer className="ds-site__foot">
       <div className="ds-site__foot-columns">
@@ -97,7 +98,7 @@ export async function PublicFooter({ signInLink = true }: { signInLink?: boolean
             <ul>
               {column.links.map((link) => (
                 <li key={link.key}>
-                  {link.href.startsWith("/") ? <Link href={shellHref(link.href, url)}>{t(link.label)}</Link> : <a href={link.href}>{t(link.label)}</a>}
+                  {link.href.startsWith("/") ? <Link href={shellHref(link.href, url)}>{t(link.label)}</Link> : <ExternalLink href={link.href} newTab={false}>{t(link.label)}</ExternalLink>}
                 </li>
               ))}
             </ul>

@@ -9,6 +9,8 @@ export interface Inline {
   text: string;
   strong: boolean;
   emphasis: boolean;
+  /** Where the run links to: only in a text read with `links` (a Help Article in the Help Centre, #552), never in an AI reply. */
+  href?: string;
 }
 
 /** One line of a paragraph or of a list item. */
@@ -32,14 +34,20 @@ const MARKUP = new RegExp(
     String.raw`(?<![\p{L}\p{N}*])\*(?=\S)(?<starText>[^*\n]+?)(?<=\S)\*(?![\p{L}\p{N}*])`,
     String.raw`(?<![\p{L}\p{N}_])_(?=\S)(?<underscoreText>[^_\n]+?)(?<=\S)_(?![\p{L}\p{N}_])`,
     String.raw`\x60(?<code>[^\x60\n]+)\x60`,
-    String.raw`\[(?<linkText>[^\]\n]+)\]\([^)\s]+\)`,
+    String.raw`\[(?<linkText>[^\]\n]+)\]\((?<linkHref>[^)\s]+)\)`,
   ].join("|"),
   "gu",
 );
 
-type Marks = Pick<Inline, "strong" | "emphasis">;
+type Marks = Pick<Inline, "strong" | "emphasis" | "href">;
 
-function inlinesOf(text: string, marks: Marks, into: Inline[]): Inline[] {
+/**
+ * Which links a text keeps: given a link's target, the address to link to, or null to show its text only. Without it,
+ * every link is shown as its text (an AI Coach reply: a model's links are never followed).
+ */
+export type LinkPolicy = (href: string) => string | null;
+
+function inlinesOf(text: string, marks: Marks, into: Inline[], links?: LinkPolicy): Inline[] {
   // A ** or __ left unclosed marks nothing: it goes.
   const add = (piece: string, set: Marks) => {
     const shown = piece.replace(/\*\*|__/g, "");
@@ -48,11 +56,14 @@ function inlinesOf(text: string, marks: Marks, into: Inline[]): Inline[] {
   let at = 0;
   for (const match of text.matchAll(MARKUP)) {
     add(text.slice(at, match.index), marks);
-    const { bothText, boldText, starText, underscoreText, code, linkText } = match.groups!;
-    if (bothText !== undefined) inlinesOf(bothText, { strong: true, emphasis: true }, into);
-    else if (boldText !== undefined) inlinesOf(boldText, { ...marks, strong: true }, into);
-    else if ((starText ?? underscoreText) !== undefined) inlinesOf((starText ?? underscoreText)!, { ...marks, emphasis: true }, into);
-    else if (linkText !== undefined) inlinesOf(linkText, marks, into);
+    const { bothText, boldText, starText, underscoreText, code, linkText, linkHref } = match.groups!;
+    if (bothText !== undefined) inlinesOf(bothText, { ...marks, strong: true, emphasis: true }, into, links);
+    else if (boldText !== undefined) inlinesOf(boldText, { ...marks, strong: true }, into, links);
+    else if ((starText ?? underscoreText) !== undefined) inlinesOf((starText ?? underscoreText)!, { ...marks, emphasis: true }, into, links);
+    else if (linkText !== undefined) {
+      const href = marks.href === undefined && links ? links(linkHref!) : null;
+      inlinesOf(linkText, href ? { ...marks, href } : marks, into, links);
+    }
     else add(code!, marks);
     at = match.index + match[0].length;
   }
@@ -61,11 +72,11 @@ function inlinesOf(text: string, marks: Marks, into: Inline[]): Inline[] {
 }
 
 /** The runs of `text`, neighbours set alike merged into one. */
-function inlines(text: string, marks: Marks = { strong: false, emphasis: false }): Line {
+function inlines(text: string, marks: Marks = { strong: false, emphasis: false }, links?: LinkPolicy): Line {
   const line: Line = [];
-  for (const inline of inlinesOf(text, marks, [])) {
+  for (const inline of inlinesOf(text, marks, [], links)) {
     const last = line.at(-1);
-    if (last && last.strong === inline.strong && last.emphasis === inline.emphasis) last.text += inline.text;
+    if (last && last.strong === inline.strong && last.emphasis === inline.emphasis && last.href === inline.href) last.text += inline.text;
     else line.push(inline);
   }
   return line;
@@ -77,8 +88,8 @@ const ITEM = /^(?:[-*+•]|(?<number>\d{1,9})[.)])\s+(?<text>.+)$/u;
 
 type List = Extract<CoachReplyBlock, { kind: "list" }>;
 
-/** The blocks of the AI Coach reply `text`, in order. */
-export function coachReplyBlocks(text: string): CoachReplyBlock[] {
+/** The blocks of the AI Coach reply `text`, in order; its links kept only as `links` says (none by default). */
+export function coachReplyBlocks(text: string, { links }: { links?: LinkPolicy } = {}): CoachReplyBlock[] {
   const blocks: CoachReplyBlock[] = [];
   // Lines go on in the open paragraph, or list item, until a blank line or another block comes between.
   let paragraph: Line[] | null = null;
@@ -94,7 +105,7 @@ export function coachReplyBlocks(text: string): CoachReplyBlock[] {
     const heading = HEADING.exec(line);
     const listItem = ITEM.exec(line);
     if (RULE.test(line) || heading) {
-      if (heading) blocks.push({ kind: "paragraph", lines: [inlines(heading[1]!, { strong: true, emphasis: false })] });
+      if (heading) blocks.push({ kind: "paragraph", lines: [inlines(heading[1]!, { strong: true, emphasis: false }, links)] });
       paragraph = list = item = null;
     } else if (listItem) {
       const { number, text: itemText } = listItem.groups!;
@@ -104,10 +115,10 @@ export function coachReplyBlocks(text: string): CoachReplyBlock[] {
         list = { kind: "list", ordered, start: ordered ? Number(number) : 1, items: [] };
         blocks.push(list);
       }
-      list.items.push((item = [inlines(itemText!)]));
+      list.items.push((item = [inlines(itemText!, undefined, links)]));
       paragraph = null;
     } else {
-      const shown = inlines(line.replace(/^>\s?/, ""));
+      const shown = inlines(line.replace(/^>\s?/, ""), undefined, links);
       if (item && !afterBlank) item.push(shown);
       else if (paragraph && !afterBlank) paragraph.push(shown);
       else {

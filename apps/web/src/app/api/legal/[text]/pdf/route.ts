@@ -3,6 +3,7 @@ import { isSupportedLocale } from "@jobhub/shared/i18n";
 import { NextResponse } from "next/server";
 import { contentDisposition } from "@/export";
 import { getRequestLocale } from "@/i18n/server";
+import { withPublicContactEmail } from "@/public-pages/contact-email";
 import { legalTextPdf } from "@/public-pages/legal-pdf";
 
 type Params = { params: Promise<{ text: string }> };
@@ -20,7 +21,7 @@ export async function GET(request: Request, { params }: Params) {
   const lang = query.get("lang");
   const shown = legalText(text, isSupportedLocale(lang) ? lang : await getRequestLocale(), { on: parisDay(), version: query.get("version") ?? undefined });
   if (!shown) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  const file = await legalTextPdf(shown.version);
+  const file = await legalTextPdf(withPublicContactEmail(shown).version);
   return new Response(new Blob([file.bytes as Uint8Array<ArrayBuffer>]), {
     headers: { "content-type": "application/pdf", "content-disposition": contentDisposition(file.fileName) },
   });

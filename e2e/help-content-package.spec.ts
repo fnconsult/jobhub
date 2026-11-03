@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, renameSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 
@@ -52,6 +52,66 @@ test.describe("@jobhub/help package", () => {
     const { counts } = load([]);
     expect(counts.fr).toBe(counts.en);
     expect(counts.fr).toBe(names("fr").length);
+  });
+
+  // #567: a Tutorial's `motion` names its Motion Script (packages/help/motions), written in French and in English.
+  test("the build refuses a Tutorial whose motion names no Motion Script, and a Motion Script without its translation", () => {
+    const tutorial = (title: string) =>
+      `---\nkind: tutorial\naudience: candidate\ntopic: utiliser\ntitle: ${title}\nsynonyms: [essai]\nmotion: e2e-motion\n---\n1. Ouvrez « Mes candidatures ».\n2. Cliquez sur une candidature.\n`;
+    const script = "---\ntitle: Essai\nroutes: [/candidatures]\n---\n## Vos candidatures\n- goto /candidatures\n\nVoici « Mes candidatures ».\n";
+    const files = {
+      fr: path.join(helpDir, "articles", "fr", "tutorial-e2e-motion.md"),
+      en: path.join(helpDir, "articles", "en", "tutorial-e2e-motion.md"),
+      scriptFr: path.join(helpDir, "motions", "fr", "e2e-motion.md"),
+    };
+    const before = readFileSync(generated, "utf8");
+    const build = () => spawnSync("npm", ["run", "build", "-w", "@jobhub/help"], { cwd: root, encoding: "utf8", timeout: 120_000 });
+    try {
+      writeFileSync(files.fr, tutorial("Essai de motion"));
+      writeFileSync(files.en, tutorial("Motion test"));
+      const noScript = build();
+      expect(noScript.status).not.toBe(0);
+      expect(noScript.stdout + noScript.stderr).toContain("fr/tutorial-e2e-motion.md: its motion e2e-motion names no Motion Script (motions/fr/e2e-motion.md)");
+
+      writeFileSync(files.scriptFr, script);
+      const untranslated = build();
+      expect(untranslated.status).not.toBe(0);
+      expect(untranslated.stdout + untranslated.stderr).toContain("en/e2e-motion.md is missing: every Motion Script is written in French and in English");
+      expect(readFileSync(generated, "utf8")).toBe(before);
+    } finally {
+      for (const file of Object.values(files)) rmSync(file, { force: true });
+    }
+  });
+
+  // #562: a Release Note fragment (releases/unreleased/<pr>.md) gives its line in French and in English, and only
+  // tags of RELEASE_NOTE_TAGS.
+  test("the build refuses a Release Note fragment without its English line, or with a tag outside the list", () => {
+    const fragment = path.join(helpDir, "releases", "unreleased", "999999.md");
+    const releaseNotes = path.join(helpDir, "src", "release-notes.generated.ts");
+    const before = readFileSync(releaseNotes, "utf8");
+    const articles = readFileSync(generated, "utf8");
+    const build = () => spawnSync("npm", ["run", "build", "-w", "@jobhub/help"], { cwd: root, encoding: "utf8", timeout: 120_000 });
+    try {
+      writeFileSync(fragment, "---\nkind: new\ntags: [candidature]\n---\n## fr\n- Une ligne pour les Candidats.\n");
+      const noEnglish = build();
+      expect(noEnglish.status).not.toBe(0);
+      expect(noEnglish.stdout + noEnglish.stderr).toContain("unreleased/999999.md: its en line is missing: every fragment is written in French and in English");
+
+      writeFileSync(fragment, "---\nkind: new\ntags: [blog]\n---\n## fr\n- Une ligne pour les Candidats.\n\n## en\n- A line for Candidates.\n");
+      const unknownTag = build();
+      expect(unknownTag.status).not.toBe(0);
+      expect(unknownTag.stdout + unknownTag.stderr).toContain("unreleased/999999.md: tag blog is not one of candidature, extension, coach-ia, confidentialite, accessibilite");
+      // Refused before anything is written.
+      expect(readFileSync(generated, "utf8")).toBe(articles);
+
+      writeFileSync(fragment, "---\nkind: new\ntags: [candidature]\n---\n## fr\n- Une ligne pour les Candidats.\n\n## en\n- A line for Candidates.\n");
+      const valid = build();
+      expect(valid.status, valid.stdout + valid.stderr).toBe(0);
+      expect(valid.stdout).toMatch(/Release Note fragments: \d+ waiting in releases\/unreleased\//);
+      expect(readFileSync(releaseNotes, "utf8")).toBe(before);
+    } finally {
+      rmSync(fragment, { force: true });
+    }
   });
 
   test("a missing translation fails npm test", () => {

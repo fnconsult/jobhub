@@ -4,15 +4,12 @@ import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { FreeConversationPage } from "@/components/FreeConversationPage";
-import { conversationFirst } from "@/conversation-first";
 import { getServerT } from "@/i18n/server";
-import { getPlatformSettingsResolver } from "@/platform-settings/server";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** The Candidate's Free conversation `id`, or none: another Candidate's, one with a Subject, or the switch off. */
+/** The Candidate's Free conversation `id`, or none: another Candidate's, or one with a Subject. */
 async function freeConversation(id: string) {
-  if (!conversationFirst(getPlatformSettingsResolver().current())) return null;
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
   const conversation = await getCoachConversations().open(candidate.id, id);
@@ -26,8 +23,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 /**
- * A Free conversation of the Candidate's (#601, ADR-0070), under « Conversation au centre »: the conversation is the
- * page, listed under « Coach » in the Sidebar, named by its title in the Top Bar. Not found while the switch is off.
+ * A Free conversation of the Candidate's (#601, ADR-0070): the conversation is the page, listed under « Coach » in the
+ * Sidebar, named by its title in the Top Bar.
  */
 export default async function ConversationPage({ params }: Params) {
   const found = await freeConversation((await params).id);

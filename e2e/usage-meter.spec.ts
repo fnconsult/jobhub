@@ -67,7 +67,7 @@ for (const viewport of [
       await expectRenewalOnOneLineUnderTheBar(page, "Votre quota se renouvelle lundi minuit");
 
       // Opened, the detail is a smaller card above the meter: nothing in the sidebar's foot moves.
-      const account = page.getByRole("link", { name: fr.nav.account, exact: true }).locator("visible=true");
+      const account = page.getByRole("button", { name: fr.nav.account, exact: true }).locator("visible=true");
       const accountBefore = (await account.boundingBox())!;
       const buttonBefore = (await button.boundingBox())!;
       await button.click();

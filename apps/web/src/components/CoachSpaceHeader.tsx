@@ -4,6 +4,9 @@ import { PublicFooter } from "@/design/PublicSite";
 import { getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
 
+/** The Help Centre's topic of a Human Coach's articles (#554), where the coach space's « Centre d'aide » leads. */
+const COACH_SPACE_HELP = routes.helpTopic("espace-coach");
+
 /** Header of a Human Coach's pages. */
 export async function CoachSpaceHeader() {
   const t = await getServerT();
@@ -21,7 +24,7 @@ export async function CoachSpaceHeader() {
   );
 }
 
-/** A Human Coach's page: its header, the page, then the public site's footer (#544). */
+/** A Human Coach's page: its header, the page, then the public site's footer (#544), its « Centre d'aide » the « Espace coach » topic (#554). */
 export function CoachSpaceShell({ children }: { children: ReactNode }) {
   return (
     <>
@@ -29,7 +32,7 @@ export function CoachSpaceShell({ children }: { children: ReactNode }) {
         <CoachSpaceHeader />
         {children}
       </main>
-      <PublicFooter />
+      <PublicFooter helpCentre={COACH_SPACE_HELP} />
     </>
   );
 }

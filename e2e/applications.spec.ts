@@ -1,20 +1,29 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { renderedTexts } from "./support/accessibility";
+import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { ficheOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { exitHref } from "./support/exit-page";
 
 // Issue #12: saving a Job Offer creates an Application ("À postuler") on one
 // of the Candidate's Profiles, at most one per Job Offer. The Candidate follows
-// it in a list or a board, changes its Application Status by hand, records
-// dated Interviews while it is at "Entretien", and reads the full Job Offer and
-// its Match Score on the Application page.
+// it in the list on Mes candidatures, changes its Application Status by hand,
+// records dated Interviews while it is at "Entretien", and reads the full Job
+// Offer and its Match Score on the Application page. Since ADR-0070 (#603, #604,
+// #608) the list is a card in Mes candidatures' conversation, and an Application's
+// page is its conversation: its status and Profile change on its Fiche, its
+// Sections open in the Work Pane.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
-/** The link to one of an Application's Sections (ADR-0024). */
-const sectionLink = (page: Page, name: string) => page.getByRole("navigation", { name: fr.application.sections.sectionsLabel }).getByRole("link", { name });
+/** The link to one of an Application's Sections (ADR-0024), in its Fiche (#603): the Section opens in the Work Pane. */
+const sectionLink = (page: Page, name: string) => ficheOf(page).getByRole("link", { name, exact: true });
+/** The Application's status and Profile, changed in place on its Fiche (#603). */
+const statusOf = (page: Page) => ficheOf(page).getByLabel(fr.application.statusLabel);
+/** Mes candidatures' list, a card in its conversation (#604). */
+const listOf = (page: Page) => page.getByRole("table", { name: fr.applications.title });
 
 const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -67,6 +76,9 @@ async function saveApplication(page: Page, jobOfferId: string, profileId: string
 }
 
 test.describe("Applications", () => {
+  // Wide enough for the Fiche beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("the Candidate saves a Job Offer with the Profile they pick, and reads it on the Application page", async ({ page }) => {
     // Two Profiles: more than the Free Plan holds.
     const email = newAddress("application-save");
@@ -84,8 +96,8 @@ test.describe("Applications", () => {
     // The Application page: status, Profile, the full Job Offer laid out, the Match Score with its breakdown.
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}$/);
     await expect(page).toHaveTitle(`Directeur administratif et financier (H/F) · ${fr.app.name}`);
-    await expect(page.getByLabel(fr.application.statusLabel)).toHaveValue("to_apply");
-    await expect(page.getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
+    await expect(statusOf(page)).toHaveValue("to_apply");
+    await expect(ficheOf(page).getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
     // Each in a Section of its own (ADR-0024).
     await sectionLink(page, fr.application.sections.offre).click();
     await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}\/offre$/);
@@ -93,7 +105,7 @@ test.describe("Applications", () => {
     await expect(offer.getByRole("heading", { name: "Vos missions :" })).toBeVisible();
     await expect(offer.getByRole("listitem")).toHaveText(["Piloter la clôture des comptes", "Encadrer une équipe de 12 personnes"]);
     await expect(offer.getByRole("heading", { name: "PROFIL RECHERCHÉ" })).toBeVisible();
-    // Its facts are in the page's header, framed (ADR-0024).
+    // Its facts come first, framed (ADR-0024, #603).
     await expect(page.locator(`dl[aria-label="${fr.jobOffer.details}"]`).getByText("Acme Industrie", { exact: true })).toBeVisible();
     await sectionLink(page, fr.application.sections.correspondance).click();
     const score = page.getByRole("region", { name: fr.matchScore.title });
@@ -157,7 +169,7 @@ test.describe("Applications", () => {
     await expect(page.getByText("Pourquoi 80 ?", { exact: true })).toBeVisible();
   });
 
-  test("the Candidate follows their Applications in a list and a board, changing the status by hand", async ({ page }) => {
+  test("the Candidate follows their Applications in the list on Mes candidatures, changing the status by hand on each one's Fiche", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("application-board"));
     const profileId = await createProfile(page, "DAF");
     await saveApplication(page, await captureOffer(page, "Contrôleur de gestion senior"), profileId);
@@ -168,43 +180,44 @@ test.describe("Applications", () => {
     await expect(page).toHaveURL(`${origin}/candidatures`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.applications.title);
 
-    const row = page.getByRole("row", { name: /DAF groupe industriel/ });
-    await row.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.applied });
-    await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
+    // The list on the card gives each status; it is changed by hand on the Application's Fiche (#603, #604).
+    const row = listOf(page).getByRole("row", { name: /DAF groupe industriel/ });
+    await expect(row).toContainText(fr.applicationStatuses.to_apply);
+    await row.getByRole("link", { name: /DAF groupe industriel/ }).click();
+    await expect(page).toHaveURL(/\/candidatures\/[0-9a-f-]{36}$/);
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.applied });
+    await expect(ficheOf(page).getByRole("status")).toHaveText(fr.application.statusSaved);
+    await page.goto("/candidatures");
+    await expect(row).toContainText(fr.applicationStatuses.applied);
 
-    await page.getByRole("link", { name: fr.applications.boardView }).click();
-    await expect(page).toHaveURL(`${origin}/candidatures?vue=tableau`);
-    const applied = page.getByRole("region", { name: fr.applicationStatuses.applied });
-    await expect(applied.getByRole("link", { name: /DAF groupe industriel/ })).toBeVisible();
-    const toApply = page.getByRole("region", { name: fr.applicationStatuses.to_apply });
-    await expect(toApply.getByRole("link", { name: /Contrôleur de gestion senior/ })).toBeVisible();
-    await toApply.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.abandoned });
     // Abandonnée is an end state: an Archived Application, hidden until the Candidate asks for them.
+    await listOf(page).getByRole("link", { name: /Contrôleur de gestion senior/ }).click();
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.abandoned });
+    await expect(ficheOf(page).getByRole("status")).toHaveText(fr.application.statusSaved);
+    await page.goto("/candidatures");
     await expect(page.getByText(fr.applications.archivedHidden_one.replace("{{count}}", "1"))).toBeVisible();
-    await expect(page.getByRole("link", { name: /Contrôleur/ })).toHaveCount(0);
-    const filters = page.getByRole("form", { name: fr.applications.filtersLabel });
-    await filters.getByLabel(fr.applications.showArchived).check();
-    await filters.getByRole("button", { name: fr.applications.filter }).click();
-    await expect(page).toHaveURL(`${origin}/candidatures?vue=tableau&archivees=1`);
-    await expect(page.getByRole("region", { name: fr.applicationStatuses.abandoned }).getByRole("link", { name: /Contrôleur/ })).toBeVisible();
+    await expect(listOf(page).getByRole("link", { name: /Contrôleur/ })).toHaveCount(0);
+    await page.getByRole("link", { name: fr.applicationsMenu.showArchived }).click();
+    await expect(page).toHaveURL(`${origin}/candidatures?archivees=1`);
+    await expect(listOf(page).getByRole("row", { name: /Contrôleur/ })).toContainText(fr.applicationStatuses.abandoned);
 
-    // The board's text meets the accessibility floor (ADR-0009).
+    // The list's text meets the accessibility floor (ADR-0009).
     for (const t of await renderedTexts(page)) {
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
   });
 
-  test("the list view shows every Application Status in full, at every text size", async ({ page }) => {
+  test("the Fiche's status shows every Application Status in full, at every text size", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInWithMagicLink(page, newAddress("application-list-width"));
     const profileId = await createProfile(page, "DAF");
-    await saveApplication(page, await captureOffer(page, "Directeur administratif et financier groupe industriel international (H/F)"), profileId);
-    await saveApplication(page, await captureOffer(page, "Contrôleur de gestion senior"), profileId);
+    const applicationId = await saveApplication(page, await captureOffer(page, "Directeur administratif et financier groupe industriel international (H/F)"), profileId);
 
-    await page.goto("/candidatures");
-    const selects = page.locator("tbody").getByLabel(fr.application.statusLabel);
-    await expect(selects).toHaveCount(2);
+    // In the Fiche's width (20rem), beside the conversation (#603).
+    await page.goto(`/candidatures/${applicationId}`);
+    const selects = statusOf(page);
+    await expect(selects).toHaveCount(1);
 
     for (const size of ["small", "standard", "large", "xlarge"]) {
       await page.evaluate((value) => (document.documentElement.dataset.textSize = value), size);
@@ -240,7 +253,7 @@ test.describe("Applications", () => {
 
     await page.goto(`/candidatures/${applicationId}/entretiens`);
     await expect(page.getByRole("button", { name: fr.application.addInterview })).toHaveCount(0);
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.interview });
 
     const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
     await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
@@ -264,7 +277,7 @@ test.describe("Applications", () => {
     await signInWithMagicLink(page, newAddress("application-interview-edit"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
     await page.goto(`/candidatures/${applicationId}/entretiens`);
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.interview });
     const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
     await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
     await interviews.getByLabel(fr.application.interviewNote).fill("Avec le PDG");
@@ -311,7 +324,7 @@ test.describe("Applications", () => {
     await signInWithMagicLink(page, newAddress("application-interview-details"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
     await page.goto(`/candidatures/${applicationId}/entretiens`);
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.interview });
     const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
     await interviews.getByLabel(fr.application.interviewDate).fill("2026-11-12T14:30");
     await interviews.getByLabel(fr.application.interviewFormat).selectOption({ label: fr.interviewFormats.on_site });
@@ -335,7 +348,7 @@ test.describe("Applications", () => {
 
     await expect(item).toContainText("14:30 – 16:00");
     await expect(item).toContainText(fr.interviewFormats.video);
-    await expect(item.getByRole("link", { name: "http://visio.example.fr/salle-4" })).toHaveAttribute("href", "http://visio.example.fr/salle-4");
+    await expect(item.getByRole("link", { name: "http://visio.example.fr/salle-4" })).toHaveAttribute("href", exitHref("http://visio.example.fr/salle-4"));
     await page.reload();
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toContainText("14:30 – 16:00");
   });
@@ -352,12 +365,12 @@ test.describe("Applications", () => {
     await page.goto(`/candidatures/${applicationId}/correspondance`);
     const score = page.getByRole("region", { name: fr.matchScore.title });
     await expect(score).toContainText("« DAF »");
-    await page.getByLabel(fr.application.profileLabel).selectOption({ label: "Consultant transformation" });
-    await expect(page.getByRole("status")).toHaveText(fr.application.profileSaved);
+    await ficheOf(page).getByLabel(fr.application.profileLabel).selectOption({ label: "Consultant transformation" });
+    await expect(ficheOf(page).getByRole("status")).toHaveText(fr.application.profileSaved);
     await expect(score).toContainText("« Consultant transformation »");
 
     await page.reload();
-    await expect(page.getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
+    await expect(ficheOf(page).getByLabel(fr.application.profileLabel)).toHaveValue(consultantId);
 
     // A Profile that is not the Candidate's cannot be picked.
     const other = await (await browser.newContext({ baseURL: origin })).newPage();
@@ -372,23 +385,23 @@ test.describe("Applications", () => {
     expect(savedWithOthers.status()).toBe(404);
   });
 
-  test("a status changed in the list is kept, and every Application Status can be chosen", async ({ page }) => {
+  test("a status changed on the Fiche is kept, and every Application Status can be chosen", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("application-list"));
     const profileId = await createProfile(page, "DAF");
     const applicationId = await saveApplication(page, await captureOffer(page, "Responsable consolidation"), profileId);
 
-    await page.goto("/candidatures");
-    const row = page.getByRole("row", { name: /Responsable consolidation/ });
-    const status = row.getByLabel(fr.application.statusLabel);
+    await page.goto(`/candidatures/${applicationId}`);
+    const status = statusOf(page);
     await expect(status).toHaveValue("to_apply");
     await expect(status.getByRole("option")).toHaveText(["À postuler", "Postulée", "Relancée", "Entretien", "Offre reçue", "Acceptée", "Refusée", "Abandonnée"]);
 
     await status.selectOption({ label: fr.applicationStatuses.offer_received });
-    await expect(page.getByRole("status")).toHaveText(fr.application.statusSaved);
+    await expect(ficheOf(page).getByRole("status")).toHaveText(fr.application.statusSaved);
     await page.reload();
-    await expect(page.getByRole("row", { name: /Responsable consolidation/ }).getByLabel(fr.application.statusLabel)).toHaveValue("offer_received");
-    await page.goto("/candidatures?vue=tableau");
-    await expect(page.getByRole("region", { name: fr.applicationStatuses.offer_received }).getByRole("link", { name: /Responsable consolidation/ })).toBeVisible();
+    await expect(statusOf(page)).toHaveValue("offer_received");
+    // Mes candidatures' list says it too.
+    await page.goto("/candidatures");
+    await expect(listOf(page).getByRole("row", { name: /Responsable consolidation/ })).toContainText(fr.applicationStatuses.offer_received);
 
     // A status outside the Application Statuses is refused.
     const refused = await page.request.patch(`/api/applications/${applicationId}`, { data: { status: "hired" }, headers: { origin } });
@@ -405,7 +418,7 @@ test.describe("Applications", () => {
 
     await page.goto(`/candidatures/${applicationId}/entretiens`);
     await expect(page.getByText(fr.application.interviewsHint)).toBeVisible();
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.interview });
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.interview });
     const interviews = page.getByRole("region", { name: fr.application.interviewsTitle });
 
     // A date is required.
@@ -424,7 +437,7 @@ test.describe("Applications", () => {
     await expect(interviews.getByRole("listitem")).toContainText("12 novembre 2026");
 
     // Moving on to "Offre reçue": the Interview stays, no new one can be added.
-    await page.getByLabel(fr.application.statusLabel).selectOption({ label: fr.applicationStatuses.offer_received });
+    await statusOf(page).selectOption({ label: fr.applicationStatuses.offer_received });
     await expect(interviews.getByRole("button", { name: fr.application.addInterview })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toHaveCount(1);

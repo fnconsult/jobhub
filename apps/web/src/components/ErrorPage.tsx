@@ -37,12 +37,23 @@ export async function errorPageMetadata(code: ShellErrorCode): Promise<Metadata>
 export async function ShellErrorPage({ code, shell = "site" }: { code: ShellErrorCode; shell?: ErrorShell }) {
   const t = await getServerT();
   const copy = COPY[code];
-  const view = (home: { href: string; label: string }, email?: string): ReactNode => (
+  return inRoleShell(shell, (home, email) => (
     <ErrorView code={code} title={t(`errorPage.${copy}.title`)} actions={<ErrorActions code={code} home={home} contactEmail={email} />}>
       <p>{t(`errorPage.${copy}.message`)}</p>
     </ErrorView>
-  );
+  ));
+}
 
+/** The home of a role's shell, which an error page or the Exit Page offers to go back to. */
+export type ShellHome = { href: string; label: string };
+
+/**
+ * What `view` draws, in the shell of the person who reads it (#542): the Back Office's for an Administrator asked
+ * `backOffice`, the coach space's for a Human Coach asked `coachSpace`, the sidebar for a signed-in Candidate, else the
+ * public site's header. `view` gets the shell's home and, under the public site's header, the contact email.
+ */
+export async function inRoleShell(shell: ErrorShell, view: (home: ShellHome, contactEmail?: string) => ReactNode): Promise<ReactNode> {
+  const t = await getServerT();
   if (shell === "backOffice") {
     const administrator = await backOfficeAdministrator();
     if (administrator) {
@@ -54,9 +65,7 @@ export async function ShellErrorPage({ code, shell = "site" }: { code: ShellErro
     }
   }
   if (shell === "coachSpace" && (await currentHumanCoach())) {
-    return (
-      <CoachSpaceShell>{view({ href: routes.coachSpace, label: t("errorPage.actions.coachSpaceHome") })}</CoachSpaceShell>
-    );
+    return <CoachSpaceShell>{view({ href: routes.coachSpace, label: t("errorPage.actions.coachSpaceHome") })}</CoachSpaceShell>;
   }
   const candidate = await getCurrentCandidate();
   if (candidate) {

@@ -4,8 +4,9 @@ import { applicationsMenu, type ApplicationsMenuRow } from "@/applications/menu"
 import { getApplications } from "@/applications/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 import { ApplicationsMenuSuggestions } from "@/components/ApplicationsMenuSuggestions";
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { Card } from "@/design/Card";
+import { MicroAnimation } from "@/design/MicroAnimation";
 import { Pill, type Tone } from "@/design/Pill";
 import { Table, type Column } from "@/design/Table";
 import { getFollowUps } from "@/follow-ups/server";
@@ -68,7 +69,18 @@ function ApplicationsCard({ rows, toHandle, archivedHidden, showArchived, t }: {
       key: "offer",
       header: t("applications.jobOffer"),
       rowHeader: true,
-      cell: (row) => <Link href={routes.application(row.id)}>{[row.title, row.employer].filter(Boolean).join(" · ")}</Link>,
+      cell: (row) => (
+        <>
+          <Link href={routes.application(row.id)}>{[row.title, row.employer].filter(Boolean).join(" · ")}</Link>
+          {/* An Expired Job Offer, or one reported unavailable, flagged in words; its status left as the Candidate set it. */}
+          {row.expired ? (
+            <span className="applications-flags">
+              <Pill tone="danger">{t("applications.expired")}</Pill>
+              {row.reportedByYou ? <Pill>{t("applications.reportedByYou")}</Pill> : null}
+            </span>
+          ) : null}
+        </>
+      ),
     },
     { key: "status", header: t("applications.status"), cell: (row) => <Pill tone={STATUS_TONES[row.status]}>{t(`applicationStatuses.${row.status}`)}</Pill> },
     {
@@ -97,7 +109,12 @@ function ApplicationsCard({ rows, toHandle, archivedHidden, showArchived, t }: {
       headingId={CARD_TITLE_ID}
       actions={toHandle > 0 ? <Pill tone="warn">{t("applicationsMenu.toHandle", { count: toHandle })}</Pill> : undefined}
     >
-      {rows.length === 0 ? <p>{t("applications.none")}</p> : <Table label={t("applications.title")} columns={columns} rows={rows} rowKey={(row) => row.id} data-row-links="" />}
+      {rows.length === 0 ? (
+        <>
+          <p>{t("applications.none")}</p>
+          {archivedHidden === 0 ? <MicroAnimation id="extension-side-panel" /> : null}
+        </>
+      ) : <Table label={t("applications.title")} columns={columns} rows={rows} rowKey={(row) => row.id} data-row-links="" />}
       {archivedHidden > 0 ? (
         <p className="applications-menu-card__archived">
           {t("applications.archivedHidden", { count: archivedHidden })} <Link href={`${routes.applications}?archivees=1`}>{t("applicationsMenu.showArchived")}</Link>

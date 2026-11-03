@@ -100,7 +100,7 @@ test.describe("what Production indexes (#545)", () => {
   test("robots.txt allows the public site and points to the sitemap, which lists the indexed pages in French and in English", async ({ request }) => {
     const robots = await (await request.get(`${server.origin}/robots.txt`)).text();
     expect(robots).toContain("Allow: /");
-    for (const path of ["/admin", "/api", "/espace-coach"]) expect(robots).toContain(`Disallow: ${path}\n`);
+    for (const path of ["/admin", "/api", "/espace-coach", "/sortie"]) expect(robots).toContain(`Disallow: ${path}\n`);
     expect(robots).toContain(`Sitemap: ${server.origin}/sitemap.xml`);
 
     const sitemap = await (await request.get(`${server.origin}/sitemap.xml`)).text();

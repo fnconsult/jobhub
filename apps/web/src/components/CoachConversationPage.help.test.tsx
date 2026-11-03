@@ -3,7 +3,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
-import { CoachConversationPage, CoachPanel } from "./CoachPanel";
+import { CoachConversationPage } from "./CoachConversationPage";
+import { PageHelpProvider } from "./page-help";
 import { HelpTerm } from "./HelpTerm";
 import { ConversationFirstProvider } from "./conversation-first";
 import { WorkPane, WorkPaneProvider } from "./WorkPane";
@@ -101,15 +102,11 @@ describe("the help of a page that is a conversation, in the Work Pane (#602, ADR
     expect(document.activeElement).toBe(within(conversation()).getByRole("button", { name: "Comment marche cette page ?" }));
   });
 
-  it("opens « Signaler un problème », under the box, in the Work Pane", async () => {
-    const user = userEvent.setup();
+  it("has no Signalement links under the box: the icon beside « Mon compte » is the way in", () => {
     renderInFrench(<HomePage />);
 
-    await user.click(within(conversation()).getByRole("button", { name: "Signaler un problème" }));
-
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(within(workPane()).getByRole("heading", { level: 2, name: "Envoyer un signalement" })).toBe(document.activeElement);
-    expect(within(workPane()).getByRole("radio", { name: "Bug" }).getAttribute("aria-checked")).toBe("true");
+    expect(within(conversation()).queryByRole("button", { name: "Signaler un problème" })).toBeNull();
+    expect(within(conversation()).queryByRole("button", { name: "Proposer une idée" })).toBeNull();
   });
 
   it("starts with a question about the Help Article its address names (« Demander au coach » from Mon compte), and drops it from the address", async () => {
@@ -126,23 +123,23 @@ describe("the help of a page that is a conversation, in the Work Pane (#602, ADR
   });
 });
 
-describe("a HelpTerm under « Conversation au centre » (#602)", () => {
-  it("opens its Help Article in the Work Pane, never in the Coach Panel", async () => {
+describe("a HelpTerm on a Candidate's page (#602, #608)", () => {
+  it("opens its Help Article in the Work Pane", async () => {
     const user = userEvent.setup();
-    // As the app nests them: the Coach Panel around every page, the Work Pane in the page's layout.
+    // As the Candidate's layout nests them (SidebarLayout).
     renderInFrench(
-      <CoachPanel>
-        <ConversationFirstProvider conversations={[]}>
-          <WorkPaneProvider version="1.2.3">
+      <ConversationFirstProvider conversations={[]}>
+        <WorkPaneProvider version="1.2.3">
+          <PageHelpProvider>
             <main>
               <p>
                 Votre première <HelpTerm term="followUp">Relance</HelpTerm>
               </p>
             </main>
             <WorkPane />
-          </WorkPaneProvider>
-        </ConversationFirstProvider>
-      </CoachPanel>,
+          </PageHelpProvider>
+        </WorkPaneProvider>
+      </ConversationFirstProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: /^Relance/ }));

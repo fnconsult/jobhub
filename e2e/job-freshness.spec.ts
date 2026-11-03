@@ -5,6 +5,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { openFoundJobOffers, startJobSearch } from "./support/conversation";
 
 // Issue #116: the freshness rule, through the Candidate's public entry point. A Job Search started from
 // the Profile page runs Job discovery in the real worker (apps/worker) on the same database; the fake web
@@ -69,9 +70,9 @@ async function searchFromNewProfile(page: Page): Promise<void> {
   await signInWithMagicLink(page, newAddress("freshness"));
   const created = await page.request.post("/api/profiles", { headers: { origin }, data: { masterCv, searchCriteria } });
   expect(created.status(), await created.text()).toBe(201);
-  await page.goto(`/recherches?profil=${(await created.json()).id}`);
-  await page.getByRole("button", { name: "Chercher des offres", exact: true }).click();
-  await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
+  // From Recherches d'offres (#606); its Job Offers, its Section, in the Work Pane (#605).
+  await startJobSearch(page);
+  await openFoundJobOffers(page);
 }
 
 test.describe("Freshness rule in Job Search results (#116)", () => {
@@ -96,10 +97,10 @@ test.describe("Freshness rule in Job Search results (#116)", () => {
 
   test("keeps a posting dated within 30 days, drops one dated older, keeps an undated one labelled 'date inconnue', ranked below the dated one at an equal Match Score", async ({ page }) => {
     await searchFromNewProfile(page);
-    const results = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 2 }) });
+    const results = page.getByRole("list", { name: "Offres trouvées" }).getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3 }) });
     // Two of the three postings are kept; the page refreshes itself until the worker has finished.
     await expect(results, workerOutput).toHaveCount(2, { timeout: 90_000 });
-    await expect(page.getByRole("heading", { level: 2, name: `Directeur financier ancienne – réf. ${tag}` })).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 3, name: `Directeur financier ancienne – réf. ${tag}` })).toHaveCount(0);
 
     const dated = results.filter({ hasText: `Directeur financier recente – réf. ${tag}` });
     const undated = results.filter({ hasText: `Directeur financier sansDate – réf. ${tag}` });
@@ -115,7 +116,7 @@ test.describe("Freshness rule in Job Search results (#116)", () => {
     const scores = (await page.getByText(/^Score de correspondance : \d+ \/ 100(, partiel)?$/).allTextContents()).map((t) => Number(/(\d+) \//.exec(t)![1]));
     expect(scores).toHaveLength(2);
     expect(scores[0], "precondition: equal Match Scores").toBe(scores[1]);
-    const headings = await results.getByRole("heading", { level: 2 }).allTextContents();
+    const headings = await results.getByRole("heading", { level: 3 }).allTextContents();
     expect(headings).toEqual([`Directeur financier recente – réf. ${tag}`, `Directeur financier sansDate – réf. ${tag}`]);
   });
 });

@@ -8,7 +8,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
+import { CONTACT_EMAIL_TOKEN } from "./contact";
+import { NUMBERED_LINE, takeMicroAnimations, type MicroAnimationPlacement } from "./micro-animations";
+import { routeAddresses } from "./route-addresses";
+import { BACK_OFFICE_HELP_TOPICS, HELP_ARTICLE_KINDS, HELP_AUDIENCES, HELP_LOCALES, PUBLIC_HELP_TOPICS, type HelpArticle, type HelpLocale } from "./types";
 
 /** The Help Articles are inconsistent: a translation is missing, or a front matter is invalid. */
 export class HelpContentError extends Error {
@@ -60,8 +63,8 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
     HELP_LOCALES.map((locale) => [
       locale,
       files[locale].map((file) => {
-        const article = parseArticle(file.replace(/\.md$/, ""), locale, readFileSync(path.join(dir, locale, file), "utf8"));
-        problems.push(...articleProblems(article).map((problem) => `${locale}/${file}: ${problem}`));
+        const { microAnimationProblems, ...article } = parseArticle(file.replace(/\.md$/, ""), locale, readFileSync(path.join(dir, locale, file), "utf8"));
+        problems.push(...[...microAnimationProblems, ...articleProblems(article)].map((problem) => `${locale}/${file}: ${problem}`));
         return article;
       }),
     ]),
@@ -76,12 +79,17 @@ export function readHelpContent(dir: string = articlesDir): HelpContent {
         if (article.kind !== french.kind) problems.push(`${where}: its kind ${article.kind} differs from the French one (${french.kind})`);
         else if (article.route !== french.route) problems.push(`${where}: its route ${article.route} differs from the French one (${french.route})`);
         if (article.audience !== french.audience) problems.push(`${where}: its audience ${article.audience} differs from the French one (${french.audience})`);
+        if (article.motion !== french.motion) problems.push(`${where}: its motion ${article.motion} differs from the French one (${french.motion})`);
+        if (placements(article) !== placements(french))
+          problems.push(`${where}: its Micro-animations ${placements(article) || "(none)"} differ from the French ones (${placements(french) || "(none)"})`);
         if (article.topic !== french.topic) problems.push(`${where}: its topic ${article.topic} differs from the French one (${french.topic})`);
       }
       if (article.kind !== "page" || !article.route) continue;
-      const other = explained.get(article.route);
-      if (other) problems.push(`${where}: ${other} already explains ${article.route}`);
-      else explained.set(article.route, article.id);
+      for (const route of routeAddresses(article.route)) {
+        const other = explained.get(route);
+        if (other) problems.push(`${where}: ${other} already explains ${route}`);
+        else explained.set(route, article.id);
+      }
     }
   }
 
@@ -95,9 +103,25 @@ function markdownFiles(dir: string): string[] {
     .sort();
 }
 
+/** « extension-side-panel@2, text-size@answer »: an article's Micro-animations, to compare a translation's with the French. */
+function placements(article: HelpArticle): string {
+  return article.microAnimations.map(({ id, step }) => `${id}@${step ?? "answer"}`).join(", ");
+}
+
 /** What is wrong with one article on its own. */
 function articleProblems(article: HelpArticle): string[] {
   const problems: string[] = [];
+  if (article.microAnimations.length > 0 && article.kind !== "tutorial" && article.kind !== "faq")
+    problems.push("only a tutorial (on a numbered step) or a FAQ (after its answer) shows a Micro-animation");
+  if (article.kind === "tutorial" && article.microAnimations.some(({ step }) => step === null))
+    problems.push("a tutorial's « Voir comment » ends one of its numbered steps (« 2. … {{voir-comment:<id>}} »)");
+  // The Help Centre numbers a list's items 1, 2, 3… from its first: a step's « Voir comment » lands on the step its
+  // number names only if the article numbers its lines once, in order.
+  const numbers = article.body.split(/\r?\n/).flatMap((line) => NUMBERED_LINE.exec(line)?.[1] ?? []).map(Number);
+  if (article.microAnimations.some(({ step }) => step !== null) && numbers.some((number, index) => number !== index + 1))
+    problems.push(`a tutorial with a « Voir comment » numbers its steps once, from 1 and in order (${numbers.join(", ")})`);
+  const shown = article.microAnimations.map(({ id, step }) => `${id}@${step}`);
+  if (new Set(shown).size !== shown.length) problems.push("a Micro-animation is referenced twice at the same place");
   if (!(HELP_ARTICLE_KINDS as readonly string[]).includes(article.kind)) problems.push(`kind must be ${orList(HELP_ARTICLE_KINDS)}`);
   if (!article.audience) problems.push(`audience is missing: one of ${orList(HELP_AUDIENCES)}`);
   else if (!(HELP_AUDIENCES as readonly string[]).includes(article.audience)) problems.push(`audience must be ${orList(HELP_AUDIENCES)}`);
@@ -105,16 +129,21 @@ function articleProblems(article: HelpArticle): string[] {
   if (!article.topic) problems.push("topic is missing");
   else if (article.audience === "administrator") {
     if (publicTopic) problems.push(`an administrator article's topic is a Back Office one, never a public topic (${article.topic})`);
-    else if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(article.topic)) problems.push("topic must be a slug: lower-case letters, digits and hyphens");
+    else if (!(BACK_OFFICE_HELP_TOPICS as readonly string[]).includes(article.topic)) problems.push(`an administrator article's topic must be ${orList(BACK_OFFICE_HELP_TOPICS)}`);
   } else if (!publicTopic) problems.push(`topic must be ${orList(PUBLIC_HELP_TOPICS)}`);
   if (!article.title) problems.push("title is missing");
   if (article.kind === "tutorial" && numberedSteps(article.body) < 2) problems.push("a tutorial needs at least two numbered steps (« 1. … », « 2. … »)");
   if (!Array.isArray(article.synonyms)) problems.push("synonyms must be a list: [word, other word]");
   if (article.kind === "page" && !article.route) problems.push("a page article needs its route");
   if (article.kind !== "page" && article.route) problems.push("only a page article has a route");
+  if (article.kind !== "tutorial" && article.motion) problems.push("only a tutorial has a motion");
   if (article.route && !article.route.startsWith("/")) problems.push("route must start with /");
   if (!article.body) problems.push("the body is empty");
   if (/!\[[^\]]*\]\(/.test(article.body) || /<img\b/i.test(article.body)) problems.push("no images in a Help Article");
+  for (const [, target] of article.body.matchAll(/\[[^\]\n]+\]\(([^)\s]+)\)/g))
+    if (!/^\/(?![/\\])/.test(target!) || target!.includes("\\")) problems.push(`a link leads to a page of this site (/legal/…), never elsewhere: ${target}`);
+  if (/[\w.+-]+@[\w-]+\.[\w.-]+/.test(article.body.split(CONTACT_EMAIL_TOKEN).join("")))
+    problems.push(`no email address written out: ${CONTACT_EMAIL_TOKEN} stands for the legal notice's`);
   return problems;
 }
 
@@ -123,19 +152,20 @@ function orList(values: readonly string[]): string {
   return values.join(", ").replace(/, (?=[^,]*$)/, " or ");
 }
 
-/** The numbered steps of a tutorial's body: its lines « 1. … », « 2. … », counted from 1 while they follow each other. */
+/** The numbered steps of a tutorial's body: its lines « 1. … » (or « 1) … »), « 2. … », counted from 1 while they follow each other. */
 export function numberedSteps(body: string): number {
   let next = 1;
   for (const line of body.split(/\r?\n/)) {
-    const step = /^\s*(\d+)\.\s+\S/.exec(line);
+    const step = NUMBERED_LINE.exec(line);
     if (step && Number(step[1]) === next) next++;
   }
   return next - 1;
 }
 
 /** The article as its file says, unchecked: `articleProblems` says what is wrong with it. */
-function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArticle {
-  const { frontmatter, body } = parseFrontmatter(markdown);
+function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArticle & { microAnimationProblems: string[] } {
+  const { frontmatter, body: written } = parseFrontmatter(markdown);
+  const { body, references, problems } = takeMicroAnimations(written);
   const text = (value: string | string[] | undefined) => (typeof value === "string" ? value : "");
   return {
     id,
@@ -146,7 +176,10 @@ function parseArticle(id: string, locale: HelpLocale, markdown: string): HelpArt
     title: text(frontmatter.title),
     synonyms: frontmatter.synonyms as string[],
     route: text(frontmatter.route) || null,
+    motion: text(frontmatter.motion) || null,
+    microAnimations: references as MicroAnimationPlacement[],
     body: body.trim(),
+    microAnimationProblems: problems,
   };
 }
 

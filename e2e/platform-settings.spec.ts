@@ -3,6 +3,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { Client } from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
+import { exitHref } from "./support/exit-page";
 
 // Issue #298 (ADR-0033): the Back Office's Paramètres section, under Plateforme, lists every
 // Platform Setting with its value in use, its source (Back Office, env, code default) and the
@@ -396,7 +397,7 @@ test.describe("Platform Settings (Paramètres)", () => {
       // Mon compte reads it through the resolver: in use within seconds, no restart.
       await expect(async () => {
         await candidate.reload();
-        await expect(install).toHaveAttribute("href", PAGE, { timeout: 1_000 });
+        await expect(install).toHaveAttribute("href", exitHref(PAGE), { timeout: 1_000 });
       }).toPass({ timeout: 15_000 });
       await expect(extension.getByText(fr.account.tools.soon)).toHaveCount(0);
 

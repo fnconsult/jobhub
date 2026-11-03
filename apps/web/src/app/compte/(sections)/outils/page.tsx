@@ -1,3 +1,4 @@
+import { ExternalLink } from "@/components/ExternalLink";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
@@ -23,9 +24,9 @@ export default async function AccountToolsPage() {
         <p>{t("account.tools.extensionIntro")}</p>
         {storeUrl ? (
           <div className="actions">
-            <a className={buttonClass({ variant: "primary" })} href={storeUrl} rel="noopener noreferrer" target="_blank">
+            <ExternalLink className={buttonClass({ variant: "primary" })} href={storeUrl}>
               {t("account.tools.install")}
-            </a>
+            </ExternalLink>
           </div>
         ) : (
           <Note>{t("account.tools.soon")}</Note>

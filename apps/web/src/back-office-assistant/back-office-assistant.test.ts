@@ -106,8 +106,8 @@ function backOfficeData() {
     async administrators() {
       reads.push("administrators");
       return [
-        { candidateId: "a1", email: "claire@jobbbox.fr", roles: ["super-admin"], permanent: true },
-        { candidateId: "a2", email: "paul@jobbbox.fr", roles: ["coach-manager", "support"], permanent: false },
+        { candidateId: "a1", email: "claire@jobbbox.fr", roles: ["super-admin"], permanent: true, twoStepVerification: true },
+        { candidateId: "a2", email: "paul@jobbbox.fr", roles: ["coach-manager", "support"], permanent: false, twoStepVerification: false },
       ];
     },
     async emailIntakeDomain() {
@@ -342,6 +342,16 @@ describe("Back Office Assistant", () => {
       if (saved === undefined) delete process.env.MISTRAL_API_KEY;
       else process.env.MISTRAL_API_KEY = saved;
     }
+  });
+
+  it("tells a super-admin how many Administrators have no factor of Two-step verification, never who (#665)", async () => {
+    const { assistant, administrator } = assistantFor(["super-admin"]);
+
+    await assistant.reply(administrator, asked("Qui n'a pas la vérification en deux étapes ?"));
+
+    expect(prompt()).toContain("1 Administrateur(s) sans aucun facteur de vérification en deux étapes");
+    expect(prompt()).toContain("ne peut arriver qu'à ceux qui se connectent par un fournisseur de connexion");
+    expect(prompt()).not.toMatch(/@/);
   });
 
   it("routes per #121: what an Administrator with EU AI consent types carrying identity goes to Mistral, on their own account", async () => {
@@ -703,5 +713,74 @@ describe("Back Office Assistant", () => {
       expect(result).toMatchObject({ ok: true, reply: "Réponse de l'assistant", outcome: "replied", cost: { inputTokens: 30, outputTokens: 15 } });
       expect(guarded.calls.map((call) => call.system).join()).not.toMatch(/distress|harmful_advice/);
     });
+  });
+});
+
+describe("Back Office Assistant: the Administrators' help (#551, ADR-0065)", () => {
+  let provider: FakeProvider;
+
+  beforeEach(() => {
+    provider = createFakeProvider({ id: "mistral", reply: "Réponse de l'assistant" });
+  });
+
+  async function systemFor(question: string, language?: "fr" | "en"): Promise<string> {
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
+    const assistant = createBackOfficeAssistant({ ai, sources: backOfficeData().sources });
+    expect(await assistant.reply({ id: "a2", access: backOfficeAccess(["help-editor"]) }, asked(question), language ? { language } : {})).toMatchObject({ ok: true });
+    return provider.calls.at(-1)!.system!;
+  }
+
+  it("is given the Administrator article the search finds, whole, with its link, to answer from and cite", async () => {
+    const system = await systemFor("Comment filtrer les questions sans réponse par public ?");
+
+    expect(system).toContain("## Aide du back office : les articles trouvés pour cette question");
+    expect(system).toContain("### « Questions sans réponse » (/admin/aide/contenu/page-admin-unanswered-questions)");
+    expect(system).toContain("« Filtrer par public » (Visiteur, Invité, Candidat, Coach humain, Administrateur)");
+    expect(system).toContain("citez chaque article dont vous vous servez par son titre et son lien");
+    // The articles are context, never the instructions a reply must not copy.
+    expect(system.indexOf("# Ce que vous savez du Back Office")).toBeLessThan(system.indexOf("## Aide du back office"));
+  });
+
+  it("is given the article in the Administrator's language", async () => {
+    const system = await systemFor("How do I filter unanswered questions by audience?", "en");
+
+    expect(system).toContain("### « Unanswered questions » (/admin/aide/contenu/page-admin-unanswered-questions)");
+  });
+
+  it("is never given a Candidate's article, even for a question it answers: it says no tutorial covers it and points to « Demander un tutoriel »", async () => {
+    // « Comment relancer un recruteur ? » is a Candidate's frequent question (faq-follow-up-recruiter).
+    const system = await systemFor("Comment relancer un recruteur ?");
+
+    expect(system).not.toContain("faq-follow-up-recruiter");
+    expect(system).not.toContain("relancer un recruteur ?»");
+    expect(system).not.toMatch(/### « /);
+    expect(system).toContain("Aucun article de l'aide du back office ne couvre cette question");
+    expect(system).toContain("« Demander un tutoriel »");
+  });
+
+  it("names « Request a tutorial » to an Administrator reading in English", async () => {
+    // A question no Administrator article covers.
+    expect(await systemFor("How do I rename the logo?", "en")).toContain("« Request a tutorial »");
+  });
+});
+
+describe("Back Office Assistant: follow-ups and « Demander un tutoriel » (#551)", () => {
+  it("looks a follow-up the search reads nothing in up with the question before it, and says whether the help missed", async () => {
+    const provider = createFakeProvider({ id: "mistral", reply: "Réponse" });
+    const ai = createAiLayer({ providers: [provider], routes: { back_office_assistant: "mistral" }, usage: createMemoryUsageLog() });
+    const assistant = createBackOfficeAssistant({ ai, sources: backOfficeData().sources });
+    const administrator = { id: "a2", access: backOfficeAccess(["help-editor"]) };
+
+    const followUp = await assistant.reply(administrator, {
+      messages: [
+        { from: "administrator", text: "Comment filtrer les questions sans réponse par public ?" },
+        { from: "assistant", text: "Avec « Filtrer par public »." },
+        { from: "administrator", text: "Et ensuite ?" },
+      ],
+    });
+    expect(followUp).toMatchObject({ ok: true, helpMissed: false });
+    expect(provider.calls.at(-1)!.system).toContain("### « Questions sans réponse »");
+
+    expect(await assistant.reply(administrator, asked("Comment relancer un recruteur ?"))).toMatchObject({ ok: true, helpMissed: true });
   });
 });

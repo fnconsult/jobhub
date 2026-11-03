@@ -133,6 +133,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "legal_text_notice", // issue #547: the notice of a substantial Legal Text Version sent to each Candidate
         "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
         "master_cv_version",
+        "nouveautes_email_sent", // issue #566: the Nouveautés emails sent, one per Candidate and per Version
+        "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
         "plan", // issue #206: the Plans Administrators define
         "plan_quota",
         "plan_quota_reduction", // issue #514: Quota Reductions, and the notice each paying subscriber is sent
@@ -158,6 +160,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "target_company", // issue #406: a Profile's Target Companies
         "target_company_refresh", // issue #406: what a Profile's La Bonne Boite companies were last fetched for
+        "two_step_verification", // issue #663: a Candidate's Two-step verification, its key encrypted, its backup codes hashed
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
         "web_search_alert", // issue #403: the month's web search alert, once sent; no Candidate
@@ -271,6 +274,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // The Legal Text notices (issue #547) follow their Candidate.
         { from_table: "legal_text_notice", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "master_cv_version", from_column: "profile_id", to_table: "profile" },
+        // The Nouveautés email (issue #566) follows its Candidate.
+        { from_table: "nouveautes_email_sent", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "nouveautes_email_subscription", from_column: "candidate_id", to_table: "candidate" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
         { from_table: "plan_quota_reduction", from_column: "plan", to_table: "plan" },
@@ -303,6 +309,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "target_company", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "target_company", from_column: "profile_id", to_table: "profile" },
         { from_table: "target_company_refresh", from_column: "profile_id", to_table: "profile" },
+        // Two-step verification (issue #663) goes with its Candidate.
+        { from_table: "two_step_verification", from_column: "candidate_id", to_table: "candidate" },
         // A Withdrawal (issue #511) goes with its Candidate's account, and with the Coaching Session it withdrew from; its refunds with it.
         { from_table: "withdrawal", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "withdrawal", from_column: "coaching_session_id", to_table: "coaching_session" },

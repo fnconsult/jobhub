@@ -1,12 +1,13 @@
-import { helpCentreArticle, relatedArticles } from "@jobhub/help";
+import { fillContactEmail, helpCentreArticle, relatedArticles } from "@jobhub/help";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CoachReplyText } from "@/components/CoachReplyText";
+import { HelpArticleText } from "@/components/HelpArticleText";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { publicContactEmail } from "@/public-pages/contact-email";
 import { publicMetadata } from "@/public-pages/indexing-server";
 import { routes } from "@/routes";
-import { HelpArticleList, HelpBreadcrumb, topicOrNotFound } from "../../help-centre";
+import { helpArticleLinks, HelpArticleList, HelpBreadcrumb, topicOrNotFound } from "../../help-centre";
 
 type Params = { params: Promise<{ topic: string; article: string }> };
 
@@ -27,7 +28,7 @@ export async function generateMetadata(props: Params): Promise<Metadata> {
 
 /**
  * A Help Article in the Help Centre (#549): its topic, its kind, its text (a tutorial's numbered steps as a numbered
- * list), « Écrit par l'équipe Jobbbox » (ADR-0065: an agent drafts, a person reviews and merges), then its related
+ * list, its links to this site and its contact address kept, #552; its « Voir comment », #569), « Écrit par l'équipe Jobbbox » (ADR-0065: an agent drafts, a person reviews and merges), then its related
  * articles. Open to everyone; in English under /en/aide/… (src/proxy.ts).
  */
 export default async function HelpArticlePage(props: Params) {
@@ -47,7 +48,7 @@ export default async function HelpArticlePage(props: Params) {
             <p className="help-centre__meta">{t("helpCentre.writtenBy")}</p>
           </header>
           <div className="help-centre__body">
-            <CoachReplyText text={article.body} />
+            <HelpArticleText article={article} text={fillContactEmail(article.body, publicContactEmail(), article.locale)} links={await helpArticleLinks()} />
           </div>
         </article>
         {related.length > 0 ? (

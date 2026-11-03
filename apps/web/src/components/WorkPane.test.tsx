@@ -4,10 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { helpArticle } from "@/coach-help";
 import { renderInFrench } from "@/design/testing";
+import { MY_SIGNALEMENTS_TITLE_ID } from "./Signalement";
+import { SIGNALEMENT_GLYPHS } from "./signalement-glyphs";
 import { useWorkPane, type WorkPaneItem } from "./work-pane";
 import { WorkPane, WorkPaneProvider } from "./WorkPane";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/compte", useRouter: () => ({ refresh: vi.fn() }) }));
+/** The page's address: Mon compte, or its « Mes signalements » Section. */
+let pathname = "/compte";
+vi.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ refresh: vi.fn() }) }));
 
 const ACCOUNT = helpArticle("page-account", "fr")!;
 const MATCH_SCORE = helpArticle("glossary-match-score", "fr")!;
@@ -134,10 +138,53 @@ describe("a Signalement in the Work Pane (#602, ADR-0057 amended by ADR-0070)", 
 
     await user.click(opener);
 
-    expect(within(pane()).getByRole("heading", { level: 2, name: "Poser la question à l'équipe" })).toBeTruthy();
+    const title = within(pane()).getByRole("heading", { level: 2, name: "Poser la question à l'équipe" });
+    // ⓘ in its title (ADR-0009), decorative beside the words.
+    expect(title.querySelector(".signalement-title svg[aria-hidden] path")?.getAttribute("d")).toBe(SIGNALEMENT_GLYPHS.info);
     expect((within(pane()).getByRole("textbox") as HTMLTextAreaElement).value).toBe("Comment exporter ?");
     await user.click(within(pane()).getByRole("button", { name: "Annuler" }));
     expect(screen.queryByRole("complementary")).toBeNull();
     expect(document.activeElement).toBe(opener);
+  });
+
+  it("titles a Bug or an Idée with its glyph, which follows the type chosen (ADR-0009)", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<SignalementPage />);
+
+    await user.click(screen.getByRole("button", { name: "Proposer une idée" }));
+
+    const glyph = () => within(pane()).getByRole("heading", { level: 2, name: "Envoyer un signalement" }).querySelector(".signalement-title svg[aria-hidden] path");
+    expect(glyph()?.getAttribute("d")).toBe(SIGNALEMENT_GLYPHS.shapes);
+    await user.click(within(pane()).getByRole("radio", { name: "Bug" }));
+    expect(glyph()?.getAttribute("d")).toBe(SIGNALEMENT_GLYPHS.bug);
+  });
+
+  it("sent from « Mes signalements », « Voir mes signalements » closes it, the focus on the Section's title, which lists it", async () => {
+    pathname = "/compte/signalements";
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ signalement: { id: "s1" } }, { status: 201 })));
+    const user = userEvent.setup();
+    renderInFrench(
+      <WorkPaneProvider version="1.2.3">
+        <main>
+          <h2 id={MY_SIGNALEMENTS_TITLE_ID} tabIndex={-1}>
+            Mes signalements
+          </h2>
+          <Opener item={{ kind: "signalement", start: { kind: "type", type: "idee" } }}>Proposer une idée</Opener>
+        </main>
+        <WorkPane />
+      </WorkPaneProvider>,
+    );
+
+    try {
+      await user.click(screen.getByRole("button", { name: "Proposer une idée" }));
+      await user.type(within(pane()).getByRole("textbox"), "Pouvoir trier par date de relance.");
+      await user.click(within(pane()).getByRole("button", { name: "Envoyer" }));
+      await user.click(await within(pane()).findByRole("link", { name: "Voir mes signalements" }));
+
+      expect(screen.queryByRole("complementary")).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole("heading", { level: 2, name: "Mes signalements" }));
+    } finally {
+      pathname = "/compte";
+    }
   });
 });

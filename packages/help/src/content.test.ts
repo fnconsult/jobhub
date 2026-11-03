@@ -48,6 +48,8 @@ describe("readHelpContent — the Help Articles of a directory", () => {
         title: "Comment relancer un recruteur ?",
         synonyms: ["relance", "rappeler", "sans réponse"],
         route: null,
+        motion: null,
+        microAnimations: [],
         body: "Votre coach propose un e-mail de **relance**.\n\nJobbbox n'envoie rien à votre place.",
       },
     ]);
@@ -74,7 +76,7 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     ["no topic", page(valid.replace("topic: utiliser\n", "")), /topic is missing/],
     ["a public article outside the four topics", page(valid.replace("topic: utiliser", "topic: parametres")), /topic must be decouvrir, extension, utiliser or espace-coach/],
     ["an administrator article in a public topic", page(valid.replace("audience: candidate", "audience: administrator")), /an administrator article's topic is a Back Office one, never a public topic \(utiliser\)/],
-    ["an administrator topic that is no slug", page(valid.replace("audience: candidate", "audience: administrator").replace("topic: utiliser", "topic: Mes Réglages")), /topic must be a slug/],
+    ["an administrator topic that is no Back Office topic", page(valid.replace("audience: candidate", "audience: administrator").replace("topic: utiliser", "topic: Mes Réglages")), /an administrator article's topic must be fournisseurs-et-tools, candidats/],
     ["a tutorial without numbered steps", tutorial("Ouvrez l'offre, puis cliquez sur « Analyser cette offre »."), /a tutorial needs at least two numbered steps/],
     ["a tutorial with one numbered step", tutorial("1. Ouvrez l'offre.\n\nPuis cliquez sur « Analyser cette offre »."), /a tutorial needs at least two numbered steps/],
     ["no title", page(valid.replace("title: Mes candidatures", "")), /title is missing/],
@@ -84,6 +86,10 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     ["a route that is not an app path", page(valid.replace("route: /candidatures", "route: candidatures")), /route must start with \//],
     ["an empty body", page(valid, ""), /the body is empty/],
     ["an image", page(valid, "Voyez ![la page](capture.png)."), /no images/],
+    ["a link out of the site", page(valid, "Voyez [l'Apec](https://www.apec.fr)."), /a link leads to a page of this site \(\/legal\/…\), never elsewhere: https:\/\/www\.apec\.fr/],
+    ["a link out of the site through a backslash", page(valid, "Voyez [ceci](/\\evil.example)."), /a link leads to a page of this site/],
+    ["a mailto link", page(valid, "Écrivez à [l'équipe](mailto:equipe@jobbbox.fr)."), /a link leads to a page of this site/],
+    ["an email address written out", page(valid, "Écrivez à bonjour@jobbbox.fr."), /no email address written out: \{\{contact-email\}\} stands for the legal notice's/],
   ])("fails on %s, naming the file", (_case, markdown, problem) => {
     const enTwin = page(valid);
     expect(() => readHelpContent(articlesDir({ "fr/page-applications.md": markdown, "en/page-applications.md": enTwin }))).toThrow(
@@ -91,12 +97,18 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     );
   });
 
+  it("reads a link to a page of this site and the contact address's token (#552)", () => {
+    const body = "Écrivez à {{contact-email}} ; voyez [IA dans Jobbbox](/legal/confidentialite#ia).";
+    const content = readHelpContent(articlesDir({ "fr/page-applications.md": page(valid, body), "en/page-applications.md": page(valid, body) }));
+    expect(content.fr[0]!.body).toBe(body);
+  });
+
   it("reads a tutorial of two numbered steps or more, and an administrator article in a Back Office topic", () => {
     const steps = "1. Ouvrez l'offre.\n2. Cliquez sur « Analyser cette offre ».";
-    const admin = page("kind: faq\naudience: administrator\ntopic: parametres\ntitle: Les réglages\nsynonyms: [réglage]", "Ils changent sans redéploiement.");
+    const admin = page("kind: faq\naudience: administrator\ntopic: plateforme\ntitle: Les réglages\nsynonyms: [réglage]", "Ils changent sans redéploiement.");
     const content = readHelpContent(articlesDir({ "fr/tutorial-x.md": tutorial(steps), "en/tutorial-x.md": tutorial(steps), "fr/faq-admin.md": admin, "en/faq-admin.md": admin }));
     expect(content.fr.map((entry) => [entry.id, entry.kind, entry.audience, entry.topic])).toEqual([
-      ["faq-admin", "faq", "administrator", "parametres"],
+      ["faq-admin", "faq", "administrator", "plateforme"],
       ["tutorial-x", "tutorial", "candidate", "extension"],
     ]);
   });
@@ -119,6 +131,33 @@ describe("readHelpContent — the Help Articles of a directory", () => {
     expect(() =>
       readHelpContent(articlesDir({ "fr/page-applications.md": fr, "en/page-applications.md": page(valid.replace("kind: page", "kind: faq").replace("route: /candidatures", "")) })),
     ).toThrow(/en\/page-applications\.md: its kind faq differs from the French one \(page\)/);
+  });
+
+  it("takes a tutorial step's « Voir comment » and a FAQ's out of the text, as the article's Micro-animations (#569)", () => {
+    const steps = "1. Ouvrez l'offre.\n2. Épinglez l'extension. {{voir-comment:extension-side-panel}}";
+    const faq = page("kind: faq\naudience: candidate\ntopic: utiliser\ntitle: Le texte\nsynonyms: [texte]", "Réglez « Taille du texte ».\n{{voir-comment:text-size}}");
+    const content = readHelpContent(articlesDir({ "fr/tutorial-x.md": tutorial(steps), "en/tutorial-x.md": tutorial(steps), "fr/faq-t.md": faq, "en/faq-t.md": faq }));
+    expect(content.fr.map((entry) => [entry.id, entry.body, entry.microAnimations])).toEqual([
+      ["faq-t", "Réglez « Taille du texte ».", [{ id: "text-size", step: null }]],
+      ["tutorial-x", "1. Ouvrez l'offre.\n2. Épinglez l'extension.", [{ id: "extension-side-panel", step: 2 }]],
+    ]);
+  });
+
+  it("fails on a « Voir comment » naming no Micro-animation, off a step's end, off a tutorial or FAQ, or unlike the French", () => {
+    const build = (fr: string, en: string = fr) => () => readHelpContent(articlesDir({ "fr/tutorial-x.md": fr, "en/tutorial-x.md": en }));
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:nowhere}}"))).toThrow(/fr\/tutorial-x\.md: no Micro-animation is called nowhere/);
+    expect(build(tutorial("1. Ouvrez {{voir-comment:text-size}} puis.\n2. Cliquez."))).toThrow(/a « Voir comment » reference ends its line/);
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez.\n\n{{voir-comment:text-size}}"))).toThrow(/a tutorial's « Voir comment » ends one of its numbered steps/);
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:text-size}}\n\nPuis :\n\n1. Fermez.\n2. Rouvrez."))).toThrow(
+      /numbers its steps once, from 1 and in order \(1, 2, 1, 2\)/,
+    );
+    expect(build(tutorial("1. Ouvrez.\n2) Cliquez. {{voir-comment:text-size}}"))().fr[0]!.microAnimations).toEqual([{ id: "text-size", step: 2 }]);
+    expect(build(tutorial("1. Ouvrez.\n2. Cliquez. {{voir-comment:text-size}}"), tutorial("1. Open.\n2. Click."))).toThrow(
+      /en\/tutorial-x\.md: its Micro-animations \(none\) differ from the French ones \(text-size@2\)/,
+    );
+    expect(() => readHelpContent(articlesDir({ "fr/page-applications.md": page(valid, "Rien. {{voir-comment:text-size}}"), "en/page-applications.md": page(valid) }))).toThrow(
+      /fr\/page-applications\.md: only a tutorial \(on a numbered step\) or a FAQ \(after its answer\) shows a Micro-animation/,
+    );
   });
 
   it("fails when two page articles explain the same route", () => {

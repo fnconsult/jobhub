@@ -8,7 +8,7 @@ route: /abonnement/commande
 ---
 Cette page s'affiche quand vous choisissez une offre, avant le paiement. Le récapitulatif rappelle l'offre, son prix TTC, sa périodicité et sa reconduction : l'abonnement est reconduit automatiquement jusqu'à sa résiliation.
 
-Quand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du JJ/MM/AAAA) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.
+Quand nos conditions générales de vente sont publiées, cochez « J'accepte les CGV (version du …) » pour continuer ; le lien juste au-dessus ouvre cette version. La case n'est jamais cochée pour vous.
 
 La deuxième case, « Je demande que le service commence immédiatement », est facultative. Sans elle, vous payez et votre offre commence de la même façon, mais une rétractation vous est remboursée en entier. Avec elle, une rétractation vous rembourse le montant payé, moins la part des jours écoulés depuis le début de la période.
 

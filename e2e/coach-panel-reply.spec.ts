@@ -3,20 +3,21 @@ import { expect, test, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
-// Issue #164: how the Coach Panel shows an AI Coach reply. Driven in the browser
-// through the Coach Panel; the AI Coach is faked inside the server (fake-mistral.mjs),
+// Issue #164: how a conversation shows an AI Coach reply. Driven in the browser through the home page's conversation
+// (ADR-0070, #608: the Coach Panel left the Candidate's pages); the AI Coach is faked inside the server (fake-mistral.mjs),
 // which writes Markdown and says "tu" unless its instructions tell it to say "vous".
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
-const coachPanel = (page: Page) => page.getByRole("complementary", { name: fr.coachPanel.title });
+const coachPanel = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 async function openCoachAndAsk(page: Page, text: string) {
-  await page.getByRole("button", { name: fr.coachPanel.open, exact: true }).click();
+  // Signed in on Mon compte, which is no conversation: the home page is a new one.
+  await page.goto("/");
   await coachPanel(page).getByLabel(fr.coachPanel.messageLabel).fill(text);
   await coachPanel(page).getByRole("button", { name: fr.coachPanel.send }).click();
 }
 
-test.describe("Coach Panel replies", () => {
+test.describe("a conversation's replies", () => {
   test("a Markdown answer shows no raw Markdown, and the Coach says vous", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("coach-markdown"));
     await openCoachAndAsk(page, "E2E_COACH_MARKDOWN Quel est le poste que je vise ?");
@@ -70,13 +71,13 @@ test.describe("Coach Panel replies", () => {
     await expect(mine).toHaveCSS("background-color", accent);
   });
 
-  test("the panel scrolls to the latest answer", async ({ page }) => {
+  test("the page scrolls to the latest answer", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await signInWithMagicLink(page, newAddress("coach-scroll"));
     await openCoachAndAsk(page, "E2E_COACH_LONG Dites-moi tout.");
 
     await expect(coachPanel(page).getByText("FIN DE LA RÉPONSE")).toBeInViewport();
-    // The list itself was scrolled, the start of the answer is above the fold.
+    // The page was scrolled, the start of the answer is above the fold.
     await expect(coachPanel(page).getByText("Paragraphe 1 :")).not.toBeInViewport();
 
     // A second answer arrives: still at the latest message.

@@ -1,3 +1,4 @@
+import { API_VERSION } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { readCandidateSession } from "./candidate-session";
 
@@ -25,6 +26,7 @@ describe("readCandidateSession", () => {
       candidate: { email: "marie.dupont@example.fr", name: "Marie Dupont", interfaceLanguage: "en" },
     });
     expect(app.calls[0]?.url).toBe(`${WEB_ORIGIN}/api/auth/get-session`);
+    expect(app.calls[0]?.init?.headers).toEqual({ "Jobbbox-Api-Version": String(API_VERSION) });
   });
 
   it("is signed out when nobody is signed in on the web app", async () => {
@@ -36,6 +38,13 @@ describe("readCandidateSession", () => {
       throw new TypeError("Failed to fetch");
     };
     expect(await readCandidateSession(WEB_ORIGIN, offline)).toEqual({ signedIn: false });
+  });
+
+  it("is waiting for its second step when the web app says so (ADR-0075): neither signed in nor a Guest", async () => {
+    const pending = async () => Response.json({ error: "second_step_required" }, { status: 401 });
+
+    expect(await readCandidateSession(WEB_ORIGIN, pending)).toEqual({ signedIn: false, secondStepPending: true });
+    expect(await readCandidateSession(WEB_ORIGIN, async () => Response.json({ error: "unauthorized" }, { status: 401 }))).toEqual({ signedIn: false });
   });
 
   it("falls back to French for an Interface Language it does not know", async () => {

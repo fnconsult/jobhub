@@ -19,6 +19,7 @@ import { createEmailIntakeInbound } from "../email-intake/inbound";
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
+import { createNouveautesEmails } from "../nouveautes-email";
 import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -32,6 +33,8 @@ import { createAppointmentReminders } from "../appointment-reminders";
 import { createSignalements } from "../signalements";
 import { createDiscoveryRuns } from "../discovery-runs";
 import { createTargetCompanies } from "../target-companies";
+import { createTwoStepVerification } from "../two-step-verification";
+import { totpAt } from "../two-step-verification/totp";
 import { createCandidateData, type CandidateData } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -268,6 +271,28 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(givenAt).toEqual(new Date("2026-09-01T08:00:00Z"));
   });
 
+  it("the export holds the Candidate's Two-step verification and its factors with their dates, never the app's secret nor a backup code (#663)", async () => {
+    expect((await candidateData.export(candidateId)).twoStepVerification).toEqual({ enabledAt: null, factors: [], backupCodesLeft: 0 });
+    const at = new Date("2026-11-02T09:30:00Z");
+    const twoStep = createTwoStepVerification(database, { secret: "test-secret-test-secret-test-secret-0123", now: () => at });
+    const { secret } = await twoStep.startSetup(candidateId, "marie.dupont@example.fr");
+    const sessionId = (await database.query(`SELECT id FROM session WHERE "userId" = $1 LIMIT 1`, [candidateId])).rows[0].id;
+    const confirmed = await twoStep.confirmSetup({ candidateId, sessionId }, totpAt(secret, at));
+
+    const exported = await candidateData.export(candidateId);
+    expect(exported.twoStepVerification).toEqual({
+      enabledAt: at,
+      factors: [
+        { kind: "authenticator_app", addedAt: at, lastUsedAt: null },
+        { kind: "backup_codes", addedAt: at, lastUsedAt: null },
+      ],
+      backupCodesLeft: 10,
+    });
+    const text = JSON.stringify(exported);
+    expect(text).not.toContain(secret);
+    for (const code of confirmed.ok ? confirmed.backupCodes : []) expect(text).not.toContain(code);
+  });
+
   it("the export holds the Legal Text notices emailed to the Candidate and the privacy policy changes they closed (#547)", async () => {
     expect((await candidateData.export(candidateId)).legalTextNotices).toEqual({ emailed: [], privacyChangesSeen: [] });
     await database.query(`UPDATE candidate SET "createdAt" = '2026-01-15T10:00:00Z' WHERE id = $1`, [candidateId]);
@@ -287,6 +312,19 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       emailed: [{ text: "confidentialite", version: "2026-12-15", sentAt: at }],
       privacyChangesSeen: [{ version: "2026-10-01", seenAt: at }],
     });
+  });
+
+  it("the export holds the Candidate's Nouveautés email choice, its date and the Versions it told them of, never its unsubscribe token (#566)", async () => {
+    expect((await candidateData.export(candidateId)).nouveautesEmail).toEqual({ subscribed: false, subscribedAt: null, sent: [] });
+    const at = new Date("2026-11-02T09:00:00Z");
+    const note = { version: "0.2.0", date: "2026-11-02", title: "Titre", tags: [], image: null, announce: true, intro: "Intro.", changes: [] };
+    const emails = createNouveautesEmails(database, { mailer: { send: async () => {} }, baseURL: BASE_URL, production: true, version: "0.2.0", now: () => at, written: { fr: [{ ...note, locale: "fr" }], en: [] } });
+    await emails.subscribe(candidateId);
+    await emails.sendDue();
+
+    const exported = (await candidateData.export(candidateId)).nouveautesEmail;
+    expect(exported).toEqual({ subscribed: true, subscribedAt: at, sent: [{ version: "0.2.0", sentAt: at }] });
+    expect(JSON.stringify(exported)).not.toMatch(/token/i);
   });
 
   it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {

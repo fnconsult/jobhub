@@ -22,6 +22,7 @@ import {
   Download,
   Ellipsis,
   Eraser,
+  ExternalLink,
   FileQuestionMark,
   FileSearch,
   Flag,
@@ -46,6 +47,7 @@ import {
   Plus,
   RefreshCw,
   Scale,
+  Sparkles,
   Search,
   SearchCheck,
   ServerCrash,
@@ -143,6 +145,8 @@ const LUCIDE = {
   notFound: FileQuestionMark,
   forbidden: Lock,
   serverError: ServerCrash,
+  // The Exit Page: a link that leaves Jobbbox.
+  exit: ExternalLink,
   copy: Copy,
   // The Design System's Notes and Stats (#462).
   info: Info,
@@ -163,6 +167,8 @@ const LUCIDE = {
   // « Mémoire du coach » in the Sidebar and « Aide » in the Top Bar (#602).
   memory: Brain,
   help: CircleHelp,
+  // « Nouveautés » in Mon compte's menu, beside Aide and Légal.
+  nouveautes: Sparkles,
   // « Fiche » in the Top Bar of an object's page (#603).
   fiche: PanelRight,
 } as const satisfies Record<string, LucideIcon>;

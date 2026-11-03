@@ -73,7 +73,7 @@ async function receivedEmail(candidateId: string, outcome: string, senderDomain:
 }
 
 async function expectNoAxeViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  const results = await new AxeBuilder({ page }).include("main").include(".work-pane").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
 }
 
@@ -112,8 +112,12 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   await receivedEmail(candidateId, "guardrail", "piege.example");
   await receivedEmail(paulId, "other", "paul-only.example");
 
-  await page.goto(`/recherches?profil=${daf}`);
-  const received = page.getByRole("region", { name: "Reçues par email" });
+  // « Reçues par email » opens in the Work Pane beside Recherches d'offres' conversation, each active Profile's offers
+  // under its name (#606).
+  await page.goto("/recherches?recues=1");
+  const pane = page.getByRole("complementary", { name: "Reçues par email" });
+  const receivedFor = (profileName: string) => pane.getByRole("region", { name: profileName, exact: true }).getByRole("region", { name: "Reçues par email" });
+  const received = receivedFor("Directrice administrative et financière");
   await expect(received).toBeVisible();
   await expect(received.getByText("2 nouvelles cette semaine")).toBeVisible();
   const listed = received.getByRole("list", { name: /Offres reçues par email pour/ }).getByRole("listitem");
@@ -139,28 +143,25 @@ test("a Candidate with Received offer emails sees each offer under its Profile, 
   await expect(page.getByText("Filtre trop large")).toHaveCount(0);
   await expectNoAxeViolations(page);
 
-  await page.goto(`/recherches?profil=${consultant}`);
-  const theirs = page.getByRole("region", { name: "Reçues par email" });
+  const theirs = receivedFor("Consultante en transformation financière");
   await expect(theirs.getByRole("link", { name: `Consultante transformation ${tag}` })).toBeVisible();
   await expect(theirs.getByText(`DAF groupe industriel ${tag}`)).toHaveCount(0);
 
   // Every Profile at once: each one's offers in its own group.
-  await page.goto("/recherches?profil=tous&vue=couloirs");
-  await expect(page.getByRole("region", { name: "Reçues par email" })).toHaveCount(2);
-  await expectNoAxeViolations(page);
+  await expect(pane.getByRole("region", { name: "Reçues par email" })).toHaveCount(2);
 });
 
 test("past the daily threshold of emails, the Candidate is told their filter is too broad and led to the forwarding wizard (#447)", async ({ page }) => {
   const email = newAddress("received-by-email-broad");
   await signInWithMagicLink(page, email);
   const candidateId = (await (await page.request.get("/api/auth/get-session")).json()).user.id as string;
-  const daf = await profile(page, "Directrice administrative et financière");
+  await profile(page, "Directrice administrative et financière");
   // EMAIL_INTAKE_BROAD_FILTER_THRESHOLD's default: 20 emails a day.
   for (let n = 0; n < 20; n++) await receivedEmail(candidateId, n % 2 ? "other" : "unrecognised_sender", "newsletter.example");
 
-  await page.goto(`/recherches?profil=${daf}`);
+  await page.goto("/recherches?recues=1");
 
-  const notice = page.getByRole("note", { name: "Filtre trop large" });
+  const notice = page.getByRole("complementary", { name: "Reçues par email" }).getByRole("note", { name: "Filtre trop large" });
   await expect(notice).toContainText("20 emails sont arrivés à votre adresse de transfert");
   await expect(notice.getByRole("link", { name: "Revoir le transfert pas à pas" })).toHaveAttribute("href", "/compte/reception-email/assistant");
   await expectNoAxeViolations(page);

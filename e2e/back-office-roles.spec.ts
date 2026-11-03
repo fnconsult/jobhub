@@ -89,6 +89,8 @@ async function expectSections(page: Page, allowed: Section[], tabs: ActivityTab[
     admin.nav.dashboard,
     ...allowed.map((section) => (section === "signalements" ? new RegExp(`^${admin.sections[section]}`) : admin.sections[section])),
     admin.nav.account,
+    // The Back Office's own help, every Administrator's (#551).
+    admin.nav.help,
     // The public Légal (#544).
     admin.nav.publicLegal,
   ]);
@@ -296,6 +298,8 @@ test.describe("Back Office Roles", () => {
     const email = newAddress("escalation");
     const person = await personPage(browser, email);
     await grant(page, email, ["plans-manager", "coach-manager", "support"]);
+    // Given roles while signed in, they set up Two-step verification on their next page (#665): signed in for good.
+    await person.goto("/admin");
 
     // Sent by a super-admin, the same hand-made request grants (it does reach the form's action)...
     const other = newAddress("escalation-control");

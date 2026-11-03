@@ -4,6 +4,7 @@ import type { IntroPage } from "@/admin/page-intro";
 import { getBackOffice, requireBackOffice } from "@/admin/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { ExternalLink } from "@/components/ExternalLink";
 import { PageIntro } from "@/components/PageIntro";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
@@ -88,9 +89,9 @@ export default async function HumanCoachesAdminPage({ searchParams }: { searchPa
                 {
                   header: t("admin.humanCoaches.bookingUrl"),
                   cell: (coach) => (
-                    <a href={coach.bookingUrl} rel="noopener noreferrer" target="_blank">
+                    <ExternalLink href={coach.bookingUrl}>
                       {coach.bookingUrl}
-                    </a>
+                    </ExternalLink>
                   ),
                 },
                 { header: t("admin.humanCoaches.bio"), cell: (coach) => coach.bio || "—" },

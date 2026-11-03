@@ -21,7 +21,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance", "candidate_pages"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -115,9 +115,6 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "MAINTENANCE_MESSAGE_FR", group: "maintenance", type: { kind: "text" }, default: "" },
   { name: "MAINTENANCE_MESSAGE_EN", group: "maintenance", type: { kind: "text" }, default: "" },
   { name: "MAINTENANCE_EXPECTED_MINUTES", group: "maintenance", type: whole(0, 1440), default: "30" },
-  // « Conversation au centre » (#601, ADR-0070): on, the Candidate's home page is a new Free conversation and the Sidebar lists
-  // their Free conversations; off, the Candidate's pages are as before. Off until the conversation-first pages are all built (#608).
-  { name: "CONVERSATION_FIRST", group: "candidate_pages", type: { kind: "boolean" }, default: "false" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));
@@ -128,7 +125,7 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
  * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), maintenance (#542)
- * and « Conversation au centre » (#601).
+ * (« Conversation au centre », #601, was one until it became the only layout, #608).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
 const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
@@ -142,7 +139,6 @@ const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
   "enriched_contacts",
   "extension",
   "maintenance",
-  "candidate_pages",
 ];
 
 /** Whether super-admins set `setting` on Paramètres (and « Rétablir » it). */
@@ -311,7 +307,7 @@ export const ENV_ONLY_SETTINGS = {
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;
 
 /** What took the place of a variable Jobbbox no longer reads. */
-export type RetiredBy = "coaching_playbooks" | "email_intake_mta";
+export type RetiredBy = "coaching_playbooks" | "email_intake_mta" | "conversation_first";
 
 /**
  * The env variables Jobbbox once read and no longer does (#396): Paramètres' Environnement tab lists those an
@@ -323,6 +319,8 @@ export const RETIRED_SETTINGS = {
   // Brevo Inbound Parsing (#442): Email intake now receives the forwarded emails on its own MTA (#580).
   BREVO_INBOUND_SECRET: "email_intake_mta",
   EMAIL_INTAKE_BREVO_IP_RANGES: "email_intake_mta",
+  // « Conversation au centre » (#601, ADR-0070): switched on for good, the conversation is the Candidate's pages (#608).
+  CONVERSATION_FIRST: "conversation_first",
 } as const satisfies Record<string, RetiredBy>;
 
 export type RetiredSettingName = keyof typeof RETIRED_SETTINGS;

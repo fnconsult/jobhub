@@ -1,4 +1,4 @@
-import { CoachConversationPage } from "@/components/CoachPanel";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { QuickActions } from "@/components/QuickActions";
 import { Note } from "@/design/Note";
 import { getServerT } from "@/i18n/server";

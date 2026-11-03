@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { renderedTexts } from "./support/accessibility";
+import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
+import { editCriteriaOf, ficheOf, openSearchCriteria, profileSectionLink } from "./support/conversation";
 import { placeNames, removePlace, typePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
@@ -9,7 +10,9 @@ import { subscribe } from "./support/plan";
 // Issue #7: a Candidate has several Profiles (positionings). They create one
 // from scratch or from a CV, duplicate, rename and archive them, and move
 // between them with the Profile switcher. A Free Candidate holds one active
-// Profile (Plan Quota, issue #22): tests that need more subscribe first.
+// Profile (Plan Quota, issue #22): tests that need more subscribe first. A Profile's
+// page is its conversation (#605, ADR-0070): its Fiche's card holds its status and
+// its Search Criteria (edited in a dialog), its Sections open in the Work Pane.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const origin = process.env.E2E_WEB_ORIGIN!;
 
@@ -49,12 +52,9 @@ const switcherButtonOf = (page: Page) => switcherOf(page).getByRole("button");
 const currentProfile = (name: string) => fr.profileSwitcher.current.replace("{{name}}", name);
 /** The Profile page's title (#137): the Profile's name, edited in place. */
 const profileName = (page: Page) => page.getByLabel(fr.profileActions.name, { exact: true });
-/** The Profile page's Search Criteria (#137), each edited in place. */
-const criteriaOf = (page: Page) => page.getByRole("group", { name: fr.cvReview.searchCriteria });
 const masterCvOf = (page: Page) => page.getByRole("region", { name: fr.profile.masterCv });
-/** Opens a Section of the Profile's page from the list beside it (ADR-0024). */
-const openSection = (page: Page, name: string) =>
-  page.getByRole("navigation", { name: fr.profilePage.sections.sectionsLabel }).getByRole("link", { name, exact: true }).click();
+/** Opens a Section of the Profile's page from its Fiche (ADR-0024, #605), in the Work Pane. */
+const openSection = (page: Page, name: string) => profileSectionLink(page, name).click();
 
 /** Opens the Profile switcher with the mouse and returns its menu. */
 async function openSwitcher(page: Page) {
@@ -65,6 +65,9 @@ async function openSwitcher(page: Page) {
 }
 
 test.describe("several Profiles per Candidate", () => {
+  // Wide enough for the Fiche beside a Section open in the Work Pane (Fiche.tsx).
+  test.use({ viewport: { width: 1600, height: 1000 } });
+
   test("a Candidate duplicates a Profile, renames the copy and switches between them", async ({ page }) => {
     await signInOn(page, "duplicate");
     const firstId = await createProfile(page, "Directrice financière");
@@ -78,7 +81,10 @@ test.describe("several Profiles per Candidate", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Consultante transformation");
     await expect(page).not.toHaveURL(`${origin}/profils/${firstId}`);
-    await expect(criteriaOf(page).getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
+    const criteria = await openSearchCriteria(page);
+    await expect(criteria.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
+    await page.keyboard.press("Escape");
+    await openSection(page, fr.profilePage.sections["cv-de-reference"]);
     await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
     await expect(masterCvOf(page).getByText(/^Version 1 · /)).toBeVisible();
 
@@ -146,7 +152,7 @@ test.describe("several Profiles per Candidate", () => {
     await page.goto(`/profils/${oldId}/gerer`);
 
     await page.getByRole("button", { name: fr.profileActions.archive }).click();
-    await expect(page.getByText(fr.profileActions.archivedNotice)).toBeVisible();
+    await expect(ficheOf(page).getByText(fr.profileActions.archivedNotice)).toBeVisible();
     await openSection(page, fr.profilePage.sections["cv-de-reference"]);
     await expect(masterCvOf(page).getByText("Directrice financière · Groupe Seb", { exact: true })).toBeVisible();
     let switcher = await openSwitcher(page);
@@ -158,7 +164,7 @@ test.describe("several Profiles per Candidate", () => {
     await archived.getByRole("link", { name: "Contrôleuse de gestion" }).click();
     await openSection(page, fr.profilePage.sections.gerer);
     await page.getByRole("button", { name: fr.profileActions.restore }).click();
-    await expect(page.getByText(fr.profileActions.archivedNotice)).toHaveCount(0);
+    await expect(ficheOf(page).getByText(fr.profileActions.archivedNotice)).toHaveCount(0);
     switcher = await openSwitcher(page);
     await expect(switcher.getByRole("menuitem", { name: "Contrôleuse de gestion" })).toBeVisible();
   });
@@ -303,7 +309,7 @@ test.describe("several Profiles per Candidate", () => {
     await page.goto(`/profils/${id}`);
     await openSwitcher(page);
     for (const t of await renderedTexts(page)) {
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
   });
@@ -332,7 +338,7 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     await expect(locationScore().locator(".verdict")).toHaveText(fr.matchScore.statuses.mismatch);
 
     await page.goto(`/profils/${id}`);
-    const criteria = criteriaOf(page);
+    let criteria = await openSearchCriteria(page);
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice financière");
     await criteria.getByLabel(fr.cvReview.targetRole).fill("Directrice administrative et financière");
     await criteria.getByLabel(fr.cvReview.targetRole).press("Tab");
@@ -346,9 +352,11 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     ]);
 
     await page.reload();
+    criteria = await openSearchCriteria(page);
     await expect(criteria.getByLabel(fr.cvReview.targetRole)).toHaveValue("Directrice administrative et financière");
     await expect(placeNames(criteria)).toHaveText(["Paris"]);
     await expect(criteria.getByRole("group", { name: fr.cvReview.contractType }).getByRole("checkbox", { name: fr.cvReview.contractTypes.cdi })).toBeChecked();
+    await page.keyboard.press("Escape");
     // The name is not tied to the target role: the Candidate renames the Profile separately.
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Directrice financière");
     await openSection(page, fr.profilePage.sections["ats-score"]);
@@ -384,15 +392,17 @@ test.describe("editing a Profile's Search Criteria (issue #70)", () => {
     const archived = await patch({ searchCriteria: { targetRole: "DAF", locations: ["Paris"] } });
     expect(archived.status()).toBe(409);
     expect(await archived.json()).toEqual({ error: "archived" });
+    // Archived: its Search Criteria said in words on its Fiche, read-only, nothing to change them with (#605).
     await page.goto(`/profils/${id}`);
-    await expect(criteriaOf(page)).toHaveCount(0);
-    await expect(page.getByRole("term").filter({ hasText: fr.cvReview.targetRole })).toBeVisible();
+    await expect(editCriteriaOf(page)).toHaveCount(0);
+    await expect(page.getByRole("group", { name: fr.cvReview.searchCriteria })).toHaveCount(0);
+    await expect(ficheOf(page).getByRole("definition").filter({ hasText: "Lyon · CDI" })).toBeVisible();
 
     expect((await patch({ archived: false })).status()).toBe(200);
     expect((await patch({ name: "DAF industrie" })).status()).toBe(200);
     await page.goto(`/profils/${id}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("DAF industrie");
-    await expect(placeNames(criteriaOf(page))).toHaveText(["Lyon"]);
+    await expect(placeNames(await openSearchCriteria(page))).toHaveText(["Lyon"]);
   });
 });
 

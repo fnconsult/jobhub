@@ -929,6 +929,10 @@ _Avoid_: SSO provider, identity provider, social login, auth connector
 A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office.
 _Avoid_: 2FA, MFA, double authentication, two-factor
 
+**Passkey**:
+A device credential (Face ID, Touch ID, Windows Hello, a security key) that serves as a second step of Two-step verification, alongside or instead of an authenticator app. It never signs anyone in on its own, and it must belong to the account of the pending session. Removing the last factor (no app, no other passkey; backup codes do not count) turns Two-step verification off with it. French: « clé d'accès ».
+_Avoid_: Security key, WebAuthn credential
+
 **Require SSO for Administrators**:
 A super-admin setting, off by default: the Back Office asks an Administrator signed in by magic link to sign in again with a Sign-in Provider allowed for Administrators. Their Candidate pages are unaffected, and `ADMIN_EMAILS` super-admins are exempt.
 _Avoid_: Enforced SSO, mandatory SSO

@@ -926,8 +926,12 @@ An identity provider, besides the magic link, that people sign in with: Google, 
 _Avoid_: SSO provider, identity provider, social login, auth connector
 
 **Two-step verification**:
-A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office.
+A second step after a magic-link sign-in: a code from an authenticator app, a passkey or a backup code. Off by default for a Candidate, who turns it on and off in Mon compte. Mandatory for Administrators and Human Coaches, who set it up before any page and cannot turn it off. A sign-in through a Sign-in Provider asks no second step. Until the second step is done, the session reaches nothing but that step and sign-out, in the web app and in the extension. Ten single-use backup codes are shown once when it is turned on. Without them, a super-admin resets it from the Back Office (Back Office Audit, section `roles`): the Factors, backup codes and sessions are deleted and the person is emailed. An account that must have it but has no Factor is asked to set one up before anything else (the setup step, distinct from the second step); an `ADMIN_EMAILS` super-admin is not exempt.
 _Avoid_: 2FA, MFA, double authentication, two-factor
+
+**Factor**:
+A way to pass the second step of Two-step verification: an authenticator app, the backup codes, later a passkey. The Administrateurs page shows each Administrator as « Activée » or « Aucun facteur »; the Back Office Assistant is told only how many have none.
+_Avoid_: Method, device
 
 **Require SSO for Administrators**:
 A super-admin setting, off by default: the Back Office asks an Administrator signed in by magic link to sign in again with a Sign-in Provider allowed for Administrators. Their Candidate pages are unaffected, and `ADMIN_EMAILS` super-admins are exempt.

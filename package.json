@@ -22,7 +22,8 @@
     "db:migrate": "npm run db:migrate -w @jobhub/web",
     "wf:record": "npm run --silent wf:record -w @jobhub/web --",
     "stack:up": "docker compose up -d",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "prototype:mobile": "npm --prefix docs/prototypes/mobile-shell install && npm --prefix docs/prototypes/mobile-shell start"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

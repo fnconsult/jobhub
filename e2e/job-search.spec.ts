@@ -329,10 +329,9 @@ test.describe("On-demand AI Coach job search", () => {
     const profileId = await signInWithProfile(page);
     await page.goto(`/profils/${profileId}`);
 
-    // The search sits under the box's one line saying what the coach sees, opened on demand (ADR-0024, #605).
-    const conversation = conversationOf(page);
-    await conversation.locator("summary", { hasText: /^Vous consultez : le profil/ }).click();
-    await conversation.getByRole("button", { name: "Chercher des offres pour ce profil" }).click();
+    // « Chercher des offres » in the Profile's Fiche leads to Recherches d'offres, which starts the search (#606).
+    await ficheOf(page).getByRole("link", { name: "Chercher des offres", exact: true }).click();
+    await startButton(page).click();
 
     await expect(page).toHaveURL(/\/recherches\/[0-9a-f-]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Offres trouvées pour « ${searchCriteria.targetRole} »`);

@@ -42,6 +42,23 @@
     color: var(--color-secondary);
   }
 
+  /* Information (InfoDialog): longer than a question, so it scrolls within the screen. */
+  .ds-dialog--info {
+    top: 10vh;
+    display: flex;
+    flex-direction: column;
+    width: min(36rem, calc(100vw - 2 * var(--space-4)));
+    max-height: 80vh;
+  }
+
+  .ds-dialog--info .ds-dialog__body {
+    overflow-y: auto;
+  }
+
+  .ds-dialog__content > :first-child {
+    margin-top: 0;
+  }
+
   .ds-dialog__footer {
     display: flex;
     flex-wrap: wrap;

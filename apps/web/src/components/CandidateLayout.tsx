@@ -61,6 +61,16 @@ async function freeConversations(candidateId: string): Promise<{ id: string; tit
   }
 }
 
+/** Whether the Candidate closed the conversations' welcome panel for good. Never fails the page: unknown, it shows. */
+async function closedWelcome(candidateId: string): Promise<boolean> {
+  try {
+    return await getCoachConversations().welcomeClosed(candidateId);
+  } catch (error) {
+    console.error("[coach-conversations] could not read whether the welcome panel was closed", error);
+    return false;
+  }
+}
+
 /**
  * What the Sidebar's menus with objects unfold into: Mes candidatures' Applications (#604), Recherches d'offres' Job
  * Searches and the Job Digests (#606), the active Profiles' only. Never fails the page: without them, the menus are plain
@@ -124,7 +134,7 @@ export async function CandidateLayout({
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
-  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus] = await Promise.all([
+  const [profiles, canAddProfile, paymentFailed, jobSearchNotifications, signalementNotifications, humanCoach, isAdministrator, usage, privacy, free, menus, welcomeClosed] = await Promise.all([
     getProfiles().list(candidateId),
     getProfiles().canAddProfile(candidateId),
     getRequestLocale().then((locale) => getPaymentFailedNotice(candidateId, locale)),
@@ -136,6 +146,7 @@ export async function CandidateLayout({
     privacyChange(candidateId),
     freeConversations(candidateId),
     sidebarMenus(candidateId),
+    closedWelcome(candidateId),
   ]);
   return (
     <SidebarLayout
@@ -152,6 +163,7 @@ export async function CandidateLayout({
       freeConversations={free}
       fiche={fiche ?? null}
       menus={menus}
+      welcomeClosed={welcomeClosed}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {privacy ? <PrivacyChangeNotice change={privacy} /> : null}

@@ -165,13 +165,13 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Purpose | Let a Candidate talk with the AI Coach about their job search and find each conversation again: each Coach Conversation is attached to the object or the menu it is about (its Subject: an Application, a Profile, a Job Search, a Job Digest, or one of the Sidebar menus Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), or to the active Profile for a Free conversation (ADR-0070). |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)): the AI Coach is part of the service the Candidate signed up for. |
 | People concerned | Candidates. Third parties only as far as the Candidate names them in what they write, or a Job Offer read from a link names its employer. |
-| Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
+| Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; when the Candidate closed the conversations' welcome panel for good (#652); Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
 | Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory). |
 | Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Candidate's EU AI consent, what carries identity goes to Mistral (#121). |
 | Who can read it | The Candidate, in their conversations. Never Human Coaches (Coach Access covers Profiles and Applications only). Administrators see only each day's cost figures, never a conversation; the text of a call, if needed, is in the AI Message Log. |
-| Storage | The `coach_conversation` and `coach_message` tables in the app's Postgres database (EU). |
+| Storage | The `coach_conversation`, `coach_message` and `coach_welcome_closed` tables in the app's Postgres database (EU). |
 | Retention | 12 months after the conversation's last message (the worker's nightly job `coach-conversations.purge`); deleted at once with the Candidate's account, when they delete it, or with its object if the object itself is deleted. An archived object keeps its conversation. The conversations saved before Subjects existed (only on staging) were deleted when #600 shipped; the Coach Memory was kept. |
-| Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs). |
+| Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs; `coachWelcome.closedAt`, when the welcome panel was closed, or null). The welcome panel's closing is erased with the account. |
 | Security | Every read and change is scoped to the Candidate: another Candidate's conversation, or a Subject that is not theirs, is « not found ». |
 
 ## Préavis des Legal Text Versions (#547)
@@ -285,3 +285,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | 5 minutes in memory; the recorded calls as `external_api_usage`. |
 | Rights | A contributor's login comes from GitHub: removing them from a ticket there removes them from the page within 5 minutes. |
 | Security | A read-only token, encrypted as a Provider Secret; the page checks the Administrator's Back Office Roles, and a refused opening is recorded (#264). |
+
+## Delivery status report (#636)
+
+| | |
+| --- | --- |
+| Purpose | Tell the team each day at 18:00 (Paris) what is being built and where it runs (`scripts/status-report.mjs`, `.github/workflows/status-report.yml`). |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)) in following the delivery of the product. |
+| People concerned | Contributors to the GitHub repository. No Candidate data: the report reads only GitHub issues, pull requests and deployments, and each environment's `/api/health`. |
+| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers. |
+| Source | GitHub's API, read by the workflow with its own token. |
+| Processors | GitHub (Actions runs it; the report is kept in the run's summary and artifact and as a comment on the `status-report` issue); Brevo (EU, ADR-0007, already a processor for emails), which sends it to `dev@jobbbox.ai` with the app's mailer. No new processor. |
+| Who can read it | The repository's collaborators, and the recipients of `dev@jobbbox.ai`. |
+| Storage | GitHub (the artifact is kept 30 days; the issue comments until deleted); the recipients' mailboxes. |
+| Retention | Artifact 30 days. Issue comments and emails until deleted by the team. |
+| Rights | A contributor asks the team to delete the comments or emails naming them. |
+| Security | The workflow's token is read-only but for issues; the Brevo key is an Actions secret. |

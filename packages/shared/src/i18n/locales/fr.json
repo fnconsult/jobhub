@@ -568,10 +568,10 @@
     },
     "security": {
       "title": "Vérification en deux étapes",
-      "explanation": "Une fois activée, chaque connexion par lien magique vous demande aussi un code de votre application d'authentification. Une connexion avec un fournisseur, comme Google, ne le demande pas.",
+      "explanation": "Une fois activée, chaque connexion par lien magique vous demande aussi une deuxième étape : un code de votre application d'authentification ou votre clé d'accès (Face ID, Touch ID, Windows Hello, clé de sécurité). Une connexion avec un fournisseur, comme Google, ne la demande pas.",
       "off": "Désactivée",
       "onSince": "Activée depuis le {{date}}",
-      "enable": "Activer",
+      "enable": "Activer avec une application",
       "scan": "Scannez ce QR code avec votre application d'authentification (Google Authenticator, Microsoft Authenticator, 1Password…).",
       "qrLabel": "QR code à scanner avec votre application d'authentification",
       "keyLabel": "Ou saisissez cette clé dans l'application",
@@ -603,21 +603,45 @@
       "error": "La modification n'a pas pu être enregistrée. Réessayez.",
       "fileName": "jobbbox-codes-de-secours.txt",
       "fileHeader": "Codes de secours Jobbbox. Chaque code ne sert qu'une fois.",
-      "mandatory": "Elle est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas la désactiver. Si vous perdez votre application et vos codes de secours, un super-admin peut la réinitialiser."
+      "mandatory": "Elle est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas la désactiver. Si vous perdez votre application, vos clés d'accès et vos codes de secours, un super-admin peut la réinitialiser."
+    },
+    "passkeys": {
+      "intro": "Utilisez la clé d'accès enregistrée sur votre compte : Face ID, Touch ID, Windows Hello ou votre clé de sécurité.",
+      "use": "Utiliser une clé d'accès",
+      "waiting": "En attente de la clé d'accès…",
+      "invalid": "Cette clé d'accès n'est pas enregistrée sur ce compte. Utilisez une autre clé ou un code.",
+      "cancelled": "La clé d'accès n'a pas été utilisée. Réessayez, ou utilisez un code.",
+      "error": "La clé d'accès n'a pas pu être vérifiée. Réessayez.",
+      "confirmIdentity": "Pour continuer, utilisez votre clé d'accès, ou saisissez un code de secours ou un code de votre application.",
+      "enable": "Activer avec une clé d'accès",
+      "addTitle": "Ajouter une clé d'accès",
+      "addIntro": "Votre appareil va vous demander de créer une clé d'accès pour Jobbbox : Face ID, Touch ID, Windows Hello ou une clé de sécurité. Donnez-lui un nom pour la reconnaître.",
+      "nameLabel": "Nom de la clé d'accès",
+      "nameHint": "Par exemple : iPhone de Marie, clé USB du bureau.",
+      "add": "Créer la clé d'accès",
+      "save": "Enregistrer",
+      "addFailed": "La clé d'accès n'a pas été ajoutée. Elle est peut-être déjà enregistrée sur ce compte, ou la demande a été annulée. Réessayez.",
+      "unnamed": "Clé sans nom",
+      "kind": "clé d'accès",
+      "rename": "Renommer",
+      "renameNamed": "Renommer la clé d'accès « {{name}} »",
+      "remove": "Supprimer",
+      "removeNamed": "Supprimer la clé d'accès « {{name}} »",
+      "lastFactorMandatory": "C'est le dernier moyen de vérification de votre compte. La vérification en deux étapes est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas supprimer cette clé d'accès. Ajoutez d'abord une autre clé d'accès."
     },
     "email": {
       "enabledSubject": "Vérification en deux étapes activée",
       "enabledTitle": "La vérification en deux étapes est activée",
-      "enabledBody": "La vérification en deux étapes a été activée sur votre compte Jobbbox le {{date}}. Chaque connexion par lien magique vous demandera désormais un code.",
+      "enabledBody": "La vérification en deux étapes a été activée sur votre compte Jobbbox le {{date}}. Chaque connexion par lien magique vous demandera désormais une deuxième étape : un code ou votre clé d'accès.",
       "disabledSubject": "Vérification en deux étapes désactivée",
       "disabledTitle": "La vérification en deux étapes est désactivée",
-      "disabledBody": "La vérification en deux étapes a été désactivée sur votre compte Jobbbox le {{date}}. Vos connexions par lien magique ne demandent plus de code.",
+      "disabledBody": "La vérification en deux étapes a été désactivée sur votre compte Jobbbox le {{date}}. Vos connexions par lien magique ne demandent plus de deuxième étape.",
       "notYou": "Si ce n'est pas vous, connectez-vous et vérifiez la rubrique Sécurité de Mon compte.",
       "action": "Ouvrir la rubrique Sécurité",
       "reason": "Vous recevez cet e-mail parce que la sécurité de votre compte Jobbbox a changé.",
       "resetSubject": "Vérification en deux étapes réinitialisée",
       "resetTitle": "Votre vérification en deux étapes a été réinitialisée",
-      "resetBody": "Un super-admin de Jobbbox a réinitialisé la vérification en deux étapes de votre compte le {{date}} : votre application d'authentification et vos codes de secours ne servent plus, et vos sessions ont été fermées. À votre prochaine connexion par lien magique, vous la configurerez de nouveau."
+      "resetBody": "Un super-admin de Jobbbox a réinitialisé la vérification en deux étapes de votre compte le {{date}} : votre application d'authentification, vos clés d'accès et vos codes de secours ne servent plus, et vos sessions ont été fermées. À votre prochaine connexion par lien magique, vous la configurerez de nouveau."
     },
     "setup": {
       "intro": "Votre compte donne accès au back office ou à l'Espace coach : la vérification en deux étapes y est obligatoire. Configurez une application d'authentification pour continuer."

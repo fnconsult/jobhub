@@ -38,10 +38,16 @@ function words(text: string): string[] {
   return normalized ? [...new Set(normalized.split(" "))] : [];
 }
 
-/** The start of a query word that other forms of it share: « relancer » → « relanc », never shorter than 4 letters. */
+/**
+ * The start of a query word that other forms of it share: « relancer » → « relanc », never shorter than MIN_STEM letters.
+ * A 4-letter stem took a common word for the start of an unrelated one: « passé » → « pass », the start of « passkey » (#664).
+ */
 function stem(word: string): string {
-  return word.slice(0, Math.max(4, word.length - 2));
+  return word.slice(0, Math.max(MIN_STEM, word.length - 2));
 }
+
+/** The shortest stem: a word of 5 letters or fewer is matched whole, as the start of an article's word. */
+const MIN_STEM = 5;
 
 /** An article's words, read once: those of its title and synonyms, and those of its body. */
 export interface IndexedArticle {

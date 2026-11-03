@@ -32,6 +32,33 @@ describe("Mon compte, « Sécurité »: Two-step verification", () => {
     expect(screen.getByRole("button", { name: "Régénérer les codes de secours" })).toBeTruthy();
     expect(screen.getByText(/obligatoire pour les administrateurs et les coachs/)).toBeTruthy();
   });
+
+  const WITH_PASSKEYS = (names: string[]) => ({
+    enabledAt: new Date("2026-11-02T09:30:00Z"),
+    factors: [
+      ...names.map((name, index) => ({ kind: "passkey" as const, id: `pk-${index}`, name, device: null, addedAt: new Date("2026-11-02T09:30:00Z"), lastUsedAt: null })),
+      { kind: "backup_codes" as const, addedAt: new Date("2026-11-02T09:30:00Z"), lastUsedAt: null },
+    ],
+    backupCodesLeft: 10,
+  });
+
+  it("has no « Supprimer » on the last factor of an Administrator or a Human Coach, and says why (#664, #665)", () => {
+    renderInFrench(<TwoStepVerificationSettings status={WITH_PASSKEYS(["Téléphone"])} locale="fr" mandatory />);
+
+    expect(screen.queryByRole("button", { name: "Supprimer la clé d'accès « Téléphone »" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Renommer la clé d'accès « Téléphone »" })).toBeTruthy();
+    expect(screen.getByText(/dernier moyen de vérification de votre compte/)).toBeTruthy();
+  });
+
+  it("offers « Supprimer » on a passkey that is not the last factor, or to a Candidate", () => {
+    const { unmount } = renderInFrench(<TwoStepVerificationSettings status={WITH_PASSKEYS(["Téléphone", "Clé USB"])} locale="fr" mandatory />);
+    expect(screen.getAllByRole("button", { name: /^Supprimer la clé d'accès/ })).toHaveLength(2);
+    expect(screen.queryByText(/dernier moyen de vérification/)).toBeNull();
+    unmount();
+
+    renderInFrench(<TwoStepVerificationSettings status={WITH_PASSKEYS(["Téléphone"])} locale="fr" mandatory={false} />);
+    expect(screen.getByRole("button", { name: "Supprimer la clé d'accès « Téléphone »" })).toBeTruthy();
+  });
 });
 
 describe("Setting it up before anything else, on the second step's page (#665)", () => {

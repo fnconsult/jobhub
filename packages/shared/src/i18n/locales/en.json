@@ -568,10 +568,10 @@
     },
     "security": {
       "title": "Two-step verification",
-      "explanation": "Once it is on, every sign-in by magic link also asks for a code from your authenticator app. Signing in with a provider, such as Google, does not ask for it.",
+      "explanation": "Once it is on, every sign-in by magic link also asks for a second step: a code from your authenticator app or your passkey (Face ID, Touch ID, Windows Hello, security key). Signing in with a provider, such as Google, does not ask for it.",
       "off": "Off",
       "onSince": "On since {{date}}",
-      "enable": "Turn on",
+      "enable": "Turn on with an app",
       "scan": "Scan this QR code with your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…).",
       "qrLabel": "QR code to scan with your authenticator app",
       "keyLabel": "Or enter this key in the app",
@@ -603,21 +603,45 @@
       "error": "The change could not be saved. Try again.",
       "fileName": "jobbbox-backup-codes.txt",
       "fileHeader": "Jobbbox backup codes. Each code works only once.",
-      "mandatory": "It is mandatory for administrators and coaches: you cannot turn it off. If you lose your app and your backup codes, a super-admin can reset it."
+      "mandatory": "It is mandatory for administrators and coaches: you cannot turn it off. If you lose your app, your passkeys and your backup codes, a super-admin can reset it."
+    },
+    "passkeys": {
+      "intro": "Use the passkey saved on your account: Face ID, Touch ID, Windows Hello or your security key.",
+      "use": "Use a passkey",
+      "waiting": "Waiting for the passkey…",
+      "invalid": "This passkey is not saved on this account. Use another passkey or a code.",
+      "cancelled": "The passkey was not used. Try again, or use a code.",
+      "error": "The passkey could not be checked. Try again.",
+      "confirmIdentity": "To go on, use your passkey, or enter a backup code or a code from your app.",
+      "enable": "Turn on with a passkey",
+      "addTitle": "Add a passkey",
+      "addIntro": "Your device will ask you to create a passkey for Jobbbox: Face ID, Touch ID, Windows Hello or a security key. Give it a name to recognise it.",
+      "nameLabel": "Passkey name",
+      "nameHint": "For example: Marie's iPhone, office USB key.",
+      "add": "Create the passkey",
+      "save": "Save",
+      "addFailed": "The passkey was not added. It may already be saved on this account, or the request was cancelled. Try again.",
+      "unnamed": "Unnamed passkey",
+      "kind": "passkey",
+      "rename": "Rename",
+      "renameNamed": "Rename the passkey “{{name}}”",
+      "remove": "Remove",
+      "removeNamed": "Remove the passkey “{{name}}”",
+      "lastFactorMandatory": "It is your account's last way to verify. Two-step verification is mandatory for administrators and coaches: you cannot remove this passkey. Add another passkey first."
     },
     "email": {
       "enabledSubject": "Two-step verification turned on",
       "enabledTitle": "Two-step verification is on",
-      "enabledBody": "Two-step verification was turned on for your Jobbbox account on {{date}}. Every sign-in by magic link will now ask for a code.",
+      "enabledBody": "Two-step verification was turned on for your Jobbbox account on {{date}}. Every sign-in by magic link will now ask for a second step: a code or your passkey.",
       "disabledSubject": "Two-step verification turned off",
       "disabledTitle": "Two-step verification is off",
-      "disabledBody": "Two-step verification was turned off for your Jobbbox account on {{date}}. Your sign-ins by magic link no longer ask for a code.",
+      "disabledBody": "Two-step verification was turned off for your Jobbbox account on {{date}}. Your sign-ins by magic link no longer ask for a second step.",
       "notYou": "If this was not you, sign in and check the Security section of My account.",
       "action": "Open the Security section",
       "reason": "You are receiving this email because the security of your Jobbbox account changed.",
       "resetSubject": "Two-step verification reset",
       "resetTitle": "Your two-step verification was reset",
-      "resetBody": "A Jobbbox super-admin reset the two-step verification of your account on {{date}}: your authenticator app and your backup codes no longer work, and your sessions were signed out. The next time you sign in by magic link, you will set it up again."
+      "resetBody": "A Jobbbox super-admin reset the two-step verification of your account on {{date}}: your authenticator app, your passkeys and your backup codes no longer work, and your sessions were signed out. The next time you sign in by magic link, you will set it up again."
     },
     "setup": {
       "intro": "Your account opens the back office or the coach space: two-step verification is mandatory there. Set up an authenticator app to go on."

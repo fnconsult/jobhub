@@ -2,9 +2,9 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { pendingSessionGate, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SETUP_ENDPOINT } from "../two-step-verification/gate";
+import { pendingSessionGate, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT } from "../two-step-verification/gate";
 
-// ADR-0075, #663: a session pending its second step reaches the second step's page, its endpoint and sign-out, nothing
+// ADR-0075, #663, #664, #665: a session pending its second step reaches the second step's page, its endpoints (the setup's included) and sign-out, nothing
 // else. The proxy applies the gate to every request (src/proxy.ts), so a route cannot be forgotten by its own code; this
 // lists every page and route of the app, as Next serves them, and proves what each answers such a session.
 const app = fileURLToPath(new URL("./", import.meta.url));
@@ -38,7 +38,7 @@ describe("a session pending its second step reaches nothing else (ADR-0075)", ()
     expect(PAGES.length).toBeGreaterThan(40);
     expect(PAGES).toContain(SECOND_STEP_PAGE);
     expect(ROUTES.length).toBeGreaterThan(40);
-    expect(ROUTES.map(({ route }) => route)).toEqual(expect.arrayContaining([SECOND_STEP_ENDPOINT, SETUP_ENDPOINT, AUTH]));
+    expect(ROUTES.map(({ route }) => route)).toEqual(expect.arrayContaining([SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT, AUTH]));
     for (const { route, methods } of ROUTES) expect(methods.length, route).toBeGreaterThan(0);
   });
 
@@ -52,7 +52,8 @@ describe("a session pending its second step reaches nothing else (ADR-0075)", ()
     expect(pendingSessionGate(SECOND_STEP_PAGE, "GET")).toBe("open");
   });
 
-  it.each(ROUTES.filter(({ route }) => route !== SECOND_STEP_ENDPOINT && route !== SETUP_ENDPOINT && route !== AUTH))("route $route answers 401", ({ route, methods }) => {
+  const OPEN = [SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT, AUTH];
+  it.each(ROUTES.filter(({ route }) => !OPEN.includes(route)))("route $route answers 401", ({ route, methods }) => {
     for (const method of methods) expect(pendingSessionGate(route, method), method).toBe("refuse");
   });
 
@@ -62,11 +63,12 @@ describe("a session pending its second step reaches nothing else (ADR-0075)", ()
     expect(readFileSync(join(app, "api/two-step-verification/setup/route.ts"), "utf8")).toContain('step !== "setup"');
   });
 
-  it("opens the second step's endpoint and, of Better Auth's endpoints, sign-out and a new sign-in by magic link alone", () => {
+  it("opens the second step's endpoints and, of Better Auth's endpoints, sign-out and a new sign-in by magic link alone", () => {
     expect(pendingSessionGate(SECOND_STEP_ENDPOINT, "POST")).toBe("open");
+    expect(pendingSessionGate(SECOND_STEP_PASSKEY_ENDPOINT, "POST")).toBe("open");
     expect(pendingSessionGate("/api/auth/sign-out", "POST")).toBe("open");
     expect(pendingSessionGate("/api/auth/magic-link/verify?token=t", "GET")).toBe("open");
-    for (const endpoint of ["get-session", "list-sessions", "update-user", "delete-user", "link-social", "list-accounts", "sign-in/magic-link", "sign-in/social", "revoke-sessions"]) {
+    for (const endpoint of ["get-session", "list-sessions", "update-user", "delete-user", "link-social", "list-accounts", "sign-in/magic-link", "sign-in/social", "revoke-sessions", "passkey/generate-register-options", "passkey/verify-registration", "passkey/update-passkey"]) {
       expect(pendingSessionGate(`/api/auth/${endpoint}`, "POST"), endpoint).toBe("refuse");
       expect(pendingSessionGate(`/api/auth/${endpoint}`, "GET"), endpoint).toBe("refuse");
     }

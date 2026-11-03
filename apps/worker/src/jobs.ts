@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import type { FollowUps } from "@jobhub/web/follow-ups";
 
 import { REMINDER_HOUR, REMINDER_TIME_ZONE, type AppointmentReminders } from "@jobhub/web/appointment-reminders";
+import { DELIVERY_STATUS_EMAIL_HOUR, DELIVERY_STATUS_EMAIL_TIME_ZONE, type DeliveryStatusEmails } from "@jobhub/web/delivery-status";
 import type { LegalTextNotices } from "@jobhub/web/legal-text-notices";
 import type { NouveautesEmails } from "@jobhub/web/nouveautes-email";
 import type { QuotaReductions } from "@jobhub/web/quota-reductions";
@@ -78,6 +79,8 @@ export const JOB_DIGEST_RUN = "job-digest.run";
  * their Agenda Items of the next day. Safe to run again: one reminder per item and per date.
  */
 export const APPOINTMENT_REMINDERS = "appointment-reminders.send";
+/** Livraison's daily email, at 18:00 French time, to DELIVERY_STATUS_EMAIL_TO. */
+export const DELIVERY_STATUS_EMAIL = "delivery-status.email";
 
 /**
  * Queue name: email each Candidate the notice of every substantial Legal Text Version not in effect yet (#547), once
@@ -224,6 +227,8 @@ export interface JobsDeps {
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
   /** The Appointment Reminders, sent daily. Satisfied by the web app's Appointment Reminders module. Without them, nothing to send. */
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
+  /** Livraison's daily email. Satisfied by the web app's delivery status module. Without it, nothing is sent. */
+  deliveryStatusEmails?: Pick<DeliveryStatusEmails, "send">;
   /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
   legalTextNotices?: Pick<LegalTextNotices, "sendDue">;
   /** The Nouveautés email (#566), sent from Production only. Satisfied by the web app's Nouveautés email module. Without it, nothing to send. */
@@ -496,6 +501,22 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
               (sent.failed ? `; ${sent.failed} could not be sent, left to the next run` : ""),
           );
         }),
+    },
+
+    // Livraison's daily email, at 18:00 French time: GitHub read once, one email per address of DELIVERY_STATUS_EMAIL_TO
+    // (empty: none). Not retried: a failed day is followed by the next one, and the page is always there.
+    [DELIVERY_STATUS_EMAIL]: {
+      cron: `0 ${DELIVERY_STATUS_EMAIL_HOUR} * * *`,
+      tz: DELIVERY_STATUS_EMAIL_TIME_ZONE,
+      handler: async () => {
+        const outcome = await deps.deliveryStatusEmails?.send();
+        if (!outcome) return;
+        if ("skipped" in outcome) {
+          if (outcome.skipped === "missingToken") log("[delivery-status] DELIVERY_STATUS_EMAIL_TO is set but GITHUB_STATUS_TOKEN is not: no email sent");
+          return;
+        }
+        log(`[delivery-status] ${outcome.sent} email(s) sent` + (outcome.failed ? `; ${outcome.failed} could not be sent` : ""));
+      },
     },
 
     // Every morning, and when the worker starts. Safe to run again: one notice per Candidate and per version.

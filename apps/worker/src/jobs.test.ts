@@ -26,7 +26,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -711,6 +711,30 @@ describe("the Follow-ups job", () => {
     expect(job?.cron).toBe("0 6 * * 1-5");
     await job!.handler({});
     expect(runs).toEqual([now]);
+  });
+});
+
+describe("Livraison's daily email job", () => {
+  it("emails the delivery status every day at 18:00 French time, saying how many; says why when the token is missing; quiet without recipients", async () => {
+    const logs: string[] = [];
+    const send = vi.fn(async () => ({ sent: 2, failed: 0 }) as const);
+    const job = createJobs({ ...otherDeps, database: noDatabase, deliveryStatusEmails: { send }, log: (line) => logs.push(line) })[DELIVERY_STATUS_EMAIL]!;
+
+    expect(job).toMatchObject({ cron: "0 18 * * *", tz: "Europe/Paris" });
+    await job.handler({});
+    send.mockResolvedValueOnce({ sent: 1, failed: 1 } as never);
+    await job.handler({});
+    send.mockResolvedValueOnce({ skipped: "missingToken" } as never);
+    await job.handler({});
+    send.mockResolvedValueOnce({ skipped: "noRecipients" } as never);
+    await job.handler({});
+
+    expect(logs).toEqual([
+      "[delivery-status] 2 email(s) sent",
+      "[delivery-status] 1 email(s) sent; 1 could not be sent",
+      "[delivery-status] DELIVERY_STATUS_EMAIL_TO is set but GITHUB_STATUS_TOKEN is not: no email sent",
+    ]);
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[DELIVERY_STATUS_EMAIL]!.handler({})).resolves.toBeUndefined();
   });
 });
 

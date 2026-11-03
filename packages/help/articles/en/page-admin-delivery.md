@@ -3,7 +3,7 @@ kind: page
 audience: administrator
 topic: plateforme
 title: Delivery
-synonyms: [delivery, deployment, beta, production, staging, tickets, pull request, PR, epic, map, feature, in flight, github, delivery status]
+synonyms: [delivery, daily email, delivery report, deployment, beta, production, staging, tickets, pull request, PR, epic, map, feature, in flight, github, delivery status]
 route: /admin/livraison
 ---
 Delivery (Platform menu) shows what is being built and where it runs, read live from GitHub. Super-admins, Technique and Support read it; nothing can be changed there. GitHub is read again at most every 5 minutes; « Refresh » reads it at once.
@@ -17,3 +17,5 @@ Delivery (Platform menu) shows what is being built and where it runs, read live 
 **What this page cannot vouch for** says what could not be checked: an environment not checked live, a branch deployed, a ticket still open whose PR is merged.
 
 Delivery reads GitHub with a read-only token, GITHUB_STATUS_TOKEN, entered by a super-admin in Settings, « Environment » tab, on the GitHub sheet. Without it, the page shows « GitHub token missing ».
+
+**The daily email** sums up each day at 6 pm (Paris time) the environments, what is in flight and each feature's state, with an « Open Delivery » button. It goes to the addresses of the « Recipients of Delivery's daily email » setting (Settings, « Email » tab), separated by commas; empty, no email is sent. Set it on one environment only, so as not to get it twice.

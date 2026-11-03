@@ -2247,7 +2247,8 @@
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
         "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
-        "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours"
+        "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
+        "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison"
       },
       "aiTasks": {
         "providerDefault": "modèle par défaut",
@@ -3381,6 +3382,15 @@
           "title": "GitHub n'a pas pu être lu",
           "text": "GitHub n'a pas répondu ou a répondu une erreur. Réessayez avec « Actualiser » dans un moment."
         }
+      },
+      "email": {
+        "subject": "Livraison du {{date}}",
+        "title": "Livraison du {{date}}",
+        "intro": "Ce qui est en cours de construction et où cela tourne, lu sur GitHub ({{repository}}) à 18 h.",
+        "deployed": "Commit {{commit}} depuis {{ref}}, déployé le {{at}}",
+        "open": "Ouvrir Livraison",
+        "reason": "Vous recevez cet e-mail car votre adresse est dans « Destinataires de l'e-mail quotidien de Livraison » (Paramètres, onglet E-mail).",
+        "settings": "Changer les destinataires"
       }
     },
     "activity": {

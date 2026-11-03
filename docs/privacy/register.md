@@ -270,34 +270,18 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, the backup codes left; never the secret nor a code); erased with the account. |
 | Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
 
-## Livraison: the delivery status (Back Office)
+## Livraison: the delivery status (Back Office and its daily email)
 
 | | |
 | --- | --- |
-| Purpose | Show the team what is being built and where it runs (Back Office › Livraison), read live from GitHub's issues, pull requests and deployments. |
+| Purpose | Show the team what is being built and where it runs (Back Office › Livraison), read live from GitHub's issues, pull requests and deployments, and email it each day at 18:00 (Paris) to the addresses of the Platform Setting `DELIVERY_STATUS_EMAIL_TO`. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)) in following the delivery of the product. |
-| People concerned | Contributors to the GitHub repository. No Candidate: GitHub receives nothing from Jobbbox, the page only reads it. |
-| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers, shown on the page. |
-| Source | GitHub's API, read by the web app with a read-only token (Provider Secret `GITHUB_STATUS_TOKEN`); each call is recorded in `external_api_usage` (Tool GitHub) without its answer. |
-| Processors | GitHub (outside the EU), which is only read. No new recipient of personal data: `receivesPersonalData` is false. |
-| Who can read it | Super-admins, Technique and Support. |
-| Storage | Nothing stored: the status is kept in the web app's memory for 5 minutes, then read again. |
-| Retention | 5 minutes in memory; the recorded calls as `external_api_usage`. |
-| Rights | A contributor's login comes from GitHub: removing them from a ticket there removes them from the page within 5 minutes. |
-| Security | A read-only token, encrypted as a Provider Secret; the page checks the Administrator's Back Office Roles, and a refused opening is recorded (#264). |
-
-## Delivery status report (#636)
-
-| | |
-| --- | --- |
-| Purpose | Tell the team each day at 18:00 (Paris) what is being built and where it runs (`scripts/status-report.mjs`, `.github/workflows/status-report.yml`). |
-| Legal basis | Legitimate interest (GDPR art. 6(1)(f)) in following the delivery of the product. |
-| People concerned | Contributors to the GitHub repository. No Candidate data: the report reads only GitHub issues, pull requests and deployments, and each environment's `/api/health`. |
-| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers. |
-| Source | GitHub's API, read by the workflow with its own token. |
-| Processors | GitHub (Actions runs it; the report is kept in the run's summary and artifact and as a comment on the `status-report` issue); Brevo (EU, ADR-0007, already a processor for emails), which sends it to `dev@jobbbox.ai` with the app's mailer. No new processor. |
-| Who can read it | The repository's collaborators, and the recipients of `dev@jobbbox.ai`. |
-| Storage | GitHub (the artifact is kept 30 days; the issue comments until deleted); the recipients' mailboxes. |
-| Retention | Artifact 30 days. Issue comments and emails until deleted by the team. |
-| Rights | A contributor asks the team to delete the comments or emails naming them. |
-| Security | The workflow's token is read-only but for issues; the Brevo key is an Actions secret. |
+| People concerned | Contributors to the GitHub repository; the email's recipients. No Candidate: GitHub receives nothing from Jobbbox, the app only reads it. |
+| Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers, shown on the page. The email carries the titles and numbers, not the logins. The recipients' addresses, in a Platform Setting. |
+| Source | GitHub's API, read by the web app and the worker with a read-only token (Provider Secret `GITHUB_STATUS_TOKEN`); each call is recorded in `external_api_usage` (Tool GitHub) without its answer. The recipients are set by an Administrator on Paramètres › E-mail. |
+| Processors | GitHub (outside the EU), which is only read; Brevo (EU, ADR-0007, already a processor for emails), which sends the daily email with the app's mailer. No new recipient of personal data: GitHub's `receivesPersonalData` is false. |
+| Who can read it | Super-admins, Technique and Support on the page; the addresses of `DELIVERY_STATUS_EMAIL_TO` by email. |
+| Storage | Nothing stored: the page's status is kept in the web app's memory for 5 minutes; the email is not kept by Jobbbox. |
+| Retention | 5 minutes in memory; the recorded calls as `external_api_usage`; the emails in the recipients' mailboxes. |
+| Rights | A contributor's login comes from GitHub: removing them from a ticket there removes them from the page within 5 minutes. A recipient is removed by clearing their address from `DELIVERY_STATUS_EMAIL_TO`. |
+| Security | A read-only token, encrypted as a Provider Secret; the page checks the Administrator's Back Office Roles, and a refused opening is recorded (#264). Changing the recipients is a Platform Setting change, written to the Back Office Audit. |

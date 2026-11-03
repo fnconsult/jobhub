@@ -200,6 +200,9 @@ export function isDiscovery(t: { labels: { nodes: { name: string }[] } }): boole
   return labels.includes("wayfinder:task") && !labels.some((l) => l.startsWith("ready-for-"));
 }
 
+/** An open pull request's Stage: in development while a draft, in review once ready. */
+export const openPullRequestStage = (draft: boolean): Stage => (draft ? "implementing" : "inReview");
+
 /** A Feature's headline and Stage counts, from its tickets. */
 export function rollUp(tickets: readonly Ticket[]): Pick<Feature, "headline" | "counts"> {
   const counts = STAGES.map((stage) => ({
@@ -342,7 +345,7 @@ export async function deliveryStatus(github: GitHubReader, options: DeliveryStat
       const checks = open.commits.nodes[0]?.commit.statusCheckRollup?.state?.toLowerCase();
       return {
         ...base,
-        stage: open.isDraft ? "implementing" : "inReview",
+        stage: openPullRequestStage(open.isDraft),
         evidence: {
           pullRequest: { number: open.number, url: open.url, checks },
         },

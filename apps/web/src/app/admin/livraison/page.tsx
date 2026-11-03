@@ -5,7 +5,7 @@ import type { IntroPage } from "@/admin/page-intro";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
-import type { Caveat, EnvironmentStatus, Evidence, Feature, Headline, Stage, Ticket } from "@/delivery-status";
+import { openPullRequestStage, type Caveat, type EnvironmentStatus, type Evidence, type Feature, type Headline, type Stage, type Ticket } from "@/delivery-status";
 import { DELIVERY_STATUS_TTL_MS, deliveryStatusNow } from "@/delivery-status/server";
 import { Note } from "@/design/Note";
 import { Status, type StatusTone } from "@/design/Pill";
@@ -39,9 +39,6 @@ const STAGE_TONE: Record<Stage, StatusTone> = {
   closedNoPr: "neutral",
   dropped: "neutral",
 };
-
-/** An open pull request that closes no tracked ticket: in development while a draft, in review once ready. */
-const OPEN_PR_STAGE: Record<string, Stage> = { true: "implementing", false: "inReview" };
 
 const short = (sha: string) => sha.slice(0, 8);
 
@@ -217,7 +214,7 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
                           <a href={pr.url}>{t("admin.deliveryStatus.pullRequest", { number: pr.number })}</a> {pr.title}
                         </>
                       ),
-                      stage: stage(OPEN_PR_STAGE[String(pr.draft)]),
+                      stage: stage(openPullRequestStage(pr.draft)),
                       under: "—",
                       evidence: pr.closes.length ? t("admin.deliveryStatus.inFlight.closesUntracked", { issues: pr.closes.map((n) => `#${n}`).join(", ") }) : t("admin.deliveryStatus.inFlight.closesNothing"),
                     })),

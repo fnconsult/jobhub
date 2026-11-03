@@ -55,8 +55,8 @@ test.describe("a conversation's single box: help first, the AI Coach for the res
     await expect(panelOf(page)).toContainText(help.greeting);
     // The page's own article is offered, to open beside the conversation (#602).
     await expect(panelOf(page).getByRole("button", { name: fr.conversationFirst.howThisPageWorks })).toBeVisible();
-    await expect(panelOf(page).getByRole("heading", { name: help.oftenAsked })).toBeVisible();
-    await expect(panelOf(page).getByRole("button", { name: QUOTA_FAQ })).toBeVisible();
+    // The home page has its own suggestions: no « Souvent demandé » there.
+    await expect(panelOf(page).getByRole("heading", { name: help.oftenAsked })).toHaveCount(0);
     await expect(panelOf(page).getByRole("button", { name: fr.coachPanel.send, exact: true })).toBeVisible();
 
     const calls = apiCalls(page);

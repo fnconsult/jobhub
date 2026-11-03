@@ -139,7 +139,9 @@ test.describe("the Agenda", () => {
     await page.goto("/agenda");
     await toConversation(page);
     const coachPanel = page.getByRole("region", { name: fr.conversationFirst.label });
-    await expect(coachPanel).toContainText(`Vous consultez : ${fr.coachPanel.inViewAgenda}`);
+    // What it has in view goes with each message; no line under the box says it.
+    await expect(coachPanel).toBeVisible();
+    await expect(coachPanel.locator(".coach-panel-context")).toHaveCount(0);
   });
 
   test("shows only the signed-in Candidate's Interviews", async ({ page, browser }) => {

@@ -130,9 +130,8 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
     <div key={`${f.number}-${f.direct}`}>
       <h3>
         {f.direct ? t("admin.deliveryStatus.directTickets") : <>{issue(f.number, f.url)} {f.title}</>}
-        <span className="section-meta">{headline(f.headline)}</span>
       </h3>
-      {f.counts.length ? <p className="section-meta">{f.counts.map((c) => t("admin.deliveryStatus.count", { count: c.count, stage: t(`admin.deliveryStatus.stages.${c.stage}`) })).join(" · ")}</p> : null}
+      <p className="section-meta">{[headline(f.headline), ...f.counts.map((c) => t("admin.deliveryStatus.count", { count: c.count, stage: t(`admin.deliveryStatus.stages.${c.stage}`) }))].join(" · ")}</p>
       {f.tickets.length ? ticketTable(f.direct ? (epicTitle ?? f.title) : f.title, f.tickets) : null}
     </div>
   );

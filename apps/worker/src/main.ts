@@ -2,6 +2,7 @@ import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, createPostgresUsageLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications } from "@jobhub/web/applications";
 import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
+import { createDeliveryStatusEmails } from "@jobhub/web/delivery-status";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
@@ -160,6 +161,8 @@ const jobs = createJobs({
   }),
   // The email the day before each Agenda Item, in the Candidate's Interface Language; links to the web app.
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL }),
+  // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
+  deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }) }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
   // The Nouveautés email of each announced Release Note up to the Version this build serves, from Production only (#566).

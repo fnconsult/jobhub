@@ -7,6 +7,7 @@ import { BackOfficeLayout } from "@/components/BackOfficeLayout";
 import { PageIntro } from "@/components/PageIntro";
 import { openPullRequestStage, type Caveat, type EnvironmentStatus, type Evidence, type Feature, type Headline, type Stage, type Ticket } from "@/delivery-status";
 import { DELIVERY_STATUS_TTL_MS, deliveryStatusNow } from "@/delivery-status/server";
+import { caveatText, environmentName, headlineText, liveCheckText, shortSha, stageName } from "@/delivery-status/texts";
 import { Note } from "@/design/Note";
 import { Status, type StatusTone } from "@/design/Pill";
 import { Table } from "@/design/Table";
@@ -40,8 +41,6 @@ const STAGE_TONE: Record<Stage, StatusTone> = {
   dropped: "neutral",
 };
 
-const short = (sha: string) => sha.slice(0, 8);
-
 /**
  * Livraison: what is being built and where it runs, read live from GitHub (tickets, pull requests, deployments) and
  * checked against each environment's /api/health. Super-admins, Technique and Support; read-only. GitHub is read again
@@ -57,9 +56,9 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
   const minutes = String(DELIVERY_STATUS_TTL_MS / 60_000);
   const sheet = keyHref("GITHUB_STATUS_TOKEN") ?? routes.adminPlatformSettings;
 
-  const envName = (name: EnvironmentStatus["name"]) => t(`admin.deliveryStatus.environments.names.${name}`);
+  const envName = (name: EnvironmentStatus["name"]) => environmentName(t, name);
   const issue = (number: number, url?: string) => (url ? <a href={url}>#{number}</a> : <>#{number}</>);
-  const stage = (value: Stage) => <Status tone={STAGE_TONE[value]}>{t(`admin.deliveryStatus.stages.${value}`)}</Status>;
+  const stage = (value: Stage) => <Status tone={STAGE_TONE[value]}>{stageName(t, value)}</Status>;
   const evidence = (e: Evidence) => {
     const parts: ReactNode[] = [];
     if (e.pullRequest) {
@@ -67,7 +66,7 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
       if (e.pullRequest.mergedAt && e.pullRequest.mergeCommit)
         parts.push(
           <span key="pr">
-            {pr} {t("admin.deliveryStatus.evidence.merged", { date: day.format(new Date(e.pullRequest.mergedAt)), commit: short(e.pullRequest.mergeCommit) })}
+            {pr} {t("admin.deliveryStatus.evidence.merged", { date: day.format(new Date(e.pullRequest.mergedAt)), commit: shortSha(e.pullRequest.mergeCommit) })}
           </span>,
         );
       else
@@ -84,27 +83,11 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
     if (e.uncompared?.length) parts.push(<span key="uncompared">{t("admin.deliveryStatus.evidence.uncompared", { environments: e.uncompared.map(envName).join(", ") })}</span>);
     return parts.length ? parts.reduce<ReactNode[]>((all, part, index) => (index ? [...all, " · ", part] : [part]), []) : null;
   };
-  const headline = (h: Headline) => (h.kind === "building" ? t("admin.deliveryStatus.headlines.building", { tickets: h.tickets.map((n) => `#${n}`).join(", ") }) : t(`admin.deliveryStatus.headlines.${h.kind}`));
-  const caveat = (c: Caveat) => {
-    switch (c.kind) {
-      case "branchDeployed":
-        return t("admin.deliveryStatus.caveats.branchDeployed", { environment: envName(c.environment), ref: c.ref });
-      case "liveDiffers":
-        return t("admin.deliveryStatus.caveats.liveDiffers", { environment: envName(c.environment), live: short(c.live), deployed: short(c.deployed) });
-      case "liveUnverified":
-        return t("admin.deliveryStatus.caveats.liveUnverified", { environment: envName(c.environment) });
-      case "openButMerged":
-        return t("admin.deliveryStatus.caveats.openButMerged", { issue: `#${c.issue}`, pullRequest: `#${c.pullRequest}` });
-      default:
-        return t(`admin.deliveryStatus.caveats.${c.kind}`);
-    }
-  };
+  const headline = (h: Headline) => headlineText(t, h);
+  const caveat = (c: Caveat) => caveatText(t, c);
   const live = (env: EnvironmentStatus) => {
-    if (env.missing) return t("admin.deliveryStatus.environments.missing");
-    if (!env.deployment || !env.live) return t("admin.deliveryStatus.environments.noDeployment");
-    if (env.live.checked) return env.live.revision === env.deployment.sha ? <Status tone="success">{t("admin.deliveryStatus.environments.liveMatches")}</Status> : <Status tone="danger">{t("admin.deliveryStatus.environments.liveDiffers", { commit: short(env.live.revision) })}</Status>;
-    const reason = env.live.reason;
-    return <Status tone="warn">{reason.kind === "status" ? t("admin.deliveryStatus.environments.unverified.status", { status: reason.status }) : t(`admin.deliveryStatus.environments.unverified.${reason.kind}`)}</Status>;
+    const check = liveCheckText(t, env);
+    return check.tone === "neutral" ? check.text : <Status tone={check.tone}>{check.text}</Status>;
   };
   const ticketTable = (label: string, tickets: readonly Ticket[]) => (
     <Table
@@ -131,7 +114,7 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
       <h3>
         {f.direct ? t("admin.deliveryStatus.directTickets") : <>{issue(f.number, f.url)} {f.title}</>}
       </h3>
-      <p className="section-meta">{[headline(f.headline), ...f.counts.map((c) => t("admin.deliveryStatus.count", { count: c.count, stage: t(`admin.deliveryStatus.stages.${c.stage}`) }))].join(" · ")}</p>
+      <p className="section-meta">{[headline(f.headline), ...f.counts.map((c) => t("admin.deliveryStatus.count", { count: c.count, stage: stageName(t, c.stage) }))].join(" · ")}</p>
       {f.tickets.length ? ticketTable(f.direct ? (epicTitle ?? f.title) : f.title, f.tickets) : null}
     </div>
   );
@@ -165,7 +148,7 @@ export default async function DeliveryStatusPage({ searchParams }: { searchParam
                   { header: t("admin.deliveryStatus.environments.environment"), rowHeader: true, cell: (env) => envName(env.name) },
                   {
                     header: t("admin.deliveryStatus.environments.commit"),
-                    cell: (env) => (env.deployment ? <a href={`https://github.com/${read.status.repository}/commit/${env.deployment.sha}`}><code>{short(env.deployment.sha)}</code></a> : "—"),
+                    cell: (env) => (env.deployment ? <a href={`https://github.com/${read.status.repository}/commit/${env.deployment.sha}`}><code>{shortSha(env.deployment.sha)}</code></a> : "—"),
                   },
                   { header: t("admin.deliveryStatus.environments.when"), cell: (env) => (env.deployment ? at.format(new Date(env.deployment.at)) : "—") },
                   {

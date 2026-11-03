@@ -2271,7 +2271,8 @@
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
-        "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider"
+        "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
+        "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email"
       },
       "aiTasks": {
         "providerDefault": "default model",
@@ -3405,6 +3406,15 @@
           "title": "GitHub could not be read",
           "text": "GitHub did not answer, or answered an error. Try again with « Refresh » in a moment."
         }
+      },
+      "email": {
+        "subject": "Delivery on {{date}}",
+        "title": "Delivery on {{date}}",
+        "intro": "What is being built and where it runs, read from GitHub ({{repository}}) at 6 pm.",
+        "deployed": "Commit {{commit}} from {{ref}}, deployed on {{at}}",
+        "open": "Open Delivery",
+        "reason": "You receive this email because your address is in « Recipients of Delivery's daily email » (Settings, Email tab).",
+        "settings": "Change the recipients"
       }
     },
     "activity": {

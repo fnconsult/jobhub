@@ -3,7 +3,7 @@ kind: page
 audience: administrator
 topic: plateforme
 title: Livraison
-synonyms: [livraison, déploiement, beta, production, staging, tickets, pull request, PR, chantier, carte, suivi, fonctionnalité, en cours, github, statut de livraison]
+synonyms: [livraison, e-mail quotidien, rapport de livraison, déploiement, beta, production, staging, tickets, pull request, PR, chantier, carte, suivi, fonctionnalité, en cours, github, statut de livraison]
 route: /admin/livraison
 ---
 Livraison (menu Plateforme) montre ce qui est en cours de construction et où cela tourne, lu en direct sur GitHub. Les super-admins, Technique et Support la lisent ; rien ne s'y modifie. GitHub est relu au plus toutes les 5 minutes ; « Actualiser » le relit tout de suite.
@@ -17,3 +17,5 @@ Livraison (menu Plateforme) montre ce qui est en cours de construction et où ce
 **Ce que cette page ne garantit pas** dit ce qui n'a pas pu être vérifié : un environnement non vérifié en direct, une branche déployée, un ticket encore ouvert dont la PR est fusionnée.
 
 Livraison lit GitHub avec un jeton en lecture seule, GITHUB_STATUS_TOKEN, saisi par un super-admin dans Paramètres, onglet « Environnement », sur la fiche GitHub. Sans lui, la page affiche « Jeton GitHub manquant ».
+
+**L'e-mail quotidien** reprend chaque jour à 18 h (heure de Paris) les environnements, ce qui est en cours et l'état de chaque fonctionnalité, avec un bouton « Ouvrir Livraison ». Il part vers les adresses du réglage « Destinataires de l'e-mail quotidien de Livraison » (Paramètres, onglet « E-mail »), séparées par des virgules ; vide, aucun e-mail ne part. Renseignez-le sur un seul environnement, pour ne pas le recevoir en double.

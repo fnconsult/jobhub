@@ -61,6 +61,17 @@ jobs:
       - run: npm run test:e2e
         env:
           E2E_SCREENSHOTS: "0"
+      # A failed run's traces, and what its web servers printed (#673): the suite's (its log is the Candidates' mailbox),
+      # the ones specs start for themselves (e2e/support/server-log.ts) and `next dev`'s own log.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-results
+          path: |
+            test-results/
+            /tmp/jobhub-e2e-*/server.log
+            apps/web/.next/dev/logs/
+          retention-days: 14
 
   # The screenshot baselines (#463, docs/agents/screenshot-baselines.md): every spec with a toHaveScreenshot, in the
   # Playwright image of the version the repo pins, as scripts/update-screenshot-baselines.sh draws them. A screen that

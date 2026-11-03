@@ -3,6 +3,7 @@ import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "nod
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import pg from "pg";
 import { derivedPort } from "./support/ports";
+import { serverLog } from "./support/server-log";
 
 // Issue #33: the README has developers `cp .env.example .env` at the repo root,
 // then run `npm run db:migrate` and `npm run dev`. The web app (`next dev`,
@@ -65,9 +66,9 @@ async function startWebApp(command: string[], port: number, env: NodeJS.ProcessE
   );
   if (taken) throw new Error(`port ${port} is already in use: set E2E_WEB_PORT to move the suite's ports`);
   let output = "";
+  const log = serverLog(`root-env-${command.join("-").replace(/[^\w-]/g, "")}`, port);
   const child = spawn(command[0]!, [...command.slice(1)], { env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  child.stdout!.on("data", (chunk) => (output += chunk));
-  child.stderr!.on("data", (chunk) => (output += chunk));
+  for (const stream of [child.stdout!, child.stderr!]) stream.on("data", (chunk) => ((output += chunk), log.write(chunk)));
   const server = { process: child, output: () => output, origin: `http://localhost:${port}` };
   servers.push(server);
   await expect
@@ -80,7 +81,7 @@ async function startWebApp(command: string[], port: number, env: NodeJS.ProcessE
           return 0;
         }
       },
-      { timeout: 90_000, message: "web app answers /api/health" },
+      { timeout: 90_000, message: `web app answers /api/health (its output: ${log.file})` },
     )
     .toBe(200);
   return server;

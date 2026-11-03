@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, type Page } from "@playwright/test";
 import { derivedPort } from "./ports";
+import { serverLog } from "./server-log";
 
 // Issue #103: the Plans comparison on /abonnement, checked on second servers of the app
 // (e2e/plan-prices.spec.ts, e2e/plan-prices-dev.spec.ts) on the suite's database; the
@@ -24,9 +25,9 @@ export async function startServer(offset: number, stripe: Record<string, string 
     ...stripe,
   });
   let output = "";
+  const log = serverLog(`next-${command}`, port);
   const child: ChildProcess = spawn("npx", ["next", command, "apps/web", "-p", String(port)], { env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  child.stdout!.on("data", (chunk) => (output += chunk));
-  child.stderr!.on("data", (chunk) => (output += chunk));
+  for (const stream of [child.stdout!, child.stderr!]) stream.on("data", (chunk) => ((output += chunk), log.write(chunk)));
   const stop = () => {
     try {
       process.kill(-child.pid!, "SIGTERM");
@@ -41,7 +42,7 @@ export async function startServer(offset: number, stripe: Record<string, string 
           if (child.exitCode !== null) throw new Error(`web app exited (${child.exitCode}):\n${output}`);
           return fetch(`${origin}/api/health`).then((r) => r.status, () => 0);
         },
-        { timeout: 90_000, message: "web app answers /api/health" },
+        { timeout: 90_000, message: `web app answers /api/health (its output: ${log.file})` },
       )
       .toBe(200);
   } catch (error) {

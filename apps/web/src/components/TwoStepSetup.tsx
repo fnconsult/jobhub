@@ -7,6 +7,7 @@ import { Card } from "@/design/Card";
 import { Field, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { QrCode } from "./QrCode";
+import "./TwoStepSetup.css";
 
 const TITLE_ID = "two-step-verification-title";
 

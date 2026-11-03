@@ -2379,8 +2379,12 @@
         "email": "Adresse e-mail du compte",
         "confirm": "Je confirme : les facteurs, les codes de secours et les sessions de ce compte seront supprimés.",
         "submit": "Réinitialiser la vérification en deux étapes",
-        "done": "La vérification en deux étapes de {{email}} est réinitialisée.",
-        "refused": "Cochez la confirmation pour réinitialiser la vérification en deux étapes."
+        "done": "La vérification en deux étapes du compte est réinitialisée : ses facteurs et ses sessions sont supprimés, et un e-mail l'en informe.",
+        "refused": "Cochez la confirmation pour réinitialiser la vérification en deux étapes.",
+        "errors": {
+          "unknown_account": "Aucun compte Jobbbox n'utilise cette adresse e-mail.",
+          "forbidden": "Seuls les super-admins réinitialisent la vérification en deux étapes."
+        }
       }
     },
     "journal": {

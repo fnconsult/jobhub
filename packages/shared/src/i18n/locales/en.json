@@ -2379,8 +2379,12 @@
         "email": "Email address of the account",
         "confirm": "I confirm: this account's factors, backup codes and sessions will be deleted.",
         "submit": "Reset two-step verification",
-        "done": "{{email}}'s two-step verification is reset.",
-        "refused": "Tick the confirmation to reset two-step verification."
+        "done": "The account's two-step verification is reset: its factors and its sessions are deleted, and an email tells them.",
+        "refused": "Tick the confirmation to reset two-step verification.",
+        "errors": {
+          "unknown_account": "No Jobbbox account uses this email address.",
+          "forbidden": "Only super-admins reset two-step verification."
+        }
       }
     },
     "journal": {

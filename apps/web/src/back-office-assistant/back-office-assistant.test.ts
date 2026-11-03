@@ -106,8 +106,8 @@ function backOfficeData() {
     async administrators() {
       reads.push("administrators");
       return [
-        { candidateId: "a1", email: "claire@jobbbox.fr", roles: ["super-admin"], permanent: true },
-        { candidateId: "a2", email: "paul@jobbbox.fr", roles: ["coach-manager", "support"], permanent: false },
+        { candidateId: "a1", email: "claire@jobbbox.fr", roles: ["super-admin"], permanent: true, twoStepVerification: true },
+        { candidateId: "a2", email: "paul@jobbbox.fr", roles: ["coach-manager", "support"], permanent: false, twoStepVerification: false },
       ];
     },
     async emailIntakeDomain() {
@@ -342,6 +342,16 @@ describe("Back Office Assistant", () => {
       if (saved === undefined) delete process.env.MISTRAL_API_KEY;
       else process.env.MISTRAL_API_KEY = saved;
     }
+  });
+
+  it("tells a super-admin how many Administrators have no factor of Two-step verification, never who (#665)", async () => {
+    const { assistant, administrator } = assistantFor(["super-admin"]);
+
+    await assistant.reply(administrator, asked("Qui n'a pas la vérification en deux étapes ?"));
+
+    expect(prompt()).toContain("1 Administrateur(s) sans aucun facteur de vérification en deux étapes");
+    expect(prompt()).toContain("ne peut arriver qu'à ceux qui se connectent par un fournisseur de connexion");
+    expect(prompt()).not.toMatch(/@/);
   });
 
   it("routes per #121: what an Administrator with EU AI consent types carrying identity goes to Mistral, on their own account", async () => {

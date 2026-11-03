@@ -4,7 +4,7 @@ import { getAuth, getMailer } from "@/auth/server";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { sharedPool } from "@/database/pool";
 import { routes } from "@/routes";
-import { twoStepChangeEmail } from "./email";
+import { twoStepChangeEmail, type TwoStepChange } from "./email";
 import { createTwoStepVerification, type TwoStepVerification } from "./index";
 import { mustHaveTwoStepVerification } from "./obligation";
 
@@ -22,10 +22,10 @@ export function mustHaveIt(candidateId: string): Promise<boolean> {
 }
 
 /**
- * Emails the account that its Two-step verification was turned on or off, in its Interface Language. Never fails the
- * change: an email that could not go is logged.
+ * Emails the account that its Two-step verification was turned on or off, or reset by a super-admin, in its Interface
+ * Language. Never fails the change: an email that could not go is logged.
  */
-export async function tellTwoStepChange(candidate: { email: string; interfaceLanguage?: unknown }, change: "enabled" | "disabled"): Promise<void> {
+export async function tellTwoStepChange(candidate: { email: string; interfaceLanguage?: unknown }, change: TwoStepChange): Promise<void> {
   try {
     const securityUrl = new URL(routes.accountSecurity, String(getAuth().options.baseURL)).toString();
     const language = isSupportedLocale(candidate.interfaceLanguage) ? candidate.interfaceLanguage : DEFAULT_LOCALE;

@@ -88,3 +88,34 @@ export function ConfirmDialog({
     </RadixDialog.Root>
   );
 }
+
+/**
+ * Information on demand (the Coach IA badge's, the conversations' welcome): a dialog (Radix Dialog, ADR-0018) named by its
+ * `title`, its content, and « Fermer », which takes the focus. Escape or « Fermer » close it; the focus comes back to its
+ * trigger. Nothing to confirm: a confirmation is a ConfirmDialog.
+ */
+export function InfoDialog({ trigger, open, onOpenChange, title, children }: { trigger: ReactElement; open?: boolean; onOpenChange?: (open: boolean) => void; title: ReactNode; children: ReactNode }) {
+  const { t } = useTranslation();
+  const hydrated = useHydrated();
+  return (
+    <RadixDialog.Root {...(open === undefined ? {} : { open })} {...(onOpenChange ? { onOpenChange } : {})}>
+      <RadixDialog.Trigger asChild disabled={!hydrated}>
+        {trigger}
+      </RadixDialog.Trigger>
+      <OverlayPortal>
+        <Scrim />
+        <RadixDialog.Content className="ds-dialog ds-dialog--info" aria-describedby={undefined}>
+          <div className="ds-dialog__body">
+            <RadixDialog.Title className="ds-dialog__title">{title}</RadixDialog.Title>
+            <div className="ds-dialog__content">{children}</div>
+          </div>
+          <footer className="ds-dialog__footer">
+            <RadixDialog.Close asChild>
+              <Button>{t("coachPanel.close")}</Button>
+            </RadixDialog.Close>
+          </footer>
+        </RadixDialog.Content>
+      </OverlayPortal>
+    </RadixDialog.Root>
+  );
+}

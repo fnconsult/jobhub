@@ -247,14 +247,13 @@ test.describe("the AI Coach in the pages' conversations", () => {
     // The home page's new conversation: no Profile in view.
     await page.goto("/");
     await expect(coachPanel(page)).toContainText(fr.coachPanel.aiDisclosure);
-    // Nothing in view, no line under the box.
+    // No line under the box saying what the coach sees: the page says it.
     await expect(coachPanel(page).locator(".coach-panel-context")).toHaveCount(0);
     await askCoach(page, "Bonjour");
     await expect(coachPanel(page)).toContainText("Je ne vois aucun profil. (1 message)");
 
     // The Profile's page is the Profile's own conversation, which the AI Coach sees.
     await page.goto(`/profils/${profileId}`);
-    await expect(coachPanel(page)).toContainText("Vous consultez : le profil « Directrice financière »");
     await expect(coachPanel(page)).not.toContainText("Je ne vois aucun profil.");
     await askCoach(page, "Que pensez-vous de mon CV ?");
     await expect(coachPanel(page)).toContainText("Je vois votre profil « Directrice financière ». (1 message)");

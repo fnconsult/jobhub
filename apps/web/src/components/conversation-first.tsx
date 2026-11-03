@@ -59,6 +59,8 @@ interface ConversationFirst {
   setPage: (page: PageConversation | null) => void;
   /** What the Sidebar's menus with objects unfold into. */
   menus: SidebarMenus;
+  /** The conversations' welcome panel (the AI disclosure and the page's introduction): closed for good once its ✕ is used. */
+  welcome: { closed: boolean; close: () => void };
 }
 
 const Context = createContext<ConversationFirst | null>(null);
@@ -71,10 +73,13 @@ const Context = createContext<ConversationFirst | null>(null);
 export function ConversationFirstProvider({
   conversations: initial,
   menus = NO_MENUS,
+  welcomeClosed = false,
   children,
 }: {
   conversations: readonly FreeConversation[];
   menus?: SidebarMenus;
+  /** Whether the Candidate closed the welcome panel, as their account says. */
+  welcomeClosed?: boolean;
   children: ReactNode;
 }) {
   const [conversations, setConversations] = useState<readonly FreeConversation[]>(initial);
@@ -86,11 +91,19 @@ export function ConversationFirstProvider({
   }, []);
   const removed = useCallback((conversationId: string) => setConversations((list) => list.filter((each) => each.id !== conversationId)), []);
   const setPage = useCallback((next: PageConversation | null) => setPageState(next), []);
-  const value = useMemo(() => ({ conversations, saved, removed, page, setPage, menus }), [conversations, saved, removed, page, setPage, menus]);
+  const [closed, setClosed] = useState(welcomeClosed);
+  // Closed at once; the account remembers it (a failed request only means it shows again on the next page load).
+  const close = useCallback(() => {
+    setClosed(true);
+    void fetch(WELCOME, { method: "DELETE" }).catch(() => undefined);
+  }, []);
+  const welcome = useMemo(() => ({ closed, close }), [closed, close]);
+  const value = useMemo(() => ({ conversations, saved, removed, page, setPage, menus, welcome }), [conversations, saved, removed, page, setPage, menus, welcome]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 const NO_MENUS: SidebarMenus = {};
+const WELCOME = "/api/coach/welcome";
 
 /** The Candidate's pages' conversations (ADR-0070); null outside their layout. */
 export function useConversationFirst(): ConversationFirst | null {

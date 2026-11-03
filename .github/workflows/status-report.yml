@@ -1,0 +1,90 @@
+# Daily delivery status report (scripts/status-report.mjs), at 18:00 Paris time.
+#
+# GitHub's cron is UTC only, so both 16:00 and 17:00 UTC are scheduled and the run whose hour
+# is not 18:00 in Europe/Paris skips itself: 16:00 UTC in summer (CEST), 17:00 UTC in winter (CET).
+# Scheduled runs can start a few minutes late when GitHub is busy.
+#
+# The report is posted as a comment on the issue labelled `status-report` (created on the first
+# run), so whoever watches that issue gets it by notification and email. The run's summary and
+# artifact hold it too. Run it by hand: `gh workflow run status-report.yml`.
+name: Status report
+
+on:
+  schedule:
+    - cron: "0 16 * * *"
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: status-report
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  deployments: read
+  actions: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Is it 18:00 in Paris?
+        id: when
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          offset=$(TZ=Europe/Paris date +%z)   # +0200 in summer, +0100 in winter
+          case "${{ github.event.schedule }}|$offset" in
+            "0 16 * * *|+0200"|"0 17 * * *|+0100") echo "run=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Not 18:00 in Paris for this schedule ($offset), skipping."; echo "run=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - if: steps.when.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - if: steps.when.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the report
+        if: steps.when.outputs.run == 'true'
+        run: |
+          node scripts/status-report.mjs --out status-report.md
+          cat status-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - if: steps.when.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: status-report
+          path: status-report.md
+          retention-days: 30
+
+      - name: Post it on the status-report issue
+        if: steps.when.outputs.run == 'true'
+        run: |
+          gh label create status-report --color 0E8A16 \
+            --description "Daily delivery status report (status-report workflow)" 2>/dev/null || true
+          issue=$(gh issue list --label status-report --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -z "$issue" ]; then
+            url=$(gh issue create --label status-report --title "Rapport de livraison quotidien" --body \
+              "Le workflow \`status-report\` publie ici chaque jour à 18:00 (heure de Paris) le rapport de \`scripts/status-report.mjs\`. Suivez cette issue pour le recevoir par notification et e-mail. Ne pas fermer : le workflow en recréerait une.")
+            issue=${url##*/}
+          fi
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            echo "## Rapport du $(TZ=Europe/Paris date '+%Y-%m-%d %H:%M') (Paris)"
+            echo
+            echo "[Exécution]($run_url)"
+            echo
+            cat status-report.md
+          } > comment.md
+          # A comment holds at most 65,536 characters; a longer report stays in the run's summary.
+          if [ "$(wc -c < comment.md)" -gt 65000 ]; then
+            printf '## Rapport du %s (Paris)\n\nTrop long pour un commentaire : voir le résumé de [l’exécution](%s).\n' \
+              "$(TZ=Europe/Paris date '+%Y-%m-%d %H:%M')" "$run_url" > comment.md
+          fi
+          gh issue comment "$issue" --body-file comment.md

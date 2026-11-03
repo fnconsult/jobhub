@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { expect, test } from "@playwright/test";
+import { stopGroup } from "./support/process-group";
 
 // The two local dev servers, started through their public commands from the README:
 // `npm run dev` (the web app, Next.js) and `npm run dev -w @jobhub/extension` (WXT).
@@ -64,45 +65,12 @@ function start(args: string[], env: NodeJS.ProcessEnv): DevServer {
   return { proc, output: () => stripVTControlCharacters(out), closed: () => closed };
 }
 
-/** Whether any process of the group `pgid` is still alive. */
-function groupAlive(pgid: number): boolean {
-  try {
-    process.kill(-pgid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function groupGone(pgid: number, ms: number): Promise<boolean> {
-  const deadline = Date.now() + ms;
-  while (groupAlive(pgid)) {
-    if (Date.now() > deadline) return false;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  return true;
-}
-
 /**
- * Stops the whole group and waits until none of it is left. npm exits on SIGTERM at once, but the server underneath
- * may not: Vite's dev server closes itself first, and holds its port until it has. The next test must not find it there.
+ * Stops the whole group and waits until none of it is left (e2e/support/process-group.ts). npm exits on SIGTERM at
+ * once, but the server underneath may not: Vite's dev server closes itself first, and holds its port until it has;
+ * `next dev` writes its cache. The next test must not find either there.
  */
-async function stop(server: DevServer | undefined) {
-  const pgid = server?.proc.pid;
-  if (!pgid || !groupAlive(pgid)) return;
-  try {
-    process.kill(-pgid, "SIGTERM");
-  } catch {
-    return;
-  }
-  if (await groupGone(pgid, 10_000)) return;
-  try {
-    process.kill(-pgid, "SIGKILL");
-  } catch {
-    return;
-  }
-  await groupGone(pgid, 10_000);
-}
+const stop = (server: DevServer | undefined) => stopGroup(server?.proc.pid);
 
 async function waitFor(server: DevServer, pattern: RegExp, what: string): Promise<RegExpMatchArray> {
   const deadline = Date.now() + 90_000;

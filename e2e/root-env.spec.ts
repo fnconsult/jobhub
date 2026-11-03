@@ -3,6 +3,7 @@ import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "nod
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import pg from "pg";
 import { derivedPort } from "./support/ports";
+import { stopGroup } from "./support/process-group";
 import { serverLog } from "./support/server-log";
 
 // Issue #33: the README has developers `cp .env.example .env` at the repo root,
@@ -87,13 +88,8 @@ async function startWebApp(command: string[], port: number, env: NodeJS.ProcessE
   return server;
 }
 
-function stop(server: Server) {
-  try {
-    process.kill(-server.process.pid!, "SIGTERM");
-  } catch {
-    // already gone
-  }
-}
+/** Once it is gone: `next dev` writes its cache as it stops, and the next test's server reads it (#673). */
+const stop = (server: Server) => stopGroup(server.process.pid);
 
 /** Asks the web app for a sign-in link, the request the /connexion page makes. */
 function requestSignInLink(request: APIRequestContext, server: Server, email: string) {
@@ -123,12 +119,12 @@ test.describe("repo-root .env (issue #33)", () => {
     await admin(`CREATE DATABASE ${dbName}`);
   });
 
-  test.afterEach(() => {
-    for (const server of servers.splice(0)) stop(server);
+  test.afterEach(async () => {
+    for (const server of servers.splice(0)) await stop(server);
   });
 
   test.afterAll(async () => {
-    for (const server of servers.splice(0)) stop(server);
+    for (const server of servers.splice(0)) await stop(server);
     rmSync(rootEnv, { force: true });
     if (existsSync(backup)) renameSync(backup, rootEnv);
     await admin(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);

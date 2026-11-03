@@ -56,7 +56,7 @@ test.describe("The privacy policy's change, shown once (#547)", () => {
     server = await startServer(547, {}, "dev");
   });
   test.afterAll(async () => {
-    server?.stop();
+    await server?.stop();
     clear();
     writeFileSync(generated, savedGenerated);
     await db.end();

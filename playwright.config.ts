@@ -45,6 +45,10 @@ process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
 // A UTF-8 character type, whatever the shell has: under none, Chromium names a download « download » when its name is
 // not ASCII, « CV-Zoë-Łukasz.pdf » (e2e/support/utf8-locale.ts, e2e/export.spec.ts).
 Object.assign(process.env, utf8CharacterType());
+// `next dev` SIGKILLs its server 100 ms after a SIGTERM by default, often while it writes Turbopack's cache: the next
+// `next dev` on that torn cache serves 404 for routes it has (#673). Every `next dev` a spec starts gets the time to
+// write it, and specs wait for it to be gone before starting the next one (e2e/support/process-group.ts).
+process.env.NEXT_EXIT_TIMEOUT_MS ??= "60000";
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");

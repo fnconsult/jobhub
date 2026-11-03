@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { expect, type Page } from "@playwright/test";
 import { derivedPort } from "./ports";
+import { stopGroup } from "./process-group";
 import { serverLog } from "./server-log";
 
 // Issue #103: the Plans comparison on /abonnement, checked on second servers of the app
@@ -9,7 +10,8 @@ import { serverLog } from "./server-log";
 // Candidate's session carries over (same AUTH_SECRET).
 export const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
-export type PlanPricesServer = { origin: string; stop: () => void; output: () => string };
+/** `stop` resolves once the server is gone (e2e/support/process-group.ts): await it before starting the next one. */
+export type PlanPricesServer = { origin: string; stop: () => Promise<void>; output: () => string };
 
 /** The web app on E2E_WEB_PORT + `offset`, through `next start` (the build) or `next dev`, with only `stripe`'s Stripe variables. */
 export async function startServer(offset: number, stripe: Record<string, string | undefined>, command: "start" | "dev"): Promise<PlanPricesServer> {
@@ -28,13 +30,7 @@ export async function startServer(offset: number, stripe: Record<string, string 
   const log = serverLog(`next-${command}`, port);
   const child: ChildProcess = spawn("npx", ["next", command, "apps/web", "-p", String(port)], { env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
   for (const stream of [child.stdout!, child.stderr!]) stream.on("data", (chunk) => ((output += chunk), log.write(chunk)));
-  const stop = () => {
-    try {
-      process.kill(-child.pid!, "SIGTERM");
-    } catch {
-      // already gone
-    }
-  };
+  const stop = () => stopGroup(child.pid);
   try {
     await expect
       .poll(
@@ -46,7 +42,7 @@ export async function startServer(offset: number, stripe: Record<string, string 
       )
       .toBe(200);
   } catch (error) {
-    stop();
+    await stop();
     throw error;
   }
   return { origin, stop, output: () => output };

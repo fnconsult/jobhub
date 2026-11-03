@@ -160,6 +160,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "target_company", // issue #406: a Profile's Target Companies
         "target_company_refresh", // issue #406: what a Profile's La Bonne Boite companies were last fetched for
+        "two_step_verification", // issue #663: a Candidate's Two-step verification, its key encrypted, its backup codes hashed
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",
         "web_search_alert", // issue #403: the month's web search alert, once sent; no Candidate
@@ -308,6 +309,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "target_company", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "target_company", from_column: "profile_id", to_table: "profile" },
         { from_table: "target_company_refresh", from_column: "profile_id", to_table: "profile" },
+        // Two-step verification (issue #663) goes with its Candidate.
+        { from_table: "two_step_verification", from_column: "candidate_id", to_table: "candidate" },
         // A Withdrawal (issue #511) goes with its Candidate's account, and with the Coaching Session it withdrew from; its refunds with it.
         { from_table: "withdrawal", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "withdrawal", from_column: "coaching_session_id", to_table: "coaching_session" },

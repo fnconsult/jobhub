@@ -28,6 +28,8 @@ async function turnOn(page: Page) {
   await section.getByLabel(fr.twoStep.security.confirmLabel).fill(totpAt(secret, new Date()));
   await section.getByRole("button", { name: fr.twoStep.security.confirm }).click();
   const codesCard = page.getByRole("region", { name: fr.twoStep.security.codesTitle });
+  // The card shows once the server confirmed the code; allInnerTexts does not wait for it.
+  await expect(codesCard.locator("[data-backup-codes] li")).toHaveCount(10);
   const codes = await codesCard.locator("[data-backup-codes] li").allInnerTexts();
   await codesCard.getByRole("button", { name: fr.twoStep.security.done }).click();
   await expect(section.getByRole("status")).toHaveText(/^Activée depuis le /);
@@ -72,6 +74,8 @@ test.describe("Two-step verification", () => {
 
     // The 10 backup codes, shown once.
     const codesCard = page.getByRole("region", { name: fr.twoStep.security.codesTitle });
+    // The card shows once the server confirmed the code; allInnerTexts does not wait for it.
+    await expect(codesCard.locator("[data-backup-codes] li")).toHaveCount(10);
     const codes = await codesCard.locator("[data-backup-codes] li").allInnerTexts();
     expect(codes).toHaveLength(10);
     await expect(codesCard.getByRole("button", { name: fr.twoStep.security.download })).toBeVisible();

@@ -2381,11 +2381,16 @@ blockquote.signalement-text {
   background: var(--color-hover);
 }
 
+/* No margin, padding or border: the AI Activity announcer, a <p> after the sidebar layout, otherwise lengthened the
+   page past it, and at the end of a scroll the sidebar and the Top Bar rose with it. */
 .visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
   overflow: hidden;
+  border: 0;
   white-space: nowrap;
   clip-path: inset(50%);
 }

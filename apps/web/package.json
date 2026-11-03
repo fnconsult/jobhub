@@ -20,6 +20,8 @@
     "./applications": "./src/applications/index.ts",
     "./appointment-reminders": "./src/appointment-reminders/index.ts",
     "./legal-text-notices": "./src/legal-text-notices/index.ts",
+    "./nouveautes-email": "./src/nouveautes-email/index.ts",
+    "./release": "./src/release/index.ts",
     "./quota-reductions": "./src/quota-reductions/index.ts",
     "./coach-conversations": "./src/coach-conversations/index.ts",
     "./unanswered-questions": "./src/unanswered-questions/index.ts",
@@ -86,6 +88,7 @@
     "react-i18next": "^17.0.16",
     "stripe": "^23.0.0",
     "unpdf": "^1.8.1",
+    "uqr": "^0.1.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {

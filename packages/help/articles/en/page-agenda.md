@@ -12,4 +12,4 @@ The agenda is a conversation with your AI coach, the same one every visit. It sh
 
 Past appointments stay visible, dimmed. The day before at 6 pm, Jobbbox can email you a reminder: set it in My account, under Reminders.
 
-For 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Renoncer au contrat ici » (withdraw from the contract here) cancels it and refunds it in full; the coach is told.
+For 14 days after you pay for a session with a human coach, and as long as it has not taken place, « Withdraw from the contract here » cancels it and refunds it in full; the coach is told.

@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
-import { helpCentreAddress, helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpLocale } from "@/coach-help";
+import { backOfficeHelpAddress, helpCentreAddress, helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpAudience, type HelpLocale } from "@/coach-help";
 
 /**
  * The help in the Coach Panel's single box (#342, ADR-0035): Help Articles, written by the Jobbbox team and found
@@ -70,30 +70,98 @@ export function OpenInHelpCentre({ article }: { article: HelpArticle }) {
   );
 }
 
+/** « Ouvrir dans l'aide du back office » (#551): an Administrator's article in /admin/aide; nothing for any other. */
+export function OpenInBackOfficeHelp({ article }: { article: HelpArticle }) {
+  const { t } = useTranslation();
+  const href = backOfficeHelpAddress(article);
+  if (!href) return null;
+  return (
+    <p className="help-card-open">
+      <a href={href} aria-label={t("backOfficeAssistant.help.openInBackOfficeHelpAbout", { title: article.title })}>
+        {t("backOfficeAssistant.help.openInBackOfficeHelp")}
+      </a>
+    </p>
+  );
+}
+
+/**
+ * A Help Article opened in the conversation, as a card: never saved with the Coach Conversation, never sent to the
+ * AI Coach (only its title, if the Candidate then asks). « Ouvrir dans le centre d'aide » leads to its public page, or,
+ * for an Administrator's, « Ouvrir dans l'aide du back office » to /admin/aide (#551); « Non, demander au coach »
+ * (« Non, demander à l'assistant » in the Back Office) starts a question about it.
+ */
+export function HelpArticleCard({
+  article,
+  headingId,
+  answered,
+  onAnswered,
+  onAskCoach,
+  audience = "candidate",
+}: {
+  article: HelpArticle;
+  headingId: string;
+  answered: boolean;
+  onAnswered: () => void;
+  onAskCoach: () => void;
+  audience?: HelpAudience;
+}) {
+  const { t } = useTranslation();
+  return (
+    <article className="help-card" aria-labelledby={headingId} data-help>
+      <p className="help-card-label">{t("coachPanel.help.cardLabel")}</p>
+      <h3 id={headingId} className="help-card-title" tabIndex={-1}>
+        {article.title}
+      </h3>
+      <CoachReplyText text={article.body} />
+      <OpenInHelpCentre article={article} />
+      <OpenInBackOfficeHelp article={article} />
+      {answered ? (
+        <p role="status" className="help-card-thanks">
+          {t("coachPanel.help.thanks")}
+        </p>
+      ) : (
+        <div className="help-card-feedback" role="group" aria-label={t("coachPanel.help.answered")}>
+          <p>{t("coachPanel.help.answered")}</p>
+          <button type="button" className="button" onClick={onAnswered}>
+            {t("coachPanel.help.yes")}
+          </button>
+          <button type="button" className="button" onClick={onAskCoach}>
+            {t(audience === "administrator" ? "backOfficeAssistant.help.no" : "coachPanel.help.no")}
+          </button>
+        </div>
+      )}
+    </article>
+  );
+}
+
 /**
  * An empty conversation's help: help comes first, the page in view's article (« Sur cette page »), three frequent questions.
  * `howThisPageWorks`: on a page that is a conversation, whose Work Pane shows articles whole (#602), the page's article is
- * only offered, as « Comment marche cette page ? ».
+ * only offered, as « Comment marche cette page ? ». `audience` `administrator` (the Back Office Assistant, #551): the
+ * Back Office section's Administrator article, and no frequent questions.
  */
 export function HelpIntro({
   pathname,
   locale,
   onOpen,
   howThisPageWorks = false,
+  audience = "candidate",
   oftenAsked: showOftenAsked = true,
 }: {
   pathname: string;
   locale: HelpLocale;
   onOpen: (article: HelpArticle) => void;
   howThisPageWorks?: boolean;
+  audience?: HelpAudience;
   /** « Souvent demandé »: the help's general questions; none on a page with its own suggestions (an object's, a menu's). */
   oftenAsked?: boolean;
 }) {
   const { t } = useTranslation();
-  const here = onThisPage(pathname, locale);
+  const here = onThisPage(pathname, locale, audience);
+  const often = oftenAsked(locale, audience);
   return (
     <div className="help-intro" data-help>
-      <p>{t("coachPanel.help.greeting")}</p>
+      <p>{t(audience === "administrator" ? "backOfficeAssistant.help.greeting" : "coachPanel.help.greeting")}</p>
       {here && howThisPageWorks ? (
         <p>
           <button type="button" className="link-action" onClick={() => onOpen(here.article)}>
@@ -112,12 +180,12 @@ export function HelpIntro({
           </button>
         </section>
       ) : null}
-      {showOftenAsked ? (
+      {showOftenAsked && often.length > 0 ? (
         <section className="help-intro-section">
           <h3>{t("coachPanel.help.oftenAsked")}</h3>
           {/* Buttons, not a list: inside the conversation's first message, a list would read as more messages. */}
           <div className="help-chips">
-            {oftenAsked(locale).map((article) => (
+            {often.map((article) => (
               <button key={article.id} type="button" className="button help-chip" onClick={() => onOpen(article)}>
                 {article.title}
               </button>
@@ -133,9 +201,21 @@ export function HelpIntro({
  * With the AI Coach unavailable: « Voici ce que l'aide propose » for the question sent, and, with `onAskTeam`, « Poser la
  * question à l'équipe » directly (#345, ADR-0035).
  */
-export function HelpForUnanswered({ question, locale, onOpen, onAskTeam }: { question: string; locale: HelpLocale; onOpen: (article: HelpArticle) => void; onAskTeam?: () => void }) {
+export function HelpForUnanswered({
+  question,
+  locale,
+  onOpen,
+  onAskTeam,
+  audience = "candidate",
+}: {
+  question: string;
+  locale: HelpLocale;
+  onOpen: (article: HelpArticle) => void;
+  onAskTeam?: () => void;
+  audience?: HelpAudience;
+}) {
   const { t } = useTranslation();
-  const found = helpForUnanswered(question, locale);
+  const found = helpForUnanswered(question, locale, audience);
   return (
     <div className="help-unanswered" data-help>
       {found.length > 0 ? (
@@ -222,6 +302,39 @@ export function ReplyFeedback({
       >
         {t("coachPanel.team.no")}
       </button>
+    </div>
+  );
+}
+
+/** Where « Demander un tutoriel » is (#551): offered, on its way, sent, or not sent (to try again). */
+export type TutorialRequestState = "offered" | "sending" | "sent" | "failed";
+
+/**
+ * Under a Back Office Assistant reply to a question no Administrator's Help Article covers (#551, ADR-0065): « Aucun
+ * tutoriel ne couvre encore ce point » and « Demander un tutoriel ». Nothing is recorded without that click; once sent,
+ * it says the Help editors will see it, without the Administrator's name.
+ */
+export function TutorialRequest({ state, onRequest }: { state: TutorialRequestState; onRequest: () => void }) {
+  const { t } = useTranslation();
+  if (state === "sent")
+    return (
+      <p role="status" className="reply-feedback">
+        {t("backOfficeAssistant.help.requested")}
+      </p>
+    );
+  return (
+    <div className="reply-feedback" data-help>
+      <p>
+        {t("backOfficeAssistant.help.noTutorial")}{" "}
+        <button type="button" className="link-action" onClick={onRequest} disabled={state === "sending"}>
+          {t("backOfficeAssistant.help.requestTutorial")}
+        </button>
+      </p>
+      {state === "failed" ? (
+        <p role="alert" className="notice">
+          {t("backOfficeAssistant.help.requestFailed")}
+        </p>
+      ) : null}
     </div>
   );
 }

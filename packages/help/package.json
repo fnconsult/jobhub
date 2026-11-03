@@ -5,11 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./motion-scripts-content": "./src/motion-scripts-content.ts"
+    "./motion-scripts-content": "./src/motion-scripts-content.ts",
+    "./micro-animations": "./src/micro-animations.ts"
   },
   "scripts": {
     "build": "tsx scripts/build-articles.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "release-note": "tsx scripts/release-note.ts"
   },
   "dependencies": {
     "@jobhub/shared": "*"

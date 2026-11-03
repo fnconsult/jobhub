@@ -245,3 +245,29 @@ test.describe("HelpTerms and empty states (#343)", () => {
     await opens(links.proposals, "glossary-proposals");
   });
 });
+
+// Issue #556: the glossary entries of « Utiliser Jobbbox » open from their term in the interface, like #343's.
+test.describe("the AI, its consents and Target Companies open their glossary entry (#556)", () => {
+  test("Mes données, IA européenne, Mes coachs humains and Entreprises cibles", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("help-terms-556"));
+    const profileId = await createProfile(page);
+
+    // Mes données: the Data export's list names the AI coach, the Coach Memory and the Coach Access.
+    await page.goto("/compte/donnees");
+    await opensItsArticle(page, fr.helpTerms.words.aiCoach, "glossary-ai-coach");
+    await opensItsArticle(page, fr.helpTerms.words.coachMemory, "glossary-coach-memory");
+    await opensItsArticle(page, fr.helpTerms.words.coachAccess, "glossary-coach-access");
+
+    // IA européenne: the consent.
+    await page.goto("/compte/ia-europeenne");
+    await opensItsArticle(page, fr.helpTerms.words.euAiConsent, "glossary-eu-ai-consent");
+
+    // Mes coachs humains: the access a coach is given.
+    await page.goto("/coachs");
+    await opensItsArticle(page, fr.helpTerms.words.coachAccess, "glossary-coach-access");
+
+    // Entreprises cibles, before any: its empty state.
+    await page.goto(`/profils/${profileId}/entreprises-cibles`);
+    await opensItsArticle(page, fr.helpTerms.words.targetCompany, "glossary-target-company");
+  });
+});

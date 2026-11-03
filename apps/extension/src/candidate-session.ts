@@ -1,8 +1,11 @@
+import { SECOND_STEP_REQUIRED } from "@jobhub/shared";
+import { API_VERSION_HEADERS } from "./extension-update";
 import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 
 export type CandidateSession =
   | { signedIn: true; candidate: { email: string; name: string; interfaceLanguage: Locale } }
-  | { signedIn: false };
+  /** `secondStepPending`: signed in by magic link, the second step not done yet (ADR-0075): the panel sends them to finish it. */
+  | { signedIn: false; secondStepPending?: true };
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -14,8 +17,11 @@ type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
  */
 export async function readCandidateSession(webOrigin: string, fetchImpl: Fetch = fetch): Promise<CandidateSession> {
   try {
-    const response = await fetchImpl(`${webOrigin}/api/auth/get-session`, { credentials: "include" });
-    if (!response.ok) return { signedIn: false };
+    const response = await fetchImpl(`${webOrigin}/api/auth/get-session`, { headers: API_VERSION_HEADERS, credentials: "include" });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      return response.status === 401 && body?.error === SECOND_STEP_REQUIRED ? { signedIn: false, secondStepPending: true } : { signedIn: false };
+    }
     const body = (await response.json()) as { user?: Record<string, unknown> } | null;
     const user = body?.user;
     if (!user || typeof user.email !== "string") return { signedIn: false };

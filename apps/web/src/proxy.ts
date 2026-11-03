@@ -1,16 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { apiVersionRefusal, UPGRADE_REQUIRED } from "@/api-version";
 import { ENGLISH_PREFIX, LOCALE_HEADER, splitLocalePrefix, URL_LOCALE_HEADER, urlLocale, VISITOR_LOCALE_HEADER } from "@/i18n/locale-header";
 import { maintenanceOf, maintenanceResponse, staysOpen } from "@/maintenance";
+import { extensionStorePage } from "@/platform-settings/extension-store";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
 import { legalRedirect } from "@/public-pages/legal-redirects";
 import { betaRobotsHeader } from "@/public-pages/indexing";
 import { currentRelease } from "@/release";
 import { REQUEST_PATH_HEADER } from "@/request-path";
+import { pendingSessionAnswer } from "@/two-step-verification/proxy-gate";
 
 /**
  * Every request but Next's static files:
  * - during maintenance (#542), answers 503 to whatever does not stay open (see maintenance), read from the Platform
  *   Settings' per-process cache, never from the database;
+ * - answers `426 Upgrade Required` to an extension whose API Version is no longer served (#564, see api-version);
  * - redirects for good (308) the addresses of Légal that moved (#546): « IA dans Jobbbox », #470's Legal Documents
  *   and `?version=` (see legalRedirect);
  * - passes the path asked on as REQUEST_PATH_HEADER, so sign-in can bring a signed-out visitor back to it;
@@ -19,17 +23,23 @@ import { REQUEST_PATH_HEADER } from "@/request-path";
  * - on the public pages, passes their URL's `lang` on as LOCALE_HEADER, so the root layout's <html lang> matches the
  *   page's text; elsewhere, as VISITOR_LOCALE_HEADER, which only a Visitor's page heeds (an error page under the
  *   public site's header); and the URL's own language as URL_LOCALE_HEADER, which the shell's links and `hreflang` follow;
+ * - sends a session pending its second step (ADR-0075) to the second step, or answers it 401, whatever it asks but
+ *   the second step and sign-out (pendingSessionGate): before any page or route runs, the CGU Acceptance gate included;
  * - on the Beta, says `X-Robots-Tag: noindex` on every answer (#545): nothing of it is indexed.
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const prefixed = splitLocalePrefix(pathname);
   if (!staysOpen(pathname)) {
     const maintenance = currentMaintenance();
     if (maintenance) return maintenanceResponse(maintenance, pathname, new Date());
   }
+  const outdated = apiVersionRefusal(pathname, request.headers, currentExtensionStorePage);
+  if (outdated) return noindexOnBeta(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
   const moved = legalRedirect(prefixed.pathname, request.nextUrl.searchParams);
   if (moved) return noindexOnBeta(NextResponse.redirect(new URL(prefixed.pathname === pathname ? moved : `${ENGLISH_PREFIX}${moved}`, request.url), 308));
+  const pending = await pendingSessionAnswer(request);
+  if (pending) return noindexOnBeta(pending);
   const headers = new Headers(request.headers);
   for (const header of [LOCALE_HEADER, VISITOR_LOCALE_HEADER, URL_LOCALE_HEADER]) headers.delete(header);
   headers.set(REQUEST_PATH_HEADER, `${pathname}${search}`);
@@ -57,6 +67,16 @@ function currentMaintenance() {
     return maintenanceOf(getPlatformSettingsResolver().current());
   } catch (error) {
     console.error("[maintenance] the Platform Settings could not be read", error);
+    return null;
+  }
+}
+
+/** The extension's store page (EXTENSION_STORE_URL) an outdated extension is sent to; null when unset or unreadable. */
+function currentExtensionStorePage(): string | null {
+  try {
+    return extensionStorePage(getPlatformSettingsResolver().current());
+  } catch (error) {
+    console.error("[api-version] the Platform Settings could not be read", error);
     return null;
   }
 }

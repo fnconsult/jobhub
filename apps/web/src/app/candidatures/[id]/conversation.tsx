@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { ActivityElement } from "@/ai-activity/pane";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
+import { ExternalLink } from "@/components/ExternalLink";
 import type { FicheContent, FicheLink } from "@/components/Fiche";
 import { ObjectConversation } from "@/components/ObjectConversation";
 import { ExpiredJobOfferNotice, jobOfferSite } from "@/components/JobOfferView";
@@ -115,9 +116,9 @@ function ApplicationCard({ data }: { data: ApplicationPageData }) {
           <div className="prop">
             <dt>{t("application.offerLabel")}</dt>
             <dd>
-              <a href={jobOffer.source.url} rel="noopener noreferrer nofollow" target="_blank">
+              <ExternalLink href={jobOffer.source.url}>
                 {t("jobOffer.sourceLink", { site })}
-              </a>
+              </ExternalLink>
             </dd>
           </div>
         ) : null}

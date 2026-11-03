@@ -6,13 +6,17 @@
  *    target role, Search Criteria and seniority) and the Coach Memory when it has items;
  *  - the item In view in full: a Profile, an Application, a Job Offer, a Job Search
  *    or a Job Digest (only its 30 best Match Scores); only the Candidate's own (a Job Offer belongs to no one); on the
- *    Agenda, the Agenda Items of the next 30 days, in French time (Europe/Paris);
+ *    Agenda, the Agenda Items of the next 30 days, in French time (Europe/Paris). Each Match Score comes with its
+ *    reasons (#653): skills present and missing, seniority, location, salary and contract, each with its verdict;
+ *  - with an Application, a Job Offer, a Job Search or a Job Digest In view, the Master CV of the Profile it is scored
+ *    against (#653): the Application's, the Job Search's or Job Digest's, for a Job Offer its Application's or else
+ *    the first active Profile, the one its page scores against first;
  *  - summarised: the 5 latest Applications with their status, the top 5 Job Offers
  *    by Match Score (from each active Profile's latest Job Search and Job Digest),
  *    the next 3 Agenda Items from now on, none cancelled (unless the Agenda is In view),
  *    and the onboarding answers (what each Profile's Master CV says of the Candidate);
- *  - capped at `maxTokens` (estimated): the summaries are trimmed first, then the
- *    In-view item is cut; the Candidate summary is kept.
+ *  - capped at `maxTokens` (estimated): the summaries are trimmed first, then the Master CV's
+ *    job descriptions, then the Master CV; the In-view item is cut last; the Candidate summary is kept.
  * What the Candidate did not write (the item In view: a Job Offer, a CV, an Application's posting; the
  * summaries) is framed as data, between <donnees> and </donnees>, which it cannot close: DATA_RULE says
  * it is never an instruction (ADR-0022, #228). The Candidate summary and the Coach Memory are not framed.
@@ -28,6 +32,7 @@ import {
   withoutIdentity,
   yearsOfExperience,
   type ApplicationStatus,
+  type CriterionStatus,
   type CvContent,
   type IndustryReference,
   type JobOffer,
@@ -118,23 +123,25 @@ export async function coachContext(sources: CoachSources, candidateId: string, f
   const [profiles, industries] = await Promise.all([activeProfiles(sources, candidateId), sources.industries?.().catch(() => NO_INDUSTRY_REFERENCE) ?? NO_INDUSTRY_REFERENCE]);
   const criteriaText = criteriaTextOf(industries);
   const agenda = sources.agenda.upcoming(candidateId, now);
-  const [inView, memory, applications, jobOffers, upcoming] = await Promise.all([
+  const [inView, memory, applications, jobOffers, upcoming, scoredAgainst] = await Promise.all([
     inViewText(sources, candidateId, focus, criteriaText, { now, agenda }),
     sources.coachMemory?.items(candidateId) ?? [],
     sources.applications.list(candidateId),
     topJobOffers(sources, candidateId, profiles),
     agenda,
+    scoredAgainstProfileId(sources, candidateId, focus, profiles),
   ]);
   const nextAgendaItems = upcoming.filter((item) => item.scheduledAt >= now && !(item.kind === "interview" && item.cancelledAt)).slice(0, NEXT_AGENDA_ITEMS);
   const name = firstName(profiles.map((profile) => profile.masterCv.content.fullName).find((fullName) => fullName.trim()) ?? "");
 
   const always = [candidateSummary(name, profiles, criteriaText), memorySection(memory)].filter(Boolean).join("\n\n");
   const inViewProfileId = focus?.kind === "profile" ? focus.id : null;
+  const cvProfile = profiles.find((profile) => profile.id === scoredAgainst) ?? null;
   // Trimmed from the last to the first: Job Offers go first, then Applications, the next Agenda Items, the onboarding answers last.
   const summaries: Summary[] = [
     {
       heading: "Ce que le candidat a dit de lui à l'inscription (réponses d'onboarding, par profil) :",
-      lines: profiles.filter((profile) => profile.id !== inViewProfileId).map(onboardingLine),
+      lines: profiles.filter((profile) => profile.id !== inViewProfileId && profile.id !== cvProfile?.id).map(onboardingLine),
     },
     {
       heading: `Ses ${NEXT_AGENDA_ITEMS} prochains entretiens et rendez-vous (heure de Paris) :`,
@@ -143,24 +150,56 @@ export async function coachContext(sources: CoachSources, candidateId: string, f
     { heading: `Ses ${SUMMARY_ITEMS} dernières candidatures :`, lines: applications.slice(0, SUMMARY_ITEMS).map(applicationLine) },
     { heading: `Les ${SUMMARY_ITEMS} offres d'emploi qui lui correspondent le mieux (score de correspondance) :`, lines: jobOffers },
   ];
-  return fit(always, inView ?? NOTHING_IN_VIEW, summaries, maxTokens);
+  const cv = cvProfile ? [scoredCvText(cvProfile, true), scoredCvText(cvProfile, false), ""] : [""];
+  return fit(always, inView ?? NOTHING_IN_VIEW, cv, summaries, maxTokens);
+}
+
+/** The Master CV a Match Score is computed against, told with the item In view: its job descriptions left out when `descriptions` is false. */
+function scoredCvText(profile: Profile, descriptions: boolean): string {
+  return [
+    `CV de référence du profil « ${profile.name} » (version ${profile.masterCv.version}), contre lequel les scores sont calculés :`,
+    cvText(profile.masterCv.content, { descriptions }),
+  ].join("\n");
+}
+
+/** The Profile the item In view is scored against (#653): none for a Profile (it is In view itself), the Agenda or nothing. */
+async function scoredAgainstProfileId(sources: CoachSources, candidateId: string, focus: CoachFocus | undefined, profiles: Profile[]): Promise<string | null> {
+  switch (focus?.kind) {
+    case "application":
+      return (await sources.applications.get(candidateId, focus.id))?.profile.id ?? null;
+    case "job_search":
+      return (await sources.jobSearches.get(candidateId, focus.id))?.profile.id ?? null;
+    case "job_digest":
+      return (await sources.jobDigests.get(candidateId, focus.id))?.profile.id ?? null;
+    case "job_offer": {
+      const saved = (await sources.applications.list(candidateId)).find((application) => application.jobOffer.id === focus.id);
+      return saved?.profile.id ?? profiles[0]?.id ?? null;
+    }
+    default:
+      return null;
+  }
 }
 
 const NOTHING_IN_VIEW = "Le candidat ne consulte aucun élément en particulier en ce moment.";
 
-/** The context within `maxTokens`: summaries trimmed first (last line first), then the In-view item cut. */
-function fit(always: string, inView: string, summaries: Summary[], maxTokens: number): string {
+/**
+ * The context within `maxTokens`: summaries trimmed first (last line first), then the Master CV told shorter (each of `cvs`
+ * in turn, the last one empty), then the In-view item cut.
+ */
+function fit(always: string, inView: string, cvs: string[], summaries: Summary[], maxTokens: number): string {
   const summaryText = () =>
     summaries
       .filter((summary) => summary.lines.length > 0)
       .map((summary) => [summary.heading, ...summary.lines.map((line) => `- ${line}`)].join("\n"))
       .join("\n\n");
   const framed = (text: string) => (text && text !== NOTHING_IN_VIEW ? asData(text) : text);
-  const join = (inViewPart: string) => [always, framed(inViewPart), framed(summaryText())].filter(Boolean).join("\n\n");
+  let cv = cvs[0]!;
+  const join = (inViewPart: string) => [always, framed(inViewPart), framed(cv), framed(summaryText())].filter(Boolean).join("\n\n");
 
   for (let index = summaries.length - 1; index >= 0 && estimateTokens(join(inView)) > maxTokens; ) {
     if (summaries[index]!.lines.pop() === undefined) index -= 1;
   }
+  for (const shorter of cvs.slice(1)) if (estimateTokens(join(inView)) > maxTokens) cv = shorter;
   const text = join(inView);
   if (estimateTokens(text) <= maxTokens) return text;
 
@@ -253,15 +292,15 @@ function identityScrubber(cv: CvContent): (text: string) => string {
   return (text) => replacements.reduce((result, [value, replacement]) => result.split(value).join(replacement), text);
 }
 
-/** The Master CV without the Candidate's identity: no identity block, and its values written elsewhere replaced. */
-function cvText(cv: CvContent): string {
+/** The Master CV without the Candidate's identity: no identity block, and its values written elsewhere replaced; without its job descriptions when `descriptions` is false. */
+function cvText(cv: CvContent, { descriptions = true }: { descriptions?: boolean } = {}): string {
   const { headline, summary, experience, education, skills, languages } = withoutIdentity(cv);
   return identityScrubber(cv)(
     [
       headline ? `Titre : ${headline}` : "",
       summary ? `Résumé : ${summary}` : "",
       experience.length
-        ? ["Expériences :", ...experience.map((job) => `- ${job.title}, ${job.employer}${job.location ? ` (${job.location})` : ""}, ${job.period}${job.description ? ` : ${job.description}` : ""}`)].join("\n")
+        ? ["Expériences :", ...experience.map((job) => `- ${job.title}, ${job.employer}${job.location ? ` (${job.location})` : ""}, ${job.period}${descriptions && job.description ? ` : ${job.description}` : ""}`)].join("\n")
         : "",
       education.length ? ["Formation :", ...education.map((item) => `- ${[item.degree, item.institution, item.year].filter(Boolean).join(", ")}`)].join("\n") : "",
       skills.length ? `Compétences : ${skills.join(", ")}` : "",
@@ -298,22 +337,39 @@ function scoreInWords(matchScore: MatchScore): string {
   return `${matchScore.score}/100${reliability === "partial" ? " (partiel : peu de critères comparables)" : ""}`;
 }
 
-function matchScoreText(matchScore: MatchScore): string {
-  const { skills, seniority } = matchScore.breakdown;
-  const { breakdown } = matchScore;
+/** A criterion's verdict in words, as « Pourquoi N ? » shows it. */
+const VERDICT: Record<CriterionStatus, string> = { match: "conforme", partial: "en partie conforme", mismatch: "non conforme", unknown: "non précisé dans l'offre" };
+
+/** Why a Match Score is what it is (#653): one reason per criterion, with its verdict. */
+function matchScoreReasons({ breakdown }: MatchScore): string {
+  const { skills, seniority, location, salary, contractType } = breakdown;
+  const years = [
+    seniority.cvYears !== undefined ? `${seniority.cvYears} ans d'expérience au CV` : "",
+    seniority.requiredYears !== undefined ? `${seniority.requiredYears} ans demandés` : "",
+  ].filter(Boolean);
   return [
-    `Score de correspondance : ${scoreInWords(matchScore)}`,
     skills.covered.length ? `compétences présentes : ${skills.covered.join(", ")}` : "",
     skills.missing.length ? `compétences manquantes : ${skills.missing.join(", ")}` : "",
-    `séniorité ${seniority.status}, lieu ${breakdown.location.status}, salaire ${breakdown.salary.status}, contrat ${breakdown.contractType.status}`,
+    skills.covered.length + skills.missing.length === 0 ? `compétences ${VERDICT[skills.status]}` : "",
+    `séniorité ${VERDICT[seniority.status]}${years.length ? ` (${years.join(", ")})` : ""}`,
+    `lieu ${VERDICT[location.status]}`,
+    `salaire ${VERDICT[salary.status]}`,
+    `contrat ${VERDICT[contractType.status]}`,
   ]
     .filter(Boolean)
     .join(" ; ");
 }
 
+function matchScoreText(matchScore: MatchScore): string {
+  return `Score de correspondance : ${scoreInWords(matchScore)} ; ${matchScoreReasons(matchScore)}`;
+}
+
 function resultLine({ jobOffer, matchScore, applicationId }: { jobOffer: JobOffer; matchScore: MatchScore; applicationId: string | null }): string {
   return `${jobOfferHeadline(jobOffer)} : score ${scoreInWords(matchScore)}${applicationId ? " (candidature enregistrée)" : ""}`;
 }
+
+/** A Job Offer In view with its Match Score's reasons (#653). */
+const scoredResultLine = (result: Parameters<typeof resultLine>[0]) => `${resultLine(result)} — ${matchScoreReasons(result.matchScore)}`;
 
 async function inViewText(
   sources: CoachSources,
@@ -382,7 +438,7 @@ const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "�
 function bestResultLines(results: readonly Parameters<typeof resultLine>[0][]): string[] {
   const best = [...results].sort((a, b) => b.matchScore.score - a.matchScore.score).slice(0, IN_VIEW_MATCH_SCORES);
   const left = results.length - best.length;
-  return [...best.map((result) => `- ${resultLine(result)}`), ...(left > 0 ? [`(${left} autres offres, moins bien notées, ne sont pas montrées.)`] : [])];
+  return [...best.map((result) => `- ${scoredResultLine(result)}`), ...(left > 0 ? [`(${left} autres offres, moins bien notées, ne sont pas montrées.)`] : [])];
 }
 
 function jobSearchText(jobSearch: JobSearch): string {

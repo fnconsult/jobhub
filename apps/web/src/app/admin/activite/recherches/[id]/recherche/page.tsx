@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireBackOffice } from "@/admin/server";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { ExternalLink } from "@/components/ExternalLink";
 import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
 import { Properties, Property } from "@/design/Properties";
@@ -72,9 +73,9 @@ export default async function RunJobSearchPage({ params }: Params) {
                   rowHeader: true,
                   cell: ({ jobOffer }) =>
                     jobOffer.source.url ? (
-                      <a href={jobOffer.source.url} rel="noreferrer noopener" target="_blank">
+                      <ExternalLink href={jobOffer.source.url}>
                         {jobOffer.title}
-                      </a>
+                      </ExternalLink>
                     ) : (
                       jobOffer.title
                     ),

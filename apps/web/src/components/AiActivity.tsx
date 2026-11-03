@@ -13,6 +13,7 @@ import { useAiActivityLive } from "@/components/AiActivityLive";
 import type { ReplyInView } from "@/components/CoachConversationPage";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
+import { ExternalLink } from "@/components/ExternalLink";
 
 type Language = "fr" | "en";
 
@@ -601,10 +602,10 @@ function SiteDisclosure({ site }: { site: ProvenanceSite }) {
       <ul id={id} className="ai-activity-links" hidden={!open}>
         {site.links.map((link) => (
           <li key={link}>
-            <a href={link} target="_blank" rel="noopener noreferrer">
+            <ExternalLink href={link}>
               {site.kind === "web" ? link.replace(/^https?:\/\/(www\.)?/, "") : link}
               <span className="visually-hidden"> {t("aiActivity.newTab")}</span>
-            </a>
+            </ExternalLink>
           </li>
         ))}
       </ul>

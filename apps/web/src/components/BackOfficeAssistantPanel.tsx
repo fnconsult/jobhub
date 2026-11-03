@@ -1,12 +1,16 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ExplainedItem } from "@/back-office-assistant/conversation";
 import type { CoachMessage } from "@/coach/conversation";
 import { CoachConversationList, type ConversationSummary } from "@/components/CoachConversationList";
+import { helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
+import { focusFirstSuggestion, HelpArticleCard, HelpForUnanswered, HelpIntro, HelpSuggestions, TutorialRequest, type TutorialRequestState } from "@/components/CoachHelp";
 import { CoachReplyText } from "@/components/CoachReplyText";
+import { routes } from "@/routes";
 import { fetchConversation } from "@/components/chat-conversation";
 import { Icons } from "@/components/icons";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
@@ -22,6 +26,29 @@ const STORAGE_KEY = "jobhub.backOfficeAssistantConversation";
 const LIST_TEXTS = { retention: "backOfficeAssistant.retention", noConversations: "backOfficeAssistant.noConversations" } as const;
 /** The menu opens under the conversation's title, from its start. */
 const MENU_ALIGN = "start";
+/** The Back Office's help is the Administrators' Help Articles only (#551, ADR-0065). */
+const AUDIENCE = "administrator";
+/** How long the box waits for the Administrator to stop typing before it looks in the help. */
+const SUGGEST_DELAY_MS = 250;
+
+/**
+ * A message as the panel shows it: a saved one, with « Demander un tutoriel » under a reply no Administrator's Help
+ * Article covered (#551, this browser only, never saved); or a Help Article opened as a card, never saved either.
+ */
+type ShownMessage = CoachMessage & { tutorial?: TutorialRequestState };
+type HelpCard = { from: "help"; key: number; article: HelpArticle; answered: boolean };
+type PanelMessage = ShownMessage | HelpCard;
+const isHelpCard = (message: PanelMessage): message is HelpCard => message.from === "help";
+
+/** The Administrator's question just before the reply at `index`. */
+function questionBefore(messages: readonly PanelMessage[], index: number): string {
+  for (let at = index - 1; at >= 0; at--) {
+    const message = messages[at]!;
+    if (message.from === "candidate") return message.text;
+    if (message.from === "coach") break;
+  }
+  return "";
+}
 
 /** What the Back Office Assistant's button needs: whether the panel is open, and a way to open or close it. */
 type Control = {
@@ -65,7 +92,15 @@ export function BackOfficeAssistantToggle() {
 type Status = "idle" | "sending" | "unavailable" | "invalid";
 
 /** A saved reply, as the server gives it back. */
-type ReplyBody = { conversation: ConversationSummary; reply: string; blocked?: { message?: boolean; reply?: boolean }; provenance?: Provenance | null; at?: string };
+type ReplyBody = {
+  conversation: ConversationSummary;
+  reply: string;
+  blocked?: { message?: boolean; reply?: boolean };
+  provenance?: Provenance | null;
+  at?: string;
+  /** No Administrator's Help Article covered the question (#551): the reply offers « Demander un tutoriel ». */
+  helpMissed?: boolean;
+};
 
 function remember(conversationId: string | null) {
   try {
@@ -91,13 +126,21 @@ function remembered(): string | null {
  * reload; they start new ones and list, reopen, rename or delete saved ones. « Agrandir » widens it into a modal drawer
  * over the page (ADR-0024); an Explainable label asks it about its item (#407). Read-only: nothing in view goes with a
  * message, there is no Coach Memory.
+ *
+ * Its help (#551, ADR-0065): the Administrators' Help Articles alone, found without AI, are suggested while typing and
+ * open as cards; an empty conversation shows the section's article « Sur cette page », a tab's own when it has one. The server gives the assistant
+ * the articles it finds; a reply none covered offers « Demander un tutoriel », which alone records the question.
  */
 export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const id = useId();
+  const pathname = usePathname();
+  // « Sur cette page » reads the tab too: Paramètres' Connexion and Sources tabs have their own article (#557).
+  const pageQuery = useSearchParams()?.toString() ?? "";
+  const locale = helpLocale(i18n.language);
   const [open, setOpen] = useState(false);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
-  const [messages, setMessages] = useState<CoachMessage[]>([]);
+  const [messages, setMessages] = useState<PanelMessage[]>([]);
   const [restoring, setRestoring] = useState(false);
   const [view, setView] = useState<"chat" | "list">("chat");
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
@@ -113,6 +156,21 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
   const body = useRef<HTMLDivElement>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const focusMoved = useRef(false);
+  // The help (#551): the Administrators' articles matching the draft, once the Administrator pauses.
+  const [query, setQuery] = useState("");
+  const [unanswered, setUnanswered] = useState<string | null>(null);
+  const helpCards = useRef(0);
+  const [focusCard, setFocusCard] = useState<string | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(draft), SUGGEST_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [draft]);
+  const found = useMemo(() => helpSuggestions(query, locale, AUDIENCE), [query, locale]);
+  const suggestions = draft.trim().length >= MIN_SUGGESTION_LENGTH ? found : [];
+  // An article opened takes the focus, so it is read out and Escape brings the Administrator back to the box.
+  useEffect(() => {
+    if (focusCard) document.getElementById(focusCard)?.focus();
+  }, [focusCard]);
 
   useEffect(() => {
     const box = input.current;
@@ -130,7 +188,7 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
   }, [messages, status, view, open]);
 
   /** Opens the panel; the conversation it reopened the first time, once it is back (null when none came back). */
-  async function openPanel(): Promise<{ conversation: ConversationSummary; messages: CoachMessage[] } | null> {
+  async function openPanel(): Promise<{ conversation: ConversationSummary; messages: PanelMessage[] } | null> {
     setOpen(true);
     if (restored.current) return null;
     restored.current = true;
@@ -143,7 +201,8 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
       const { messages: saved, id, title, lastMessageAt } = found.conversation;
       const summary = { id, title, lastMessageAt };
       setConversation(summary);
-      setMessages(saved);
+      // A Help Article opened meanwhile stays after the saved messages.
+      setMessages((shown) => [...saved, ...shown.filter(isHelpCard)]);
       reopened = { conversation: summary, messages: saved };
     } else if (found.gone) remember(null);
     setRestoring(false);
@@ -165,10 +224,14 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
     };
   }, []);
 
-  // Escape brings a widened panel back beside the page first, then closes it.
+  // Escape in the help brings the Administrator back to the message box; elsewhere it brings a widened panel back
+  // beside the page first, then closes it.
   function onKeyDown(event: KeyboardEvent) {
     if (event.key !== "Escape") return;
-    if (wide) setWide(false);
+    if (event.target instanceof Element && event.target.closest("[data-help]")) {
+      event.preventDefault();
+      input.current?.focus();
+    } else if (wide) setWide(false);
     else close();
   }
 
@@ -176,6 +239,39 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
   function moveFocus(action: () => void) {
     focusMoved.current = true;
     action();
+  }
+
+  /** Shows an Administrator's Help Article as a card at the end of the conversation, and gives it the focus. */
+  function showArticle(article: HelpArticle) {
+    const key = (helpCards.current += 1);
+    setMessages((shown) => [...shown, { from: "help", key, article, answered: false }]);
+    setView("chat");
+    setFocusCard(`${id}-help-${key}`);
+  }
+
+  /** « Non, demander à l'assistant »: the box starts a question about the article, to finish and send. */
+  function askAbout(article: HelpArticle) {
+    setDraft(t("coachPanel.help.askAbout", { title: article.title }));
+    setFocusInput((n) => n + 1);
+  }
+
+  /**
+   * « Demander un tutoriel » (#551): the question and the reply, with the section in view and the language, become an
+   * Unanswered Question for Help editors, never naming the Administrator.
+   */
+  async function requestTutorial(index: number, question: string, answer: string) {
+    const mark = (tutorial: TutorialRequestState) => setMessages((shown) => shown.map((each, at) => (at === index && each.from === "coach" ? { ...each, tutorial } : each)));
+    mark("sending");
+    try {
+      const response = await fetch(routes.adminTutorialRequest, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question, answer, route: pathname, language: locale }),
+      });
+      mark(response.ok ? "sent" : "failed");
+    } catch {
+      mark("failed");
+    }
   }
 
   function showChat() {
@@ -235,17 +331,20 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
   }
 
   /** Sends `text` (an Explainable label's question with its item, `explained`) and shows the reply. */
-  async function sendMessage(text: string, explained?: ExplainedItem, reopened?: { conversation: ConversationSummary; messages: CoachMessage[] }) {
+  async function sendMessage(text: string, explained?: ExplainedItem, reopened?: { conversation: ConversationSummary; messages: PanelMessage[] }) {
     if (!text || status === "sending" || (restoring && !reopened)) return;
     const { conversation: current, messages: before } = reopened ?? { conversation, messages };
     setMessages([...before, { from: "candidate", text }]);
     setDraft("");
     setStatus("sending");
+    setUnanswered(null);
     const giveBack = (error: Status) => {
       // Give the Administrator their message back to retry or shorten it.
       setMessages(before);
       setDraft(text);
       setStatus(error);
+      // The help still answers when the assistant cannot (ADR-0035).
+      if (error === "unavailable") setUnanswered(text);
     };
     try {
       const response = await fetch(SEND, {
@@ -268,6 +367,8 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
             text: reply.reply,
             ...(blocked?.reply ? { blocked: true as const } : {}),
             ...(typeof reply.at === "string" ? { provenance: reply.provenance ?? null, at: reply.at } : {}),
+            // No Administrator's Help Article covered the question, as the server searched it (#551).
+            ...(reply.helpMissed === true && !blocked?.message && !blocked?.reply ? { tutorial: "offered" as const } : {}),
           },
         ]);
         setStatus("idle");
@@ -385,9 +486,23 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                       {/* No visible author (#317, #327): screen readers still hear who speaks. */}
                       <span className="visually-hidden">{t("backOfficeAssistant.author")}</span>
                       <p>{t("backOfficeAssistant.welcome")}</p>
+                      {/* An empty conversation opens on the help (#551): the section's article « Sur cette page ». */}
+                      {messages.every(isHelpCard) ? <HelpIntro pathname={pageQuery ? `${pathname}?${pageQuery}` : pathname} locale={locale} audience={AUDIENCE} onOpen={showArticle} /> : null}
                     </li>
                   )}
-                  {messages.map((message, index) => (
+                  {messages.map((message, index) =>
+                    message.from === "help" ? (
+                      <li key={`help-${message.key}`} className="chat-message chat-help">
+                        <HelpArticleCard
+                          article={message.article}
+                          headingId={`${id}-help-${message.key}`}
+                          answered={message.answered}
+                          audience={AUDIENCE}
+                          onAnswered={() => setMessages((shown) => shown.map((each) => (isHelpCard(each) && each.key === message.key ? { ...each, answered: true } : each)))}
+                          onAskCoach={() => askAbout(message.article)}
+                        />
+                      </li>
+                    ) : (
                     <li key={index} className={`chat-message ${message.from === "coach" ? "chat-coach" : "chat-candidate"}${message.blocked ? " chat-blocked" : ""}`}>
                       <span className="visually-hidden">{message.from === "coach" ? t("backOfficeAssistant.author") : t("questionnaire.you")}</span>
                       {/* A reply is unframed text after the glyph of what it did last (#464); the Administrator's words, a bubble. */}
@@ -395,8 +510,12 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                       {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                       {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                       {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
+                      {message.from === "coach" && message.tutorial ? (
+                        <TutorialRequest state={message.tutorial} onRequest={() => void requestTutorial(index, questionBefore(messages, index), message.text)} />
+                      ) : null}
                     </li>
-                  ))}
+                    ),
+                  )}
                 </ol>
                 {status === "sending" ? (
                   <p className="notice" role="status">
@@ -408,9 +527,15 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                     {status === "invalid" ? t("coachPanel.errors.invalid") : t("backOfficeAssistant.unavailable")}
                   </p>
                 ) : null}
+                {status === "unavailable" && unanswered !== null ? <HelpForUnanswered question={unanswered} locale={locale} audience={AUDIENCE} onOpen={showArticle} /> : null}
                 <div ref={messagesEnd} aria-hidden="true" />
               </div>
               <form className="coach-panel-form" onSubmit={send}>
+                <HelpSuggestions articles={suggestions} onOpen={showArticle} onBack={() => input.current?.focus()} />
+                {/* « 2 articles dans l'aide »: heard as they change, never moving the focus. */}
+                <p className="visually-hidden" aria-live="polite">
+                  {suggestions.length > 0 ? t("coachPanel.help.found", { count: suggestions.length }) : ""}
+                </p>
                 <label className="visually-hidden" htmlFor={`${id}-message`}>
                   {t("coachPanel.messageLabel")}
                 </label>
@@ -424,6 +549,12 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={(event) => {
+                      // ↓ at the end of the draft goes to the help's suggestions.
+                      const box = event.currentTarget;
+                      if (event.key === "ArrowDown" && suggestions.length > 0 && box.selectionStart === box.value.length && focusFirstSuggestion(box)) {
+                        event.preventDefault();
+                        return;
+                      }
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
                         event.currentTarget.form?.requestSubmit();

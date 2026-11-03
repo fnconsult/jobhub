@@ -34,6 +34,21 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Rights | In the Candidate's Data export (`acceptances`: version, URL, fingerprint, channel, date, immediate performance; never the pseudonym nor Stripe's id). It is Jobbbox's operations record (`OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`): an erasure request is weighed against the legal obligation and the proof (GDPR art. 17(3)(b) and (e)). |
 | Security | Rows are only added, read for the export and purged; the app never edits them. |
 
+## Guest session in the browser extension (ADR-0003, #550)
+
+| | |
+| --- | --- |
+| Purpose | Let a Guest (the browser extension without an account) get a Match Score for a Job Offer against their CV: the captured Job Offer, the CV read from their file, the Search Criteria read from it, the last Match Score, and their Acceptance of the CGU for guests, kept for their session only. |
+| Legal basis | Performance of the service the Guest asks for (GDPR art. 6(1)(b)), within the CGU for guests they accept. The storage in the browser is strictly necessary to the service asked for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Guests; people named in a CV. |
+| Data | The Job Offer (its id, title, text, source address); the CV's content and the Search Criteria read from it; the last Match Score; when the session ends. Since #550, the Acceptance of the CGU for guests: the version accepted (its effective date) and when it was ticked, before the session's first CV, while a CGU version is in effect. |
+| Source | The Guest: the page they capture, the CV file they choose, the box they tick in the Side Panel. |
+| Who can read it | No one but the Guest, in their browser. The web app reads the CV file to answer it, keeps neither the file nor what it read (ADR-0003); the Job Offer is stored for everyone, without the Guest's identity, and forgotten within 24 hours. The Acceptance is sent to no one: no request carries it, and Jobbbox holds no proof of it. |
+| Storage | The browser's session storage (`chrome.storage.session`, in memory, gone when the browser closes), key `guestSession`. |
+| Retention | 23 hours after the session began at most, or until « Effacer mes données maintenant ». Once the Guest saves their work in an account, only where it went is kept, the Acceptance not carried over: the Candidate accepts the CGU on their own screen (#510). |
+| Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
+| Security | Readable only by the extension's own pages. |
+
 ## Provider Secrets (#208)
 
 | | |
@@ -56,7 +71,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Purpose | Let an Administrator ask questions about Back Office data and settings (Plan Quotas, Human Coaches, the AI Coach's cost, Administrators, the Journal) in the Back Office, and keep their conversations so they can reopen them. Read-only: it changes nothing. |
 | Legal basis | Legitimate interest (GDPR art. 6(1)(f)): helping the Jobbbox team run its own administration. |
 | People concerned | Administrators (who ask). Human Coaches, by their public name and bio, when the asking Administrator's roles cover Human Coaches. |
-| Data | What the Administrator types and the assistant's replies, with dates; the AI provider, model and estimated cost of each reply (internal). What the AI is told is limited to what the Administrator's Back Office Roles may read, and minimised: no email address (Administrators are counted per role, Journal targets are masked, any address left is masked), no Human Coach booking link, and never a Provider Secret or SSO client secret value. |
+| Data | What the Administrator types and the assistant's replies, with dates; the AI provider, model and estimated cost of each reply (internal). With each question, the Administrators' Help Articles the search finds for it (#551): texts written by the Jobbbox team, without personal data. What the AI is told is limited to what the Administrator's Back Office Roles may read, and minimised: no email address (Administrators are counted per role, Journal targets are masked, any address left is masked), no Human Coach booking link, and never a Provider Secret or SSO client secret value. |
 | Source | The Administrator, in the Back Office Assistant panel; the Back Office's own data. |
 | Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Administrator's EU AI consent, what they type that carries identity goes to Mistral (#121). |
 | Who can read it | The Administrator who had the conversation, in the panel. Not other Administrators, not Candidates; Back Office routes answer 404 to anyone without a Back Office Role. |
@@ -64,6 +79,22 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | 12 months after the conversation's last message (the worker's nightly job `back-office-assistant.purge`); deleted at once with the Administrator's account, or when they delete the conversation. |
 | Rights | In the Administrator's account data export (`backOfficeAssistantConversations`, without AI costs). |
 | Security | The API checks the Administrator's Back Office Roles on every request; conversations are scoped to their own account. |
+
+## Unanswered Questions (#344, #551)
+
+| | |
+| --- | --- |
+| Purpose | Improve Jobbbox's help: keep the questions about using Jobbbox that no Help Article answered, so Help editors write the missing article or synonym (ADR-0035, ADR-0065). |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)): improving the help Jobbbox gives its users. |
+| People concerned | Candidates who ask the AI Coach a question the help missed; Administrators who click « Demander un tutoriel » in the Back Office Assistant. Neither is identified in the record. |
+| Data | The question and the AI's answer (the AI Coach's, or the Back Office Assistant's), redacted: for a Candidate, their known identity and every email address and phone number; for an Administrator, every email address and phone number by its shape. Its audience (`candidate` or `administrator`), the page's route pattern (`/candidatures/[id]`, `/admin/parametres`), never its address or an id; the Interface Language; how many times it was asked, when first and last; its status. No Candidate id, Administrator id, account or conversation id. |
+| Source | A Candidate's question is kept automatically when the AI Coach replied, said it was about using Jobbbox, and no Help Article matched it. An Administrator's is kept only when they click « Demander un tutoriel » under a Back Office Assistant reply that no Administrator article covered (#551), never automatically. |
+| Processors | None: kept in Jobbbox's own database. The AI calls that produced the answers are the AI Coach's and the Back Office Assistant's, covered by their own entries. |
+| Who can read it | Help editors and super-admins (read, mark « Article écrit » or « Écarter »), Support (read), in « Questions sans réponse », filtered by audience, page and language. Not Candidates. |
+| Storage | The `unanswered_question` table in the app's Postgres database (EU), which references no other table. |
+| Retention | 12 months after it was last asked; 30 days after it was marked written or dismissed (the worker's daily purge). |
+| Rights | Not linked to anyone, so in no Data export and untouched by an account deletion: there is nothing to find a person by. |
+| Security | Reading and marking check the Administrator's Back Office Roles; a mark is written to the Back Office Audit by the question's id, never its words. « Demander un tutoriel » is answered 404 to anyone without a Back Office Role and passes on no Administrator id. |
 
 ## AI Usage (#218)
 
@@ -134,13 +165,13 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Purpose | Let a Candidate talk with the AI Coach about their job search and find each conversation again: each Coach Conversation is attached to the object or the menu it is about (its Subject: an Application, a Profile, a Job Search, a Job Digest, or one of the Sidebar menus Mes candidatures, Recherches d'offres, Job Digests, Agenda, Mes coachs humains), or to the active Profile for a Free conversation (ADR-0070). |
 | Legal basis | Performance of the contract (GDPR art. 6(1)(b)): the AI Coach is part of the service the Candidate signed up for. |
 | People concerned | Candidates. Third parties only as far as the Candidate names them in what they write, or a Job Offer read from a link names its employer. |
-| Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
+| Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; when the Candidate closed the conversations' welcome panel for good (#652); Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
 | Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory). |
 | Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Candidate's EU AI consent, what carries identity goes to Mistral (#121). |
 | Who can read it | The Candidate, in their conversations. Never Human Coaches (Coach Access covers Profiles and Applications only). Administrators see only each day's cost figures, never a conversation; the text of a call, if needed, is in the AI Message Log. |
-| Storage | The `coach_conversation` and `coach_message` tables in the app's Postgres database (EU). |
+| Storage | The `coach_conversation`, `coach_message` and `coach_welcome_closed` tables in the app's Postgres database (EU). |
 | Retention | 12 months after the conversation's last message (the worker's nightly job `coach-conversations.purge`); deleted at once with the Candidate's account, when they delete it, or with its object if the object itself is deleted. An archived object keeps its conversation. The conversations saved before Subjects existed (only on staging) were deleted when #600 shipped; the Coach Memory was kept. |
-| Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs). |
+| Rights | In the Candidate's Data export (`coachConversations`: each with its Subject's kind, id and name, every message, each reply's Provenance and Focus; without AI costs; `coachWelcome.closedAt`, when the welcome panel was closed, or null). The welcome panel's closing is erased with the account. |
 | Security | Every read and change is scoped to the Candidate: another Candidate's conversation, or a Subject that is not theirs, is « not found ». |
 
 ## Préavis des Legal Text Versions (#547)
@@ -158,6 +189,22 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | As long as the account: deleted with it (`ON DELETE CASCADE`). |
 | Rights | In the Candidate's Data export (`legalTextNotices.emailed` and `legalTextNotices.privacyChangesSeen`); erased with the account. |
 | Security | One notice per Candidate and per version, claimed in the transaction that sends it. Closing checks the signed-in Candidate and the request's origin, and only the version shown can be closed. |
+
+## Nouveautés email (#566)
+
+| | |
+| --- | --- |
+| Purpose | Tell the Candidates who asked for it, by email, about a Release Note marked to be announced (`announce: true`): its title, introduction and « Nouveau » lines, with a link to its page on Nouveautés (ADR-0063). At most one email per Candidate in any 7 days, once per Version, only from Production. |
+| Legal basis | Consent (GDPR art. 6(1)(a)): the box « Recevoir un e-mail quand Jobbbox annonce une nouveauté » in Mon compte, Préférences, never ticked by default, for new and existing Candidates alike; ticking it records its date. Withdrawn at any time by unticking it or through the email's unsubscribe link (no sign-in, and the one-click List-Unsubscribe header, RFC 8058). |
+| People concerned | Candidates with a verified email address who ticked the box. Visitors cannot subscribe: the public Nouveautés page has no form. |
+| Data | Per subscription: the Candidate's id, the date of the consent and the unsubscribe link's token. Per email sent: the Candidate's id, the Version it told of and when it was sent. The email goes to the Candidate's account address, in their Interface Language; its text is not kept. |
+| Source | The Candidate, in Mon compte (`PUT /api/account/nouveautes-email`); the worker when it sends each email (`nouveautes-emails.send`: when it starts, then daily, Production only, never the Beta). |
+| Processors | Brevo (EU, ADR-0007), which sends the email; already a processor for emails. The email carries no image and no tracked link: every link leads straight to Jobbbox. Brevo has no per-message switch for its open and click tracking: it must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). No new processor, no recipient outside the EU. |
+| Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it. |
+| Storage | The `nouveautes_email_subscription` and `nouveautes_email_sent` tables in the app's Postgres database (EU). |
+| Retention | The subscription until it is withdrawn (its row is deleted) or the account is deleted. The emails sent as long as the account, so none is sent twice: deleted with it (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`nouveautesEmail`: the choice, its date and the Versions emailed, never the unsubscribe token); erased with the account. |
+| Security | The unsubscribe token is random (256 bits), replaced at each new subscription, and names one subscription only. Ticking or unticking checks the signed-in Candidate and the request's origin. Each email is claimed in the transaction that sends it, the subscription locked, so two workers never send two. |
 
 ## Withdrawals (#511)
 
@@ -206,3 +253,19 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Retention | As long as the Candidate's account: deleted with it (`ON DELETE CASCADE`). A Quota Reduction (no personal data but the Administrator's id and email) is kept with the Plan's history. |
 | Rights | In the Candidate's data export (`quotaReductionNotices`: each refund with its status, made, still to make or made by the team, and its amount; without Stripe identifiers or error codes); erased with the account. |
 | Security | Scheduling and cancelling a Quota Reduction check the Administrator's Back Office Roles and are written to the Back Office Audit; cancelling over one checks the signed-in Candidate. |
+
+## Two-step verification (#663, ADR-0075)
+
+| | |
+| --- | --- |
+| Purpose | Protect a Candidate's account beyond their mailbox: once they turn it on, every sign-in by magic link asks for a second step (a code from their authenticator app, or a backup code) before the session reaches anything. Part of the same authentication processing as the magic link and the Sign-in Providers. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)), as for signing in: a security measure the Candidate chooses (art. 32). Off by default. |
+| People concerned | Candidates who turn it on in Mon compte, « Sécurité ». |
+| Data | Per Candidate: the authenticator app's TOTP secret, encrypted (AES-256-GCM under AUTH_SECRET, Better Auth's cipher); the backup codes not used yet, each as its SHA-256 hash only; when it was turned on, when the app and the codes were added and last used, the last 30-second period whose code was accepted, the count of wrong codes in a row and until when codes are refused. Per session: whether it waits for its second step, and when its second step was last done. Each attempt is counted under the Tool « Vérification en deux étapes » in AI Usage's external API calls (its outcome, no Candidate, never the code). The email telling the account it was turned on or off goes to its address; its text is not kept. |
+| Source | The Candidate, in Mon compte (`/api/account/two-step-verification`) and on the second step's page (`/api/two-step-verification/second-step`). |
+| Processors | None new: the codes are checked within Jobbbox; Brevo (EU) sends the emails, already a processor for emails. No recipient outside the EU. |
+| Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it; nobody can read the secret or a backup code back. |
+| Storage | The `two_step_verification` table and the `session` table's `twoStepPending` and `twoStepVerifiedAt` columns in the app's Postgres database (EU). |
+| Retention | Until the Candidate turns it off (the row is deleted, and the sessions still waiting for their second step are signed out) or the account is deleted (`ON DELETE CASCADE`). |
+| Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, the backup codes left; never the secret nor a code); erased with the account. |
+| Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |

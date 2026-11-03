@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { helpArticle, helpCentreAddress, helpForUnanswered, helpLocale, helpSuggestions, oftenAsked, onThisPage } from "./index";
+import { backOfficeHelpAddress, backOfficeHelpFor, helpArticle, helpCentreAddress, helpForUnanswered, helpLocale, helpSuggestions, oftenAsked, onThisPage } from "./index";
 
 const ids = (articles: { id: string }[]) => articles.map((article) => article.id);
 
@@ -62,5 +62,38 @@ describe("the Coach Panel and the Help Centre (#549, ADR-0065)", () => {
     expect(helpCentreAddress(helpArticle("tutorial-extension-save-job-offer", "fr")!)).toBe("/aide/extension/tutorial-extension-save-job-offer");
     expect(helpCentreAddress(helpArticle("faq-text-size", "en")!)).toBe("/en/aide/utiliser/faq-text-size");
     expect(helpCentreAddress({ ...helpArticle("faq-text-size", "fr")!, audience: "administrator", topic: "parametres" })).toBeNull();
+  });
+});
+
+describe("the Back Office's help (#551, ADR-0065)", () => {
+  it("suggests and gives the Back Office Assistant the Administrators' articles only", () => {
+    expect(backOfficeHelpFor("filtrer les questions sans réponse par public", "fr")[0]?.id).toBe("page-admin-unanswered-questions");
+    expect(new Set(helpSuggestions("questions sans réponse", "fr", "administrator").map((found) => found.audience))).toEqual(new Set(["administrator"]));
+    // A Candidate's question finds nothing there, and the Candidate's box never finds an Administrator's article.
+    expect(backOfficeHelpFor("Comment relancer un recruteur ?", "fr")).toEqual([]);
+    expect(helpSuggestions("questions sans réponse tutoriel demandé", "fr").map((found) => found.audience)).not.toContain("administrator");
+    expect(helpForUnanswered("filtrer les questions sans réponse par public", "fr", "administrator")[0]?.id).toBe("page-admin-unanswered-questions");
+  });
+
+  it("shows a Back Office section's Administrator article « Sur cette page », and only there", () => {
+    expect(onThisPage("/admin/questions-sans-reponse?public=administrator", "fr", "administrator")?.article.id).toBe("page-admin-unanswered-questions");
+    expect(onThisPage("/admin/questions-sans-reponse", "fr")).toBeNull();
+    expect(onThisPage("/candidatures", "fr", "administrator")).toBeNull();
+    expect(oftenAsked("fr", "administrator")).toEqual([]);
+  });
+
+  it("shows Paramètres' Connexion and Sources tabs their own article « Sur cette page » (#557)", () => {
+    expect(onThisPage("/admin/parametres?tab=connexion", "fr", "administrator")?.article.id).toBe("page-admin-sign-in");
+    expect(onThisPage("/admin/parametres?tab=sources", "en", "administrator")?.article.title).toBe("Sites and web search");
+    expect(onThisPage("/admin/parametres?tab=paiement", "fr", "administrator")?.article.id).toBe("page-admin-settings");
+    expect(onThisPage("/admin/outils/stripe", "fr", "administrator")?.article.id).toBe("page-admin-tools");
+    expect(backOfficeHelpFor("remplacer une clé de fournisseur", "fr").map((found) => found.id)).toContain("tutorial-admin-provider-secret");
+  });
+
+  it("links an Administrator's article to /admin/aide, never to the public Help Centre", () => {
+    const admin = helpArticle("page-admin-unanswered-questions", "fr")!;
+    expect(backOfficeHelpAddress(admin)).toBe("/admin/aide/contenu/page-admin-unanswered-questions");
+    expect(helpCentreAddress(admin)).toBeNull();
+    expect(backOfficeHelpAddress(helpArticle("faq-text-size", "fr")!)).toBeNull();
   });
 });

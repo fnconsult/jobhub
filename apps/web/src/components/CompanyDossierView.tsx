@@ -1,4 +1,5 @@
 import type { CompanyDossier, CompanyDossierState } from "@/company-dossiers";
+import { ExternalLink } from "@/components/ExternalLink";
 import type { getServerT } from "@/i18n/server";
 import { BuildCompanyDossierButton, ConfirmEmployerForm } from "./CompanyDossierControls";
 
@@ -84,9 +85,9 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
     if (dossier.website)
       facts.push([
         t("companyDossier.facts.website"),
-        <a key="website" href={dossier.website} rel="noopener noreferrer nofollow" target="_blank">
+        <ExternalLink key="website" href={dossier.website}>
           {dossier.website}
-        </a>,
+        </ExternalLink>,
       ]);
   }
   return (
@@ -161,9 +162,9 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
         <ul className="dossier-news">
           {dossier.news.map((article) => (
             <li key={article.url}>
-              <a href={article.url} rel="noopener noreferrer nofollow" target="_blank">
+              <ExternalLink href={article.url}>
                 {article.title}
-              </a>
+              </ExternalLink>
               <span className="hint">{t("companyDossier.newsMeta", { outlet: article.outlet, date: day.format(new Date(`${article.publishedAt}T00:00:00Z`)) })}</span>
             </li>
           ))}
@@ -179,9 +180,9 @@ function Dossier({ applicationId, dossier, t, locale }: { applicationId: string;
           <ul className="dossier-sources">
             {dossier.sources.map((source) => (
               <li key={source}>
-                <a href={source} rel="noopener noreferrer nofollow" target="_blank">
+                <ExternalLink href={source}>
                   {source}
-                </a>
+                </ExternalLink>
               </li>
             ))}
           </ul>

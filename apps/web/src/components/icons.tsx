@@ -22,6 +22,7 @@ import {
   Download,
   Ellipsis,
   Eraser,
+  ExternalLink,
   FileQuestionMark,
   FileSearch,
   Flag,
@@ -144,6 +145,8 @@ const LUCIDE = {
   notFound: FileQuestionMark,
   forbidden: Lock,
   serverError: ServerCrash,
+  // The Exit Page: a link that leaves Jobbbox.
+  exit: ExternalLink,
   copy: Copy,
   // The Design System's Notes and Stats (#462).
   info: Info,

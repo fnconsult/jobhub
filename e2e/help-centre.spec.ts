@@ -6,7 +6,8 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #549 (ADR-0065): the public Help Centre. /aide shows its four topics, named by task, and a search without AI; a
 // Visitor, signed out, reads a public article, its kind, « Écrit par l'équipe Jobbbox » and its related articles; a
-// tutorial's steps are a numbered list; an empty topic says « Bientôt des articles ici »; /en/aide/… is in English; any
+// tutorial's steps are a numbered list; an empty topic says « Bientôt des articles ici » (none left since #554, so a unit
+// test: packages/help/src/help-centre.test.ts); /en/aide/… is in English; any
 // other address under /aide is a 404 (an Administrator's article is never public: packages/help/src/help-centre.test.ts).
 // The Coach Panel finds the « extension » topic's articles, and its card leads to the article in the Help Centre.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -47,22 +48,20 @@ test.describe("the Help Centre, for a Visitor", () => {
     await expect(article.getByRole("navigation", { name: fr.helpCentre.breadcrumb }).getByRole("link")).toHaveText([fr.helpCentre.title, fr.helpCentre.topics.extension.title]);
     // A tutorial's steps: a numbered list, the interface's labels word for word.
     const steps = article.locator(".help-centre__body ol > li");
-    await expect(steps).toHaveCount(5);
+    await expect(steps).toHaveCount(6);
     await expect(steps.nth(1)).toContainText(`« ${fr.extension.badge} »`);
     await expect(main(page).getByRole("heading", { name: fr.helpCentre.related })).toBeVisible();
+    // Reached by a link: Next streams the page's <title> after its content, so axe waits for it (else « document-title »).
+    await expect(page).toHaveTitle(`${titleOf("fr", TUTORIAL)} · ${fr.helpCentre.title} · ${fr.app.name}`);
     expect(await axeViolations(page)).toEqual([]);
   });
 
-  test("a topic lists its articles; an empty one says « Bientôt des articles ici », never a 404", async ({ page }) => {
+  test("a topic lists its articles", async ({ page }) => {
     await page.goto("/aide");
     await main(page).getByRole("link", { name: fr.helpCentre.topics.decouvrir.title }).click();
     await expect(page).toHaveURL(`${origin}/aide/decouvrir`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.helpCentre.topics.decouvrir.title);
     await expect(main(page).getByRole("list", { name: fr.helpCentre.inTopic }).getByRole("link", { name: titleOf("fr", WHERE) })).toBeVisible();
-
-    const empty = await page.goto("/aide/espace-coach");
-    expect(empty?.status()).toBe(200);
-    await expect(main(page).getByRole("heading", { name: fr.helpCentre.emptyTopic })).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
   });
 
@@ -184,5 +183,80 @@ test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
     await expect(main(page).locator(".help-centre__body").getByRole("link", { name: fr.publicFooter.legal.ia })).toHaveAttribute("href", "/legal/confidentialite#ia");
     await page.goto("/en/aide/decouvrir/faq-data-and-ai");
     await expect(main(page).locator(".help-centre__body").getByRole("link", { name: en.publicFooter.legal.ia })).toHaveAttribute("href", "/en/legal/confidentialite#ia");
+  });
+});
+
+// Issue #553: the « L'extension » articles, for the Guest and the signed-in Candidate. Listed under their topic in
+// French and English, the tutorials a numbered list of the Side Panel's labels, and found from a Candidate's Coach Panel.
+test.describe("« L'extension » (#553)", () => {
+  const EXTENSION = [
+    "page-side-panel",
+    "faq-extension-badge-sites",
+    "faq-guest-session",
+    "faq-rescore-why-match-score",
+    "tutorial-extension-analyse-job-offer",
+    "tutorial-extension-create-account",
+    TUTORIAL,
+  ];
+
+  test("/aide/extension and /en/aide/extension list #553's 7 articles", async ({ page }) => {
+    for (const [locale, prefix] of [["fr", ""], ["en", "/en"]] as const) {
+      await page.goto(`${prefix}/aide/extension`);
+      const list = main(page).getByRole("list", { name: (locale === "fr" ? fr : en).helpCentre.inTopic });
+      for (const id of EXTENSION) await expect(list.getByRole("link", { name: titleOf(locale, id), exact: true })).toHaveAttribute("href", `${prefix}/aide/extension/${id}`);
+    }
+  });
+
+  test("the Guest's tutorial « Analyser une offre » is a numbered list of the Side Panel's labels", async ({ page }) => {
+    await page.goto("/aide/extension/tutorial-extension-analyse-job-offer");
+    const steps = main(page).locator(".help-centre__body ol > li");
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(0)).toContainText(`« ${fr.extension.badge} »`);
+    await expect(steps.nth(2)).toContainText(`« ${fr.extension.analysis.dropCv} »`);
+    await expect(steps.nth(3)).toContainText(`« ${fr.extension.analysis.submit} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.extension.analysis.forget} »`);
+    expect(await axeViolations(page)).toEqual([]);
+  });
+
+  test("a Candidate's Coach Panel finds the Guest session's question", async ({ page }) => {
+    await signInWithMagicLink(page, newAddress("help-centre-extension"));
+    await page.goto("/");
+    await page.getByRole("textbox", { name: fr.coachPanel.messageLabel }).fill("effacer mes données de l'extension");
+    await expect(page.getByRole("list", { name: fr.coachPanel.help.suggestions }).getByRole("button", { name: titleOf("fr", "faq-guest-session") })).toBeVisible();
+  });
+});
+
+// Issue #554: the « Espace coach » articles, a Human Coach's. Listed under their topic in French and English, the
+// tutorials a numbered list of the coach space's labels; the coach space's footer leads there (e2e/public-shell.spec.ts).
+test.describe("« Espace coach » (#554)", () => {
+  const COACH_SPACE = ["page-coach-space", "faq-coach-access", "faq-retired-human-coach", "tutorial-coach-session-date", "tutorial-coach-review"];
+
+  test("/aide/espace-coach and /en/aide/espace-coach list #554's 5 articles", async ({ page }) => {
+    for (const [locale, prefix] of [["fr", ""], ["en", "/en"]] as const) {
+      await page.goto(`${prefix}/aide/espace-coach`);
+      const list = main(page).getByRole("list", { name: (locale === "fr" ? fr : en).helpCentre.inTopic });
+      await expect(list.getByRole("link")).toHaveCount(COACH_SPACE.length);
+      for (const id of COACH_SPACE) await expect(list.getByRole("link", { name: titleOf(locale, id), exact: true })).toHaveAttribute("href", `${prefix}/aide/espace-coach/${id}`);
+    }
+  });
+
+  test("the tutorial « Saisir la date et le lien d'une séance » is a numbered list of the coach space's labels", async ({ page }) => {
+    await page.goto("/aide/espace-coach/tutorial-coach-session-date");
+    const steps = main(page).locator(".help-centre__body ol > li");
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(0)).toContainText(`« ${fr.coachSpace.sessionsTitle} »`);
+    await expect(steps.nth(1)).toContainText(`« ${fr.coachingSession.coachEnterDate} »`);
+    await expect(steps.nth(2)).toContainText(`« ${fr.coachingSession.date} »`);
+    await expect(steps.nth(4)).toContainText(`« ${fr.coachingSession.videoLink} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.coachingSession.save} »`);
+    expect(await axeViolations(page)).toEqual([]);
+  });
+
+  test("the tutorial « Write a review of an application document » is in English", async ({ page }) => {
+    await page.goto("/en/aide/espace-coach/tutorial-coach-review");
+    const steps = main(page).locator(".help-centre__body ol > li");
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(3)).toContainText(`« ${en.coachSpace.reviewDocument} »`);
+    await expect(steps.nth(5)).toContainText(`« ${en.coachSpace.reviewSubmit} »`);
   });
 });

@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -45,12 +45,14 @@ import type { CoachingSession, CoachReview } from "../human-coaches";
 import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
 import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
+import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
 import { signalementsOf, type Signalement } from "../signalements";
 import { ordersOf, type ExportedOrder } from "../orders";
 import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
+import { twoStepStatusOf, type TwoStepStatus } from "../two-step-verification";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
 
@@ -267,8 +269,15 @@ export interface CandidateDataExport {
   }[];
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
+  /**
+   * The Candidate's Two-step verification (#663, ADR-0075): when it was turned on (null while off) and its factors, by
+   * kind, with when each was added and last used, and how many backup codes are left; never the app's secret nor a code.
+   */
+  twoStepVerification: TwoStepStatus;
   /** The notice emails of substantial Legal Text Versions sent to the Candidate, and the privacy policy changes they closed (#547). */
   legalTextNotices: ExportedLegalTextNotices;
+  /** The Candidate's Nouveautés email (#566): whether they ticked it, since when, and the Versions it told them of. */
+  nouveautesEmail: ExportedNouveautesEmail;
   /** The Candidate's Email intake (ADR-0051, #441): every Forwarding address given to them, with its activation date, and the sending addresses they added. */
   emailIntake: ExportedEmailIntake;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -366,6 +375,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   quota_usage: "quotaUsage",
   plan_quota_reduction_notice: "quotaReductionNotices (each Quota Reduction they were told of: its Plan, what it lowers, reason and date; when the e-mail went, and their cancellation and refund over it, with whether the refund was made, waits or was made by the team; no Stripe identifiers or error codes)",
   eu_ai_consent: "euAiConsent",
+  two_step_verification: "twoStepVerification (when it was turned on, each factor's kind and dates, how many backup codes are left; never the authenticator app's secret nor a backup code)",
   forwarding_address: "emailIntake.forwardingAddresses (replaced and switched off ones included, with their dates)",
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
   received_offer_email: "emailIntake.receivedOfferEmails (outcome, kind, sender's domain and dates; never the text)",
@@ -378,6 +388,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_welcome_closed: "coachWelcome.closedAt",
   legal_text_notice: "legalTextNotices.emailed (the text and version each notice email told of, #547)",
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
+  nouveautes_email_subscription: "nouveautesEmail.subscribed and subscribedAt (no unsubscribe token, #566)",
+  nouveautes_email_sent: "nouveautesEmail.sent (the Version each Nouveautés email told of, #566)",
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
@@ -710,7 +722,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -732,7 +744,9 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         rowOf<{ givenAt: Date }>(`SELECT given_at AS "givenAt" FROM eu_ai_consent WHERE candidate_id = $1`, candidateId),
+        twoStepStatusOf(database, candidateId),
         legalTextNoticesOf(database, candidateId),
+        nouveautesEmailOf(database, candidateId),
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
@@ -777,7 +791,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, legalTextNotices, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

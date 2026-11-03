@@ -83,11 +83,29 @@ export async function applyLatestSignIn(): Promise<void> {
   await instances().settled(version, REBUILD_WAIT_MS);
 }
 
-/** The session signed in on this request and its Candidate, or null. Never touches the database for anonymous visitors. */
-export async function getCurrentSession() {
+/** The session on this request, pending its second step or not, and its Candidate, or null. */
+async function sessionOnRequest() {
   const requestHeaders = await headers();
   if (!getSessionCookie(requestHeaders)) return null;
   return getAuth().api.getSession({ headers: requestHeaders });
+}
+
+/**
+ * The session signed in on this request and its Candidate, or null. Never touches the database for anonymous visitors.
+ * A session pending its second step (ADR-0075) is not signed in yet: null, wherever the proxy's gate would let it
+ * through (it never should: this is the second lock).
+ */
+export async function getCurrentSession() {
+  const current = await sessionOnRequest();
+  return current?.session.twoStepPending ? null : current;
+}
+
+/**
+ * The session on this request, pending its second step or not (`session.twoStepPending`), and its Candidate; null when
+ * signed out. For the second step alone: its page and endpoint, which a pending session reaches (ADR-0075).
+ */
+export async function getSessionForSecondStep() {
+  return sessionOnRequest();
 }
 
 /** The ids of the Sign-in Providers linked to the signed-in Candidate's account (none when signed out). */

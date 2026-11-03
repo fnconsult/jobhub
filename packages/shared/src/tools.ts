@@ -550,6 +550,23 @@ export const TOOLS = [
     residencyNote: { fr: "Selon l'émetteur configuré.", en: "Depends on the configured issuer." },
   },
   {
+    // Two-step verification (#663, ADR-0075): Jobbbox checks the code itself, nothing leaves it. Its calls are the
+    // second steps tried, each with its outcome, so the failures are counted in Outils; never the code nor who tried.
+    id: "two-step-verification",
+    name: "Vérification en deux étapes",
+    purpose: {
+      fr: "Vérification en deux étapes : vérifie, dans Jobbbox, le code d'une application d'authentification ou un code de secours. Chaque essai est compté, jamais le code.",
+      en: "Two-step verification: checks, within Jobbbox, an authenticator app's code or a backup code. Each attempt is counted, never the code.",
+    },
+    category: "sign_in",
+    module: "apps/web/src/two-step-verification/index.ts",
+    runsIn: "web",
+    keys: [],
+    usage: { table: "external_api_usage", provider: "two_step_verification" },
+    residency: "eu",
+    receivesPersonalData: false,
+  },
+  {
     id: "geo-api-gouv",
     name: "geo.api.gouv.fr",
     purpose: {

@@ -20,3 +20,4 @@ export * from "./ai-models";
 export * from "./provenance-marks";
 export * from "./provenance-line";
 export * from "./france-travail";
+export * from "./api-version";

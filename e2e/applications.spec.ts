@@ -5,6 +5,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { ficheOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
+import { exitHref } from "./support/exit-page";
 
 // Issue #12: saving a Job Offer creates an Application ("À postuler") on one
 // of the Candidate's Profiles, at most one per Job Offer. The Candidate follows
@@ -347,7 +348,7 @@ test.describe("Applications", () => {
 
     await expect(item).toContainText("14:30 – 16:00");
     await expect(item).toContainText(fr.interviewFormats.video);
-    await expect(item.getByRole("link", { name: "http://visio.example.fr/salle-4" })).toHaveAttribute("href", "http://visio.example.fr/salle-4");
+    await expect(item.getByRole("link", { name: "http://visio.example.fr/salle-4" })).toHaveAttribute("href", exitHref("http://visio.example.fr/salle-4"));
     await page.reload();
     await expect(page.getByRole("region", { name: fr.application.interviewsTitle }).getByRole("listitem")).toContainText("14:30 – 16:00");
   });

@@ -5,6 +5,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { parisDay } from "./support/paris-days";
 import { toConversation } from "./support/conversation";
+import { exitHref } from "./support/exit-page";
 
 // Issue #246: the Agenda (« Entretiens et rendez-vous »), from the Sidebar right
 // after Mes candidatures, lists the Candidate's Interviews: upcoming ones by day in
@@ -198,7 +199,7 @@ test.describe("adding an Interview from the Agenda", () => {
     await expect(item).toHaveCount(1);
     await expect(item).toContainText("14:30 – 15:15");
     await expect(item).toContainText(fr.interviewFormats.video);
-    await expect(item.getByRole("link", { name: "https://meet.example.com/abc" })).toHaveAttribute("href", "https://meet.example.com/abc");
+    await expect(item.getByRole("link", { name: "https://meet.example.com/abc" })).toHaveAttribute("href", exitHref("https://meet.example.com/abc"));
 
     // Both saved in that one request: the Application is now at « Entretien », with the Interview.
     await page.goto(`/candidatures/${applicationId}/entretiens`);

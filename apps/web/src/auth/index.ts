@@ -93,6 +93,11 @@ export interface AuthConfig {
   extensionOrigins?: string[] | undefined;
   /** Where the calls a provider's callback makes to it (token, keys, user info) are recorded (#234), never who signed in. Default: nowhere. */
   externalApis?: ExternalApiLog | undefined;
+  /**
+   * Whether the account must have Two-step verification (an Administrator or a Human Coach, ADR-0075, #665): a magic
+   * link then signs it into a pending session even with no factor yet, to set one up. Default: nobody must.
+   */
+  mustHaveTwoStepVerification?: ((candidateId: string) => Promise<boolean>) | undefined;
 }
 
 /** How long a magic link stays valid. */
@@ -132,7 +137,7 @@ const providerOf = (ctx: HookContext): string | null => (ctx?.path?.startsWith("
  *    signed in, from Mon compte;
  *  - each session records how it was signed in (`signInMethod`), for Require SSO;
  *  - a session a magic link signs in starts pending (`twoStepPending`, ADR-0075) when `secondStepRequired` says the
- *    account has Two-step verification: it reaches nothing but the second step until it is done. A Sign-in Provider's
+ *    account has Two-step verification, or must have it (#665): it reaches nothing but the second step until it is done. A Sign-in Provider's
  *    never does: its sign-in counts as both steps.
  */
 export function signInHooks(signIn: SignInSetup, baseURL: string, secondStepRequired: (candidateId: string) => Promise<boolean> = async () => false) {
@@ -304,7 +309,11 @@ function authOptions(config: AuthConfig) {
         trustedProviders: () => trustedProviderIds(signIn.current?.() ?? signIn.configuration),
       },
     },
-    databaseHooks: signInHooks(signIn, config.baseURL, (candidateId) => hasTwoStepVerification(config.database, candidateId)),
+    databaseHooks: signInHooks(
+      signIn,
+      config.baseURL,
+      async (candidateId) => (await hasTwoStepVerification(config.database, candidateId)) || ((await config.mustHaveTwoStepVerification?.(candidateId)) ?? false),
+    ),
     hooks: { before: refuseIdTokenSignIn },
     // The account of a person looking for a job is a Candidate (CONTEXT.md).
     user: {

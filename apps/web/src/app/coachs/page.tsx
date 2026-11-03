@@ -10,6 +10,7 @@ import { getCoachConversations } from "@/coach-conversations/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { CoachingSessionDialog } from "@/components/CoachingSessionDialog";
+import { ExternalLink } from "@/components/ExternalLink";
 import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { Card } from "@/design/Card";
 import { getHumanCoaches } from "@/human-coaches/server";
@@ -100,9 +101,9 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
               {paid.durationMinutes ? <p>{t("humanCoaches.sessionDuration", { count: paid.durationMinutes })}</p> : null}
               {paid.videoLink ? (
                 <p>
-                  <a href={paid.videoLink} rel="noopener noreferrer" target="_blank">
+                  <ExternalLink href={paid.videoLink}>
                     {t("humanCoaches.joinVideo", { name: paid.coach.name })}
-                  </a>
+                  </ExternalLink>
                 </p>
               ) : null}
               {paid.note ? <p>{paid.note}</p> : null}
@@ -129,9 +130,9 @@ export default async function HumanCoachesPage({ searchParams }: { searchParams:
               <p>{t("humanCoaches.toSchedule")}</p>
               <RescheduleHistory reschedules={paid.reschedules} coachName={paid.coach.name} dateTime={changedAt} t={t} />
               <div className="actions">
-                <a className="button button-primary" href={paid.coach.bookingUrl} rel="noopener noreferrer" target="_blank">
+                <ExternalLink className="button button-primary" href={paid.coach.bookingUrl}>
                   {t("humanCoaches.pickSlot", { name: paid.coach.name })}
-                </a>
+                </ExternalLink>
                 <CoachingSessionDialog session={{ id: paid.id, scheduledAt: "", durationMinutes: null, videoLink: null, note: null }} withName={paid.coach.name} />
               </div>
             </li>

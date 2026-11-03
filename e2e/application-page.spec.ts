@@ -4,6 +4,7 @@ import { fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { ficheOf, workPaneOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
+import { exitHref } from "./support/exit-page";
 
 // Issue #136: the Application page is redesigned as in the approved prototype
 // (#132), inside the sidebar layout (#134): a document with its title, the Job
@@ -125,7 +126,7 @@ test.describe("the Application page", () => {
     await expect(props.nth(1)).toHaveText(new Intl.DateTimeFormat("fr", { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date()));
     await expect(props.nth(2).getByText(/^\d{1,3} \/ 100$/)).toBeVisible();
     await expect(props.nth(3).getByRole("combobox", { name: fr.application.profileLabel })).toHaveAccessibleDescription(fr.application.profileHint);
-    await expect(props.nth(4).getByRole("link", { name: "Voir l'offre sur apec.fr" })).toHaveAttribute("href", sourceUrl);
+    await expect(props.nth(4).getByRole("link", { name: "Voir l'offre sur apec.fr" })).toHaveAttribute("href", exitHref(sourceUrl));
 
     // The status is changed in place, and kept.
     await props.nth(0).getByRole("combobox").selectOption({ label: fr.applicationStatuses.applied });

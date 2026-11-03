@@ -1,4 +1,5 @@
 import type { JobOffer } from "@jobhub/shared";
+import { ExternalLink } from "@/components/ExternalLink";
 import { SkillTags } from "@/components/SkillTags";
 import type { getServerT } from "@/i18n/server";
 import { jobOfferSalary } from "@/job-offers/at-a-glance";
@@ -87,9 +88,9 @@ export function JobOfferView({ jobOffer, t, locale, details = true }: { jobOffer
             {site ? (
               <Detail term={t("jobOffer.source")}>
                 {jobOffer.source.url ? (
-                  <a href={jobOffer.source.url} rel="noopener noreferrer nofollow" target="_blank">
+                  <ExternalLink href={jobOffer.source.url}>
                     {t("jobOffer.sourceLink", { site })}
-                  </a>
+                  </ExternalLink>
                 ) : (
                   site
                 )}

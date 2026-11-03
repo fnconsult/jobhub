@@ -102,7 +102,7 @@ describe("sitemap.xml (#545)", () => {
 describe("robots.txt (#545)", () => {
   it("allows the public site, points to the sitemap and disallows the Back Office, the API and the coach space", () => {
     expect(robotsFile({ origin: ORIGIN, beta: false })).toEqual({
-      rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api", "/espace-coach"] },
+      rules: { userAgent: "*", allow: "/", disallow: ["/admin", "/api", "/espace-coach", "/sortie"] },
       sitemap: `${ORIGIN}/sitemap.xml`,
     });
   });

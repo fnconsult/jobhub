@@ -2,6 +2,7 @@ import { PRICE_SETTINGS } from "@jobhub/ai";
 import { isFranceTravailApi } from "@jobhub/shared";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ExternalLink } from "@/components/ExternalLink";
 import { AddressDrawer } from "@/design/AddressDrawer";
 import { buttonClass } from "@/design/button-class";
 import { Checkbox, TextInput } from "@/design/Field";
@@ -151,9 +152,9 @@ function PricesSection({ ctx, row, settings, unpricedCalls }: { ctx: Ctx; row: P
               <li key={price.name} data-list-price={price.name}>
                 {t("admin.platformSettings.sheet.listPrice", { name: price.name, price: price.default, unit: t(`admin.platformSettings.sheet.units.${price.unit}`), date: price.listedOn })}{" "}
                 (
-                <a href={price.source} target="_blank" rel="noreferrer">
+                <ExternalLink href={price.source}>
                   {t("admin.platformSettings.sheet.listPriceSource")}
-                </a>
+                </ExternalLink>
                 )
               </li>
             ))}

@@ -6,6 +6,7 @@ import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityOf, activityUnderWayOf, closeActivity, openActivity } from "./support/conversation";
+import { exitHref } from "./support/exit-page";
 
 // Issue #335: a Company Dossier and the reading of an uploaded CV keep their Provenance, show their steps live (on their
 // page beside « Arrêter », and in AI Activity) and can be stopped. A new dossier lists its Provenance sites in AI Activity,
@@ -110,9 +111,9 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(built).not.toContainText(fr.aiActivity.modelNotRecorded);
     const sources = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.sources }) });
     await sources.getByRole("button", { name: "personleak.example" }).click();
-    await expect(sources.getByRole("link", { name: /^personleak\.example\/about/ })).toHaveAttribute("href", "https://personleak.example/about");
+    await expect(sources.getByRole("link", { name: /^personleak\.example\/about/ })).toHaveAttribute("href", exitHref("https://personleak.example/about"));
     await sources.getByRole("button", { name: "news.example" }).click();
-    await expect(sources.getByRole("link", { name: /^news\.example\/nouvelle-usine/ })).toHaveAttribute("href", "https://news.example/nouvelle-usine");
+    await expect(sources.getByRole("link", { name: /^news\.example\/nouvelle-usine/ })).toHaveAttribute("href", exitHref("https://news.example/nouvelle-usine"));
     await expect(paneOf(page)).not.toContainText("linkedin");
     await expect(paneOf(page)).not.toContainText("javascript");
     await expect(paneOf(page)).not.toContainText("news.example/depart");
@@ -139,7 +140,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await expect(elementOf(page, "company_dossier")).toContainText(fr.aiActivity.modelNotRecorded);
     const oldSources = paneOf(page).locator(".ai-activity-section").filter({ has: page.getByRole("button", { name: fr.aiActivity.sections.sources }) });
     await oldSources.getByRole("button", { name: "annuaire-entreprises.data.gouv.fr" }).click();
-    await expect(oldSources.getByRole("link", { name: /^annuaire-entreprises\.data\.gouv\.fr\/entreprise\/552100554/ })).toHaveAttribute("href", REGISTER_PAGE);
+    await expect(oldSources.getByRole("link", { name: /^annuaire-entreprises\.data\.gouv\.fr\/entreprise\/552100554/ })).toHaveAttribute("href", exitHref(REGISTER_PAGE));
   });
 
   test("stopped mid-dossier from its page, the dossier keeps what was finished: its facts, its news not searched", async ({ page }) => {

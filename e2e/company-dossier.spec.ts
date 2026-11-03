@@ -3,6 +3,7 @@ import { expect as baseExpect, test } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { expectNoPrivatePersonNamed, openApplication } from "./support/company-dossier";
 import { newAddress } from "./support/mailbox";
+import { EXIT_LINK_REL, exitHref } from "./support/exit-page";
 
 // Issue #17: the Company Dossier of an Application. A French employer is
 // matched to its SIREN in the register, with financials when published; any
@@ -71,9 +72,9 @@ test.describe("Company Dossier", () => {
     const news = dossier.getByRole("list").filter({ has: page.getByRole("link", { name: "Une nouvelle usine de robots inaugurée" }) });
     await expect(news.getByRole("listitem")).toHaveCount(1);
     const article = news.getByRole("link", { name: "Une nouvelle usine de robots inaugurée" });
-    await expect(article).toHaveAttribute("href", "https://news.example/nouvelle-usine");
+    await expect(article).toHaveAttribute("href", exitHref("https://news.example/nouvelle-usine"));
     await expect(article).toHaveAttribute("target", "_blank");
-    await expect(article).toHaveAttribute("rel", "noopener noreferrer nofollow");
+    await expect(article).toHaveAttribute("rel", EXIT_LINK_REL);
     await expect(news.getByText(/^Le Journal de l'Industrie, \d{1,2} \S+ \d{4}$/)).toBeVisible();
     // Older than twelve months, or naming a person: left out.
     await expect(dossier.getByText("Des résultats annuels en hausse")).toHaveCount(0);

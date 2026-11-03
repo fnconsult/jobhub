@@ -237,7 +237,7 @@ test.describe("Email intake: the emails its MTA posts", () => {
       expect((await deliver(page.request, gmailForwardingConfirmation(address, { code: "424242" }))).status()).toBe(200);
       await expect(steps.getByRole("definition")).toHaveText("424242");
       await expect(steps.getByRole("term")).toHaveText(wizard.confirmation.codeLabel);
-      await expect(steps.getByRole("link", { name: wizard.confirmation.link })).toHaveAttribute("href", /^https:\/\/mail-settings\.google\.com\//);
+      await expect(steps.getByRole("link", { name: wizard.confirmation.link })).toHaveAttribute("href", /^\/sortie\?url=https%3A%2F%2Fmail-settings\.google\.com%2F/);
       await expectAccessible(page);
       // Gmail's confirmation is not the first email: the setup still waits for one.
       await next.click();

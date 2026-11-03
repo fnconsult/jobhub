@@ -39,6 +39,16 @@
       "title": "Un problème est survenu",
       "message": "Nous n'avons pas pu afficher cette page. Vos données sont en sécurité. Réessayez dans un instant."
     },
+    "exit": {
+      "title": "Vous quittez Jobbbox",
+      "message": "Ce lien mène vers un site extérieur à Jobbbox. Jobbbox n'est pas responsable de son contenu ni de ce qu'il fait de vos données.",
+      "countdown_one": "Vous allez être redirigé vers {{site}} dans {{count}} seconde.",
+      "countdown_other": "Vous allez être redirigé vers {{site}} dans {{count}} secondes.",
+      "check": "Vérifiez l'adresse avant de continuer.",
+      "cancelled": "Redirection annulée.",
+      "continue": "Continuer vers {{site}}",
+      "cancel": "Annuler"
+    },
     "actions": {
       "retry": "Réessayer",
       "back": "Page précédente",

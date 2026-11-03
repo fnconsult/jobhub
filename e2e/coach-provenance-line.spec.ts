@@ -5,6 +5,7 @@ import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { openFreeConversation, toConversation } from "./support/conversation";
+import { EXIT_LINK_REL } from "./support/exit-page";
 
 // Issue #327: each AI Coach reply keeps its Provenance, and one quiet line under it says what served it (the model that
 // actually did, tokens · time, Tools, Provenance sites and the hour). « Votre coach » and « Vous » are read only by screen
@@ -138,7 +139,7 @@ test.describe("the Provenance line under each AI Coach reply", () => {
     const link = line.getByRole("link", { name: /carrieres\.coach-links\.e2e-jobbbox\.fr\/offres\/daf-lyon/ });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("target", "_blank");
-    await expect(link).toHaveAttribute("rel", "noreferrer");
+    await expect(link).toHaveAttribute("rel", EXIT_LINK_REL);
     await expectNoAxeViolations(page, ".page-conversation");
     await page.keyboard.press("Escape");
     await expect(sources).toHaveAttribute("aria-expanded", "false");

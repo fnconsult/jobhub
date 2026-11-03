@@ -976,6 +976,28 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "« Mon espace coach » est votre page de coach humain sur Jobbbox. Connectez-vous à Jobbbox avec l'adresse e-mail que l'équipe Jobbbox a enregistrée pour vous, en recevant un lien de connexion : « Mon espace coach » apparaît alors dans le menu. Le nom Jobbbox, en haut de chaque page de votre espace coach, vous y ramène, et « Mon compte » ouvre votre compte.\n\nLa page a deux parties.\n\n« Mes séances de coaching » liste les séances que des candidats ont payées avec vous, même sans vous avoir donné l'accès coach. Chaque séance indique le prénom et l'initiale du nom du candidat, par exemple Claire D., et la date de paiement : « Payée le … ». Tant que la date n'est pas saisie, la séance est « À planifier ». Une fois datée, elle affiche « Le … (heure de Paris) », sa durée et « Lien de la visio avec … ». Le tutoriel « Saisir la date et le lien d'une séance » explique comment les renseigner.\n\n« Candidats avec accès coach » liste les candidats qui vous ont donné l'accès coach. Cliquez sur l'un d'eux pour ouvrir son dossier : ses candidatures, avec leur statut, et ses profils. Tout y est en lecture seule, comme le rappelle la page : « Lecture seule : seul le candidat peut modifier ses profils et candidatures. » Ouvrez une candidature pour lire son CV adapté, sa lettre de motivation et son message d'approche, et pour donner votre avis : le tutoriel « Rédiger un avis sur un document de candidature » explique comment.\n\nVous ne voyez ni l'agenda du candidat, ni ses conversations avec son coach IA, ni la note qu'il a pu ajouter à une séance. Le lien « Centre d'aide », en bas de chaque page de votre espace coach, mène à cette rubrique de l'aide."
     },
     {
+      "id": "page-exit",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Vous quittez Jobbbox",
+      "synonyms": [
+        "sortie",
+        "quitter",
+        "site extérieur",
+        "lien externe",
+        "redirection",
+        "redirigé",
+        "autre site",
+        "annuler la redirection"
+      ],
+      "route": "/sortie",
+      "motion": null,
+      "microAnimations": [],
+      "body": "Quand vous cliquez sur un lien qui mène hors de Jobbbox (l'annonce d'une offre sur son site d'origine, le site d'une entreprise, un article de presse, une source citée par votre coach IA, le lien de réservation ou de visioconférence d'un coach humain, le Chrome Web Store), Jobbbox vous montre d'abord la page « Vous quittez Jobbbox », dans un nouvel onglet.\n\nElle indique le site vers lequel vous allez et son adresse complète. Jobbbox n'est pas responsable du contenu de ce site, ni de ce qu'il fait de vos données.\n\nAu bout de 5 secondes, elle vous y conduit d'elle-même. Cliquez sur « Continuer vers » suivi du nom du site pour y aller tout de suite, ou sur « Annuler » pour rester sur Jobbbox ; « Retour à l'accueil » vous ramène à votre accueil.\n\nSi vous ouvrez cette page depuis un e-mail, un message ou un autre site, elle n'avance pas seule : vérifiez l'adresse, puis cliquez sur « Continuer vers » si vous la reconnaissez."
+    },
+    {
       "id": "glossary-coach-access",
       "locale": "fr",
       "kind": "glossary",
@@ -3999,6 +4021,29 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "This page lets you withdraw from a contract made on Jobbbox, without giving a reason: your subscription to a plan, for 14 days after you subscribed, or a session with a human coach, for 14 days after you paid for it. A session booked with the request for the service to start at once can no longer be withdrawn from once it has taken place. The period runs to the end of the 14th day, Paris time; when that day is a Saturday, a Sunday or a public holiday, it runs on to the next working day.\n\nCheck the contract, its date and the amount paid, enter your name, then choose where to receive the acknowledgement: your account's address or another one. « Confirm the withdrawal » ends the contract at once and refunds you to the payment method you used; depending on your bank, the refund shows within 5 to 10 business days. The refund is in full, but for a subscription taken with the request for the service to start at once: you then pay for the service already provided, and the page shows the amount « Refunded if you confirm now » (the amount paid, less the share of the days elapsed since the start of the period).\n\nYou get an acknowledgement by email straight away, with the date and time of your withdrawal: keep it."
+    },
+    {
+      "id": "page-exit",
+      "locale": "en",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "You are leaving Jobbbox",
+      "synonyms": [
+        "exit",
+        "leave",
+        "leaving",
+        "outside site",
+        "external link",
+        "redirect",
+        "redirected",
+        "other site",
+        "cancel the redirect"
+      ],
+      "route": "/sortie",
+      "motion": null,
+      "microAnimations": [],
+      "body": "When you click a link that leads outside Jobbbox (a job offer's ad on its original site, a company's website, a press article, a source your AI coach cites, a human coach's booking or video link, the Chrome Web Store), Jobbbox first shows you the page « You are leaving Jobbbox », in a new tab.\n\nIt shows the site you are going to and its full address. Jobbbox is not responsible for that site's content, nor for what it does with your data.\n\nAfter 5 seconds, it takes you there by itself. Click « Continue to » followed by the site's name to go there at once, or « Cancel » to stay on Jobbbox; « Back to the home page » takes you back to your home page.\n\nIf you open this page from an email, a message or another site, it does not go on by itself: check the address, then click « Continue to » if you recognise it."
     },
     {
       "id": "page-coach-space",

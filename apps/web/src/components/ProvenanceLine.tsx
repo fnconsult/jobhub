@@ -3,6 +3,7 @@
 import { useId, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { formatDuration, formatTimeOfDay, formatTokens, provenanceLine, type Provenance, type ProvenanceSite } from "@jobhub/shared";
+import { ExternalLink } from "@/components/ExternalLink";
 
 type Language = "fr" | "en";
 
@@ -89,10 +90,10 @@ function SiteLinks({ site }: { site: ProvenanceSite }) {
     <>
       <span>{name}</span>
       {site.links.map((link) => (
-        <a key={link} href={link} target="_blank" rel="noreferrer">
+        <ExternalLink key={link} href={link}>
           {site.kind === "web" ? link.replace(/^https?:\/\//, "") : link}
           <span className="visually-hidden"> {t("provenanceLine.newTab")}</span>
-        </a>
+        </ExternalLink>
       ))}
     </>
   );

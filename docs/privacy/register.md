@@ -279,9 +279,9 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Contributors to the GitHub repository. No Candidate data: the report reads only GitHub issues, pull requests and deployments, and each environment's `/api/health`. |
 | Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers. |
 | Source | GitHub's API, read by the workflow with its own token. |
-| Processors | GitHub (Actions runs it; the report is kept in the run's summary and artifact and as a comment on the `status-report` issue, which GitHub emails to the accounts subscribed to it, `dev@jobbbox.ai` among them). No new processor. |
+| Processors | GitHub (Actions runs it; the report is kept in the run's summary and artifact and as a comment on the `status-report` issue); Brevo (EU, ADR-0007, already a processor for emails), which sends it to `dev@jobbbox.ai` with the app's mailer. No new processor. |
 | Who can read it | The repository's collaborators, and the recipients of `dev@jobbbox.ai`. |
 | Storage | GitHub (the artifact is kept 30 days; the issue comments until deleted); the recipients' mailboxes. |
 | Retention | Artifact 30 days. Issue comments and emails until deleted by the team. |
 | Rights | A contributor asks the team to delete the comments or emails naming them. |
-| Security | The workflow's token is read-only but for issues. |
+| Security | The workflow's token is read-only but for issues; the Brevo key is an Actions secret. |

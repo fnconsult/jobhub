@@ -4,11 +4,15 @@
 # is not 18:00 in Europe/Paris skips itself: 16:00 UTC in summer (CEST), 17:00 UTC in winter (CET).
 # Scheduled runs can start a few minutes late when GitHub is busy.
 #
-# The report is posted as a comment on the issue labelled `status-report` (created on the first
-# run), so whoever watches that issue gets it by notification and email: GitHub emails only
-# GitHub accounts, so dev@jobbbox.ai receives it through an account with that address (or routed
-# to it, Settings → Notifications → Custom routing) subscribed to the issue. The run's summary
-# and artifact hold it too. Run it by hand: `gh workflow run status-report.yml`.
+# The report is emailed to STATUS_REPORT_TO (default dev@jobbbox.ai) by scripts/send-status-report.ts,
+# with the app's mailer (`mailerFromEnv`: Brevo's API, ADR-0007) and email layout (`renderEmail`).
+# It is also posted as a comment on the issue labelled `status-report` (created on the first run),
+# and kept in the run's summary and artifact. Run it by hand: `gh workflow run status-report.yml`.
+#
+# Settings → Secrets and variables → Actions:
+#   secret    BREVO_API_KEY       a Brevo API key (xkeysib-…), like the app's
+#   variable  MAIL_FROM           the sender, as the app's MAIL_FROM (an address Brevo has verified)
+#   variable  STATUS_REPORT_TO    optional, comma-separated recipients
 # Privacy register: docs/privacy/register.md, « Delivery status report ».
 name: Status report
 
@@ -51,7 +55,11 @@ jobs:
       - if: steps.when.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
+          cache: npm
+
+      - if: steps.when.outputs.run == 'true'
+        run: npm ci
 
       - name: Build the report
         if: steps.when.outputs.run == 'true'
@@ -91,3 +99,13 @@ jobs:
               "$(TZ=Europe/Paris date '+%Y-%m-%d %H:%M')" "$run_url" > comment.md
           fi
           gh issue comment "$issue" --body-file comment.md
+
+      - name: Email it
+        if: steps.when.outputs.run == 'true'
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+        run: >-
+          npx tsx scripts/send-status-report.ts status-report.md
+          --to "${{ vars.STATUS_REPORT_TO || 'dev@jobbbox.ai' }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

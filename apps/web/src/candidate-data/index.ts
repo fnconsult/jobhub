@@ -270,8 +270,9 @@ export interface CandidateDataExport {
   /** The Candidate's EU AI consent (ADR-0007), or null when they have not given it (or withdrew it). */
   euAiConsent: { givenAt: Date } | null;
   /**
-   * The Candidate's Two-step verification (#663, ADR-0075): when it was turned on (null while off) and its factors, by
-   * kind, with when each was added and last used, and how many backup codes are left; never the app's secret nor a code.
+   * The Candidate's Two-step verification (#663, #664, ADR-0075): when it was turned on (null while off) and its factors, by
+   * kind, with when each was added and last used, each passkey's name and device (when known), and how many backup codes
+   * are left; never the app's secret, a code nor a passkey's public key.
    */
   twoStepVerification: TwoStepStatus;
   /** The notice emails of substantial Legal Text Versions sent to the Candidate, and the privacy policy changes they closed (#547). */
@@ -374,6 +375,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   plan_quota_reduction_notice: "quotaReductionNotices (each Quota Reduction they were told of: its Plan, what it lowers, reason and date; when the e-mail went, and their cancellation and refund over it, with whether the refund was made, waits or was made by the team; no Stripe identifiers or error codes)",
   eu_ai_consent: "euAiConsent",
   two_step_verification: "twoStepVerification (when it was turned on, each factor's kind and dates, how many backup codes are left; never the authenticator app's secret nor a backup code)",
+  passkey: "twoStepVerification.factors (each passkey's name, the device it was made with when known, when it was added and last used; never its public key nor its credential id)",
   forwarding_address: "emailIntake.forwardingAddresses (replaced and switched off ones included, with their dates)",
   sending_address: "emailIntake.sendingAddresses (those the Candidate added; their account's is account.email)",
   received_offer_email: "emailIntake.receivedOfferEmails (outcome, kind, sender's domain and dates; never the text)",

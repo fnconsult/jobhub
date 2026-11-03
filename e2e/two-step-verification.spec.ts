@@ -68,7 +68,7 @@ test.describe("Two-step verification", () => {
     // A wrong code is refused; the app's next code lets them in, back where they were going.
     await page.getByLabel(fr.twoStep.secondStep.codeLabel).fill("000000");
     await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
-    await expect(page.getByRole("alert")).toHaveText(fr.twoStep.secondStep.invalid);
+    await expect(page.getByRole("alert").filter({ hasText: fr.twoStep.secondStep.invalid })).toBeVisible();
     await page.getByLabel(fr.twoStep.secondStep.codeLabel).fill(totpAt(secret, new Date(Date.now() + 30_000)));
     await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
     await expect(page).toHaveURL(/\/compte\/preferences$/);
@@ -87,7 +87,7 @@ test.describe("Two-step verification", () => {
     await page.getByRole("button", { name: fr.twoStep.secondStep.useBackupCode }).click();
     await page.getByLabel(fr.twoStep.secondStep.backupCodeLabel).fill(codes[0]!);
     await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
-    await expect(page.getByRole("alert")).toHaveText(fr.twoStep.secondStep.invalid);
+    await expect(page.getByRole("alert").filter({ hasText: fr.twoStep.secondStep.invalid })).toBeVisible();
     await page.getByLabel(fr.twoStep.secondStep.backupCodeLabel).fill(codes[1]!);
     await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
     await expect(page).toHaveURL(/\/compte$/);

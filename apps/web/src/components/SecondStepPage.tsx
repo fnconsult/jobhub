@@ -19,10 +19,10 @@ export function SecondStepPage({ step, back, locale }: { step: PendingStep; back
   return (
     <div className="stack">
       {step === "setup" ? (
-        <>
+        <div className="stack" data-two-step-setup>
           <p>{t("twoStep.setup.intro")}</p>
           <TwoStepSetup endpoint={SETUP_ENDPOINT} onDone={goOn} />
-        </>
+        </div>
       ) : (
         <SecondStepCodeForm choice locale={locale} onDone={goOn} />
       )}

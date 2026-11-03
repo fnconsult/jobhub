@@ -1,9 +1,10 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { expect, type Page } from "@playwright/test";
 import pg from "pg";
-import { fromNewAddress, requestSignInLink } from "./candidate";
+import { fromNewAddress, requestSignInLink, setUpTwoStepVerificationIfAsked } from "./candidate";
 import { emailsIn, linkIn } from "./mailbox";
 import { derivedPort } from "./ports";
+import { forgetTwoStepVerification } from "./two-step";
 
 // A web app of a spec's own (#209, #601): a setting that is one for the whole app (the Sign-in Providers, a Platform
 // Setting that changes every Candidate's pages) would change the pages of every other spec running at the same time, so
@@ -71,12 +72,15 @@ export async function startOwnServer(offset: number, suffix: string, env: NodeJS
 }
 
 /** Signs `email` in by magic link on `server` (its emails are in its own output). Leaves `page` on /compte. */
-export async function signInByEmail(page: Page, server: Pick<OwnServer, "origin" | "output">, email: string): Promise<void> {
+export async function signInByEmail(page: Page, server: Pick<OwnServer, "origin" | "output"> & Partial<Pick<OwnServer, "databaseUrl">>, email: string): Promise<void> {
+  // An Administrator sets up Two-step verification afresh (#665), as with the suite's server (candidate.ts).
+  await forgetTwoStepVerification(server.databaseUrl, email);
   const already = emailsIn(server.output(), email).length;
   await fromNewAddress(page);
   await page.goto(`${server.origin}/connexion`);
   await requestSignInLink(page, email);
   await expect.poll(() => emailsIn(server.output(), email).length, { message: `sign-in email to ${email}` }).toBeGreaterThan(already);
   await page.goto(linkIn(emailsIn(server.output(), email)[already]!));
+  await setUpTwoStepVerificationIfAsked(page);
   await expect(page).toHaveURL(`${server.origin}/compte`);
 }

@@ -12,4 +12,6 @@ The « Status » says whether the tool can be called: « Configured », « No ke
 
 « Details » opens a tool's page: its « Last 30 days » figures, its « Latest calls » with their « Outcome » and « Duration », for an AI model the « Failures and warnings per reason (30 d) » table, and its « Settings », read-only. A tool outside the EU switched on without being named by the privacy policy in effect keeps the « …: recipient outside the EU not covered » warning there.
 
+GitHub, under « Delivery », serves the Delivery page: its read-only token is entered on Settings, « Environment » tab.
+
 Tools is read-only: a key, a setting or a provider is changed on Settings. « All tools » leads back to the list.

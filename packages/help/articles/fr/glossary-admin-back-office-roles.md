@@ -12,7 +12,7 @@ Un rôle du back office dit ce qu'un administrateur peut voir et changer. Vos r�
 - **Responsable coaching** : les coachs humains ; lit le coût de l'AI Coach.
 - **Rédacteur de playbooks** : écrit, évalue, valide et archive les playbooks de coaching, le socle et la liste des sources.
 - **Rédacteur de l'aide** : lit les questions sans réponse et les marque « Article écrit » ou les écarte ; lit les questions des signalements, sans l'e-mail ni l'offre du candidat.
-- **Technique** : règle les paramètres non secrets, les sources et sites de recherche et les prix des outils. Voit les clés par leur source et leurs 4 derniers caractères, sans les changer. Lit le Dashboard, Consommation IA, les outils, Activité › Recherches, Emails reçus et Actions des administrateurs.
+- **Technique** : règle les paramètres non secrets, les sources et sites de recherche et les prix des outils. Voit les clés par leur source et leurs 4 derniers caractères, sans les changer. Lit le Dashboard, Consommation IA, les outils, Livraison, Activité › Recherches, Emails reçus et Actions des administrateurs.
 - **Support** : traite les signalements et les rétractations ; lit tout le reste sans rien modifier, sauf les secrets des fournisseurs, les appels IA et les actions des administrateurs.
 
 Une section qu'aucun de vos rôles ne lit n'apparaît pas dans le menu. Une section que vous lisez sans pouvoir la changer s'affiche en lecture seule. Un rôle retiré ne donne plus accès dès la page suivante. Il reste toujours au moins un super-admin, et un super-admin permanent (ADMIN_EMAILS) ne se retire pas depuis le back office.

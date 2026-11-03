@@ -12,11 +12,28 @@ type Failure = { kind: "invalid" } | { kind: "locked"; time: string } | { kind: 
 /**
  * A second step (ADR-0075): a code from the authenticator app or a backup code, posted to its endpoint; `onDone` once
  * it is accepted. On the second step's page (`choice`), the Candidate switches between the app's code and a backup
- * code; in Mon compte, before turning the verification off, one field takes either.
+ * code; in Mon compte, before turning the verification off, one field takes either. Without an app (`app` false: on
+ * with a passkey, #664), it takes a backup code alone.
  */
-export function SecondStepCodeForm({ choice = false, submitLabel, locale, onDone }: { choice?: boolean; submitLabel?: string; locale: string; onDone: () => void }) {
+export function SecondStepCodeForm({
+  choice = false,
+  app = true,
+  submitLabel,
+  locale,
+  onDone,
+  autoFocus = true,
+}: {
+  choice?: boolean;
+  app?: boolean;
+  submitLabel?: string;
+  locale: string;
+  onDone: () => void;
+  /** False when a passkey is offered first. */
+  autoFocus?: boolean;
+}) {
   const { t } = useTranslation();
-  const [backup, setBackup] = useState(false);
+  const [backupChosen, setBackup] = useState(false);
+  const backup = backupChosen || !app;
   const [code, setCode] = useState("");
   const [working, setWorking] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -38,7 +55,7 @@ export function SecondStepCodeForm({ choice = false, submitLabel, locale, onDone
     setWorking(false);
   }
 
-  const label = !choice ? t("twoStep.security.codeOrBackupLabel") : backup ? t("twoStep.secondStep.backupCodeLabel") : t("twoStep.secondStep.codeLabel");
+  const label = !choice && app ? t("twoStep.security.codeOrBackupLabel") : backup ? t("twoStep.secondStep.backupCodeLabel") : t("twoStep.secondStep.codeLabel");
   return (
     <form className="stack" onSubmit={(event) => void submit(event)}>
       {choice ? <p>{backup ? t("twoStep.secondStep.introBackup") : t("twoStep.secondStep.intro")}</p> : null}
@@ -51,7 +68,7 @@ export function SecondStepCodeForm({ choice = false, submitLabel, locale, onDone
           inputMode={choice && !backup ? "numeric" : "text"}
           spellCheck={false}
           required
-          autoFocus
+          autoFocus={autoFocus}
         />
       </Field>
       {failure ? (
@@ -63,7 +80,7 @@ export function SecondStepCodeForm({ choice = false, submitLabel, locale, onDone
         <button className={buttonClass({ variant: "primary" })} type="submit" disabled={working || !code.trim()}>
           {working ? t("twoStep.secondStep.sending") : (submitLabel ?? t("twoStep.secondStep.submit"))}
         </button>
-        {choice ? (
+        {choice && app ? (
           <button
             className={buttonClass({ variant: "quiet" })}
             type="button"

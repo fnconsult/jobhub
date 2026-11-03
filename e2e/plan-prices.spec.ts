@@ -34,7 +34,7 @@ for (const variant of variants) {
       server = await startServer(variant.offset, await variant.stripe(), "start");
     });
     test.afterAll(async () => {
-      server?.stop();
+      await server?.stop();
       await hangingStripe?.stop();
       hangingStripe = undefined;
     });

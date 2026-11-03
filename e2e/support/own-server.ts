@@ -4,6 +4,7 @@ import pg from "pg";
 import { fromNewAddress, requestSignInLink, setUpTwoStepVerificationIfAsked } from "./candidate";
 import { emailsIn, linkIn } from "./mailbox";
 import { derivedPort } from "./ports";
+import { serverLog } from "./server-log";
 import { forgetTwoStepVerification } from "./two-step";
 
 // A web app of a spec's own (#209, #601): a setting that is one for the whole app (the Sign-in Providers, a Platform
@@ -40,9 +41,9 @@ export async function startOwnServer(offset: number, suffix: string, env: NodeJS
   if (migrate.status !== 0) throw new Error(`migration failed:\n${migrate.stdout}\n${migrate.stderr}`);
 
   let output = "";
+  const log = serverLog(`own-${suffix}`, port);
   const child: ChildProcess = spawn("npx", ["next", "start", "apps/web", "-p", String(port)], { env: serverEnv, detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  child.stdout!.on("data", (chunk) => (output += chunk));
-  child.stderr!.on("data", (chunk) => (output += chunk));
+  for (const stream of [child.stdout!, child.stderr!]) stream.on("data", (chunk) => ((output += chunk), log.write(chunk)));
   const stop = async () => {
     try {
       process.kill(-child.pid!, "SIGTERM");
@@ -61,7 +62,7 @@ export async function startOwnServer(offset: number, suffix: string, env: NodeJS
           if (child.exitCode !== null) throw new Error(`web app exited (${child.exitCode}):\n${output}`);
           return fetch(`${origin}/api/health`).then((r) => r.status, () => 0);
         },
-        { timeout: 90_000, message: "web app answers /api/health" },
+        { timeout: 90_000, message: `web app answers /api/health (its output: ${log.file})` },
       )
       .toBe(200);
   } catch (error) {

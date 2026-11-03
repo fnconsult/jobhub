@@ -45,6 +45,9 @@ process.env.E2E_STRIPE_URL = `http://127.0.0.1:${stripePort}`;
 // A UTF-8 character type, whatever the shell has: under none, Chromium names a download « download » when its name is
 // not ASCII, « CV-Zoë-Łukasz.pdf » (e2e/support/utf8-locale.ts, e2e/export.spec.ts).
 Object.assign(process.env, utf8CharacterType());
+// Every `next dev` a spec starts begins with no Turbopack cache of an earlier one's (apps/web/next.config.ts): restored
+// from a session that served other Legal Text Versions, it answered 404 for routes it has (#673).
+process.env.JOBHUB_DEV_CACHE = "off";
 process.env.E2E_SERVER_LOG ??= path.join(os.tmpdir(), `jobhub-e2e-${webPort}`, "server.log");
 if (!process.env.E2E_DATABASE_URL) {
   const url = new URL(process.env.DATABASE_URL ?? "postgres://jobhub:jobhub@localhost:5433/jobhub");

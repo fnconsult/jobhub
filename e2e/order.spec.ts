@@ -116,8 +116,8 @@ test.describe("La page avant Checkout (#512)", () => {
       expect(built.status, built.stdout + built.stderr).toBe(0);
       server = await startServer(512, { ...configuredStripe, STRIPE_API_URL: process.env.E2E_STRIPE_URL }, "dev");
     });
-    test.afterAll(() => {
-      server?.stop();
+    test.afterAll(async () => {
+      await server?.stop();
       clearVersions();
       writeFileSync(generated, savedGenerated);
     });

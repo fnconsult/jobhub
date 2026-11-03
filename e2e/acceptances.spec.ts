@@ -244,7 +244,7 @@ test.describe("Acceptances des CGU (#510)", () => {
       await expect(first).toHaveURL(afterAccepting(server));
       await first.context().close();
     } finally {
-      server.stop();
+      await server.stop();
     }
 
     // A minor correction is a line in the history: the next sign-in goes straight on.
@@ -257,7 +257,7 @@ test.describe("Acceptances des CGU (#510)", () => {
       expect((await exportOf(minor)).acceptances.map((a) => a.version)).toEqual([FIRST]);
       await minor.context().close();
     } finally {
-      server.stop();
+      await server.stop();
     }
 
     // A substantial one is asked at the next sign-in, and only the version in effect is accepted.
@@ -284,7 +284,7 @@ test.describe("Acceptances des CGU (#510)", () => {
       expect((await exportOf(third)).acceptances).toHaveLength(2);
       await third.context().close();
     } finally {
-      server.stop();
+      await server.stop();
     }
   });
 

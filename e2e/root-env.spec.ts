@@ -3,6 +3,8 @@ import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from "nod
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import pg from "pg";
 import { derivedPort } from "./support/ports";
+import { stopGroup } from "./support/process-group";
+import { serverLog } from "./support/server-log";
 
 // Issue #33: the README has developers `cp .env.example .env` at the repo root,
 // then run `npm run db:migrate` and `npm run dev`. The web app (`next dev`,
@@ -65,9 +67,9 @@ async function startWebApp(command: string[], port: number, env: NodeJS.ProcessE
   );
   if (taken) throw new Error(`port ${port} is already in use: set E2E_WEB_PORT to move the suite's ports`);
   let output = "";
+  const log = serverLog(`root-env-${command.join("-").replace(/[^\w-]/g, "")}`, port);
   const child = spawn(command[0]!, [...command.slice(1)], { env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
-  child.stdout!.on("data", (chunk) => (output += chunk));
-  child.stderr!.on("data", (chunk) => (output += chunk));
+  for (const stream of [child.stdout!, child.stderr!]) stream.on("data", (chunk) => ((output += chunk), log.write(chunk)));
   const server = { process: child, output: () => output, origin: `http://localhost:${port}` };
   servers.push(server);
   await expect
@@ -80,19 +82,14 @@ async function startWebApp(command: string[], port: number, env: NodeJS.ProcessE
           return 0;
         }
       },
-      { timeout: 90_000, message: "web app answers /api/health" },
+      { timeout: 90_000, message: `web app answers /api/health (its output: ${log.file})` },
     )
     .toBe(200);
   return server;
 }
 
-function stop(server: Server) {
-  try {
-    process.kill(-server.process.pid!, "SIGTERM");
-  } catch {
-    // already gone
-  }
-}
+/** Once it is gone: the next test starts its own `next dev` in apps/web. */
+const stop = (server: Server) => stopGroup(server.process.pid);
 
 /** Asks the web app for a sign-in link, the request the /connexion page makes. */
 function requestSignInLink(request: APIRequestContext, server: Server, email: string) {
@@ -122,12 +119,12 @@ test.describe("repo-root .env (issue #33)", () => {
     await admin(`CREATE DATABASE ${dbName}`);
   });
 
-  test.afterEach(() => {
-    for (const server of servers.splice(0)) stop(server);
+  test.afterEach(async () => {
+    for (const server of servers.splice(0)) await stop(server);
   });
 
   test.afterAll(async () => {
-    for (const server of servers.splice(0)) stop(server);
+    for (const server of servers.splice(0)) await stop(server);
     rmSync(rootEnv, { force: true });
     if (existsSync(backup)) renameSync(backup, rootEnv);
     await admin(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);

@@ -17,11 +17,11 @@ import { CoachMemoryProposals } from "@/components/CoachMemory";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
-import { StartJobSearchButton } from "@/components/JobSearchControls";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
 import { askedAbout, useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/Button";
+import { InfoDialog } from "@/design/Dialog";
 import { readNdjson } from "@/ndjson";
 import { routes } from "@/routes";
 import { formatDuration, formatTokens, isFailureReason, replyActivity, type Activity, type FailureReason, type Provenance, type ProvenanceStep, type StartedStep, type StepLabel } from "@jobhub/shared";
@@ -63,18 +63,6 @@ export function useFocusCoachBox(): (() => void) | null {
 
 /** What a reply is kept with as its Focus (coach-conversations, the six kinds In view since #600), so counted with their page. */
 const FOCUS_KINDS: ReadonlySet<string> = new Set(["application", "job_offer", "profile", "job_search", "job_digest", "agenda"]);
-
-/** The Profile in view, or the one the page in view shows. */
-const profileIdOf = (inView: InView | null) => (inView?.kind === "profile" ? inView.id : inView?.profileId);
-
-const IN_VIEW_LABEL = {
-  profile: "coachPanel.inViewProfile",
-  application: "coachPanel.inViewApplication",
-  job_offer: "coachPanel.inViewJobOffer",
-  job_search: "coachPanel.inViewJobSearch",
-  job_digest: "coachPanel.inViewJobDigest",
-  agenda: "coachPanel.inViewAgenda",
-} as const satisfies Record<InView["kind"], string>;
 
 type Status = "idle" | "sending" | "unavailable" | "invalid";
 
@@ -557,7 +545,6 @@ export function CoachConversationPage(page: PagePlacement) {
     }
   }
 
-  const inViewLabel = inView ? t("coachPanel.inView", { label: t(IN_VIEW_LABEL[inView.kind], { name: inView.name }) }) : t("coachPanel.nothingInView");
 
   // Why there is no reply, in words.
   const failureText = status === "invalid" ? t("coachPanel.errors.invalid") : failure ? t("coachPanel.failed", { reason: t(`failureReasons.${failure}`) }) : t("coachPanel.errors.unavailable");
@@ -569,7 +556,20 @@ export function CoachConversationPage(page: PagePlacement) {
   const control: Control = { focusBox: () => setFocusInput((n) => n + 1), say: (text: string) => void sendMessage(text) };
   // An empty conversation opens on the help (#342): nothing sent.
   const showIntro = !restoring && messages.length === 0;
-  const intro = showIntro ? <HelpIntro pathname={pathname} locale={locale} onOpen={showArticle} howThisPageWorks={workPane !== null} /> : null;
+  // The welcome panel (the AI disclosure, the page's Introduction and the help): until the Candidate closes it for good,
+  // then on demand from the « Coach IA » badge, in a dialog.
+  const welcome = conversationFirst?.welcome ?? null;
+  const welcomeShown = !(welcome?.closed ?? false);
+  const [welcomeAsked, setWelcomeAsked] = useState(false);
+  const helpIntro = (onOpen: (article: HelpArticle) => void) => (
+    <HelpIntro pathname={pathname} locale={locale} onOpen={onOpen} howThisPageWorks={workPane !== null} oftenAsked={page.suggestions === undefined} />
+  );
+  const intro = showIntro && welcomeShown ? helpIntro(showArticle) : null;
+  /** The ✕: closed for good, the focus on the box. */
+  function closeWelcome() {
+    welcome?.close();
+    input.current?.focus();
+  }
   // The help's articles, while the Candidate types, take the suggestions' place (#602).
   const showSuggestions = !restoring && page.suggestions !== undefined && messages.length === 0 && suggestions.length === 0;
 
@@ -593,10 +593,16 @@ export function CoachConversationPage(page: PagePlacement) {
           {/* Replies are announced as they come (#608): the thread is a polite live region. */}
           <ol className="chat coach-panel-messages" aria-label={t("coachPanel.messagesLabel")} aria-live="polite">
             {/* Until a reopened conversation is back, which opening it had is not known yet. */}
-            {restoring ? null : (
-              <li className="chat-message chat-coach">
+            {restoring || !welcomeShown ? null : (
+              <li className="chat-message chat-coach welcome-panel">
                 {/* No visible author (#317, #327): screen readers still hear who speaks. */}
                 <span className="visually-hidden">{t("questionnaire.coach")}</span>
+                {welcome ? (
+                  <button className="welcome-panel-close" type="button" onClick={closeWelcome}>
+                    <Icons.close />
+                    {t("conversationFirst.closeWelcome")}
+                  </button>
+                ) : null}
                 <p>{t(opening)}</p>
                 {page.introduction}
                 {page.card ? null : intro}
@@ -714,9 +720,24 @@ export function CoachConversationPage(page: PagePlacement) {
               />
               <div className="coach-panel-composer-actions">
                 {/* Says, by the message box, that the one answering is an AI (#324). */}
-                <span className="pill coach-panel-badge" data-tone="accent">
-                  {t("coachPanel.badge")}
-                </span>
+                {/* Opens the welcome panel again, in a dialog: who answers, what it sees, how the page works. */}
+                <InfoDialog
+                  open={welcomeAsked}
+                  onOpenChange={setWelcomeAsked}
+                  title={t("conversationFirst.welcomeTitle")}
+                  trigger={
+                    <button className="pill coach-panel-badge" data-tone="accent" type="button" aria-label={t("conversationFirst.welcomeOpen")}>
+                      {t("coachPanel.badge")}
+                    </button>
+                  }
+                >
+                  <p>{t("coachPanel.aiDisclosure")}</p>
+                  {page.introduction}
+                  {helpIntro((article) => {
+                    setWelcomeAsked(false);
+                    showArticle(article);
+                  })}
+                </InfoDialog>
                 {/* While a reply is on its way « Envoyer » becomes « Arrêter » (#328), the same button, so focus stays on it. */}
                 {status === "sending" ? (
                   <button key="send" className={buttonClass()} type="button" onClick={() => stopper.current?.abort()}>
@@ -729,24 +750,6 @@ export function CoachConversationPage(page: PagePlacement) {
                 )}
               </div>
             </div>
-            {/* What goes with the message, when the page shows something: one line, opened for the whole text (and the Job Search).
-                With nothing in view, no line: the box sits at the foot of the screen. */}
-            {inView ? (
-              <details className="coach-panel-context">
-                <summary>
-                  <Icons.coach />
-                  <span className="coach-panel-context-line">{inViewLabel}</span>
-                </summary>
-                <div className="coach-panel-context-more">
-                  <p className="coach-panel-in-view">{inViewLabel}</p>
-                  {profileIdOf(inView) ? (
-                    <StartJobSearchButton key={profileIdOf(inView)} profileId={profileIdOf(inView)!} label={t("coachPanel.searchJobs")} variant="secondary" />
-                  ) : (
-                    <p className="hint">{t("coachPanel.searchHint")}</p>
-                  )}
-                </div>
-              </details>
-            ) : null}
           </form>
         </div>
       </section>

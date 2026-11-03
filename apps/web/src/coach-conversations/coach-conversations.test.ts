@@ -215,6 +215,14 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect(asked[0]!.input.messages).toEqual([{ from: "candidate", text: "Bonjour" }]);
   });
 
+  it("remembers on the account that the Candidate closed the welcome panel, for them alone, closing it twice changing nothing", async () => {
+    expect(await conversations.welcomeClosed(marie)).toBe(false);
+    await conversations.closeWelcome(marie);
+    await conversations.closeWelcome(marie);
+    expect(await conversations.welcomeClosed(marie)).toBe(true);
+    expect(await conversations.welcomeClosed(jean)).toBe(false);
+  });
+
   it("does not add the AI disclosure to a conversation saved before it existed", async () => {
     const { rows } = await database.query<{ id: string }>(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Ancienne') RETURNING id`, [marie]);
     const id = rows[0]!.id;

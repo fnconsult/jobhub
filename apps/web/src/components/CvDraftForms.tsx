@@ -2,7 +2,7 @@
 
 import { formatTimeOfDay, type Activity, type MasterCvContent } from "@jobhub/shared";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
 import type { CvDraft, CvFileErrorCode } from "@/cv";
@@ -114,6 +114,9 @@ export function CvUpload({ onDraft, onFromScratch }: { onDraft: (draft: CvDraft)
   );
 }
 
+/** What the Candidate changed in the review form, kept by the page while the Work Pane is closed. */
+export type ReviewEdits = { masterCv: MasterCvContent; criteria: CriteriaFields };
+
 interface ReviewState {
   masterCv: MasterCvContent;
   criteria: CriteriaFields;
@@ -128,14 +131,15 @@ interface ReviewState {
 /**
  * Reviewing a draft Master CV and Search Criteria, whether read from an uploaded
  * CV, built by the Onboarding Questionnaire or left blank to start from scratch,
- * then saving it as a Profile.
+ * then saving it as a Profile. Opened in the Work Pane, which titles it (ADR-0070): it starts from `kept`, what was
+ * changed before the pane last closed, and hands each change to `onKeep`.
  */
-export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel: string; onStartOver: () => void }) {
+export function CvReview(props: { draft: CvDraft; kept?: ReviewEdits; onKeep?: (edits: ReviewEdits) => void; startOverLabel: string; onStartOver: () => void }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [review, setReview] = useState<ReviewState>(() => ({
-    masterCv: props.draft.masterCv,
-    criteria: criteriaFieldsOf({ targetRole: props.draft.searchCriteria.targetRole, locations: props.draft.searchCriteria.locations }),
+    masterCv: props.kept?.masterCv ?? props.draft.masterCv,
+    criteria: props.kept?.criteria ?? criteriaFieldsOf({ targetRole: props.draft.searchCriteria.targetRole, locations: props.draft.searchCriteria.locations }),
     saving: false,
     errors: [],
     failed: false,
@@ -143,6 +147,10 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
     upgradePrompt: null,
   }));
   const update = (changes: Partial<ReviewState>) => setReview((current) => ({ ...current, ...changes }));
+  const { onKeep } = props;
+  useEffect(() => {
+    onKeep?.({ masterCv: review.masterCv, criteria: review.criteria });
+  }, [onKeep, review.masterCv, review.criteria]);
   const setCriteria = (changes: Partial<CriteriaFields>) => setReview((current) => ({ ...current, criteria: { ...current.criteria, ...changes } }));
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -180,9 +188,6 @@ export function CvReview(props: { draft: CvDraft; intro: string; startOverLabel:
 
   return (
     <form className="stack review" onSubmit={save} noValidate>
-      <h2>{t("cvReview.title")}</h2>
-      <p>{props.intro}</p>
-
       <fieldset className="fieldset">
         <legend>{t("cvReview.searchCriteria")}</legend>
         <SearchCriteriaFields value={review.criteria} onChange={setCriteria} errors={review.errors} />

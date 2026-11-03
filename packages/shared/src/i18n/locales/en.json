@@ -925,14 +925,14 @@
   },
   "newProfile": {
     "title": "Create a profile",
-    "intro": "Your coach helps you build your reference CV and search criteria. Choose how to start: you can check and correct everything before saving.",
+    "intro": "I'll help you build your reference CV and search criteria. Upload your CV or, if yours isn't up to date, answer my questions: you can check and correct everything before saving.",
     "withCv": "I have a CV",
-    "withoutCv": "I don't have an up-to-date CV",
-    "withoutCvIntro": "Your coach asks you about your career, one question at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
-    "startQuestionnaire": "Answer my coach's questions"
+    "withoutCvIntro": "My questions are about your career, one at a time. You can skip the ones that don't apply to you. It takes about ten minutes.",
+    "startQuestionnaire": "Answer my coach's questions",
+    "conversation": "Creating a profile with your coach",
+    "openReview": "Review and save"
   },
   "questionnaire": {
-    "title": "Your coach's questions",
     "transcript": "Your conversation with the coach",
     "coach": "Your coach",
     "you": "You",

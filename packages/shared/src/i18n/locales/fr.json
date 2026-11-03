@@ -925,14 +925,14 @@
   },
   "newProfile": {
     "title": "Créer un profil",
-    "intro": "Votre coach vous aide à construire votre CV de référence et vos critères de recherche. Choisissez comment commencer : vous pourrez tout vérifier et corriger avant d'enregistrer.",
+    "intro": "Je vous aide à construire votre CV de référence et vos critères de recherche. Importez votre CV, ou, si vous n'en avez pas à jour, répondez à mes questions : vous pourrez tout vérifier et corriger avant d'enregistrer.",
     "withCv": "J'ai un CV",
-    "withoutCv": "Je n'ai pas de CV à jour",
-    "withoutCvIntro": "Votre coach vous pose des questions sur votre parcours, une à la fois. Vous pouvez passer celles qui ne vous concernent pas. Comptez une dizaine de minutes.",
-    "startQuestionnaire": "Répondre aux questions de mon coach"
+    "withoutCvIntro": "Mes questions portent sur votre parcours, une à la fois. Vous pouvez passer celles qui ne vous concernent pas. Comptez une dizaine de minutes.",
+    "startQuestionnaire": "Répondre aux questions de mon coach",
+    "conversation": "Créer un profil avec votre coach",
+    "openReview": "Relire et enregistrer"
   },
   "questionnaire": {
-    "title": "Les questions de votre coach",
     "transcript": "Votre échange avec le coach",
     "coach": "Votre coach",
     "you": "Vous",

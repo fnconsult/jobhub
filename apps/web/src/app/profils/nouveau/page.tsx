@@ -13,7 +13,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t("newProfile.title")} · ${t("app.name")}` };
 }
 
-/** Creating a Profile from an uploaded CV, the Onboarding Questionnaire or from scratch (no LinkedIn import of any kind, ADR-0001). */
+/**
+ * Creating a Profile from an uploaded CV, the Onboarding Questionnaire or from scratch (no LinkedIn import of any kind,
+ * ADR-0001), the page a conversation with the AI Coach (ADR-0070, see ProfileOnboarding). When the Plan allows no more
+ * Profiles, the conversation's card is the Upgrade prompt.
+ */
 export default async function NewProfilePage() {
   const candidate = await getCurrentCandidate();
   if (!candidate) return signInRedirect();
@@ -22,15 +26,20 @@ export default async function NewProfilePage() {
   return (
     <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")}>
       {upgradePrompt ? (
-        <>
-          <UpgradePrompt prompt={upgradePrompt} />
-          <Link href={routes.account}>{t("profile.backToAccount")}</Link>
-        </>
+        <section className="page-conversation" aria-label={t("newProfile.conversation")}>
+          <div className="page-conversation-thread">
+            <ol className="chat" aria-label={t("questionnaire.transcript")}>
+              <li className="chat-message chat-card">
+                <UpgradePrompt prompt={upgradePrompt} />
+                <p>
+                  <Link href={routes.account}>{t("profile.backToAccount")}</Link>
+                </p>
+              </li>
+            </ol>
+          </div>
+        </section>
       ) : (
-        <>
-          <p className="lead">{t("newProfile.intro")}</p>
-          <ProfileOnboarding />
-        </>
+        <ProfileOnboarding />
       )}
     </CandidateLayout>
   );

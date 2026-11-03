@@ -49,6 +49,8 @@ export const routes = {
   signIn: "/connexion",
   /** The Back Office sign-in: the providers allowed for Administrators; where Require SSO sends an Administrator. */
   backOfficeSignIn: "/connexion/back-office",
+  /** The second step after a magic link (ADR-0075): all a session pending it reaches, besides signing out. */
+  secondStep: "/connexion/deuxieme-etape",
   account: "/compte",
   /** Mon compte's Sections (ADR-0024); `account` itself shows the first, the Profiles. */
   accountProfiles: "/compte/profils",
@@ -59,6 +61,8 @@ export const routes = {
   accountEmailIntake: "/compte/reception-email",
   accountEmailIntakeWizard: "/compte/reception-email/assistant",
   accountSignIn: "/compte/connexion",
+  /** « Sécurité » (#663): Two-step verification. */
+  accountSecurity: "/compte/securite",
   accountPreferences: "/compte/preferences",
   accountTools: "/compte/outils",
   /** « Mes signalements » (#377): the Candidate's Signalements and the team's replies; where the Signalement notification leads. */

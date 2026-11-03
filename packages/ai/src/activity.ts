@@ -64,6 +64,7 @@ export const TOOL_STEPS = {
   apple: "not_a_step",
   microsoft: "not_a_step",
   oidc: "not_a_step",
+  "two-step-verification": "not_a_step",
   "geo-api-gouv": "not_a_step",
   "insee-naf": "not_a_step",
   "rome-open-data": "not_a_step",

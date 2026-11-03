@@ -20,6 +20,7 @@ export async function AccountSections({ candidateId, children }: { candidateId: 
     { href: routes.accountEmailIntake, label: t("account.sections.emailIntake") },
     { href: routes.accountEuAi, label: t("account.sections.euAi") },
     { href: routes.accountSignIn, label: t("account.sections.signIn") },
+    { href: routes.accountSecurity, label: t("account.sections.security") },
     { href: routes.accountPreferences, label: t("account.sections.preferences") },
     { href: routes.accountTools, label: t("account.sections.tools") },
     { href: routes.accountSignalements, label: t("account.sections.signalements") },

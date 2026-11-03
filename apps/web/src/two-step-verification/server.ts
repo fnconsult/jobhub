@@ -13,11 +13,16 @@ let instance: TwoStepVerification | undefined;
 
 /**
  * The app's Two-step verification, on the database named by DATABASE_URL, its secrets encrypted with AUTH_SECRET, its
- * passkeys made for APP_URL's host.
+ * passkeys made for APP_URL's host, ADMIN_EMAILS's super-admins among those who must have it.
  */
 export function getTwoStepVerification(): TwoStepVerification {
   const { secret, baseURL } = getAuth().options;
-  instance ??= createTwoStepVerification(sharedPool(), { secret: String(secret), relyingParty: relyingPartyOf(String(baseURL)), externalApis: getExternalApiLog() });
+  instance ??= createTwoStepVerification(sharedPool(), {
+    secret: String(secret),
+    relyingParty: relyingPartyOf(String(baseURL)),
+    adminEmails: permanentSuperAdminsFromEnv(process.env).emails,
+    externalApis: getExternalApiLog(),
+  });
   return instance;
 }
 

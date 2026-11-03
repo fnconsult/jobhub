@@ -26,6 +26,7 @@ import type { ExternalApiLog } from "@jobhub/shared";
 import { symmetricDecrypt, symmetricEncrypt } from "better-auth/crypto";
 import type { Pool, PoolClient } from "pg";
 import { inTransaction, type Queryable } from "../database/pool";
+import { mustHaveTwoStepVerification } from "./obligation";
 import { checkedPasskey, credentialIdOf, deviceOf, passkeyRequest, type PasskeyRequest, type RelyingParty, type StoredPasskey } from "./passkeys";
 import { newTotpSecret, totpUri, verifyTotp } from "./totp";
 
@@ -73,8 +74,11 @@ export type SecondStepResult =
 
 export type SetupResult = { ok: true; backupCodes: string[] } | { ok: false; error: "invalid_code" | "no_setup" | "no_passkey" | "already_enabled" };
 
-/** Removing a passkey: the last factor takes the verification off with it, after a second step done less than 10 minutes ago. */
-export type PasskeyRemoval = { ok: true; disabled: boolean } | { ok: false; error: "not_found" | "recent_second_step_required" };
+/**
+ * Removing a passkey: the last factor takes the verification off with it, after a second step done less than 10 minutes
+ * ago; for an account that must have it (an Administrator or a Human Coach, #665), the last factor is never removed.
+ */
+export type PasskeyRemoval = { ok: true; disabled: boolean } | { ok: false; error: "not_found" | "mandatory" | "recent_second_step_required" };
 
 export interface TwoStepVerification {
   isEnabled(candidateId: string): Promise<boolean>;
@@ -105,7 +109,8 @@ export interface TwoStepVerification {
   verifyPasskey(by: SecondStepBy, answer: unknown): Promise<SecondStepResult>;
   /**
    * Removes one of the Candidate's passkeys. When it is their last factor (no app, no other passkey), the verification
-   * is turned off with it, which takes a second step done less than 10 minutes ago (`secondStepAt`, the session's).
+   * is turned off with it, which takes a second step done less than 10 minutes ago (`secondStepAt`, the session's), and
+   * is refused (`mandatory`) for an account that must have it (#665), as turning it off is.
    */
   removePasskey(by: { candidateId: string; secondStepAt: Date | string | null | undefined }, passkeyId: string): Promise<PasskeyRemoval>;
   /** New backup codes, the old ones no longer working; null while it is off. */
@@ -176,12 +181,13 @@ export async function hasTwoStepVerification(database: Pick<Pool, "query">, cand
 
 /**
  * Resets the Candidate's Two-step verification (#665, ADR-0075), for someone who lost their factors: a super-admin's
- * Back Office action, run in its Back Office Audit's transaction (`within`). Forgets their authenticator app and
- * backup codes, and signs out every session of theirs. An Administrator or a Human Coach sets it up again on their next
+ * Back Office action, run in its Back Office Audit's transaction (`within`). Forgets their authenticator app, passkeys
+ * and backup codes, and signs out every session of theirs. An Administrator or a Human Coach sets it up again on their next
  * sign-in by magic link. Says whether they had a factor.
  */
 export async function resetTwoStepVerification(within: Queryable, candidateId: string): Promise<{ hadFactor: boolean }> {
   const { rows } = await within.query<{ enabled_at: Date | null }>(`DELETE FROM two_step_verification WHERE candidate_id = $1 RETURNING enabled_at`, [candidateId]);
+  await within.query(`DELETE FROM passkey WHERE "userId" = $1`, [candidateId]);
   await within.query(`DELETE FROM session WHERE "userId" = $1`, [candidateId]);
   return { hadFactor: rows.some((row) => row.enabled_at !== null) };
 }
@@ -206,6 +212,8 @@ export function createTwoStepVerification(
     secret: string;
     /** Who passkeys are made for (relyingPartyOf(APP_URL)): needed for a second step with a passkey. */
     relyingParty?: RelyingParty;
+    /** ADR-0075, #665: the ADMIN_EMAILS addresses, lower case, who must have it (obligation.ts) as Administrators do. */
+    adminEmails?: readonly string[];
     now?: () => Date;
     externalApis?: ExternalApiLog;
     clock?: () => number;
@@ -428,6 +436,8 @@ export function createTwoStepVerification(
         const { rows } = await client.query<{ id: string }>(`SELECT id FROM passkey WHERE "userId" = $1 FOR UPDATE`, [by.candidateId]);
         if (!rows.some(({ id }) => id === passkeyId)) return { ok: false, error: "not_found" };
         const last = Boolean(row?.enabled_at) && !row?.totp_added_at && rows.length === 1;
+        // The same rule as « Désactiver » (#665): an Administrator or a Human Coach keeps their last factor.
+        if (last && (await mustHaveTwoStepVerification(client, by.candidateId, options.adminEmails ?? []))) return { ok: false, error: "mandatory" };
         if (last && !isRecentSecondStep(by.secondStepAt, now())) return { ok: false, error: "recent_second_step_required" };
         await client.query(`DELETE FROM passkey WHERE id = $1 AND "userId" = $2`, [passkeyId, by.candidateId]);
         if (last) await turnOff(client, by.candidateId);

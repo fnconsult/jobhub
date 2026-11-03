@@ -603,7 +603,7 @@
       "error": "La modification n'a pas pu être enregistrée. Réessayez.",
       "fileName": "jobbbox-codes-de-secours.txt",
       "fileHeader": "Codes de secours Jobbbox. Chaque code ne sert qu'une fois.",
-      "mandatory": "Elle est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas la désactiver. Si vous perdez votre application et vos codes de secours, un super-admin peut la réinitialiser."
+      "mandatory": "Elle est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas la désactiver. Si vous perdez votre application, vos clés d'accès et vos codes de secours, un super-admin peut la réinitialiser."
     },
     "passkeys": {
       "intro": "Utilisez la clé d'accès enregistrée sur votre compte : Face ID, Touch ID, Windows Hello ou votre clé de sécurité.",
@@ -626,7 +626,8 @@
       "rename": "Renommer",
       "renameNamed": "Renommer la clé d'accès « {{name}} »",
       "remove": "Supprimer",
-      "removeNamed": "Supprimer la clé d'accès « {{name}} »"
+      "removeNamed": "Supprimer la clé d'accès « {{name}} »",
+      "lastFactorMandatory": "C'est le dernier moyen de vérification de votre compte. La vérification en deux étapes est obligatoire pour les administrateurs et les coachs : vous ne pouvez pas supprimer cette clé d'accès. Ajoutez d'abord une autre clé d'accès."
     },
     "email": {
       "enabledSubject": "Vérification en deux étapes activée",
@@ -640,7 +641,7 @@
       "reason": "Vous recevez cet e-mail parce que la sécurité de votre compte Jobbbox a changé.",
       "resetSubject": "Vérification en deux étapes réinitialisée",
       "resetTitle": "Votre vérification en deux étapes a été réinitialisée",
-      "resetBody": "Un super-admin de Jobbbox a réinitialisé la vérification en deux étapes de votre compte le {{date}} : votre application d'authentification et vos codes de secours ne servent plus, et vos sessions ont été fermées. À votre prochaine connexion par lien magique, vous la configurerez de nouveau."
+      "resetBody": "Un super-admin de Jobbbox a réinitialisé la vérification en deux étapes de votre compte le {{date}} : votre application d'authentification, vos clés d'accès et vos codes de secours ne servent plus, et vos sessions ont été fermées. À votre prochaine connexion par lien magique, vous la configurerez de nouveau."
     },
     "setup": {
       "intro": "Votre compte donne accès au back office ou à l'Espace coach : la vérification en deux étapes y est obligatoire. Configurez une application d'authentification pour continuer."

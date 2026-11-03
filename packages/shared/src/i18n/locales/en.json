@@ -603,7 +603,7 @@
       "error": "The change could not be saved. Try again.",
       "fileName": "jobbbox-backup-codes.txt",
       "fileHeader": "Jobbbox backup codes. Each code works only once.",
-      "mandatory": "It is mandatory for administrators and coaches: you cannot turn it off. If you lose your app and your backup codes, a super-admin can reset it."
+      "mandatory": "It is mandatory for administrators and coaches: you cannot turn it off. If you lose your app, your passkeys and your backup codes, a super-admin can reset it."
     },
     "passkeys": {
       "intro": "Use the passkey saved on your account: Face ID, Touch ID, Windows Hello or your security key.",
@@ -626,7 +626,8 @@
       "rename": "Rename",
       "renameNamed": "Rename the passkey “{{name}}”",
       "remove": "Remove",
-      "removeNamed": "Remove the passkey “{{name}}”"
+      "removeNamed": "Remove the passkey “{{name}}”",
+      "lastFactorMandatory": "It is your account's last way to verify. Two-step verification is mandatory for administrators and coaches: you cannot remove this passkey. Add another passkey first."
     },
     "email": {
       "enabledSubject": "Two-step verification turned on",
@@ -640,7 +641,7 @@
       "reason": "You are receiving this email because the security of your Jobbbox account changed.",
       "resetSubject": "Two-step verification reset",
       "resetTitle": "Your two-step verification was reset",
-      "resetBody": "A Jobbbox super-admin reset the two-step verification of your account on {{date}}: your authenticator app and your backup codes no longer work, and your sessions were signed out. The next time you sign in by magic link, you will set it up again."
+      "resetBody": "A Jobbbox super-admin reset the two-step verification of your account on {{date}}: your authenticator app, your passkeys and your backup codes no longer work, and your sessions were signed out. The next time you sign in by magic link, you will set it up again."
     },
     "setup": {
       "intro": "Your account opens the back office or the coach space: two-step verification is mandatory there. Set up an authenticator app to go on."

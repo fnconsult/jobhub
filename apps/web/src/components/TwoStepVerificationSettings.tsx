@@ -43,7 +43,7 @@ type Change = { kind: "disable" } | { kind: "regenerate" } | { kind: "removePass
  * named, which turns it on. The 10 backup codes are shown once, to copy or download. On, its factors with their dates,
  * the passkeys renamed or removed one by one, another added; renewing the backup codes, turning it off or removing the
  * last factor asks for a second step first unless one was done less than 10 minutes ago. `mandatory` (an Administrator
- * or a Human Coach, #665): no « Désactiver » and the Section says why.
+ * or a Human Coach, #665): no « Désactiver », no « Supprimer » on the last factor, and the Section says why.
  */
 export function TwoStepVerificationSettings({ status, locale, mandatory }: { status: TwoStepSettingsStatus; locale: string; mandatory: boolean }) {
   const { t } = useTranslation();
@@ -55,6 +55,8 @@ export function TwoStepVerificationSettings({ status, locale, mandatory }: { sta
   const passkeys = status.factors.filter((factor): factor is PasskeyFactor => factor.kind === "passkey");
   const app = status.factors.find((factor) => factor.kind === "authenticator_app");
   const codes = status.factors.find((factor) => factor.kind === "backup_codes");
+  // The account's last factor, which an Administrator or a Human Coach cannot remove (#665): its one passkey, without an app.
+  const lastPasskeyKept = mandatory && Boolean(status.enabledAt) && !app && passkeys.length === 1;
   const day = (date: Date) => new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(date));
 
   async function call(method: string, path: string, body?: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
@@ -238,16 +240,23 @@ export function TwoStepVerificationSettings({ status, locale, mandatory }: { sta
                   >
                     {t("twoStep.passkeys.rename")}
                   </button>
-                  <button
-                    className={buttonClass({ variant: "danger", size: "sm" })}
-                    type="button"
-                    disabled={working}
-                    aria-label={t("twoStep.passkeys.removeNamed", { name: passkey.name ?? t("twoStep.passkeys.unnamed") })}
-                    onClick={() => void change({ kind: "removePasskey", id: passkey.id })}
-                  >
-                    {t("twoStep.passkeys.remove")}
-                  </button>
+                  {lastPasskeyKept ? null : (
+                    <button
+                      className={buttonClass({ variant: "danger", size: "sm" })}
+                      type="button"
+                      disabled={working}
+                      aria-label={t("twoStep.passkeys.removeNamed", { name: passkey.name ?? t("twoStep.passkeys.unnamed") })}
+                      onClick={() => void change({ kind: "removePasskey", id: passkey.id })}
+                    >
+                      {t("twoStep.passkeys.remove")}
+                    </button>
+                  )}
                 </span>
+                {lastPasskeyKept ? (
+                  <span className="two-step-factor-note" data-last-factor>
+                    {t("twoStep.passkeys.lastFactorMandatory")}
+                  </span>
+                ) : null}
               </li>
             ))}
             {codes ? (

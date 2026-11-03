@@ -1,7 +1,8 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
-import { createTwoStepVerification, RECENT_SECOND_STEP_MINUTES, type TwoStepVerification } from "./index";
+import { migrateDatabase } from "../migrations";
+import { createTwoStepVerification, RECENT_SECOND_STEP_MINUTES, resetTwoStepVerification, type TwoStepVerification } from "./index";
 import { addTestPasskey, createTestAuthenticator, type TestAuthenticator } from "./test-authenticator";
 import { totpAt } from "./totp";
 
@@ -40,7 +41,9 @@ describe.skipIf(!connectionString)("Two-step verification with passkeys (needs P
     now = new Date();
     twoStep = createTwoStepVerification(database, { secret: SECRET, now: () => now, relyingParty: { id: "localhost", origin: BASE_URL } });
     marie = await signedIn("marie.dupont@example.fr");
-  });
+    // The Back Office Roles and the Human Coaches decide who must have it (#665).
+    await migrateDatabase(testAuth.config);
+  }, 60_000);
   afterEach(async () => {
     await testAuth.stop();
   });
@@ -167,6 +170,56 @@ describe.skipIf(!connectionString)("Two-step verification with passkeys (needs P
 
     expect(await twoStep.removePasskey({ candidateId: marie.candidateId, secondStepAt: null }, id)).toEqual({ ok: true, disabled: false });
     expect((await twoStep.status(marie.candidateId)).factors.map((factor) => factor.kind)).toEqual(["authenticator_app", "backup_codes"]);
+  });
+
+  describe("for an account that must have it (an Administrator or a Human Coach, #665)", () => {
+    it("refuses removing its last factor, as « Désactiver »: 403 mandatory, even after a recent second step", async () => {
+      const { id } = await addPasskey(marie, "Téléphone");
+      await twoStep.enableWithPasskey(marie);
+      await database.query(`INSERT INTO administrator_role (candidate_id, role) VALUES ($1, 'support')`, [marie.candidateId]);
+
+      expect(await twoStep.removePasskey({ candidateId: marie.candidateId, secondStepAt: now }, id)).toEqual({ ok: false, error: "mandatory" });
+      expect(await twoStep.isEnabled(marie.candidateId)).toBe(true);
+      expect((await twoStep.status(marie.candidateId)).factors.map((factor) => factor.kind)).toEqual(["passkey", "backup_codes"]);
+    });
+
+    it("decides it on every call, ADMIN_EMAILS and an active Human Coach included", async () => {
+      const { id } = await addPasskey(marie, "Téléphone");
+      await twoStep.enableWithPasskey(marie);
+      const withAdminEmails = createTwoStepVerification(database, { secret: SECRET, now: () => now, adminEmails: ["marie.dupont@example.fr"] });
+      expect(await withAdminEmails.removePasskey({ candidateId: marie.candidateId, secondStepAt: now }, id)).toEqual({ ok: false, error: "mandatory" });
+
+      await database.query(`INSERT INTO human_coach (name, email, booking_url) VALUES ('Marie', 'marie.dupont@example.fr', 'https://cal.com/marie')`);
+      expect(await twoStep.removePasskey({ candidateId: marie.candidateId, secondStepAt: now }, id)).toEqual({ ok: false, error: "mandatory" });
+
+      await database.query(`UPDATE human_coach SET retired_at = now() WHERE email = 'marie.dupont@example.fr'`);
+      expect(await twoStep.removePasskey({ candidateId: marie.candidateId, secondStepAt: now }, id)).toEqual({ ok: true, disabled: true });
+    });
+
+    it("still removes a passkey that is not the last factor", async () => {
+      const first = await addPasskey(marie, "Téléphone");
+      await twoStep.enableWithPasskey(marie);
+      await addPasskey(marie, "Clé USB");
+      await database.query(`INSERT INTO administrator_role (candidate_id, role) VALUES ($1, 'support')`, [marie.candidateId]);
+
+      expect(await twoStep.removePasskey({ candidateId: marie.candidateId, secondStepAt: null }, first.id)).toEqual({ ok: true, disabled: false });
+      expect(await twoStep.isEnabled(marie.candidateId)).toBe(true);
+    });
+  });
+
+  it("is reset by a super-admin with its passkeys (#665): none is left, and every session is signed out", async () => {
+    await addPasskey(marie, "Téléphone");
+    await addPasskey(marie, "Clé USB");
+    await twoStep.enableWithPasskey(marie);
+    const paul = await signedIn("paul.martin@example.fr");
+    await addPasskey(paul, "Clé de Paul");
+
+    expect(await resetTwoStepVerification(database, marie.candidateId)).toEqual({ hadFactor: true });
+
+    expect(await twoStep.status(marie.candidateId)).toEqual({ enabledAt: null, factors: [], backupCodesLeft: 0 });
+    expect((await database.query(`SELECT 1 FROM passkey WHERE "userId" = $1`, [marie.candidateId])).rowCount).toBe(0);
+    expect((await database.query(`SELECT 1 FROM session WHERE "userId" = $1`, [marie.candidateId])).rowCount).toBe(0);
+    expect((await twoStep.status(paul.candidateId)).factors).toHaveLength(1);
   });
 
   it("removes only the Candidate's own passkeys", async () => {

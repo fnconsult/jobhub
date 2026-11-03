@@ -934,7 +934,7 @@ A way to pass the second step of Two-step verification: an authenticator app, a 
 _Avoid_: Method, device
 
 **Passkey**:
-A device credential (Face ID, Touch ID, Windows Hello, a security key) that serves as a second step of Two-step verification, alongside or instead of an authenticator app. It never signs anyone in on its own, and it must belong to the account of the pending session. Removing the last Factor (no app, no other passkey; backup codes do not count) turns Two-step verification off with it. French: « clé d'accès ».
+A device credential (Face ID, Touch ID, Windows Hello, a security key) that serves as a second step of Two-step verification, alongside or instead of an authenticator app. It never signs anyone in on its own, and it must belong to the account of the pending session. Removing the last Factor (no app, no other passkey; backup codes do not count) turns Two-step verification off with it; for an Administrator or a Human Coach, who cannot turn it off, removing it is refused. A super-admin's reset deletes the passkeys with the other Factors. French: « clé d'accès ».
 _Avoid_: Security key, WebAuthn credential
 
 **Require SSO for Administrators**:

@@ -227,6 +227,16 @@ test.describe("Two-step verification", () => {
     expect((await page.request.get("/api/profiles")).status()).toBe(200);
   });
 
+  test("signing in with a passkey alone, without a magic link, is not served: the plugin's sign-in endpoints are refused", async ({ request }) => {
+    const options = await request.get("/api/auth/passkey/generate-authenticate-options", { headers: { origin } });
+    expect(options.status()).toBe(404);
+    for (const path of ["verify-authentication", "delete-passkey"]) {
+      const refused = await request.post(`/api/auth/passkey/${path}`, { headers: { origin }, data: { response: { id: "x" }, id: "x" } });
+      expect(refused.status()).toBe(404);
+    }
+    expect((await request.get("/api/profiles")).status()).toBe(401);
+  });
+
   test("turned on with a passkey alone: added and renamed in Mon compte, it is the second step after a magic link, and removing it turns the verification off", async ({ page }) => {
     const email = newAddress("two-step-passkey");
     await signInWithMagicLink(page, email);

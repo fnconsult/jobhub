@@ -264,7 +264,15 @@
     "emailLabel": "Votre adresse e-mail",
     "submit": "Recevoir mon lien de connexion",
     "sending": "Envoi en cours…",
-    "sent": "C'est envoyé ! Ouvrez l'e-mail que nous venons de vous adresser et cliquez sur le lien pour vous connecter.",
+    "sent": "C'est envoyé ! Ouvrez l'e-mail que nous venons de vous adresser et cliquez sur le lien pour vous connecter, ou saisissez ci-dessous le code qu'il contient.",
+    "codeLabel": "Saisir le code reçu par e-mail",
+    "codeHint": "Les 6 chiffres écrits sous le lien.",
+    "codeSubmit": "Me connecter avec ce code",
+    "codeChecking": "Vérification…",
+    "codeWrong": "Ce code ne convient pas. Vérifiez-le et réessayez : au bout de 5 essais, il faut demander un nouvel e-mail.",
+    "codeExpired": "Ce code n'est plus valable. Demandez un nouvel e-mail.",
+    "codeTooManyTries": "Trop d'essais : ce code ne fonctionne plus. Demandez un nouvel e-mail.",
+    "resend": "Recevoir un nouvel e-mail",
     "or": "ou",
     "continueWith": "Continuer avec {{provider}}",
     "error": "Une erreur est survenue. Vérifiez votre adresse e-mail et réessayez.",
@@ -5741,7 +5749,7 @@
       "unlock": "Déverrouiller"
     },
     "signIn": {
-      "sent": "Nous avons envoyé un lien de connexion à {{email}}. Ouvrez l'e-mail sur ce téléphone et touchez le lien : il vous connecte dans l'app.",
+      "sent": "Nous avons envoyé un lien de connexion à {{email}}. Ouvrez l'e-mail sur ce téléphone et touchez le lien : il vous connecte dans l'app. Vous le lisez sur un autre appareil ? Saisissez le code qu'il contient.",
       "waiting": "En attente du lien…",
       "resend": "Renvoyer le lien",
       "changeEmail": "Changer d'adresse e-mail"

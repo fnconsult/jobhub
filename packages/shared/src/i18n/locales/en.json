@@ -5704,6 +5704,17 @@
     "activityPlaceholder": "Activity will show the page's context bar and AI Activity here.",
     "openSampleSection": "Open a sample Section",
     "sampleSection": "Sample Section",
-    "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here."
+    "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
+    "appSettings": "App settings",
+    "appLock": {
+      "setting": "Lock the app",
+      "hint": "After 5 minutes in the background, the app asks for Face ID, your fingerprint or the device's code, and its content is hidden in the app switcher. This setting applies to this device only.",
+      "unavailable": "First set up Face ID, a fingerprint or a code in the device's settings.",
+      "turnOnPrompt": "Turn on the Jobbbox lock",
+      "unlockPrompt": "Unlock Jobbbox",
+      "cancel": "Cancel",
+      "locked": "Jobbbox is locked",
+      "unlock": "Unlock"
+    }
   }
 }

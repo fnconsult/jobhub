@@ -5704,6 +5704,17 @@
     "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",
     "openSampleSection": "Ouvrir une Section d'exemple",
     "sampleSection": "Section d'exemple",
-    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire."
+    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
+    "appSettings": "Réglages de l'app",
+    "appLock": {
+      "setting": "Verrouiller l'app",
+      "hint": "Après 5 minutes en arrière-plan, l'app demande Face ID, votre empreinte ou le code de l'appareil, et son contenu est masqué dans le sélecteur d'apps. Ce réglage ne vaut que pour cet appareil.",
+      "unavailable": "Définissez d'abord Face ID, une empreinte ou un code dans les réglages de l'appareil.",
+      "turnOnPrompt": "Activer le verrouillage de Jobbbox",
+      "unlockPrompt": "Déverrouiller Jobbbox",
+      "cancel": "Annuler",
+      "locked": "Jobbbox est verrouillée",
+      "unlock": "Déverrouiller"
+    }
   }
 }

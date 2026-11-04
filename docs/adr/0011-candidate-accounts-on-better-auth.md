@@ -22,3 +22,7 @@ Decisions the review settled:
 - **The OIDC callback is `/api/auth/callback/{id}`**, as for the social providers in Better Auth 1.7, and an anonymous visit to `/admin` goes to the Back Office sign-in (`/connexion/back-office`).
 
 We rejected Better Auth's `sso` plugin: it targets per-organisation enterprise SSO (domain routing, SAML), which ADR-0004 does not need yet, and it would have kept Google on a separate path.
+
+## Amended by ADR-0076: the native app's session (2026-11-04)
+
+The native app holds the same Better Auth session through `@better-auth/expo`: its token is kept in the Keychain or Keystore and sent as the session cookie, so revocation, the pending session of Two-step verification and the sign-in method work unchanged. The rejection of bearer tokens stands, for the extension and the app. Google, Apple and Microsoft sign in through the web OAuth flow in the system's authentication browser and come back by a deep link: **ID-token sign-in stays refused**, native SDKs included. The magic-link email also carries a 6-digit code (Better Auth's email OTP), as long-lived as the link and used once, for a person reading their email on another device. The app's scheme and universal links are trusted origins.

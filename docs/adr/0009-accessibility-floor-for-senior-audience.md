@@ -73,3 +73,7 @@ The floor now targets **WCAG 2.2 AA** instead of 2.1 AA (#506, on the research o
 - **2.5.8 Target Size (Minimum)**: every target is at least 24 × 24 px. The controls above that are 44 px or more already meet it.
 - **3.2.6 Consistent Help**: help stays at the same place on every page (« Aide et coach » in the Top Bar). Explainer Videos and Micro-animations live inside Help Articles and add no second way in.
 - **2.4.11 Focus Not Obscured (Minimum)**: a focused control is never hidden by a sticky bar or a panel.
+
+## Amendment: the native app follows the system text size (ADR-0076, 2026-11-04)
+
+In the native app, text follows the system's Dynamic Type (iOS) or font scale (Android) instead of the Text Size, which the app does not offer. The 16 pt body-text floor, the 44 pt targets, visible labels and the contrast audit hold, in both themes; screens are tested up to the largest accessibility sizes, where ADR-0070's columns fall back to Sheets because the width is measured in rem. Every Sheet can be enlarged, reduced and closed by buttons, never only by a gesture.

@@ -26,3 +26,7 @@ The prototype (branch `prototype/conversation-au-centre`, never merged) compared
 - **Tabs on the object, « Conversation » by default**: hid the object while talking about it.
 - **Tabs inside the side panes** and a **« Document » button**: duplicated the Top Bar, and the button had no single target once an object has several Results.
 - **Splitting existing conversations by Focus**: would cut exchanges in the middle; deleting them was possible because no real Candidate has any yet.
+
+## Amended by ADR-0076: in the native app, Sheets below 64rem (2026-11-04)
+
+The app applies these rules to the window's width in rem (16 pt times the system text scale), computed again on rotation, Split View, Stage Manager and foldables. From 64rem, the Fiche, the Activité column and the Work Pane are columns beside the conversation, as here. Below 64rem they open as Sheets with two detents (about 55 % and 92 % of the height) over the conversation, rather than full screen; « Agrandir », « Réduire » and « Fermer » do what the drag handle does. The Sidebar is a drawer on a phone and a column when the conversation keeps 28rem (the prototype's variant A, `prototype/mobile-shell`).

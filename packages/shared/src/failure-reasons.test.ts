@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, GUARDRAIL_FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH } from "./failure-reasons";
+import { AI_CALL_FAILURE_REASONS, AI_CALL_WARNINGS, BACK_OFFICE_FAILURE_REASONS, FAILURE_REASONS, GUARDRAIL_FAILURE_REASONS, failureOf, isFailureReason, TECHNICAL_REASON_MAX_LENGTH, TOOL_CALL_FAILURE_REASONS } from "./failure-reasons";
 import { failureReasonWording } from "./i18n";
 
 /** Shaped like the AI layer's errors (packages/ai/src/errors.ts), which this module cannot import. */
@@ -135,8 +135,11 @@ describe("Failure Reason catalog", () => {
       "guardrail_timeout",
       "invalid_verdict",
       "provider_error",
+      "invalid_input",
       "other",
     ]);
+    expect(failureReasonWording("invalid_input")).toBe("Appel refusé : outil inconnu ou arguments invalides");
+    expect(failureReasonWording("invalid_input", "en")).toBe("Call refused: unknown tool or invalid arguments");
     expect(failureReasonWording("guardrail_timeout")).toBe("Contrôle trop long");
     expect(failureReasonWording("invalid_verdict")).toBe("Verdict du contrôle illisible");
     expect(failureReasonWording("provider_error")).toBe("Erreur du fournisseur");
@@ -190,6 +193,12 @@ describe("Failure Reason catalog", () => {
       "already_handled",
       "other",
     ]);
+  });
+
+  it("tells why a Tool call of our own was refused: a Coach Action unknown, not offered or given invalid arguments (#713)", () => {
+    expect(TOOL_CALL_FAILURE_REASONS).toEqual(["invalid_input"]);
+    expect(BACK_OFFICE_FAILURE_REASONS).not.toContain("invalid_input");
+    expect(AI_CALL_FAILURE_REASONS).not.toContain("invalid_input");
   });
 
   it("tells why a Guardrail could not check: timeout, a verdict that was not valid, the provider's error; never other", () => {

@@ -248,6 +248,25 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     expect(JSON.stringify({ overview, calls })).not.toMatch(/AiProviderError|upstream down|jeanne/);
   });
 
+  it("counts a Coach Action's calls in its group's Tool, a refused one with its Failure Reason, and shows the Tool off by default (#713)", async () => {
+    const external = createPostgresExternalApiLog(database);
+    await external.record(externalCall({ provider: "applications", operation: "lire_candidature", httpStatus: 200, durationMs: 4, costEur: 0 }));
+    await external.record(externalCall({ provider: "applications", operation: "proposer_candidature", ok: false, httpStatus: 422, reason: "invalid_input", durationMs: 1, costEur: 0, at: new Date("2026-10-19T07:10:00Z") }));
+    await external.record(externalCall({ provider: "applications", operation: "lire_candidature", ok: false, httpStatus: 404, durationMs: 2, costEur: 0, at: new Date("2026-10-19T07:20:00Z") }));
+
+    const overview = await toolsOverview(database, stateOf(), now);
+    const row = overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === "applications")!;
+    expect(row.figures).toEqual({ calls: 3, failures: 2, costEur: 0, reasons: [{ outcome: "failed", reason: "invalid_input", calls: 1 }] });
+    expect(row.status).toBe("disabled");
+    const switchedOn = (await toolsOverview(database, stateOf({ COACH_ACTIONS_ENABLED: "true" }), now)).flatMap((group) => group.rows).find((candidate) => candidate.tool.id === "applications")!;
+    expect(switchedOn.status).toBe("no_key_needed");
+    expect((await toolCalls(database, tool("applications"))).map((call) => [call.operation, call.outcome, call.reason, call.httpStatus])).toEqual([
+      ["lire_candidature", "failed", null, 404],
+      ["proposer_candidature", "failed", "invalid_input", 422],
+      ["lire_candidature", "ok", null, 200],
+    ]);
+  });
+
   it("lists at most the number of calls asked, and none for a Tool whose calls are not recorded", async () => {
     await seed();
 

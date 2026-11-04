@@ -105,6 +105,8 @@ export const FAILURE_REASONS = [
   "invalid_verdict",
   /** The Guardrail's AI check failed: the AI call threw. */
   "provider_error",
+  /** A Tool call of our own refused, never run (#713): a Coach Action unknown or not offered, or arguments its schema refuses. */
+  "invalid_input",
   "other",
 ] as const;
 export type FailureReason = (typeof FAILURE_REASONS)[number];
@@ -148,13 +150,18 @@ export const AI_CALL_FAILURE_REASONS: readonly FailureReason[] = [
 export const GUARDRAIL_FAILURE_REASONS = ["guardrail_timeout", "invalid_verdict", "provider_error"] as const satisfies readonly FailureReason[];
 export type GuardrailFailureReason = (typeof GUARDRAIL_FAILURE_REASONS)[number];
 
+/** Why a call to a Tool of our own (a Coach Action, #713) was refused, never run: recorded with it in `external_api_usage`. */
+export const TOOL_CALL_FAILURE_REASONS = ["invalid_input"] as const satisfies readonly FailureReason[];
+
 /** The AI call codes an AI routing Platform Setting is refused with on save (#301), as the AI layer would refuse its route. */
 const AI_ROUTE_REFUSALS: readonly FailureReason[] = ["key_missing", "route_missing", "data_residency"];
 
 /** The codes a Back Office attempt can fail with (#263): the Back Office Audit's. */
 export const BACK_OFFICE_FAILURE_REASONS: readonly FailureReason[] = FAILURE_REASONS.filter(
   (reason) =>
-    reason === "other" || AI_ROUTE_REFUSALS.includes(reason) || (!AI_CALL_FAILURE_REASONS.includes(reason) && !(GUARDRAIL_FAILURE_REASONS as readonly FailureReason[]).includes(reason)),
+    reason === "other" ||
+    AI_ROUTE_REFUSALS.includes(reason) ||
+    (!AI_CALL_FAILURE_REASONS.includes(reason) && !(GUARDRAIL_FAILURE_REASONS as readonly FailureReason[]).includes(reason) && !(TOOL_CALL_FAILURE_REASONS as readonly FailureReason[]).includes(reason)),
 );
 
 export function isFailureReason(value: unknown): value is FailureReason {

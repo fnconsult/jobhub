@@ -4815,6 +4815,7 @@
     "guardrail_timeout": "Check took too long",
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",
+    "invalid_input": "Call refused: unknown tool or invalid arguments",
     "other": "Unexpected error"
   },
   "agendaChanges": {

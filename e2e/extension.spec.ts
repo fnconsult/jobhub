@@ -171,9 +171,10 @@ test.describe("browser extension shares the web app session", () => {
   test("is a Guest, and points to the web sign-in page, while nobody is signed in", async () => {
     const panel = await openPanel();
     await expect(panel.getByText(frCatalogue.extension.guest, { exact: true })).toBeVisible();
+    // In the browser's language (#570): this browser speaks English.
     await expect(panel.getByRole("link", { name: frCatalogue.extension.analysis.signIn })).toHaveAttribute(
       "href",
-      `${origin}/connexion`,
+      `${origin}/en/connexion`,
     );
   });
 

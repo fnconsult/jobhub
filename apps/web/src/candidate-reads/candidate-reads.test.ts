@@ -1,14 +1,16 @@
-import { applicationResponseSchema, applicationsResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema } from "@jobhub/shared/reads";
+import { agendaResponseSchema, applicationResponseSchema, applicationsResponseSchema, coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema } from "@jobhub/shared/reads";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { createActionCards } from "../action-cards";
+import { createAgenda } from "../agenda";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling } from "../billing";
 import { createReceivedOffers } from "../email-intake/received-offers";
 import { createFollowUps } from "../follow-ups";
+import { createHumanCoaches, type HumanCoaches } from "../human-coaches";
 import { createJobDigests, type JobDigests } from "../job-digests";
 import { createJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, type JobSearches } from "../job-searches";
@@ -48,6 +50,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let applications: Applications;
   let jobSearches: JobSearches;
   let jobDigests: JobDigests;
+  let coaches: HumanCoaches;
   let reads: CandidateReads;
   let marie: string;
   let paul: string;
@@ -92,6 +95,16 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     await database.query(`INSERT INTO candidate_plan (candidate_id, plan) VALUES ($1, $2) ON CONFLICT (candidate_id) DO UPDATE SET plan = $2`, [owner, plan]);
   }
 
+  /** A Human Coach and a Coaching Session the Candidate paid them for, not dated yet. */
+  async function paidSession(owner: string, name = "Sophie Martin") {
+    const first = name.split(" ")[0]!.toLowerCase();
+    const added = await coaches.add({ name, email: `${first}@rh-conseil.fr`, bookingUrl: `https://cal.com/${first}/seance`, bio: "Coach carrière, 15 ans de RH." });
+    if (!added.ok) throw new Error("fixture Human Coach refused");
+    await coaches.recordPaidSession({ checkoutSessionId: `cs_${first}_${owner}`, candidateId: owner, coachId: added.coach.id, amount: 9000, currency: "eur" });
+    const session = (await coaches.sessions(owner)).find((paid) => paid.coach.id === added.coach.id)!;
+    return { coach: added.coach, sessionId: session.id };
+  }
+
   async function saveApplication(owner: string, profileId: string, title?: string) {
     const saved = await applications.save(owner, { jobOfferId: await captureOffer(title), profileId });
     if (!saved.ok) throw new Error("fixture Application refused");
@@ -120,7 +133,8 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       baseURL: BASE_URL,
       now: () => NOW,
     });
-    reads = createCandidateReads({ applications, followUps, profiles, jobSearches, jobDigests, now: () => NOW });
+    coaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments: { get: async () => null }, tailoredCvs: { get: async () => null }, now: () => NOW });
+    reads = createCandidateReads({ applications, followUps, profiles, jobSearches, jobDigests, agenda: createAgenda(database), humanCoaches: coaches, billing, now: () => NOW });
     marie = await signIn("marie.dupont@example.fr");
     paul = await signIn("paul.martin@example.fr");
   }, 60_000); // A throwaway database each time: slow when the machine is busy.
@@ -270,6 +284,85 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       const card = overHttp(jobDigestsResponseSchema, await reads.jobDigests(marie));
 
       expect(card.profiles).toEqual([{ profile: { id: daf, name: "DAF" }, frequency: "none", chosenFrequency: null, planFrequency: "none", digests: [] }]);
+    });
+  });
+
+  describe("Agenda", () => {
+    it("gives « À planifier » first, then the Agenda Items by day in French time", async () => {
+      const profileId = await createProfile(marie);
+      const applicationId = await saveApplication(marie, profileId);
+      await applications.addInterview(marie, applicationId, { scheduledAt: "2026-11-12T14:30", place: "Lyon", moveToInterview: true });
+      const toSchedule = await paidSession(marie, "Sophie Martin");
+      const dated = await paidSession(marie, "Jean Leroy");
+      await coaches.scheduleSession(marie, dated.sessionId, { scheduledAt: "2026-11-12T09:00", durationMinutes: 45, videoLink: "https://meet.example.com/xyz" });
+
+      const agenda = overHttp(agendaResponseSchema, await reads.agenda(marie));
+
+      expect(agenda.toSchedule).toEqual([{ id: toSchedule.sessionId, coach: { id: toSchedule.coach.id, name: "Sophie Martin", bookingUrl: "https://cal.com/sophie/seance" }, paidAt: expect.any(String), reschedules: [] }]);
+      expect(agenda.days).toEqual([
+        {
+          day: "2026-11-12",
+          items: [
+            expect.objectContaining({ kind: "coachingSession", id: dated.sessionId, coach: { id: dated.coach.id, name: "Jean Leroy" }, scheduledAt: "2026-11-12T08:00:00.000Z", durationMinutes: 45, changedBy: "candidate" }),
+            expect.objectContaining({ kind: "interview", applicationId, jobTitle: "DAF H/F", employer: "Acme Industrie", scheduledAt: "2026-11-12T13:30:00.000Z", place: "Lyon", cancelledAt: null }),
+          ],
+        },
+      ]);
+    });
+
+    it("gives the past Agenda Items when asked for, newest first", async () => {
+      const applicationId = await saveApplication(marie, await createProfile(marie));
+      await applications.addInterview(marie, applicationId, { scheduledAt: "2026-10-20T10:00", moveToInterview: true });
+      await applications.addInterview(marie, applicationId, { scheduledAt: "2026-11-12T10:00" });
+
+      const past = overHttp(agendaResponseSchema, await reads.agenda(marie, { past: true }));
+
+      expect(past.days.map((day) => day.day)).toEqual(["2026-10-20"]);
+    });
+
+    it("never gives a Candidate another Candidate's Agenda Items", async () => {
+      const applicationId = await saveApplication(marie, await createProfile(marie));
+      await applications.addInterview(marie, applicationId, { scheduledAt: "2026-11-12T14:30", moveToInterview: true });
+      await paidSession(marie);
+
+      expect(overHttp(agendaResponseSchema, await reads.agenda(paul))).toEqual({ toSchedule: [], days: [] });
+    });
+  });
+
+  describe("Mes coachs humains", () => {
+    it("gives the Human Coaches with the Coach Access granted, and the Coaching Sessions, never a Human Coach's email", async () => {
+      const { coach, sessionId } = await paidSession(marie);
+      await coaches.grantAccess(marie, coach.id);
+
+      const answer = await reads.coaching(marie);
+      const coaching = overHttp(coachingResponseSchema, answer);
+
+      expect(coaching.coaches).toEqual([{ id: coach.id, name: "Sophie Martin", bio: "Coach carrière, 15 ans de RH.", accessGranted: true }]);
+      expect(coaching.sessions).toEqual([
+        {
+          id: sessionId,
+          coach: { id: coach.id, name: "Sophie Martin", bookingUrl: "https://cal.com/sophie/seance" },
+          paidAt: expect.any(String),
+          scheduledAt: null,
+          durationMinutes: null,
+          videoLink: null,
+          note: null,
+          changedBy: null,
+          reschedules: [],
+        },
+      ]);
+      // No Stripe price in the tests: the price cannot be read, as the page says.
+      expect(coaching.price).toBeNull();
+      expect(JSON.stringify(answer)).not.toContain("sophie@rh-conseil.fr");
+    });
+
+    it("never gives a Candidate another Candidate's Coaching Sessions", async () => {
+      await paidSession(marie);
+
+      const coaching = overHttp(coachingResponseSchema, await reads.coaching(paul));
+
+      expect(coaching.sessions).toEqual([]);
+      expect(coaching.coaches).toEqual([expect.objectContaining({ name: "Sophie Martin", accessGranted: false })]);
     });
   });
 });

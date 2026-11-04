@@ -14,8 +14,11 @@
  */
 import { matchScoreReliability, type MatchScore } from "@jobhub/shared";
 import type {
+  AgendaItemRead,
+  AgendaResponse,
   ApplicationResponse,
   ApplicationsResponse,
+  CoachingResponse,
   InterviewRead,
   JobDigestsResponse,
   JobOfferLine,
@@ -23,9 +26,12 @@ import type {
   JobSearchResponse,
   RescheduleRead,
 } from "@jobhub/shared/reads";
+import type { Agenda, AgendaItem } from "../agenda";
 import type { Applications, Interview } from "../applications";
+import type { Billing } from "../billing";
 import { applicationsMenu } from "../applications/menu";
 import type { FollowUps } from "../follow-ups";
+import type { HumanCoaches } from "../human-coaches";
 import type { JobDigests } from "../job-digests";
 import { jobDigestsMenu } from "../job-digests/menu";
 import type { JobSearches } from "../job-searches";
@@ -44,6 +50,10 @@ export interface CandidateReads {
   jobSearch(candidateId: string, jobSearchId: string): Promise<JobSearchResponse | null>;
   /** The Job Digests' card: each active Profile, its Job Digest's frequency and those sent, newest first. */
   jobDigests(candidateId: string): Promise<JobDigestsResponse>;
+  /** The Agenda as a list: « À planifier », then the Agenda Items by day, upcoming (or the past ones, when `past`). */
+  agenda(candidateId: string, options?: { past?: boolean }): Promise<AgendaResponse>;
+  /** Mes coachs humains: the Human Coaches, the Candidate's Coaching Sessions and what one costs them. */
+  coaching(candidateId: string): Promise<CoachingResponse>;
 }
 
 export interface CandidateReadsDeps {
@@ -52,7 +62,10 @@ export interface CandidateReadsDeps {
   profiles: Pick<Profiles, "list">;
   jobSearches: Pick<JobSearches, "list" | "get">;
   jobDigests: Pick<JobDigests, "list" | "settings">;
-  /** The clock « from now on » is read by (an Application's next deadline). Defaults to the real time. */
+  agenda: Pick<Agenda, "days" | "unscheduled">;
+  humanCoaches: Pick<HumanCoaches, "list" | "accessGranted" | "sessions">;
+  billing: Pick<Billing, "coachingSessionPrice">;
+  /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
 }
 
@@ -80,6 +93,34 @@ function nextDeadline(interviews: readonly Interview[], now: Date): string | nul
   const next = interviews.filter((held) => !held.cancelledAt && held.scheduledAt.getTime() >= now.getTime()).sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())[0];
   return next ? iso(next.scheduledAt) : null;
 }
+
+const agendaItem = (item: AgendaItem): AgendaItemRead =>
+  item.kind === "interview"
+    ? {
+        kind: "interview",
+        id: item.id,
+        applicationId: item.applicationId,
+        jobTitle: item.jobTitle,
+        employer: item.employer ?? null,
+        scheduledAt: iso(item.scheduledAt),
+        durationMinutes: item.durationMinutes,
+        format: item.format,
+        place: item.place,
+        note: item.note ?? null,
+        cancelledAt: isoOrNull(item.cancelledAt),
+        reschedules: item.reschedules.map(reschedule),
+      }
+    : {
+        kind: "coachingSession",
+        id: item.id,
+        coach: { id: item.coach.id, name: item.coach.name },
+        scheduledAt: iso(item.scheduledAt),
+        durationMinutes: item.durationMinutes ?? null,
+        videoLink: item.videoLink ?? null,
+        note: item.note ?? null,
+        changedBy: item.changedBy,
+        reschedules: item.reschedules.map(reschedule),
+      };
 
 type JobOfferFacts = { id: string; title: string; employer?: string; location?: string; source?: { url?: string }; postedAt?: Date; expiredAt?: Date };
 
@@ -197,6 +238,48 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
             digests: sent.map((digest) => ({ id: digest.id, sentAt: iso(digest.sentAt), count: digest.count })),
           };
         }),
+      };
+    },
+
+    async agenda(candidateId, { past = false } = {}) {
+      const [unscheduled, days] = await Promise.all([deps.agenda.unscheduled(candidateId), deps.agenda.days(candidateId, { period: past ? "past" : "upcoming", now: now() })]);
+      return {
+        toSchedule: unscheduled.map((session) => ({
+          id: session.id,
+          coach: { id: session.coach.id, name: session.coach.name, bookingUrl: session.coach.bookingUrl },
+          paidAt: iso(session.paidAt),
+          reschedules: session.reschedules.map(reschedule),
+        })),
+        days: days.map(({ day, items }) => ({ day, items: items.map(agendaItem) })),
+      };
+    },
+
+    async coaching(candidateId) {
+      const [coaches, granted, sessions, price] = await Promise.all([
+        deps.humanCoaches.list(),
+        deps.humanCoaches.accessGranted(candidateId),
+        deps.humanCoaches.sessions(candidateId),
+        deps.billing.coachingSessionPrice(candidateId).catch((cause: unknown) => {
+          // As the page: a price that cannot be read (Stripe unreachable) books nothing, the rest is still shown.
+          console.error("[coaching] Coaching Session Price unavailable", cause);
+          return null;
+        }),
+      ]);
+      return {
+        // A Human Coach's email is theirs to sign in with: never shown to a Candidate.
+        coaches: coaches.map((coach) => ({ id: coach.id, name: coach.name, bio: coach.bio, accessGranted: granted.includes(coach.id) })),
+        sessions: sessions.map((session) => ({
+          id: session.id,
+          coach: { id: session.coach.id, name: session.coach.name, bookingUrl: session.coach.bookingUrl },
+          paidAt: iso(session.paidAt),
+          scheduledAt: isoOrNull(session.scheduledAt),
+          durationMinutes: session.durationMinutes,
+          videoLink: session.videoLink,
+          note: session.note,
+          changedBy: session.changedBy,
+          reschedules: session.reschedules.map(reschedule),
+        })),
+        price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
       };
     },
   };

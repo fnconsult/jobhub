@@ -1,5 +1,8 @@
+import { getAgenda } from "@/agenda/server";
 import { getApplications } from "@/applications/server";
+import { getBilling } from "@/billing/server";
 import { getFollowUps } from "@/follow-ups/server";
+import { getHumanCoaches } from "@/human-coaches/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
@@ -15,6 +18,9 @@ export function getCandidateReads(): CandidateReads {
     profiles: getProfiles(),
     jobSearches: getJobSearches(),
     jobDigests: getJobDigests(),
+    agenda: getAgenda(),
+    humanCoaches: getHumanCoaches(),
+    billing: getBilling(),
   });
   return instance;
 }

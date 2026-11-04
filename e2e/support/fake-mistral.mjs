@@ -120,7 +120,7 @@ globalThis.fetch = async (input, init) => {
 
   let content = "fake reply";
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
-  if (system.startsWith("Tu contrôles le message") || system.startsWith("Tu contrôles la réponse")) {
+  if (system.startsWith("Tu contrôles le message") || system.startsWith("Tu contrôles la réponse") || system.startsWith("Tu contrôles des données")) {
     if (prompt.includes("E2E_GUARDRAIL_DOWN")) return new Response("upstream unavailable", { status: 503 });
     // Only the per-reason count test (#262) asks for this, so its rate_limited count grows by its own calls alone.
     if (prompt.includes("E2E_GUARDRAIL_RATE_LIMITED")) return new Response("too many requests", { status: 429 });
@@ -132,6 +132,8 @@ globalThis.fetch = async (input, init) => {
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });
     const verdict = system.startsWith("Tu contrôles le message")
       ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION"), distress: prompt.includes("E2E_GUARDRAIL_DISTRESS") }
+      : system.startsWith("Tu contrôles des données")
+        ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION") }
       : { harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"), personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"), secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET") };
     return completion(body, JSON.stringify(verdict));
   }

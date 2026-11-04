@@ -7,6 +7,7 @@
  *   await recorder.ai.generate({ task: "writing", ... });          // an AI step, its task's Activity
  *   await recorder.aiFor("read_job_page").generate({ ... });       // a feature step's own Activity
  *   await recorder.step({ tool: "france-travail" }, () => ...);    // a Tool call, timed
+ *   await recorder.step({ tool: "applications", proposes: true }, () => ...);   // a Coach Action that proposes (#713)
  *   await recorder.step({ rule: "match_score" }, () => ...);       // rules, timed
  *   recorder.site(offer.sourceUrl);                                 // a Provenance site, through the link filter
  *   row.provenance = recorder.provenance();                        // what is stored, with the wall-clock time
@@ -53,8 +54,11 @@ export interface ProvenanceRecorder {
   readonly ai: AiLayer;
   /** The AI layer, each of its calls a step with this feature step's Activity. */
   aiFor(featureStep: FeatureStep): AiLayer;
-  /** Runs a Tool call or rules as one step, timed; returns what `run` returns, or rethrows. */
-  step<T>(subject: { tool: StepTool } | { rule: ProvenanceRule }, run: () => T | Promise<T>): Promise<T>;
+  /**
+   * Runs a Tool call or rules as one step, timed; returns what `run` returns, or rethrows. `proposes`: a Coach Action
+   * that proposes a change (ADR-0077), its step said so and folded apart from its group's reads.
+   */
+  step<T>(subject: { tool: StepTool; proposes?: true } | { rule: ProvenanceRule }, run: () => T | Promise<T>): Promise<T>;
   /** Adds a page the result was built from to its Provenance sites; a link the link filter refuses is left out. */
   site(link: string): void;
   /** The Provenance so far, as it may be stored: steps folded, the wall-clock time until now. */
@@ -67,7 +71,7 @@ export interface ProvenanceRecorder {
   part(): ProvenanceRecorder;
 }
 
-type Subject = { kind: "ai"; task: TextTask | "web_search" } | { kind: "tool"; tool: StepTool } | { kind: "rules"; rule: ProvenanceRule };
+type Subject = { kind: "ai"; task: TextTask | "web_search" } | { kind: "tool"; tool: StepTool; proposes?: true } | { kind: "rules"; rule: ProvenanceRule };
 
 /** What an AI call that worked says of itself. */
 type CallFacts = Pick<GenerateResult | SearchResult, "provider" | "endpoint" | "model" | "usage" | "durationMs" | "outcome"> & Pick<GenerateResult, "euAiConsent">;
@@ -189,7 +193,7 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
     ai: layer(),
     aiFor: (featureStep) => layer(FEATURE_STEPS[featureStep]),
     step(subject, run) {
-      const kind: Subject = "tool" in subject ? { kind: "tool", tool: subject.tool } : { kind: "rules", rule: subject.rule };
+      const kind: Subject = "tool" in subject ? { kind: "tool", tool: subject.tool, ...(subject.proposes ? { proposes: true as const } : {}) } : { kind: "rules", rule: subject.rule };
       return record(kind, activityOf(kind), run, () => ({}));
     },
     site(link) {
@@ -222,7 +226,7 @@ function siteOf(sites: ProvenanceSite[], site: ProvenanceSite): ProvenanceSite {
 
 /** What a step is, for folding: two calls alike in all of it are one step. */
 function foldKey(step: ProvenanceStep): string {
-  const what = step.kind === "ai" ? [step.task, step.provider, step.endpoint, step.model, step.euAiConsent === true] : [step.kind === "tool" ? step.tool : step.rule];
+  const what = step.kind === "ai" ? [step.task, step.provider, step.endpoint, step.model, step.euAiConsent === true] : step.kind === "tool" ? [step.tool, step.proposes === true] : [step.rule];
   return JSON.stringify([step.kind, step.activity, step.outcome, ...what]);
 }
 

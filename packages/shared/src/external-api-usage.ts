@@ -8,6 +8,7 @@
  *   const fetch = recordingFetch(globalThis.fetch, externalApis, { provider: "france_travail", costEur: () => 0 });
  *   const stripe = recordingClient(new Stripe(key), externalApis, { provider: "stripe" });
  */
+import type { FailureReason } from "./failure-reasons";
 import { scrubSecrets } from "./scrub-secrets";
 import type { ExternalApiProvider } from "./tools";
 
@@ -25,6 +26,8 @@ export interface ExternalApiCall {
   httpStatus: number | null;
   /** Estimated € at list price; null when not known. */
   costEur: number | null;
+  /** Why a call to a Tool of our own was refused, never run (`TOOL_CALL_FAILURE_REASONS`, a Coach Action's, #713); absent otherwise. */
+  reason?: FailureReason;
 }
 
 /** Where external API calls are recorded. The caller does not wait for it: it never fails nor delays a call. */

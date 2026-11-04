@@ -27,6 +27,12 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
+    // The native app's Metro, Babel and Jest configurations (#683): CommonJS, as those tools load them.
+    files: ["apps/mobile/*.js"],
+    languageOptions: { sourceType: "commonjs" },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
     files: ["**/*.tsx"],
     plugins: { "react-hooks": reactHooks },
     rules: reactHooks.configs.recommended.rules,
@@ -45,7 +51,7 @@ export default tseslint.config(
           // The plugin's own exclusions, plus the names help in pages is given (#343): `<HelpTerm term="matchScore">`,
           // `<EmptyStateHelp of="proposals">` name a glossary term or an empty state, never text the Candidate reads.
           // The Design System's props that pick a look or a role, never text (#462): `variant="quiet"`, `tone="danger"`,
-          // `<SectionsLayout look="tabs">` (#468).
+          // `<SectionsLayout look="tabs">` (#468); the app's text in a weight of Inter, `<AppText weight="semiBold">` (#683).
           // Its form controls take a form field's own attributes, which name and wire it, never text (#465):
           // `<TextInput name="value" autoComplete="new-password" aria-describedby="…-help">`; an AddressDrawer's
           // `opener` is the selector of the link that opened it. A public page names itself to its site header (#470):
@@ -67,6 +73,7 @@ export default tseslint.config(
               "look",
               "size",
               "tone",
+              "weight",
               "side",
               "role",
               "name",

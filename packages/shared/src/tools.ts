@@ -13,12 +13,17 @@
  * Data residency (ADR-0007) is said only where it was established: "unknown" otherwise.
  * A Tool also names the Platform Settings it depends on (ADR-0033, #304): Paramètres stays the
  * only place they are changed; the Outils section shows them and accounts for them in its state.
+ *
+ * The « Routes locales » Tools (`local_routes`, ADR-0077, #713) are no external service: each is a group of Coach
+ * Actions, our own code the AI Coach calls to read or propose on an object of the Candidate. In the EU, no key, not a
+ * recipient; each call recorded in `external_api_usage` under its group's id, the Coach Action's name as operation.
  */
 
 /** What a Tool is for, in the Back Office's order. */
 export const TOOL_CATEGORIES = [
   "ai_model",
   "web_search",
+  "local_routes",
   "job_discovery",
   "company_data",
   "contact_enrichment",
@@ -290,6 +295,31 @@ const ENRICHMENT_SETTINGS = (provider: string): readonly ToolSetting[] => [
 ];
 /** MAIL_TRANSPORT=console writes the emails to the server's log: Brevo is not called. */
 const MAIL_SETTINGS: readonly ToolSetting[] = [{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }];
+/**
+ * The groups of Coach Actions (ADR-0077), in the Sidebar's order: each is a « Routes locales » Tool, its calls recorded
+ * in `external_api_usage` under the group's id.
+ */
+export const LOCAL_ROUTE_GROUPS = ["applications", "agenda", "profile", "job_searches", "job_digests", "documents"] as const;
+export type LocalRouteGroup = (typeof LOCAL_ROUTE_GROUPS)[number];
+/** Off unless the Coach Actions are switched on; COACH_TOOL_ROUNDS_MAX bounds a reply's rounds of calls. */
+const LOCAL_ROUTE_SETTINGS: readonly ToolSetting[] = [{ name: "COACH_ACTIONS_ENABLED", enabledWhen: ["true"] }, { name: "COACH_TOOL_ROUNDS_MAX" }];
+const localRoute = <Id extends string, Group extends LocalRouteGroup>(id: Id, group: Group, name: string, what: Translated) =>
+  ({
+    id,
+    name,
+    purpose: {
+      fr: `Coach Actions ${what.fr} : le coach IA lit ou propose, par le code de Jobbbox (sans appel d'IA), pour le candidat de la session seulement ; chaque proposition attend que le candidat l'applique.`,
+      en: `Coach Actions ${what.en}: the AI Coach reads or proposes, through Jobbbox's own code (no AI call), for the session's Candidate only; each proposal waits for the Candidate to apply it.`,
+    },
+    category: "local_routes",
+    module: "apps/web/src/coach-actions",
+    runsIn: "web",
+    keys: [],
+    settings: LOCAL_ROUTE_SETTINGS,
+    usage: { table: "external_api_usage", provider: group },
+    residency: "eu",
+    receivesPersonalData: false,
+  }) as const satisfies Tool;
 const SIGN_IN_PURPOSE = (name: string): Translated => ({
   fr: `Connexion avec ${name}, pour les candidats et les administrateurs.`,
   en: `Sign-in with ${name}, for Candidates and Administrators.`,
@@ -548,6 +578,12 @@ export const TOOLS = [
       safeguards: ["not_established"],
     },
   },
+  localRoute("applications", "applications", "Candidatures", { fr: "des candidatures", en: "of the Applications" }),
+  localRoute("agenda", "agenda", "Agenda", { fr: "de l'agenda", en: "of the Agenda" }),
+  localRoute("profile", "profile", "Profil", { fr: "du profil (CV de référence, critères de recherche)", en: "of the Profile (Master CV, Search Criteria)" }),
+  localRoute("job-searches", "job_searches", "Recherches d'offres", { fr: "des recherches d'offres", en: "of the Job Searches" }),
+  localRoute("job-digests", "job_digests", "Job Digests", { fr: "des Job Digests", en: "of the Job Digests" }),
+  localRoute("documents", "documents", "Documents", { fr: "des documents (CV et lettres adaptés)", en: "of the documents (Tailored CVs and cover letters)" }),
   {
     id: "france-travail",
     name: "France Travail",
@@ -1044,6 +1080,11 @@ export function recipientList(switchedOn: (tool: Tool) => boolean): ListedRecipi
   // Two Tools of one recipient (Brevo's API and its SMTP relay) are listed once, as the first.
   const named = new Set<string>();
   return [...hosts, ...tools].filter((recipient) => !named.has(recipient.facts.name) && named.add(recipient.facts.name));
+}
+
+/** The « Routes locales » Tool of a group of Coach Actions. */
+export function localRouteTool(group: LocalRouteGroup): Tool {
+  return (TOOLS as readonly Tool[]).find((tool) => tool.category === "local_routes" && tool.usage?.provider === group)!;
 }
 
 /** The Tool with this id; none for any other. */

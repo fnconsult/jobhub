@@ -2031,6 +2031,7 @@
       "differs_other": "{{count}} réglages viennent de l'environnement et diffèrent de la valeur par défaut du code : vérifiez qu'ils sont voulus.",
       "groups": {
         "ai_routing": "Routage de l'IA",
+        "coach": "Coach IA",
         "email": "E-mail",
         "email_intake": "Réception par email",
         "job_digest": "Job Digest",
@@ -2275,6 +2276,8 @@
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
         "MAINTENANCE_EXPECTED_MINUTES": "Durée prévue de la maintenance, en minutes",
+        "COACH_ACTIONS_ENABLED": "Coach Actions activées (le coach IA lit et propose)",
+        "COACH_TOOL_ROUNDS_MAX": "Tours d'appels de Coach Actions par réponse, au plus",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
         "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison"
@@ -3211,6 +3214,7 @@
       "categories": {
         "ai_model": "Modèles d'IA",
         "web_search": "Recherche web",
+        "local_routes": "Routes locales",
         "job_discovery": "Recherche d'offres",
         "company_data": "Données d'entreprises",
         "contact_enrichment": "Enrichissement de contacts",
@@ -4816,6 +4820,7 @@
     "guardrail_timeout": "Contrôle trop long",
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",
+    "invalid_input": "Appel refusé : outil inconnu ou arguments invalides",
     "other": "Erreur inattendue"
   },
   "agendaChanges": {
@@ -5706,5 +5711,16 @@
       "to": "À",
       "send": "Envoyer"
     }
+  },
+  "mobile": {
+    "attach": "Joindre un lien ou un document",
+    "send": "Envoyer",
+    "emptyScreen": "Cet écran arrive bientôt dans l'app.",
+    "homeTitle": "Accueil",
+    "fichePlaceholder": "La Fiche montrera ici l'objet de la page, ses Sections, son Activité et ses Résultats.",
+    "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",
+    "openSampleSection": "Ouvrir une Section d'exemple",
+    "sampleSection": "Section d'exemple",
+    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire."
   }
 }

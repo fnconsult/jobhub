@@ -1,0 +1,231 @@
+import { Activity, Menu, PanelLeftClose, PanelRight, SquarePen, X } from "lucide-react-native";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { space, radius, useTheme } from "../theme/theme";
+import { AppText } from "../ui/AppText";
+import { Control } from "../ui/Control";
+import { disposition, type Disposition, type PaneKind, type ShownPane } from "./disposition";
+
+/** The page the shell shows: its address (a new one closes what the last page had open), its title, its column. */
+export type ShellPage = { key: string; title: string; pane: PaneKind | null };
+
+/** What the Work Pane shows: one item at a time (ADR-0070), a Section, a Result, a Help Article or a form. */
+export type WorkPaneItem = { title: string; content: ReactNode };
+
+const WorkPaneContext = createContext<{ open: (item: WorkPaneItem) => void }>({ open: () => {} });
+
+/** Opens an item in the page's Work Pane, in place of the one it shows. */
+export const useWorkPane = () => useContext(WorkPaneContext);
+
+type State = {
+  pageKey: string;
+  drawerOpen: boolean;
+  /** The person's: the Sidebar not hidden, from 64rem. */
+  sidebarWanted: boolean;
+  /** The page's column open or closed; null until the person uses « Fiche » or « Activité », and then as the window has it. */
+  paneOpen: boolean | null;
+  workPane: WorkPaneItem | null;
+};
+
+/**
+ * The app's shell (ADR-0076, variant A of `prototype/mobile-shell`): the Top Bar, the page (its conversation), the
+ * Sidebar as a column or a drawer, and the page's panes (its Fiche, or Activité alone, and the Work Pane) as columns
+ * beside the conversation or full page over it, as `disposition` decides for the window, again on every change of it.
+ *
+ * On a wide window an object's Fiche starts open, as on the web; the Top Bar's « Fiche » or « Activité » alone opens
+ * and closes the column, and brings the Fiche back when the Work Pane has taken its place. Every full page closes by
+ * its « Fermer » (ADR-0009), Android's back too, and leaves the page behind it out of reach while it covers it.
+ */
+export function Shell({
+  page,
+  paneContent,
+  sidebar,
+  onNewConversation,
+  children,
+}: {
+  page: ShellPage;
+  paneContent: ReactNode;
+  /** The Sidebar's menus; `closeDrawer` for a link that navigates. */
+  sidebar: (closeDrawer: () => void) => ReactNode;
+  onNewConversation: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  const [state, setState] = useState<State>({ pageKey: page.key, drawerOpen: false, sidebarWanted: true, paneOpen: null, workPane: null });
+  // A new page: its own panes, closed, and the drawer that led there closes too.
+  if (state.pageKey !== page.key) setState({ ...state, pageKey: page.key, drawerOpen: false, paneOpen: null, workPane: null });
+
+  const wide = disposition(window, { sidebar: state.sidebarWanted, pane: null, workPane: false }).panes === "columns";
+  const paneOpen = page.pane !== null && (state.paneOpen ?? (wide && page.pane === "fiche"));
+  const layout = disposition(window, { sidebar: state.sidebarWanted, pane: paneOpen ? page.pane : null, workPane: state.workPane !== null });
+  const fullPages = layout.panes === "fullPage" ? layout.shown : [];
+  const drawerShown = layout.sidebar === "drawer" && state.drawerOpen;
+  const pageCovered = fullPages.length > 0 || drawerShown;
+
+  const update = (change: Partial<State>) => setState((current) => ({ ...current, ...change }));
+  const closeDrawer = () => update({ drawerOpen: false });
+  const close = (pane: ShownPane) => update(pane === "workPane" ? { workPane: null } : { paneOpen: false });
+  const givenWay = paneOpen && !layout.shown.includes(page.pane ?? "fiche");
+  const togglePane = () => update(givenWay ? { workPane: null } : { paneOpen: !paneOpen });
+  const onMenu = () =>
+    layout.sidebar === "column" ? update({ sidebarWanted: false }) : layout.sidebar === "hidden" ? update({ sidebarWanted: true }) : update({ drawerOpen: true });
+
+  const top = fullPages.at(-1);
+  useBackHandler(drawerShown ? closeDrawer : top ? () => close(top) : null);
+
+  const workPane = useMemo(() => ({ open: (item: WorkPaneItem) => setState((current) => ({ ...current, workPane: item })) }), []);
+  const paneTitle = (pane: ShownPane) => (pane === "workPane" ? (state.workPane?.title ?? "") : t(pane === "fiche" ? "fiche.label" : "fiche.activity"));
+  const paneBody = (pane: ShownPane) => (pane === "workPane" ? state.workPane?.content : paneContent);
+
+  return (
+    <WorkPaneContext.Provider value={workPane}>
+      <View style={{ flex: 1, flexDirection: "row", backgroundColor: colors.background, paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }}>
+        {layout.sidebar === "column" ? (
+          <View aria-hidden={pageCovered} style={{ width: layout.size.sidebar, backgroundColor: colors.nav }}>
+            <ScrollView contentContainerStyle={{ padding: space[3] }}>{sidebar(closeDrawer)}</ScrollView>
+          </View>
+        ) : null}
+        <View aria-hidden={pageCovered} style={{ flex: 1 }}>
+          <TopBar
+            title={page.title}
+            menu={<Control label={t(layout.sidebar === "column" ? "sidebar.collapse" : "sidebar.menu")} icon={layout.sidebar === "column" ? PanelLeftClose : Menu} onPress={onMenu} />}
+            end={
+              <>
+                {page.pane ? (
+                  <Control
+                    label={t(page.pane === "fiche" ? "fiche.label" : "fiche.activity")}
+                    icon={page.pane === "fiche" ? PanelRight : Activity}
+                    look="secondary"
+                    expanded={paneOpen && !givenWay}
+                    onPress={togglePane}
+                  />
+                ) : null}
+                <Control label={t("conversationFirst.newConversation")} icon={SquarePen} iconOnly onPress={onNewConversation} />
+              </>
+            }
+          />
+          <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
+            <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>{children}</View>
+            {layout.panes === "columns"
+              ? // The Work Pane beside the conversation, the Fiche after it (as on the web).
+                [...layout.shown].reverse().map((pane) => (
+                  <Column key={pane} layout={layout} pane={pane} title={paneTitle(pane)} onClose={pane === "workPane" ? () => close(pane) : null}>
+                    {paneBody(pane)}
+                  </Column>
+                ))
+              : null}
+          </View>
+        </View>
+        {fullPages.map((pane) => (
+          <FullPage key={pane} title={paneTitle(pane)} covered={pane !== top} onClose={() => close(pane)}>
+            {paneBody(pane)}
+          </FullPage>
+        ))}
+        {drawerShown ? (
+          <Drawer width={Math.min(window.width * 0.86, layout.size.sidebar + 2 * layout.size.gutter)} onClose={closeDrawer}>
+            {sidebar(closeDrawer)}
+          </Drawer>
+        ) : null}
+      </View>
+    </WorkPaneContext.Provider>
+  );
+}
+
+function TopBar({ title, menu, end }: { title: string; menu: ReactNode; end: ReactNode }) {
+  return (
+    <View role="toolbar" style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1] }}>
+      {menu}
+      <View style={{ flex: 1 }}>
+        <AppText variant="lead" weight="semiBold" lines={2}>
+          {title}
+        </AppText>
+      </View>
+      {end}
+    </View>
+  );
+}
+
+function PaneHeader({ title, onClose }: { title: string; onClose: (() => void) | null }) {
+  const { t } = useTranslation();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: space[2], paddingLeft: space[4], paddingRight: space[2], paddingVertical: space[1] }}>
+      <View style={{ flex: 1 }}>
+        <AppText variant="h3" lines={2}>
+          {title}
+        </AppText>
+      </View>
+      {onClose ? <Control label={t("conversationFirst.close")} icon={X} onPress={onClose} /> : null}
+    </View>
+  );
+}
+
+/** A pane beside the conversation, from 64rem. */
+function Column({ layout, pane, title, onClose, children }: { layout: Disposition; pane: ShownPane; title: string; onClose: (() => void) | null; children: ReactNode }) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={{
+        width: pane === "workPane" ? layout.size.workPane : layout.size.fiche,
+        marginRight: layout.size.gutter,
+        marginBottom: layout.size.gutter,
+        backgroundColor: colors.surface,
+        borderRadius: radius.card,
+      }}
+    >
+      <PaneHeader title={title} onClose={onClose} />
+      <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>
+    </View>
+  );
+}
+
+/** A pane over the page and its Top Bar, below 64rem: its title and « Fermer » (ADR-0070). */
+function FullPage({ title, covered, onClose, children }: { title: string; covered: boolean; onClose: () => void; children: ReactNode }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      aria-modal={!covered}
+      aria-hidden={covered}
+      style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
+      <PaneHeader title={title} onClose={onClose} />
+      <ScrollView contentContainerStyle={{ padding: space[4], paddingTop: 0 }}>{children}</ScrollView>
+    </View>
+  );
+}
+
+/** The Sidebar over the page, below 64rem or wherever the conversation would keep less than 28rem beside it. */
+function Drawer({ width, onClose, children }: { width: number; onClose: () => void; children: ReactNode }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, flexDirection: "row" }}>
+      <View aria-modal style={{ width, backgroundColor: colors.nav, paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left }}>
+        <View style={{ alignItems: "flex-start", padding: space[2] }}>
+          <Control label={t("sidebar.close")} icon={X} onPress={onClose} />
+        </View>
+        <ScrollView contentContainerStyle={{ padding: space[3], paddingTop: 0 }}>{children}</ScrollView>
+      </View>
+      {/* The scrim: a tap closes the drawer too, for sighted people; « Fermer le menu » is the way for everyone. */}
+      <Pressable accessible={false} onPress={onClose} style={{ flex: 1, backgroundColor: colors.scrim }} />
+    </View>
+  );
+}
+
+/** Android's back button closes what covers the page, while something does. */
+function useBackHandler(onBack: (() => void) | null) {
+  useEffect(() => {
+    if (!onBack) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [onBack]);
+}

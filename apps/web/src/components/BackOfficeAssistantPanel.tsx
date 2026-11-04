@@ -1,6 +1,7 @@
 "use client";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -566,6 +567,10 @@ export function BackOfficeAssistantPanel({ children }: { children: ReactNode }) 
                     <span className="pill coach-panel-badge" data-tone="accent">
                       {t("backOfficeAssistant.badge")}
                     </span>
+                    {/* Where its AI runs and on what (#338, #320 § 12): « IA dans Jobbbox », in the privacy policy. */}
+                    <Link className="coach-panel-learn-more" href={routes.aiInJobbbox} aria-label={t("backOfficeAssistant.learnMoreLabel")}>
+                      {t("backOfficeAssistant.learnMore")}
+                    </Link>
                     <button className={buttonClass({ variant: "primary" })} type="submit" disabled={status === "sending" || restoring}>
                       {t("backOfficeAssistant.send")}
                     </button>

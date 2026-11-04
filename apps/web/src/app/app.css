@@ -804,6 +804,12 @@ textarea.input {
   justify-content: space-between;
 }
 
+/* « En savoir plus » beside the AI badge (#338): « IA dans Jobbbox ». */
+.coach-panel-learn-more {
+  margin-right: auto;
+  color: var(--color-accent);
+}
+
 /* What goes with the message: one line, opened for the whole text. */
 .coach-panel-context {
   min-width: 0;
@@ -4831,6 +4837,17 @@ textarea.title-edit {
 
 .ai-activity-empty {
   margin: var(--space-2) 0;
+}
+
+/* « En savoir plus » (#338): « IA dans Jobbbox », under what the pane shows. */
+.ai-activity-learn-more {
+  padding-top: var(--space-3);
+  margin: var(--space-4) 0 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.ai-activity-learn-more > a {
+  color: var(--color-accent);
 }
 
 .ai-activity-section + .ai-activity-section {

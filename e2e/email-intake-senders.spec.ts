@@ -16,7 +16,7 @@ const proposed = fr.admin.emailIntake.proposed;
 const origin = process.env.E2E_WEB_ORIGIN!;
 const SECRET = "e2e-email-intake-inbound-secret-0123456789";
 const MTA_IP = "203.0.113.7"; // inside EMAIL_INTAKE_MTA_IP_RANGES (playwright.config.ts)
-const SUPER_ADMIN = "email-intake-office@e2e.jobbbox.test";
+const SUPER_ADMIN = "email-intake-senders-office@e2e.jobbbox.test";
 const SHEET = "/admin/parametres?tab=sources&fournisseur=email-intake";
 const tag = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");

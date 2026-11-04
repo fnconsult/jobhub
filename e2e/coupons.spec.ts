@@ -14,7 +14,7 @@ import { orderToStripe } from "./support/stripe-checkout";
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const coupons = fr.admin.coupons;
 const stripeUrl = process.env.E2E_STRIPE_URL!;
-const ADMINISTRATOR = "back-office@e2e.jobbbox.test";
+const ADMINISTRATOR = "coupons-office@e2e.jobbbox.test";
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 /** Intl puts (narrow) no-break spaces in amounts; read them as plain spaces. */
 const plain = (text: string) => text.replace(/[\u202f\u00a0]/g, " ");

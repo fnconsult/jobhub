@@ -886,8 +886,18 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(exported.applications[0]!.companyDossier).toMatchObject({ provenance: built });
   });
 
+  it("the export lists the Coach context limits of the Candidate's Plan, empty ones as unlimited (ADR-0078, #731)", async () => {
+    await database.query("INSERT INTO plan_coach_context (plan, coach_context_messages, coach_context_tokens) VALUES ('free', 20, NULL)");
+
+    expect((await candidateData.export(candidateId)).coachContextLimits).toEqual({ plan: "free", coachContextMessages: 20, coachContextTokens: null });
+  });
+
   it("the export holds the Candidate's Plan and how much of each Plan Quota they used, but not their Stripe identifiers", async () => {
-    expect(await candidateData.export(candidateId)).toMatchObject({ plan: null, quotaUsage: [] });
+    expect(await candidateData.export(candidateId)).toMatchObject({
+      plan: null,
+      quotaUsage: [],
+      coachContextLimits: { plan: "free", coachContextMessages: 40, coachContextTokens: 12_000 },
+    });
     // Set from Stripe's signed webhooks; counted as the Candidate uses the app.
     await database.query(
       `INSERT INTO candidate_plan (candidate_id, plan, stripe_customer_id, stripe_subscription_id, stripe_status, charged, ends_at)
@@ -899,6 +909,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const exported = await candidateData.export(candidateId);
 
     expect(exported.plan).toEqual({ plan: "standard", subscriptionStatus: "active", endsAt: new Date("2026-11-30T00:00:00Z") });
+    expect(exported.coachContextLimits).toEqual({ plan: "standard", coachContextMessages: 40, coachContextTokens: 12_000 });
     expect(exported.quotaUsage).toEqual([
       { quota: "atsScores", week: "2026-10-12", used: 2 },
       { quota: "matchScores", week: "2026-09", used: 4 },

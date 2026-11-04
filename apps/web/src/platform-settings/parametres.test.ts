@@ -50,6 +50,9 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
     expect(settingHref("TAVILY_CREDIT_PRICE_USD")).toBe("/admin/parametres?tab=recherche-web&fournisseur=tavily#setting-TAVILY_CREDIT_PRICE_USD");
     expect(settingHref("EUR_PER_USD")).toBe("/admin/parametres?tab=recherche-web#setting-EUR_PER_USD");
     expect(settingHref("AI_IDENTITY_MODEL")).toBe("/admin/parametres?tab=ia#setting-AI_IDENTITY_MODEL");
+    // The Coach Actions' switch and rounds (#713), with the AI tasks' routing.
+    expect(settingHref("COACH_ACTIONS_ENABLED")).toBe("/admin/parametres?tab=ia#setting-COACH_ACTIONS_ENABLED");
+    expect(settingHref("COACH_TOOL_ROUNDS_MAX")).toBe("/admin/parametres?tab=ia#setting-COACH_TOOL_ROUNDS_MAX");
     expect(settingHref("JOB_DISCOVERY_BUDGET_EUR")).toBe("/admin/parametres?tab=sources#setting-JOB_DISCOVERY_BUDGET_EUR");
     expect(settingHref("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("/admin/parametres?tab=enrichissement#setting-CONTACT_ENRICHMENT_DPA_SIGNED");
     expect(settingHref("MAIL_FROM")).toBe("/admin/parametres?tab=e-mail#setting-MAIL_FROM");

@@ -128,18 +128,23 @@ export interface ToolFigures {
   calls: number;
   failures: number;
   costEur: number | null;
-  /** Its failed and warned AI calls per Outcome and Failure Reason, most first, failures before warnings: an external API's calls have none. */
+  /** Its failed and warned calls per Outcome and Failure Reason, most first, failures before warnings: an external API's calls have none, a Coach Action refused has its own. */
   reasons: FailureReasonCount[];
 }
 
 /**
- * A failed or warned AI call's reason (`AI_REASON`) as a catalog code: one no longer in it is `other`.
- * Null for an ok call and an external API's.
+ * A failed or warned AI call's reason (`AI_REASON`), or a refused Coach Action's (#713), as a catalog code: one no
+ * longer in it is `other`. Null for an ok call and an external API's.
  */
 const codeOf = (reason: string | null): FailureReason | null => (reason === null ? null : isFailureReason(reason) ? reason : "other");
 
 /** A failed or warned AI call's reason, `other` when recorded without (before #259); null for an ok call. */
 const AI_REASON = `CASE WHEN u.outcome <> 'ok' THEN coalesce(u.reason, 'other') END`;
+
+/** An external API call's Outcome: ok or failed. */
+const EXTERNAL_OUTCOME = `CASE WHEN ok THEN 'ok' ELSE 'failed' END`;
+/** A failed call's reason when one was recorded (a Tool of our own refusing it, #713); null for an external API's. */
+const EXTERNAL_REASON = `CASE WHEN NOT ok THEN reason END`;
 
 /** `counts` with `count` added to its outcome and reason, kept most first, failures before warnings, then by code. */
 function counted(counts: FailureReasonCount[], count: FailureReasonCount): FailureReasonCount[] {
@@ -169,10 +174,10 @@ const FIGURES = `
    WHERE u.at >= $1
    GROUP BY u.provider, u.endpoint, u.outcome, ${AI_REASON}
   UNION ALL
-  SELECT 'external_api_usage', provider, NULL, NULL, NULL, count(*)::int, (count(*) FILTER (WHERE NOT ok))::int, sum(cost_eur)
+  SELECT 'external_api_usage', provider, NULL, ${EXTERNAL_OUTCOME}, ${EXTERNAL_REASON}, count(*)::int, (count(*) FILTER (WHERE NOT ok))::int, sum(cost_eur)
     FROM external_api_usage
    WHERE at >= $1
-   GROUP BY provider`;
+   GROUP BY provider, ${EXTERNAL_OUTCOME}, ${EXTERNAL_REASON}`;
 
 const noFigures = (): ToolFigures => ({ calls: 0, failures: 0, costEur: null, reasons: [] });
 
@@ -222,7 +227,7 @@ export interface ToolCall {
   ok: boolean;
   /** An AI call's Outcome; an external API call is ok or failed. */
   outcome: Outcome;
-  /** A failed or warned AI call's Failure Reason code (never its technical reason); null otherwise. */
+  /** A failed or warned AI call's Failure Reason code (never its technical reason), or a refused Coach Action's (#713); null otherwise. */
   reason: FailureReason | null;
   /** Null for an AI call, and when no answer came. */
   httpStatus: number | null;
@@ -235,7 +240,7 @@ export interface ToolCall {
 export const LATEST_CALLS = 50;
 
 /** An external API call's columns, as a ToolCall (its reason read by `codeOf`). */
-const EXTERNAL_CALL = `at, operation, ok, CASE WHEN ok THEN 'ok' ELSE 'failed' END AS outcome, NULL AS reason, http_status AS "httpStatus", duration_ms AS "durationMs", cost_eur AS "costEur"`;
+const EXTERNAL_CALL = `at, operation, ok, ${EXTERNAL_OUTCOME} AS outcome, ${EXTERNAL_REASON} AS reason, http_status AS "httpStatus", duration_ms AS "durationMs", cost_eur AS "costEur"`;
 /** An AI call's columns, as a ToolCall: its cost counts its tools' fees. */
 const AI_CALL = `u.at, u.task || ' · ' || u.model AS operation, u.ok, u.outcome, ${AI_REASON} AS reason, NULL::int AS "httpStatus", u.duration_ms AS "durationMs",
             u.cost_eur + coalesce((SELECT sum(t.cost_eur) FROM ai_tool_usage t WHERE t.usage_id = u.id), 0) AS "costEur"`;

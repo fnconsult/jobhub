@@ -145,8 +145,8 @@ export function createPostgresExternalApiLog(database: Pick<Pool, "query">, opti
     async record(call: ExternalApiCall) {
       try {
         await database.query(
-          `INSERT INTO external_api_usage (at, provider, operation, ok, http_status, duration_ms, cost_eur) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [call.at, call.provider, call.operation, call.ok, call.httpStatus, call.durationMs, call.costEur],
+          `INSERT INTO external_api_usage (at, provider, operation, ok, http_status, duration_ms, cost_eur, reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [call.at, call.provider, call.operation, call.ok, call.httpStatus, call.durationMs, call.costEur, call.reason ?? null],
         );
       } catch (error) {
         warn("External API call not recorded", error);
@@ -428,6 +428,8 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     );
     CREATE INDEX IF NOT EXISTS external_api_usage_at_idx ON external_api_usage (at);
     CREATE INDEX IF NOT EXISTS external_api_usage_provider_at_idx ON external_api_usage (provider, at DESC);
+    -- Why a call to a Tool of our own was refused, never run (a Coach Action's, #713): a Failure Reason code; none for an external API's.
+    ALTER TABLE external_api_usage ADD COLUMN IF NOT EXISTS reason text;
     -- The AI Message Log: what each call said, secrets scrubbed. Personal data: kept 30 days,
     -- in the Candidate's data export, deleted with their account.
     CREATE TABLE IF NOT EXISTS ai_message_log (

@@ -34,7 +34,7 @@ const TASK_STEPS = {
 /**
  * The category of the Tools that are a Coach Action's groups (« Routes locales », ADR-0077): the app's own code, which
  * reads or proposes on an object of the Candidate, no AI. Each of its Tools has the Activity `act`, a glyph of its own;
- * `compute` stays the rules'. The category and its Tools arrive with #713.
+ * `compute` stays the rules'.
  */
 export const COACH_ACTION_TOOL_CATEGORY = "local_routes";
 type CoachActionTool = Extract<(typeof TOOLS)[number], { category: typeof COACH_ACTION_TOOL_CATEGORY }>["id"];
@@ -53,6 +53,13 @@ export const TOOL_STEPS = {
   perplexity: "by_task",
   brave: "by_task",
   tavily: "by_task",
+  /** The Coach Actions' groups (« Routes locales », #713). */
+  applications: "act",
+  agenda: "act",
+  profile: "act",
+  "job-searches": "act",
+  "job-digests": "act",
+  documents: "act",
   "france-travail": "search",
   "fantastic-jobs": "search",
   greenhouse: "search",

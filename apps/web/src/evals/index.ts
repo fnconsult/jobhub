@@ -31,6 +31,8 @@ import { costInEur, isEffort, PROVIDER_IDS, type AiLayer, type Effort, type Gene
 import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { createCoach, MAX_MESSAGE_LENGTH, type CoachFocus } from "../coach";
+import { forEvalRun, type CoachAction } from "../coach-actions";
+import { COACH_ACTIONS } from "../coach-actions/catalog";
 import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
@@ -169,6 +171,11 @@ export interface EvalsDeps {
   clock?: () => number;
   /** The Eval Cases in code. Default: the AI Coach's and the Guardrails' of this release (./cases). */
   cases?: { aiCoach?: readonly AiCoachEvalCase[]; guardrails?: readonly GuardrailEvalCase[] };
+  /**
+   * The Coach Actions a judged run offers the AI Coach (#713), on no one's data: a read finds nothing, a proposal is
+   * counted, never run. Default: those shipped (../coach-actions/catalog).
+   */
+  coachActions?: readonly CoachAction[];
 }
 
 export async function migrateEvals(database: Pool): Promise<void> {
@@ -419,8 +426,9 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
   }
 
   /** The AI Coach as an Eval Run plays it: on `served`, the Guardrails as they are, a fictional Coach context per case. */
-  async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string; aboutJobbbox?: boolean; couldNotAnswer?: boolean })[], served: ServedKnowledge, consult?: string) {
+  async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string; aboutJobbbox?: boolean; couldNotAnswer?: boolean; proposes?: boolean })[], served: ServedKnowledge, consult?: string) {
     const guardrails = createGuardrails({ ai, config: deps.guardrails, triggers: { record: () => {} } });
+    const coachActions = forEvalRun(deps.coachActions ?? COACH_ACTIONS);
     let judge: EvalRun["judge"] = null;
     const results = await playAll(cases, async (each): Promise<JudgedCaseResult> => {
       const coach = createCoach({
@@ -428,6 +436,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         playbooks: { served: async () => served },
         guardrails,
         context: async (_candidateId, _focus, maxTokens) => fictionalContext(each, maxTokens),
+        coachActions,
         ...(consult ? { consult } : {}),
         warn: () => {},
       });
@@ -453,6 +462,12 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         const reason = each.couldNotAnswer
           ? "Le coach n'a pas signalé une question à laquelle il n'a pas pu répondre."
           : "Le coach a dit n'avoir pas pu répondre à une question qu'il pouvait traiter.";
+        return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
+      }
+      // Whether it proposes a change (#713) is what its Coach Actions did, checked exactly.
+      const proposed = (replied.proposals?.length ?? 0) > 0;
+      if (each.proposes !== undefined && proposed !== each.proposes) {
+        const reason = each.proposes ? "Le coach n'a proposé aucune modification là où il en fallait une." : "Le coach a proposé une modification qu'on ne lui demandait pas.";
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
       }
       const call = await ai

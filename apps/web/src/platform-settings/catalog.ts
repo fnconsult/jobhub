@@ -21,7 +21,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -117,6 +117,10 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "MAINTENANCE_MESSAGE_FR", group: "maintenance", type: { kind: "text" }, default: "" },
   { name: "MAINTENANCE_MESSAGE_EN", group: "maintenance", type: { kind: "text" }, default: "" },
   { name: "MAINTENANCE_EXPECTED_MINUTES", group: "maintenance", type: whole(0, 1440), default: "30" },
+  // The Coach Actions (ADR-0077, #713): off by default, the AI Coach then has no tool at all; on, the Coach Actions shipped are
+  // offered, a reply making at most COACH_TOOL_ROUNDS_MAX rounds of calls (0: none, the reply as without them).
+  { name: "COACH_ACTIONS_ENABLED", group: "coach", type: { kind: "boolean" }, default: "false" },
+  { name: "COACH_TOOL_ROUNDS_MAX", group: "coach", type: whole(0, 4), default: "2" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));
@@ -132,6 +136,7 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
  */
 const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
   "ai_routing",
+  "coach",
   "web_search",
   "prices",
   "email",

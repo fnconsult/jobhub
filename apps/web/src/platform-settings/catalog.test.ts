@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asksConfirmation, isEditable, parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
+import { asksConfirmation, isEditable, parseSetting, PLATFORM_SETTINGS, platformSetting, readSetting } from "./catalog";
 
 /** Every Platform Setting ADR-0033 lists, by name, and ADR-0043's Search provider settings. */
 const ADR_0033 = [
@@ -54,10 +54,13 @@ const DELIVERY = ["DELIVERY_STATUS_EMAIL_TO"];
 /** Maintenance (#542): on or off, its message in each language and how long it should last. */
 const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_MESSAGE_EN", "MAINTENANCE_EXPECTED_MINUTES"];
 
+/** The Coach Actions (ADR-0077, #713): switched on or off, and how many rounds of calls a reply may make. */
+const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX"];
+
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE, ...DELIVERY].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE, ...DELIVERY, ...COACH].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -160,6 +163,19 @@ describe("the Platform Settings catalog", () => {
     expect(groupOf("JOB_DISCOVERY_BUDGET_EUR")).toBe("job_discovery");
     expect(groupOf("CONTACT_ENRICHMENT_DPA_SIGNED")).toBe("enriched_contacts");
     expect(groupOf("EXTENSION_STORE_URL")).toBe("extension");
+  });
+
+  it("keeps the Coach Actions off by default, and a reply's rounds of calls at 2, from 0 to 4 (ADR-0077, #713)", () => {
+    const enabled = platformSetting("COACH_ACTIONS_ENABLED")!;
+    const rounds = platformSetting("COACH_TOOL_ROUNDS_MAX")!;
+    expect([enabled.group, enabled.type, enabled.default]).toEqual(["coach", { kind: "boolean" }, "false"]);
+    expect([rounds.group, rounds.default]).toEqual(["coach", "2"]);
+    expect(parseSetting(rounds, "0")).toEqual({ ok: true, value: 0 });
+    expect(parseSetting(rounds, "4")).toEqual({ ok: true, value: 4 });
+    for (const refused of ["5", "-1", "1.5"]) expect(parseSetting(rounds, refused), refused).toMatchObject({ ok: false });
+    expect(isEditable(enabled) && isEditable(rounds)).toBe(true);
+    expect(readSetting({}, "COACH_ACTIONS_ENABLED")).toBe(false);
+    expect(readSetting({}, "COACH_TOOL_ROUNDS_MAX")).toBe(2);
   });
 
   it("parses a value the way the code parses env: an allowed list, a bounded number, text or a boolean", () => {

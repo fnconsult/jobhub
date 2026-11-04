@@ -396,15 +396,14 @@ const EVAL_RUN_ROUNDS = 2;
 
 /**
  * The Coach Actions as an Eval Run plays them (ADR-0023, #713): offered as shipped, on no one's data. A read finds
- * nothing (`not_found`); a proposal with valid arguments is counted, its arguments as what it prepared, never run.
+ * nothing (`not_found`), unless `readsPlayed`: the catalogue's reads are then over an Eval Case's fictional objects
+ * (#714) and run as given. A proposal with valid arguments is counted, its arguments as what it prepared, never run.
  * Nothing is recorded: an Eval Run is no Candidate's.
  */
-export function forEvalRun(catalog: readonly CoachAction[]): CoachActions {
+export function forEvalRun(catalog: readonly CoachAction[], { readsPlayed = false }: { readsPlayed?: boolean } = {}): CoachActions {
   const played = catalog.map(
-    (action): CoachAction => ({
-      ...action,
-      run: async (args) => (action.kind === "read" ? { ok: false, error: "not_found" } : { ok: true, data: args }),
-    }),
+    (action): CoachAction =>
+      action.kind === "read" && readsPlayed ? action : { ...action, run: async (args) => (action.kind === "read" ? { ok: false, error: "not_found" } : { ok: true, data: args }) },
   );
   return createCoachActions({ catalog: played, settings: async () => ({ enabled: true, maxRounds: EVAL_RUN_ROUNDS }), externalApis: { record: () => {} } });
 }

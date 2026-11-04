@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useTranslation } from "react-i18next";
 import { BackHandler, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { OfflineBanner } from "../offline/OfflineBanner";
 import { space, radius, useTheme } from "../theme/theme";
 import { useKeyCommand } from "../keyboard/key-commands";
 import { AppText } from "../ui/AppText";
@@ -32,7 +33,7 @@ type State = {
 
 /**
  * The app's shell (ADR-0076, variant A of `prototype/mobile-shell`): the Top Bar, the page (its conversation), the
- * Sidebar as a column or a drawer, and the page's panes (its Fiche, or Activité alone, and the Work Pane) as columns
+ * Sidebar as a column or a drawer, « Hors ligne » under the Top Bar while there is no network, and the page's panes (its Fiche, or Activité alone, and the Work Pane) as columns
  * beside the conversation or full page over it, as `disposition` decides for the window, again on every change of it.
  *
  * On a wide window an object's Fiche starts open, as on the web; the Top Bar's « Fiche » or « Activité » alone opens
@@ -120,6 +121,7 @@ export function Shell({
               </>
             }
           />
+          <OfflineBanner />
           <View style={{ flex: 1, flexDirection: "row", paddingBottom: insets.bottom }}>
             <View style={{ flex: 1, marginHorizontal: layout.size.gutter }}>{children}</View>
             {layout.panes === "columns"

@@ -1,7 +1,7 @@
 import { API_VERSION } from "@jobhub/shared";
 import { defaultShouldDehydrateQuery, MutationCache, onlineManager, QueryClient, type QueryKey } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type PersistedClient, type Persister } from "@tanstack/react-query-persist-client";
-import { createContext, Fragment, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 
 /** Where the app keeps things on the device: AsyncStorage in the app, memory in a test. */
 export type DeviceStorage = {
@@ -93,6 +93,12 @@ function useNetworkFollowed(network: Network) {
     });
   }, [network]);
 }
+
+/**
+ * Whether the device has a network, as the reads see it: without one they show what was last seen, and every write is
+ * refused (« Hors ligne »). A network that does not reach the internet (a captive portal) still counts as one.
+ */
+export const useOnline = () => useSyncExternalStore(onlineManager.subscribe.bind(onlineManager), () => onlineManager.isOnline());
 
 /** Why a write failed: there was no network, so it was not sent, and will not be later (#701). */
 class RefusedOffline extends Error {

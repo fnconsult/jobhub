@@ -57,6 +57,20 @@ const darkMode = { current: "light" as "light" | "dark" };
 jest.mock("react-native/Libraries/Utilities/useColorScheme", () => ({ __esModule: true, default: () => darkMode.current }));
 const IPAD_LANDSCAPE = [1366, 1024] as const;
 
+/** The device's network as expo-network reports it, which a test turns off and on as airplane mode would. */
+const mockNetwork = { connected: true, listeners: new Set<(state: { isConnected: boolean }) => void>() };
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: async () => ({ isConnected: mockNetwork.connected }),
+  addNetworkStateListener: (listener: (state: { isConnected: boolean }) => void) => {
+    mockNetwork.listeners.add(listener);
+    return { remove: () => mockNetwork.listeners.delete(listener) };
+  },
+}));
+const setNetwork = (connected: boolean) => {
+  mockNetwork.connected = connected;
+  for (const listener of mockNetwork.listeners) listener({ isConnected: connected });
+};
+
 async function launch(initialUrl = "/", { signIn = true } = {}) {
   if (signIn) await signedIn();
   await renderRouter("./src/app", { initialUrl });
@@ -491,5 +505,23 @@ describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldabl
     await act(() => window(...HALF));
     fireEvent(screen.getByLabelText("Vos échanges avec votre coach"), "contentSizeChange", 600, 2600);
     expect(scrollToEnd).not.toHaveBeenCalled();
+    });
+  });
+
+describe("Jobbbox app, without network", () => {
+  beforeEach(() => window(...PHONE));
+  afterEach(() => act(() => setNetwork(true)));
+
+  it("says « Hors ligne », disables the box with its reason, and gives it back silently once the network returns", async () => {
+    mockNetwork.connected = false;
+    await launch();
+    expect(screen.getByText("Hors ligne")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre message")).toBeDisabled();
+    expect(button("Envoyer")).toBeDisabled();
+    expect(screen.getByText(/vous pourrez écrire au coach dès le retour du réseau/)).toBeOnTheScreen();
+
+    await act(() => setNetwork(true));
+    expect(screen.queryByText("Hors ligne")).toBeNull();
+    expect(screen.getByLabelText("Votre message")).toBeEnabled();
   });
 });

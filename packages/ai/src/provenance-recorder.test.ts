@@ -108,6 +108,26 @@ describe("a ProvenanceRecorder", () => {
     ]);
   });
 
+  it("times a Coach Action as an `act` step of its group's Tool, one that proposes said so and folded apart from the reads (#713)", async () => {
+    const recorder = createProvenanceRecorder(aiLayer(), { now: steppingClock(10) });
+    const events: ProvenanceEvent[] = [];
+    const live = createProvenanceRecorder(aiLayer(), { now: steppingClock(10), onEvent: (event) => events.push(event) });
+
+    await recorder.step({ tool: "applications" }, async () => "lue");
+    await recorder.step({ tool: "applications", proposes: true }, async () => "proposée");
+    await recorder.step({ tool: "applications" }, async () => "lue");
+    await live.step({ tool: "agenda", proposes: true }, async () => "proposée");
+
+    expect(recorder.provenance().steps).toEqual([
+      { kind: "tool", activity: "act", tool: "applications", ms: 20, at: "2026-10-23T10:00:00.010Z", outcome: "ok", count: 2 },
+      { kind: "tool", activity: "act", tool: "applications", proposes: true, ms: 10, at: "2026-10-23T10:00:00.030Z", outcome: "ok", count: 1 },
+    ]);
+    expect(events.map((event) => event.step)).toEqual([
+      { kind: "tool", activity: "act", tool: "agenda", proposes: true, at: "2026-10-23T10:00:00.010Z" },
+      expect.objectContaining({ kind: "tool", activity: "act", tool: "agenda", proposes: true, outcome: "ok" }),
+    ]);
+  });
+
   it("records a failed call or Tool as failed, and rethrows", async () => {
     const failing = createAiLayer({ providers: [createFakeProvider({ fail: new Error("down") })], routes: { writing: "anthropic" }, usage: createMemoryUsageLog() });
     const recorder = createProvenanceRecorder(failing);

@@ -5,7 +5,8 @@
  * Apple team and its signing certificates, and hold no one's data.
  *
  * iOS opens in the app the magic link's address alone (APP_SIGN_IN_PATH); on Android the app's manifest says which
- * paths it claims (app.json). Until the app's signing is configured (APPLE_TEAM_ID, ANDROID_CERT_SHA256), a file is not
+ * paths it claims (app.json). Both files also let the app use the site's passkeys for the second step (#688,
+ * `webcredentials` on iOS, `get_login_creds` on Android): a passkey made on jobbbox.ai is offered in the app. Until the app's signing is configured (APPLE_TEAM_ID, ANDROID_CERT_SHA256), a file is not
  * served: every link opens the web.
  */
 import { APP_IDENTIFIER, APP_SIGN_IN_PATH } from "@jobhub/shared";
@@ -23,19 +24,26 @@ export type DomainAssociationFile = (typeof DOMAIN_ASSOCIATION_FILES)[number];
 export function domainAssociation(file: DomainAssociationFile, env: Env): object | null {
   if (file === APPLE) {
     const team = env.APPLE_TEAM_ID?.trim();
-    return team ? { applinks: { details: [{ appIDs: [`${team}.${APP_IDENTIFIER}`], components: [{ "/": APP_SIGN_IN_PATH }] }] } } : null;
+    if (!team) return null;
+    const app = `${team}.${APP_IDENTIFIER}`;
+    return { applinks: { details: [{ appIDs: [app], components: [{ "/": APP_SIGN_IN_PATH }] }] }, webcredentials: { apps: [app] } };
   }
-  const fingerprints = (env.ANDROID_CERT_SHA256 ?? "")
-    .split(",")
-    .map((fingerprint) => fingerprint.trim())
-    .filter(Boolean);
+  const fingerprints = androidCertificates(env);
   if (fingerprints.length === 0) return null;
   return [
     {
-      relation: ["delegate_permission/common.handle_all_urls"],
+      relation: ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
       target: { namespace: "android_app", package_name: APP_IDENTIFIER, sha256_cert_fingerprints: fingerprints },
     },
   ];
+}
+
+/** The SHA-256 fingerprints of the certificates the Android app is signed with (ANDROID_CERT_SHA256, comma-separated). */
+function androidCertificates(env: Env): string[] {
+  return (env.ANDROID_CERT_SHA256 ?? "")
+    .split(",")
+    .map((fingerprint) => fingerprint.trim())
+    .filter(Boolean);
 }
 
 /** The answer at `file`: its JSON (no redirect, as Apple and Android require), or 404 when not configured. */

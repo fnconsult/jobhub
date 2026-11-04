@@ -3,7 +3,6 @@
     "name": "Jobbbox",
     "slug": "jobbbox",
     "scheme": "jobbbox",
-    "version": "0.1.0",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "ios": {

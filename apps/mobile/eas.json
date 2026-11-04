@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_API_URL": "https://staging.jobbbox.ai" }
+    },
+    "staging": {
+      "distribution": "store",
+      "channel": "staging",
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://staging.jobbbox.ai" }
+    },
+    "production": {
+      "distribution": "store",
+      "channel": "production",
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "https://jobbbox.ai" }
+    }
+  },
+  "submit": {
+    "staging": {
+      "ios": {},
+      "android": { "track": "internal", "releaseStatus": "completed" }
+    },
+    "production": {
+      "ios": {},
+      "android": { "track": "production", "releaseStatus": "draft" }
+    }
+  }
+}

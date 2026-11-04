@@ -212,7 +212,7 @@ test.describe("Coach context limits of a Plan (#731)", () => {
       await setFreeLimits(admin, "39", "12000");
       await admin.goto("/admin/journal?section=plan_quotas");
       const entry = admin.getByRole("row").filter({ hasText: ADMINISTRATOR }).first();
-      await expect(entry).toContainText("Mémoire du coach (messages lus)");
+      await expect(entry).toContainText(`${MESSAGES_LABEL} : 40 → 39`);
     } finally {
       await setFreeLimits(admin, "40", "12000");
       await admin.close();

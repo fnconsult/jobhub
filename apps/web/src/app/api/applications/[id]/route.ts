@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
+import type { ApplicationResponse } from "@jobhub/shared/reads";
 import { applicationResponse } from "@/applications/http";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { getCandidateReads } from "@/candidate-reads/server";
 
-/** One of the Candidate's Applications. 200 Application · 401 · 404 */
+/** One of the Candidate's Applications with its Interviews (#684). 200 ApplicationResponse · 401 · 404 (also anyone else's) */
 export async function GET(_request: Request, { params }: RouteContext<"/api/applications/[id]">) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const application = await getApplications().get(candidate.id, (await params).id);
+  const application = await getCandidateReads().application(candidate.id, (await params).id);
   if (!application) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  return NextResponse.json(application);
+  return NextResponse.json<ApplicationResponse>(application);
 }
 
 /**

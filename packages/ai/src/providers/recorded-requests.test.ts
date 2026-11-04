@@ -4,7 +4,9 @@
  * `fixtures/requests/` were recorded before tool calling was added; a change to one is a change to what leaves.
  */
 import { describe, expect, it } from "vitest";
-import type { AiProvider, TextInput } from "../types";
+import { createAiLayer } from "../ai-layer";
+import { createMemoryUsageLog } from "../testing";
+import type { AiProvider, Message, TextInput } from "../types";
 import { createAnthropicProvider } from "./anthropic";
 import { createMistralProvider, createOpenAiProvider } from "./chat-completions";
 
@@ -60,4 +62,17 @@ describe("requests without tools, byte for byte as before tool calling (#712)", 
       await expect(`${requests[0]!.url}\n${requests[0]!.body}\n`).toMatchFileSnapshot(`./fixtures/requests/${adapter}-${name}.txt`);
     });
   }
+});
+
+describe("a call through the AI layer without tools sends the recorded request, byte for byte (#712)", () => {
+  const [, conversation] = INPUTS[1]!;
+  it.each(ADAPTERS.filter(([adapter]) => adapter === "anthropic-direct" || adapter === "mistral"))("%s", async (adapter, create, reply) => {
+    const { fetch, requests } = recordingFetch(reply);
+    const provider = create(fetch);
+    const ai = createAiLayer({ providers: [provider], routes: { coaching: provider.id }, usage: createMemoryUsageLog() });
+
+    await ai.generate({ task: "coaching", candidateId: null, system: conversation.system, prompt: conversation.messages as Message[], effort: "high", containsIdentity: false });
+
+    await expect(`${requests[0]!.url}\n${requests[0]!.body}\n`).toMatchFileSnapshot(`./fixtures/requests/${adapter}-conversation.txt`);
+  });
 });

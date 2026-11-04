@@ -200,6 +200,15 @@ describe("tool calling through the AI layer (#712)", () => {
     });
   });
 
+  it("without tools, a provider that does not declare tool calling is sent the caller's very messages, as before", async () => {
+    const { claude, ask } = setUp([], { fake: { toolCalling: false } });
+    const prompt = [{ role: "user" as const, content: "Bonjour", at: "2026-11-04" }];
+
+    await ask({ tools: undefined, runTool: undefined, prompt });
+
+    expect(claude.calls[0]!.messages).toStrictEqual(prompt);
+  });
+
   it("without tools, a call is exactly as before: no tools, no tool choice, no tools in its result", async () => {
     const { claude, ask } = setUp([LISTE()]);
 

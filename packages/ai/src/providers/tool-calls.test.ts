@@ -137,6 +137,19 @@ describe("tool calling, as each provider says it", () => {
     expect(output.toolCalls?.[0]).toMatchObject({ arguments: { statut: "entretien" } });
   });
 
+  it("Mistral: a call id it does not take (Claude's, once rerouted to Mistral) is sent as one it takes, the same for the call and its result", async () => {
+    const { fetch, requests } = recordingFetch(answer("mistral-tool-calls"));
+    const claudeIds = JSON.parse(JSON.stringify(AFTER_ROUND).replaceAll("call_1", "toolu_01A09q90qw90lq917835lq9").replaceAll("call_2", "D681PevKs")) as TextInput;
+
+    await createMistralProvider({ apiKey: "k", fetch }).generate!(claudeIds);
+
+    const sent = JSON.parse(requests[0]!.body) as { messages: { tool_calls?: { id: string }[]; tool_call_id?: string }[] };
+    const [first, second] = sent.messages[2]!.tool_calls!.map((call) => call.id);
+    expect(first).toMatch(/^[a-zA-Z0-9]{9}$/);
+    expect(second).toBe("D681PevKs");
+    expect(sent.messages.slice(3).map((message) => message.tool_call_id)).toEqual([first, "D681PevKs"]);
+  });
+
   it("a reply without tool calls has none", async () => {
     const { fetch } = recordingFetch({ model: "m", choices: [{ message: { role: "assistant", content: "Bonjour" } }], usage: {} });
 

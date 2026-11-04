@@ -1030,7 +1030,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         callRoute = identityRoute;
         provider = textProvider(request.task, identityRoute, true);
       } catch (error) {
-        await notSent(error, entry, { route: identityRoute }, withSystem({ messages: said(conversation) }), { warnings: feature, ...fallback });
+        await notSent(error, entry, { route: callRoute, provider }, withSystem({ messages: said(conversation) }), { warnings: feature, ...fallback });
         throw error;
       }
     }
@@ -1059,7 +1059,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
     const sent = mapTexts(conversation, () => contents);
     // A provider without tool calling, once rerouted to, reads the tool calls made as text.
-    const messages = provider.toolCalling ? sent : said(sent);
+    const messages = provider.toolCalling || !hasBlocks(sent) ? sent : said(sent);
     /** Whether this turn ends the call: until the model calls a tool it may call. */
     let ends = true;
     const callsOf = (output: TextOutput) => (mayCall && output.toolCalls?.length ? output.toolCalls : null);

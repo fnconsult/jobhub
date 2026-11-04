@@ -96,13 +96,28 @@ function chatMessages(provider: ProviderId, input: TextInput) {
   return [...system, ...input.messages.flatMap((message) => chatMessagesOf(provider, message, names))];
 }
 
+/** Mistral takes a call id of 9 letters or digits only: another (Claude's `toolu_…`, after a reroute) becomes one, always the same. */
+const MISTRAL_CALL_ID = /^[a-zA-Z0-9]{9}$/;
+const ID_LETTERS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function mistralCallId(id: string): string {
+  if (MISTRAL_CALL_ID.test(id)) return id;
+  // FNV-1a, 64 bits: a call and its result get the same id, two calls of one conversation different ones.
+  let hash = 0xcbf29ce484222325n;
+  for (const unit of new TextEncoder().encode(id)) hash = BigInt.asUintN(64, (hash ^ BigInt(unit)) * 0x100000001b3n);
+  let out = "";
+  for (let index = 0; index < 9; index += 1, hash /= 62n) out += ID_LETTERS[Number(hash % 62n)];
+  return out;
+}
+
 function chatMessagesOf(provider: ProviderId, { role, content }: TurnMessage, names: ReadonlyMap<string, string>): Record<string, unknown>[] {
   if (typeof content === "string") return [{ role, content }];
+  const callId = provider === "mistral" ? mistralCallId : (id: string) => id;
   const text = content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
-  const calls = content.flatMap((block) => (block.type === "tool_call" ? [{ id: block.id, type: "function", function: { name: block.name, arguments: JSON.stringify(block.arguments ?? {}) } }] : []));
+  const calls = content.flatMap((block) => (block.type === "tool_call" ? [{ id: callId(block.id), type: "function", function: { name: block.name, arguments: JSON.stringify(block.arguments ?? {}) } }] : []));
   const results = content.flatMap((block) =>
     block.type === "tool_result"
-      ? [{ role: "tool", tool_call_id: block.id, ...(provider === "mistral" && names.has(block.id) ? { name: names.get(block.id) } : {}), content: block.error ? `Error: ${block.content}` : block.content }]
+      ? [{ role: "tool", tool_call_id: callId(block.id), ...(provider === "mistral" && names.has(block.id) ? { name: names.get(block.id) } : {}), content: block.error ? `Error: ${block.content}` : block.content }]
       : [],
   );
   if (role === "assistant") return [{ role, content: text, ...(calls.length > 0 ? { tool_calls: calls } : {}) }];

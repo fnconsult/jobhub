@@ -81,7 +81,9 @@ export async function captureMotion(options: CaptureOptions): Promise<Capture & 
   mkdirSync(dir, { recursive: true });
   const raw = path.join(dir, "raw");
   const locale = script.locale === "fr" ? "fr-FR" : "en-GB";
-  const settings = { baseURL, viewport: CAPTURE_SIZE, recordVideo: { dir: raw, size: CAPTURE_SIZE }, locale, timezoneId: "Europe/Paris", colorScheme: "light" as const };
+  const settings = { baseURL, viewport: CAPTURE_SIZE, recordVideo: { dir: raw, size: CAPTURE_SIZE }, locale, timezoneId: "Europe/Paris", colorScheme: "light" as const,
+    // « Copier l'adresse » copies, as in a person's browser: without the permission the page says the copy failed.
+    permissions: ["clipboard-read", "clipboard-write"] };
   let context: BrowserContext;
   let page: Page;
   if (script.viewer === "guest") {

@@ -84,6 +84,8 @@ export interface AppSession {
   verifyCode(code: string): Promise<SecondStepOutcome>;
   /** The second step with a passkey of the account's own, asked of the system. */
   verifyPasskey(): Promise<SecondStepOutcome>;
+  /** The session's cookies, for a WebView of the web app to send to its host alone (src/web-pages); none when signed out. */
+  webCookies(): Promise<{ name: string; value: string }[]>;
 }
 
 /** An endpoint's answer: its status, and its body. */
@@ -208,6 +210,14 @@ export function createAppSession({
     },
 
     verifyCode: (code) => outcomeOf(() => secondStepCall(SECOND_STEP_ENDPOINT, { code: code.trim() })),
+
+    async webCookies() {
+      const header = await client.getCookie();
+      return header
+        .split("; ")
+        .filter((pair) => pair.includes("="))
+        .map((pair) => ({ name: pair.slice(0, pair.indexOf("=")), value: pair.slice(pair.indexOf("=") + 1) }));
+    },
 
     verifyPasskey: () =>
       outcomeOf(async () => {

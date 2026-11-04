@@ -28,3 +28,7 @@ Try: open « Aéroline » → **Fiche** (drag the handle between the two heights
 ## Not in the prototype
 
 Icons are text glyphs (Lucide in the real app), the font is the system one (Inter in the real app), WebViews are stand-ins, phones are not locked to portrait, and iPad hardware-keyboard shortcuts work only in the browser build.
+
+## Verdict (2026-11-04)
+
+**Variant A · Tiroir (Claude) wins**, tried by the product owner on an iPhone in Expo Go. A drawer on a phone, the Sidebar as a column from 64rem, the Fiche as a sheet with two detents below 64rem and a column from 64rem, by the window width in rem. B (bottom tabs) and C (chips above the composer) are dropped. Recorded in ADR-0076.

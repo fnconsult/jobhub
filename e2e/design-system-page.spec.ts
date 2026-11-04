@@ -182,4 +182,37 @@ test.describe("Design System page's screenshots (#463)", () => {
       await page.close();
     });
   }
+  // #726 acceptance: the `act` glyph is drawn (3 strokes, within MAX_STROKES), named by its Step labels in words, and its
+  // stroke reads against the page in each theme (ADR-0009: a graphic needs 3:1, WCAG 1.4.11).
+  for (const theme of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
+    test(`the "act" glyph is labelled and contrasts with the page in ${theme}`, async () => {
+      const page = await session.newPage();
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(pageFor(theme, "confort"));
+      await expect(preview(page)).toHaveAttribute("data-theme", theme, { timeout: 20_000 });
+      const item = preview(page).locator("[data-activity-glyphs] li", { has: page.locator('svg[data-activity="act"]') });
+      await expect(item).toContainText(fr.aiActivity.steps.act);
+      await expect(item).toContainText(fr.aiActivity.steps.propose);
+      await expect(item.locator("svg path")).toHaveCount(3);
+      const ratio = await item.locator("svg").evaluate((svg) => {
+        const channels = (css: string) => (css.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+        const luminance = ([r, g, b]: number[]) => {
+          const lin = (c: number) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+          return 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+        };
+        let el: Element | null = svg.parentElement;
+        let bg = "rgba(0, 0, 0, 0)";
+        while (el) {
+          bg = getComputedStyle(el).backgroundColor;
+          if (!/rgba?\(.*,\s*0\)$/.test(bg) && bg !== "transparent") break;
+          el = el.parentElement;
+        }
+        const a = luminance(channels(getComputedStyle(svg).stroke));
+        const b = luminance(channels(bg));
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      });
+      expect(ratio).toBeGreaterThanOrEqual(3);
+      await page.close();
+    });
+  }
 });

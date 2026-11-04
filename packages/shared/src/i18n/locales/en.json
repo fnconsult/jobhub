@@ -5742,6 +5742,15 @@
     "secondStep": {
       "intro": "Your account asks for a second step to finish signing in.",
       "comingSoon": "It is coming to the app soon. Meanwhile, sign out or sign in on jobbbox.ai."
+    },
+    "shortcuts": {
+      "newConversation": "New conversation",
+      "send": "Send the message",
+      "sidebar": "Show or hide the menu",
+      "fiche": "Show or hide the Fiche",
+      "activite": "Show or hide Activity",
+      "closeWorkPane": "Close the Work Pane",
+      "closePane": "Close the pane"
     }
   },
   "coachProposals": {

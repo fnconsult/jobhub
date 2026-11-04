@@ -2,6 +2,7 @@ import { Plus, Send, Square } from "lucide-react-native";
 import { useRef, useState, type ComponentRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { useKeyCommand } from "../keyboard/key-commands";
 import { INTER, radius, space, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -49,6 +50,8 @@ export function Conversation({
     setDraft("");
     following.current = true;
   };
+  // ⌘↩ (Ctrl on Android) sends, as « Envoyer » does; while the reply streams, the box offers « Arrêter » instead.
+  useKeyCommand("send", streaming ? null : send);
   const readingWidth = READING_REM * 16 * fontScale;
 
   return (

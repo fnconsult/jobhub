@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
 import { ScrollView } from "react-native";
-import { renderInApp } from "../testing";
+import { hardwareKeyboard, renderInApp } from "../testing";
 import { SampleConversation } from "./SampleConversation";
 
 describe("Conversation, on sample data until #690", () => {
@@ -64,5 +64,31 @@ describe("Conversation's thread, when the window changes (rotation, Split View, 
     await scrollTo(1500);
     await rewrap(2600);
     expect(scrollToEnd()).toHaveBeenCalled();
+  });
+});
+
+describe("Conversation, with a hardware keyboard", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it("sends the draft with ⌘↩, listed in the ⌘ panel", async () => {
+    await renderInApp(<SampleConversation />);
+    expect(hardwareKeyboard.panel()).toContain("⌘↩ Envoyer le message");
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
+
+    await hardwareKeyboard.press("⌘↩");
+    expect(screen.getByText("Bonjour")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("");
+  });
+
+  it("withdraws ⌘↩ while the reply streams, « Arrêter » being the box's button then", async () => {
+    await renderInApp(<SampleConversation />);
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await user.type(screen.getByLabelText("Votre message"), "Bonjour");
+    await hardwareKeyboard.press("⌘↩");
+    expect(hardwareKeyboard.panel()).not.toContain("⌘↩ Envoyer le message");
+    await act(() => jest.runAllTimers());
+    expect(hardwareKeyboard.panel()).toContain("⌘↩ Envoyer le message");
   });
 });

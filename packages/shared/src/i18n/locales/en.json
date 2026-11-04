@@ -2029,6 +2029,7 @@
       "differs_other": "{{count}} settings come from the environment and differ from the code's default: check that they are intended.",
       "groups": {
         "ai_routing": "AI routing",
+        "coach": "AI Coach",
         "email": "Email",
         "email_intake": "Email intake",
         "job_digest": "Job Digest",
@@ -2270,6 +2271,8 @@
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
+        "COACH_ACTIONS_ENABLED": "Coach Actions switched on (the AI Coach reads and proposes)",
+        "COACH_TOOL_ROUNDS_MAX": "Rounds of Coach Action calls per reply, at most",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
         "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email"
@@ -3206,6 +3209,7 @@
       "categories": {
         "ai_model": "AI models",
         "web_search": "Web search",
+        "local_routes": "Local routes",
         "job_discovery": "Job discovery",
         "company_data": "Company data",
         "contact_enrichment": "Contact enrichment",

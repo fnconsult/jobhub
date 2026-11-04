@@ -1,27 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-  externalApiProvidersOf,
-  HOSTS,
-  isRecipientOutsideEu,
-  RECIPIENT_DATA,
-  RECIPIENT_DATA_TEXT,
-  recipientList,
-  TOOL_CATEGORIES,
-  TOOLS,
-  TRANSFER_SAFEGUARD_TEXT,
-  TRANSFER_SAFEGUARDS,
-  toolById,
-  toolOfUsage,
-  toolsByCategory,
-  type RecipientFacts,
-  type Tool,
-} from "./tools";
+import { externalApiProvidersOf, HOSTS, isRecipientOutsideEu, LOCAL_ROUTE_GROUPS, localRouteTool, RECIPIENT_DATA, RECIPIENT_DATA_TEXT, type RecipientFacts, recipientList, type Tool, TOOL_CATEGORIES, toolById, toolOfUsage, TOOLS, toolsByCategory, TRANSFER_SAFEGUARD_TEXT, TRANSFER_SAFEGUARDS } from "./tools";
 
 describe("the Tools", () => {
   it("are every external tool the app calls, grouped by category in the Back Office's order", () => {
     expect(toolsByCategory().map(({ category, tools }) => [category, tools.map((tool) => tool.id)])).toEqual([
       ["ai_model", ["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]],
       ["web_search", ["perplexity", "brave", "tavily"]],
+      ["local_routes", ["applications", "agenda", "profile", "job-searches", "job-digests", "documents"]],
       ["job_discovery", ["france-travail", "fantastic-jobs", "greenhouse", "lever", "ashby", "apec", "job-site", "email-intake"]],
       ["company_data", ["recherche-entreprises"]],
       ["contact_enrichment", ["lusha", "kaspr", "apollo"]],
@@ -234,6 +219,31 @@ describe("the Recipient list (ADR-0064, #338)", () => {
 
   it("keeps a Tool whose residency was not established, for the page to show it outside the EU", () => {
     expect(recipientList((tool) => tool.id === "kaspr").at(-1)).toMatchObject({ id: "kaspr", residency: "unknown" });
+  });
+});
+
+describe("the Routes locales Tools (ADR-0077, #713)", () => {
+  const local = TOOLS.filter((tool) => tool.category === "local_routes");
+
+  it("are one per Coach Action group, named as the Sidebar names it", () => {
+    expect(local.map((tool) => tool.name)).toEqual(["Candidatures", "Agenda", "Profil", "Recherches d'offres", "Job Digests", "Documents"]);
+    expect(LOCAL_ROUTE_GROUPS.map((group) => localRouteTool(group).id)).toEqual(local.map((tool) => tool.id));
+  });
+
+  it("are our own code: in the EU, no key, not a recipient, each call recorded in external_api_usage under its group's id", () => {
+    for (const tool of local) {
+      expect(tool.residency, tool.id).toBe("eu");
+      expect(tool.keys, tool.id).toEqual([]);
+      expect(tool.receivesPersonalData, tool.id).toBe(false);
+      expect(tool.module, tool.id).toBe("apps/web/src/coach-actions");
+      expect(tool.runsIn, tool.id).toBe("web");
+    }
+    expect(local.map((tool) => tool.usage)).toEqual(LOCAL_ROUTE_GROUPS.map((provider) => ({ table: "external_api_usage", provider })));
+    expect(toolOfUsage({ table: "external_api_usage", provider: "job_searches" })?.id).toBe("job-searches");
+  });
+
+  it("are off unless COACH_ACTIONS_ENABLED is true, and say how many rounds a reply may make", () => {
+    for (const tool of local) expect(tool.settings, tool.id).toEqual([{ name: "COACH_ACTIONS_ENABLED", enabledWhen: ["true"] }, { name: "COACH_TOOL_ROUNDS_MAX" }]);
   });
 });
 

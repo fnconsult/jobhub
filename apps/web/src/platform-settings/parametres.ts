@@ -56,7 +56,7 @@ const WEB_SEARCH_SETTINGS = [
 
 export const PARAMETRES_TABS: readonly ParametresTab[] = [
   { id: "web_search", slug: "recherche-web", toolCategories: ["web_search"], activeSetting: "AI_WEB_SEARCH_PROVIDER", settings: WEB_SEARCH_SETTINGS },
-  { id: "ai", slug: "ia", toolCategories: ["ai_model"], settings: namesOf(["ai_routing"]).filter((name) => !WEB_SEARCH_SETTINGS.includes(name)) },
+  { id: "ai", slug: "ia", toolCategories: ["ai_model"], settings: [...namesOf(["ai_routing"]).filter((name) => !WEB_SEARCH_SETTINGS.includes(name)), ...namesOf(["coach"])] },
   { id: "sources", slug: "sources", toolCategories: ["job_discovery"], settings: namesOf(["job_discovery", "job_digest"]) },
   { id: "contact_enrichment", slug: "enrichissement", toolCategories: ["contact_enrichment"], activeSetting: "CONTACT_ENRICHMENT_PROVIDER", settings: namesOf(["enriched_contacts"]) },
   { id: "email", slug: "e-mail", toolCategories: ["mail"], settings: [...namesOf(["email"]), "MAIL_TRANSPORT"] },

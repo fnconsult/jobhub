@@ -5737,6 +5737,28 @@
   "coachProposals": {
     "fields": {
       "applicationStatus": "Statut de la candidature"
+    },
+    "by": "Proposé par votre coach IA",
+    "before": "Avant :",
+    "after": "après :",
+    "apply": "Appliquer",
+    "edit": "Modifier avant d'appliquer",
+    "dismiss": "Ignorer",
+    "undo": "Annuler",
+    "editTitle": "Modifier avant d'appliquer : {{what}}",
+    "editIntro": "Le formulaire de la page, pré-rempli avec la proposition de votre coach pour « {{name}} ». Ce que vous changez ici est gardé si vous fermez le volet.",
+    "applied": "Appliqué par vous à {{time}}",
+    "dismissed": "Ignoré",
+    "undone": "Annulé à {{time}}",
+    "problems": {
+      "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
+      "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
+      "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
+      "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page."
     }
+  },
+  "origin": {
+    "label": "Origine",
+    "coachProposal": "Sur proposition de votre coach IA, appliqué par vous le {{date}}"
   }
 }

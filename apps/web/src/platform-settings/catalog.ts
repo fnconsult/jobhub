@@ -326,7 +326,12 @@ export const ENV_ONLY_SETTINGS = {
   JOBHUB_COMMIT: { kind: "deployment", shown: false },
   DATABASE_POOL_MAX: { kind: "deployment", shown: false },
   EXTENSION_ORIGINS: { kind: "deployment", shown: false },
+  // The native app's domain association files (#685, ADR-0076): its Apple team and its Android signing certificates.
+  APPLE_TEAM_ID: { kind: "deployment", shown: false },
+  ANDROID_CERT_SHA256: { kind: "deployment", shown: false },
   WXT_WEB_ORIGIN: { kind: "deployment", shown: false },
+  // The web app the native app's builds call (apps/mobile/src/session/instance.ts, #685), as WXT_WEB_ORIGIN the extension's.
+  EXPO_PUBLIC_WEB_APP_URL: { kind: "deployment", shown: false },
   // Fantastic.jobs (ADR-0031): the € per job of the plan an environment pays for, and the jobs one search may spend.
   // ADR-0033 does not list them as Platform Settings: they stay in env until an amendment makes them one.
   FANTASTIC_JOBS_EUR_PER_JOB: { kind: "deployment", shown: false },

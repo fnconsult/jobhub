@@ -4,12 +4,42 @@ import { act, fireEvent, screen, userEvent } from "@testing-library/react-native
 import { renderRouter } from "expo-router/testing-library";
 import { AppState, Dimensions, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
+import type { AppSession } from "../src/session/app-session";
+import type { fakeWebApp } from "../src/session/testing";
 import { fakeDevice } from "../src/testing-device";
 
 jest.setTimeout(60_000);
 
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
+
+// The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
+// Built when the app first asks for its session, once Expo Linking is the app's (below).
+const mockWeb = {} as { app: ReturnType<typeof fakeWebApp>; session: AppSession };
+jest.mock("../src/session/instance", () => {
+  const { fakeWebApp, memoryStorage, TEST_BASE_URL } = jest.requireActual("../src/session/testing");
+  const { createAppSession } = jest.requireActual("../src/session/app-session");
+  mockWeb.app = fakeWebApp();
+  mockWeb.session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: mockWeb.app.fetch });
+  return { appSession: mockWeb.session };
+});
+const mockLink = { current: null as string | null, listeners: new Set<() => void>() };
+// Not hoisted: it replaces Expo Router's own mock (expo-router/testing-library), whose scheme is not the app's.
+jest.doMock("expo-linking", () => {
+  const { useSyncExternalStore } = jest.requireActual("react");
+  const subscribe = (listener: () => void) => (mockLink.listeners.add(listener), () => mockLink.listeners.delete(listener));
+  return { ...jest.requireActual("expo-linking"), useLinkingURL: () => useSyncExternalStore(subscribe, () => mockLink.current) };
+});
+/** The system opens the app with `url`, as a universal link or an App Link does. */
+const openWith = (url: string) => act(() => ((mockLink.current = url), mockLink.listeners.forEach((listener) => listener())));
+const EMAIL = "marie.dupont@example.fr";
+/** Signed in, as the app is once its magic link opened it. */
+async function signedIn() {
+  jest.requireMock("../src/session/instance");
+  if ((await mockWeb.session.current()).kind === "signedIn") return;
+  await mockWeb.session.askLink(EMAIL);
+  await mockWeb.session.openLink(mockWeb.app.linkFor(EMAIL));
+}
 
 const window = (width: number, height: number, fontScale = 1) => {
   const size = { width, height, scale: 2, fontScale };
@@ -20,7 +50,8 @@ const darkMode = { current: "light" as "light" | "dark" };
 jest.mock("react-native/Libraries/Utilities/useColorScheme", () => ({ __esModule: true, default: () => darkMode.current }));
 const IPAD_LANDSCAPE = [1366, 1024] as const;
 
-async function launch(initialUrl = "/") {
+async function launch(initialUrl = "/", { signIn = true } = {}) {
+  if (signIn) await signedIn();
   await renderRouter("./src/app", { initialUrl });
 }
 const button = (name: string) => screen.getByRole("button", { name });
@@ -261,3 +292,35 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
     expect(fakeDevice.contentProtected).toBe(false);
   });
 });
+
+describe("Jobbbox app, signing in (#685)", () => {
+  beforeEach(async () => {
+    window(...PHONE);
+    jest.requireMock("../src/session/instance");
+    await mockWeb.session.signOut();
+  });
+
+  it("asks the email, sends the link, then opens signed in when the link opens it", async () => {
+    await launch("/", { signIn: false });
+    const user = userEvent.setup();
+    expect(screen.queryByLabelText("Votre message")).toBeNull();
+
+    await user.type(await screen.findByLabelText("Votre adresse e-mail"), EMAIL);
+    await user.press(button("Recevoir mon lien de connexion"));
+    expect(await screen.findByText("En attente du lien…")).toBeOnTheScreen();
+
+    await openWith(mockWeb.app.linkFor(EMAIL));
+
+    expect(await screen.findByLabelText("Votre message")).toBeOnTheScreen();
+  });
+
+  it("signs out from Mon compte, back to sign-in", async () => {
+    await launch("/compte");
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+});
+

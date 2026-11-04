@@ -761,6 +761,14 @@ In the Jobbbox app, the decision of where the Sidebar, the Fiche, the Activité 
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
 
+**App sign-in link**:
+The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
+_Avoid_: Deep link, app magic link
+
+**Domain association files**:
+The two files the web serves so that a phone hands some web addresses to the Jobbbox app instead of the browser: Apple's for universal links, Android's for App Links. Served from each environment's own settings; without them the link simply opens the web.
+_Avoid_: Deep-link config
+
 **Share capture**:
 Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.
 _Avoid_: Import, clip

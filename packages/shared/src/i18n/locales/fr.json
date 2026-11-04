@@ -5732,6 +5732,16 @@
       "cancel": "Annuler",
       "locked": "Jobbbox est verrouillée",
       "unlock": "Déverrouiller"
+    },
+    "signIn": {
+      "sent": "Nous avons envoyé un lien de connexion à {{email}}. Ouvrez l'e-mail sur ce téléphone et touchez le lien : il vous connecte dans l'app.",
+      "waiting": "En attente du lien…",
+      "resend": "Renvoyer le lien",
+      "changeEmail": "Changer d'adresse e-mail"
+    },
+    "secondStep": {
+      "intro": "Votre compte demande une deuxième étape pour terminer la connexion.",
+      "comingSoon": "Elle arrive bientôt dans l'app. En attendant, déconnectez-vous ou connectez-vous sur jobbbox.ai."
     }
   }
 }

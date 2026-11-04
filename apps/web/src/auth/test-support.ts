@@ -26,14 +26,17 @@ export async function startTestAuth(overrides: Partial<AuthConfig> = {}) {
   await migrateCandidateAccounts(config);
   const auth = createAuth(config);
 
-  /** Sends a request to `instance`'s auth HTTP handler, as the browser would. */
+  /**
+   * Sends a request to `instance`'s auth HTTP handler, as the browser would: from `origin` (the web app's by default).
+   * With `headers`, it sends those instead of an origin, as the native app does (no Origin, an `expo-origin`).
+   */
   const requestTo =
     (instance: ReturnType<typeof createAuth>) =>
-    (path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string } = {}) => {
-      const headers = new Headers();
+    (path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string; headers?: Record<string, string> } = {}) => {
+      const headers = new Headers(init.headers);
       if (init.body !== undefined) headers.set("content-type", "application/json");
       if (init.cookie) headers.set("cookie", init.cookie);
-      headers.set("origin", init.origin ?? BASE_URL);
+      if (!init.headers) headers.set("origin", init.origin ?? BASE_URL);
       return instance.handler(
         new Request(new URL(path, BASE_URL), {
           method: init.method ?? (init.body === undefined ? "GET" : "POST"),

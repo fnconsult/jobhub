@@ -121,6 +121,21 @@ describe("Crash reports, and nothing that follows anyone (#703)", () => {
     expect(row("Storage")).toMatch(/Frankfurt/);
   });
 
+  // Native crash, ANR and app-hang events go through the native SDKs' own beforeSend (RNSentry.mm, RNSentryStart.java),
+  // never the JS cleanEvent, and carry the installation id as user.id and contexts.device.id: only a server-side rule
+  // removes them, so the register and the build configuration must both require it.
+  it("requires the server-side scrubbing rule that cleans native crash events, which skip the device's cleaning", () => {
+    const entry = read("docs", "privacy", "register.md").split(/^## /m).find((section) => section.startsWith("Crash reports"))!;
+    const row = (name: string) => entry.match(new RegExp(`^\\| ${name} \\| (.+) \\|$`, "m"))?.[1] ?? "";
+    const fields = ["$user.id", "contexts.device.id", "contexts.device.name", "contexts.app.device_app_hash"];
+    expect(row("Security")).toMatch(/Advanced Data Scrubbing/);
+    for (const field of fields) expect(row("Security")).toContain(field);
+    for (const name of ["Data", "Rights", "Security"]) expect(row(name)).toMatch(/native/i);
+    const env = read("apps", "mobile", ".env.example");
+    expect(env).toMatch(/Advanced Data Scrubbing/);
+    for (const field of fields) expect(env).toContain(field);
+  });
+
   it("builds an Info.plist, every config plugin applied, without the tracking usage description the prompt needs", () => {
     const config = JSON.parse(
       execFileSync("npx", ["expo", "config", "--type", "introspect", "--json"], { cwd: join(ROOT, "apps", "mobile"), encoding: "utf8" }),

@@ -3781,7 +3781,9 @@
       "requestFailed": "The request could not be sent. Try again in a few moments.",
       "openInBackOfficeHelp": "Open in the back office help",
       "openInBackOfficeHelpAbout": "Open in the back office help: {{title}}"
-    }
+    },
+    "learnMore": "Learn more",
+    "learnMoreLabel": "Learn more about AI in Jobbbox"
   },
   "applicationStatuses": {
     "to_apply": "To apply",
@@ -5006,7 +5008,9 @@
           "tailored_documents": "Document drafting failed"
         }
       }
-    }
+    },
+    "learnMore": "Learn more",
+    "learnMoreLabel": "Learn more about AI in Jobbbox"
   },
   "signalement": {
     "open": "Feedback",
@@ -5391,6 +5395,26 @@
     "pdf": "Download as PDF",
     "notPublishedTitle": "This text is not published yet",
     "notPublished": "The Jobbbox team is writing it. It will appear here once it is published."
+  },
+  "recipientList": {
+    "title": "Data recipients",
+    "changed": "Last changed on {{date}}",
+    "policy": "AI in Jobbbox, in the privacy policy",
+    "fromPolicy": "Data recipients: who receives what, and where",
+    "intro": "To run Jobbbox, the services below receive personal data, or queries drawn from it. This list is drawn up at each visit from the services switched on in Jobbbox: a service switched off is not on it.",
+    "outsideEu": "When where a service processes data is not established, we count it as outside the EU.",
+    "copy": "To get a copy of the safeguards of a transfer outside the EU, write to us:",
+    "contact": "Contact us",
+    "residency": {
+      "eu": "In the EU",
+      "outside_eu": "Outside the EU",
+      "unknown": "Counted as outside the EU"
+    },
+    "purpose": "What it is for",
+    "data": "What it receives",
+    "entity": "Contracting entity",
+    "place": "Where it processes data",
+    "safeguard": "Transfer safeguard"
   },
   "legalTextNotice": {
     "email": {

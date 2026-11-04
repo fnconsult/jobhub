@@ -87,6 +87,12 @@ export function LegalTextView({ text, shown }: { text: LegalTextId; shown: Shown
           </div>
         </>
       )}
+      {/* The privacy policy points to the Recipient list rather than naming the providers (ADR-0064). */}
+      {text === "confidentialite" ? (
+        <p className="ds-legal__recipients">
+          <Link href={routes.recipients}>{t("recipientList.fromPolicy")}</Link>
+        </p>
+      ) : null}
     </LegalLayout>
   );
 }
@@ -122,8 +128,14 @@ export function LegalTextHistoryView({ text, history }: { text: LegalTextId; his
   );
 }
 
-/** Légal's three columns: the Legal Texts, the reading column (eyebrow « Légal », then `children`), and `aside`. */
-function LegalLayout({ text, aside, children }: { text: LegalTextId; aside: ReactNode; children: ReactNode }) {
+/** What Légal's left column marks as the page: a Legal Text, or the Recipient list (#338). */
+export type LegalPage = LegalTextId | "destinataires";
+
+/**
+ * Légal's three columns: the Legal Texts and, under them, the Recipient list (#338); the reading column (eyebrow
+ * « Légal », then `children`); and `aside`.
+ */
+export function LegalLayout({ text, aside, children }: { text: LegalPage; aside: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <div className="ds-legal">
@@ -136,6 +148,9 @@ function LegalLayout({ text, aside, children }: { text: LegalTextId; aside: Reac
             {t(`legal.texts.${entry}`)}
           </Link>
         ))}
+        <Link href={routes.recipients} aria-current={text === "destinataires" ? CURRENT_PAGE : undefined}>
+          {t("recipientList.title")}
+        </Link>
       </nav>
       <article className="ds-legal__text">
         <p className="ds-legal__eyebrow">{t("legal.eyebrow")}</p>

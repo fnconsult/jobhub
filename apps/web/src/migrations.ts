@@ -39,6 +39,7 @@ import { migratePlatformSettings } from "./platform-settings/index";
 import { migrateProfiles } from "./profiles/index";
 import { migrateProviderSecrets } from "./provider-secrets/index";
 import { migrateQuotaReductions } from "./quota-reductions/index";
+import { migrateRecipientList } from "./recipient-list/index";
 import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
@@ -107,6 +108,7 @@ export async function migrateDatabase(
     ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],
     ["The Nouveautés email is up to date", () => migrateNouveautesEmails(database)],
     ["The offers of Received offer emails are up to date", () => migrateEmailReadings(database)],
+    ["The Recipient list's changes are up to date", () => migrateRecipientList(database)],
   ];
   for (const [done, migrate] of steps) {
     await migrate();

@@ -81,10 +81,10 @@ export function helpCentrePaths(articles: readonly HelpCentreArticle[]): string[
 }
 
 /**
- * The pages of Légal indexed besides the Legal Texts: the recipient list, `/legal/destinataires` (#503), joins them
- * when #338 serves it.
+ * The pages of Légal indexed besides the Legal Texts: the Recipient list, `/legal/destinataires` (ADR-0064, #338), in
+ * both languages.
  */
-export const INDEXED_LEGAL_PAGES: readonly string[] = [];
+export const INDEXED_LEGAL_PAGES: readonly string[] = ["/legal/destinataires"];
 
 /** What the sitemap reads: the Help Articles and, for each Legal Text, the languages it is in effect in today. */
 export type IndexSources = {

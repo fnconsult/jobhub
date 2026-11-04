@@ -1,4 +1,4 @@
-import { createAiLayer, createMistralProvider, createProvenanceRecorder, type GenerateResult, type TextInput } from "@jobhub/ai";
+import { contentText, createAiLayer, createMistralProvider, createProvenanceRecorder, type GenerateResult, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -31,7 +31,7 @@ function setUp(options: { verdicts?: Verdicts; settings?: Partial<Record<Guardra
     id: "mistral",
     reply: (input: TextInput) => {
       const answer = input.system?.startsWith("Tu contrôles le message") ? verdicts.input : input.system?.startsWith("Tu contrôles la réponse") ? verdicts.output : undefined;
-      const text = input.messages.at(-1)?.content ?? "";
+      const text = contentText(input.messages.at(-1)?.content ?? "");
       if (typeof answer === "function") return answer(text);
       return answer ?? "{}";
     },

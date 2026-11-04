@@ -1,4 +1,5 @@
 import { cleanTechnicalMessage, failureOf, type Failure, type FailureReason, type IndustryReference, type Outcome, type SearchCriteria } from "@jobhub/shared";
+import { hasBlocks, mapTexts, said, textsIn } from "./conversation";
 import { findIdentity } from "./identity-scan";
 import { buildCompanyQuery, buildSearchQuery, buildTargetCompanyQuery, jobSearchQueries, jobTitlesPrompt, type JobSearchQuery, type JobSearchShape, type QueryLanguage } from "./search-query";
 import { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, type CompanyNewsArticle, type CompanyNewsRequest } from "./company-news";
@@ -7,7 +8,28 @@ import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
 import { euOnly, SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
-import type { AiProvider, AiTask, AiWarning, Message, ProviderId, Residency, SearchFilters, TextOutput, TextTask, TokenUsage, ToolCall, Transcript, UsageEntry, UsageLog } from "./types";
+import type {
+  AiProvider,
+  AiTask,
+  AiWarning,
+  ContentBlock,
+  Message,
+  ProviderId,
+  Residency,
+  SearchFilters,
+  TextInput,
+  TextOutput,
+  TextTask,
+  TokenUsage,
+  ToolCall,
+  ToolCallBlock,
+  ToolDefinition,
+  ToolResultBlock,
+  Transcript,
+  TurnMessage,
+  UsageEntry,
+  UsageLog,
+} from "./types";
 
 export { AiConfigError, DataResidencyError };
 
@@ -54,6 +76,71 @@ export interface GenerateRequest {
    * and is recorded failed, Failure Reason `stopped`, with no tokens; not sent when it had not left yet.
    */
   signal?: AbortSignal;
+  /**
+   * The tools the model may call during the call (ADR-0077), each run by `runTool`: the AI layer makes the loop, the
+   * caller's code runs them (no AI call). Each turn is an AI call of its own, routed, redacted and recorded as this one
+   * (see `GenerateResult.tools`). A provider that does not declare tool calling is called without them. Without tools,
+   * the call is exactly as before tool calling.
+   */
+  tools?: ToolDefinition[];
+  /** Runs one tool call the model made; required with `tools`. */
+  runTool?: ToolRunner;
+  /**
+   * How many rounds of tool calls at most, 0 to 4 (ADR-0077; default 2). Past them, a last turn asks the model for
+   * text only, its tools kept to read the calls made.
+   */
+  maxToolRounds?: number;
+}
+
+/** One tool call the model made, for the caller to run: its arguments with the Candidate's values put back. */
+export interface ToolRun {
+  /** The id the provider gave the call. */
+  id: string;
+  name: string;
+  /** A JSON object: a call whose arguments are not one is never run. Not checked against the tool's schema: the caller does. */
+  arguments: Record<string, unknown>;
+  /** Which round of tool calls, from 1. */
+  round: number;
+}
+
+/** What a tool gave back: its result for the model (redacted before it is sent), or what went wrong (`error`). */
+export interface ToolOutcome {
+  content: string;
+  error?: boolean;
+  /**
+   * True when it carries the Candidate's identity (the Master CV's Identity block, #571): with their EU AI Consent, the
+   * next turns go to the identity route, as a call declaring `containsIdentity` does. A phone number or email address
+   * not declared is found anyway, and warned about.
+   */
+  containsIdentity?: boolean;
+}
+
+/** The caller's code running one tool call; may honour the call's `signal`. A rejection is given to the model as the tool's error. */
+export type ToolRunner = (call: ToolRun, context: { signal?: AbortSignal }) => Promise<ToolOutcome>;
+
+/** One tool call of the call, as it went: run or not (an unknown tool, arguments not an object), and what the model was given back. */
+export interface ToolRunRecord extends ToolRun {
+  ran: boolean;
+  /** As the tool gave it (before Redaction), or the AI layer's error. */
+  result: { content: string; error?: true };
+  durationMs: number;
+}
+
+/**
+ * The tools of a call that offered some: whether its provider took them (false: called without, as before tool
+ * calling), how many rounds of calls the model made, and each call.
+ */
+export interface CallTools {
+  supported: boolean;
+  rounds: number;
+  runs: ToolRunRecord[];
+}
+
+/** One turn of a call with tools, as its cost is reckoned: a line of AI Usage. */
+export interface PricedTurn {
+  provider: ProviderId;
+  model: string;
+  usage: TokenUsage;
 }
 
 /**
@@ -119,6 +206,13 @@ export interface GenerateResult extends CallFacts {
    * EU AI Consent (ADR-0007 amendment, #121): what AI Activity shows as « consentement IA UE » (#327).
    */
   euAiConsent?: true;
+  /**
+   * Present when the request offered tools: how they went. `provider`, `model` and `endpoint` are then the last turn's,
+   * `usage`, `durationMs` and `costEur` the turns' sum, and `outcome` a warning when any turn was.
+   */
+  tools?: CallTools;
+  /** Each turn, when the request offered tools: what `costInEur` adds up, a turn rerouted to another provider priced at its own. */
+  turns?: PricedTurn[];
 }
 
 export interface SearchRequest {
@@ -353,6 +447,11 @@ const DEFAULT_MAX_TOKENS = 4096;
 /** Room for a few job titles as JSON. */
 const JOB_TITLES_MAX_TOKENS = 300;
 const DEFAULT_IDENTITY_ROUTE: Route = { provider: "mistral" };
+/** Rounds of tool calls in one call: 2 unless the caller says, never more than 4 (ADR-0077). */
+const DEFAULT_TOOL_ROUNDS = 2;
+const MAX_TOOL_ROUNDS = 4;
+/** A tool's name, as every provider takes it. */
+const TOOL_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
 /** ISO 3166-1 alpha-2, e.g. "FR". */
 const COUNTRY_CODE = /^[A-Z]{2}$/;
 /** How long a Candidate's identity is kept between their calls (a Job discovery run makes many). */
@@ -498,15 +597,22 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
    * counts as identity and is logged (never the prompt itself), so the call site can be fixed.
    */
   async function routeForCall(request: GenerateRequest, messages: Message[]): Promise<{ route: Route; identity: boolean; warning?: AiWarning }> {
-    const { candidateId, task } = request;
-    const byTask = () => ({ route: request.route ?? routeFor(task), identity: false });
-    if (candidateId === null || !options.euAiConsent) return byTask();
-    const undeclared = request.containsIdentity ? [] : findIdentity([request.system ?? "", ...messages.map((m) => m.content)]);
-    if (!request.containsIdentity && undeclared.length === 0) return byTask();
-    if (!(await options.euAiConsent(candidateId))) return byTask();
-    if (undeclared.length === 0) return { route: identityRoute, identity: true };
+    const found = await identityBearing(request.task, request.candidateId, request.containsIdentity === true, [request.system ?? "", ...messages.map((m) => m.content)]);
+    return found.identity ? { route: identityRoute, ...found } : { route: request.route ?? routeFor(request.task), identity: false };
+  }
+
+  /**
+   * Whether texts going to a model carry the Candidate's identity and they gave EU AI consent: `declared` by the caller
+   * (or a tool), else a phone number or email address the scan finds, which is warned about (never the text itself).
+   */
+  async function identityBearing(task: TextTask, candidateId: string | null, declared: boolean, texts: string[]): Promise<{ identity: boolean; warning?: AiWarning }> {
+    if (candidateId === null || !options.euAiConsent) return { identity: false };
+    const undeclared = declared ? [] : findIdentity(texts);
+    if (!declared && undeclared.length === 0) return { identity: false };
+    if (!(await options.euAiConsent(candidateId))) return { identity: false };
+    if (undeclared.length === 0) return { identity: true };
     warn("Undeclared identity in an AI call: routed as identity-bearing", { task, candidateId, found: undeclared });
-    return { route: identityRoute, identity: true, warning: { reason: "identity_undeclared", detail: `found: ${undeclared.join(", ")}` } };
+    return { identity: true, warning: { reason: "identity_undeclared", detail: `found: ${undeclared.join(", ")}` } };
   }
 
   /** What is known of the Candidate's identity; none for a Guest. Never fails. */
@@ -796,65 +902,200 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   /** Each query as one message of a search's transcript. */
   const asMessages = (queries: readonly string[]): Message[] => queries.map((content) => ({ role: "user", content }));
 
-  /** One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). */
+  /**
+   * The provider serving a text call on `route`, checked: it generates text, it is EU-resident for the identity route,
+   * and for a task that runs only in the EU (ADR-0052). Checked per call, so a route left outside the EU stops this task alone.
+   */
+  function textProvider(task: TextTask, route: Route, identity: boolean): AiProvider {
+    const provider = providerFor(route, identity || TEXT_TASKS[task].personalData);
+    // Checked again per call: the rule must hold even if a provider changes at runtime.
+    assertAllowed(task, provider, identity);
+    if (euOnly(task) && provider.residency !== "eu") {
+      throw new DataResidencyError(`The ${task} task runs only on an EU-resident endpoint, not ${provider.id} (${provider.endpoint})`);
+    }
+    return provider;
+  }
+
+  /** The request's tools, checked (a name every provider takes, each once, a runner to run them); none when it offers none. */
+  function toolsOf(request: GenerateRequest): ToolDefinition[] | undefined {
+    if (!request.tools?.length) return undefined;
+    if (!request.runTool) throw new AiConfigError(`A call with tools needs runTool (task "${request.task}")`);
+    const names = new Set<string>();
+    for (const { name } of request.tools) {
+      if (!TOOL_NAME.test(name)) throw new AiConfigError(`Tool name "${name}" is not 1 to 64 letters, digits, "_" or "-" (task "${request.task}")`);
+      if (names.has(name)) throw new AiConfigError(`Tool "${name}" is given twice (task "${request.task}")`);
+      names.add(name);
+    }
+    return request.tools;
+  }
+
+  /** One tool call the model made, run by the caller unless the AI layer refuses it (an unknown tool, arguments not an object). */
+  async function runToolCall(request: GenerateRequest, call: ToolCallBlock, round: number): Promise<ToolRunRecord & { containsIdentity: boolean }> {
+    const started = clock();
+    const args = call.arguments;
+    const run: ToolRun = { id: call.id, name: call.name, arguments: isObject(args) ? args : {}, round };
+    const done = (ran: boolean, result: ToolRunRecord["result"], containsIdentity = false) => ({ ...run, ran, result, durationMs: Math.round(clock() - started), containsIdentity });
+    if (!request.tools?.some((tool) => tool.name === call.name)) return done(false, { content: `Unknown tool "${call.name}": it was not run.`, error: true });
+    if (!isObject(args)) return done(false, { content: `The arguments of "${call.name}" are not a JSON object: it was not run.`, error: true });
+    try {
+      const outcome = await request.runTool!(run, request.signal ? { signal: request.signal } : {});
+      return done(true, { content: outcome.content, ...(outcome.error ? { error: true as const } : {}) }, outcome.containsIdentity === true);
+    } catch (error) {
+      return done(true, { content: `The tool "${call.name}" failed: ${error instanceof Error ? error.message : String(error)}`, error: true });
+    }
+  }
+
+  /**
+   * One text call, recorded in AI Usage as `recordedAs` (its own task, or `eval` for an Eval Run). With tools, a loop of
+   * turns (#712, ADR-0077): each turn is an AI call of its own, redacted and recorded; the model's tool calls are run by
+   * the caller and their results sent back, until it answers in text or `maxToolRounds` is reached, when a last turn
+   * asks for text only. A tool result that carries the Candidate's identity sends the next turns to the identity route.
+   */
   async function generateAs(request: GenerateRequest, recordedAs: TextTask): Promise<GenerateResult> {
     const messages = typeof request.prompt === "string" ? [{ role: "user" as const, content: request.prompt }] : request.prompt;
     const chosen: { route?: Route; provider?: AiProvider } = { route: request.route };
-    // What the feature says of the call (#260), its own warnings first, then the AI layer's.
+    const entry = { candidateId: request.candidateId, task: recordedAs };
+    const withSystem = (said: { messages: Message[] }) => ({ ...(request.system === undefined ? {} : { system: request.system }), ...said });
+    // The AI layer's own warnings (identity undeclared), after the feature's (#260).
     const warnings: AiWarning[] = [];
-    const notes: CallNotes<TextOutput> = {
-      warnings: () => [...(request.warnings ?? []), ...warnings],
-      ...(request.fallback ? { fallback: request.fallback } : {}),
-    };
+    const feature = () => [...(request.warnings ?? []), ...warnings];
+    const fallback = request.fallback ? { fallback: request.fallback } : {};
     let identity: boolean;
+    let tools: ToolDefinition[] | undefined;
     try {
+      tools = toolsOf(request);
       // Routed on what the call says (the identity scan), then redacted: what leaves is never the Candidate's identity.
       let undeclared: AiWarning | undefined;
       ({ route: chosen.route, identity, warning: undeclared } = await routeForCall(request, messages));
       if (undeclared) warnings.push(undeclared);
-      chosen.provider = providerFor(chosen.route, identity || TEXT_TASKS[request.task].personalData);
-      // Checked again per call: the rule must hold even if a provider changes at runtime.
-      assertAllowed(request.task, chosen.provider, identity);
-      // Per call only, so a route left outside the EU stops this task alone, never the layer (ADR-0052).
-      if (euOnly(request.task) && chosen.provider.residency !== "eu") {
-        throw new DataResidencyError(`The ${request.task} task runs only on an EU-resident endpoint, not ${chosen.provider.id} (${chosen.provider.endpoint})`);
-      }
+      chosen.provider = textProvider(request.task, chosen.route, identity);
     } catch (error) {
-      await notSent(error, { candidateId: request.candidateId, task: recordedAs }, chosen, { ...(request.system === undefined ? {} : { system: request.system }), messages }, notes);
+      await notSent(error, entry, chosen, withSystem({ messages }), { warnings: feature, ...fallback });
       throw error;
     }
-    const { provider } = chosen as { route: Route; provider: AiProvider };
+    const maxRounds = tools ? Math.max(0, Math.min(MAX_TOOL_ROUNDS, Math.floor(request.maxToolRounds ?? DEFAULT_TOOL_ROUNDS) || 0)) : 0;
+    const offered = maxRounds > 0 ? tools : undefined;
+    let { route: callRoute, provider } = chosen as { route: Route; provider: AiProvider };
+    let conversation: TurnMessage[] = messages;
+    const turns: (PricedTurn & CallFacts)[] = [];
+    const runs: ToolRunRecord[] = [];
+    let supported = true;
+    for (let rounds = 0; ; rounds += 1) {
+      const takesTools = Boolean(offered) && provider.toolCalling === true;
+      if (offered && !takesTools) supported = false;
+      const mayCall = takesTools && rounds < maxRounds;
+      const turn = await turnOf(request, entry, provider, callRoute, conversation, {
+        tools: takesTools && (mayCall || hasBlocks(conversation)) ? offered : undefined,
+        mayCall,
+        feature: { warnings: feature, ...fallback },
+      });
+      turns.push(turn.facts);
+      if (!turn.calls) {
+        const sum = (count: (usage: TokenUsage) => number | undefined) => turns.reduce((total, each) => total + (count(each.usage) ?? 0), 0);
+        const cachedInputTokens = sum((usage) => usage.cachedInputTokens);
+        const cacheWriteTokens = sum((usage) => usage.cacheWriteTokens);
+        const usage = tools
+          ? { inputTokens: sum((usage) => usage.inputTokens), outputTokens: sum((usage) => usage.outputTokens), ...(cachedInputTokens ? { cachedInputTokens } : {}), ...(cacheWriteTokens ? { cacheWriteTokens } : {}) }
+          : turn.facts.usage;
+        return {
+          text: turn.text,
+          provider: provider.id,
+          model: turn.facts.model,
+          usage,
+          endpoint: turn.facts.endpoint,
+          durationMs: turns.reduce((total, each) => total + each.durationMs, 0),
+          outcome: turns.some((each) => each.outcome === "warning") ? "warning" : "ok",
+          costEur: turns.reduce((total, each) => total + each.costEur, 0),
+          ...(identity ? { euAiConsent: true as const } : {}),
+          ...(tools ? { tools: { supported, rounds, runs }, turns: turns.map(({ provider, model, usage }) => ({ provider, model, usage })) } : {}),
+        };
+      }
+      // The model's turn as it wrote it, the Candidate's values back in it; then each tool's result, in order.
+      const results: ToolResultBlock[] = [];
+      let declared = false;
+      for (const call of turn.calls.content.filter((block): block is ToolCallBlock => block.type === "tool_call")) {
+        const { containsIdentity, ...run } = await runToolCall(request, call, rounds + 1);
+        runs.push(run);
+        results.push({ type: "tool_result", id: run.id, ...run.result });
+        declared ||= containsIdentity;
+        if (request.signal?.aborted) break;
+      }
+      conversation = [...conversation, turn.calls, { role: "user", content: results }];
+      if (identity) continue;
+      try {
+        const found = await identityBearing(request.task, request.candidateId, declared, results.map((result) => result.content));
+        if (!found.identity) continue;
+        if (found.warning) warnings.push(found.warning);
+        identity = true;
+        callRoute = identityRoute;
+        provider = textProvider(request.task, identityRoute, true);
+      } catch (error) {
+        await notSent(error, entry, { route: callRoute, provider }, withSystem({ messages: said(conversation) }), { warnings: feature, ...fallback });
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * One turn of a text call: the conversation so far redacted (its tool calls and results too), sent with `tools` when
+   * given, and recorded. `mayCall`: the model may call them, else it is asked for text only. Gives back its reply with the
+   * values put back and, when the model called tools it may call, its turn (text and calls, values put back) to answer.
+   * The feature's warnings, its fallback and its check of the reply go with the turn that ends the call.
+   */
+  async function turnOf(
+    request: GenerateRequest,
+    entry: Pick<UsageEntry, "candidateId" | "task">,
+    provider: AiProvider,
+    chosenRoute: Route,
+    conversation: TurnMessage[],
+    { tools, mayCall, feature }: { tools: ToolDefinition[] | undefined; mayCall: boolean; feature: Omit<CallNotes<never>, "unusable"> },
+  ): Promise<{ text: string; calls: (TurnMessage & { content: ContentBlock[] }) | null; facts: PricedTurn & CallFacts }> {
     // A route naming no model takes the provider's default for this call's effort (Claude's direct API), recorded as such.
-    const byEffort = chosen.route!.model ? undefined : provider.defaultModelFor?.(request.effort);
-    const route: Route = byEffort ? { ...chosen.route!, model: byEffort } : chosen.route!;
-    const { redaction, warnings: redactionWarnings } = await redacted(request.task, request.candidateId, [request.system ?? "", ...messages.map((message) => message.content)]);
-    warnings.push(...redactionWarnings);
-    const unusable = request.unusable;
-    if (unusable) notes.unusable = (output) => unusable(redaction.restore(output.text));
+    const byEffort = chosenRoute.model ? undefined : provider.defaultModelFor?.(request.effort);
+    const route: Route = byEffort ? { ...chosenRoute, model: byEffort } : chosenRoute;
+    const { redaction, warnings: redactionWarnings } = await redacted(request.task, request.candidateId, [request.system ?? "", ...textsIn(conversation)]);
     const [redactedSystem = "", ...contents] = redaction.texts;
     // The model is told to keep the placeholders as they are, so they can be put back in its reply.
     const system = redaction.redacted ? [redactedSystem, REDACTION_NOTE].filter(Boolean).join("\n\n") : request.system;
-    const sent = messages.map((message, index) => ({ ...message, content: contents[index] ?? "" }));
+    const sent = mapTexts(conversation, () => contents);
+    // A provider without tool calling, once rerouted to, reads the tool calls made as text.
+    const messages = provider.toolCalling || !hasBlocks(sent) ? sent : said(sent);
+    /** Whether this turn ends the call: until the model calls a tool it may call. */
+    let ends = true;
+    const callsOf = (output: TextOutput) => (mayCall && output.toolCalls?.length ? output.toolCalls : null);
+    const unusable = request.unusable;
+    const notes: CallNotes<TextOutput> = {
+      warnings: () => [...(ends ? feature.warnings() : []), ...redactionWarnings],
+      ...(feature.fallback ? { fallback: feature.fallback } : {}),
+      ...(unusable ? { unusable: (output: TextOutput) => (ends ? unusable(redaction.restore(output.text)) : null) } : {}),
+    };
+    const input: TextInput = {
+      model: route.model,
+      system,
+      messages,
+      maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+      ...(request.effort ? { effort: request.effort } : {}),
+      ...(request.signal ? { signal: request.signal } : {}),
+      ...(tools ? { tools, ...(mayCall ? {} : { toolChoice: "none" as const }) } : {}),
+    };
+    const turnBlocks = (output: TextOutput): ContentBlock[] => [...(output.text ? [{ type: "text" as const, text: output.text }] : []), ...(callsOf(output) ?? [])];
     const { output, ...facts } = await recorded(
-      { candidateId: request.candidateId, task: recordedAs },
+      entry,
       provider,
       route,
-      // The AI Message Log keeps what was sent, redacted, and the reply as it came, placeholders and all.
-      { ...(system === undefined ? {} : { system }), messages: sent },
-      () =>
-        provider.generate!({
-          model: route.model,
-          system,
-          messages: sent,
-          maxTokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
-          ...(request.effort ? { effort: request.effort } : {}),
-          ...(request.signal ? { signal: request.signal } : {}),
-        }),
-      (reply) => reply.text,
+      // The AI Message Log keeps what was sent, redacted, tool calls and results as text, and the reply as it came.
+      { ...(system === undefined ? {} : { system }), messages: hasBlocks(sent) ? said(sent) : (sent as Message[]) },
+      async () => {
+        const output = await provider.generate!(input);
+        ends = callsOf(output) === null;
+        return output;
+      },
+      (output) => (ends ? output.text : said([{ role: "assistant", content: turnBlocks(output) }])[0]!.content),
       notes,
       request.signal,
     );
-    return { text: redaction.restore(output.text), provider: provider.id, model: output.model, usage: output.usage, ...facts, ...(identity ? { euAiConsent: true as const } : {}) };
+    const calls = ends ? null : (mapTexts([{ role: "assistant", content: turnBlocks(output) }], (texts) => texts.map((text) => redaction.restore(text)))[0] as TurnMessage & { content: ContentBlock[] });
+    return { text: redaction.restore(output.text), calls, facts: { provider: provider.id, model: output.model, usage: output.usage, ...facts } };
   }
 
   const layer: AiLayer = {
@@ -1014,6 +1255,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
   }
   return layer;
 }
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * The calls of one search, as one result: their pages in order (each once), their dates, tokens and time added

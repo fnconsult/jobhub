@@ -68,6 +68,10 @@
 // message also holds "E2E_STUBBORN" ("[at]", "[sp]", "[dash]" in the text become "@", a space and "-", so a reply can hold
 // an email address, a phone number or a key the message does not). "E2E_COACH_COPY_SYSTEM" has the AI Coach reply its whole system prompt.
 // "E2E_AGENT_LEAK" has a Playbook Agent's advice hold a third party's email address.
+// A Candidate message holding "E2E_COACH_TOOL=<name>:<json>" (#712, Coach Actions) has the AI Coach, offered tools it may
+// call, call that tool with those arguments (a `tool_calls` reply, printing "[fake-mistral] tool call <name>" to the server
+// log); sent its result back, it answers "Résultat de l'outil « <name> » : <result>" (an error result as Mistral is sent
+// it, "Error: …"). Asked for text only (tool_choice "none") before any call, it answers as without the marker.
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -110,6 +114,9 @@ globalThis.fetch = async (input, init) => {
   if (String(body.model ?? "").includes("inexistant")) {
     return new Response(JSON.stringify({ object: "error", message: `Invalid model: ${body.model}`, type: "invalid_model", code: "1500" }), { status: 400, headers: { "content-type": "application/json" } });
   }
+
+  const toolCall = coachToolCall(body);
+  if (toolCall) return toolCall;
 
   let content = "fake reply";
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
@@ -295,6 +302,28 @@ globalThis.fetch = async (input, init) => {
   }
   return completion(body, content);
 };
+
+/**
+ * The reply E2E_COACH_TOOL scripts (see above), when the latest Candidate message holds it and the AI Coach was offered
+ * tools: the tool call, or once its result came back, the text saying it. Null otherwise.
+ */
+function coachToolCall(body) {
+  const messages = body.messages ?? [];
+  const asked = /E2E_COACH_TOOL=([\w-]+):(\{.*\})/.exec(String(messages.filter((message) => message.role === "user").at(-1)?.content ?? ""));
+  if (!asked || !Array.isArray(body.tools) || body.tools.length === 0) return null;
+  const [, name, args] = asked;
+  const results = [];
+  for (let index = messages.length - 1; index >= 0 && messages[index].role === "tool"; index -= 1) results.unshift(String(messages[index].content));
+  if (results.length > 0) return completion(body, `Résultat de l'outil « ${name} » : ${results.join("\n")}`);
+  if (body.tool_choice === "none") return null;
+  console.log(`[fake-mistral] tool call ${name}`);
+  return Response.json({
+    id: "cmpl_e2e_tool",
+    model: body.model ?? "mistral-large-latest",
+    choices: [{ index: 0, message: { role: "assistant", content: "", tool_calls: [{ id: "e2eTool01", type: "function", function: { name, arguments: args } }] }, finish_reason: "tool_calls" }],
+    usage: { prompt_tokens: 100, completion_tokens: 20 },
+  });
+}
 
 /** The facts the pages between <pages> and </pages> give, by the site they come from (fake-company-sources.mjs). */
 function factsInPages(prompt) {

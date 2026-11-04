@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
 import { effortHandling, type Effort } from "../effort";
 import { AiProviderError } from "../errors";
-import type { AiProvider, Residency, TextInput, TextOutput, TokenUsage } from "../types";
+import type { AiProvider, ContentBlock, Residency, TextInput, TextOutput, TokenUsage, ToolCallBlock, TurnMessage } from "../types";
 
 /**
  * Where Claude is reached. Only Bedrock and Vertex in an EU region are EU-resident; the direct
@@ -92,6 +92,35 @@ interface MessagesClient {
   messages: { create(params: Anthropic.MessageCreateParamsNonStreaming, options?: { signal?: AbortSignal }): Promise<Anthropic.Message> };
 }
 
+/**
+ * The input's messages as Claude takes them: a text message as it is (so a call without tools sends what it always
+ * sent), blocks as `text`, `tool_use` and `tool_result` (an empty text block, which Claude refuses, left out).
+ */
+function messagesOf(messages: TurnMessage[]): Anthropic.MessageParam[] {
+  if (messages.every((message) => typeof message.content === "string")) return messages as Anthropic.MessageParam[];
+  return messages.map(({ role, content }) => (typeof content === "string" ? { role, content } : { role, content: content.flatMap(blockOf) }));
+}
+
+function blockOf(block: ContentBlock): Anthropic.ContentBlockParam[] {
+  switch (block.type) {
+    case "text":
+      return block.text ? [{ type: "text", text: block.text }] : [];
+    case "tool_call":
+      return [{ type: "tool_use", id: block.id, name: block.name, input: block.arguments }];
+    case "tool_result":
+      return [{ type: "tool_result", tool_use_id: block.id, content: block.content, ...(block.error ? { is_error: true } : {}) }];
+  }
+}
+
+/** The input's tools and tool choice, as Claude takes them; nothing without tools. */
+function toolsOf(input: TextInput): Pick<Anthropic.MessageCreateParamsNonStreaming, "tools" | "tool_choice"> {
+  if (!input.tools?.length) return {};
+  return {
+    tools: input.tools.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.parameters as Anthropic.Tool.InputSchema })),
+    ...(input.toolChoice === "none" ? { tool_choice: { type: "none" } } : {}),
+  };
+}
+
 function clientFor(options: AnthropicProviderOptions): MessagesClient {
   const { endpoint, fetch, maxRetries } = options;
   const baseURL = baseUrlOf(endpoint);
@@ -130,6 +159,7 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
     models: [...new Set([defaultModel, ...catalog.map(named)])],
     endpoint: endpoint.kind === "direct" ? "api.anthropic.com" : `${endpoint.kind} ${endpoint.region}`,
     residency: residencyOf(endpoint),
+    toolCalling: true,
 
     async generate(input: TextInput): Promise<TextOutput> {
       client ??= clientFor(options);
@@ -140,7 +170,8 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
           model,
           max_tokens: input.maxTokens,
           ...(input.system ? { system: input.system } : {}),
-          messages: input.messages,
+          messages: messagesOf(input.messages),
+          ...toolsOf(input),
           ...(input.effort && effortHandling("anthropic", model) === "native" ? { output_config: { effort: input.effort } } : {}),
         }, input.signal ? { signal: input.signal } : undefined);
       } catch (error) {
@@ -156,10 +187,12 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
       }
       if (message.stop_reason === "refusal") throw new AiProviderError("anthropic", "Claude declined the request (refusal)", undefined, { reason: "provider_rejected" });
       const text = message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+      const toolCalls = message.content.flatMap((block): ToolCallBlock[] => (block.type === "tool_use" ? [{ type: "tool_call", id: block.id, name: block.name, arguments: block.input }] : []));
       return {
         text,
         model: message.model,
         usage: usageOf(message.usage),
+        ...(toolCalls.length > 0 ? { toolCalls } : {}),
       };
     },
   };

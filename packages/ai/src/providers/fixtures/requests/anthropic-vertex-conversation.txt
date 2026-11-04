@@ -1,0 +1,2 @@
+https://europe-west1-aiplatform.googleapis.com/v1/projects/p/locations/europe-west1/publishers/anthropic/models/claude-opus-5-5:rawPredict
+{"max_tokens":4096,"system":"Tu es le coach Jobbbox.\n\nNote : « [NOM] ».","messages":[{"role":"user","content":"Bonjour"},{"role":"assistant","content":"Bonjour, que puis-je pour vous ?"},{"role":"user","content":"Mes candidatures \"en cours\" ?\n- une\n- deux"}],"output_config":{"effort":"high"},"anthropic_version":"vertex-2023-10-16"}

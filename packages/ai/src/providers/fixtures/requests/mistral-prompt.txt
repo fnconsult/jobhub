@@ -1,0 +1,2 @@
+https://api.eu.mistral.ai/v1/chat/completions
+{"model":"mistral-large-latest","max_tokens":1000,"messages":[{"role":"user","content":"Améliore mon CV"}]}

@@ -1,0 +1,21 @@
+{
+  "id": "cmpl-e5cc70bb28c444948073e77776eb30ef",
+  "object": "chat.completion",
+  "model": "mistral-large-latest",
+  "created": 1793790000,
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          { "id": "D681PevKs", "type": "function", "function": { "name": "candidatures_lister", "arguments": "{\"statut\": \"envoyée\"}" } },
+          { "id": "Qm3t9XbLp", "type": "function", "function": { "name": "agenda_lister", "arguments": "{}" } }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": { "prompt_tokens": 512, "completion_tokens": 30, "total_tokens": 542 }
+}

@@ -1,4 +1,4 @@
-import { createAiLayer, createAiLayerFromEnv, type OfferEmailReading, type TextInput } from "@jobhub/ai";
+import { contentText, createAiLayer, createAiLayerFromEnv, type OfferEmailReading, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { describe, expect, it } from "vitest";
 import { HIDDEN_TEXT_CLOSE, HIDDEN_TEXT_OPEN, MAX_GUARDED_EMAIL_CHARACTERS } from "./email";
@@ -31,7 +31,7 @@ function setUp(options: { verdict?: string; setting?: GuardrailSetting } = {}) {
     id: "mistral",
     reply: (input: TextInput) => {
       if (!input.system?.startsWith("Tu contrôles un email")) return "{}";
-      checked.push(input.messages.at(-1)?.content ?? "");
+      checked.push(contentText(input.messages.at(-1)?.content ?? ""));
       return options.verdict ?? `{"email_injection": false}`;
     },
   });

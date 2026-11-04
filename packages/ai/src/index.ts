@@ -25,6 +25,7 @@ export type {
   AiLayer,
   AiLayerOptions,
   CallFacts,
+  CallTools,
   CompanyNews,
   CompanySearchRequest,
   GenerateRequest,
@@ -32,17 +33,23 @@ export type {
   JobSearchPlan,
   JobSearchInstructions,
   JobSearchPlanRequest,
+  PricedTurn,
   Route,
   SearchRequest,
   SearchFallback,
   SearchResult,
   TaskInstructions,
+  ToolOutcome,
+  ToolRun,
+  ToolRunner,
+  ToolRunRecord,
   WebSearchRun,
 } from "./ai-layer";
 export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, SEARCH_PROVIDER_IDS, smallModelFromEnv, taskRouteFromEnv } from "./env";
 export type { AiLayerDeps } from "./env";
 export { checkAiRoutingChange } from "./routing-check";
 export type { AiRoutingCheckDeps, AiRoutingRefusal } from "./routing-check";
+export { contentText } from "./conversation";
 export { findIdentity, identityIn, personNamesIn } from "./identity-scan";
 export type { IdentityHit } from "./identity-scan";
 export { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";

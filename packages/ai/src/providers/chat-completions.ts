@@ -4,7 +4,7 @@
  */
 import { effortHandling } from "../effort";
 import { AiProviderError } from "../errors";
-import type { AiProvider, ProviderId, TextInput, TextOutput, TokenUsage } from "../types";
+import type { AiProvider, ProviderId, TextInput, TextOutput, TokenUsage, ToolCallBlock, TurnMessage } from "../types";
 import { postJson } from "./http";
 
 /**
@@ -13,9 +13,16 @@ import { postJson } from "./http";
  */
 type ContentChunk = { type: "text"; text: string } | { type: "thinking"; thinking: unknown } | { type: string };
 
+/** A tool call as chat completions say it: its arguments a JSON string (Mistral may send an object). */
+interface ChatToolCall {
+  id: string;
+  type?: "function";
+  function: { name: string; arguments: unknown };
+}
+
 interface ChatCompletion {
   model: string;
-  choices: { message: { content: string | ContentChunk[] | null } }[];
+  choices: { message: { content: string | ContentChunk[] | null; tool_calls?: ChatToolCall[] | null } }[];
   /** `prompt_tokens` include the cached ones, when the provider reports them (OpenAI; Mistral not documented, #127). */
   usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
 }
@@ -57,8 +64,73 @@ function answerText(completion: ChatCompletion): string {
  */
 const REASONING_ROOM_TOKENS = 8000;
 
-function chatMessages(input: TextInput) {
-  return [...(input.system ? [{ role: "system", content: input.system }] : []), ...input.messages];
+/** The model's tool calls, in order; arguments that are not JSON are kept as written, for the AI layer to refuse. */
+function toolCallsOf(completion: ChatCompletion): ToolCallBlock[] {
+  return (completion.choices[0]!.message.tool_calls ?? []).map((call) => ({ type: "tool_call", id: call.id, name: call.function.name, arguments: parsed(call.function.arguments) }));
+}
+
+function parsed(text: unknown): unknown {
+  if (typeof text !== "string") return text;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+/** What a reply carries: its answer, its usage and, when the model calls tools, those calls. */
+function outputOf(completion: ChatCompletion): TextOutput {
+  const toolCalls = toolCallsOf(completion);
+  return { text: answerText(completion), model: completion.model, usage: usageOf(completion), ...(toolCalls.length > 0 ? { toolCalls } : {}) };
+}
+
+/**
+ * The system text first, then the messages: a text message as it is (so a call without tools sends what it always
+ * sent), the model's tool calls as an assistant message's `tool_calls`, each tool's result as a `tool` message (an error
+ * said in its text, as chat completions have no flag for it). Mistral also names the tool on its result.
+ */
+function chatMessages(provider: ProviderId, input: TextInput) {
+  const system = input.system ? [{ role: "system", content: input.system }] : [];
+  if (input.messages.every((message) => typeof message.content === "string")) return [...system, ...input.messages];
+  const names = new Map(input.messages.flatMap((message) => (typeof message.content === "string" ? [] : message.content.flatMap((block) => (block.type === "tool_call" ? [[block.id, block.name] as const] : [])))));
+  return [...system, ...input.messages.flatMap((message) => chatMessagesOf(provider, message, names))];
+}
+
+/** Mistral takes a call id of 9 letters or digits only: another (Claude's `toolu_…`, after a reroute) becomes one, always the same. */
+const MISTRAL_CALL_ID = /^[a-zA-Z0-9]{9}$/;
+const ID_LETTERS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function mistralCallId(id: string): string {
+  if (MISTRAL_CALL_ID.test(id)) return id;
+  // FNV-1a, 64 bits: a call and its result get the same id, two calls of one conversation different ones.
+  let hash = 0xcbf29ce484222325n;
+  for (const unit of new TextEncoder().encode(id)) hash = BigInt.asUintN(64, (hash ^ BigInt(unit)) * 0x100000001b3n);
+  let out = "";
+  for (let index = 0; index < 9; index += 1, hash /= 62n) out += ID_LETTERS[Number(hash % 62n)];
+  return out;
+}
+
+function chatMessagesOf(provider: ProviderId, { role, content }: TurnMessage, names: ReadonlyMap<string, string>): Record<string, unknown>[] {
+  if (typeof content === "string") return [{ role, content }];
+  const callId = provider === "mistral" ? mistralCallId : (id: string) => id;
+  const text = content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("");
+  const calls = content.flatMap((block) => (block.type === "tool_call" ? [{ id: callId(block.id), type: "function", function: { name: block.name, arguments: JSON.stringify(block.arguments ?? {}) } }] : []));
+  const results = content.flatMap((block) =>
+    block.type === "tool_result"
+      ? [{ role: "tool", tool_call_id: callId(block.id), ...(provider === "mistral" && names.has(block.id) ? { name: names.get(block.id) } : {}), content: block.error ? `Error: ${block.content}` : block.content }]
+      : [],
+  );
+  if (role === "assistant") return [{ role, content: text, ...(calls.length > 0 ? { tool_calls: calls } : {}) }];
+  return [...results, ...(text ? [{ role, content: text }] : [])];
+}
+
+/** The input's tools and tool choice, as chat completions take them; nothing without tools. */
+function chatTools(input: TextInput): { tools?: unknown[]; tool_choice?: "none" } {
+  if (!input.tools?.length) return {};
+  return {
+    tools: input.tools.map((tool) => ({ type: "function", function: { name: tool.name, description: tool.description, parameters: tool.parameters } })),
+    ...(input.toolChoice === "none" ? { tool_choice: "none" as const } : {}),
+  };
 }
 
 /**
@@ -104,11 +176,12 @@ export function createMistralProvider(options: TextProviderOptions): AiProvider 
     models: [...new Set([defaultModel, "mistral-medium-3-5", "mistral-small-latest"])],
     endpoint: "api.eu.mistral.ai",
     residency: "eu",
+    toolCalling: true,
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
       const { maxTokens, ...reasoning } = withReasoning("mistral", model, input);
-      const completion = await postChat(client, { model, max_tokens: maxTokens, messages: chatMessages(input), ...reasoning }, input.signal);
-      return { text: answerText(completion), model: completion.model, usage: usageOf(completion) };
+      const completion = await postChat(client, { model, max_tokens: maxTokens, messages: chatMessages("mistral", input), ...chatTools(input), ...reasoning }, input.signal);
+      return outputOf(completion);
     },
   };
 }
@@ -128,11 +201,12 @@ export function createOpenAiProvider(options: OpenAiProviderOptions): AiProvider
     models: [...new Set([defaultModel, "gpt-5-mini"])],
     endpoint: host,
     residency: options.dataResidency === "eu" ? "eu" : "outside_eu",
+    toolCalling: true,
     async generate(input): Promise<TextOutput> {
       const model = input.model ?? defaultModel;
       const { maxTokens, ...reasoning } = withReasoning("openai", model, input);
-      const completion = await postChat(client, { model, max_completion_tokens: maxTokens, messages: chatMessages(input), ...reasoning }, input.signal);
-      return { text: answerText(completion), model: completion.model, usage: usageOf(completion) };
+      const completion = await postChat(client, { model, max_completion_tokens: maxTokens, messages: chatMessages("openai", input), ...chatTools(input), ...reasoning }, input.signal);
+      return outputOf(completion);
     },
   };
 }

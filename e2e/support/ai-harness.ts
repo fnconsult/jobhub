@@ -15,8 +15,27 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createAiLayerFromEnv } from "@jobhub/ai";
 
+/** A tool offered to the model, with what the harness's runner answers when it is run (#712). `error` and `containsIdentity` are passed on as the runner's outcome. */
+export interface HarnessTool {
+  name: string;
+  result: string;
+  error?: boolean;
+  containsIdentity?: boolean;
+}
+
 export type HarnessCall =
-  | { kind: "generate"; task: string; candidateId: string | null; system?: string; prompt: string; containsIdentity?: boolean; route?: { provider: string; model?: string }; effort?: "low" | "medium" | "high" }
+  | {
+      kind: "generate";
+      task: string;
+      candidateId: string | null;
+      system?: string;
+      prompt: string;
+      containsIdentity?: boolean;
+      route?: { provider: string; model?: string };
+      effort?: "low" | "medium" | "high";
+      tools?: HarnessTool[];
+      maxToolRounds?: number;
+    }
   | { kind: "search"; candidateId: string | null; criteria: Record<string, unknown>; filters?: Record<string, unknown> };
 
 export interface HarnessRequest {
@@ -43,6 +62,19 @@ function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json", "request-id": "req_e2e" } });
 }
 
+/** The tool call the request's latest user text scripts, when the request offers tools, allows them and has none of the call's results yet (or loops). */
+function scriptedToolCall(body: Record<string, unknown> & { tools?: unknown; tool_choice?: unknown; messages?: unknown }): { name: string; args: string } | null {
+  if (!Array.isArray(body.tools) || body.tools.length === 0) return null;
+  const choice = body.tool_choice;
+  if (choice === "none" || choice?.type === "none") return null;
+  const raw = JSON.stringify(body.messages ?? []);
+  const asked = /E2E_TOOL=([\w-]+):(\{[^}]*\})/.exec(raw.replace(/\\"/g, '"'));
+  if (!asked) return null;
+  const answeredAlready = raw.includes('"role":"tool"') || raw.includes("tool_result");
+  if (answeredAlready && !raw.includes("E2E_TOOL_LOOP")) return null;
+  return { name: asked[1]!, args: asked[2]! };
+}
+
 function answer(url: URL, body: string): Response {
   const parsed = body ? JSON.parse(body) : {};
   const host = url.hostname;
@@ -59,7 +91,18 @@ function answer(url: URL, body: string): Response {
     if (recorded) return json(JSON.parse(readFileSync(recorded, "utf8")));
     return json({ id: "search_e2e", results: [{ title: "Offre", url: "https://jobs.example/offre-1", snippet: `reply from ${host}`, date: null, last_updated: null }] });
   }
+  // Tool calling (#712): a prompt holding "E2E_TOOL=<name>:<json>" has the model, offered tools and not told to answer in text,
+  // call that tool (again after each result when it also holds "E2E_TOOL_LOOP"); otherwise it answers in text.
+  const toolCall = scriptedToolCall(parsed);
   if (url.pathname.endsWith("/chat/completions")) {
+    if (toolCall) {
+      return json({
+        id: "cmpl_e2e_tool",
+        model: parsed.model ?? "unknown",
+        choices: [{ index: 0, message: { role: "assistant", content: null, tool_calls: [{ id: `call${requests.length}`, type: "function", function: { name: toolCall.name, arguments: toolCall.args } }] }, finish_reason: "tool_calls" }],
+        usage: { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 },
+      });
+    }
     const reply = `reply from ${host}`;
     return json({
       id: "cmpl_e2e",
@@ -69,6 +112,18 @@ function answer(url: URL, body: string): Response {
     });
   }
   if (url.pathname.includes("/messages")) {
+    if (toolCall) {
+      return json({
+        id: "msg_e2e_tool",
+        type: "message",
+        role: "assistant",
+        model: parsed.model ?? "claude",
+        content: [{ type: "tool_use", id: `toolu_${requests.length}`, name: toolCall.name, input: JSON.parse(toolCall.args) }],
+        stop_reason: "tool_use",
+        stop_sequence: null,
+        usage: { input_tokens: 200, output_tokens: 50 },
+      });
+    }
     return json({
       id: "msg_e2e",
       type: "message",
@@ -108,11 +163,32 @@ async function main() {
   if (ai) {
     for (const call of calls) {
       try {
+        const executed: { name: string; arguments: unknown; round: number }[] = [];
+        const tools = call.kind === "generate" ? call.tools : undefined;
         const value =
           call.kind === "generate"
-            ? await ai.generate({ task: call.task as never, candidateId: call.candidateId, system: call.system, prompt: call.prompt, containsIdentity: call.containsIdentity, route: call.route as never, ...(call.effort ? { effort: call.effort } : {}) })
+            ? await ai.generate({
+                task: call.task as never,
+                candidateId: call.candidateId,
+                system: call.system,
+                prompt: call.prompt,
+                containsIdentity: call.containsIdentity,
+                route: call.route as never,
+                ...(call.effort ? { effort: call.effort } : {}),
+                ...(tools
+                  ? {
+                      tools: tools.map((tool) => ({ name: tool.name, description: `The ${tool.name} tool`, parameters: { type: "object", properties: {} } })),
+                      ...(call.maxToolRounds !== undefined ? { maxToolRounds: call.maxToolRounds } : {}),
+                      runTool: async (run) => {
+                        executed.push({ name: run.name, arguments: run.arguments, round: run.round });
+                        const tool = tools.find((each) => each.name === run.name)!;
+                        return { content: tool.result, ...(tool.error ? { error: true } : {}), ...(tool.containsIdentity ? { containsIdentity: true } : {}) };
+                      },
+                    }
+                  : {}),
+              })
             : await ai.searchWeb({ candidateId: call.candidateId, criteria: call.criteria as never, filters: call.filters as never });
-        result.outcomes.push({ ok: true, value: value as unknown as Record<string, unknown> });
+        result.outcomes.push({ ok: true, value: { ...(value as unknown as Record<string, unknown>), ...(tools ? { executed } : {}) } });
       } catch (error) {
         result.outcomes.push({ ok: false, error: errorOf(error) });
       }

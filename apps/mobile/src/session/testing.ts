@@ -161,6 +161,11 @@ export function fakeWebApp() {
       void twoStep.set(email, { app, passkey, setup: false, backupCodes: new Set([`backup-${email}`]), failed: 0, lockedUntil: null }),
     /** The account of `email` must have Two-step verification and has no factor yet (a Human Coach): its session sets one up first. */
     mustSetUp: (email: string) => void twoStep.set(email, { app: false, passkey: false, setup: true, backupCodes: new Set(), failed: 0, lockedUntil: null }),
+    /** The account of `email` set up its authenticator app on the web's page: its sessions are no longer pending. */
+    finishSetUp: (email: string) => {
+      twoStep.set(email, { app: true, passkey: false, setup: false, backupCodes: new Set([`backup-${email}`]), failed: 0, lockedUntil: null });
+      for (const session of sessions.values()) if (session.email === email) session.pending = false;
+    },
     /** What the authenticator app of an account with one shows now. */
     appCode: () => APP_CODE,
     /** One of the backup codes of `email`, each serving once. */

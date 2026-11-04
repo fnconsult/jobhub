@@ -5746,8 +5746,11 @@
       "changeEmail": "Changer d'adresse e-mail"
     },
     "secondStep": {
-      "intro": "Votre compte demande une deuxième étape pour terminer la connexion.",
-      "comingSoon": "Elle arrive bientôt dans l'app. En attendant, déconnectez-vous ou connectez-vous sur jobbbox.ai."
+      "passkeyIntro": "Utilisez la clé d'accès enregistrée sur votre compte : Face ID, Touch ID, votre empreinte ou votre clé de sécurité.",
+      "setUp": "Configurer la vérification",
+      "setUpHint": "La configuration s'ouvre dans une page de jobbbox.ai, ici dans l'app. Une fois terminée, vous revenez à Jobbbox.",
+      "unreachable": "Jobbbox n'a pas pu être joint. Vérifiez votre connexion et réessayez.",
+      "retry": "Réessayer"
     },
     "shortcuts": {
       "newConversation": "Nouvelle conversation",

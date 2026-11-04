@@ -1,9 +1,11 @@
-import { act, screen, userEvent } from "@testing-library/react-native";
+import { SECOND_STEP_PATH } from "@jobhub/shared";
+import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { useSyncExternalStore } from "react";
 import { AppState, Text } from "react-native";
 import { renderInApp } from "../testing";
 import { Control } from "../ui/Control";
-import { createAppSession } from "./app-session";
+import { fakeWebView } from "../testing-device";
+import { createAppSession, type DevicePasskeys } from "./app-session";
 import { SessionGate, useSession } from "./SessionGate";
 import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
 
@@ -14,9 +16,9 @@ function SignedInPage() {
   return <><Text>La conversation</Text><Control label="Se déconnecter" onPress={signOut} /></>;
 }
 
-function setUp() {
+function setUp({ passkeys }: { passkeys?: (web: ReturnType<typeof fakeWebApp>) => DevicePasskeys } = {}) {
   const web = fakeWebApp();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: web.deviceWithoutPasskey() });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: passkeys?.(web) ?? web.deviceWithoutPasskey() });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
   const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));
@@ -135,21 +137,6 @@ describe("SessionGate (#685)", () => {
     expect(screen.queryByText(LINK_ERROR)).toBeNull();
   });
 
-  it("shows the second step as a step to take, from which one can sign out", async () => {
-    const { web, session, render } = setUp();
-    web.withSecondStep(EMAIL);
-    await session.askLink(EMAIL);
-
-    await render(web.linkFor(EMAIL));
-
-    expect(await screen.findByText("Vérification en deux étapes")).toBeOnTheScreen();
-    expect(screen.getByText("Votre compte demande une deuxième étape pour terminer la connexion.")).toBeOnTheScreen();
-    expect(screen.queryByText("La conversation")).toBeNull();
-    await userEvent.setup().press(screen.getByRole("button", { name: "Se déconnecter" }));
-    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
-    expect(web.sessionCount()).toBe(0);
-  });
-
   it("signs out: the session revoked, back to sign-in", async () => {
     const { web, session, render } = setUp();
     await session.askLink(EMAIL);
@@ -171,5 +158,134 @@ describe("SessionGate (#685)", () => {
     await backToForeground();
 
     expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+});
+
+describe("the second step, native (#688)", () => {
+  /** Opens the app with the emailed link of `email`, whose account has Two-step verification as `factors` say. */
+  async function pendingApp(email = EMAIL, factors: { app?: boolean; passkey?: boolean } = {}, options?: Parameters<typeof setUp>[0]) {
+    const app = setUp(options);
+    app.web.withSecondStep(email, factors);
+    await app.session.askLink(email);
+    await app.render(app.web.linkFor(email));
+    await screen.findByText("Vérification en deux étapes");
+    return app;
+  }
+
+  it("asks the authenticator app's code, and nothing else of the app is reached", async () => {
+    await pendingApp();
+
+    expect(await screen.findByText("Pour terminer votre connexion, saisissez le code à 6 chiffres affiché par votre application d'authentification.")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Code de l'application")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Utiliser un code de secours" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Utiliser une clé d'accès" })).toBeNull();
+    expect(screen.queryByText("La conversation")).toBeNull();
+  });
+
+  it("is released by a valid code: the app opens", async () => {
+    const { web } = await pendingApp();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("Code de l'application"), web.appCode());
+    await user.press(screen.getByRole("button", { name: "Vérifier" }));
+
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+  });
+
+  it("takes a backup code instead", async () => {
+    const { web } = await pendingApp();
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByRole("button", { name: "Utiliser un code de secours" }));
+    expect(screen.getByText("Pour terminer votre connexion, saisissez l'un de vos codes de secours. Chacun ne sert qu'une fois.")).toBeOnTheScreen();
+    await user.type(screen.getByLabelText("Code de secours"), web.backupCode(EMAIL));
+    await user.press(screen.getByRole("button", { name: "Vérifier" }));
+
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+  });
+
+  it("says a code is wrong, then when the limit is reached, the session staying pending", async () => {
+    await pendingApp();
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText("Code de l'application");
+
+    await user.type(field, "000000");
+    await user.press(screen.getByRole("button", { name: "Vérifier" }));
+    expect(await screen.findByText("Ce code n'est pas valide. Vérifiez-le et réessayez.")).toBeOnTheScreen();
+    for (let attempt = 2; attempt <= 5; attempt++) await user.press(screen.getByRole("button", { name: "Vérifier" }));
+
+    expect(await screen.findByText(/^Trop de codes erronés\. Réessayez à \d{2}:\d{2}\.$/)).toBeOnTheScreen();
+    expect(screen.queryByText("La conversation")).toBeNull();
+  });
+
+  it("offers « Utiliser une clé d'accès » when the account has one, which the system asks for", async () => {
+    await pendingApp(EMAIL, { app: false, passkey: true }, { passkeys: (web) => web.deviceWithPasskeyOf(EMAIL) });
+
+    // Without an app, the code is a backup code.
+    expect(await screen.findByLabelText("Code de secours")).toBeOnTheScreen();
+    await userEvent.setup().press(screen.getByRole("button", { name: "Utiliser une clé d'accès" }));
+
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+  });
+
+  it("refuses a passkey of another account, the session staying pending", async () => {
+    await pendingApp(EMAIL, { passkey: true }, { passkeys: (web) => (web.withSecondStep("paul.martin@example.fr", { passkey: true }), web.deviceWithPasskeyOf("paul.martin@example.fr")) });
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Utiliser une clé d'accès" }));
+
+    expect(await screen.findByText("Cette clé d'accès n'est pas enregistrée sur ce compte. Utilisez une autre clé ou un code.")).toBeOnTheScreen();
+    expect(screen.queryByText("La conversation")).toBeNull();
+  });
+
+  it("says when the passkey was not used", async () => {
+    await pendingApp(EMAIL, { passkey: true });
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Utiliser une clé d'accès" }));
+
+    expect(await screen.findByText("La clé d'accès n'a pas été utilisée. Réessayez, ou utilisez un code.")).toBeOnTheScreen();
+  });
+
+  it("can still sign out", async () => {
+    const { web } = await pendingApp();
+
+    await userEvent.setup().press(await screen.findByRole("button", { name: "Se déconnecter" }));
+
+    expect(await screen.findByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+    expect(web.sessionCount()).toBe(0);
+  });
+
+  it("sends an account that must have it and has none (a Human Coach) to the setup, in a WebView of the web, then back", async () => {
+    fakeWebView.reset();
+    const { web, session, render } = setUp();
+    web.mustSetUp("claire.coach@example.fr");
+    await session.askLink("claire.coach@example.fr");
+    await render(web.linkFor("claire.coach@example.fr"));
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/la vérification en deux étapes y est obligatoire/)).toBeOnTheScreen();
+    await user.press(screen.getByRole("button", { name: "Configurer la vérification" }));
+    await waitFor(() => expect(fakeWebView.shown?.source.uri).toBe(`${TEST_BASE_URL}${SECOND_STEP_PATH}`));
+
+    // Set up on the web page, which then goes on to the home page.
+    web.finishSetUp("claire.coach@example.fr");
+    await act(async () => fakeWebView.shown!.onNavigationStateChange({ url: `${TEST_BASE_URL}/`, loading: false }));
+
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+    expect(fakeWebView.shown).toBeNull();
+  });
+
+  it("comes back from the setup's WebView with « Fermer », still to set up", async () => {
+    fakeWebView.reset();
+    const { web, session, render } = setUp();
+    web.mustSetUp("claire.coach@example.fr");
+    await session.askLink("claire.coach@example.fr");
+    await render(web.linkFor("claire.coach@example.fr"));
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByRole("button", { name: "Configurer la vérification" }));
+    await user.press(await screen.findByRole("button", { name: "Fermer" }));
+
+    expect(await screen.findByRole("button", { name: "Configurer la vérification" })).toBeOnTheScreen();
+    expect(screen.queryByText("La conversation")).toBeNull();
   });
 });

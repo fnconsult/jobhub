@@ -70,6 +70,8 @@ export interface DevicePasskeys {
 }
 
 export interface AppSession {
+  /** The web app it is a session of (its pages open in a WebView, src/web-pages). */
+  readonly baseURL: string;
   /** Emails a magic link to `email` for the app; false when the web app refused or could not be reached. */
   askLink(email: string): Promise<boolean>;
   /** Signs in with a magic link the app was opened with; null when `url` is not one. */
@@ -166,6 +168,8 @@ export function createAppSession({
   };
 
   return {
+    baseURL,
+
     async askLink(email) {
       try {
         const { error } = await client.signIn.magicLink({ email, callbackURL: RETURN_ADDRESS });

@@ -34,8 +34,8 @@ function cleanText(text: string): string {
 
 /** The event Sentry may send: no user, no request body, cookies or headers, no device identifier, URLs and messages cleaned. */
 export function cleanEvent(event: ErrorEvent): ErrorEvent {
-  const { user: _user, request, contexts, exception, message, breadcrumbs, ...rest } = event;
-  const cleaned: ErrorEvent = { ...rest };
+  const { request, contexts, exception, message, breadcrumbs } = event;
+  const cleaned: ErrorEvent = without(event, ["user", "request", "contexts", "exception", "message", "breadcrumbs"]);
   if (request?.url) cleaned.request = { ...(request.method && { method: request.method }), url: cleanUrl(request.url) };
   if (message !== undefined) cleaned.message = cleanText(message);
   if (exception) {
@@ -45,19 +45,17 @@ export function cleanEvent(event: ErrorEvent): ErrorEvent {
     };
   }
   if (contexts) {
-    const { device, app, ...otherContexts } = contexts;
-    cleaned.contexts = { ...otherContexts };
-    if (device) {
-      const { id: _id, name: _name, ...deviceKept } = device;
-      cleaned.contexts.device = deviceKept;
-    }
-    if (app) {
-      const { device_app_hash: _hash, ...appKept } = app;
-      cleaned.contexts.app = appKept;
-    }
+    cleaned.contexts = without(contexts, ["device", "app"]);
+    if (contexts.device) cleaned.contexts.device = without(contexts.device, ["id", "name"]);
+    if (contexts.app) cleaned.contexts.app = without(contexts.app, ["device_app_hash"]);
   }
   if (breadcrumbs) cleaned.breadcrumbs = breadcrumbs.flatMap((breadcrumb) => cleanBreadcrumb(breadcrumb) ?? []);
   return cleaned;
+}
+
+/** A copy of an object without the named fields. */
+function without<T extends object>(object: T, keys: string[]): T {
+  return Object.fromEntries(Object.entries(object).filter(([key]) => !keys.includes(key))) as T;
 }
 
 /** The breadcrumb Sentry may keep, or null to drop it. */

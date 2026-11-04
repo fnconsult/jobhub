@@ -54,8 +54,9 @@ async function payInTestMode(page: Page, submit: Locator) {
     },
     { times: 1 },
   );
-  await submit.click();
-  await page.waitForURL(/[?&]session=paid/, { timeout: 30_000 });
+  // The submit's answer waits on the server, then on the webhook: on a loaded machine longer than an action's 10 s.
+  await submit.click({ noWaitAfter: true, timeout: 30_000 });
+  await page.waitForURL(/[?&]session=paid/, { timeout: 60_000 });
   await paid;
 }
 

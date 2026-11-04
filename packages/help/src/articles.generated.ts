@@ -231,6 +231,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "title": "Destinataires des données",
       "synonyms": [
         "destinataires",
+        "scaleway",
+        "vidéos d'aide",
         "destinataires des données",
         "sous-traitants",
         "fournisseurs",
@@ -249,7 +251,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/legal/destinataires",
       "motion": null,
       "microAnimations": [],
-      "body": "« Destinataires des données », sur la page Légal, nomme chaque service qui reçoit des données personnelles, ou des requêtes qui en sont tirées, pour faire fonctionner Jobbbox : l'hébergeur, les modèles d'IA, la recherche web, les paiements, les e-mails et la connexion. Elle s'ouvre depuis la politique de confidentialité, sans compte.\n\nPour chacun, elle dit « À quoi il sert », « Ce qu'il reçoit » (par exemple vos textes après Redaction, ou des requêtes seulement), l'« Entité contractante », le « Lieu de traitement » et la « Garantie du transfert » quand les données sortent de l'UE. Un service dont le lieu de traitement n'est pas établi est marqué « Compté hors UE ». Pour obtenir une copie des garanties d'un transfert, le lien « Nous contacter » de la page mène à l'équipe Jobbbox.\n\nLa liste est établie à chaque visite à partir des services activés : un service désactivé n'y figure pas. « Dernière modification le » donne le jour où elle a changé pour la dernière fois. Le lien « IA dans Jobbbox, dans la politique de confidentialité » mène à la section qui explique où passe chaque usage de l'IA."
+      "body": "« Destinataires des données », sur la page Légal, nomme chaque service qui reçoit des données personnelles, ou des requêtes qui en sont tirées, pour faire fonctionner Jobbbox : l'hébergeur, celui des vidéos d'aide, les modèles d'IA, la recherche web, les paiements, les e-mails et la connexion. Elle s'ouvre depuis la politique de confidentialité, sans compte.\n\nPour chacun, elle dit « À quoi il sert », « Ce qu'il reçoit » (par exemple vos textes après Redaction, ou des requêtes seulement), l'« Entité contractante », le « Lieu de traitement » et la « Garantie du transfert » quand les données sortent de l'UE. Un service dont le lieu de traitement n'est pas établi est marqué « Compté hors UE ». Pour obtenir une copie des garanties d'un transfert, le lien « Nous contacter » de la page mène à l'équipe Jobbbox.\n\nLa liste est établie à chaque visite à partir des services activés : un service désactivé n'y figure pas. « Dernière modification le » donne le jour où elle a changé pour la dernière fois. Le lien « IA dans Jobbbox, dans la politique de confidentialité » mène à la section qui explique où passe chaque usage de l'IA."
     },
     {
       "id": "page-admin-email-intake",
@@ -718,6 +720,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "title": "Paramètres",
       "synonyms": [
         "paramètres",
+        "vidéos d'aide",
+        "origine des vidéos",
         "réglages",
         "configuration",
         "fournisseur",
@@ -733,7 +737,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/parametres",
       "motion": null,
       "microAnimations": [],
-      "body": "Paramètres réunit les réglages de la plateforme, par type d'outil, en onglets : « Recherche web », « IA », « Sources », « Enrichissement de contacts », « E-mail », « Paiement », « Connexion », « Extension » et « Environnement ». L'onglet est dans l'adresse : un rechargement le garde.\n\nUn onglet de fournisseurs montre d'abord la carte « Fournisseur actif », avec les réglages de l'onglet, puis le tableau « Fournisseurs possibles » : chaque fournisseur avec ses clés, son « Dernier test », son « État » et ce qu'il sert (« Utilisé par »). Cliquez sur le nom d'un fournisseur pour ouvrir sa fiche sur le côté : ses clés, ses paramètres, ses prix et le lien « Ses appels, ses échecs et son coût dans Outils ». « Rendre actif » choisit le fournisseur de la recherche web ou des contacts enrichis.\n\nChaque réglage montre sa « Valeur en vigueur » et sa « Source » : une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur le « Défaut du code ». « Enregistrer » applique une nouvelle valeur en quelques secondes, sans redémarrage ; « Rétablir » efface la valeur du back office. Un réglage marqué « Se règle dans l'environnement » ne se change pas ici.\n\n« + Ajouter » ajoute ce que l'onglet contient : un fournisseur, une clé, un modèle, une source, un site ou un fournisseur de connexion. Chaque modification et chaque tentative refusée est inscrite dans Activité. Les super-admins changent tout ; « Technique » change les réglages et les sites sans jamais voir ni remplacer une clé ; le Support lit tout et ne change rien."
+      "body": "Paramètres réunit les réglages de la plateforme, par type d'outil, en onglets : « Recherche web », « IA », « Sources », « Enrichissement de contacts », « E-mail », « Paiement », « Connexion », « Extension » et « Environnement ». L'onglet est dans l'adresse : un rechargement le garde. « Environnement » tient aussi l'« Origine des vidéos d'aide (Explainer Videos du centre d'aide) » : l'adresse d'où le centre d'aide lit ses vidéos, https://media.jobbbox.ai par défaut ; les pages n'acceptent de vidéo que de cette origine.\n\nUn onglet de fournisseurs montre d'abord la carte « Fournisseur actif », avec les réglages de l'onglet, puis le tableau « Fournisseurs possibles » : chaque fournisseur avec ses clés, son « Dernier test », son « État » et ce qu'il sert (« Utilisé par »). Cliquez sur le nom d'un fournisseur pour ouvrir sa fiche sur le côté : ses clés, ses paramètres, ses prix et le lien « Ses appels, ses échecs et son coût dans Outils ». « Rendre actif » choisit le fournisseur de la recherche web ou des contacts enrichis.\n\nChaque réglage montre sa « Valeur en vigueur » et sa « Source » : une valeur saisie dans le back office l'emporte sur l'environnement du serveur, qui l'emporte sur le « Défaut du code ». « Enregistrer » applique une nouvelle valeur en quelques secondes, sans redémarrage ; « Rétablir » efface la valeur du back office. Un réglage marqué « Se règle dans l'environnement » ne se change pas ici.\n\n« + Ajouter » ajoute ce que l'onglet contient : un fournisseur, une clé, un modèle, une source, un site ou un fournisseur de connexion. Chaque modification et chaque tentative refusée est inscrite dans Activité. Les super-admins changent tout ; « Technique » change les réglages et les sites sans jamais voir ni remplacer une clé ; le Support lit tout et ne change rien."
     },
     {
       "id": "page-admin-playbooks",
@@ -2010,6 +2014,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Non. L'aide ne fait appel à aucune IA pour vous répondre : ses articles sont relus et publiés par l'équipe Jobbbox, et la recherche les trouve à partir de vos mots. Elle fonctionne même quand l'IA est indisponible et ne compte dans aucun quota.\n\nSeul votre coach répond avec l'IA, et ses réponses le disent. Quand l'aide n'a pas la réponse, « Envoyer au coach » lui pose votre question.\n\nToute l'aide est aussi dans le centre d'aide, ouvert sans compte : « Mon compte », en bas du menu, puis « Aide », sous « Aide et légal ». Un article ouvert à côté de la conversation propose « Ouvrir dans le centre d'aide ».\n\nSi votre coach a dû répondre à une question sur l'utilisation de Jobbbox, la question est notée, sans votre nom, pour que l'équipe écrive l'article qui manque."
     },
     {
+      "id": "faq-help-videos",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Les vidéos d'aide",
+      "synonyms": [
+        "vidéo",
+        "vidéos",
+        "vidéo d'aide",
+        "tutoriel vidéo",
+        "regarder",
+        "voir la vidéo",
+        "sous-titres",
+        "transcription",
+        "voix de synthèse",
+        "voix",
+        "son",
+        "accessibilité",
+        "scaleway"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Certains tutoriels du centre d'aide ont une courte vidéo, placée sous leur texte, dans la section « La vidéo ». Le texte suffit à lui seul : la vidéo montre les mêmes étapes sur l'écran de Jobbbox, avec des données de démonstration, jamais les vôtres. Dans le coach, la fiche d'un tutoriel qui a une vidéo propose « Voir la vidéo », avec sa durée : le lien ouvre le tutoriel dans le centre d'aide, où elle se lit.\n\nLa vidéo ne démarre jamais seule et ne se charge qu'au moment où vous la lancez : seule son image d'aperçu s'affiche avant. La narration est lue par une voix de synthèse, ce que la vidéo indique. Les sous-titres, dans la langue de la page, s'affichent dès la lecture ; le bouton des sous-titres du lecteur les masque. « Lire la transcription », sous la vidéo, déplie tout ce qu'elle dit et montre, étape par étape.\n\nLes vidéos sont hébergées dans l'UE par Scaleway, qui voit l'adresse IP de votre navigateur quand il affiche l'aperçu ou lit la vidéo, comme tout hébergeur. Aucun cookie ni traceur n'y est attaché. Scaleway figure dans « Destinataires des données », sur la page Légal."
+    },
+    {
       "id": "faq-admin-ai-literacy",
       "locale": "fr",
       "kind": "faq",
@@ -2117,7 +2148,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Toute l'aide de Jobbbox est dans le centre d'aide, ouvert à tous, sans compte : « Aide » en haut de chaque page publique, ou « Centre d'aide » en bas de page.\n\nSes articles sont rangés en quatre rubriques : « Découvrir Jobbbox », « L'extension », « Utiliser Jobbbox » et « Espace coach ». Le champ de recherche, en haut du centre d'aide, les parcourt toutes, sans IA. Les tutoriels y décrivent une tâche étape par étape.\n\nUne fois connecté, « Aide et légal », en bas du menu, mène au centre d'aide. Quand vous écrivez à votre coach, les articles qui correspondent s'affichent d'abord, « Dans l'aide, sans IA » ; un article ouvert là propose « Ouvrir dans le centre d'aide ».\n\nLes articles sont écrits par l'équipe Jobbbox, en français et en anglais."
+      "body": "Toute l'aide de Jobbbox est dans le centre d'aide, ouvert à tous, sans compte : « Aide » en haut de chaque page publique, ou « Centre d'aide » en bas de page.\n\nSes articles sont rangés en quatre rubriques : « Découvrir Jobbbox », « L'extension », « Utiliser Jobbbox » et « Espace coach ». Le champ de recherche, en haut du centre d'aide, les parcourt toutes, sans IA. Les tutoriels y décrivent une tâche étape par étape ; certains ont une courte vidéo sous leur texte.\n\nUne fois connecté, « Aide et légal », en bas du menu, mène au centre d'aide. Quand vous écrivez à votre coach, les articles qui correspondent s'affichent d'abord, « Dans l'aide, sans IA » ; un article ouvert là propose « Ouvrir dans le centre d'aide ».\n\nLes articles sont écrits par l'équipe Jobbbox, en français et en anglais."
     },
     {
       "id": "faq-legal-text-notice",
@@ -3662,6 +3693,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "title": "Data recipients",
       "synonyms": [
         "recipients",
+        "scaleway",
+        "help videos",
         "data recipients",
         "processors",
         "sub-processors",
@@ -3681,7 +3714,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/legal/destinataires",
       "motion": null,
       "microAnimations": [],
-      "body": "« Data recipients », on the Legal page, names each service that receives personal data, or queries drawn from it, to run Jobbbox: the host, the AI models, web search, payments, emails and sign-in. It opens from the privacy policy, without an account.\n\nFor each one, it says « What it is for », « What it receives » (for example your texts after Redaction, or queries only), the « Contracting entity », « Where it processes data » and the « Transfer safeguard » when the data leaves the EU. A service whose place of processing is not established is marked « Counted as outside the EU ». To get a copy of a transfer's safeguards, the page's « Contact us » link leads to the Jobbbox team.\n\nThe list is drawn up at each visit from the services switched on: a service switched off is not on it. « Last changed on » gives the day it last changed. The link « AI in Jobbbox, in the privacy policy » leads to the section that explains where each use of AI goes."
+      "body": "« Data recipients », on the Legal page, names each service that receives personal data, or queries drawn from it, to run Jobbbox: the host, the help videos' host, the AI models, web search, payments, emails and sign-in. It opens from the privacy policy, without an account.\n\nFor each one, it says « What it is for », « What it receives » (for example your texts after Redaction, or queries only), the « Contracting entity », « Where it processes data » and the « Transfer safeguard » when the data leaves the EU. A service whose place of processing is not established is marked « Counted as outside the EU ». To get a copy of a transfer's safeguards, the page's « Contact us » link leads to the Jobbbox team.\n\nThe list is drawn up at each visit from the services switched on: a service switched off is not on it. « Last changed on » gives the day it last changed. The link « AI in Jobbbox, in the privacy policy » leads to the section that explains where each use of AI goes."
     },
     {
       "id": "page-admin-delivery",
@@ -4108,6 +4141,8 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "topic": "fournisseurs-et-tools",
       "title": "Settings",
       "synonyms": [
+        "help videos",
+        "video origin",
         "settings",
         "parameters",
         "configuration",
@@ -4124,7 +4159,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/parametres",
       "motion": null,
       "microAnimations": [],
-      "body": "Settings gathers the platform's settings, by kind of tool, in tabs: « Web search », « AI », « Sources », « Contact enrichment », « Email », « Payment », « Sign-in », « Extension » and « Environment ». The tab is in the address: a reload keeps it.\n\nA providers tab first shows the « Active provider » card, with the tab's settings, then the « Possible providers » table: each provider with its keys, its « Last test », its « Status » and what it serves (« Used by »). Click a provider's name to open its sheet at the side: its keys, its settings, its prices and the link « Its calls, failures and cost in Tools ». « Make active » chooses the web search or enriched contacts provider.\n\nEach setting shows its « Value in use » and its « Source »: a value entered in the back office wins over the server's environment, which wins over the « Code default ». « Save » applies a new value within seconds, without a restart; « Restore » clears the back office's value. A setting marked « Set in the environment » is not changed here.\n\n« + Add » adds what the tab holds: a provider, a key, a model, a source, a site or a sign-in provider. Every change and every refused attempt is recorded in Activity. Super-admins change everything; « Technique » changes the settings and the sites without ever seeing or replacing a key; Support reads everything and changes nothing."
+      "body": "Settings gathers the platform's settings, by kind of tool, in tabs: « Web search », « AI », « Sources », « Contact enrichment », « Email », « Payment », « Sign-in », « Extension » and « Environment ». The tab is in the address: a reload keeps it. « Environment » also holds the « Origin of the help videos (the Help Centre's Explainer Videos) »: the address the Help Centre plays its videos from, https://media.jobbbox.ai by default; the pages accept videos from that origin only.\n\nA providers tab first shows the « Active provider » card, with the tab's settings, then the « Possible providers » table: each provider with its keys, its « Last test », its « Status » and what it serves (« Used by »). Click a provider's name to open its sheet at the side: its keys, its settings, its prices and the link « Its calls, failures and cost in Tools ». « Make active » chooses the web search or enriched contacts provider.\n\nEach setting shows its « Value in use » and its « Source »: a value entered in the back office wins over the server's environment, which wins over the « Code default ». « Save » applies a new value within seconds, without a restart; « Restore » clears the back office's value. A setting marked « Set in the environment » is not changed here.\n\n« + Add » adds what the tab holds: a provider, a key, a model, a source, a site or a sign-in provider. Every change and every refused attempt is recorded in Activity. Super-admins change everything; « Technique » changes the settings and the sites without ever seeing or replacing a key; Support reads everything and changes nothing."
     },
     {
       "id": "page-admin-sign-in",
@@ -5068,6 +5103,34 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "No. The help calls on no AI to answer you: its articles are checked and published by the Jobbbox team, and the search finds them from your own words. It works even when the AI is unavailable and never counts against a quota.\n\nOnly your coach answers with AI, and its replies say so. When the help has no answer, « Send to the coach » asks it your question.\n\nAll the help is also in the Help Centre, open without an account: « My account », at the foot of the menu, then « Help », under « Help and legal ». An article opened beside the conversation offers « Open in the Help Centre ».\n\nIf your coach had to answer a question about using Jobbbox, the question is noted, without your name, so the team can write the missing article."
     },
     {
+      "id": "faq-help-videos",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Help videos",
+      "synonyms": [
+        "video",
+        "videos",
+        "help video",
+        "video tutorial",
+        "watch",
+        "watch the video",
+        "captions",
+        "subtitles",
+        "transcript",
+        "synthetic voice",
+        "voice",
+        "sound",
+        "accessibility",
+        "scaleway"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Some of the Help Centre's tutorials have a short video, placed under their text, in the « The video » section. The text is enough on its own: the video shows the same steps on Jobbbox's screen, with demo data, never yours. In the coach, the card of a tutorial that has a video offers « Watch the video », with its length: the link opens the tutorial in the Help Centre, where it plays.\n\nThe video never starts on its own and loads only when you play it: only its preview image shows before. The narration is read by a synthetic voice, which the video says. The captions, in the page's language, show from the start of playback; the player's captions button hides them. « Read the transcript », under the video, unfolds everything it says and shows, step by step.\n\nThe videos are hosted in the EU by Scaleway, which sees your browser's IP address when it shows the preview or plays the video, like any host. No cookie or tracker is attached to them. Scaleway is listed in « Data recipients », on the Legal page."
+    },
+    {
       "id": "faq-contact-us",
       "locale": "en",
       "kind": "faq",
@@ -5735,7 +5798,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "All of Jobbbox's help is in the Help Centre, open to everyone, no account needed: « Help » at the top of every public page, or « Help Centre » at the foot of the page.\n\nIts articles are sorted into four topics: « Discover Jobbbox », « The extension », « Using Jobbbox » and « Coach space ». The search field, at the top of the Help Centre, looks through all of them, without AI. Tutorials there walk you through a task step by step.\n\nOnce signed in, « Help and legal », at the foot of the menu, leads to the Help Centre. When you write to your coach, the matching articles show first, « In the help, without AI »; an article opened there offers « Open in the Help Centre ».\n\nThe articles are written by the Jobbbox team, in French and in English."
+      "body": "All of Jobbbox's help is in the Help Centre, open to everyone, no account needed: « Help » at the top of every public page, or « Help Centre » at the foot of the page.\n\nIts articles are sorted into four topics: « Discover Jobbbox », « The extension », « Using Jobbbox » and « Coach space ». The search field, at the top of the Help Centre, looks through all of them, without AI. Tutorials there walk you through a task step by step; some have a short video under their text.\n\nOnce signed in, « Help and legal », at the foot of the menu, leads to the Help Centre. When you write to your coach, the matching articles show first, « In the help, without AI »; an article opened there offers « Open in the Help Centre ».\n\nThe articles are written by the Jobbbox team, in French and in English."
     },
     {
       "id": "faq-cv-formats",

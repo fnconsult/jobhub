@@ -114,4 +114,59 @@
   .help-centre__body li + li {
     margin-top: var(--space-2);
   }
+
+  /* A Tutorial's Explainer Video (#568), under its text: the native player, its duration, its transcript to unfold. */
+  .help-video {
+    display: grid;
+    gap: var(--space-3);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .help-video h2 {
+    margin: 0;
+    font-size: var(--font-size-h2);
+    font-weight: 500;
+  }
+
+  .help-video__figure {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .help-video__player {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+  }
+
+  .help-video__meta {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+
+  .help-video__transcript {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .help-video__transcript summary {
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .help-video__transcript h3 {
+    margin: var(--space-3) 0 0;
+    font-size: var(--font-size-h3);
+    font-weight: 500;
+  }
+
+  .help-video__transcript p {
+    margin: var(--space-2) 0 0;
+  }
 }

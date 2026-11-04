@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { apiVersionRefusal, UPGRADE_REQUIRED } from "@/api-version";
+import { contentSecurityPolicy } from "@/help-media";
+import { currentHelpMediaOrigin } from "@/help-media/origin";
 import { ENGLISH_PREFIX, LOCALE_HEADER, splitLocalePrefix, URL_LOCALE_HEADER, urlLocale, VISITOR_LOCALE_HEADER } from "@/i18n/locale-header";
 import { maintenanceOf, maintenanceResponse, staysOpen } from "@/maintenance";
 import { extensionStorePage } from "@/platform-settings/extension-store";
@@ -25,7 +27,9 @@ import { pendingSessionAnswer } from "@/two-step-verification/proxy-gate";
  *   public site's header); and the URL's own language as URL_LOCALE_HEADER, which the shell's links and `hreflang` follow;
  * - sends a session pending its second step (ADR-0075) to the second step, or answers it 401, whatever it asks but
  *   the second step and sign-out (pendingSessionGate): before any page or route runs, the CGU Acceptance gate included;
- * - on the Beta, says `X-Robots-Tag: noindex` on every answer (#545): nothing of it is indexed.
+ * - on the Beta, says `X-Robots-Tag: noindex` on every answer (#545): nothing of it is indexed;
+ * - says on every answer the Content-Security-Policy `media-src` of the Help Centre's videos (#568): the bucket's origin
+ *   (HELP_MEDIA_ORIGIN), nothing else.
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -35,11 +39,11 @@ export async function proxy(request: NextRequest) {
     if (maintenance) return maintenanceResponse(maintenance, pathname, new Date());
   }
   const outdated = apiVersionRefusal(pathname, request.headers, currentExtensionStorePage);
-  if (outdated) return noindexOnBeta(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
+  if (outdated) return withCommonHeaders(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
   const moved = legalRedirect(prefixed.pathname, request.nextUrl.searchParams);
-  if (moved) return noindexOnBeta(NextResponse.redirect(new URL(prefixed.pathname === pathname ? moved : `${ENGLISH_PREFIX}${moved}`, request.url), 308));
+  if (moved) return withCommonHeaders(NextResponse.redirect(new URL(prefixed.pathname === pathname ? moved : `${ENGLISH_PREFIX}${moved}`, request.url), 308));
   const pending = await pendingSessionAnswer(request);
-  if (pending) return noindexOnBeta(pending);
+  if (pending) return withCommonHeaders(pending);
   const headers = new Headers(request.headers);
   for (const header of [LOCALE_HEADER, VISITOR_LOCALE_HEADER, URL_LOCALE_HEADER]) headers.delete(header);
   headers.set(REQUEST_PATH_HEADER, `${pathname}${search}`);
@@ -47,17 +51,21 @@ export async function proxy(request: NextRequest) {
   if (chosen) headers.set(LOCALE_HEADER, chosen);
   if (visitor) headers.set(VISITOR_LOCALE_HEADER, visitor);
   if (url) headers.set(URL_LOCALE_HEADER, url);
-  if (!rewrite) return noindexOnBeta(NextResponse.next({ request: { headers } }));
+  if (!rewrite) return withCommonHeaders(NextResponse.next({ request: { headers } }));
   const target = request.nextUrl.clone();
   target.pathname = rewrite;
-  return noindexOnBeta(NextResponse.rewrite(target, { request: { headers } }));
+  return withCommonHeaders(NextResponse.rewrite(target, { request: { headers } }));
 }
 
 const BETA_ROBOTS = betaRobotsHeader(currentRelease(process.env).beta);
 
-/** On the Beta (anything but Production), the answer says `X-Robots-Tag: noindex` (maintenance's 503 says it too). */
-function noindexOnBeta(response: NextResponse): NextResponse {
+/**
+ * On the Beta (anything but Production), the answer says `X-Robots-Tag: noindex` (maintenance's 503 says it too); and
+ * every answer says where media may be played from (#568).
+ */
+function withCommonHeaders(response: NextResponse): NextResponse {
   if (BETA_ROBOTS) response.headers.set("X-Robots-Tag", BETA_ROBOTS);
+  response.headers.set("Content-Security-Policy", contentSecurityPolicy(currentHelpMediaOrigin()));
   return response;
 }
 

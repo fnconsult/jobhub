@@ -118,6 +118,7 @@ export const RECIPIENT_DATA = [
   "sign_in",
   "contact_search",
   "hosted",
+  "video_viewing",
 ] as const;
 export type RecipientData = (typeof RECIPIENT_DATA)[number];
 
@@ -185,6 +186,10 @@ export const RECIPIENT_DATA_TEXT: Record<RecipientData, Translated> = {
     fr: "Toutes les données de Jobbbox, stockées sur son serveur.",
     en: "All of Jobbbox's data, stored on its server.",
   },
+  video_viewing: {
+    fr: "Votre adresse IP et les informations techniques de votre navigateur, quand vous affichez ou lancez une vidéo d'aide. Rien de votre compte.",
+    en: "Your IP address and your browser's technical information, when you display or play a help video. Nothing from your account.",
+  },
 };
 
 /** The Recipient list's words for what a transfer rests on. */
@@ -206,7 +211,7 @@ export interface Host {
   recipient: RecipientFacts;
 }
 
-/** The Hosts of Jobbbox (`docs/ops/hosting.md`): a new one, Scaleway for the motions (#568), is one more entry. */
+/** The Hosts of Jobbbox (`docs/ops/hosting.md`): its own server, and Scaleway, which serves the help videos (#568). */
 export const HOSTS = [
   {
     id: "hostinger",
@@ -220,6 +225,23 @@ export const HOSTS = [
       data: ["hosted"],
       entity: "Hostinger International Limited",
       place: { fr: "Dans l'UE : centre de données de Paris (Hostinger International Limited est établie à Chypre).", en: "In the EU: Paris data centre (Hostinger International Limited is based in Cyprus)." },
+      safeguards: ["none_needed"],
+    },
+  },
+  {
+    // The Help Centre's Explainer Videos (ADR-0066, #568): a bucket in fr-par served at media.jobbbox.ai, which sees the
+    // address of whoever displays a video's poster or plays it. An EU host: a minor change under ADR-0064.
+    id: "scaleway",
+    residency: "eu",
+    recipient: {
+      name: "Scaleway",
+      purpose: {
+        fr: "Héberge les vidéos d'aide du centre d'aide et vous les envoie quand vous les affichez ou les lancez.",
+        en: "Hosts the Help Centre's help videos and sends them to you when you display or play them.",
+      },
+      data: ["video_viewing"],
+      entity: "Scaleway SAS",
+      place: { fr: "Dans l'UE : région de Paris (fr-par) ; Scaleway SAS est établie en France.", en: "In the EU: Paris region (fr-par); Scaleway SAS is based in France." },
       safeguards: ["none_needed"],
     },
   },

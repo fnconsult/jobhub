@@ -54,10 +54,13 @@ const DELIVERY = ["DELIVERY_STATUS_EMAIL_TO"];
 /** Maintenance (#542): on or off, its message in each language and how long it should last. */
 const MAINTENANCE = ["MAINTENANCE_MODE", "MAINTENANCE_MESSAGE_FR", "MAINTENANCE_MESSAGE_EN", "MAINTENANCE_EXPECTED_MINUTES"];
 
+/** The Help Centre (#568): the origin its Explainer Videos are played from. */
+const HELP_CENTRE = ["HELP_MEDIA_ORIGIN"];
+
 describe("the Platform Settings catalog", () => {
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE, ...DELIVERY].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE, ...DELIVERY, ...HELP_CENTRE].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -190,6 +193,16 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(store, "chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false });
     expect(parseSetting(store, "javascript:alert(1)")).toMatchObject({ ok: false });
     expect(parseSetting(store, "https://")).toMatchObject({ ok: false });
+  });
+
+  it("takes as the help videos' origin an https origin, or http on this machine, kept without its slash (#568)", () => {
+    const origin = platformSetting("HELP_MEDIA_ORIGIN")!;
+    expect(origin.default).toBe("https://media.jobbbox.ai");
+    expect(parseSetting(origin, " https://media.jobbbox.ai/ ")).toEqual({ ok: true, value: "https://media.jobbbox.ai" });
+    expect(parseSetting(origin, "http://127.0.0.1:4567")).toEqual({ ok: true, value: "http://127.0.0.1:4567" });
+    expect(parseSetting(origin, "http://media.jobbbox.ai")).toMatchObject({ ok: false, error: expect.stringContaining("an https origin") });
+    for (const refused of ["https://media.jobbbox.ai/videos", "https://media.jobbbox.ai?x=1", "https://user:pw@media.jobbbox.ai", "media.jobbbox.ai", "https://"])
+      expect(parseSetting(origin, refused), refused).toMatchObject({ ok: false });
   });
 
   it("takes as the Email intake domain a domain name, kept in lower case, alertes.jobbbox.ai by default (#441)", () => {

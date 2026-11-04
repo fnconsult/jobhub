@@ -166,7 +166,7 @@ function SettingForm({ ctx, setting, accepted }: { ctx: Ctx; setting: ResolvedPl
           <TextInput
             id={`value-${setting.name}`}
             name="value"
-            inputMode={setting.type.kind === "sender" ? "email" : setting.type.kind === "number" ? (setting.type.whole ? "numeric" : "decimal") : setting.type.kind === "url" ? "url" : undefined}
+            inputMode={setting.type.kind === "sender" ? "email" : setting.type.kind === "number" ? (setting.type.whole ? "numeric" : "decimal") : setting.type.kind === "url" || setting.type.kind === "origin" ? "url" : undefined}
             list={model ? `models-${setting.name}` : undefined}
             defaultValue={setting.value}
             aria-describedby={`rule-${setting.name}`}

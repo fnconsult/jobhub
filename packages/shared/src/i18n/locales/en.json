@@ -1090,7 +1090,9 @@
         "tutorial": "Tutorial"
       },
       "openInHelpCentre": "Open in the Help Centre",
-      "openInHelpCentreAbout": "Open in the Help Centre: {{title}}"
+      "openInHelpCentreAbout": "Open in the Help Centre: {{title}}",
+      "watchVideo": "Watch the video ({{duration}})",
+      "watchVideoAbout": "Watch the video ({{duration}}) in the Help Centre: {{title}}"
     },
     "team": {
       "answered": "Does this answer your question?",
@@ -2035,6 +2037,7 @@
         "job_discovery": "Job discovery",
         "enriched_contacts": "Enriched Contacts",
         "extension": "Browser extension",
+        "help_centre": "Help Centre",
         "maintenance": "Maintenance"
       },
       "setting": "Setting",
@@ -2101,6 +2104,7 @@
         "text": "some text",
         "model": "a {{provider}} model, picked from the list or typed; it is tested with a call on save",
         "url": "an https URL",
+        "origin": "an https origin, without a path, such as https://media.jobbbox.ai",
         "sender": "an email sender, such as Jobbbox <hello@jobbbox.ai>",
         "country": "a two-letter country code, such as FR",
         "domain": "a domain name, such as alertes.jobbbox.ai"
@@ -2266,6 +2270,7 @@
         "CONTACT_ENRICHMENT_PROVIDER": "Enriched Contacts provider",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Data processing agreement (DPA) signed",
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
+        "HELP_MEDIA_ORIGIN": "Origin of the help videos (the Help Centre's Explainer Videos)",
         "MAINTENANCE_MODE": "Maintenance on (every page but the Back Office answers 503)",
         "MAINTENANCE_MESSAGE_FR": "Maintenance message in French",
         "MAINTENANCE_MESSAGE_EN": "Maintenance message in English",
@@ -5550,7 +5555,19 @@
     "writtenBy": "Written by the Jobbbox team",
     "related": "Related articles",
     "breadcrumb": "Breadcrumb",
-    "inTopic": "The topic's articles"
+    "inTopic": "The topic's articles",
+    "video": {
+      "title": "The video",
+      "duration": "Length:",
+      "voice": "synthetic voice, English captions",
+      "captions": {
+        "fr": "French",
+        "en": "English"
+      },
+      "unsupported": "Your browser does not play this video: the transcript below gives all of it.",
+      "transcript": "Read the transcript",
+      "syntheticVoice": "Synthetic voice. The transcript gives everything the video says and shows."
+    }
   },
   "release": {
     "line": "Jobbbox version: {{version}}"

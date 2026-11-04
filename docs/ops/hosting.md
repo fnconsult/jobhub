@@ -35,7 +35,11 @@ Setting it up: `scripts/setup/issue-580.sh`. Checking it from outside: `node app
 
 The Explainer Videos are files in a Scaleway Object Storage bucket in `fr-par` (`media.jobbbox.ai`), served over HTTPS
 by Scaleway Edge Services at `https://media.jobbbox.ai`, never by the VPS (ADR-0066). The `motions` workflow publishes
-them: `docs/ops/motions.md`.
+them: `docs/ops/motions.md`. The Help Centre plays them from the origin the Platform Setting `HELP_MEDIA_ORIGIN` names
+(Paramètres, « Environnement »; `https://media.jobbbox.ai` by default), which every page's Content-Security-Policy
+`media-src` allows, and nothing else (#568). The web server reads the bucket's `manifest.json` (at most once a minute) to
+know which video each Tutorial shows; a viewer's browser asks the bucket for the poster, then the video and its captions
+once played. Scaleway is on the Recipient list as an EU host (`HOSTS` in `packages/shared/src/tools.ts`).
 
 ## Later: AWS, region eu-west-3 (Paris)
 

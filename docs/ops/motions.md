@@ -58,6 +58,16 @@ it. Without the bucket's keys (a pull request, `publish` unticked) nothing is pu
 - Rotating the key: generate a new API key on the IAM application, `gh secret set MOTIONS_S3_SECRET_KEY` (and the
   access key), then delete the old one.
 
+## In the Help Centre (#568)
+
+A Tutorial whose `motion` has a published version in the page's language shows, under its text, the native player
+(`preload="none"`, the poster, no autoplay), its duration, and the transcript to unfold; the captions join at the first
+play. Without one, the page shows the Tutorial alone. The Coach Panel's card of that Tutorial links to it, « Voir la
+vidéo (durée) »; no video plays there. The web app reads `manifest.json` from `HELP_MEDIA_ORIGIN` (a Platform Setting,
+`https://media.jobbbox.ai` by default; set on the Beta from the Back Office, never in its `.env`). The transcript is the
+Motion Script's text when the video was rendered from it (same hash), else the `transcript.md` published with the video.
+The bucket's CORS (`packages/motions/bucket/cors.json`) lets the pages read the captions.
+
 ## Writing a Motion Script
 
 See `packages/help/src/motion-scripts.ts`. A `##` heading per step; its capture actions as list lines (`goto /path`,

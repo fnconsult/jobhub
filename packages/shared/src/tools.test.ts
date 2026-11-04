@@ -219,17 +219,18 @@ describe("the Recipient list (ADR-0064, #338)", () => {
   it("names the Hosts, then each Tool switched on that receives personal data, in the catalog's order", () => {
     const on = new Set(["anthropic", "mistral", "perplexity", "greenhouse", "email-intake", "stripe"]);
     const list = recipientList((tool) => on.has(tool.id));
-    expect(list.map((recipient) => recipient.id)).toEqual(["hostinger", "anthropic", "mistral", "perplexity", "stripe"]);
+    expect(list.map((recipient) => recipient.id)).toEqual(["hostinger", "scaleway", "anthropic", "mistral", "perplexity", "stripe"]);
     expect(list[0]).toMatchObject({ kind: "host", residency: "eu" });
-    expect(list[1]).toMatchObject({ kind: "tool", residency: "outside_eu", facts: { name: "Claude (Anthropic)" } });
+    expect(list[1]).toMatchObject({ kind: "host", residency: "eu", facts: { name: "Scaleway", data: ["video_viewing"] } });
+    expect(list[2]).toMatchObject({ kind: "tool", residency: "outside_eu", facts: { name: "Claude (Anthropic)" } });
   });
 
   it("names a recipient once, though two of its Tools are on: Brevo's API and its SMTP relay", () => {
-    expect(recipientList((tool) => tool.id === "brevo-api" || tool.id === "brevo-smtp").map((recipient) => recipient.id)).toEqual(["hostinger", "brevo-api"]);
+    expect(recipientList((tool) => tool.id === "brevo-api" || tool.id === "brevo-smtp").map((recipient) => recipient.id)).toEqual(["hostinger", "scaleway", "brevo-api"]);
   });
 
   it("names no Tool switched off, and still the Hosts", () => {
-    expect(recipientList(() => false).map((recipient) => recipient.id)).toEqual(["hostinger"]);
+    expect(recipientList(() => false).map((recipient) => recipient.id)).toEqual(["hostinger", "scaleway"]);
   });
 
   it("keeps a Tool whose residency was not established, for the page to show it outside the EU", () => {

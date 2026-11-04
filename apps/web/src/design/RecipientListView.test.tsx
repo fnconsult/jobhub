@@ -23,7 +23,7 @@ describe("RecipientListView — « Destinataires des données » on Légal (ADR-
 
   it("names each recipient, Hostinger first, with what it is for, what it receives, its entity, its place and its safeguard", () => {
     renderInFrench(<RecipientListView recipients={recipients} changedOn="2026-11-04" />);
-    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.firstChild?.textContent)).toEqual(["Hostinger", "Claude (Anthropic)", "Mistral AI", "Perplexity", "Stripe", "Brevo"]);
+    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.firstChild?.textContent)).toEqual(["Hostinger", "Scaleway", "Claude (Anthropic)", "Mistral AI", "Perplexity", "Stripe", "Brevo"]);
     const claude = screen.getByRole("region", { name: /Claude \(Anthropic\)/ });
     expect(within(claude).getByText("Hors UE")).toBeTruthy();
     expect(within(claude).getByText(/^Vos textes \(CV, candidatures, messages au coach\), sans votre nom.*pseudonymisées\.$/)).toBeTruthy();
@@ -33,6 +33,11 @@ describe("RecipientListView — « Destinataires des données » on Légal (ADR-
     expect(within(mistral).getByText("Dans l'UE")).toBeTruthy();
     expect(within(mistral).getByText("Aucun transfert hors UE.")).toBeTruthy();
     expect(within(screen.getByRole("region", { name: /Perplexity/ })).getByText(/^Des requêtes seulement/)).toBeTruthy();
+    // The help videos' host (#568): it sees the address of whoever displays or plays one, in the EU.
+    const scaleway = screen.getByRole("region", { name: /Scaleway/ });
+    expect(within(scaleway).getByText("Dans l'UE")).toBeTruthy();
+    expect(within(scaleway).getByText(/^Votre adresse IP et les informations techniques de votre navigateur, quand vous affichez ou lancez une vidéo d'aide/)).toBeTruthy();
+    expect(within(scaleway).getByText("Scaleway SAS")).toBeTruthy();
   });
 
   it("shows a recipient whose residency was not established as counted outside the EU", () => {

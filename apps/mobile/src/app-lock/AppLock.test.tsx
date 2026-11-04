@@ -78,4 +78,53 @@ describe("App lock, turned on", () => {
     expect(unlockButton()).toBeNull();
     expect(authenticate).toHaveBeenLastCalledWith(expect.not.objectContaining({ disableDeviceFallback: true }));
   });
+
+  it("is locked when the app starts, the prompt opening at once", async () => {
+    authenticate.mockResolvedValue({ success: false, error: "user_cancel" });
+    await launch();
+    expect(content()).not.toBeVisible();
+    expect(authenticate).toHaveBeenCalledTimes(1);
+    expect(unlockButton()).toBeOnTheScreen();
+  });
+
+  it("hides the content in the app switcher while the lock is on", async () => {
+    await launch();
+    expect(fakeDevice.contentProtected).toBe(true);
+  });
+
+  it("does not lock when the app only turns inactive, as under the system's own prompt or Control Centre", async () => {
+    await launch();
+    authenticate.mockClear();
+    await moveApp("inactive");
+    now += 10 * MINUTE;
+    await moveApp("active");
+    expect(content()).toBeVisible();
+    expect(authenticate).not.toHaveBeenCalled();
+  });
+
+  it("locks on return when the clock was put back meanwhile", async () => {
+    await launch();
+    authenticate.mockResolvedValue({ success: false, error: "user_cancel" });
+    await awayFor(-60 * MINUTE);
+    expect(content()).not.toBeVisible();
+  });
+
+  it("turns itself off when the device has no Face ID, fingerprint or code left to unlock with", async () => {
+    authenticate.mockResolvedValue({ success: false, error: "passcode_not_set" });
+    await launch();
+    expect(content()).toBeVisible();
+    expect(fakeDevice.keychain.has("app-lock")).toBe(false);
+    expect(fakeDevice.contentProtected).toBe(false);
+  });
+});
+
+describe("App lock, off (the default)", () => {
+  it("never locks, and the app switcher shows the app", async () => {
+    await launch();
+    await awayFor(60 * MINUTE);
+    expect(content()).toBeVisible();
+    expect(unlockButton()).toBeNull();
+    expect(authenticate).not.toHaveBeenCalled();
+    expect(fakeDevice.contentProtected).toBe(false);
+  });
 });

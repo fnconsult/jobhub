@@ -3,7 +3,13 @@ import { createFakeProvider } from "@jobhub/ai/testing";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice } from "../admin/back-office";
+import { migrateApplications } from "../applications";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { migrateCoachConversations } from "../coach-conversations";
+import { migrateJobDigests } from "../job-digests";
+import { migrateJobOffers } from "../job-offers";
+import { migrateJobSearches } from "../job-searches";
+import { migrateProfiles } from "../profiles";
 import { createPostgresUsageLog, MESSAGE_LOG_MAX_LENGTH, migrateAiUsage, purgeExpiredAiUsage } from "./index";
 import { createAiMessageLogs, type AiMessageLogs } from "./message-log";
 
@@ -30,6 +36,8 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     database = testAuth.auth.options.database as Pool;
     await migrateBackOfficeAudit(database);
     await migrateAiUsage(database);
+    // The AI Coach's replies, which say what they estimated of the calls that wrote them (#731).
+    for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateJobSearches, migrateJobDigests, migrateCoachConversations]) await migrate(database);
     marie = await candidate("marie.dupont@example.fr");
     admin.id = await candidate(admin.email);
     backOffice = createBackOffice(database, { billing: {} as never, humanCoaches: {} as never });
@@ -76,6 +84,7 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       warnings: [],
       sent: true,
       candidate: { id: marie, email: "marie.dupont@example.fr" },
+      context: null,
     });
     expect(await logs.open(admin, summary!.id)).toMatchObject({
       ...summary,
@@ -89,6 +98,20 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
       technicalReason: null,
       warningDetails: [],
     });
+  });
+
+  it("reads an AI Coach reply's estimate of its context beside the provider's count of the call that wrote it, with the gap (ADR-0078, #731)", async () => {
+    const call = await ai.generate({ task: "coaching", candidateId: marie, system: "Tu es le coach.", prompt: [{ role: "user", content: "Comment négocier ?" }] });
+    await ai.generate({ task: "scoring", candidateId: marie, prompt: "Score" });
+    await settled();
+    const { rows } = await database.query<{ id: string }>("INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'Négocier') RETURNING id", [marie]);
+    // The fake provider counts 10 input tokens: the estimate said 8.
+    await database.query("INSERT INTO coach_message (conversation_id, author, text, context_tokens, ai_call_id) VALUES ($1, 'coach', 'Réponse', 8, $2)", [rows[0]!.id, call.callId]);
+
+    const [scoring, coaching] = await logs.list();
+
+    expect(coaching).toMatchObject({ task: "coaching", context: { estimate: 8, measure: 10, gap: 2 } });
+    expect(scoring).toMatchObject({ task: "scoring", context: null });
   });
 
   it("writes every view of a message log to the Back Office Audit: who viewed which, when", async () => {

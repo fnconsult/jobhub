@@ -2,6 +2,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { APP_SIGN_IN_PATH } from "@jobhub/shared";
+import { DOMAIN_ASSOCIATION_FILES } from "../native-app/domain-association";
 import { pendingSessionGate, SECOND_STEP_ENDPOINT, SECOND_STEP_PAGE, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT } from "../two-step-verification/gate";
 
 // ADR-0075, #663, #664, #665: a session pending its second step reaches the second step's page, its endpoints (the setup's included) and sign-out, nothing
@@ -52,7 +54,7 @@ describe("a session pending its second step reaches nothing else (ADR-0075)", ()
     expect(pendingSessionGate(SECOND_STEP_PAGE, "GET")).toBe("open");
   });
 
-  const OPEN = [SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT, AUTH];
+  const OPEN = [SECOND_STEP_ENDPOINT, SECOND_STEP_PASSKEY_ENDPOINT, SETUP_ENDPOINT, AUTH, APP_SIGN_IN_PATH, ...DOMAIN_ASSOCIATION_FILES];
   it.each(ROUTES.filter(({ route }) => !OPEN.includes(route)))("route $route answers 401", ({ route, methods }) => {
     for (const method of methods) expect(pendingSessionGate(route, method), method).toBe("refuse");
   });
@@ -68,10 +70,17 @@ describe("a session pending its second step reaches nothing else (ADR-0075)", ()
     expect(pendingSessionGate(SECOND_STEP_PASSKEY_ENDPOINT, "POST")).toBe("open");
     expect(pendingSessionGate("/api/auth/sign-out", "POST")).toBe("open");
     expect(pendingSessionGate("/api/auth/magic-link/verify?token=t", "GET")).toBe("open");
+    // The magic link asked from the native app, opened in a browser (#685): it goes on to the one above.
+    expect(pendingSessionGate(`${APP_SIGN_IN_PATH}?token=t`, "GET")).toBe("open");
     for (const endpoint of ["get-session", "list-sessions", "update-user", "delete-user", "link-social", "list-accounts", "sign-in/magic-link", "sign-in/social", "revoke-sessions", "passkey/generate-register-options", "passkey/verify-registration", "passkey/update-passkey"]) {
       expect(pendingSessionGate(`/api/auth/${endpoint}`, "POST"), endpoint).toBe("refuse");
       expect(pendingSessionGate(`/api/auth/${endpoint}`, "GET"), endpoint).toBe("refuse");
     }
+  });
+
+  it("opens the domain association files the native app's links are verified with, which hold no one's data (#685)", () => {
+    expect(ROUTES.map(({ route }) => route)).toEqual(expect.arrayContaining([APP_SIGN_IN_PATH, ...DOMAIN_ASSOCIATION_FILES]));
+    for (const file of DOMAIN_ASSOCIATION_FILES) expect(pendingSessionGate(file, "GET"), file).toBe("open");
   });
 
   it("applies to every page and route: the proxy's matcher leaves none of them out", () => {

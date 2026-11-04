@@ -1,5 +1,11 @@
 import { APP_ORIGIN, APP_SIGN_IN_PATH } from "@jobhub/shared";
+import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { migrateDatabase } from "../migrations";
+import { pendingSessionGate } from "../two-step-verification/gate";
+import { createTwoStepVerification } from "../two-step-verification/index";
+import { createPendingSessions } from "../two-step-verification/pending-sessions";
+import { totpAt } from "../two-step-verification/totp";
 import { BASE_URL, connectionString, cookiesFrom, linkIn, signInWithMagicLink, startTestAuth, type TestAuth } from "./test-support";
 
 /** What the native app's requests carry instead of an Origin (@better-auth/expo's client, ADR-0076). */
@@ -104,4 +110,20 @@ describe.skipIf(!connectionString)("the native app's session (needs Postgres: DA
 
     expect(refused.status).toBe(403);
   });
+
+  it("keeps the app's session pending its second step for an account that has Two-step verification", async () => {
+    const database = testAuth.auth.options.database as Pool;
+    await migrateDatabase(testAuth.config);
+    const twoStep = createTwoStepVerification(database, { secret: testAuth.config.secret });
+    const web = await signInWithMagicLink(testAuth, "marie.dupont@example.fr");
+    const { user, session } = (await sessionOf(web))!;
+    const { secret } = await twoStep.startSetup(user.id, "marie.dupont@example.fr");
+    await twoStep.confirmSetup({ candidateId: user.id, sessionId: session.id }, totpAt(secret, new Date()));
+
+    const app = await appSignsIn("marie.dupont@example.fr");
+
+    // The proxy answers it 401 `second_step_required` on every route but the second step's (proxy-gate.ts).
+    expect(await createPendingSessions(database).of(new Headers({ cookie: app }))).toMatchObject({ candidateId: user.id, step: "second_step" });
+    expect(pendingSessionGate("/api/auth/get-session", "GET")).toBe("refuse");
+  }, 60_000);
 });

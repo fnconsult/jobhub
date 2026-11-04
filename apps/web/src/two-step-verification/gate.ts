@@ -6,7 +6,8 @@
  * code SECOND_STEP_REQUIRED. Applied by the proxy (src/proxy.ts) before anything else of the app's runs, the CGU
  * Acceptance gate (ADR-0062) included.
  */
-import { SECOND_STEP_REQUIRED } from "@jobhub/shared";
+import { APP_SIGN_IN_PATH, SECOND_STEP_REQUIRED } from "@jobhub/shared";
+import { DOMAIN_ASSOCIATION_FILES } from "../native-app/domain-association";
 import { RETURN_PARAM, safeReturnPath } from "../auth/sign-in-return";
 import { routes } from "../routes";
 
@@ -21,13 +22,17 @@ export const SECOND_STEP_PASSKEY_ENDPOINT = `${SECOND_STEP_ENDPOINT}/passkey`;
 export const SETUP_ENDPOINT = "/api/two-step-verification/setup";
 /**
  * Better Auth's endpoints it reaches: signing out, and following a magic link, which signs in afresh (a new session,
- * pending again if the account has Two-step verification): a link opened from the email must not answer 401.
+ * pending again if the account has Two-step verification): a link opened from the email must not answer 401. The
+ * native app's magic link (APP_SIGN_IN_PATH, #685), opened in a browser, goes on to the latter.
  */
-const AUTH_OPEN = ["/api/auth/sign-out", "/api/auth/magic-link/verify"];
+const AUTH_OPEN = ["/api/auth/sign-out", "/api/auth/magic-link/verify", APP_SIGN_IN_PATH];
 
-/** What the second step's page is drawn with, which holds no one's data: Next's own files, the public files. */
+/**
+ * What the second step's page is drawn with, which holds no one's data: Next's own files, the public files; and the
+ * domain association files the native app's links are verified with (#685).
+ */
 const FILES = ["/_next/", "/logos/"];
-const FILE_PATHS = ["/robots.txt", "/sitemap.xml"];
+const FILE_PATHS: readonly string[] = ["/robots.txt", "/sitemap.xml", ...DOMAIN_ASSOCIATION_FILES];
 
 export type GateDecision = "open" | "redirect" | "refuse";
 

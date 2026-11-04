@@ -275,5 +275,23 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
   };
 }
 
+/** How many rounds of calls an Eval Run's reply may make: the setting's default. */
+const EVAL_RUN_ROUNDS = 2;
+
+/**
+ * The Coach Actions as an Eval Run plays them (ADR-0023, #713): offered as shipped, on no one's data. A read finds
+ * nothing (`not_found`); a proposal with valid arguments is counted, its arguments as what it prepared, never run.
+ * Nothing is recorded: an Eval Run is no Candidate's.
+ */
+export function forEvalRun(catalog: readonly CoachAction[]): CoachActions {
+  const played = catalog.map(
+    (action): CoachAction => ({
+      ...action,
+      run: async (args) => (action.kind === "read" ? { ok: false, error: "not_found" } : { ok: true, data: args }),
+    }),
+  );
+  return createCoachActions({ catalog: played, settings: async () => ({ enabled: true, maxRounds: EVAL_RUN_ROUNDS }), externalApis: { record: () => {} } });
+}
+
 /** A Coach Action's Provenance step: its group's Tool, marked as proposing for a proposal. */
 const stepOf = (action: CoachAction) => ({ tool: toolOfGroup(action.group).id, ...(action.kind === "propose" ? { proposes: true as const } : {}) });

@@ -6,7 +6,7 @@
  *  - valid as long as the link (`minutes`), used once, 5 tries: the 6th is refused, the right code included, and a
  *    new email has to be asked (a new email replaces the code with another);
  *  - stored hashed, as the link's token; the code itself reaches the email alone, never a log;
- *  - using the code spends the link, and the link the code (`afterSignIn`): one email, one sign-in.
+ *  - using the code spends the link, and the link the code (`afterSession`): one email, one sign-in.
  *
  * A session the code signs in is the magic link's (its `signInMethod`), the second step (ADR-0075) included.
  */
@@ -19,7 +19,7 @@ export const SIGN_IN_CODE_PATH = "/sign-in/email-otp";
 /** The endpoint that signs in with the email's link. */
 const SIGN_IN_LINK_PATH = "/magic-link/verify";
 /** How many wrong codes a code takes before it no longer works. */
-export const SIGN_IN_CODE_TRIES = 5;
+const SIGN_IN_CODE_TRIES = 5;
 
 /** The email OTP plugin's kind of code that signs in; its row's identifier (Better Auth 1.7: `sign-in-otp-<email>`). */
 const codeIdentifier = (email: string) => `sign-in-otp-${email.trim().toLowerCase()}`;
@@ -68,5 +68,3 @@ export function signInCodes({ minutes, database }: { minutes: number; database: 
     },
   };
 }
-
-export type SignInCodes = ReturnType<typeof signInCodes>;

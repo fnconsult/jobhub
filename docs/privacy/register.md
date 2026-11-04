@@ -300,7 +300,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, each passkey's name and device when known, the backup codes left; never the secret, a code nor a passkey's public key or credential id); erased with the account. |
 | Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off, removing the last factor or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A passkey is checked against the pending session's own account only, on Jobbbox's host (its RP ID); each challenge serves one answer, and a refused passkey counts towards the same lock as a wrong code. Signing in with a passkey alone, without a magic link, is refused. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
 
-## App lock on the device (#702, ADR-0076)
+## App lock on the device (#702, ADR-0081)
 
 | | |
 | --- | --- |

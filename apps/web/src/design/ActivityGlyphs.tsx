@@ -20,7 +20,9 @@ export function ActivityGlyphs() {
         const also = ALSO[activity];
         return (
           <li key={activity} className="ds-activity-glyphs__item">
-            <ActivityGlyph activity={activity} />
+            <span className="ds-activity-glyphs__glyph">
+              <ActivityGlyph activity={activity} />
+            </span>
             <span>{also ? `${t(`aiActivity.steps.${activity}`)} · ${t(`aiActivity.steps.${also}`)}` : t(`aiActivity.steps.${activity}`)}</span>
             <code className="ds-activity-glyphs__id">{activity}</code>
           </li>

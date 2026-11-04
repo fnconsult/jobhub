@@ -2,6 +2,7 @@ import { act, screen, userEvent } from "@testing-library/react-native";
 import { Text } from "react-native";
 import { Pressable } from "react-native";
 import { renderInApp, setWindow } from "../testing";
+import { SampleConversation } from "../conversation/SampleConversation";
 import { Shell, useWorkPane, type ShellPage } from "./Shell";
 
 const PHONE = { width: 390, height: 844 };
@@ -153,5 +154,53 @@ describe("Shell, from 64rem", () => {
     await userEvent.setup().press(button("Fiche"));
     expect(button("Fermer")).toBeOnTheScreen();
     noButton("Menu");
+  });
+});
+
+describe("Shell, when multitasking or a foldable changes the window", () => {
+  // An iPad Pro 12.9" in landscape and its Split View thirds (disposition.test.ts); a Pixel Fold folded, then open.
+  const IPAD_THIRD = { width: 375, height: 1024 };
+  const IPAD_HALF = { width: 678, height: 1024 };
+  const IPAD_TWO_THIRDS = { width: 981, height: 1024 };
+  const FOLDED = { width: 412, height: 915 };
+  const UNFOLDED = { width: 841, height: 701 };
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  async function renderWithConversation() {
+    await renderInApp(
+      <Shell page={application} paneContent={<Text>Contenu de la Fiche</Text>} sidebar={() => <Text>Mes candidatures</Text>} onNewConversation={() => {}}>
+        <SampleConversation />
+      </Shell>,
+    );
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await user.type(screen.getByLabelText("Votre message"), "Ma question");
+    await user.press(button("Envoyer"));
+    await act(() => jest.runAllTimers());
+    await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
+  }
+
+  const expectConversationKept = () => {
+    expect(screen.getByText("Ma question")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("Un brouillon");
+  };
+
+  it("keeps the conversation and the draft from the whole screen to a third, a half, two thirds and back", async () => {
+    setWindow(IPAD_LANDSCAPE);
+    await renderWithConversation();
+    for (const window of [IPAD_THIRD, IPAD_HALF, IPAD_TWO_THIRDS, IPAD_LANDSCAPE]) {
+      await act(() => setWindow(window));
+      expectConversationKept();
+    }
+  });
+
+  it("keeps them when a foldable opens and closes", async () => {
+    setWindow(FOLDED);
+    await renderWithConversation();
+    await act(() => setWindow(UNFOLDED));
+    expectConversationKept();
+    await act(() => setWindow(FOLDED));
+    expectConversationKept();
   });
 });

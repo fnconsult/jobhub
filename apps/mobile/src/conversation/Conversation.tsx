@@ -1,7 +1,7 @@
 import { Plus, Send, Square } from "lucide-react-native";
 import { useRef, useState, type ComponentRef } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { INTER, radius, space, type, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -10,6 +10,11 @@ export type Message = { id: string; from: "candidate" | "coach"; text: string };
 
 /** The conversation keeps a reading width, centred in its space (ADR-0070): 44rem. */
 const READING_REM = 44;
+/** How close to the end of the thread, in points, still counts as reading the latest message. */
+const AT_END_PT = 48;
+
+const atEnd = ({ contentOffset, contentSize, layoutMeasurement }: NativeScrollEvent) =>
+  contentOffset.y + layoutMeasurement.height >= contentSize.height - AT_END_PT;
 
 /**
  * A page's conversation with the AI Coach (ADR-0070): its thread, and at its foot the box, with « + » for a link or a
@@ -34,11 +39,15 @@ export function Conversation({
   const { fontScale } = useWindowDimensions();
   const [draft, setDraft] = useState("");
   const thread = useRef<ComponentRef<typeof ScrollView>>(null);
+  // Whether the person reads the latest message: the thread follows it as it grows (a message, the reply streaming), but
+  // stays where they scrolled back to when the window changes and the messages wrap again (Split View, a foldable).
+  const following = useRef(true);
   const send = () => {
     const text = draft.trim();
     if (!text) return;
     onSend(text);
     setDraft("");
+    following.current = true;
   };
   const readingWidth = READING_REM * 16 * fontScale;
 
@@ -47,7 +56,9 @@ export function Conversation({
       <ScrollView
         ref={thread}
         aria-label={t("coachPanel.messagesLabel")}
-        onContentSizeChange={() => thread.current?.scrollToEnd({ animated: true })}
+        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => (following.current = atEnd(event.nativeEvent))}
+        scrollEventThrottle={100}
+        onContentSizeChange={() => (following.current ? thread.current?.scrollToEnd({ animated: true }) : undefined)}
         contentContainerStyle={styles.thread}
       >
         <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>

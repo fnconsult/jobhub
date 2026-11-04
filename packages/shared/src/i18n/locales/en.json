@@ -5912,5 +5912,71 @@
   "origin": {
     "label": "Origin",
     "coachProposal": "Proposed by your AI coach, applied by you on {{date}}"
+  },
+  "pushNotifications": {
+    "messages": {
+      "job_search_results": {
+        "title": "New results for a search",
+        "body": "Open Jobbbox to see the job offers found."
+      },
+      "job_digest": {
+        "title": "Your Job Digest is ready",
+        "body": "Open Jobbbox to see the new job offers."
+      },
+      "appointment_reminder": {
+        "title": "Appointment tomorrow",
+        "body": "You have an appointment planned tomorrow. Open your agenda for the details."
+      },
+      "coach_review": {
+        "title": "New review from your coach",
+        "body": "A review was left on one of your applications."
+      },
+      "coaching_session_changed": {
+        "title": "Coaching session changed",
+        "body": "The date of one of your sessions changed. Open your agenda for the details."
+      },
+      "follow_up_due": {
+        "title": "Follow-up due",
+        "body": "One of your applications is waiting for a follow-up."
+      },
+      "coach_access_granted": {
+        "title": "New coach access",
+        "body": "A candidate gave you access to their progress."
+      },
+      "coaching_session_paid": {
+        "title": "Session booked",
+        "body": "A coaching session has just been paid."
+      },
+      "coaching_session_changed_by_candidate": {
+        "title": "Session changed",
+        "body": "A candidate moved or cancelled a session."
+      },
+      "test": {
+        "title": "Test notification",
+        "body": "Jobbbox notifications reach this device."
+      }
+    },
+    "settings": {
+      "title": "App notifications",
+      "explanation": "On a phone or tablet where the Jobbbox app is installed and allowed to notify you, choose what shows on the lock screen. A notification never names a company, a job or a person: the details show once the app is open. Email reminders are still sent as you set them.",
+      "devices_zero": "No device registered yet: these choices will apply as soon as you allow notifications in the app.",
+      "devices_one": "Notifications sent to {{count}} device.",
+      "devices_other": "Notifications sent to {{count}} devices.",
+      "candidateEvents": "Your searches and applications",
+      "coachEvents": "Your coach space",
+      "saved": "Choice saved.",
+      "error": "Your choice could not be saved. Try again."
+    },
+    "events": {
+      "job_search_results": "New results of a job search",
+      "job_digest": "New Job Digest",
+      "appointment_reminder": "Reminder the day before an appointment",
+      "coach_review": "Review left by your coach",
+      "coaching_session_changed": "Coaching session date changed by your coach",
+      "follow_up_due": "Follow-up due",
+      "coach_access_granted": "Access given by a candidate",
+      "coaching_session_paid": "Coaching session paid",
+      "coaching_session_changed_by_candidate": "Session moved or cancelled by a candidate"
+    }
   }
 }

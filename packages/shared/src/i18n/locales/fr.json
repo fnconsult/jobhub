@@ -5912,5 +5912,71 @@
   "origin": {
     "label": "Origine",
     "coachProposal": "Sur proposition de votre coach IA, appliqué par vous le {{date}}"
+  },
+  "pushNotifications": {
+    "messages": {
+      "job_search_results": {
+        "title": "Nouveaux résultats pour une recherche",
+        "body": "Ouvrez Jobbbox pour voir les offres trouvées."
+      },
+      "job_digest": {
+        "title": "Votre Job Digest est prêt",
+        "body": "Ouvrez Jobbbox pour voir les nouvelles offres."
+      },
+      "appointment_reminder": {
+        "title": "Rendez-vous demain",
+        "body": "Vous avez un rendez-vous prévu demain. Ouvrez votre agenda pour le détail."
+      },
+      "coach_review": {
+        "title": "Nouvel avis de votre coach",
+        "body": "Un avis a été laissé sur une de vos candidatures."
+      },
+      "coaching_session_changed": {
+        "title": "Séance de coaching modifiée",
+        "body": "La date d'une de vos séances a changé. Ouvrez votre agenda pour le détail."
+      },
+      "follow_up_due": {
+        "title": "Relance à faire",
+        "body": "Une de vos candidatures attend une relance."
+      },
+      "coach_access_granted": {
+        "title": "Nouvel accès coach",
+        "body": "Un candidat vous a donné accès à son suivi."
+      },
+      "coaching_session_paid": {
+        "title": "Séance réservée",
+        "body": "Une séance de coaching vient d'être payée."
+      },
+      "coaching_session_changed_by_candidate": {
+        "title": "Séance modifiée",
+        "body": "Un candidat a déplacé ou annulé une séance."
+      },
+      "test": {
+        "title": "Notification de test",
+        "body": "Les notifications de Jobbbox arrivent bien sur cet appareil."
+      }
+    },
+    "settings": {
+      "title": "Notifications de l'app",
+      "explanation": "Sur un téléphone ou une tablette où l'app Jobbbox est installée et autorisée à vous notifier, choisissez ce qui s'affiche sur l'écran verrouillé. Une notification ne nomme jamais une entreprise, un poste ni une personne : le détail s'affiche une fois l'app ouverte. Les rappels par e-mail restent envoyés comme vous les avez réglés.",
+      "devices_zero": "Aucun appareil enregistré pour l'instant : ces choix s'appliqueront dès que vous autoriserez les notifications dans l'app.",
+      "devices_one": "Notifications envoyées à {{count}} appareil.",
+      "devices_other": "Notifications envoyées à {{count}} appareils.",
+      "candidateEvents": "Vos recherches et candidatures",
+      "coachEvents": "Votre espace coach",
+      "saved": "Choix enregistré.",
+      "error": "Votre choix n'a pas pu être enregistré. Réessayez."
+    },
+    "events": {
+      "job_search_results": "Nouveaux résultats d'une recherche d'offres",
+      "job_digest": "Nouveau Job Digest",
+      "appointment_reminder": "Rappel la veille d'un rendez-vous",
+      "coach_review": "Avis laissé par votre coach",
+      "coaching_session_changed": "Date d'une séance de coaching changée par votre coach",
+      "follow_up_due": "Relance à faire",
+      "coach_access_granted": "Accès donné par un candidat",
+      "coaching_session_paid": "Séance de coaching payée",
+      "coaching_session_changed_by_candidate": "Séance déplacée ou annulée par un candidat"
+    }
   }
 }

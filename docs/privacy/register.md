@@ -300,6 +300,22 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Rights | In the Candidate's Data export (`twoStepVerification`: when it was turned on, each factor's kind, when added and last used, each passkey's name and device when known, the backup codes left; never the secret, a code nor a passkey's public key or credential id); erased with the account. |
 | Security | The secret is shown once, as a QR code drawn in the page (never by a QR code service) and as the key to type. Each code serves once; after 5 wrong codes in a row, every code is refused for 15 minutes. Turning it off, removing the last factor or renewing the backup codes takes a second step done less than 10 minutes earlier in the same session. A passkey is checked against the pending session's own account only, on Jobbbox's host (its RP ID); each challenge serves one answer, and a refused passkey counts towards the same lock as a wrong code. Signing in with a passkey alone, without a magic link, is refused. A pending session is refused on the server, by the proxy, on every page and API route but the second step and sign-out. Rotating AUTH_SECRET makes the stored secrets unreadable: the Candidates concerned would have to use a backup code, then set the app up again. |
 
+## App lock on the device (#702, ADR-0076)
+
+| | |
+| --- | --- |
+| Purpose | Let the person lock the Jobbbox app on their phone or tablet, « Verrouiller l'app » in Réglages de l'app: after 5 minutes in the background and when it starts, the app asks Face ID, Touch ID, a fingerprint or the device's code, and hides its content from the app switcher. Off by default. |
+| Legal basis | Performance of the service the person asks for (GDPR art. 6(1)(b)). The setting kept on the device is strictly necessary to the feature asked for (ePrivacy art. 5(3), exemption): no consent asked. |
+| People concerned | Candidates and Human Coaches who use the app. |
+| Data | One setting on the device, the lock on or off. **No biometric data is processed by Jobbbox**: the face or fingerprint is checked by the device's system (iOS, Android), which answers the app with a yes or a no only (`expo-local-authentication`); the app never receives, stores nor sends a template, an image or the device's code. GDPR art. 9 is therefore not engaged by Jobbbox. |
+| Source | The person, by the switch. |
+| Who can read it | No one but the app on that device. Nothing is sent to the server: not the setting, not the result of an unlock. It is not a second step and changes nothing to the session or to Two-step verification (ADR-0075). |
+| Processors | None. |
+| Storage | The device's Keychain (iOS) or Keystore (Android), `expo-secure-store`, key `app-lock`, readable once the device has been unlocked after starting and never restored onto another device. |
+| Retention | Until the person turns the lock off, or removes the app. The lock also turns itself off when the device no longer has Face ID, a fingerprint or a code to unlock with. |
+| Rights | Changed or erased by the person at any time, in Réglages de l'app. Jobbbox holds nothing of it to give or erase. |
+| Security | While the lock is on, the app switcher shows the app blurred (iOS) or blank (Android, `FLAG_SECURE`, which also refuses screenshots and screen recording in the app). |
+
 ## Livraison: the delivery status (Back Office)
 
 | | |

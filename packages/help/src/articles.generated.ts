@@ -2198,6 +2198,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Un outil est « En attente d'accès » quand sa clé est valide mais que son fournisseur lui refuse une API au dernier test de connexion. Aujourd'hui, c'est le cas de France Travail tant que l'API Offres d'emploi n'est pas ouverte à l'application.\n\nDans Outils, il affiche « Indisponible : accès refusé par France Travail ». Dans l'onglet « Sources » de Paramètres, la source affiche « En attente d'accès » : les recherches d'offres continuent sans elle, avec les autres sources.\n\nPour savoir quelle API manque, ouvrez la fiche de France Travail dans l'onglet « Sources » : le tableau « Accès aux API France Travail » donne l'« État » de chaque API (« ok », « accès refusé » ou « erreur ») au dernier test. Demandez l'accès à l'API refusée dans votre espace partenaire France Travail ; une fois accordé, un super-admin clique sur « Tester … » sur la fiche. Le test réussi, l'outil repasse à « Configuré », sans rien d'autre à changer."
     },
     {
+      "id": "faq-app-lock",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Protéger l'app par Face ID",
+      "synonyms": [
+        "verrouiller",
+        "verrouillage",
+        "Face ID",
+        "Touch ID",
+        "empreinte",
+        "empreinte digitale",
+        "code",
+        "biométrie",
+        "déverrouiller",
+        "sécurité",
+        "téléphone",
+        "tablette",
+        "application"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans l'app Jobbbox, ouvrez le menu, puis « Réglages de l'app » sous « Mon compte », et activez « Verrouiller l'app ». L'app vous demande aussitôt Face ID, votre empreinte ou le code de l'appareil, pour vérifier que vous pourrez la déverrouiller.\n\nUne fois le verrouillage activé, l'app se verrouille quand elle reste 5 minutes ou plus en arrière-plan, et à chaque démarrage. Pour revenir, passez Face ID ou votre empreinte ; après plusieurs échecs, le code de l'appareil prend le relais. Si vous annulez, touchez « Déverrouiller » pour réessayer. Tant que le verrouillage est activé, le contenu de l'app est masqué dans le sélecteur d'apps ; sur Android, les captures d'écran de l'app sont aussi bloquées.\n\nCe réglage ne vaut que pour cet appareil : il ne se retrouve ni sur le site ni sur un autre téléphone, et rien n'est envoyé à Jobbbox. Ce n'est pas une vérification en deux étapes : votre connexion ne change pas. Votre visage et votre empreinte sont vérifiés par le système de l'appareil (iOS ou Android) ; Jobbbox n'en reçoit et n'en garde rien.\n\nSi l'appareil n'a ni Face ID, ni empreinte, ni code, le verrouillage ne peut pas être activé : définissez-en un d'abord dans les réglages de l'appareil."
+    },
+    {
       "id": "faq-coach-access",
       "locale": "fr",
       "kind": "faq",
@@ -5400,6 +5427,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The extension adds the « Analyse this offer » button to a job offer's page when it recognises it. It recognises the main job sites, including LinkedIn, Indeed, Welcome to the Jungle, Apec, France Travail, HelloWork, Cadremploi and Glassdoor, and the job pages of many employers' recruiting tools (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). The Jobbbox team keeps this list up to date without you having to update the extension; on a site it has just added, the button only shows once the « Detect job offers on every site » box is ticked.\n\nThe button shows when a job offer is open, not on a plain list of results: click the offer to open it.\n\nOn an employer's career site, tick « Detect job offers on every site », at the bottom of the extension's panel. Your browser asks for your permission; pages are still read in this browser only.\n\nIf the button still does not show, open the extension's panel from the browser's toolbar. If it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page »: capturing works on any page. If the page cannot be read, the panel says so: « This page cannot be captured. » Open the job offer's own page and try again."
+    },
+    {
+      "id": "faq-app-lock",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Protecting the app with Face ID",
+      "synonyms": [
+        "lock",
+        "app lock",
+        "Face ID",
+        "Touch ID",
+        "fingerprint",
+        "passcode",
+        "code",
+        "biometrics",
+        "unlock",
+        "security",
+        "phone",
+        "tablet",
+        "application"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In the Jobbbox app, open the menu, then « App settings » below « My account », and turn on « Lock the app ». The app asks for Face ID, your fingerprint or the device's code at once, to check that you will be able to unlock it.\n\nOnce the lock is on, the app locks when it stays 5 minutes or more in the background, and each time it starts. To come back, pass Face ID or your fingerprint; after several failures, the device's code takes over. If you cancel, tap « Unlock » to try again. While the lock is on, the app's content is hidden in the app switcher; on Android, screenshots of the app are blocked too.\n\nThis setting applies to this device only: it is not on the website nor on another phone, and nothing is sent to Jobbbox. It is not Two-step verification: your sign-in does not change. Your face and fingerprint are checked by the device's system (iOS or Android); Jobbbox receives and keeps nothing of them.\n\nIf the device has no Face ID, fingerprint or code, the lock cannot be turned on: set one up first in the device's settings."
     },
     {
       "id": "faq-nouveautes-email-unsubscribe",

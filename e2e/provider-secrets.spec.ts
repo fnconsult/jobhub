@@ -59,7 +59,10 @@ test.describe("Provider Secrets (on a provider's sheet in Paramètres)", () => {
     // Leave the suite's server as it found it: no Lusha key.
     await page.goto(SHEET);
     const clear = page.getByRole("button", { name: tr(keys.clear, { name: NAME }) });
-    if (await clear.count()) await clear.click();
+    if (!(await clear.count())) return;
+    await clear.click();
+    // Done only once the server says so: the next test reads this sheet, and a clear still in flight shows the key set.
+    await expect(sheetOf(page).getByRole("status")).toHaveText(tr(keys.cleared, { name: NAME }));
   });
 
   test("a super-admin sees each key's source on its provider's sheet, and never a value", async ({ page }) => {

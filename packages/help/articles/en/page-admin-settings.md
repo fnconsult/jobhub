@@ -3,10 +3,10 @@ kind: page
 audience: administrator
 topic: fournisseurs-et-tools
 title: Settings
-synonyms: [settings, parameters, configuration, provider, active provider, possible providers, key, tab, environment, default value, restore, add]
+synonyms: [help videos, video origin, settings, parameters, configuration, provider, active provider, possible providers, key, tab, environment, default value, restore, add]
 route: /admin/parametres
 ---
-Settings gathers the platform's settings, by kind of tool, in tabs: « Web search », « AI », « Sources », « Contact enrichment », « Email », « Payment », « Sign-in », « Extension » and « Environment ». The tab is in the address: a reload keeps it.
+Settings gathers the platform's settings, by kind of tool, in tabs: « Web search », « AI », « Sources », « Contact enrichment », « Email », « Payment », « Sign-in », « Extension » and « Environment ». The tab is in the address: a reload keeps it. « Environment » also holds the « Origin of the help videos (the Help Centre's Explainer Videos) »: the address the Help Centre plays its videos from, https://media.jobbbox.ai by default; the pages accept videos from that origin only.
 
 A providers tab first shows the « Active provider » card, with the tab's settings, then the « Possible providers » table: each provider with its keys, its « Last test », its « Status » and what it serves (« Used by »). Click a provider's name to open its sheet at the side: its keys, its settings, its prices and the link « Its calls, failures and cost in Tools ». « Make active » chooses the web search or enriched contacts provider.
 

@@ -2,7 +2,36 @@
 
 Jobbbox's record of processing activities (GDPR art. 30). One entry per processing; each names its purpose, legal basis, people and data concerned, who can read it, where it is stored and how long it is kept. Add an entry with the change that starts a new processing.
 
-Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no transfer outside the EU.
+Controller: Jobbbox. Hosting: in the EU, on Hostinger's VPS in Paris (ADR-0007, `docs/ops/hosting.md`). **Some recipients are outside the EU** (fixed by #338, after `docs/research/issue-498.md`): every AI task goes by default to Claude's direct API (Anthropic, outside the EU) after Redaction, which leaves pseudonymised personal data (ADR-0007, amendment of 2026-10-28); web search (Perplexity, Brave, Tavily) receives queries outside the EU; Stripe and the Sign-in Providers are outside the EU; Brevo, Kaspr and Fantastic.jobs have a residency not established, counted as outside. What stays in the EU: storage, the identity route under EU AI Consent and the `euOnly` tasks (Mistral, `api.eu.mistral.ai`). Each recipient's contracting entity, place and transfer safeguard are in the Tool catalog (`packages/shared/src/tools.ts`, from `docs/research/issue-522.md`) and on the public Recipient list (`/legal/destinataires`, ADR-0064).
+
+## Recipients and their entries (#338)
+
+Every Tool of the catalog that receives personal data, or queries drawn from it, and every Host, with the entries below it serves. A test (`apps/web/src/tools/privacy-register.test.ts`) fails when one has no line here, when a line names an id the catalog does not have, or an entry that does not exist.
+
+| Recipient | Entries |
+| --- | --- |
+| `hostinger` | Hosting |
+| `anthropic` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Coach Memory and Guardrails; Back Office Assistant; Job Searches, Job discovery and Job Digests; Enriched Contacts; Guest session in the browser extension |
+| `anthropic-bedrock` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
+| `anthropic-vertex` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
+| `openai` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations |
+| `mistral` | EU AI Consent; Email intake; Coach Conversations; Back Office Assistant |
+| `perplexity` | Job Searches, Job discovery and Job Digests; Applications and their documents |
+| `brave` | Job Searches, Job discovery and Job Digests; Applications and their documents |
+| `tavily` | Job Searches, Job discovery and Job Digests; Applications and their documents |
+| `france-travail` | Job Searches, Job discovery and Job Digests |
+| `fantastic-jobs` | Job Searches, Job discovery and Job Digests |
+| `lusha` | Enriched Contacts |
+| `kaspr` | Enriched Contacts |
+| `apollo` | Enriched Contacts |
+| `stripe` | Subscriptions, Plan Quotas and payments; Human Coaches and Coaching Sessions; Orders (#512); Withdrawals (#511) |
+| `brevo-api` | Transactional emails |
+| `brevo-smtp` | Transactional emails |
+| `email-intake` | Email intake |
+| `google` | Candidate accounts and sign-in |
+| `apple` | Candidate accounts and sign-in |
+| `microsoft` | Candidate accounts and sign-in |
+| `oidc` | Candidate accounts and sign-in |
 
 ## Back Office Audit (#203)
 
@@ -44,6 +73,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | Data | The Job Offer (its id, title, text, source address); the CV's content and the Search Criteria read from it; the last Match Score; when the session ends. Since #550, the Acceptance of the CGU for guests: the version accepted (its effective date) and when it was ticked, before the session's first CV, while a CGU version is in effect. |
 | Source | The Guest: the page they capture, the CV file they choose, the box they tick in the Side Panel. |
 | Who can read it | No one but the Guest, in their browser. The web app reads the CV file to answer it, keeps neither the file nor what it read (ADR-0003); the Job Offer is stored for everyone, without the Guest's identity, and forgotten within 24 hours. The Acceptance is sent to no one: no request carries it, and Jobbbox holds no proof of it. |
+| Processors | Hostinger (the web app that reads the CV, in Paris). The Guest's CV is read by rules only, never sent to an AI (`apps/web/src/cv/index.ts`, ADR-0003). The captured Job Offer's public text goes to Claude's direct API (Anthropic, outside the EU) for `offer_analysis` (added by #338, from `docs/research/issue-498.md` § 4, item 12). |
 | Storage | The browser's session storage (`chrome.storage.session`, in memory, gone when the browser closes), key `guestSession`. |
 | Retention | 23 hours after the session began at most, or until « Effacer mes données maintenant ». Once the Guest saves their work in an account, only where it went is kept, the Acceptance not carried over: the Candidate accepts the CGU on their own screen (#510). |
 | Rights | Erased by the Guest at any time (« Effacer mes données maintenant », or by closing the browser). Jobbbox holds nothing of it to give or erase. |
@@ -73,7 +103,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Administrators (who ask). Human Coaches, by their public name and bio, when the asking Administrator's roles cover Human Coaches. |
 | Data | What the Administrator types and the assistant's replies, with dates; the AI provider, model and estimated cost of each reply (internal). With each question, the Administrators' Help Articles the search finds for it (#551): texts written by the Jobbbox team, without personal data. What the AI is told is limited to what the Administrator's Back Office Roles may read, and minimised: no email address (Administrators are counted per role, Journal targets are masked, any address left is masked), no Human Coach booking link, and never a Provider Secret or SSO client secret value. |
 | Source | The Administrator, in the Back Office Assistant panel; the Back Office's own data. |
-| Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Administrator's EU AI consent, what they type that carries identity goes to Mistral (#121). |
+| Processors | The AI provider of the `coaching` task: by default Claude's direct API (Anthropic, outside the EU), after Redaction (ADR-0007, amendment of 2026-10-28; corrected by #338, it said « EU endpoints only »); with the Administrator's EU AI consent, what they type that carries identity goes to Mistral, in the EU (#121). Transfer safeguard: the standard contractual clauses of Anthropic's DPA (`docs/research/issue-522.md`). |
 | Who can read it | The Administrator who had the conversation, in the panel. Not other Administrators, not Candidates; Back Office routes answer 404 to anyone without a Back Office Role. |
 | Storage | The `back_office_assistant_conversation` and `back_office_assistant_message` tables in the app's Postgres database (EU), apart from Candidates' Coach Conversations. |
 | Retention | 12 months after the conversation's last message (the worker's nightly job `back-office-assistant.purge`); deleted at once with the Administrator's account, or when they delete the conversation. |
@@ -167,7 +197,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Candidates. Third parties only as far as the Candidate names them in what they write, or a Job Offer read from a link names its employer. |
 | Data | What the Candidate writes and the AI Coach's replies, with dates; the conversation's title and Subject (kind and id of the object or menu); each reply's Focus (the object or Agenda it was about), its Provenance, and its Job Offer card's Job Offer; when the Candidate closed the conversations' welcome panel for good (#652); Blocked messages, marked as such; the AI provider, model, tokens and estimated cost of each reply and of each Playbook Agent consulted (internal). |
 | Source | The Candidate, in the conversation; the AI Coach's replies, written from the Coach context (their own Profiles, Applications, Job Searches, Job Digests, Agenda and Coach Memory). |
-| Processors | The AI provider of the `coaching` task, EU endpoints only (ADR-0007); with the Candidate's EU AI consent, what carries identity goes to Mistral (#121). |
+| Processors | The AI provider of the `coaching` task: by default Claude's direct API (Anthropic, outside the EU), after Redaction (ADR-0007, amendment of 2026-10-28; corrected by #338); with the Candidate's EU AI consent, what carries identity goes to Mistral, in the EU (#121). Transfer safeguard: the standard contractual clauses of Anthropic's DPA. |
 | Who can read it | The Candidate, in their conversations. Never Human Coaches (Coach Access covers Profiles and Applications only). Administrators see only each day's cost figures, never a conversation; the text of a call, if needed, is in the AI Message Log. |
 | Storage | The `coach_conversation`, `coach_message` and `coach_welcome_closed` tables in the app's Postgres database (EU). |
 | Retention | 12 months after the conversation's last message (the worker's nightly job `coach-conversations.purge`); deleted at once with the Candidate's account, when they delete it, or with its object if the object itself is deleted. An archived object keeps its conversation. The conversations saved before Subjects existed (only on staging) were deleted when #600 shipped; the Coach Memory was kept. |
@@ -183,7 +213,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Candidates with a verified email address. |
 | Data | Per notice sent: the Candidate's id, the text and version (its effective date) it told of, when it was sent. Per privacy policy change closed: the Candidate's id, the version, when it was closed. The email itself goes to the Candidate's account address, in their Interface Language; its text is not kept. |
 | Source | Written by the worker when it sends each notice (`legal-text-notices.send`: when it starts, then daily, Production only, never the Beta), and by the web app when the Candidate clicks « J'ai compris » (`DELETE /api/privacy-change/<version>`). |
-| Processors | Brevo (EU, ADR-0007), which sends the email. The email carries no image and no tracked link: Brevo's open and click tracking must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). |
+| Processors | Brevo (see « Transactional emails »), which sends the email. The email carries no image and no tracked link: Brevo's open and click tracking must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). |
 | Who can read it | The Candidate, through their Data export. No Back Office screen shows it. |
 | Storage | The `legal_text_notice` and `privacy_change_seen` tables in the app's Postgres database (EU). |
 | Retention | As long as the account: deleted with it (`ON DELETE CASCADE`). |
@@ -199,7 +229,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Candidates with a verified email address who ticked the box. Visitors cannot subscribe: the public Nouveautés page has no form. |
 | Data | Per subscription: the Candidate's id, the date of the consent and the unsubscribe link's token. Per email sent: the Candidate's id, the Version it told of and when it was sent. The email goes to the Candidate's account address, in their Interface Language; its text is not kept. |
 | Source | The Candidate, in Mon compte (`PUT /api/account/nouveautes-email`); the worker when it sends each email (`nouveautes-emails.send`: when it starts, then daily, Production only, never the Beta). |
-| Processors | Brevo (EU, ADR-0007), which sends the email; already a processor for emails. The email carries no image and no tracked link: every link leads straight to Jobbbox. Brevo has no per-message switch for its open and click tracking: it must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). No new processor, no recipient outside the EU. |
+| Processors | Brevo (see « Transactional emails »), which sends the email; already a processor for emails. The email carries no image and no tracked link: every link leads straight to Jobbbox. Brevo has no per-message switch for its open and click tracking: it must be off on the account for transactional emails, to be checked by the product owner (`docs/research/issue-547.md`, item 3). No new processor, no recipient outside the EU. |
 | Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it. |
 | Storage | The `nouveautes_email_subscription` and `nouveautes_email_sent` tables in the app's Postgres database (EU). |
 | Retention | The subscription until it is withdrawn (its row is deleted) or the account is deleted. The emails sent as long as the account, so none is sent twice: deleted with it (`ON DELETE CASCADE`). |
@@ -263,7 +293,7 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Candidates who turn it on in Mon compte, « Sécurité ». |
 | Data | Per Candidate: the authenticator app's TOTP secret, encrypted (AES-256-GCM under AUTH_SECRET, Better Auth's cipher); the backup codes not used yet, each as its SHA-256 hash only; when it was turned on, when the app and the codes were added and last used, the last 30-second period whose code was accepted, the count of wrong codes in a row and until when codes are refused. Per passkey (#664, Better Auth's passkey plugin): the WebAuthn public key and credential id, the signature counter, the device type (single- or multi-device) and whether it is backed up, the transports, the authenticator model's AAGUID (from which the device's name is shown when it is known, e.g. « Windows Hello »; Apple devices send none), the name the Candidate gave it (a device name such as « iPhone de Marie »), when it was added and last used. Per session: whether it waits for its second step, when its second step was last done, and the passkey challenge asked last (used once). A passkey's private key never leaves the Candidate's device: Jobbbox never has it. Each attempt is counted under the Tool « Vérification en deux étapes » in AI Usage's external API calls (its outcome, no Candidate, never the code). The email telling the account it was turned on or off goes to its address; its text is not kept. |
 | Source | The Candidate, in Mon compte (`/api/account/two-step-verification`, and Better Auth's `/api/auth/passkey/*` to add and rename a passkey) and on the second step's page (`/api/two-step-verification/second-step`, `/api/two-step-verification/second-step/passkey`); a passkey's public key comes from their device or security key. |
-| Processors | None new: the codes and passkeys are checked within Jobbbox (SimpleWebAuthn, a library); Brevo (EU) sends the emails, already a processor for emails. No recipient outside the EU. |
+| Processors | None new: the codes and passkeys are checked within Jobbbox (SimpleWebAuthn, a library); Brevo (see « Transactional emails ») sends the emails, already a processor for emails. No new recipient outside the EU. |
 | Who can read it | The Candidate, in Mon compte and in their Data export. No Back Office screen shows it; nobody can read the secret or a backup code back. A passkey's public key is never shown nor exported. |
 | Storage | The `two_step_verification` and `passkey` tables and the `session` table's `twoStepPending`, `twoStepVerifiedAt` and `twoStepChallenge` columns in the app's Postgres database (EU). |
 | Retention | A passkey until the Candidate removes it. Until the Candidate turns it off, or removes their last factor (the row and every passkey are deleted, and the sessions still waiting for their second step are signed out), or the account is deleted (`ON DELETE CASCADE`). |
@@ -295,9 +325,227 @@ Controller: Jobbbox. Hosting: the EU, per ADR-0007 and `docs/ops/hosting.md`; no
 | People concerned | Contributors to the GitHub repository; the email's recipients. No Candidate: GitHub receives nothing from Jobbbox, the app only reads it. |
 | Data | GitHub logins of the people a ticket is assigned to, with issue and pull request titles and numbers, shown on the page. The email carries the titles and numbers, not the logins. The recipients' addresses, in a Platform Setting. |
 | Source | GitHub's API, read by the web app and the worker with a read-only token (Provider Secret `GITHUB_STATUS_TOKEN`); each call is recorded in `external_api_usage` (Tool GitHub) without its answer. The recipients are set by an Administrator on Paramètres › E-mail. |
-| Processors | GitHub (outside the EU), which is only read; Brevo (EU, ADR-0007, already a processor for emails), which sends the daily email with the app's mailer. No new recipient of personal data: GitHub's `receivesPersonalData` is false. |
+| Processors | GitHub (outside the EU), which is only read; Brevo (already a processor for emails, see « Transactional emails »), which sends the daily email with the app's mailer. No new recipient of personal data: GitHub's `receivesPersonalData` is false. |
 | Who can read it | Super-admins, Technique and Support on the page; the addresses of `DELIVERY_STATUS_EMAIL_TO` by email. |
 | Storage | Nothing stored: the page's status is kept in the web app's memory for 5 minutes; the email is not kept by Jobbbox. |
 | Retention | 5 minutes in memory; the recorded calls as `external_api_usage`; the emails in the recipients' mailboxes. |
 | Rights | A contributor's login comes from GitHub: removing them from a ticket there removes them from the page within 5 minutes. A recipient is removed by clearing their address from `DELIVERY_STATUS_EMAIL_TO`. |
 | Security | A read-only token, encrypted as a Provider Secret; the page checks the Administrator's Back Office Roles, and a refused opening is recorded (#264). Changing the recipients is a Platform Setting change, written to the Back Office Audit. |
+
+## Hosting (ADR-0007)
+
+| | |
+| --- | --- |
+| Purpose | Run Jobbbox: the web app, the worker, the job queue, Email intake's MTA and the Postgres database that holds every entry of this register. |
+| Legal basis | That of each processing it hosts. |
+| People concerned | Everyone Jobbbox holds data about. |
+| Data | Everything the entries of this register store. |
+| Processors | Hostinger International Limited (Cyprus), VPS in its Paris data centre (`docs/ops/hosting.md`); standard contractual clauses in its DPA for its own sub-processors (`docs/research/issue-522.md`). |
+| Storage | The VPS in Paris (EU). |
+| Retention | That of each processing. |
+| Security | Secrets in the hosting's secret manager, Provider Secrets encrypted (ADR-0020); the database is reachable from the VPS only. |
+
+## Candidate accounts and sign-in (ADR-0011)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 1._
+
+| | |
+| --- | --- |
+| Purpose | Create a Candidate's (or an Administrator's, or a Human Coach's) account and sign them in: by a magic link sent by email, or through a Sign-in Provider (Google, Microsoft, Apple, an OpenID Connect issuer configured in Connexion). |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
+| People concerned | Candidates, Administrators, Human Coaches. |
+| Data | Email address, name (from the Sign-in Provider when one is used), Interface Language, sessions (token, dates, user agent as Better Auth stores it), the Sign-in Provider account's id, the magic links' verification tokens, Back Office Roles. |
+| Source | The person, at sign-up and sign-in; the Sign-in Provider, which passes their email address and name (scopes `openid email profile`). |
+| Processors | Hostinger; Brevo, which sends the magic link (« Transactional emails »). Google, Microsoft and Apple act as separate controllers of their own accounts, through their Irish entities (`docs/research/issue-522.md`): the person chooses them; their transfers outside the EU rest on the DPF (Google, Microsoft) and the standard contractual clauses (all three). An OpenID Connect issuer is the one an organisation configured: its place is not established. |
+| Who can read it | The person, in Mon compte. Super-admins and the Back Office Roles that cover accounts, in the Back Office. |
+| Storage | The `candidate`, `session`, `account`, `verification`, `sign_in_provider`, `sign_in_setting` and `administrator_role` tables in the app's Postgres database (EU). The session cookie is set by Better Auth (strictly necessary, no consent). |
+| Retention | While the account lives; deleted with it (« Data export and Account deletion »). Sessions end at sign-out or expiry. |
+| Rights | In the Data export; erased with the account. |
+| Security | HttpOnly session cookie; two-step verification on request (« Two-step verification »). |
+
+## Master CV, Profiles and CV reading (ADR-0006, ADR-0012)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 2._
+
+| | |
+| --- | --- |
+| Purpose | Hold the Candidate's Master CV and Profiles (target role, Search Criteria, seniority), read an uploaded CV with AI into its sections, and compute the ATS Score. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
+| People concerned | Candidates; people a CV names (former employers, referees). |
+| Data | The Master CV's versions (identity block, experience, education, skills), the Profiles and their Search Criteria, the ATS Scores. |
+| Source | The Candidate (their CV file and what they type). |
+| Processors | Claude's direct API (Anthropic, outside the EU) for `cv_parsing` and `scoring`, after Redaction: the CV goes without name, address, email or phone, but with employers, positions, dates and schools, which is **pseudonymised personal data** (ADR-0007 § Redaction). Safeguard: standard contractual clauses of Anthropic's DPA; inputs and outputs deleted within 30 days, no training (`docs/research/issue-522.md`). With EU AI Consent, what carries identity goes to Mistral, in the EU. Another AI provider (OpenAI, Claude on Bedrock or Vertex) only if a super-admin routes a task to it in Paramètres. |
+| Who can read it | The Candidate; a Human Coach with Coach Access to that Profile. |
+| Storage | The `master_cv_version`, `profile` and `ats_score` tables in the app's Postgres database (EU). |
+| Retention | While the account lives; deleted with it. |
+| Rights | In the Data export; rectified by the Candidate on their pages; erased with the account. |
+
+## Applications and their documents (ADR-0006, ADR-0028, ADR-0029)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 3._
+
+| | |
+| --- | --- |
+| Purpose | Follow the Candidate's Applications and write what goes with them: Tailored CVs and documents, Follow-ups, Interviews, the Agenda and its reminders, Action Cards, Company Dossiers. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
+| People concerned | Candidates; people the Candidate names (recruiters, interviewers), employers' public contacts. |
+| Data | The Applications and their status, the Job Offers they are for, the Tailored CVs and documents, Follow-ups, Interviews, appointment reminders, Action Cards, Company Dossiers. |
+| Source | The Candidate; the Job Offer's page; public registers (`recherche-entreprises.api.gouv.fr`) and web search for a Company Dossier. |
+| Processors | Claude's direct API (Anthropic, outside the EU) after Redaction, for `writing`, `scoring` and `offer_analysis`; web search (Perplexity, or Brave or Tavily as fallback, outside the EU) on queries only, such as an employer's name (ADR-0007); Brevo for the reminders (« Transactional emails »). |
+| Who can read it | The Candidate; a Human Coach with Coach Access to that Application. |
+| Storage | The `application`, `tailored_cv`, `tailored_document`, `follow_up_*`, `interview`, `appointment_reminder*`, `action_card` and `company_dossier` tables in the app's Postgres database (EU). |
+| Retention | While the account lives; deleted with it, or with the Application. |
+| Rights | In the Data export; erased with the account. |
+
+## Coach Memory and Guardrails (ADR-0022, ADR-0036, ADR-0041)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 4 (the conversations themselves are « Coach Conversations »)._
+
+| | |
+| --- | --- |
+| Purpose | Let the AI Coach remember what the Candidate told it across conversations (Coach Memory), keep its replies within what it may say (Guardrails), and record the runs of the Workflow Agents it starts. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)); for the Guardrail Triggers, legitimate interest (GDPR art. 6(1)(f)) in the safety of the replies. |
+| People concerned | Candidates. |
+| Data | Coach Memory items; Guardrail Triggers (when, which Guardrail, its reason's code) and the Blocked messages; Workflow Agent runs. |
+| Source | The Candidate's conversations; the Guardrails' checks. |
+| Processors | Claude's direct API (Anthropic, outside the EU) after Redaction, for `coaching` and `guardrail`; Mistral, in the EU, for what carries identity under EU AI Consent and for `email_guardrail`. |
+| Who can read it | The Candidate, through the AI Coach. Administrators see Guardrail Triggers counted, never a message. |
+| Storage | The `coach_memory_item`, `guardrail_trigger`, `guardrail_message` and `workflow_agent_run` tables in the app's Postgres database (EU). |
+| Retention | Coach Memory while the account lives; Guardrail Triggers 24 months (`guardrail-triggers.purge`). |
+| Rights | Coach Memory in the Data export; everything erased with the account. |
+
+## EU AI Consent (#121, ADR-0007)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 5._
+
+| | |
+| --- | --- |
+| Purpose | Record a Candidate's consent that what carries their identity is sent to an AI model in the EU (Mistral), unredacted, and route it there. |
+| Legal basis | Consent (GDPR art. 6(1)(a)), separate, specific and withdrawable at any time in Mon compte. |
+| People concerned | Candidates who give it. |
+| Data | Whether the consent is given, when, and when it was withdrawn. |
+| Source | The Candidate. |
+| Processors | Mistral AI SAS (France), `api.eu.mistral.ai`: inference in the EU and EFTA (#528, `docs/research/issue-522.md`). Mistral's training option for the API must stay off in its Admin console: to be checked by the product owner. |
+| Who can read it | The Candidate. |
+| Storage | The `eu_ai_consent` table in the app's Postgres database (EU). |
+| Retention | While the account lives; deleted with it. |
+| Rights | In the Data export; withdrawn by the Candidate at any time, with effect on the next calls. |
+
+## Job Searches, Job discovery and Job Digests (ADR-0031, ADR-0043, ADR-0044)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 6 (the runs' own record is « Job discovery runs »)._
+
+| | |
+| --- | --- |
+| Purpose | Find Job Offers that match the Candidate's Search Criteria (Job Searches, Target Companies), score them, and send the Job Digests they subscribe to. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
+| People concerned | Candidates. |
+| Data | Job Searches and their Search Criteria, Target Companies, Job Digests and their subscriptions, the Job Offers found and their Match Scores. |
+| Source | The Candidate's Search Criteria; job boards, ATS and sites read for offers. |
+| Processors | Queries drawn from the Search Criteria (a job, a place, an employer's name), never the Candidate's identity, go to web search (Perplexity, Brave or Tavily: outside the EU; Brave keeps queries 90 days and its DPA excludes them; Tavily may reuse queries and has no public DPA, `docs/research/issue-522.md`), to France Travail (France) and to Fantastic.jobs (Amsterdam; place of processing not published, counted as outside the EU). Claude's direct API scores the offers after Redaction. Brevo sends the Job Digests. |
+| Who can read it | The Candidate. |
+| Storage | The `job_search`, `job_digest`, `job_digest_subscription`, `target_company`, `target_company_refresh` and `job_offer` tables in the app's Postgres database (EU). |
+| Retention | While the account lives; deleted with it. Job Offers no Candidate keeps are shared and name no Candidate. |
+| Rights | In the Data export; erased with the account; a Job Digest's email has an unsubscribe link. |
+
+## Email intake (ADR-0050 to ADR-0052)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 7. ADR-0051 asks for this entry and for a DPIA before Email intake opens in production: the DPIA is #453._
+
+| | |
+| --- | --- |
+| Purpose | Read the offer emails a Candidate forwards to their Forwarding address (job alerts, recruiters' emails) to add their offers to Jobbbox. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)) for the Candidate; legitimate interest (GDPR art. 6(1)(f)) for the third parties an email names (recruiters, senders). |
+| People concerned | Candidates; senders and people named in the emails. |
+| Data | The Forwarding address; each Received offer email (its sender, subject and text, encrypted), the offers read from it, the recognised and switched-off senders; Activité's counts, without the Candidate. |
+| Source | The emails the Candidate forwards, received by Jobbbox's own MTA (Haraka, on the VPS, #580). |
+| Processors | Hostinger (the MTA and the app). Mistral, in the EU, reads the text (`offer_email_reading`, `email_guardrail`: `euOnly` tasks, ADR-0055). |
+| Who can read it | The Candidate. Administrators see Activité › Emails reçus, without the Candidate nor the text. |
+| Storage | The `forwarding_address`, `received_offer_email`, `received_offer_email_offer`, `received_email_activity`, `candidate_recognised_sender`, `candidate_switched_off_sender`, `recognised_sender` and `linked_mailbox_event` tables in the app's Postgres database (EU). |
+| Retention | An email's text 72 hours after it arrived; the Received offer email 12 months; Activité's rows 24 months (`email-intake.purge`). Deleted with the account. |
+| Rights | In the Data export; erased with the account. |
+| Security | The text is encrypted at rest; the MTA accepts mail for the Email intake domains only and keeps nothing on disk. |
+
+## Enriched Contacts (ADR-0015)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 8. Switched off until a data processing agreement is signed (`CONTACT_ENRICHMENT_DPA_SIGNED`)._
+
+| | |
+| --- | --- |
+| Purpose | Find, at the Candidate's request (Premium), the work contact details of a person at an employer they apply to. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)) for the third party found, to be weighed by the product owner before it is switched on (ADR-0015); performance of the contract for the Candidate. |
+| People concerned | Candidates; **third parties** whose details are found. |
+| Data | The contact's name, position, work email and phone, LinkedIn address; the Application it is for. |
+| Source | The contact-enrichment provider chosen (Lusha, Kaspr or Apollo), which receives an employer's name or domain, job titles, a country, and returns the details. |
+| Processors | The provider chosen: Lusha Systems, Inc. (Israel, adequacy; SCC), KASPR SAS (France; place not established, SCC on request) or ZenLeads Inc., Apollo.io (United States; DPF and SCC). Each is also a controller of its own database. Claude's direct API sees only the contact's name and position, in a Tailored document. |
+| Who can read it | The Candidate. |
+| Storage | The `enriched_contact` table in the app's Postgres database (EU). |
+| Retention | While the Application lives; deleted with the account. |
+| Rights | In the Data export. A third party's request is answered by the Jobbbox team (GDPR art. 14: the source is the provider). |
+
+## Subscriptions, Plan Quotas and payments (ADR-0014, ADR-0032)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 9 (Orders and Withdrawals have their own entries)._
+
+| | |
+| --- | --- |
+| Purpose | Sell and run the paid Plans: the subscription, its payments and invoices, and the Plan Quotas counted each week. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)); legal obligation (GDPR art. 6(1)(c)) for the accounting records. |
+| People concerned | Candidates. |
+| Data | The Plan, the Stripe customer and subscription ids, the Plan Quotas' use; Stripe receives the email address and the Candidate's id. Card details are entered on Stripe Checkout and never reach Jobbbox. |
+| Source | The Candidate; Stripe's webhooks. |
+| Processors | Stripe Payments Europe, Limited (Ireland), with transfers to Stripe, LLC (United States) on the DPF and the SCC; also a controller for fraud and anti-money-laundering (`docs/research/issue-522.md`). |
+| Who can read it | The Candidate (Abonnement); super-admins and the `plans-manager` Back Office Role. |
+| Storage | The `candidate_plan`, `quota_usage`, `plan` and `plan_quota` tables in the app's Postgres database (EU); payments at Stripe. |
+| Retention | While the account lives; the accounting records 10 years (C. com. L123-22), at Stripe. |
+| Rights | In the Data export; erasure weighed against the accounting obligation. |
+
+## Human Coaches and Coaching Sessions (ADR-0016, ADR-0027)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 10._
+
+| | |
+| --- | --- |
+| Purpose | List the Human Coaches, sell and run Coaching Sessions, give a Human Coach the Coach Access a Candidate grants, and keep their Coach Reviews. |
+| Legal basis | Performance of the contract (GDPR art. 6(1)(b)). |
+| People concerned | Candidates; Human Coaches. |
+| Data | The Human Coach's name, email, bio and booking link; Coaching Sessions (date, status, payment), Coach Access, Coach Reviews and reschedulings. |
+| Source | The Jobbbox team (the Human Coach's details); the Candidate. |
+| Processors | Stripe for the payment. Cal.com: the Candidate books on the Human Coach's own Cal.com account; Jobbbox sends it nothing and only stores the link. Brevo sends the notices. |
+| Who can read it | The Candidate; the Human Coach in their space; super-admins and the `coach-manager` Back Office Role. |
+| Storage | The `human_coach`, `coaching_session`, `coach_access`, `coach_review` tables in the app's Postgres database (EU). |
+| Retention | While the account lives; a Retired Human Coach's past sessions are kept. |
+| Rights | In the Data export; erased with the account. |
+
+## Transactional emails (ADR-0058)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 11._
+
+| | |
+| --- | --- |
+| Purpose | Send Jobbbox's service emails: magic links, Job Digests, reminders, notices, confirmations. |
+| Legal basis | That of the processing each email serves; the Nouveautés email has its own entry. |
+| People concerned | Candidates, Human Coaches, Administrators. |
+| Data | Email address, first name, the email's content. |
+| Source | The processing that sends it. |
+| Processors | Brevo SAS (France), by its API or SMTP relay: hosting at OVH (France) and Google Cloud (Belgium), CDN Cloudflare (United States and EU), support by group companies in the United States (DPF and SCC) and India (SCC) (`docs/research/issue-522.md`). Its residency is counted as not established in the catalog: outside the EU. Open and click tracking must be off on the account. |
+| Storage | Not kept by Jobbbox; Brevo's logs per its DPA. |
+| Retention | Brevo's, per its DPA (not read). |
+| Rights | Through the processing each email serves. |
+
+## Data export and Account deletion (ADR-0010)
+
+_Added by #338, from `docs/research/issue-498.md` § 4, item 13._
+
+| | |
+| --- | --- |
+| Purpose | Let a Candidate download their data and delete their account, and answer the other GDPR requests. |
+| Legal basis | Legal obligation (GDPR art. 6(1)(c), art. 15 to 20). |
+| People concerned | Candidates. |
+| Data | What the other entries hold of the Candidate; the day of a deletion where an operations record keeps it (« Acceptances of the CGU and CGV »). |
+| Source | The Candidate's request, in Mon compte. |
+| Processors | Hostinger. |
+| Who can read it | The Candidate (their export). |
+| Storage | The export is built on request and not kept. |
+| Retention | Nothing kept but what the operations records say (`OPERATIONS_RECORD_TABLES` in `apps/web/src/candidate-data`). |
+| Rights | This entry is how they are exercised. |

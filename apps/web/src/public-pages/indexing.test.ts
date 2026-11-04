@@ -63,6 +63,9 @@ describe("sitemap.xml (#545)", () => {
       `${ORIGIN}/legal/cgu`,
       `${ORIGIN}/en/legal/cgu`,
       `${ORIGIN}/legal/confidentialite`,
+      // The Recipient list (#338), in both languages, whatever the Legal Texts in effect.
+      `${ORIGIN}/legal/destinataires`,
+      `${ORIGIN}/en/legal/destinataires`,
       `${ORIGIN}/nouveautes`,
       `${ORIGIN}/en/nouveautes`,
     ]);

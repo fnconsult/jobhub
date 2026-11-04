@@ -17,7 +17,7 @@ import type { BackOfficeChange } from "../admin/back-office";
 import { toolStatus, type ToolsState, type ToolStatus } from "./index";
 
 /** The statuses of a Tool that can be called: switched on. */
-const SWITCHED_ON: readonly ToolStatus[] = ["configured", "no_key_needed", "awaiting_access"];
+export const SWITCHED_ON: readonly ToolStatus[] = ["configured", "no_key_needed", "awaiting_access"];
 
 /** Whether `tool`, in `status`, is a recipient outside the EU switched on that the privacy policy in effect does not name. */
 export function uncoveredRecipient(tool: Tool, status: ToolStatus, policy: PrivacyPolicyCoverage): boolean {

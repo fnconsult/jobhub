@@ -32,8 +32,16 @@ describe("LegalTextView — a Legal Text on Légal (ADR-0062)", () => {
       ["Conditions générales de vente", "/legal/cgv"],
       ["Politique de confidentialité", "/legal/confidentialite"],
       ["Mentions légales", "/legal/mentions-legales"],
+      ["Destinataires des données", "/legal/destinataires"],
     ]);
     expect(within(texts).getByRole("link", { name: "Conditions générales d'utilisation" }).getAttribute("aria-current")).toBe("page");
+  });
+
+  it("points the privacy policy, and it alone, to the Recipient list (#338, ADR-0064)", () => {
+    renderInFrench(<LegalTextView text="confidentialite" shown={null} />);
+    expect(screen.getByRole("link", { name: "Destinataires des données : qui reçoit quoi, et où" }).getAttribute("href")).toBe("/legal/destinataires");
+    renderInFrench(<LegalTextView text="cgu" shown={null} />);
+    expect(screen.getAllByRole("link", { name: "Destinataires des données : qui reçoit quoi, et où" })).toHaveLength(1);
   });
 
   it("shows the version in effect: its title, effective date, « Versions précédentes », « En bref », sections and who approved it", () => {

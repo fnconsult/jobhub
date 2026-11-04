@@ -152,6 +152,8 @@ test.describe("AI Activity (#332)", () => {
     await expect(activityButtonOf(page)).toHaveAttribute("aria-expanded", "false");
     const pane = await openActivity(page);
     await expect(pane).toContainText(fr.aiActivity.noAi);
+    // « En savoir plus » leads to « IA dans Jobbbox », the privacy policy's section (#338).
+    await expect(pane.getByRole("link", { name: fr.aiActivity.learnMoreLabel })).toHaveAttribute("href", "/legal/confidentialite#ia");
     await expectNoAxeViolations(page, ".activity-column");
   });
 

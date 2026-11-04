@@ -151,6 +151,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "received_email_activity", // issue #449: Activité › Emails reçus, one row per Received offer email, no Candidate, kept 24 months
         "received_offer_email", // issue #442: each email Email intake took, its outcome and sender's domain; its text encrypted, 72 hours at most
         "received_offer_email_offer", // issue #445: the offers each Received offer email gave (new, déjà vue, À capturer, too old)
+        "recipient_list_change", // issue #338: when the Recipient list last changed, a fingerprint and a time; names no one
         "recognised_sender", // issue #442: the platform's Recognised senders; no Candidate data
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "sending_address", // issue #441: the sending addresses a Candidate adds for manual forwards

@@ -85,7 +85,7 @@ describe("relatedArticles — under an article's page", () => {
 });
 
 /** #552's articles of « Découvrir Jobbbox ». */
-const DECOUVRIR_PAGES = ["page-what-is-jobbbox", "page-install-extension"];
+const DECOUVRIR_PAGES = ["page-what-is-jobbbox", "page-install-extension", "page-recipient-list"];
 const DECOUVRIR_FAQ = ["faq-sign-in-link", "faq-plans-and-quotas", "faq-text-size-site", "faq-job-digest-unsubscribe", "faq-contact-us", "faq-data-and-ai"];
 /** #553's articles of « L'extension », each with its audience: the Guest's, and the signed-in Candidate's. */
 const EXTENSION_ARTICLES = {
@@ -119,7 +119,7 @@ describe("this build's Help Articles (#549)", () => {
     }
   });
 
-  it("has the « Découvrir Jobbbox » articles for a Visitor (#552): 2 pages, 6 questions and 1 tutorial, in French and English", () => {
+  it("has the « Découvrir Jobbbox » articles for a Visitor (#552, #338): 3 pages, 6 questions and 1 tutorial, in French and English", () => {
     const ids = { page: DECOUVRIR_PAGES, faq: DECOUVRIR_FAQ, tutorial: ["tutorial-getting-started"] };
     for (const locale of ["fr", "en"] as const)
       for (const [kind, expected] of Object.entries(ids))

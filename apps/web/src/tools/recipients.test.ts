@@ -59,7 +59,9 @@ describe("switchingOn — a Paramètres change that switches on a recipient outs
     expect(await change(stateOf(apolloOn), stateOf({ ...apolloOn, MAIL_FROM: "Jobbbox <bonjour@jobbbox.ai>" }))).toMatchObject({ ids: [], recorded: [] });
     // Lusha's key saved while Apollo is the provider chosen: Lusha stays off.
     expect(await change(stateOf(apolloOn), stateOf({ ...apolloOn, LUSHA_API_KEY: "key" }))).toMatchObject({ ids: [], recorded: [] });
-    expect(await change(stateOf(), stateOf({ FANTASTIC_JOBS_API_KEY: "key" }))).toMatchObject({ ids: [], recorded: [] });
+    expect(await change(stateOf(), stateOf({ GITHUB_STATUS_TOKEN: "key" }))).toMatchObject({ ids: [], recorded: [] });
+    // Fantastic.jobs receives queries drawn from the Search Criteria, where it was not established (#338).
+    expect(await change(stateOf(), stateOf({ FANTASTIC_JOBS_API_KEY: "key" }))).toMatchObject({ ids: ["fantastic-jobs"] });
   });
 
   it("warns of every Tool one change switches on, a Sign-in Provider's among them", async () => {

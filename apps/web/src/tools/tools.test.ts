@@ -187,7 +187,7 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
   it("groups the Tools by category, in the catalog's order", async () => {
     const overview = await toolsOverview(database, stateOf(), now);
 
-    expect(overview.map((group) => group.category)).toEqual(["ai_model", "web_search", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data", "delivery"]);
+    expect(overview.map((group) => group.category)).toEqual(["ai_model", "web_search", "local_routes", "job_discovery", "company_data", "contact_enrichment", "billing", "mail", "sign_in", "geolocation", "reference_data", "delivery"]);
     expect(overview[0]!.rows.map((row) => row.tool.id)).toEqual(["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai"]);
   });
 
@@ -246,6 +246,30 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     expect(calls[0]).toMatchObject({ at: new Date("2026-10-19T10:00:00Z"), ok: false, outcome: "failed", reason: "key_missing" });
     expect(calls.filter((call) => call.outcome === "warning")).toEqual([expect.objectContaining({ ok: true, reason: "other" })]);
     expect(JSON.stringify({ overview, calls })).not.toMatch(/AiProviderError|upstream down|jeanne/);
+  });
+
+  it("counts a Coach Action's calls in its group's Tool, a refused one with its Failure Reason, and shows the Tool off by default (#713)", async () => {
+    const external = createPostgresExternalApiLog(database);
+    await external.record(externalCall({ provider: "applications", operation: "lire_candidature", httpStatus: 200, durationMs: 4, costEur: 0 }));
+    await external.record(externalCall({ provider: "applications", operation: "proposer_candidature", ok: false, httpStatus: 422, reason: "invalid_input", durationMs: 1, costEur: 0, at: new Date("2026-10-19T07:10:00Z") }));
+    await external.record(externalCall({ provider: "applications", operation: "lire_candidature", ok: false, httpStatus: 404, durationMs: 2, costEur: 0, at: new Date("2026-10-19T07:20:00Z") }));
+
+    const overview = await toolsOverview(database, stateOf(), now);
+    const row = overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === "applications")!;
+    expect(row.figures).toEqual({ calls: 3, failures: 2, costEur: 0, reasons: [{ outcome: "failed", reason: "invalid_input", calls: 1 }] });
+    expect(row.status).toBe("disabled");
+    const switchedOn = (await toolsOverview(database, stateOf({ COACH_ACTIONS_ENABLED: "true" }), now)).flatMap((group) => group.rows).find((candidate) => candidate.tool.id === "applications")!;
+    expect(switchedOn.status).toBe("no_key_needed");
+    expect((await toolCalls(database, tool("applications"))).map((call) => [call.operation, call.outcome, call.reason, call.httpStatus])).toEqual([
+      ["lire_candidature", "failed", null, 404],
+      ["proposer_candidature", "failed", "invalid_input", 422],
+      ["lire_candidature", "ok", null, 200],
+    ]);
+    // The Journal lists them with the other Tools' calls.
+    expect((await latestToolCalls(database, { ok: false })).map(({ tool: called, call }) => [called.id, call.operation, call.reason])).toEqual([
+      ["applications", "lire_candidature", null],
+      ["applications", "proposer_candidature", "invalid_input"],
+    ]);
   });
 
   it("lists at most the number of calls asked, and none for a Tool whose calls are not recorded", async () => {

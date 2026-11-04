@@ -1,6 +1,7 @@
 import { getAgenda } from "@/agenda/server";
 import { getAi } from "@/ai/server";
 import { getApplications } from "@/applications/server";
+import { getCoachActions } from "@/coach-actions/server";
 import { getCoachMemory } from "@/coach-memory/server";
 import { getCoachingPlaybooks } from "@/coaching-playbooks/server";
 import { getGuardrails } from "@/guardrails/server";
@@ -17,7 +18,8 @@ let instance: Coach | undefined;
 /**
  * The app's AI Coach, on the app's AI layer, reading the Candidate's workspace and Coach Memory (#125),
  * drawing on the Core Digest and the Playbook Agents served in this environment (ADR-0021), behind its Guardrails (ADR-0022),
- * reading a Job Offer from a link the Candidate pastes, and the Candidate's Agenda (#254).
+ * reading a Job Offer from a link the Candidate pastes, and the Candidate's Agenda (#254); calling the Coach Actions
+ * shipped while COACH_ACTIONS_ENABLED is on (#713).
  */
 export function getCoach(): Coach {
   instance ??= (() => {
@@ -27,6 +29,7 @@ export function getCoach(): Coach {
       playbooks: getCoachingPlaybooks(),
       guardrails: getGuardrails(),
       jobOfferLinks: getJobOfferLinks(),
+      coachActions: getCoachActions(),
       profiles: getProfiles(),
       applications: getApplications(),
       jobOffers: getJobOffers(),

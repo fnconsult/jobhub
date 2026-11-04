@@ -25,11 +25,12 @@ describe("the Activity of a step", () => {
   });
 
   describe("of a Coach Action (ADR-0077, #726)", () => {
-    /** The Routes locales Tools, a Coach Action's groups (Candidatures, Agenda…): they arrive with #713. */
-    const localRoutes = TOOLS.filter(({ category }) => (category as string) === COACH_ACTION_TOOL_CATEGORY);
+    /** The Routes locales Tools, a Coach Action's groups (Candidatures, Agenda…, #713). */
+    const localRoutes = TOOLS.filter(({ category }) => category === COACH_ACTION_TOOL_CATEGORY);
 
     it("is `act`, a glyph of its own, for every Tool of the Routes locales category", () => {
       expect(COACH_ACTION_TOOL_CATEGORY).toBe("local_routes");
+      expect(localRoutes.map((tool) => tool.id)).toEqual(["applications", "agenda", "profile", "job-searches", "job-digests", "documents"]);
       for (const tool of localRoutes) expect(activityOf({ kind: "tool", tool: tool.id as StepTool }), tool.id).toBe("act");
     });
 

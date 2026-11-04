@@ -757,6 +757,17 @@ _Avoid_: PIN, second factor
 **Disposition**:
 In the Jobbbox app, the decision of where the Sidebar, the Fiche, the Activité column and the Work Pane go, column or full page or drawer, from the window's width in rem (ADR-0070's thresholds, ADR-0076). Computed again whenever the window changes (rotation, Split View, Stage Manager, a foldable); a phone and a tablet differ only by it.
 
+**Hardware keyboard shortcut**:
+In the Jobbbox app, a key combination of a connected keyboard (⌘ on iPad, Ctrl on Android) for something the open page can do now: a new Coach Conversation, sending the message, the Sidebar, the Fiche (or Activité where there is no object), closing the pane on top. Offered only while the page can carry it out, and listed in the system's shortcuts panel (hold ⌘ on iPad, Meta+/ on Android). Échap closes a pane but leaves the Fiche column to its Top Bar button (ADR-0082).
+_Avoid_: Hotkey, key binding
+
+**Object context menu**:
+In the Jobbbox app, the actions of an Application, a Job Offer or a Free conversation, opened from its row by a long press or a right click and also offered as accessibility actions: « Ouvrir », « Voir l'annonce » (a Job Offer only), « Partager le lien ».
+_Avoid_: Long-press menu, popover
+
+**Pointer hover**:
+In the Jobbbox app, the highlight of a button, a Sidebar link or an object's row under a mouse or trackpad pointer. Absent with a finger.
+
 **Push notification**:
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)

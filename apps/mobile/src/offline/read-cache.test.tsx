@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Pressable, Text } from "react-native";
-import { ReadCacheProvider, readKey, useForgetReads, type ReadName } from "./read-cache";
+import { isRefusedOffline, ReadCacheProvider, readKey, useForgetReads, type ReadName } from "./read-cache";
 import { fakeNetwork, memoryStorage } from "./testing";
 
 /** Long enough for the cache to reach the device's storage. */
@@ -110,6 +110,50 @@ describe("the read cache", () => {
       signedIn = false;
       await signOut();
       expect([...storage.entries.values()].join()).not.toContain("Aéroline");
+    });
+  });
+
+  describe("writes", () => {
+    function Keep({ write }: { write: () => Promise<void> }) {
+      const keep = useMutation({ mutationFn: write });
+      const said = keep.isError ? (isRefusedOffline(keep.error) ? "Refusé hors ligne" : "Erreur") : keep.isPaused ? "En attente" : keep.isSuccess ? "Gardée" : "";
+      return (
+        <Pressable role="button" onPress={() => keep.mutate()}>
+          <Text>Garder l'offre {said}</Text>
+        </Pressable>
+      );
+    }
+
+    it("are refused without network, and not sent once it comes back", async () => {
+      const network = fakeNetwork(false);
+      const write = jest.fn(async () => {});
+      await render(
+        <ReadCacheProvider device={{ storage: memoryStorage(), network }}>
+          <Keep write={write} />
+        </ReadCacheProvider>,
+      );
+      await settle();
+      await fireEvent.press(screen.getByRole("button", { name: /Garder l'offre/ }));
+      await settle();
+      expect(screen.getByText("Garder l'offre Refusé hors ligne")).toBeOnTheScreen();
+
+      await act(() => network.set(true));
+      await settle(SAVED);
+      expect(write).not.toHaveBeenCalled();
+    });
+
+    it("are sent with network", async () => {
+      const write = jest.fn(async () => {});
+      await render(
+        <ReadCacheProvider device={{ storage: memoryStorage(), network: fakeNetwork(true) }}>
+          <Keep write={write} />
+        </ReadCacheProvider>,
+      );
+      await settle();
+      await fireEvent.press(screen.getByRole("button", { name: /Garder l'offre/ }));
+      await settle();
+      expect(screen.getByText("Garder l'offre Gardée")).toBeOnTheScreen();
+      expect(write).toHaveBeenCalledTimes(1);
     });
   });
 });

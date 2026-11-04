@@ -1,5 +1,5 @@
 import { API_VERSION } from "@jobhub/shared";
-import { defaultShouldDehydrateQuery, onlineManager, QueryClient, type QueryKey } from "@tanstack/react-query";
+import { defaultShouldDehydrateQuery, MutationCache, onlineManager, QueryClient, type QueryKey } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type PersistedClient, type Persister } from "@tanstack/react-query-persist-client";
 import { createContext, Fragment, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
@@ -94,6 +94,32 @@ function useNetworkFollowed(network: Network) {
   }, [network]);
 }
 
+/** Why a write failed: there was no network, so it was not sent, and will not be later (#701). */
+class RefusedOffline extends Error {
+  constructor() {
+    super("refused_offline");
+    this.name = "RefusedOffline";
+  }
+}
+
+/** Whether a write's error is its refusal for want of network: nothing was sent. */
+export const isRefusedOffline = (error: unknown) => error instanceof RefusedOffline;
+
+/**
+ * Nothing is written offline (ADR-0076): a write asked without network fails at once rather than waiting to be sent
+ * later, when the person may no longer mean it; one whose network drops on the way fails as any request does.
+ */
+function readCacheClient() {
+  return new QueryClient({
+    mutationCache: new MutationCache({
+      onMutate: () => {
+        if (!onlineManager.isOnline()) throw new RefusedOffline();
+      },
+    }),
+    defaultOptions: { queries: { gcTime: KEPT_FOR_MS }, mutations: { networkMode: "always" } },
+  });
+}
+
 const ForgetContext = createContext<() => Promise<void>>(async () => {});
 
 /**
@@ -102,7 +128,7 @@ const ForgetContext = createContext<() => Promise<void>>(async () => {});
  */
 export function ReadCacheProvider({ device, children }: { device: { storage: DeviceStorage; network: Network }; children: ReactNode }) {
   const [cache] = useState(() => ({
-    client: new QueryClient({ defaultOptions: { queries: { gcTime: KEPT_FOR_MS } } }),
+    client: readCacheClient(),
     persister: devicePersister(device.storage),
   }));
   // Every screen starts again after a sign-out, so none still shows what the cache held.

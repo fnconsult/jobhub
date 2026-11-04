@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { API_VERSION, API_VERSION_HEADER, EXTENSION_OUTDATED, isServedApiVersion, servedApiVersions } from "./api-version";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, isServedApiVersion, MOBILE_CLIENT, servedApiVersions } from "./api-version";
 
 describe("API Version (#564)", () => {
   it("starts at 1, stated in Jobbbox-Api-Version, refused with a stable code", () => {
     expect(API_VERSION).toBe(1);
     expect(API_VERSION_HEADER).toBe("Jobbbox-Api-Version");
     expect(EXTENSION_OUTDATED).toBe("extension_outdated");
+  });
+
+  it("knows the Jobbbox app by Jobbbox-Client: mobile, refused with its own stable code (#684)", () => {
+    expect(API_CLIENT_HEADER).toBe("Jobbbox-Client");
+    expect(MOBILE_CLIENT).toBe("mobile");
+    expect(APP_OUTDATED).toBe("app_outdated");
   });
 
   it("serves the current version and the one before, none below 1", () => {

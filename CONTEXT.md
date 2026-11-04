@@ -738,10 +738,6 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
 
-**Sheet**:
-In the Jobbbox app, the panel that rises from the bottom over the conversation when the window is narrower than 64rem, holding the Fiche, the Activité column or the Work Pane. It stops at two heights, about half and nearly all of the screen, moved by its handle or by « Agrandir » and « Réduire », and « Fermer » closes it. From 64rem the same content is a column beside the conversation.
-_Avoid_: Modal, bottom drawer, popup
-
 **Push notification**:
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)

@@ -3,7 +3,7 @@ kind: page
 audience: administrator
 topic: plateforme
 title: Activité
-synonyms: [activité, recherches, runs, run, job discovery, recherche d'offres, entonnoir, pages écartées, secours, fournisseur de secours, appels ia, journal ia, prompt, réponse de l'ia, débogage, déclencheur, contexte estimé, contexte mesuré, jetons]
+synonyms: [activité, recherches, runs, run, job discovery, recherche d'offres, entonnoir, pages écartées, secours, fournisseur de secours, appels ia, journal ia, prompt, réponse de l'ia, débogage, déclencheur, jetons, jetons d'entrée, estimation des jetons]
 route: /admin/activite
 ---
 Activité (menu Plateforme) réunit, en onglets, ce que la plateforme a fait : « Recherches », « Emails reçus », « Appels IA » et « Actions des administrateurs ». Chaque onglet n'apparaît qu'aux rôles qui le lisent. « Emails reçus » et « Actions des administrateurs » ont chacun leur article.

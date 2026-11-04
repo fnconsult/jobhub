@@ -72,9 +72,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "réponse de l'ia",
         "débogage",
         "déclencheur",
-        "contexte estimé",
-        "contexte mesuré",
-        "jetons"
+        "jetons",
+        "jetons d'entrée",
+        "estimation des jetons"
       ],
       "route": "/admin/activite",
       "motion": null,
@@ -3470,9 +3470,9 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         "ai reply",
         "debugging",
         "trigger",
-        "estimated context",
-        "measured context",
-        "tokens"
+        "tokens",
+        "input tokens",
+        "token estimate"
       ],
       "route": "/admin/activite",
       "motion": null,

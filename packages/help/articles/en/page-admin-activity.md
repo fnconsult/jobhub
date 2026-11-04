@@ -3,7 +3,7 @@ kind: page
 audience: administrator
 topic: plateforme
 title: Activity
-synonyms: [activity, searches, runs, run, job discovery, funnel, pages skipped, fallback, fallback provider, ai calls, ai message log, prompt, ai reply, debugging, trigger, estimated context, measured context, tokens]
+synonyms: [activity, searches, runs, run, job discovery, funnel, pages skipped, fallback, fallback provider, ai calls, ai message log, prompt, ai reply, debugging, trigger, tokens, input tokens, token estimate]
 route: /admin/activite
 ---
 Activity (Platform menu) gathers, in tabs, what the platform did: « Searches », « Received emails », « AI calls » and « Administrator actions ». Each tab shows only to the roles that read it. « Received emails » and « Administrator actions » each have their own article.

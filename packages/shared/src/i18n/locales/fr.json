@@ -5782,6 +5782,17 @@
       "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page."
     }
   },
+  "coachProposalsDisplay": {
+    "label": "Propositions du coach",
+    "card": "Carte",
+    "form": "Formulaire",
+    "hint": "Ce que votre coach IA vous montre d'abord quand il propose un changement : la carte sous sa réponse, ou le formulaire pré-rempli ouvert dans le volet. « Appliquer » et « Modifier avant d'appliquer » restent sur chaque carte ; rien n'est appliqué sans vous.",
+    "saved": {
+      "card": "Enregistré : chaque proposition s'affichera en carte sous la réponse.",
+      "form": "Enregistré : le formulaire de chaque proposition s'ouvrira dans le volet."
+    },
+    "error": "Votre choix n'a pas pu être enregistré. Réessayez."
+  },
   "origin": {
     "label": "Origine",
     "coachProposal": "Sur proposition de votre coach IA, appliqué par vous le {{date}}"

@@ -5782,6 +5782,17 @@
       "failed": "The proposal could not be processed. Try again or reload the page."
     }
   },
+  "coachProposalsDisplay": {
+    "label": "Coach proposals",
+    "card": "Card",
+    "form": "Form",
+    "hint": "What your AI coach shows you first when it proposes a change: the card under its reply, or the pre-filled form opened in the pane. “Apply” and “Edit before applying” stay on every card; nothing is applied without you.",
+    "saved": {
+      "card": "Saved: each proposal will show as a card under the reply.",
+      "form": "Saved: each proposal's form will open in the pane."
+    },
+    "error": "Your choice could not be saved. Try again."
+  },
   "origin": {
     "label": "Origin",
     "coachProposal": "Proposed by your AI coach, applied by you on {{date}}"

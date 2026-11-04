@@ -1,0 +1,2 @@
+https://bedrock-mantle.eu-north-1.api.aws/anthropic/v1/messages
+{"model":"anthropic.claude-opus-5","max_tokens":4096,"system":"Tu es le coach Jobbbox.\n\nNote : « [NOM] ».","messages":[{"role":"user","content":"Bonjour"},{"role":"assistant","content":"Bonjour, que puis-je pour vous ?"},{"role":"user","content":"Mes candidatures \"en cours\" ?\n- une\n- deux"}],"output_config":{"effort":"high"}}

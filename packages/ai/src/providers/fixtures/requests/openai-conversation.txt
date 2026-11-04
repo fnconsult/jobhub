@@ -1,0 +1,2 @@
+https://eu.api.openai.com/v1/chat/completions
+{"model":"gpt-5","max_completion_tokens":12096,"messages":[{"role":"system","content":"Tu es le coach Jobbbox.\n\nNote : « [NOM] »."},{"role":"user","content":"Bonjour"},{"role":"assistant","content":"Bonjour, que puis-je pour vous ?"},{"role":"user","content":"Mes candidatures \"en cours\" ?\n- une\n- deux"}],"reasoning_effort":"high"}

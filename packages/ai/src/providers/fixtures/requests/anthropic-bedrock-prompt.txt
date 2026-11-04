@@ -1,0 +1,2 @@
+https://bedrock-mantle.eu-north-1.api.aws/anthropic/v1/messages
+{"model":"anthropic.claude-opus-5","max_tokens":1000,"messages":[{"role":"user","content":"Améliore mon CV"}]}

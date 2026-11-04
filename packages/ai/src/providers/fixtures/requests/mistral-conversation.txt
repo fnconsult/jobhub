@@ -1,0 +1,2 @@
+https://api.eu.mistral.ai/v1/chat/completions
+{"model":"mistral-large-latest","max_tokens":4096,"messages":[{"role":"system","content":"Tu es le coach Jobbbox.\n\nNote : « [NOM] »."},{"role":"user","content":"Bonjour"},{"role":"assistant","content":"Bonjour, que puis-je pour vous ?"},{"role":"user","content":"Mes candidatures \"en cours\" ?\n- une\n- deux"}]}

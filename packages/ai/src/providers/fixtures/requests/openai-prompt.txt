@@ -1,0 +1,2 @@
+https://eu.api.openai.com/v1/chat/completions
+{"model":"gpt-5","max_completion_tokens":1000,"messages":[{"role":"user","content":"Améliore mon CV"}]}

@@ -1,0 +1,125 @@
+import { Plus, Send, Square } from "lucide-react-native";
+import { useRef, useState, type ComponentRef } from "react";
+import { useTranslation } from "react-i18next";
+import { ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { INTER, radius, space, type, useTheme } from "../theme/theme";
+import { AppText } from "../ui/AppText";
+import { Control } from "../ui/Control";
+
+export type Message = { id: string; from: "candidate" | "coach"; text: string };
+
+/** The conversation keeps a reading width, centred in its space (ADR-0070): 44rem. */
+const READING_REM = 44;
+
+/**
+ * A page's conversation with the AI Coach (ADR-0070): its thread, and at its foot the box, with « + » for a link or a
+ * document and « Envoyer » or, while the reply streams, « Arrêter ». What it shows and sends is its caller's (#690
+ * plugs it into `POST /api/coach`).
+ */
+export function Conversation({
+  messages,
+  streaming,
+  onSend,
+  onStop,
+  onAttach,
+}: {
+  messages: readonly Message[];
+  streaming: boolean;
+  onSend: (text: string) => void;
+  onStop: () => void;
+  onAttach: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const { fontScale } = useWindowDimensions();
+  const [draft, setDraft] = useState("");
+  const thread = useRef<ComponentRef<typeof ScrollView>>(null);
+  const send = () => {
+    const text = draft.trim();
+    if (!text) return;
+    onSend(text);
+    setDraft("");
+  };
+  const readingWidth = READING_REM * 16 * fontScale;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        ref={thread}
+        aria-label={t("coachPanel.messagesLabel")}
+        onContentSizeChange={() => thread.current?.scrollToEnd({ animated: true })}
+        contentContainerStyle={styles.thread}
+      >
+        <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", gap: space[4] }}>
+          {messages.map((message) => (
+            <Bubble key={message.id} message={message} />
+          ))}
+        </View>
+      </ScrollView>
+      <View style={{ width: "100%", maxWidth: readingWidth, alignSelf: "center", paddingBottom: space[2] }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-end",
+            gap: space[1],
+            padding: space[1],
+            borderWidth: 1,
+            borderColor: colors.borderStrong,
+            borderRadius: radius.card * 2,
+            backgroundColor: colors.surface,
+          }}
+        >
+          <Control label={t("mobile.attach")} icon={Plus} iconOnly onPress={onAttach} />
+          <TextInput
+            aria-label={t("coachPanel.messageLabel")}
+            placeholder={t("coachPanel.messageLabel")}
+            placeholderTextColor={colors.meta}
+            value={draft}
+            onChangeText={setDraft}
+            multiline
+            style={{
+              flex: 1,
+              minHeight: 44,
+              maxHeight: 160,
+              paddingHorizontal: space[2],
+              paddingVertical: space[3],
+              fontFamily: INTER.regular,
+              fontSize: type.fontSize.body,
+              color: colors.text,
+            }}
+          />
+          {streaming ? (
+            <Control label={t("coachPanel.stop")} icon={Square} look="secondary" onPress={onStop} />
+          ) : (
+            <Control label={t("mobile.send")} icon={Send} look="primary" onPress={send} />
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function Bubble({ message }: { message: Message }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  if (message.from === "candidate")
+    return (
+      <View style={{ alignSelf: "flex-end", maxWidth: "85%", padding: space[3], borderRadius: radius.card * 1.6, backgroundColor: colors.accentSoft }}>
+        <AppText>{message.text}</AppText>
+      </View>
+    );
+  // The coach's reply, under the words « Coach IA »: it says it is an AI at every width (AI Act art. 50(1)).
+  return (
+    <View style={{ gap: space[1] }}>
+      <AppText variant="meta" tone="meta">
+        {t("coachPanel.badge")}
+      </AppText>
+      <AppText>{message.text}</AppText>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  // The thread sits on the box, the latest message just above it, as in a messaging app.
+  thread: { flexGrow: 1, justifyContent: "flex-end", paddingVertical: space[4] },
+});

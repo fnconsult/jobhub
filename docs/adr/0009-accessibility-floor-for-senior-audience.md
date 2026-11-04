@@ -77,3 +77,12 @@ The floor now targets **WCAG 2.2 AA** instead of 2.1 AA (#506, on the research o
 ## Amendment: the native app follows the system text size (ADR-0076, 2026-11-04)
 
 In the native app, text follows the system's Dynamic Type (iOS) or font scale (Android) instead of the Text Size, which the app does not offer. The 16 pt body-text floor, the 44 pt targets, visible labels and the contrast audit hold, in both themes; screens are tested up to the largest accessibility sizes, where ADR-0070's columns fall back to full-screen panes because the width is measured in rem. Every pane closes by its « Fermer » button, never only by a gesture.
+
+## Amendment: the native app's « + » and pencil (ADR-0076, issue #683, 2026-11-04)
+
+Two icons of the native app's conversation shell carry only an accessible label (VoiceOver and TalkBack read « Joindre un lien ou un document » and « Nouvelle conversation »), on the same terms as the exceptions above:
+- **The pencil in the Top Bar** has a labelled twin: « Nouvelle conversation », first in the drawer.
+- **« + » in the box**, as in the Claude iOS app, is for a link or a document (PDF, DOCX); the choices it will open (#690) are in words. It sits beside « Envoyer », in words, and pasting a link into the box needs no « + ».
+- Both are at least 44 pt, with a 3:1 glyph.
+
+The exception covers these two icons only. « Menu », « Fiche », « Activité », « Envoyer », « Fermer » and « Arrêter » show their words.

@@ -1,0 +1,5 @@
+# Expo's generated files and native projects (built by EAS, ADR-0076).
+.expo/
+expo-env.d.ts
+ios/
+android/

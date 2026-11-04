@@ -8,6 +8,7 @@ Coaching platform for job seekers aged 40+ in France. Vocabulary: [`CONTEXT.md`]
 | --- | --- |
 | `apps/web` | Next.js web app |
 | `apps/extension` | Chrome and Edge MV3 extension (WXT), in the browser's Side Panel |
+| `apps/mobile` | The Jobbbox app for iOS, iPadOS and Android (Expo SDK 58, Expo Router, ADR-0076): `src/shell` (Top Bar, Sidebar, panes; `disposition.ts` decides the layout from the window width in rem), `src/theme` (shared tokens, light and dark), `src/navigation`, `src/conversation` (sample data until #690), `src/app` (routes, as the web's). iOS 16.4+ (the floor of SDK 58), Android API 24+; tested by Jest (`npm run test:mobile`), skipped by Vitest; `ios/` and `android/` are generated and git-ignored; `npm run start -w @jobhub/mobile` to run it |
 | `apps/worker` | Background-job runner (pg-boss on Postgres) |
 | `packages/shared` | Domain types, translations (`@jobhub/shared/i18n`) and design tokens (`@jobhub/shared/design`) |
 | `packages/ai` | Provider-agnostic AI layer (`@jobhub/ai`, server-side only): Anthropic, Mistral, OpenAI; web search (Search providers, ADR-0043): Perplexity's Search API, Brave, Tavily, with an optional fallback for the rest of a run; fake provider in `@jobhub/ai/testing` (`pending` waits for the request's `signal`); every result carries call facts, and a request's `signal` stops the call (Failure Reason `stopped`); tool calling (#712, ADR-0077): `GenerateRequest.tools` / `runTool` / `maxToolRounds` (default 2, at most 4), the AI layer runs the loop and the caller runs each tool, one AI Usage line per Turn, `GenerateResult.turns`; the fake provider takes scripted `turns` and the e2e fake Mistral `E2E_COACH_TOOL=<nom>:<json>` |
@@ -53,6 +54,7 @@ npm run typecheck
 npm test            # worker integration tests run when DATABASE_URL is set
 npm run build
 npx playwright install chromium   # once
+npm run test:mobile # the app's Jest tests (apps/mobile), run in CI
 npm run test:e2e    # e2e: built web app (refused when older than its sources: build again), built extension, docker compose stack (E2E_SKIP_DOCKER=1 to skip)
 ```
 

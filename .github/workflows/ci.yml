@@ -53,6 +53,8 @@ jobs:
       - run: npm run check:versions
       - run: npm run typecheck
       - run: npm test
+      # The native app's tests (#683): Jest with React Native Testing Library, which Vitest leaves to it.
+      - run: npm run test:mobile
       - run: npm run build
       - run: npm run db:migrate
       - run: npx playwright install --with-deps chromium

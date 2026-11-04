@@ -1,9 +1,23 @@
+import type { ProfileResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { getCandidateReads } from "@/candidate-reads/server";
 import { profileResponse } from "@/profiles/http";
 import { getProfiles } from "@/profiles/server";
 
 type Context = { params: Promise<{ id: string }> };
+
+/**
+ * One of the Candidate's Profiles to read (#684), an archived one included: its Search Criteria, its current Master CV
+ * and its ATS Score. Changing it stays on the web. 200 ProfileResponse · 401 · 404 (also anyone else's)
+ */
+export async function GET(_request: Request, { params }: Context) {
+  const candidate = await getCurrentCandidate();
+  if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const profile = await getCandidateReads().profile(candidate.id, (await params).id);
+  if (!profile) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  return NextResponse.json<ProfileResponse>(profile);
+}
 
 /**
  * Changes one of the Candidate's Profiles.

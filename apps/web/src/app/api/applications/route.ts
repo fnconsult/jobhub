@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
+import type { ApplicationsResponse } from "@jobhub/shared/reads";
+import { applicationListView } from "@/applications/list-view";
 import { getApplications } from "@/applications/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { getCandidateReads } from "@/candidate-reads/server";
 
-/** The signed-in Candidate's Applications, newest first. 200 ApplicationSummary[] · 401 */
-export async function GET() {
+/**
+ * Mes candidatures' card (#684): the signed-in Candidate's Applications, latest saved first, with their status, Match
+ * Score, what is à traiter and their next deadline; `?archivees=1` lists the Archived Applications too, as the page does.
+ * 200 ApplicationsResponse · 401
+ */
+export async function GET(request: Request) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  return NextResponse.json(await getApplications().list(candidate.id));
+  const { showArchived } = applicationListView({ archivees: new URL(request.url).searchParams.get("archivees") ?? undefined });
+  return NextResponse.json<ApplicationsResponse>(await getCandidateReads().applications(candidate.id, { showArchived }));
 }
 
 /**

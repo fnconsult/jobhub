@@ -98,7 +98,8 @@ const site = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("candidate"), links: links("candidate") }),
 ]);
 
-const provenanceSchema = z.strictObject({
+/** A Provenance's shape, as kept and as served: the Jobbbox app reads a Coach reply's with it (`./reads`, #684). */
+export const provenanceSchema = z.strictObject({
   v: z.literal(1),
   steps: z.array(step),
   sites: z.array(site),

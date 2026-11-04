@@ -1,0 +1,22 @@
+{
+  "id": "chatcmpl-AbC123",
+  "object": "chat.completion",
+  "created": 1793790000,
+  "model": "gpt-5-2026-08-07",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          { "id": "call_Dq7ZtS0aKqW1Fs7v", "type": "function", "function": { "name": "candidatures_lister", "arguments": "{\"statut\":\"envoyée\"}" } },
+          { "id": "call_Hn2LpR8yUc4MxE9b", "type": "function", "function": { "name": "agenda_lister", "arguments": "{}" } }
+        ],
+        "refusal": null
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": { "prompt_tokens": 512, "completion_tokens": 30, "total_tokens": 542, "prompt_tokens_details": { "cached_tokens": 0 } }
+}

@@ -78,18 +78,72 @@ export interface Message {
   content: string;
 }
 
+/**
+ * A tool the model may call during one text call (ADR-0077): its name, what it does and the JSON Schema of its
+ * arguments. The caller's code runs it (`GenerateRequest.runTool`), never an AI call. A name is 1 to 64 letters,
+ * digits, `_` or `-`, as every provider takes it.
+ */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  /** The JSON Schema of its arguments: an object schema. */
+  parameters: Record<string, unknown>;
+}
+
+/** Text in a message made of blocks. */
+export interface TextBlock {
+  type: "text";
+  text: string;
+}
+
+/** The model calling one of the call's tools: the id the provider gave the call, the tool's name, its arguments. */
+export interface ToolCallBlock {
+  type: "tool_call";
+  id: string;
+  name: string;
+  /** The arguments as the model wrote them: a JSON object, else whatever it wrote (refused before any tool runs). */
+  arguments: unknown;
+}
+
+/** What a tool call gave back to the model, by the call's id: the tool's result, or what went wrong (`error`). */
+export interface ToolResultBlock {
+  type: "tool_result";
+  id: string;
+  content: string;
+  error?: true;
+}
+
+export type ContentBlock = TextBlock | ToolCallBlock | ToolResultBlock;
+
+/**
+ * A message of a call with tools: text, or blocks. The model's turn holds its text and tool calls (assistant), the
+ * next one the tools' results (user). A call without tools only ever has text messages (`Message`).
+ */
+export interface TurnMessage {
+  role: "user" | "assistant";
+  content: string | ContentBlock[];
+}
+
 /** Where a provider endpoint processes data; shown in the Back Office, and required "eu" of the identity route (EU AI consent). */
 export type Residency = "eu" | "outside_eu";
 
 export interface TextInput {
   model?: string;
   system?: string;
-  messages: Message[];
+  /** Text messages; with `tools`, also blocks (the model's tool calls, the tools' results). */
+  messages: TurnMessage[];
   maxTokens: number;
   /** How hard the model should think (#225); each adapter translates it, or leaves it out for a model that has no such setting (see effort.ts). */
   effort?: Effort;
   /** Stops the call (#325): the adapter passes it to its HTTP request and rejects with its reason once aborted. */
   signal?: AbortSignal;
+  /**
+   * The tools the model may call (ADR-0077), only sent to a provider that declares `toolCalling`. Without them, the
+   * request is exactly as it was before tool calling.
+   */
+  tools?: ToolDefinition[];
+  /** "none": the model must answer in text, its tools only there to read the calls already made. Default "auto". */
+  toolChoice?: "auto" | "none";
 }
 
 /** A tool the model used during one call (e.g. its web search), as the provider reports it. Never its arguments or results. */
@@ -107,6 +161,8 @@ export interface TextOutput {
   usage: TokenUsage;
   /** The tools the model used, when the provider says. Default: none. */
   tools?: ToolCall[];
+  /** The model's calls of the input's `tools`, in order, for the caller to run. Absent or empty: it answered. */
+  toolCalls?: ToolCallBlock[];
 }
 
 export interface SearchOutput {
@@ -195,6 +251,11 @@ export interface AiProvider {
   /** The text models it offers a Playbook Agent (#225), by the name this endpoint knows them by, its default model first. */
   readonly models?: readonly string[];
   generate?(input: TextInput): Promise<TextOutput>;
+  /**
+   * Whether `generate` takes `tools` (ADR-0077): Claude, Mistral and OpenAI do. A provider that does not is called
+   * without them, as before tool calling.
+   */
+  readonly toolCalling?: boolean;
   /**
    * One web search: a query, or up to `searchContract.queriesPerCall` of them in one call (more is refused).
    * Their pages come back together, never attributed to a query.

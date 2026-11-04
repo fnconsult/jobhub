@@ -1,4 +1,4 @@
-import { AiProviderError, createAiLayer, type AiLayer, type TextInput } from "@jobhub/ai";
+import { AiProviderError, contentText, createAiLayer, type AiLayer, type TextInput } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider, type MemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent, ProvenanceEvent } from "@jobhub/shared";
 import type { Pool } from "pg";
@@ -75,7 +75,7 @@ function fakeRegister(companies: RegisteredCompany[] = []) {
 }
 
 /** Whether a text call is the company-facts-search agent reading the pages found (#405). */
-const readsPages = (input: TextInput) => input.messages.some((message) => message.content.includes("<pages>"));
+const readsPages = (input: TextInput) => input.messages.some((message) => contentText(message.content).includes("<pages>"));
 
 describe.skipIf(!connectionString)("Company Dossiers (needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;

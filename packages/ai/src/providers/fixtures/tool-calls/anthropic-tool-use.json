@@ -1,0 +1,14 @@
+{
+  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5-5",
+  "content": [
+    { "type": "text", "text": "Je regarde vos candidatures." },
+    { "type": "tool_use", "id": "toolu_01A09q90qw90lq917835lq9", "name": "candidatures_lister", "input": { "statut": "envoyée" } },
+    { "type": "tool_use", "id": "toolu_01B7xq2d3oKp9mN4rT6vW8yZ", "name": "agenda_lister", "input": {} }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": { "input_tokens": 512, "output_tokens": 64, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0 }
+}

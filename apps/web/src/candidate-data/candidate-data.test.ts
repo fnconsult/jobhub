@@ -1,5 +1,5 @@
 import { createSecretKey, randomBytes } from "node:crypto";
-import { AiProviderError, createAiLayer } from "@jobhub/ai";
+import { AiProviderError, contentText, createAiLayer, type TextInput } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { noDiscoveryMetrics, rulesProvenance, type MasterCvContent, type Provenance } from "@jobhub/shared";
@@ -61,8 +61,8 @@ const OFFER = {
 };
 
 /** What the fake AI Coach writes: a Tailored CV when asked for one, a Cover Letter otherwise. */
-function writer(input: { system?: string; messages: { content: string }[] }): string {
-  const asked = `${input.system ?? ""}\n${input.messages.map((message) => message.content).join("\n")}`;
+function writer(input: TextInput): string {
+  const asked = `${input.system ?? ""}\n${input.messages.map((message) => contentText(message.content)).join("\n")}`;
   if (/"missing"/.test(asked)) {
     return "```json\n" + JSON.stringify({ headline: "DAF groupe industriel", summary: "", experience: [], education: [], skills: ["IFRS", "SAP"], languages: [], missing: [] }) + "\n```";
   }

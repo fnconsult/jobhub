@@ -3,12 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import { expect, test, type Browser } from "@playwright/test";
 import { readMotionScripts } from "@jobhub/help/motion-scripts-content";
+import { applicationsResponseSchema } from "@jobhub/shared/reads";
 import { captureMotion, CaptureError } from "../packages/motions/src/capture";
-import { DEMO_EMAIL, seedDemoCandidate } from "../packages/motions/src/demo-seed";
+import { DEMO_APPLICATIONS, DEMO_EMAIL, seedDemoCandidate } from "../packages/motions/src/demo-seed";
 import { stepDurations } from "../packages/motions/src/narration";
 import { failure, fixturesDir, motionDir, readNarration, readPlan, scriptOf, writeStageError } from "../packages/motions/src/run";
 import type { Capture } from "../packages/motions/src/timeline";
 import { signInWithMagicLink } from "./support/candidate";
+import { newAddress } from "./support/mailbox";
 
 // Issue #567 (ADR-0066): the motions' captures. Playwright films a Motion Script on the demo data (the demo Candidate,
 // seeded through the app's API on this run's throwaway database), at desktop width, in French and in English.
@@ -77,6 +79,35 @@ test.describe("motions: the test Motion Scripts", () => {
       expect(capture.visited.at(-1)).toMatch(/^\/candidatures\/[^/]+$/);
     });
   }
+
+  // Every capture seeds the demo Candidate again: the seed saves its Applications once, and a later seed leaves them as
+  // they are (a status a capture changed included), whatever GET /api/applications' shape (#684 made it Mes candidatures'
+  // card, { applications, toHandle, archivedHidden }).
+  test("seeding the demo Candidate again saves no Application twice and changes none", async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: origin });
+    const page = await context.newPage();
+    await signInWithMagicLink(page, newAddress("motions-seed"));
+    await seedDemoCandidate(page.request, origin, "fr");
+    const writes: string[] = [];
+    const watched = new Proxy(page.request, {
+      get(target, property) {
+        const value: unknown = Reflect.get(target, property, target);
+        if (typeof value !== "function") return value;
+        return (url: string, ...rest: unknown[]) => {
+          if (["post", "patch", "put", "delete", "fetch"].includes(String(property)) && /^\/api\/(job-offers|applications)/.test(url)) writes.push(`${String(property)} ${url}`);
+          return (value as (...args: unknown[]) => unknown).apply(target, [url, ...rest]);
+        };
+      },
+    });
+    await seedDemoCandidate(watched, origin, "fr");
+    expect(writes).toEqual([]);
+
+    const listed = await page.request.get("/api/applications");
+    expect(listed.status(), await listed.text()).toBe(200);
+    const { applications } = applicationsResponseSchema.parse(await listed.json());
+    expect(applications.map(({ title }) => title).sort()).toEqual(DEMO_APPLICATIONS.map(({ title }) => title).sort());
+    await context.close();
+  });
 
   test("a capture whose element is missing breaks on its step, naming it, and leaves no video", async ({ browser }) => {
     test.setTimeout(120_000);

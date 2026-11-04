@@ -2,6 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { applicationResponseSchema, type ApplicationResponse } from "@jobhub/shared/reads";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { PgBoss } from "pg-boss";
 import { signInWithMagicLink } from "./support/candidate";
@@ -97,10 +98,11 @@ async function jobOffer(request: APIRequestContext, id: string): Promise<{ id: s
   return response.json();
 }
 
-async function application(page: Page, id: string): Promise<{ status: string; jobOffer: { expiredAt?: string } }> {
+/** One Application over the HTTP API, read as the app reads it (#684): an absent value is null, not left out. */
+async function application(page: Page, id: string): Promise<ApplicationResponse> {
   const response = await page.request.get(`/api/applications/${id}`);
   expect(response.status(), await response.text()).toBe(200);
-  return response.json();
+  return applicationResponseSchema.parse(await response.json());
 }
 
 test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () => {
@@ -291,7 +293,7 @@ test.describe("Expired Job Offers (worker job job-offers.recheck-sources)", () =
     for (const [, { id, status }] of onExpired) {
       const read = await application(page, id);
       expect(read.status).toBe(status);
-      expect(read.jobOffer.expiredAt).toBeDefined();
+      expect(read.jobOffer.expiredAt).not.toBeNull();
     }
 
     // In Mes candidatures' list (#604): each one flagged in words, its status as the Candidate left it.

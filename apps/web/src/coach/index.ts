@@ -8,7 +8,7 @@
  * It never throws for a bad conversation or a failing provider: it answers
  * `{ ok: false, error: "invalid" | "unavailable" }`. What the AI Coach is told
  * (the Candidate summary, the Coach Memory, the item In view, the summaries,
- * within COACH_CONTEXT_MAX_TOKENS and without the Candidate's identity) is read
+ * within the `coachContextTokens` of the Candidate's Plan (`options.limits`, ADR-0078) and without the Candidate's identity) is read
  * here from the sources, scoped to the Candidate, so an id from someone else's
  * account adds nothing: see ./context. Task `coaching`, EU endpoints only (ADR-0007).
  *
@@ -47,14 +47,14 @@
 import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
 import { article } from "@jobhub/help";
 import { createI18n } from "@jobhub/shared/i18n";
-import { failureOf, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, failureOf, type CoachContextLimits, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
 import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
 import { readReplyMarks, REPLY_MARKS_RULE } from "./reply-marks";
-import { asData, COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
-import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, recentConversation } from "./conversation";
+import { asData, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
+import { MAX_MESSAGE_LENGTH, recentConversation } from "./conversation";
 import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, MAX_PLAYBOOK_AGENTS, type PlaybookAdvice } from "./playbook-agents";
 
 export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
@@ -132,6 +132,12 @@ export interface CoachReplyOptions {
   signal?: AbortSignal;
   /** Each step of the reply as it starts and ends (#328), for the Coach Panel to show live. */
   onEvent?: (event: ProvenanceEvent) => void;
+  /**
+   * The Coach context limits of the Candidate's Plan at the time of the reply (ADR-0078): the AI Coach reads the latest
+   * `coachContextMessages` messages and fits its context under `coachContextTokens`; null is unlimited.
+   * Default DEFAULT_COACH_CONTEXT_LIMITS (40 and 12 000), a Plan's with none stored.
+   */
+  limits?: CoachContextLimits;
 }
 
 export interface Coach {
@@ -160,21 +166,14 @@ export interface CoachOptions {
   jobOfferLinks?: Pick<JobOfferLinks, "read">;
 }
 
-/**
- * Most messages accepted in one call. Coach Conversations send their recent
- * window (MAX_MESSAGES) plus the new message; anything longer, up to this bound,
- * is trimmed to that window rather than refused.
- */
-const MAX_MESSAGES_ACCEPTED = MAX_MESSAGES * 5;
-
 /** Room for the Sources the knowledge cites, in estimated tokens. */
 const SOURCES_MAX_TOKENS = 800;
 
 const inputSchema = z.object({
   messages: z
     .array(z.object({ from: z.enum(["candidate", "coach"]), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }))
+    // Any length: Coach Conversations send their window of the conversation, which the reply trims to the Plan's own.
     .min(1)
-    .max(MAX_MESSAGES_ACCEPTED)
     .refine((messages) => messages.at(-1)?.from === "candidate"),
   focus: z.object({ kind: z.enum(COACH_FOCUS_KINDS), id: z.string().max(100) }).optional(),
   /** The Help Article the Candidate read just before asking (#342): only its id counts, its title is the help's own. */
@@ -253,12 +252,15 @@ export function createCoach(deps: CoachDeps): Coach {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { signal, onEvent } = options;
+      const limits = options.limits ?? DEFAULT_COACH_CONTEXT_LIMITS;
+      /** The ceiling of the context, in estimated jetons: none when unlimited. */
+      const maxTokens = limits.coachContextTokens ?? Number.POSITIVE_INFINITY;
       // Whether the latest message went through the input Guardrails: they only ask for the reply once it has.
       let messagePassed = false;
       const stopped = () => ({ ok: false as const, error: "stopped" as const, messagePassed });
       if (signal?.aborted) return stopped();
       const { focus } = parsed.data;
-      const messages = recentConversation(parsed.data.messages).map((message) => ({
+      const messages = recentConversation(parsed.data.messages, limits.coachContextMessages).map((message) => ({
         role: message.from === "candidate" ? ("user" as const) : ("assistant" as const),
         content: message.text,
       }));
@@ -284,7 +286,7 @@ export function createCoach(deps: CoachDeps): Coach {
             choice.chosen.length > 0
               ? choice.chosen.length * (AGENT_ADVICE_MAX_TOKENS + 25) + SOURCES_MAX_TOKENS
               : estimateTokens(sourcesText(served, [served.coreDigest?.content ?? ""]));
-          const context = await contextOf(candidateId, focus, COACH_CONTEXT_MAX_TOKENS - estimateTokens(instructions) - reserved - 4);
+          const context = await contextOf(candidateId, focus, maxTokens - estimateTokens(instructions) - reserved - 4);
           const consulted = await Promise.all(
             choice.chosen.map((playbook) =>
               consultPlaybookAgent(recorder.aiFor("playbook_agent"), candidateId, playbook, { context, messages, timeoutMs }).catch((error: unknown) => {

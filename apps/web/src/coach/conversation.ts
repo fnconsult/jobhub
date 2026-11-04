@@ -6,7 +6,7 @@
  * the worker (which purges Coach Conversations) bundle it.
  */
 
-import type { Provenance } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, type CoachContextLimits, type Provenance } from "@jobhub/shared";
 
 export interface CoachMessage {
   from: "candidate" | "coach";
@@ -36,12 +36,16 @@ export interface JobOfferCard {
   followed: boolean;
 }
 
-/** Longest single message, and most messages the AI Coach answers from. */
+/** Longest single message. */
 export const MAX_MESSAGE_LENGTH = 5000;
-export const MAX_MESSAGES = 40;
+/** Most messages the AI Coach answers from, on a Plan with no Coach context limits stored (ADR-0078): its Plan's `coachContextMessages` otherwise. */
+export const MAX_MESSAGES = DEFAULT_COACH_CONTEXT_LIMITS.coachContextMessages;
 
-/** The ceiling of the AI Coach's context, in estimated tokens: what it is told of the Candidate is fitted under it. */
-export const COACH_CONTEXT_MAX_TOKENS = 12_000;
+/**
+ * The ceiling of the AI Coach's context, in estimated tokens, on a Plan with no Coach context limits stored (ADR-0078): its Plan's
+ * `coachContextTokens` otherwise. What it is told of the Candidate is fitted under it.
+ */
+export const COACH_CONTEXT_MAX_TOKENS = DEFAULT_COACH_CONTEXT_LIMITS.coachContextTokens;
 
 /** A rough token count (about 4 characters per token), enough to keep the context under its cap. */
 export function estimateTokens(text: string): number {
@@ -67,9 +71,9 @@ export function contextBar(context: ConversationContext | null): ContextBar {
   return { messages, maxMessages: MAX_MESSAGES, tokens, maxTokens: COACH_CONTEXT_MAX_TOKENS, share, nearlyFull: share >= NEARLY_FULL };
 }
 
-/** The last MAX_MESSAGES messages, starting with a Candidate message. */
-export function recentConversation<T extends CoachMessage>(messages: readonly T[]): T[] {
-  const recent = messages.slice(-MAX_MESSAGES);
+/** The last `limit` messages (all of them when null: unlimited), starting with a Candidate message. */
+export function recentConversation<T extends CoachMessage>(messages: readonly T[], limit: number | null = MAX_MESSAGES): T[] {
+  const recent = limit === null ? messages.slice() : limit > 0 ? messages.slice(-limit) : [];
   const start = recent.findIndex((message) => message.from === "candidate");
   return start === -1 ? [] : recent.slice(start);
 }

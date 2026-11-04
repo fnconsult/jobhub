@@ -2,7 +2,7 @@ import { AiProviderError, costInEur, createAiLayer, type AiProvider, type TextIn
 import { createFakeProvider, createMemoryUsageLog, type FakeProvider } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
 import { article } from "@jobhub/help";
-import { scoreMatch, type IndustryReference, type JobOffer, type ProvenanceEvent } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, scoreMatch, type IndustryReference, type JobOffer, type ProvenanceEvent } from "@jobhub/shared";
 import type { AgendaItem } from "@/agenda";
 import { interviewDayStart, type Application } from "../applications";
 import type { ServedKnowledge } from "@/coaching-playbooks";
@@ -920,6 +920,67 @@ describe("the context's cap: about 12k tokens", () => {
     expect(system).not.toContain("Fin de l'offre.");
     expect(system).toContain("Vise une PME familiale");
     expect(system).toMatch(/19 ans d'expérience/);
+  });
+});
+
+describe("the Coach context limits of the Candidate's Plan (ADR-0078, #731)", () => {
+  /** About `tokens` tokens of words. */
+  const text = (tokens: number, word: string) => `${word} `.repeat(Math.ceil((tokens * 4) / (word.length + 1)));
+  const conversation = (length: number) =>
+    Array.from({ length }, (_, i) => ({ from: i % 2 === 0 ? ("candidate" as const) : ("coach" as const), text: `message ${i + 1}` }));
+  const posting = { ...jobOffer, content: `Début de l'offre. ${text(20_000, "mission")}Fin de l'offre.` };
+
+  it("reads the latest coachContextMessages messages, starting with a Candidate message", async () => {
+    const { coach, provider } = coachWith();
+
+    await coach.reply("marie", { messages: conversation(41) }, { limits: { coachContextMessages: 10, coachContextTokens: 12_000 } });
+
+    const sent = provider.calls[0]!.messages as { role: string; content: string }[];
+    expect(sent.length).toBeLessThanOrEqual(10);
+    expect(sent[0]).toEqual({ role: "user", content: "message 33" });
+    expect(sent.at(-1)).toEqual({ role: "user", content: "message 41" });
+  });
+
+  it("reads the whole conversation when the messages are unlimited, however long", async () => {
+    const { coach, provider } = coachWith();
+
+    await coach.reply("marie", { messages: conversation(401) }, { limits: { coachContextMessages: null, coachContextTokens: 12_000 } });
+
+    const sent = provider.calls[0]!.messages as { role: string; content: string }[];
+    expect(sent).toHaveLength(401);
+    expect(sent[0]).toEqual({ role: "user", content: "message 1" });
+  });
+
+  it("fits its context under coachContextTokens", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "job_offer", id: posting.id } }, { limits: { coachContextMessages: 40, coachContextTokens: 4_000 } });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeLessThanOrEqual(4_000);
+    expect(estimateTokens(system)).toBeGreaterThan(3_000);
+    expect(system).toContain("Début de l'offre.");
+  });
+
+  it("tells everything it reads when the jetons are unlimited", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    await coach.reply("marie", { messages: [{ from: "candidate", text: "Que me conseillez-vous ?" }], focus: { kind: "job_offer", id: posting.id } }, { limits: { coachContextMessages: 40, coachContextTokens: null } });
+
+    const system = contextOf(provider);
+    expect(estimateTokens(system)).toBeGreaterThan(20_000);
+    expect(system).toContain("Fin de l'offre.");
+  });
+
+  it("keeps the limits of a Plan with none stored without them: 40 messages and 12 000 jetons", async () => {
+    const { coach, provider } = coachWith({ workspace: { jobOffers: [posting] } });
+
+    await coach.reply("marie", { messages: conversation(101), focus: { kind: "job_offer", id: posting.id } });
+
+    expect(DEFAULT_COACH_CONTEXT_LIMITS).toEqual({ coachContextMessages: 40, coachContextTokens: 12_000 });
+    expect(provider.calls[0]!.messages.length).toBeLessThanOrEqual(40);
+    expect(estimateTokens(contextOf(provider))).toBeLessThanOrEqual(12_000);
+    expect(estimateTokens(contextOf(provider))).toBeGreaterThan(11_000);
   });
 });
 

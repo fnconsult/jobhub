@@ -4099,7 +4099,8 @@
       "search": "searching the job sources",
       "web_search": "searching the web",
       "read": "reading the job offers",
-      "compute": "computing the match scores"
+      "compute": "computing the match scores",
+      "act": "looking at your data"
     },
     "notCounted": "It does not count toward this week's job searches.",
     "keptBeforeFailure_one": "The job offer found before it failed is kept.",
@@ -4880,7 +4881,9 @@
       "web_search": "Searching the web",
       "read": "Reading",
       "compute": "Computing",
-      "check": "Checking"
+      "check": "Checking",
+      "act": "Looking at your data",
+      "propose": "Preparing a proposal"
     },
     "label": "AI activity",
     "title": "This page",
@@ -4951,7 +4954,11 @@
         "compute_one": "{{count}} calculation",
         "compute_other": "{{count}} calculations",
         "check_one": "{{count}} check",
-        "check_other": "{{count}} checks"
+        "check_other": "{{count}} checks",
+        "act_one": "{{count}} item looked at",
+        "act_other": "{{count}} items looked at",
+        "propose_one": "{{count}} proposal prepared",
+        "propose_other": "{{count}} proposals prepared"
       },
       "earlierSteps_one": "{{count}} step finished earlier",
       "earlierSteps_other": "{{count}} steps finished earlier",

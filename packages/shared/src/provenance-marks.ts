@@ -47,11 +47,16 @@ export function markOfTool(tool: Tool | undefined): ProvenanceMark {
   return tool.logo ? { logo: tool.logo, text: tool.name } : { text: tool.name };
 }
 
-/** What a running step is called: its Activity, or a Guardrail's check. */
-export const STEP_LABELS = [...ACTIVITIES, "check"] as const;
+/** What a running step is called: its Activity, a Guardrail's check, or a Coach Action's proposal. */
+export const STEP_LABELS = [...ACTIVITIES, "check", "propose"] as const;
 export type StepLabel = (typeof STEP_LABELS)[number];
 
-/** What AI Activity calls a step while it runs: its Activity's label, « Vérification » for a Guardrail's check. */
+/**
+ * What AI Activity calls a step while it runs: its Activity's label, « Vérification » for a Guardrail's check; a Coach
+ * Action's (`act`) is « Consulte vos données » when it reads, « Prépare une proposition » when it proposes (#726).
+ */
 export function stepLabel(step: StartedStep | ProvenanceStep): StepLabel {
-  return step.kind === "ai" && step.task === "guardrail" ? "check" : step.activity;
+  if (step.kind === "ai" && step.task === "guardrail") return "check";
+  if (step.kind === "tool" && step.activity === "act" && step.proposes) return "propose";
+  return step.activity;
 }

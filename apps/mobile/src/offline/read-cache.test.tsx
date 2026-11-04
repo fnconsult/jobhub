@@ -43,6 +43,37 @@ describe("the read cache", () => {
     expect(screen.getByText("Entretien chez Aéroline")).toBeOnTheScreen();
   });
 
+  it("reads again, silently, once the network comes back: what was shown stays until the new answer replaces it", async () => {
+    const storage = memoryStorage();
+    const first = await render(
+      <ReadCacheProvider device={{ storage, network: fakeNetwork(true) }}>
+        <Read name="applications" answer={async () => "3 candidatures"} />
+      </ReadCacheProvider>,
+    );
+    await settle(SAVED);
+    await first.unmount();
+
+    const network = fakeNetwork(false);
+    let reply!: (text: string) => void;
+    const answer = jest.fn(() => new Promise<string>((resolve) => (reply = resolve)));
+    await render(
+      <ReadCacheProvider device={{ storage, network }}>
+        <Read name="applications" answer={answer} />
+      </ReadCacheProvider>,
+    );
+    await settle(SAVED);
+    expect(screen.getByText("3 candidatures")).toBeOnTheScreen();
+    expect(answer).not.toHaveBeenCalled();
+
+    await act(() => network.set(true));
+    await settle();
+    expect(answer).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("3 candidatures")).toBeOnTheScreen();
+    await act(async () => reply("4 candidatures"));
+    await settle();
+    expect(screen.getByText("4 candidatures")).toBeOnTheScreen();
+  });
+
   it("never writes a Coach Conversation on the device, only the reads it keeps", async () => {
     const storage = memoryStorage();
     await render(

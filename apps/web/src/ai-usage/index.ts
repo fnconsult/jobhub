@@ -91,8 +91,9 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
         const warnings = entry.warnings ?? [];
         await database.query(
           `WITH usage AS (
-             INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[]) RETURNING id
+             -- Under the id the AI layer named the call by, when it did (#731): what it served links to it.
+             INSERT INTO ai_usage (id, at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings)
+             VALUES (coalesce($22::uuid, gen_random_uuid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[]) RETURNING id
            ), tools AS (
              INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
              SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
@@ -126,6 +127,7 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             // The warnings' codes are counted with the usage; what happened goes with the text (#260).
             warnings.map((warning) => warning.reason),
             JSON.stringify(warnings.map(({ reason, detail }) => (detail === undefined ? { reason } : { reason, detail: cleanTechnicalMessage(scrub(detail)) }))),
+            entry.id ?? null,
           ],
         );
       } catch (error) {

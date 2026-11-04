@@ -295,6 +295,11 @@ export interface AiWarning {
 }
 
 export interface UsageEntry extends TokenUsage {
+  /**
+   * The call's id, given by the AI layer before it is recorded (a UUID): what it served links to it with `callId` (#731),
+   * and a usage log keeps it as the call's own. Absent on an entry made elsewhere.
+   */
+  id?: string;
   /** null for a Guest (browser extension without an account). */
   candidateId: string | null;
   task: AiTask;

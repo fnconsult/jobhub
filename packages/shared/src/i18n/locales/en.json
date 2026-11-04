@@ -5126,6 +5126,7 @@
       "lightValue": "Light",
       "darkValue": "Dark",
       "typography": "Type",
+      "activityGlyphs": "Activity glyphs",
       "typeShown": "{{density}} · body {{size}} px",
       "style": "Style",
       "sample": "Sample",

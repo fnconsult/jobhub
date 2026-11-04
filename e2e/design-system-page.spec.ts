@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { ACTIVITIES } from "@jobhub/shared";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
@@ -163,5 +164,22 @@ test.describe("Design System page's screenshots (#463)", () => {
         await page.close();
       });
     }
+  }
+
+  // Every Activity's glyph, still (#726: `act`, a Coach Action's, the pointer touching a card), close up in each theme:
+  // its reference, apart from the whole page's, so a change to one glyph shows on its own.
+  for (const theme of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
+    test(`shows every Activity's glyph, still, in ${theme}, and it matches its baseline`, async () => {
+      const page = await session.newPage();
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(pageFor(theme, "confort"));
+      await expect(preview(page)).toHaveAttribute("data-theme", theme, { timeout: 20_000 });
+      const glyphs = preview(page).locator("[data-activity-glyphs]");
+      await expect(glyphs.locator("svg.activity-glyph")).toHaveCount(ACTIVITIES.length);
+      await expect(glyphs.locator('svg.activity-glyph[data-activity="act"] path')).toHaveCount(3);
+      await settled(page);
+      if (comparesScreenshots()) await expect(glyphs).toHaveScreenshot(`activity-glyphs-${theme}.png`);
+      await page.close();
+    });
   }
 });

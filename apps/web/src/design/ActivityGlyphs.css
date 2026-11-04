@@ -1,0 +1,30 @@
+@layer base, components;
+
+@layer components {
+  /* Every Activity's glyph, still, at twice its size beside a step, so its strokes read. */
+  .ds-activity-glyphs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: var(--space-3) var(--space-4);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .ds-activity-glyphs__item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    align-items: center;
+  }
+
+  .ds-activity-glyphs__item > .activity-glyph {
+    width: 2.5em;
+    height: 2.5em;
+  }
+
+  .ds-activity-glyphs__id {
+    font-size: var(--font-size-meta);
+    color: var(--color-meta);
+  }
+}

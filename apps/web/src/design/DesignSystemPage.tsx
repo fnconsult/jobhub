@@ -3,6 +3,7 @@
 import { designTokens, type Density, type Theme } from "@jobhub/shared/design";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ActivityGlyphs } from "./ActivityGlyphs";
 import { Card } from "./Card";
 import { ComponentGallery } from "./ComponentGallery";
 import { designSystemHref, tokenCatalogue, type ColorEntry, type TypeStep } from "./design-system-page";
@@ -21,7 +22,7 @@ const CATALOGUE = tokenCatalogue(designTokens);
 
 /**
  * The Design System page's content (#463, ADR-0053): every colour token with its light and dark values, the type
- * scale in both Densities, then every component in its states (the ComponentGallery). Its two toggles set the theme and
+ * scale in both Densities, every Activity's glyph (#726), then every component in its states (the ComponentGallery). Its two toggles set the theme and
  * the Density of this content only, the Back Office around it unchanged; the address follows them, so a reload, or a
  * link, shows the same. Its Drawers, Dialog and Toast open inside it, in its theme and Density.
  */
@@ -88,6 +89,11 @@ export function DesignSystemPage({ initial }: { initial: View }) {
           actions={<span className="ds-system__meta">{t("designSystem.page.typeShown", { density: t(`designSystem.page.${view.density}`), size: px.format(body[view.density]) })}</span>}
         >
           <Table label={t("designSystem.page.typography")} columns={typeColumns} rows={CATALOGUE.typeScale} rowKey={(step) => step.style} />
+        </Card>
+        <Card title={t("designSystem.page.activityGlyphs")} headingLevel={3}>
+          <div data-activity-glyphs="">
+            <ActivityGlyphs />
+          </div>
         </Card>
       </section>
 

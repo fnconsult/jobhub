@@ -111,7 +111,8 @@ export async function captureMotion(options: CaptureOptions): Promise<Capture & 
   const webOrigin = new URL(baseURL).origin;
   page.on("framenavigated", (frame) => {
     // The web app's pages only: a Guest's job offer and the extension's panel are no routes of it.
-    if (frame === page.mainFrame() && frame.url().startsWith(webOrigin)) visited.push(new URL(frame.url()).pathname);
+    // An /api/ address the page passed through (a stand-in for Stripe's page) is no page of the app.
+    if (frame === page.mainFrame() && frame.url().startsWith(webOrigin) && !new URL(frame.url()).pathname.startsWith("/api/")) visited.push(new URL(frame.url()).pathname);
   });
   const state: PlayState = { zoom: null, address: null, backdrop: null, framing: false, services, pace: { typingDelay, pointerPause } };
 

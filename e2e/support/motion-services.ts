@@ -27,37 +27,51 @@ const escapeHtml = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&am
 
 /** Pays the checkout `submit` posts to: Stripe's test mode answers « paid », its signed webhook reaches the app, and the page lands where Stripe sends the Candidate back. */
 async function payInTestMode(page: Page, submit: Locator) {
-  let paid: Promise<void> | undefined;
+  let done!: (failure: Error | null) => void;
+  let successUrl = "";
+  const handled = new Promise<Error | null>((resolve) => (done = resolve));
   await page.route(
     (url) => /\/checkout$/.test(url.pathname),
     async (route) => {
-      const answer = await route.fetch({ maxRedirects: 0 });
-      const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
-      const checkout = calls.filter((call) => call.path === "/v1/checkout/sessions").at(-1)?.params;
-      if (answer.status() !== 303 || !checkout) return route.fulfill({ response: answer });
-      const price = checkout["line_items[0][price]"];
-      const amount = price === FAKE_STRIPE_COACHING_SESSION_PRICES.discounted ? 7200 : 9000;
-      const event = checkoutSessionEvent("checkout.session.completed", {
-        id: `cs_motions_${Date.now()}`,
-        candidateId: checkout["metadata[candidate_id]"]!,
-        coachId: checkout["metadata[coach_id]"],
-        amount,
-        currency: "eur",
-        paymentStatus: "paid",
-      });
-      const { payload, signature } = signedEvent(event);
-      paid = page.request
-        .post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" } })
-        .then((response) => expect(response.status()).toBe(200));
-      await paid;
-      await route.fulfill({ status: 303, headers: { location: checkout.success_url! } });
+      try {
+        const answer = await route.fetch({ maxRedirects: 0, timeout: 60_000 });
+        const calls: { path: string; params: Record<string, string> }[] = await (await fetch(`${stripeUrl}/__calls`)).json();
+        const checkout = calls.filter((call) => call.path === "/v1/checkout/sessions").at(-1)?.params;
+        if (answer.status() !== 303 || !checkout) {
+          await route.fulfill({ response: answer });
+          return done(new Error(`the checkout answered ${answer.status()}: ${(await answer.text()).slice(0, 200)}`));
+        }
+        const price = checkout["line_items[0][price]"];
+        const amount = price === FAKE_STRIPE_COACHING_SESSION_PRICES.discounted ? 7200 : 9000;
+        const event = checkoutSessionEvent("checkout.session.completed", {
+          id: `cs_motions_${Date.now()}`,
+          candidateId: checkout["metadata[candidate_id]"]!,
+          coachId: checkout["metadata[coach_id]"],
+          amount,
+          currency: "eur",
+          paymentStatus: "paid",
+        });
+        // An event id of its own: the app takes an event it already had for Stripe delivering it twice.
+        const { payload, signature } = signedEvent({ ...event, id: `evt_motions_${Date.now()}_${Math.random().toString(36).slice(2)}` });
+        const delivered = await page.request.post("/api/billing/webhook", { data: payload, headers: { "stripe-signature": signature, "content-type": "application/json" }, timeout: 60_000 });
+        if (delivered.status() !== 200) throw new Error(`the webhook answered ${delivered.status()}`);
+        // Back where Stripe sends the Candidate. A redirect answered for a form's navigation is not always followed: the page
+        // goes there itself, and the capture makes sure it did (below).
+        successUrl = checkout.success_url!;
+        await route.fulfill({ status: 200, contentType: "text/html", body: `<!doctype html><meta charset="utf-8"><script>location.replace(${JSON.stringify(successUrl)})</script>` });
+        done(null);
+      } catch (error) {
+        await route.abort().catch(() => {});
+        done(error instanceof Error ? error : new Error(String(error)));
+      }
     },
     { times: 1 },
   );
   // The submit's answer waits on the server, then on the webhook: on a loaded machine longer than an action's 10 s.
   await submit.click({ noWaitAfter: true, timeout: 30_000 });
-  await page.waitForURL(/[?&]session=paid/, { timeout: 60_000 });
-  await paid;
+  const failure = await Promise.race([handled, page.waitForTimeout(60_000).then(() => new Error("« Passer au paiement » sent no checkout in 60 s"))]);
+  if (failure) throw failure;
+  await page.waitForURL(/[?&]session=paid/, { timeout: 15_000 }).catch(() => page.goto(successUrl, { timeout: 30_000 }));
 }
 
 /** The services of a capture of `script`. */

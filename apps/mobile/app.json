@@ -20,7 +20,8 @@
       "expo-router",
       "expo-localization",
       "expo-screen-orientation",
-      ["expo-build-properties", { "android": { "minSdkVersion": 24 } }]
+      ["expo-build-properties", { "android": { "minSdkVersion": 24 } }],
+      "@sentry/react-native"
     ]
   }
 }

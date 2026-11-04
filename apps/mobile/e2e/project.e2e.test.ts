@@ -86,6 +86,39 @@ describe("Identity", () => {
   });
 });
 
+describe("Crash reports, and nothing that follows anyone (#703)", () => {
+  const layout = () => read("apps", "mobile", "src", "app", "_layout.tsx");
+
+  it("reports crashes with Sentry, its config plugin in the build", () => {
+    expect(pkg.dependencies["@sentry/react-native"]).toBeDefined();
+    expect(expo.plugins).toContain("@sentry/react-native");
+    expect(read("apps", "mobile", "metro.config.js")).toContain("getSentryExpoConfig");
+  });
+
+  it("starts them at launch from the build's configuration, not a DSN written in the code, and never in development", () => {
+    expect(layout()).toMatch(/startCrashReports\(\{\s*dsn: process\.env\.EXPO_PUBLIC_SENTRY_DSN,\s*development: __DEV__\s*\}\)/);
+    const files = execFileSync("git", ["ls-files", "apps/mobile"], { cwd: ROOT, encoding: "utf8" }).trim().split("\n");
+    const withDsn = files.filter((file) => !/\.test\.tsx?$/.test(file) && /@[\w.-]*ingest[\w.-]*sentry\.io\/\d/.test(read(file)));
+    expect(withDsn).toEqual([]);
+  });
+
+  it("never asks for App Tracking Transparency: no tracking usage description, no tracking, ads or analytics package", () => {
+    expect(JSON.stringify(expo)).not.toContain("NSUserTrackingUsageDescription");
+    expect(JSON.stringify(expo)).not.toMatch(/tracking-transparency|AdSupport|advertising/i);
+    const dependencies = Object.keys(pkg.dependencies);
+    expect(dependencies.filter((name) => /tracking|analytics|ads|advertising|amplitude|mixpanel|segment|firebase|facebook|fbsdk|appsflyer|adjust|branch/i.test(name))).toEqual([]);
+  });
+
+  it("builds an Info.plist, every config plugin applied, without the tracking usage description the prompt needs", () => {
+    const config = JSON.parse(
+      execFileSync("npx", ["expo", "config", "--type", "introspect", "--json"], { cwd: join(ROOT, "apps", "mobile"), encoding: "utf8" }),
+    );
+    expect(config.ios.infoPlist.CFBundleIdentifier).toBeDefined();
+    expect(config.ios.infoPlist).not.toHaveProperty("NSUserTrackingUsageDescription");
+    expect(config.android.permissions ?? []).not.toContain("com.google.android.gms.permission.AD_ID");
+  });
+});
+
 describe("Design tokens, Inter, Lucide and translations", () => {
   it("reads its type scale from @jobhub/shared's Confort Density, body text at the 16 pt floor", () => {
     expect(designTokens.density.confort.fontSize.body).toBeGreaterThanOrEqual(16);

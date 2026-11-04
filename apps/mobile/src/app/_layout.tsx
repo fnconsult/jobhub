@@ -9,12 +9,16 @@ import { useTranslation } from "react-i18next";
 import { KeyboardAvoidingView, Platform } from "react-native";
 import { initialWindowMetrics } from "react-native-safe-area-context";
 import { AppProviders } from "../app-providers";
+import { startCrashReports } from "../crash-reports";
 import { deviceI18n } from "../i18n";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
 import { Sidebar } from "../navigation/Sidebar";
 import { usePortraitOnPhones } from "../orientation";
 import { PanePlaceholder } from "../screens/PanePlaceholder";
 import { Shell } from "../shell/Shell";
+
+// Crash reports start before anything else draws, in release builds whose configuration carries the DSN (#703).
+startCrashReports({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN, development: __DEV__ });
 
 /** The box stays above the keyboard: iOS lays the page out again, Android resizes the window itself. */
 const KEYBOARD = Platform.OS === "ios" ? "padding" : undefined;

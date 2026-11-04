@@ -74,14 +74,22 @@ export type ConversationContext = { messages: number; tokens: number; limits?: C
 /** From this share of either limit, the Context bar says the AI Coach reads only the latest messages. */
 const NEARLY_FULL = 0.8;
 
-/** The Context bar (ADR-0070): its figures, the share it is filled to (that of the limit nearer reached, at most 1), and whether it is nearly full. */
-export type ContextBar = ConversationContext & { maxMessages: number; maxTokens: number; share: number; nearlyFull: boolean };
+/**
+ * The Context bar (ADR-0070): its figures, out of the Coach context limits (null when unlimited), the share it is filled to
+ * (that of the limit nearer reached, at most 1; an unlimited one never fills it), and whether it is nearly full.
+ */
+export type ContextBar = Pick<ConversationContext, "messages" | "tokens"> & { maxMessages: number | null; maxTokens: number | null; share: number; nearlyFull: boolean };
 
-/** The Context bar of a conversation, from what the server says of it; empty for one not yet started (null). */
+/**
+ * The Context bar of a conversation, from what the server says of it, out of the Coach context limits of the Candidate's Plan
+ * it says (ADR-0078), else a Plan's with none stored; empty for one not yet started (null).
+ */
 export function contextBar(context: ConversationContext | null): ContextBar {
   const { messages, tokens } = context ?? { messages: 0, tokens: 0 };
-  const share = Math.min(1, Math.max(messages / MAX_MESSAGES, tokens / COACH_CONTEXT_MAX_TOKENS));
-  return { messages, maxMessages: MAX_MESSAGES, tokens, maxTokens: COACH_CONTEXT_MAX_TOKENS, share, nearlyFull: share >= NEARLY_FULL };
+  const { coachContextMessages: maxMessages, coachContextTokens: maxTokens } = context?.limits ?? DEFAULT_COACH_CONTEXT_LIMITS;
+  const filled = (count: number, max: number | null) => (max === null ? 0 : max === 0 ? 1 : count / max);
+  const share = Math.min(1, Math.max(filled(messages, maxMessages), filled(tokens, maxTokens)));
+  return { messages, maxMessages, tokens, maxTokens, share, nearlyFull: share >= NEARLY_FULL };
 }
 
 /** The last `limit` messages (all of them when null: unlimited), starting with a Candidate message. */

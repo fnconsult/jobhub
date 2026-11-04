@@ -5667,7 +5667,8 @@
     "title": "Contexte de la conversation",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} jetons",
     "nearlyFull": "Le coach ne lit que les messages les plus récents.",
-    "clear": "Effacer la conversation"
+    "clear": "Effacer la conversation",
+    "unlimited": "illimité"
   },
   "microAnimation": {
     "show": "Voir comment",

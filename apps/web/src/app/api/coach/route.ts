@@ -23,7 +23,9 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * A link in the message is read as a Job Offer: `jobOffer` is then the reply's Job Offer card { id, title, employer?, followed }.
  * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
  * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
- * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens }.
+ * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens, limits, split }:
+ * `limits`, the Coach context limits of the Candidate's Plan (ADR-0078, #731) { coachContextMessages, coachContextTokens }, null
+ * being unlimited; `split`, the latest reply's estimate by category { messages, instructions, profile, advice, sources }, or null.
  * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
  * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation, context }.
  *

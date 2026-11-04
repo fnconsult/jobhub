@@ -8,7 +8,8 @@ import { ClearConversationButton, useConversationFirst } from "@/components/conv
 
 /**
  * The Context bar (#607, ADR-0070), in Activité: how much of the page's Coach Conversation the AI Coach reads, its
- * messages out of the 40 it reads and the jetons of its context out of the ceiling, as the server last said them (the
+ * messages out of those it reads and the jetons of its context out of the ceiling, the Coach context limits of the
+ * Candidate's Plan (ADR-0078; « illimité » when unlimited), as the server last said them (the
  * estimate the context was sent with); empty before the conversation's first message. From 80 %, it says the AI Coach
  * reads only the latest messages and offers « Effacer la conversation », after the same confirming Dialog as « Effacer ».
  * Nothing on a page without a conversation.
@@ -23,9 +24,9 @@ export function ContextBar() {
   const percent = Math.round(bar.share * 100);
   const figures = t("contextBar.figures", {
     messages: bar.messages,
-    maxMessages: bar.maxMessages,
+    maxMessages: bar.maxMessages ?? t("contextBar.unlimited"),
     tokens: formatTokens(bar.tokens, language),
-    maxTokens: formatTokens(bar.maxTokens, language),
+    maxTokens: bar.maxTokens === null ? t("contextBar.unlimited") : formatTokens(bar.maxTokens, language),
   });
   return (
     <div className="context-bar" role="group" aria-labelledby={titleId} data-nearly-full={bar.nearlyFull || undefined}>

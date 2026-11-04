@@ -5667,7 +5667,8 @@
     "title": "Conversation context",
     "figures": "{{messages}} / {{maxMessages}} messages · {{tokens}} / {{maxTokens}} tokens",
     "nearlyFull": "The coach reads only the latest messages.",
-    "clear": "Clear the conversation"
+    "clear": "Clear the conversation",
+    "unlimited": "unlimited"
   },
   "microAnimation": {
     "show": "Show me how",

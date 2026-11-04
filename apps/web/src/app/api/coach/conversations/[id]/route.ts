@@ -6,7 +6,11 @@ type Context = { params: Promise<{ id: string }> };
 
 const notFound = () => NextResponse.json({ error: "not_found" }, { status: 404 });
 
-/** One of the Candidate's Coach Conversations, with its messages and its Context bar's figures (`context`, #607). 200 { conversation } · 401 · 404 */
+/**
+ * One of the Candidate's Coach Conversations, with its messages and its Context bar's figures (`context`, #607):
+ * { messages, tokens, limits, split }, the Coach context limits of the Candidate's Plan and the latest reply's split (#731).
+ * 200 { conversation } · 401 · 404
+ */
 export async function GET(_request: Request, { params }: Context) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

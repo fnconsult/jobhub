@@ -1,7 +1,7 @@
 import { API_VERSION } from "@jobhub/shared";
 import { defaultShouldDehydrateQuery, onlineManager, QueryClient, type QueryKey } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type PersistedClient, type Persister } from "@tanstack/react-query-persist-client";
-import { useEffect, useState, type ReactNode } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 /** Where the app keeps things on the device: AsyncStorage in the app, memory in a test. */
 export type DeviceStorage = {
@@ -65,7 +65,9 @@ function devicePersister(storage: DeviceStorage): Persister & { forget: () => Pr
         timer = null;
         const client = waiting;
         waiting = null;
-        if (client) void queue(() => storage.setItem(STORAGE_KEY, JSON.stringify(client)));
+        if (!client) return;
+        // A cache with nothing to keep leaves nothing on the device, not an empty copy.
+        void queue(() => (client.clientState.queries.length ? storage.setItem(STORAGE_KEY, JSON.stringify(client)) : storage.removeItem(STORAGE_KEY)));
       }, SAVE_EVERY_MS);
     },
     restoreClient: async () => {
@@ -92,14 +94,25 @@ function useNetworkFollowed(network: Network) {
   }, [network]);
 }
 
+const ForgetContext = createContext<() => Promise<void>>(async () => {});
+
 /**
- * The app's reads, cached (TanStack Query) and kept on the device for when there is no network (ADR-0076, #701).
+ * The app's reads, cached (TanStack Query) and kept on the device for when there is no network (ADR-0076, #701): what
+ * READS keeps, a week at most, and never a write. Queries use `readKey`.
  */
 export function ReadCacheProvider({ device, children }: { device: { storage: DeviceStorage; network: Network }; children: ReactNode }) {
   const [cache] = useState(() => ({
     client: new QueryClient({ defaultOptions: { queries: { gcTime: KEPT_FOR_MS } } }),
     persister: devicePersister(device.storage),
   }));
+  // Every screen starts again after a sign-out, so none still shows what the cache held.
+  const [session, setSession] = useState(0);
+  const forget = useCallback(async () => {
+    await cache.client.cancelQueries();
+    cache.client.clear();
+    await cache.persister.forget();
+    setSession((current) => current + 1);
+  }, [cache]);
   useNetworkFollowed(device.network);
   return (
     <PersistQueryClientProvider
@@ -111,7 +124,15 @@ export function ReadCacheProvider({ device, children }: { device: { storage: Dev
         dehydrateOptions: { shouldDehydrateQuery: (query) => defaultShouldDehydrateQuery(query) && keptOnDevice(query.queryKey), shouldDehydrateMutation: () => false },
       }}
     >
-      {children}
+      <ForgetContext.Provider value={forget}>
+        <Fragment key={session}>{children}</Fragment>
+      </ForgetContext.Provider>
     </PersistQueryClientProvider>
   );
 }
+
+/**
+ * Empties the read cache, in the app and on the device, a write still waiting included; to await at sign-out, before
+ * the session is dropped (#685). The screens below the provider start again, empty.
+ */
+export const useForgetReads = () => useContext(ForgetContext);

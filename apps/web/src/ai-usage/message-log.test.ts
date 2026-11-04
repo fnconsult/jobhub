@@ -108,7 +108,11 @@ describe.skipIf(!connectionString)("AI Message Log (needs Postgres: DATABASE_URL
     // The fake provider counts 10 input tokens: the estimate said 8.
     await database.query("INSERT INTO coach_message (conversation_id, author, text, context_tokens, ai_call_id) VALUES ($1, 'coach', 'Réponse', 8, $2)", [rows[0]!.id, call.callId]);
 
-    const [scoring, coaching] = await logs.list();
+    // Both calls are often logged in the same millisecond, so their order in the list is not theirs to rely on.
+    const listed = await logs.list();
+    expect(listed).toHaveLength(2);
+    const coaching = listed.find(({ task }) => task === "coaching");
+    const scoring = listed.find(({ task }) => task === "scoring");
 
     expect(coaching).toMatchObject({ task: "coaching", context: { estimate: 8, measure: 10, gap: 2 } });
     expect(scoring).toMatchObject({ task: "scoring", context: null });

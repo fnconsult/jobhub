@@ -1,12 +1,14 @@
 "use client";
 
 import { LEGAL_TEXTS, type LegalTextHistoryEntry, type LegalTextId, type LegalTextVersion, type ShownLegalText } from "@jobhub/help";
+import type { Locale } from "@jobhub/shared/i18n";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { Icons } from "@/components/icons";
 import { writtenDay } from "@/public-pages/days";
+import { localePath } from "@/public-pages/public-shell";
 import { routes } from "@/routes";
 import { buttonClass } from "./button-class";
 import { EmptyState } from "./EmptyState";
@@ -90,7 +92,7 @@ export function LegalTextView({ text, shown }: { text: LegalTextId; shown: Shown
       {/* The privacy policy points to the Recipient list rather than naming the providers (ADR-0064). */}
       {text === "confidentialite" ? (
         <p className="ds-legal__recipients">
-          <Link href={routes.recipients}>{t("recipientList.fromPolicy")}</Link>
+          <Link href={localePath(routes.recipients, urlLocaleOf(i18n.language))}>{t("recipientList.fromPolicy")}</Link>
         </p>
       ) : null}
     </LegalLayout>
@@ -128,6 +130,9 @@ export function LegalTextHistoryView({ text, history }: { text: LegalTextId; his
   );
 }
 
+/** The page's language as `localePath` takes it: English, or French (unprefixed). */
+const urlLocaleOf = (language: string): Locale | undefined => (language === "en" ? "en" : undefined);
+
 /** What Légal's left column marks as the page: a Legal Text, or the Recipient list (#338). */
 export type LegalPage = LegalTextId | "destinataires";
 
@@ -135,7 +140,7 @@ export type LegalPage = LegalTextId | "destinataires";
  * Légal's three columns: the Legal Texts and, under them, the Recipient list (#338); the reading column (eyebrow
  * « Légal », then `children`); and `aside`.
  */
-export function LegalLayout({ text, aside, children }: { text: LegalPage; aside: ReactNode; children: ReactNode }) {
+export function LegalLayout({ text, aside = <span />, children }: { text: LegalPage; aside?: ReactNode; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <div className="ds-legal">

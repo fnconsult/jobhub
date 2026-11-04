@@ -92,7 +92,7 @@ export function footerColumns({
         { key: "cgu", href: routes.legal("cgu"), label: "publicFooter.legal.cgu" },
         { key: "cgv", href: routes.legal("cgv"), label: "publicFooter.legal.cgv" },
         { key: "confidentialite", href: routes.legal("confidentialite"), label: "publicFooter.legal.confidentialite" },
-        { key: "ia", href: `${routes.legal("confidentialite")}#ia`, label: "publicFooter.legal.ia" },
+        { key: "ia", href: routes.aiInJobbbox, label: "publicFooter.legal.ia" },
       ],
     },
     {

@@ -1011,14 +1011,17 @@ export interface ListedRecipient {
 
 /**
  * The Recipient list (ADR-0064, #338): Jobbbox's Hosts, then each Tool `switchedOn` that receives personal data, or
- * queries drawn from it, in the catalog's order. A Tool that runs on Jobbbox's own servers is its Host's.
+ * queries drawn from it, in the catalog's order, each recipient once. A Tool that runs on Jobbbox's own servers is its
+ * Host's.
  */
 export function recipientList(switchedOn: (tool: Tool) => boolean): ListedRecipient[] {
   const hosts = (HOSTS as readonly Host[]).map((host): ListedRecipient => ({ id: host.id, kind: "host", residency: host.residency, facts: host.recipient }));
   const tools = (TOOLS as readonly Tool[])
     .filter((tool) => tool.receivesPersonalData && tool.recipient && switchedOn(tool))
     .map((tool): ListedRecipient => ({ id: tool.id, kind: "tool", residency: tool.residency, facts: tool.recipient! }));
-  return [...hosts, ...tools];
+  // Two Tools of one recipient (Brevo's API and its SMTP relay) are listed once, as the first.
+  const named = new Set<string>();
+  return [...hosts, ...tools].filter((recipient) => !named.has(recipient.facts.name) && named.add(recipient.facts.name));
 }
 
 /** The Tool with this id; none for any other. */

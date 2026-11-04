@@ -4,6 +4,7 @@ import { RECIPIENT_DATA_TEXT, TRANSFER_SAFEGUARD_TEXT, type ListedRecipient, typ
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { writtenDay } from "@/public-pages/days";
+import { CONTACT_ARTICLE, localePath } from "@/public-pages/public-shell";
 import { routes } from "@/routes";
 import { LegalLayout, type LegalPage } from "./LegalTextView";
 import "./LegalTextView.css";
@@ -24,17 +25,17 @@ export function RecipientListView({ recipients, changedOn }: { recipients: reado
   const locale = i18n.language === "en" ? "en" : "fr";
   const said = (text: string | Translated) => (typeof text === "string" ? text : text[locale]);
   return (
-    <LegalLayout text={PAGE} aside={<span />}>
+    <LegalLayout text={PAGE}>
       <h1 className="ds-legal__title">{t("recipientList.title")}</h1>
       <div className="ds-legal__stamp">
         {changedOn ? <span>{t("recipientList.changed", { date: writtenDay(changedOn, i18n.language) })}</span> : null}
-        <Link href={routes.aiInJobbbox}>{t("recipientList.policy")}</Link>
+        <Link href={localePath(routes.aiInJobbbox, locale)}>{t("recipientList.policy")}</Link>
       </div>
       <p className="ds-legal__intro">{t("recipientList.intro")}</p>
       <p className="ds-legal__intro">{t("recipientList.outsideEu")}</p>
       {/* GDPR art. 13(1)(f): the means to obtain a copy of the safeguards (Legal Review of #338). */}
       <p className="ds-legal__intro">
-        {t("recipientList.copy")} <Link href={routes.helpArticle("decouvrir", "faq-contact-us", locale)}>{t("recipientList.contact")}</Link>
+        {t("recipientList.copy")} <Link href={localePath(CONTACT_ARTICLE, locale)}>{t("recipientList.contact")}</Link>
       </p>
       {recipients.map((recipient) => (
         <section key={recipient.id} className="ds-recipient" aria-labelledby={`destinataire-${recipient.id}`}>

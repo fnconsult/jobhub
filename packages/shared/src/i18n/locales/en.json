@@ -5402,7 +5402,7 @@
     "policy": "AI in Jobbbox, in the privacy policy",
     "fromPolicy": "Data recipients: who receives what, and where",
     "intro": "To run Jobbbox, the services below receive personal data, or queries drawn from it. This list is drawn up at each visit from the services switched on in Jobbbox: a service switched off is not on it.",
-    "outsideEu": "When where a service processes data is not established, we count it as outside the EU.",
+    "outsideEu": "When the place where a service processes data is not established, we count it as outside the EU.",
     "copy": "To get a copy of the safeguards of a transfer outside the EU, write to us:",
     "contact": "Contact us",
     "residency": {

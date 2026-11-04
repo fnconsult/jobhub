@@ -224,6 +224,10 @@ describe("the Recipient list (ADR-0064, #338)", () => {
     expect(list[1]).toMatchObject({ kind: "tool", residency: "outside_eu", facts: { name: "Claude (Anthropic)" } });
   });
 
+  it("names a recipient once, though two of its Tools are on: Brevo's API and its SMTP relay", () => {
+    expect(recipientList((tool) => tool.id === "brevo-api" || tool.id === "brevo-smtp").map((recipient) => recipient.id)).toEqual(["hostinger", "brevo-api"]);
+  });
+
   it("names no Tool switched off, and still the Hosts", () => {
     expect(recipientList(() => false).map((recipient) => recipient.id)).toEqual(["hostinger"]);
   });

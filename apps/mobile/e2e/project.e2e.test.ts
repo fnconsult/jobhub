@@ -120,3 +120,55 @@ describe("App lock (#702)", () => {
     for (const name of ["expo-local-authentication", "expo-screen-capture", "expo-secure-store"]) expect(pkg.dependencies[name]).toBe(bundled[name]);
   });
 });
+
+describe("Multitasking and foldables (#700)", () => {
+  type Manifest = ReturnType<typeof templateManifest>;
+  const plugin = () =>
+    jest.requireActual<{ setInfoPlist: (plist: Record<string, unknown>) => Record<string, unknown>; setAndroidManifest: (manifest: Manifest) => Manifest }>(
+      join(ROOT, "apps", "mobile", "plugins", "with-multitasking.js"),
+    );
+  /** The main activity as Expo's Android template declares it before any plugin. */
+  const templateManifest = () => ({
+    manifest: {
+      $: { "xmlns:android": "http://schemas.android.com/apk/res/android" },
+      application: [
+        {
+          $: { "android:name": ".MainApplication" },
+          activity: [{ $: { "android:name": ".MainActivity", "android:configChanges": "keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" } }],
+        },
+      ],
+    },
+  });
+  const mainActivity = (manifest: Manifest) => manifest.manifest.application[0]!.activity[0]!.$ as Record<string, string>;
+
+  it("is applied by the app's config", () => {
+    expect(expo.plugins).toContain("./plugins/with-multitasking");
+  });
+
+  it("never requires the full screen on iPad, so Split View, Slide Over and Stage Manager can share it", () => {
+    expect(expo.ios.requireFullScreen).toBe(false);
+    expect(expo.ios.infoPlist.UIRequiresFullScreen).toBeUndefined();
+    expect(plugin().setInfoPlist({ UIRequiresFullScreen: true }).UIRequiresFullScreen).toBe(false);
+  });
+
+  it("supports the iPad's four orientations, which iPad multitasking requires, iPhones staying in portrait", () => {
+    const plist = plugin().setInfoPlist({ UISupportedInterfaceOrientations: ["UIInterfaceOrientationPortrait"] });
+    expect(plist["UISupportedInterfaceOrientations~ipad"]).toEqual([
+      "UIInterfaceOrientationPortrait",
+      "UIInterfaceOrientationPortraitUpsideDown",
+      "UIInterfaceOrientationLandscapeLeft",
+      "UIInterfaceOrientationLandscapeRight",
+    ]);
+    expect(plist.UISupportedInterfaceOrientations).toEqual(["UIInterfaceOrientationPortrait"]);
+  });
+
+  it("lets Android resize the window, in split screen, a free-form window or on a foldable", () => {
+    expect(mainActivity(plugin().setAndroidManifest(templateManifest()))["android:resizeableActivity"]).toBe("true");
+  });
+
+  it("keeps Android's activity, and so the conversation and its position, when a foldable opens or closes or the window resizes", () => {
+    const changes = mainActivity(plugin().setAndroidManifest(templateManifest()))["android:configChanges"]!.split("|");
+    for (const change of ["orientation", "screenSize", "smallestScreenSize", "screenLayout", "keyboard", "keyboardHidden", "uiMode"]) expect(changes).toContain(change);
+    expect(new Set(changes).size).toBe(changes.length);
+  });
+});

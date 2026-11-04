@@ -30,6 +30,12 @@ describe("journalFieldName", () => {
     expect(journalFieldName(t, "sign_in_providers", "privateKey")).toBe("Clé privée (.p8)");
   });
 
+  it("names a Plan's Coach context limits as the Quotas page does (ADR-0078, #731)", () => {
+    const { t } = createI18n("fr");
+    expect(journalFieldName(t, "plan_quotas", "coachContextMessages")).toBe("Messages lus par le coach IA");
+    expect(journalFieldName(t, "plan_quotas", "coachContextTokens")).toBe("Plafond du contexte (jetons estimés)");
+  });
+
   it("names the Two-step verification a super-admin reset (#665), in fr and en", () => {
     expect(journalFieldName(createI18n("fr").t, "roles", "twoStepVerification")).toBe("Vérification en deux étapes");
     expect(journalFieldName(onlyIn("en"), "roles", "twoStepVerification")).toBe("Two-step verification");

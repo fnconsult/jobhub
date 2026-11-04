@@ -422,7 +422,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/candidatures/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nSes rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre. Une rubrique ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation. Tant qu'aucun entretien n'est noté, « Voir comment » y montre comment passer la candidature au statut « Entretien » pour pouvoir l'ajouter.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer. Mettez le statut à jour dans la fiche quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nSes rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre. Une rubrique ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation. Tant qu'aucun entretien n'est noté, « Voir comment » y montre comment passer la candidature au statut « Entretien » pour pouvoir l'ajouter.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer. Mettez le statut à jour dans la fiche quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance. Quand votre coach vous propose de changer le statut, la proposition s'affiche sous sa réponse : vous l'appliquez, la modifiez avant ou l'ignorez, et « Origine », sous le statut, dit qu'il vient de sa proposition.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
       "id": "page-job-offer",
@@ -1421,6 +1421,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Une offre privée est une offre que vous seul voyez. C'est celle que Jobbbox tire du message d'un recruteur que vous lui transférez : ce message vous était adressé, et le poste n'est parfois jamais publié.\n\nElle se suit comme toute offre : score de correspondance, CV adapté, lettre de motivation, candidature. Mais elle n'est jamais montrée à un autre candidat, ni mêlée à la même offre trouvée ailleurs : si le poste est publié plus tard, il devient une autre offre, et l'offre privée reste telle quelle.\n\nElle est supprimée avec votre compte, et fait partie de vos données téléchargées. Une offre tirée d'une alerte d'un site d'emploi, elle, décrit une annonce publique : elle n'est pas privée."
     },
     {
+      "id": "glossary-coach-proposal",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Proposition du coach",
+      "synonyms": [
+        "proposition",
+        "proposé par votre coach ia",
+        "appliquer",
+        "annuler",
+        "origine",
+        "carte de proposition"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Une modification que votre coach IA prépare pendant une conversation, par exemple le statut d'une candidature. Elle s'affiche sous sa réponse, dans une carte « Proposé par votre coach IA » : ce qui change, avant et après, et l'élément concerné.\n\nVotre coach ne modifie jamais rien lui-même et ne supprime jamais rien : vous choisissez « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». Une proposition appliquée peut être annulée tant que l'élément n'a pas changé depuis. L'élément garde qu'il a été changé sur proposition de votre coach : « Origine » le dit."
+    },
+    {
       "id": "glossary-proposals",
       "locale": "fr",
       "kind": "glossary",
@@ -2229,6 +2249,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Un outil est « En attente d'accès » quand sa clé est valide mais que son fournisseur lui refuse une API au dernier test de connexion. Aujourd'hui, c'est le cas de France Travail tant que l'API Offres d'emploi n'est pas ouverte à l'application.\n\nDans Outils, il affiche « Indisponible : accès refusé par France Travail ». Dans l'onglet « Sources » de Paramètres, la source affiche « En attente d'accès » : les recherches d'offres continuent sans elle, avec les autres sources.\n\nPour savoir quelle API manque, ouvrez la fiche de France Travail dans l'onglet « Sources » : le tableau « Accès aux API France Travail » donne l'« État » de chaque API (« ok », « accès refusé » ou « erreur ») au dernier test. Demandez l'accès à l'API refusée dans votre espace partenaire France Travail ; une fois accordé, un super-admin clique sur « Tester … » sur la fiche. Le test réussi, l'outil repasse à « Configuré », sans rien d'autre à changer."
     },
     {
+      "id": "faq-app-lock",
+      "locale": "fr",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Protéger l'app par Face ID",
+      "synonyms": [
+        "verrouiller",
+        "verrouillage",
+        "Face ID",
+        "Touch ID",
+        "empreinte",
+        "empreinte digitale",
+        "code",
+        "biométrie",
+        "déverrouiller",
+        "sécurité",
+        "téléphone",
+        "tablette",
+        "application"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans l'app Jobbbox, ouvrez le menu, puis « Réglages de l'app » sous « Mon compte », et activez « Verrouiller l'app ». L'app vous demande aussitôt Face ID, votre empreinte ou le code de l'appareil, pour vérifier que vous pourrez la déverrouiller.\n\nUne fois le verrouillage activé, l'app se verrouille quand elle reste 5 minutes ou plus en arrière-plan, et à chaque démarrage. Pour revenir, passez Face ID ou votre empreinte ; après plusieurs échecs, le code de l'appareil prend le relais. Si vous annulez, touchez « Déverrouiller » pour réessayer. Tant que le verrouillage est activé, le contenu de l'app est masqué dans le sélecteur d'apps ; sur Android, les captures d'écran de l'app sont aussi bloquées.\n\nCe réglage ne vaut que pour cet appareil : il ne se retrouve ni sur le site ni sur un autre téléphone, et rien n'est envoyé à Jobbbox. Ce n'est pas une vérification en deux étapes : votre connexion ne change pas. Votre visage et votre empreinte sont vérifiés par le système de l'appareil (iOS ou Android) ; Jobbbox n'en reçoit et n'en garde rien.\n\nSi l'appareil n'a ni Face ID, ni empreinte, ni code, le verrouillage ne peut pas être activé : définissez-en un d'abord dans les réglages de l'appareil."
+    },
+    {
       "id": "faq-coach-access",
       "locale": "fr",
       "kind": "faq",
@@ -2691,6 +2738,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Quand des candidats ajoutent pour eux seuls un expéditeur d'offres que la liste de la plateforme n'a pas, il vous est proposé. L'accepter fait lire ses emails pour tous les candidats. Il vous faut le rôle Technique ou Super-admin.\n\n1. Ouvrez Paramètres (menu Plateforme), onglet « Sources », puis la fiche de MTA Jobbbox (Haraka).\n2. Dans « Expéditeurs proposés », lisez le domaine ou l'adresse, le nombre de candidats (jamais lesquels) et le « Dernier ajout ».\n3. Vérifiez que l'expéditeur envoie bien des offres : l'alerte d'un site d'emploi ou d'un site carrière, pas un particulier. Dans le doute, n'acceptez pas.\n4. Saisissez son libellé dans « Libellé de … », sous la forme « plateforme ou entreprise – site », 120 caractères au plus.\n5. Cliquez sur « Accepter … ». La page affiche « Expéditeur ajouté à la liste de la plateforme. » et il apparaît dans « Expéditeurs reconnus ».\n\nPour ajouter vous-même un expéditeur, remplissez « Ajouter un expéditeur » : le « Domaine ou adresse de l'expéditeur », puis le « Libellé », et cliquez sur « Ajouter l'expéditeur ». Un expéditeur se désactive ou se supprime depuis la même liste. Chaque changement est inscrit dans Actions des administrateurs."
     },
     {
+      "id": "tutorial-accept-coach-proposal",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Accepter une proposition de votre coach",
+      "synonyms": [
+        "proposition du coach",
+        "proposition",
+        "appliquer",
+        "modifier avant d'appliquer",
+        "ignorer",
+        "annuler",
+        "revenir en arrière",
+        "carte",
+        "origine",
+        "coach ia"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans une conversation, votre coach IA peut vous proposer une modification, par exemple changer le statut d'une candidature. Il ne modifie jamais rien lui-même : la proposition s'affiche sous sa réponse, dans une carte « Proposé par votre coach IA » qui dit ce qui change, avant et après, avec un lien vers l'élément concerné.\n\n1. Pour accepter la proposition telle quelle, cliquez sur « Appliquer » dans la carte. L'élément est modifié et la carte affiche « Appliqué par vous à … ».\n2. Pour l'ajuster d'abord, cliquez sur « Modifier avant d'appliquer » : le formulaire de la page s'ouvre à côté de la conversation, pré-rempli avec la proposition. Changez ce que vous voulez, puis cliquez sur « Appliquer ». Si vous fermez le volet avant, vos changements sont gardés : « Modifier avant d'appliquer » le rouvre tel que vous l'avez laissé.\n3. Pour revenir en arrière, cliquez sur « Annuler » dans la carte appliquée : l'élément reprend son état d'avant et la carte affiche « Annulé à … ». C'est possible tant que l'élément n'a pas changé depuis.\n4. Si la proposition ne vous convient pas, cliquez sur « Ignorer » : rien n'est modifié.\n\nSi l'élément a changé depuis la proposition, « Appliquer » est refusé : la carte affiche « L'objet a changé depuis la proposition » et rien n'est modifié. Un élément changé sur proposition de votre coach garde cette origine sans l'afficher : ouvrez « Origine », sous son statut, pour lire « Sur proposition de votre coach IA, appliqué par vous le … »."
+    },
+    {
       "id": "tutorial-admin-contact-enrichment",
       "locale": "fr",
       "kind": "tutorial",
@@ -3073,6 +3144,36 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
         }
       ],
       "body": "Connecté, l'extension Jobbbox calcule le Match Score d'une offre avec l'un de vos profils, puis l'enregistre dans vos candidatures, sans la recopier.\n\n1. Connectez-vous à Jobbbox dans votre navigateur, puis ouvrez la page d'une offre d'emploi. Le panneau de l'extension affiche « Connecté en tant que … ».\n2. Cliquez sur « Analyser cette offre », le bouton que l'extension ajoute à la page. S'il n'apparaît pas, ouvrez l'extension Jobbbox depuis la barre de votre navigateur : si elle affiche « Offre détectée sur cette page. », cliquez sur son bouton « Analyser cette offre » ; sinon, cliquez sur « Capturer cette page ». Si l'icône Jobbbox n'est pas dans la barre, cliquez sur l'icône des extensions, la pièce de puzzle, puis sur l'épingle à côté de Jobbbox.\n3. Le panneau de l'extension montre l'offre et son Match Score, calculé avec l'un de vos profils.\n4. Pour comparer l'offre à un autre de vos profils, choisissez-le dans « Profil comparé à cette offre » : le score est recalculé avec lui.\n5. En bas du panneau, choisissez dans « Profil utilisé pour cette candidature » le profil de cette candidature. Si vous avez importé un CV dans le panneau, « Un nouveau profil, à partir de ce CV » en fait un nouveau profil.\n6. Cliquez sur « Enregistrer en candidature ». L'offre rejoint vos candidatures, au statut « À postuler » ; « Voir ma candidature » l'ouvre dans Jobbbox."
+    },
+    {
+      "id": "tutorial-install-app",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Installer l'app et se connecter",
+      "synonyms": [
+        "app",
+        "application",
+        "appli",
+        "application mobile",
+        "iphone",
+        "ipad",
+        "android",
+        "smartphone",
+        "téléphone",
+        "tablette",
+        "installer",
+        "télécharger l'app",
+        "se connecter",
+        "connexion",
+        "lien magique",
+        "lien de connexion"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "L'app Jobbbox, sur iPhone, iPad et Android, utilise le même compte que jobbbox.ai. Pas de mot de passe : vous vous connectez par un lien reçu par e-mail.\n\n1. Installez l'app « Jobbbox » depuis l'App Store (iPhone, iPad) ou Google Play (Android), puis ouvrez-la.\n2. Sur l'écran « Se connecter à Jobbbox », saisissez « Votre adresse e-mail », puis touchez « Recevoir mon lien de connexion ».\n3. Sur ce même téléphone, ouvrez l'e-mail reçu et touchez le lien : l'app s'ouvre et vous êtes connecté. Le lien est valable 15 minutes et ne sert qu'une fois ; s'il n'est plus valable, l'app vous le dit : demandez-en un autre avec « Renvoyer le lien », ou avec « Recevoir mon lien de connexion » si l'app est revenue à l'écran « Se connecter à Jobbbox ».\n4. Si votre compte a la vérification en deux étapes, l'app affiche « Vérification en deux étapes » : elle arrive bientôt dans l'app. En attendant, touchez « Se déconnecter » ou connectez-vous sur jobbbox.ai.\n\nSi vous ouvrez le lien sur un appareil où l'app n'est pas installée, il vous connecte sur jobbbox.ai, dans le navigateur.\n\nPour vous déconnecter de l'app, ouvrez « Mon compte » et touchez « Se déconnecter ». Une session fermée depuis « Mon compte » sur jobbbox.ai déconnecte aussi l'app, dès qu'elle revient au premier plan."
     },
     {
       "id": "tutorial-edit-restore-cv",
@@ -3548,7 +3649,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/candidatures/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
+      "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up. When your coach proposes to change the status, the proposal shows under its reply: you apply it, edit it first or ignore it, and « Origin », under the status, says it came from its proposal.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
     },
     {
       "id": "page-admin-help",
@@ -4630,6 +4731,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\n« Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
     },
     {
+      "id": "glossary-coach-proposal",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Coach proposal",
+      "synonyms": [
+        "proposal",
+        "proposed by your ai coach",
+        "apply",
+        "undo",
+        "origin",
+        "proposal card"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "A change your AI coach prepares during a conversation, for instance an application's status. It shows under its reply, in a card « Proposed by your AI coach »: what changes, before and after, and the item it is about.\n\nYour coach never changes anything itself and never deletes anything: you choose « Apply », « Edit before applying » or « Ignore ». An applied proposal can be undone as long as the item has not changed since. The item keeps that it was changed on your coach's proposal: « Origin » says so."
+    },
+    {
       "id": "glossary-conversation-context",
       "locale": "en",
       "kind": "glossary",
@@ -5465,6 +5586,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "The extension adds the « Analyse this offer » button to a job offer's page when it recognises it. It recognises the main job sites, including LinkedIn, Indeed, Welcome to the Jungle, Apec, France Travail, HelloWork, Cadremploi and Glassdoor, and the job pages of many employers' recruiting tools (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). The Jobbbox team keeps this list up to date without you having to update the extension; on a site it has just added, the button only shows once the « Detect job offers on every site » box is ticked.\n\nThe button shows when a job offer is open, not on a plain list of results: click the offer to open it.\n\nOn an employer's career site, tick « Detect job offers on every site », at the bottom of the extension's panel. Your browser asks for your permission; pages are still read in this browser only.\n\nIf the button still does not show, open the extension's panel from the browser's toolbar. If it shows « Job offer found on this page. », click its « Analyse this offer » button; otherwise, click « Capture this page »: capturing works on any page. If the page cannot be read, the panel says so: « This page cannot be captured. » Open the job offer's own page and try again."
     },
     {
+      "id": "faq-app-lock",
+      "locale": "en",
+      "kind": "faq",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Protecting the app with Face ID",
+      "synonyms": [
+        "lock",
+        "app lock",
+        "Face ID",
+        "Touch ID",
+        "fingerprint",
+        "passcode",
+        "code",
+        "biometrics",
+        "unlock",
+        "security",
+        "phone",
+        "tablet",
+        "application"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In the Jobbbox app, open the menu, then « App settings » below « My account », and turn on « Lock the app ». The app asks for Face ID, your fingerprint or the device's code at once, to check that you will be able to unlock it.\n\nOnce the lock is on, the app locks when it stays 5 minutes or more in the background, and each time it starts. To come back, pass Face ID or your fingerprint; after several failures, the device's code takes over. If you cancel, tap « Unlock » to try again. While the lock is on, the app's content is hidden in the app switcher; on Android, screenshots of the app are blocked too.\n\nThis setting applies to this device only: it is not on the website nor on another phone, and nothing is sent to Jobbbox. It is not Two-step verification: your sign-in does not change. Your face and fingerprint are checked by the device's system (iOS or Android); Jobbbox receives and keeps nothing of them.\n\nIf the device has no Face ID, fingerprint or code, the lock cannot be turned on: set one up first in the device's settings."
+    },
+    {
       "id": "faq-nouveautes-email-unsubscribe",
       "locale": "en",
       "kind": "faq",
@@ -6020,6 +6168,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Without an account, you use the extension as a guest. Your CV and the captured job offer stay in your browser, never in a Jobbbox account. Jobbbox reads your CV to compute the Match Score, without saving it.\n\nEverything is deleted at the latest 24 hours after your first analysis, even if you keep using the extension, and as soon as you close your browser. The panel shows the exact date: « Your data will be deleted by … ». After that, the job offer is no longer available: capture it again to analyse it.\n\nTo delete everything sooner, click « Delete my data now », in the extension's panel. Your CV and the job offer are deleted from this browser at once.\n\nTo keep your work, create your account before then, without closing your browser: your CV becomes your first profile and the job offer your first application. The tutorial « Create your account from the extension and keep your work » explains how."
     },
     {
+      "id": "tutorial-accept-coach-proposal",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Accept a proposal from your coach",
+      "synonyms": [
+        "coach proposal",
+        "proposal",
+        "apply",
+        "edit before applying",
+        "ignore",
+        "undo",
+        "go back",
+        "card",
+        "origin",
+        "ai coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In a conversation, your AI coach can propose a change, for instance moving an application to another status. It never changes anything itself: the proposal shows under its reply, in a card « Proposed by your AI coach » that says what changes, before and after, with a link to the item it is about.\n\n1. To accept the proposal as it is, click « Apply » in the card. The item is changed and the card shows « Applied by you at … ».\n2. To adjust it first, click « Edit before applying »: the page's form opens beside the conversation, filled in with the proposal. Change what you want, then click « Apply ». If you close the pane before, your changes are kept: « Edit before applying » opens it again as you left it.\n3. To go back, click « Undo » in the applied card: the item returns to how it was before and the card shows « Undone at … ». You can do so as long as the item has not changed since.\n4. If the proposal does not suit you, click « Ignore »: nothing is changed.\n\nIf the item has changed since the proposal, « Apply » is refused: the card shows « The item has changed since the proposal » and nothing is changed. An item changed on your coach's proposal keeps that origin without showing it: open « Origin », under its status, to read « Proposed by your AI coach, applied by you on … »."
+    },
+    {
       "id": "tutorial-admin-accept-sender",
       "locale": "en",
       "kind": "tutorial",
@@ -6375,6 +6547,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": "commencer",
       "microAnimations": [],
       "body": "A profile is a job you are aiming for: a master CV and search criteria. Your coach uses it to look for offers and prepare your applications.\n\n1. Click « Sign in », at the top of every public page. On « Sign in to Jobbbox », enter « Your email address » then click « Send me a sign-in link ».\n2. Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan.\n3. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».\n4. In My account, under Profiles, click « Create my first profile ».\n5. Your coach welcomes you in the conversation. If you have a CV, drop it in the « I have a CV » card (PDF or Word .docx, 10 MB maximum) then click « Read my CV ». Otherwise, click « Answer my coach's questions », above the message box, and answer in that box: one question at a time, about ten minutes.\n6. In the pane that opens beside the conversation, check your CV and search criteria, such as the « Target role » and the « Location », correct what needs it, then click « Save my profile ».\n\nYour first profile is ready: your coach can look for offers for you."
+    },
+    {
+      "id": "tutorial-install-app",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Install the app and sign in",
+      "synonyms": [
+        "app",
+        "application",
+        "mobile app",
+        "iphone",
+        "ipad",
+        "android",
+        "smartphone",
+        "phone",
+        "tablet",
+        "install",
+        "download the app",
+        "sign in",
+        "log in",
+        "magic link",
+        "sign-in link"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "The Jobbbox app, on iPhone, iPad and Android, uses the same account as jobbbox.ai. No password: you sign in with a link received by email.\n\n1. Install the « Jobbbox » app from the App Store (iPhone, iPad) or Google Play (Android), then open it.\n2. On the « Sign in to Jobbbox » screen, enter « Your email address », then tap « Send me a sign-in link ».\n3. On this same phone, open the email you received and tap the link: the app opens and you are signed in. The link is valid for 15 minutes and works once; if it is no longer valid, the app tells you: ask for another one with « Send the link again », or with « Send me a sign-in link » if the app is back on the « Sign in to Jobbbox » screen.\n4. If your account has two-step verification, the app shows « Two-step verification »: it is coming to the app soon. Meanwhile, tap « Sign out » or sign in on jobbbox.ai.\n\nIf you open the link on a device where the app is not installed, it signs you in on jobbbox.ai, in the browser.\n\nTo sign out of the app, open « My account » and tap « Sign out ». A session closed from « My account » on jobbbox.ai also signs the app out, as soon as it comes back to the foreground."
     },
     {
       "id": "tutorial-admin-two-step-verification",

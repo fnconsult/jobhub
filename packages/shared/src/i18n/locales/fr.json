@@ -5721,6 +5721,54 @@
     "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",
     "openSampleSection": "Ouvrir une Section d'exemple",
     "sampleSection": "Section d'exemple",
-    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire."
+    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
+    "appSettings": "Réglages de l'app",
+    "appLock": {
+      "setting": "Verrouiller l'app",
+      "hint": "Après 5 minutes en arrière-plan, l'app demande Face ID, votre empreinte ou le code de l'appareil, et son contenu est masqué dans le sélecteur d'apps. Ce réglage ne vaut que pour cet appareil.",
+      "unavailable": "Définissez d'abord Face ID, une empreinte ou un code dans les réglages de l'appareil.",
+      "turnOnPrompt": "Activer le verrouillage de Jobbbox",
+      "unlockPrompt": "Déverrouiller Jobbbox",
+      "cancel": "Annuler",
+      "locked": "Jobbbox est verrouillée",
+      "unlock": "Déverrouiller"
+    },
+    "signIn": {
+      "sent": "Nous avons envoyé un lien de connexion à {{email}}. Ouvrez l'e-mail sur ce téléphone et touchez le lien : il vous connecte dans l'app.",
+      "waiting": "En attente du lien…",
+      "resend": "Renvoyer le lien",
+      "changeEmail": "Changer d'adresse e-mail"
+    },
+    "secondStep": {
+      "intro": "Votre compte demande une deuxième étape pour terminer la connexion.",
+      "comingSoon": "Elle arrive bientôt dans l'app. En attendant, déconnectez-vous ou connectez-vous sur jobbbox.ai."
+    }
+  },
+  "coachProposals": {
+    "fields": {
+      "applicationStatus": "Statut de la candidature"
+    },
+    "by": "Proposé par votre coach IA",
+    "before": "Avant :",
+    "after": "après :",
+    "apply": "Appliquer",
+    "edit": "Modifier avant d'appliquer",
+    "dismiss": "Ignorer",
+    "undo": "Annuler",
+    "editTitle": "Modifier avant d'appliquer : {{what}}",
+    "editIntro": "Le formulaire de la page, pré-rempli avec la proposition de votre coach pour « {{name}} ». Ce que vous changez ici est gardé si vous fermez le volet.",
+    "applied": "Appliqué par vous à {{time}}",
+    "dismissed": "Ignoré",
+    "undone": "Annulé à {{time}}",
+    "problems": {
+      "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
+      "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
+      "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
+      "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page."
+    }
+  },
+  "origin": {
+    "label": "Origine",
+    "coachProposal": "Sur proposition de votre coach IA, appliqué par vous le {{date}}"
   }
 }

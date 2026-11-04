@@ -1,5 +1,5 @@
 import { useRouter, usePathname } from "expo-router";
-import { CircleUser, ClipboardList, MessageSquare, SquarePen, type LucideIcon } from "lucide-react-native";
+import { CircleUser, ClipboardList, MessageSquare, Settings, SquarePen, type LucideIcon } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { Pressable, View } from "react-native";
 import { SAMPLE_FREE_CONVERSATIONS } from "../sample-data";
@@ -9,7 +9,7 @@ import { isCurrent, MENUS, NEW_CONVERSATION, paths } from "./pages";
 
 /**
  * The Sidebar (ADR-0076): « Nouvelle conversation », the menus, « Coach » with the Free conversations, then at its foot
- * « Espace coach » for a Human Coach and Mon compte. As a drawer or a column, as the shell decides.
+ * « Espace coach » for a Human Coach, Mon compte and Réglages de l'app. As a drawer or a column, as the shell decides.
  */
 export function Sidebar({ isHumanCoach = false, onNavigate }: { isHumanCoach?: boolean; onNavigate: () => void }) {
   const { t } = useTranslation();
@@ -41,6 +41,7 @@ export function Sidebar({ isHumanCoach = false, onNavigate }: { isHumanCoach?: b
       <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[2] }}>
         {isHumanCoach ? entry(paths.coachSpace, t("account.coachSpace"), ClipboardList) : null}
         {entry(paths.account, t("nav.account"), CircleUser)}
+        {entry(paths.appSettings, t("mobile.appSettings"), Settings)}
       </View>
     </View>
   );

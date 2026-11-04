@@ -3,6 +3,8 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import type { CoachMessageCost, CoachReply, CoachReplyOptions } from "../coach";
+import type { CoachProposal } from "../coach-actions";
+import type { CoachProposalCard } from "../coach-proposals";
 import { createApplications, migrateApplications } from "../applications";
 import { migrateCoachMemory } from "../coach-memory";
 import { migrateJobDigests } from "../job-digests";
@@ -125,6 +127,62 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       { from: "coach", text: "Réponse 1" },
       { from: "candidate", text: "Par où commencer ?" },
     ]);
+  });
+
+  describe("a reply's Coach proposals (#715): Action Cards under it, in the thread", () => {
+    /** The cards placed, as Coach proposals would: one per proposal, under its reply. */
+    type Placed = { candidateId: string; reply: string; earlier: readonly string[]; proposals: readonly CoachProposal[] };
+    const card = (n: number): CoachProposalCard => ({
+      id: `card-${n}`,
+      status: "pending",
+      change: { target: { kind: "application", id: "a1", name: "DAF H/F", href: "/candidatures/a1" }, what: "Statut", before: "Postulée", after: "Entretien", value: { status: "interview" }, fields: [] },
+      undoable: false,
+    });
+    let placed: Placed[];
+    const proposal = { action: "proposer_statut", group: "applications" as const, data: { to: "interview" } };
+
+    beforeEach(() => {
+      placed = [];
+      let count = 0;
+      const byReply = new Map<string, CoachProposalCard[]>();
+      conversations = createCoachConversations(database, {
+        coach: { reply: async (candidateId, input, options) => (asked.push({ candidateId, input: input as Asked["input"], ...(options ? { options } : {}) }), coachReply(asked.length, options)) },
+        profiles: createProfiles(database),
+        now: () => now,
+        proposals: {
+          async place(candidateId, { reply, earlier }, proposals) {
+            placed.push({ candidateId, reply, earlier, proposals });
+            const cards = proposals.map(() => card(++count));
+            byReply.set(reply, cards);
+            return cards;
+          },
+          async ofReplies(_candidateId, replies) {
+            return new Map(replies.filter((reply) => byReply.has(reply)).map((reply) => [reply, byReply.get(reply)!]));
+          },
+        },
+      });
+    });
+
+    it("places them under the reply saved, says them with it, and shows them again when the conversation reopens", async () => {
+      coachReply = (n) => ({ ok: true, reply: `Réponse ${n}`, outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], proposals: n === 2 ? [proposal] : [] });
+      const first = await conversations.send(marie, { message: "Bonjour" });
+      if (!first.ok) throw new Error("refused");
+      const second = await conversations.send(marie, { conversationId: first.conversation.id, message: "Passe-la en entretien" });
+
+      expect(first).not.toHaveProperty("cards");
+      expect(second).toMatchObject({ ok: true, cards: [card(1)] });
+      expect(placed).toEqual([{ candidateId: marie, reply: expect.stringMatching(/^\d+$/), earlier: [expect.stringMatching(/^\d+$/)], proposals: [proposal] }]);
+      const reopened = await conversations.open(marie, first.conversation.id);
+      expect(reopened?.messages.map((message) => message.cards ?? null)).toEqual([null, null, null, [card(1)]]);
+    });
+
+    it("places none for a reply the Guardrails replaced, or with no proposal", async () => {
+      coachReply = () => ({ ok: true, reply: "Message du Guardrail", outcome: "blocked_reply", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], proposals: [] });
+      const sent = await conversations.send(marie, { message: "Bonjour" });
+
+      expect(sent).not.toHaveProperty("cards");
+      expect(placed).toEqual([]);
+    });
   });
 
   describe("its Context bar's figures (#607): its messages, and the jetons of the context its latest reply was sent", () => {

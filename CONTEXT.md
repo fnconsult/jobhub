@@ -746,12 +746,28 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
 
+**App settings** (« Réglages de l'app »):
+The device's own settings in the Jobbbox app, at the foot of the drawer below Mon compte, which holds the account's settings. Kept on that device only, never restored onto another and never sent to Jobbbox; the web app has no such page.
+_Avoid_: Preferences (that is Mon compte's Préférences)
+
+**App lock** (« Verrouiller l'app »):
+An App setting, off by default: the Jobbbox app asks Face ID, a fingerprint or the device's code when it starts and when it returns after 5 minutes or more in the background, and hides its content from the app switcher. The device's code is the fallback; if the device has none left, the lock turns itself off. Not a second step: the session and Two-step verification are unchanged (ADR-0081).
+_Avoid_: PIN, second factor
+
 **Disposition**:
 In the Jobbbox app, the decision of where the Sidebar, the Fiche, the Activité column and the Work Pane go, column or full page or drawer, from the window's width in rem (ADR-0070's thresholds, ADR-0076). Computed again whenever the window changes (rotation, Split View, Stage Manager, a foldable); a phone and a tablet differ only by it.
 
 **Push notification**:
 A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
 _Avoid_: Alert, push, notification (alone: that is the Signalement notification)
+
+**App sign-in link**:
+The magic link asked from the Jobbbox app. Its email points at a Jobbbox web page the app claims (`/connexion/app`), not at the verify address: the app opens, uses the link once and keeps the session on the device; opened in a browser, the same link signs in on the web (ADR-0080).
+_Avoid_: Deep link, app magic link
+
+**Domain association files**:
+The two files the web serves so that a phone hands some web addresses to the Jobbbox app instead of the browser: Apple's for universal links, Android's for App Links. Served from each environment's own settings; without them the link simply opens the web.
+_Avoid_: Deep-link config
 
 **Share capture**:
 Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.

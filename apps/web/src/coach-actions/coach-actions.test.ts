@@ -95,6 +95,14 @@ describe("the catalogue of Coach Actions (ADR-0077, #713)", () => {
     expect(coachActionCatalog(CATALOG)).toEqual(CATALOG);
   });
 
+  it("lets only a proposing Coach Action apply its proposal, and undo only one that applies (#715)", () => {
+    const apply = async () => ({ ok: true as const });
+    const undo = async () => ({ ok: true as const });
+    expect(() => coachActionCatalog([{ ...readApplication, apply } as CoachAction])).toThrow(/only a proposing Coach Action applies/);
+    expect(() => coachActionCatalog([{ ...proposeStatus, undo } as CoachAction])).toThrow(/undoes nothing it does not apply/);
+    expect(coachActionCatalog([{ ...proposeStatus, apply, undo } as CoachAction])).toHaveLength(1);
+  });
+
   it("refuses to record a call for a group no Routes locales Tool declares", async () => {
     const { actions, recorder } = setUp({ catalog: [{ ...readApplication, group: "billing" } as unknown as CoachAction] });
     await expect(actions.forReply("marie", { recorder, untrustedInView: false })).rejects.toThrow(/not a Routes locales Tool/);
@@ -144,6 +152,17 @@ describe("a Coach Action the model calls", () => {
     expect(reply.proposals()).toEqual([{ action: "proposer_statut", group: "applications", data: { applicationId: "a1", from: "interview", to: "offer" } }]);
     expect(recorder.provenance().steps).toEqual([expect.objectContaining({ kind: "tool", activity: "act", tool: "applications", proposes: true, outcome: "ok" })]);
     expect(calls).toMatchObject([{ provider: "applications", operation: "proposer_statut", ok: true, httpStatus: 200 }]);
+  });
+
+  it("runs in the Candidate's language, so what a proposal's card says is in it (#715)", async () => {
+    const languages: string[] = [];
+    const spoken = defineCoachAction({ ...proposeStatus, run: async (_args, call) => (languages.push(call.language), { ok: true, data: null }) });
+    const { actions, recorder } = setUp({ catalog: [spoken] });
+
+    await (await actions.forReply("marie", { recorder, untrustedInView: false, language: "en" }))!.runTool(run("proposer_statut", { id: "a1", status: "offer" }), {});
+    await (await actions.forReply("marie", { recorder, untrustedInView: false }))!.runTool(run("proposer_statut", { id: "a1", status: "offer" }), {});
+
+    expect(languages).toEqual(["en", "fr"]);
   });
 
   it("answers not_found, saying nothing of why, for another Candidate's id or an unknown one", async () => {

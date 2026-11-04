@@ -4,7 +4,7 @@
  * hold across all tables (e.g. what deleting a Candidate removes, ADR-0010).
  */
 import { migrateAcceptances } from "./acceptances/index";
-import { migrateActionCards } from "./action-cards/index";
+import { migrateActionCards, migrateActionCardsInThread } from "./action-cards/index";
 import { migrateAdministratorRoles } from "./admin/administrators";
 import { migrateBackOfficeAudit } from "./admin/back-office";
 import { migrateAgentRunLog } from "./agent-runs/index";
@@ -85,6 +85,7 @@ export async function migrateDatabase(
     ["Withdrawals are up to date", () => migrateWithdrawals(database)],
     ["Appointment Reminders are up to date", () => migrateAppointmentReminders(database)],
     ["Coach Conversations are up to date", () => migrateCoachConversations(database)],
+    ["Action Cards in Coach Conversations are up to date", () => migrateActionCardsInThread(database)],
     ["Job Sites, Job discovery sources and Job discovery sites are up to date", () => migrateSearchSites(database)],
     ["Coach Memory is up to date", () => migrateCoachMemory(database)],
     ["Back Office Audit is up to date", () => migrateBackOfficeAudit(database)],

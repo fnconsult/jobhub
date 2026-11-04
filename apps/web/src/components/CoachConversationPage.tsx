@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import type { CoachFocus } from "@/coach";
 import type { CoachMessage, ConversationContext, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import type { SubjectRef } from "@/coach-conversations";
+import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
@@ -14,6 +15,7 @@ import { fetchConversation } from "@/components/chat-conversation";
 import type { ConversationSummary } from "@/components/CoachConversationList";
 import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, ReplyFeedback } from "@/components/CoachHelp";
 import { CoachMemoryProposals } from "@/components/CoachMemory";
+import { CoachProposalCard } from "@/components/CoachProposalCard";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
@@ -105,7 +107,25 @@ type ReplyBody = {
   couldNotAnswer?: boolean;
   /** The conversation's Context bar's figures, once the message is saved (#607). */
   context?: ConversationContext;
+  /** The Action Cards of the Coach proposals the reply makes (#715). */
+  cards?: ProposalCard[];
 };
+
+/** The same change proposed again: the same thing on the same object. */
+const sameChange = (a: ProposalCard, b: ProposalCard) => a.change.target.kind === b.change.target.kind && a.change.target.id === b.change.target.id && a.change.what === b.change.what;
+
+/**
+ * The thread once a reply brings `cards` (#715): an earlier reply's pending card proposing the same change again is gone,
+ * withdrawn by the server, as it is when the conversation reopens.
+ */
+function withdrawnBy<T extends ThreadMessage>(messages: T[], cards: readonly ProposalCard[]): T[] {
+  if (cards.length === 0) return messages;
+  return messages.map((message) => {
+    if (message.from !== "coach" || !message.cards) return message;
+    const kept = message.cards.filter((card) => card.status !== "pending" || !cards.some((made) => sameChange(made, card)));
+    return kept.length === message.cards.length ? message : { ...message, cards: kept };
+  });
+}
 
 const SEND = "/api/coach";
 const CONVERSATIONS = "/api/coach/conversations";
@@ -327,6 +347,13 @@ export function CoachConversationPage(page: PagePlacement) {
     openSignalement?.({ kind: "question", question, coachReply });
   }
 
+  /** A Coach proposal's card under the reply at `index`, as the server now has it once the Candidate decided (#715). */
+  function cardChanged(index: number, changed: ProposalCard) {
+    setMessages((shown) =>
+      shown.map((each, at) => (at === index && each.from === "coach" && each.cards ? { ...each, cards: each.cards.map((card) => (card.id === changed.id ? changed : card)) } : each)),
+    );
+  }
+
   /** The Candidate's « Oui » or « Non » under an AI Coach reply. */
   function answerFeedback(index: number, satisfied: boolean) {
     setMessages((shown) => shown.map((each, at) => (at === index && each.from === "coach" ? { ...each, satisfied } : each)));
@@ -448,8 +475,9 @@ export function CoachConversationPage(page: PagePlacement) {
       savedOnPage(body.conversation);
       // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
       const blocked = body.blocked;
+      const cards = Array.isArray(body.cards) ? body.cards : [];
       setMessages([
-        ...before,
+        ...withdrawnBy(before, cards),
         { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
         {
           from: "coach",
@@ -458,6 +486,7 @@ export function CoachConversationPage(page: PagePlacement) {
           ...(body.jobOffer ? { jobOffer: body.jobOffer } : {}),
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
+          ...(cards.length > 0 ? { cards } : {}),
         },
       ]);
       const at = body.at;
@@ -631,6 +660,10 @@ export function CoachConversationPage(page: PagePlacement) {
                   {message.from === "coach" ? <CoachReplyText text={message.text} /> : <p>{message.text}</p>}
                   {message.jobOffer ? <JobOfferCard jobOffer={message.jobOffer} /> : null}
                   {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
+                  {/* Its Coach proposals (#715), each an Action Card, after its Provenance line. */}
+                  {message.from === "coach" && message.cards?.length
+                    ? message.cards.map((card) => <CoachProposalCard key={card.id} card={card} onChange={(changed) => cardChanged(index, changed)} />)
+                    : null}
                   {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
                     <ReplyFeedback
                       couldNotAnswer={message.couldNotAnswer === true}

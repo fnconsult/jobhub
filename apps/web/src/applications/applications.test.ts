@@ -286,6 +286,52 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
     expect((await applications.get(candidateId, application.id))?.status).toBe("to_apply");
   });
 
+  describe("a change applied from a Coach proposal (#715)", () => {
+    const CARD = "44444444-4444-4444-8444-444444444444";
+    const origin = (appliedAt = new Date("2026-11-04T17:20:00Z")) => ({ origin: "coach_proposal" as const, cardId: CARD, appliedAt });
+
+    it("gives the Application Status's version, which every status change moves and nothing else does", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const first = await applications.statusOf(candidateId, id);
+
+      expect(first).toEqual({ status: "to_apply", version: expect.any(String), origin: null });
+      await applications.change(candidateId, id, { reportedUnavailable: true });
+      expect(await applications.statusOf(candidateId, id)).toEqual(first);
+      await applications.change(candidateId, id, { status: "applied" });
+      expect((await applications.statusOf(candidateId, id))?.version).not.toBe(first?.version);
+      expect(await applications.statusOf(otherCandidateId, id)).toBeNull();
+      expect(await applications.statusOf(candidateId, "not-a-uuid")).toBeNull();
+    });
+
+    it("refuses a change made from a version the Application Status has moved on from, as a conflict: nothing is changed", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = await applications.statusOf(candidateId, id);
+      await applications.change(candidateId, id, { status: "applied" }); // on its page, meanwhile
+
+      expect(await applications.change(candidateId, id, { status: "interview" }, { version: seen!.version, origin: origin() })).toEqual({ ok: false, error: "conflict" });
+      expect(await applications.statusOf(candidateId, id)).toMatchObject({ status: "applied", origin: null });
+    });
+
+    it("keeps where the status came from, hidden with it: the Coach proposal's card and when it was applied; the Candidate's own change clears it", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = await applications.statusOf(candidateId, id);
+
+      const changed = await applications.change(candidateId, id, { status: "interview" }, { version: seen!.version, origin: origin() });
+
+      expect(changed).toMatchObject({ ok: true, application: { status: "interview", statusOrigin: origin() } });
+      expect(await applications.statusOf(candidateId, id)).toMatchObject({ status: "interview", origin: origin() });
+      await applications.change(candidateId, id, { status: "accepted" });
+      expect(await applications.get(candidateId, id)).not.toHaveProperty("statusOrigin");
+    });
+
+    it("validates what is applied as the page's form does", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const seen = await applications.statusOf(candidateId, id);
+
+      expect(await applications.change(candidateId, id, { status: "hired" }, { version: seen!.version, origin: origin() })).toEqual({ ok: false, errors: [{ field: "status", code: "invalid" }] });
+    });
+  });
+
   it("lets the Candidate pick another of their Profiles for the Application, and scores that one", async () => {
     const application = await save({ jobOfferId, profileId });
     const otherProfileId = await createProfile(candidateId, "Consultant transformation");

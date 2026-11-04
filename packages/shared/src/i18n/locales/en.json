@@ -5721,6 +5721,54 @@
     "activityPlaceholder": "Activity will show the page's context bar and AI Activity here.",
     "openSampleSection": "Open a sample Section",
     "sampleSection": "Sample Section",
-    "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here."
+    "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
+    "appSettings": "App settings",
+    "appLock": {
+      "setting": "Lock the app",
+      "hint": "After 5 minutes in the background, the app asks for Face ID, your fingerprint or the device's code, and its content is hidden in the app switcher. This setting applies to this device only.",
+      "unavailable": "First set up Face ID, a fingerprint or a code in the device's settings.",
+      "turnOnPrompt": "Turn on the Jobbbox lock",
+      "unlockPrompt": "Unlock Jobbbox",
+      "cancel": "Cancel",
+      "locked": "Jobbbox is locked",
+      "unlock": "Unlock"
+    },
+    "signIn": {
+      "sent": "We've sent a sign-in link to {{email}}. Open the email on this phone and tap the link: it signs you in to the app.",
+      "waiting": "Waiting for the link…",
+      "resend": "Send the link again",
+      "changeEmail": "Use another email address"
+    },
+    "secondStep": {
+      "intro": "Your account asks for a second step to finish signing in.",
+      "comingSoon": "It is coming to the app soon. Meanwhile, sign out or sign in on jobbbox.ai."
+    }
+  },
+  "coachProposals": {
+    "fields": {
+      "applicationStatus": "Application status"
+    },
+    "by": "Proposed by your AI coach",
+    "before": "Before:",
+    "after": "after:",
+    "apply": "Apply",
+    "edit": "Edit before applying",
+    "dismiss": "Ignore",
+    "undo": "Undo",
+    "editTitle": "Edit before applying: {{what}}",
+    "editIntro": "The page's form, filled in with your coach's proposal for “{{name}}”. What you change here is kept if you close the pane.",
+    "applied": "Applied by you at {{time}}",
+    "dismissed": "Ignored",
+    "undone": "Undone at {{time}}",
+    "problems": {
+      "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
+      "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
+      "invalid": "What you entered does not fit: check the form.",
+      "failed": "The proposal could not be processed. Try again or reload the page."
+    }
+  },
+  "origin": {
+    "label": "Origin",
+    "coachProposal": "Proposed by your AI coach, applied by you on {{date}}"
   }
 }

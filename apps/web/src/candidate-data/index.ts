@@ -230,11 +230,19 @@ export interface ExportedAssistantConversation {
 /** A Human Coach as the export names them: their email and booking link are theirs, left out. */
 export type CoachNamed = { id: string; name: string };
 
-export interface ExportedActionCard extends Omit<ActionCard, "provenance"> {
+export interface ExportedActionCard extends Pick<ActionCard, "id" | "kind" | "title" | "body" | "focus" | "payload" | "status" | "createdAt"> {
   /** When the Candidate accepted or dismissed it; null while pending. */
   decidedAt: Date | null;
   /** What made it (ADR-0034, #336), when it was kept. */
   provenance?: Provenance;
+  /**
+   * A Coach proposal's card in a Coach Conversation's thread (#715): the conversation it is in; its payload holds what it
+   * proposed, before and after. `edited`: what the Candidate changed before applying it; `undoneAt`: when « Annuler » put
+   * the state before back.
+   */
+  conversationId?: string;
+  edited?: unknown;
+  undoneAt?: Date;
 }
 
 /** Everything the Candidate made in Jobbbox, ready to be written out as JSON. */
@@ -401,7 +409,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   job_digest: "profiles[].jobDigests",
   target_company: "profiles[].targetCompanies (set aside ones included)",
   target_company_refresh: "profiles[].targetCompaniesRefreshedAt (not what La Bonne Boite was asked)",
-  application: "applications",
+  application: "applications (each status's Origin, when a Coach proposal the Candidate applied gave it, #715)",
   interview: "applications[].interviews (with their duration, format, place and date of cancellation)",
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
   tailored_cv: "applications[].tailoredDocuments (the proposal and the saved one, each with its Provenance)",
@@ -415,7 +423,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_access: "coachAccess",
   coaching_session: "coachingSessions, with their date, duration, video link, note and who last changed the date (no Stripe identifiers, no booking link)",
   coaching_session_reschedule: "coachingSessions[].reschedules (their Reschedule history, cancellations included)",
-  action_card: "actionCards",
+  action_card: "actionCards (a Coach proposal's in a thread with its conversation, what it proposed before and after, what was edited, its decision and « Annuler », #715)",
   coach_memory_item: "coachMemory",
   back_office_assistant_conversation: "backOfficeAssistantConversations",
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
@@ -761,14 +769,24 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           candidateId,
         ),
         exportCoachingSessions(candidateId),
-        rowsOf<Omit<ExportedActionCard, "provenance"> & { provenance: unknown }>(
-          `SELECT id, kind, title, body, json_build_object('kind', focus_kind, 'id', focus_id) AS focus, payload, status, created_at AS "createdAt", decided_at AS "decidedAt", provenance
-             FROM action_card WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
+        rowsOf<
+          Omit<ExportedActionCard, "provenance" | "conversationId" | "edited" | "undoneAt"> & { provenance: unknown; conversationId: string | null; edited: unknown; undoneAt: Date | null }
+        >(
+          `SELECT c.id, c.kind, c.title, c.body, json_build_object('kind', c.focus_kind, 'id', c.focus_id) AS focus, c.payload, c.status, c.created_at AS "createdAt",
+                  c.decided_at AS "decidedAt", c.provenance, m.conversation_id AS "conversationId", c.edited, c.undone_at AS "undoneAt"
+             FROM action_card c LEFT JOIN coach_message m ON m.seq = c.reply_seq
+            WHERE c.candidate_id = $1 ORDER BY c.created_at DESC, c.id`,
           candidateId,
         ).then((cards) =>
-          cards.map(({ provenance, ...card }): ExportedActionCard => {
+          cards.map(({ provenance, conversationId, edited, undoneAt, ...card }): ExportedActionCard => {
             const kept = readProvenance(provenance);
-            return { ...card, ...(kept && { provenance: kept }) };
+            return {
+              ...card,
+              ...(kept && { provenance: kept }),
+              ...(conversationId ? { conversationId } : {}),
+              ...(edited !== null ? { edited } : {}),
+              ...(undoneAt ? { undoneAt } : {}),
+            };
           }),
         ),
         rowsOf<CandidateDataExport["coachMemory"][number]>(

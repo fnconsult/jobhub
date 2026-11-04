@@ -11,16 +11,48 @@
       "deploymentTarget": "16.4",
       "infoPlist": {
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"]
-      }
+      },
+      "associatedDomains": [
+        "applinks:jobbbox.ai",
+        "applinks:staging.jobbbox.ai"
+      ]
     },
     "android": {
-      "package": "ai.jobbbox.app"
+      "package": "ai.jobbbox.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "jobbbox.ai",
+              "pathPrefix": "/connexion/app"
+            },
+            {
+              "scheme": "https",
+              "host": "staging.jobbbox.ai",
+              "pathPrefix": "/connexion/app"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-localization",
       "expo-screen-orientation",
-      ["expo-build-properties", { "android": { "minSdkVersion": 24 } }]
+      ["expo-local-authentication", { "faceIDPermission": "Jobbbox utilise Face ID pour se déverrouiller quand « Verrouiller l'app » est activé dans ses réglages." }],
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ]
     ]
   }
 }

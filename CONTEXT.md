@@ -734,6 +734,18 @@ _Avoid_: Popup, sidebar (that is the web app's Sidebar)
 **Posting in view**:
 What the page in the active tab of the Side Panel's window reads as: a Job Site's posting, a page to capture by hand, or no posting. The Side Panel follows it from tab to tab and offers « Offre détectée sur cette page ».
 
+**Jobbbox app**:
+The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
+_Avoid_: Mobile site, PWA, native client
+
+**Push notification**:
+A message the Jobbbox app shows on the device's lock screen for an event the person can switch off in Mon compte's Rappels (new results, the Appointment Reminder, a Coach Review, a Coaching Session's date changed, a Follow-up due; for a Human Coach, Coach Access granted and their Coaching Sessions paid, changed or cancelled). Its text never names a company, a job or a person; the app shows the rest once opened. Asked for in context, never at first launch.
+_Avoid_: Alert, push, notification (alone: that is the Signalement notification)
+
+**Share capture**:
+Sending a job posting to Jobbbox from another app's share sheet. A link is read by the server under the job discovery rules; where they refuse, the person shares or pastes the text. The result is a Private Job Offer, opened in its own conversation.
+_Avoid_: Import, clip
+
 ### Delivery
 
 **Agent Run**:

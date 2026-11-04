@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { externalApiProvidersOf, isRecipientOutsideEu, TOOL_CATEGORIES, TOOLS, toolById, toolOfUsage, toolsByCategory } from "./tools";
+import {
+  externalApiProvidersOf,
+  HOSTS,
+  isRecipientOutsideEu,
+  RECIPIENT_DATA,
+  RECIPIENT_DATA_TEXT,
+  recipientList,
+  TOOL_CATEGORIES,
+  TOOLS,
+  TRANSFER_SAFEGUARD_TEXT,
+  TRANSFER_SAFEGUARDS,
+  toolById,
+  toolOfUsage,
+  toolsByCategory,
+  type RecipientFacts,
+  type Tool,
+} from "./tools";
 
 describe("the Tools", () => {
   it("are every external tool the app calls, grouped by category in the Back Office's order", () => {
@@ -55,6 +71,9 @@ describe("the Tools", () => {
       "perplexity",
       "brave",
       "tavily",
+      // Job discovery's queries, drawn from the Search Criteria as web search's are (#338).
+      "france-travail",
+      "fantastic-jobs",
       "lusha",
       "kaspr",
       "apollo",
@@ -77,12 +96,61 @@ describe("the Tools", () => {
     // Not established counts as outside the EU.
     expect(outside("brevo-api")).toBe(true);
     expect(outside("kaspr")).toBe(true);
+    // Where Fantastic.jobs processes the queries was not found (#522).
+    expect(outside("fantastic-jobs")).toBe(true);
     // In the EU.
     expect(outside("mistral")).toBe(false);
     expect(outside("anthropic-bedrock")).toBe(false);
     // Outside the EU or not established, but sent no personal data.
     expect(outside("greenhouse")).toBe(false);
     expect(outside("job-site")).toBe(false);
+  });
+
+  it("give the Recipient list's public facts for every Tool that receives personal data, but one Jobbbox runs itself (#338)", () => {
+    for (const tool of TOOLS as readonly Tool[]) {
+      if (!tool.receivesPersonalData) {
+        expect(tool.recipient, tool.id).toBeUndefined();
+        continue;
+      }
+      if (tool.hostedBy) {
+        expect(tool.recipient, tool.id).toBeUndefined();
+        expect(HOSTS.map((host) => host.id), tool.id).toContain(tool.hostedBy);
+        continue;
+      }
+      expect(tool.recipient, tool.id).toBeDefined();
+    }
+    expect(toolById("email-intake")?.hostedBy).toBe("hostinger");
+  });
+
+  it("say the public facts in French and in English, in plain words, without a model version or a logo (ADR-0064)", () => {
+    const listed = [...(TOOLS as readonly Tool[]).flatMap((tool) => (tool.recipient ? [tool.recipient] : [])), ...HOSTS.map((host) => host.recipient as RecipientFacts)];
+    for (const facts of listed) {
+      expect(facts.name, facts.name).not.toMatch(/\d/);
+      expect(facts.data.length, facts.name).toBeGreaterThan(0);
+      expect(facts.safeguards.length, facts.name).toBeGreaterThan(0);
+      for (const text of [facts.purpose, facts.place, ...(typeof facts.entity === "string" ? [] : [facts.entity])]) {
+        expect(text.fr, facts.name).not.toBe("");
+        expect(text.en, facts.name).not.toBe("");
+        expect(text.fr, facts.name).not.toBe(text.en);
+      }
+    }
+    for (const kind of RECIPIENT_DATA) expect(RECIPIENT_DATA_TEXT[kind].en).not.toBe("");
+    for (const safeguard of TRANSFER_SAFEGUARDS) expect(TRANSFER_SAFEGUARD_TEXT[safeguard].en).not.toBe("");
+  });
+
+  it("never say a recipient in the EU needs a safeguard, nor one outside it needs none", () => {
+    for (const tool of TOOLS as readonly Tool[]) {
+      if (!tool.recipient) continue;
+      if (tool.residency === "eu") expect(tool.recipient.safeguards, tool.id).toContain("none_needed");
+      else expect(tool.recipient.safeguards, tool.id).not.toContain("none_needed");
+    }
+  });
+
+  it("name what Claude, Mistral and web search are sent: redacted, identity under EU AI Consent, queries only (ADR-0064)", () => {
+    expect(toolById("anthropic")?.recipient?.data).toEqual(["redacted"]);
+    expect(toolById("mistral")?.recipient?.data).toEqual(["identity_under_eu_ai_consent", "forwarded_emails"]);
+    for (const id of ["perplexity", "brave", "tavily"]) expect(toolById(id)?.recipient?.data, id).toEqual(["queries_only"]);
+    expect(toolById("anthropic")?.recipient?.entity).toBe("Anthropic Ireland, Limited");
   });
 
   it("name the keys they need, none for the public APIs", () => {
@@ -144,6 +212,24 @@ describe("the Tools", () => {
   it("are unknown by any other id", () => {
     expect(toolById("linkedin")).toBeUndefined();
     expect(toolById("toString")).toBeUndefined();
+  });
+});
+
+describe("the Recipient list (ADR-0064, #338)", () => {
+  it("names the Hosts, then each Tool switched on that receives personal data, in the catalog's order", () => {
+    const on = new Set(["anthropic", "mistral", "perplexity", "greenhouse", "email-intake", "stripe"]);
+    const list = recipientList((tool) => on.has(tool.id));
+    expect(list.map((recipient) => recipient.id)).toEqual(["hostinger", "anthropic", "mistral", "perplexity", "stripe"]);
+    expect(list[0]).toMatchObject({ kind: "host", residency: "eu" });
+    expect(list[1]).toMatchObject({ kind: "tool", residency: "outside_eu", facts: { name: "Claude (Anthropic)" } });
+  });
+
+  it("names no Tool switched off, and still the Hosts", () => {
+    expect(recipientList(() => false).map((recipient) => recipient.id)).toEqual(["hostinger"]);
+  });
+
+  it("keeps a Tool whose residency was not established, for the page to show it outside the EU", () => {
+    expect(recipientList((tool) => tool.id === "kaspr").at(-1)).toMatchObject({ id: "kaspr", residency: "unknown" });
   });
 });
 

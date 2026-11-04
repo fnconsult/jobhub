@@ -754,6 +754,14 @@ _Avoid_: Preferences (that is Mon compte's Préférences)
 An App setting, off by default: the Jobbbox app asks Face ID, a fingerprint or the device's code when it starts and when it returns after 5 minutes or more in the background, and hides its content from the app switcher. The device's code is the fallback; if the device has none left, the lock turns itself off. Not a second step: the session and Two-step verification are unchanged (ADR-0081).
 _Avoid_: PIN, second factor
 
+**Read cache**:
+In the Jobbbox app, the copy on the device of what the person last looked at (the menus' cards, an Application, the Agenda, Job Searches, Job Offers), shown again without network. Never holds a Coach Conversation, a Profile or a Tailored Document's links; kept 7 days at most, dropped when the app's API Version changes, emptied at sign-out.
+_Avoid_: Offline mode, sync
+
+**Hors ligne** (offline):
+The state of the Jobbbox app without network: a banner under the Top Bar says so and shows the Read cache, and everything that writes (the conversation's box, « + », « Envoyer ») is disabled with its reason. Nothing waits to be sent when the network returns.
+_Avoid_: Offline queue, outbox
+
 **Disposition**:
 In the Jobbbox app, the decision of where the Sidebar, the Fiche, the Activité column and the Work Pane go, column or full page or drawer, from the window's width in rem (ADR-0070's thresholds, ADR-0076). Computed again whenever the window changes (rotation, Split View, Stage Manager, a foldable); a phone and a tablet differ only by it.
 

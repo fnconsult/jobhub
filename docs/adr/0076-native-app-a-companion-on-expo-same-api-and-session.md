@@ -36,3 +36,12 @@ This amends ADR-0005 (native apps start), ADR-0009 (the system text size in the 
 - **The prototype's variant B, bottom tabs (a labelled rail on tablets)**, and **variant C, no chrome, destinations as chips above the box**: tried on a phone, A was chosen; it keeps the web's Sidebar as one model across web and app.
 - **Sheets with two detents (half and nearly full height) below 64rem**, the Claude iOS pattern, built in the prototype: the product owner preferred each pane as a full page, as on the web phone, so the page behind is never half visible.
 - **Phones only in v1, a tablet scaling the phone layout**: dropped once the tablet layout turned out to be ADR-0070's own rules.
+
+## Amendment: offline, a write is refused at once, never queued (issue #701, 2026-11-04)
+
+- **A write asked without network fails immediately** with a reason the screen shows (« Hors ligne : vous pourrez écrire au coach dès le retour du réseau. »). It is not paused, not replayed when the network returns, and no pending write is ever saved on the device. A Coach message sent hours later, out of its moment, or twice, is worse than one typed again.
+- **The Read cache is an allow-list** (`READS` in `apps/mobile/src/offline/read-cache.tsx`): a new read stays off the device until it is listed. Coach Conversations, Profiles and Tailored Document links are never in it. A copy lasts 7 days at most and is dropped when the API Version changes.
+- **Sign-out awaits `forgetReads()`** before dropping the session; the sign-out of #685 must call it.
+- **Open, for a human**: whether to exclude the cache from device backups (Android Auto Backup includes it by default; iCloud is not checked), and the answers for the App Store privacy label and Play Data safety (#707). Followed in #706.
+
+Rejected: a queue of writes replayed at reconnection (the case above, plus a second source of truth to expire and to empty at sign-out).

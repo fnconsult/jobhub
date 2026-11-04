@@ -1024,7 +1024,7 @@ A site whose pages a piece of content was built from, kept in its Provenance wit
 _Avoid_: Source (alone), citation, reference
 
 **Activity**:
-What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read or compute (rules, no AI). It picks the glyph AI Activity shows while the step runs.
+What one step of an AI action is doing, fixed in the code per step and by default per AI task or Tool, never per Playbook: think, think then write, write, search, web search, read, compute (rules, no AI) or act (a Coach Action reading or proposing on the Candidate's objects, no AI, with its own glyph, ADR-0077). It picks the glyph AI Activity shows while the step runs.
 _Avoid_: Status, phase, stage
 
 **Step label**:

@@ -12,6 +12,7 @@
  * reads together): an object too long is shortened by rule, never by AI (a Master CV's job descriptions first), then cut.
  */
 import * as z from "zod";
+import { estimateTokens } from "../coach/context";
 import type { CoachAction, CoachActionResult } from "./index";
 
 /** What `list_objects` indexes. */
@@ -50,7 +51,58 @@ export interface CoachObjectReader {
   read(candidateId: string, type: ReadObjectType, id: string, maxTokens: number): Promise<ReadObject | null>;
 }
 
+const CUT = " […] (la suite est coupée)";
+
+/** The first of `tellings` (fullest first) within `maxTokens`, else the last one cut to fit. */
+export function fitted(tellings: readonly string[], maxTokens: number): string {
+  const fits = tellings.find((text) => estimateTokens(text) <= maxTokens);
+  if (fits !== undefined) return fits;
+  const last = tellings.at(-1) ?? "";
+  return last.slice(0, Math.max(0, maxTokens * 4 - CUT.length)) + CUT;
+}
+
+/** `head` and as many of `lines` as fit in `maxTokens`, the first ones kept, saying how many were left out by `left(n)`. */
+export function fittedLines(head: string, lines: readonly string[], maxTokens: number, left: (count: number) => string): string {
+  const told = (count: number) => [head, ...lines.slice(0, count), ...(count < lines.length ? [left(lines.length - count)] : [])].join("\n");
+  let count = lines.length;
+  while (count > 0 && estimateTokens(told(count)) > maxTokens) count -= 1;
+  return fitted([told(count)], maxTokens);
+}
+
 const id = z.string().min(1).max(200);
+
+/** Text compared without case nor accents. */
+const folded = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+const indexLine = (object: IndexedObject) => `- ${object.type} ${object.id} · ${object.title} · ${object.status}${object.date ? ` · ${object.date.toISOString().slice(0, 10)}` : ""}`;
+
+/** The index of the Candidate's objects, filtered by type and text: what tells each apart, never its content. */
+const listObjects = (reader: CoachObjectReader): CoachAction =>
+  ({
+    name: "list_objects",
+    description:
+      "Liste les objets du candidat, sans leur contenu (type, id, titre, statut, date) : profils actifs, candidatures, recherches d'offres, Job Digests et rendez-vous de l'agenda. Filtre par type et par texte (dans le titre ou le statut). Sers-t'en pour trouver l'id d'un objet qui n'est pas affiché, puis lis-le.",
+    schema: z.object({ type: z.enum(INDEXED_OBJECT_TYPES).optional(), text: z.string().max(200).optional() }),
+    group: "applications",
+    kind: "read",
+    copiesText: false,
+    async run(args: { type?: IndexedObjectType; text?: string }, call) {
+      const text = folded(args.text?.trim() ?? "");
+      const shown = (await reader.index(call.candidateId)).filter(
+        (object) => (!args.type || object.type === args.type) && (!text || folded(`${object.title} ${object.status}`).includes(text)),
+      );
+      if (shown.length === 0) return { ok: true, data: "Aucun objet ne correspond." };
+      const told = fittedLines(
+        "Objets du candidat (type, id, titre, statut, date) :",
+        shown.map(indexLine),
+        call.maxTokens ?? Number.POSITIVE_INFINITY,
+        (count) => `(${count} autres objets ne sont pas montrés : filtre par type ou par texte.)`,
+      );
+      // Only what is shown counts: a Job Offer's title or employer is text the Candidate did not write.
+      const lines = told.split("\n").length - 1;
+      return { ok: true, data: told, untrusted: shown.slice(0, lines).some((object) => object.untrusted) };
+    },
+  }) as unknown as CoachAction;
 
 const found = (object: ReadObject | null): CoachActionResult => (object ? { ok: true, data: object.text, pages: object.pages, untrusted: object.untrusted } : { ok: false, error: "not_found" });
 
@@ -69,6 +121,7 @@ const readOne = (reader: CoachObjectReader, name: string, type: ReadObjectType, 
 /** The read Coach Actions, over `reader`. */
 export function readCoachActions(reader: CoachObjectReader): CoachAction[] {
   return [
+    listObjects(reader),
     readOne(
       reader,
       "read_profile",

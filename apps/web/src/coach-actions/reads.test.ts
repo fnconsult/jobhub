@@ -362,3 +362,57 @@ describe("read_tailored_documents (#714)", () => {
     expect(await (await setUp(workspace(), "paul")).read("read_tailored_documents", { id: airbus.id })).toEqual(NOT_FOUND);
   });
 });
+
+describe("list_objects (#714)", () => {
+  it("indexes the active Profiles, Applications, Job Searches, Job Digests and Agenda Items, without their content", async () => {
+    const { read, reply } = await setUp();
+
+    const { content, error } = await read("list_objects", {});
+
+    expect(error).toBeUndefined();
+    const lines = content.split("\n").filter((line) => line.startsWith("- "));
+    expect(lines).toEqual([
+      "- profile p-consultant · Consultante finance · actif",
+      "- application a-airbus · Responsable consolidation chez Airbus (Lyon), profil « Consultante finance » · Postulée · 2026-10-28",
+      "- job_search s1 · Recherche d'offres du profil « Consultante finance », 1 offre · terminée · 2026-11-01",
+      "- job_digest d1 · Job Digest du profil « Consultante finance », 1 offre · envoyé · 2026-11-03",
+      "- agenda_item i1 · Entretien pour Responsable consolidation chez Airbus (candidature a-airbus) · prévu · 2026-11-10",
+    ]);
+    expect(content).not.toContain("Rattaché au DG");
+    expect(content).not.toMatch(/Ancien profil DAF|Ancienne Société|s-archived/);
+    // Job Offers' titles and employers are text the Candidate did not write.
+    expect(reply.narrowed).toBe(true);
+  });
+
+  it("filters by type and by text, accents and case aside", async () => {
+    const { read } = await setUp();
+
+    const byType = (await read("list_objects", { type: "application" })).content;
+    expect(byType).toContain("- application a-airbus");
+    expect(byType).not.toContain("- profile");
+    const byText = (await read("list_objects", { text: "airbus" })).content;
+    expect(byText.split("\n").filter((line) => line.startsWith("- ")).map((line) => line.split(" · ")[0])).toEqual(["- application a-airbus", "- agenda_item i1"]);
+    expect((await read("list_objects", { text: "CONSULTANTE" })).content).toContain("- profile p-consultant");
+    expect((await read("list_objects", { text: "nulle part" })).content).toContain("Aucun objet ne correspond.");
+  });
+
+  it("lists only the Candidate's own, and only Profiles when they have nothing else: no text of anyone else's, nothing untrusted", async () => {
+    const paul = await setUp(workspace(), "paul");
+    expect((await paul.read("list_objects", {})).content).toContain("Aucun objet ne correspond.");
+
+    const { read, reply } = await setUp(workspace({ applications: [], agenda: [], jobSearches: [], jobDigests: [] }));
+    expect((await read("list_objects", {})).content).toContain("- profile p-consultant");
+    expect(reply.narrowed).toBe(false);
+  });
+
+  it("keeps the first lines that fit its room, saying how many are left out and how to narrow it", async () => {
+    const many = Array.from({ length: 200 }, (_, index): Application => ({ ...airbus, id: `a-${index}`, jobOffer: offer(`o-${index}`, `Poste de directrice financière numéro ${index}`, `Employeur ${index}`) }));
+    const { read } = await setUp(workspace({ applications: many }));
+
+    const { content } = await read("list_objects", { type: "application" });
+
+    expect(estimateTokens(content)).toBeLessThanOrEqual(COACH_ACTION_RESULT_MAX_TOKENS + 10);
+    expect(content).toContain("- application a-0 ");
+    expect(content).toMatch(/\(\d+ autres objets ne sont pas montrés : filtre par type ou par texte\.\)/);
+  });
+});

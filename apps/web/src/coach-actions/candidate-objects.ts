@@ -7,14 +7,14 @@
  */
 import { NO_INDUSTRY_REFERENCE, type DocumentLanguage, type IndustryReference } from "@jobhub/shared";
 import type { Applications } from "../applications";
-import { applicationDetails, criteriaTextOf, cvText, day, estimateTokens, JOB_SEARCH_STATUS, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
+import { applicationDetails, criteriaTextOf, APPLICATION_STATUS, cvText, day, JOB_SEARCH_STATUS, jobOfferHeadline, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
 import type { JobDigests } from "../job-digests";
 import type { JobSearches } from "../job-searches";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { OutreachChannel, TailoredDocuments } from "../tailored-documents";
-import type { CoachObjectReader, ReadObject } from "./reads";
+import { fitted, fittedLines, type CoachObjectReader, type IndexedObject, type ReadObject } from "./reads";
 
 /** The domain modules the reads go through, each scoped to the Candidate. */
 export interface CandidateObjectSources {
@@ -28,26 +28,6 @@ export interface CandidateObjectSources {
   /** The Sectors' and Domains' labels; without them none is named. */
   industries?: () => Promise<IndustryReference>;
   now?: () => Date;
-}
-
-const CUT = " […] (la suite est coupée)";
-
-/** The first of `tellings` (fullest first) within `maxTokens`, else the last one cut to fit. */
-export function fitted(tellings: readonly string[], maxTokens: number): string {
-  const fits = tellings.find((text) => estimateTokens(text) <= maxTokens);
-  if (fits !== undefined) return fits;
-  const last = tellings.at(-1) ?? "";
-  return last.slice(0, Math.max(0, maxTokens * 4 - CUT.length)) + CUT;
-}
-
-/**
- * `head` and as many of `lines` as fit in `maxTokens`, the first ones kept, saying how many were left out by `left(n)`.
- */
-export function fittedLines(head: string, lines: readonly string[], maxTokens: number, left: (count: number) => string): string {
-  const told = (count: number) => [head, ...lines.slice(0, count), ...(count < lines.length ? [left(lines.length - count)] : [])].join("\n");
-  let count = lines.length;
-  while (count > 0 && estimateTokens(told(count)) > maxTokens) count -= 1;
-  return fitted([told(count)], maxTokens);
 }
 
 type ScoredResult = Parameters<typeof scoredResultLine>[0];
@@ -122,8 +102,57 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
   }
 
   return {
-    async index() {
-      return [];
+    async index(candidateId) {
+      const now = sources.now?.() ?? new Date();
+      const [profiles, applications, jobSearches, jobDigests, agenda] = await Promise.all([
+        sources.profiles.list(candidateId),
+        sources.applications.list(candidateId),
+        sources.jobSearches.list(candidateId),
+        sources.jobDigests.list(candidateId),
+        sources.agenda.upcoming(candidateId, now),
+      ]);
+      const active = new Set(profiles.filter((profile) => !profile.archived).map((profile) => profile.id));
+      const archivedApplications = new Set(applications.filter((application) => !active.has(application.profile.id)).map((application) => application.id));
+      const offers = (count: number) => `${count} offre${count > 1 ? "s" : ""}`;
+      return [
+        ...profiles.filter((profile) => active.has(profile.id)).map((profile): IndexedObject => ({ type: "profile", id: profile.id, title: profile.name, status: "actif" })),
+        ...applications
+          .filter((application) => !archivedApplications.has(application.id))
+          .map((application): IndexedObject => ({
+            type: "application",
+            id: application.id,
+            title: `${jobOfferHeadline(application.jobOffer)}, profil « ${application.profile.name} »`,
+            status: APPLICATION_STATUS[application.status],
+            date: application.statusChangedAt,
+            untrusted: true,
+          })),
+        ...jobSearches
+          .filter((jobSearch) => active.has(jobSearch.profile.id))
+          .map((jobSearch): IndexedObject => ({
+            type: "job_search",
+            id: jobSearch.id,
+            title: `Recherche d'offres du profil « ${jobSearch.profile.name} », ${offers(jobSearch.found)}`,
+            status: JOB_SEARCH_STATUS[jobSearch.status],
+            date: jobSearch.startedAt,
+          })),
+        ...jobDigests
+          .filter((jobDigest) => active.has(jobDigest.profile.id))
+          .map((jobDigest): IndexedObject => ({ type: "job_digest", id: jobDigest.id, title: `Job Digest du profil « ${jobDigest.profile.name} », ${offers(jobDigest.count)}`, status: "envoyé", date: jobDigest.sentAt })),
+        ...agenda
+          .filter((item) => item.kind !== "interview" || !archivedApplications.has(item.applicationId))
+          .map((item): IndexedObject =>
+            item.kind === "interview"
+              ? {
+                  type: "agenda_item",
+                  id: item.id,
+                  title: `Entretien pour ${item.jobTitle}${item.employer ? ` chez ${item.employer}` : ""} (candidature ${item.applicationId})`,
+                  status: item.cancelledAt ? "annulé" : "prévu",
+                  date: item.scheduledAt,
+                  untrusted: true,
+                }
+              : { type: "agenda_item", id: item.id, title: `Séance de coaching avec ${item.coach.name}`, status: "prévue", date: item.scheduledAt },
+          ),
+      ];
     },
 
     async read(candidateId, type, id, maxTokens): Promise<ReadObject | null> {

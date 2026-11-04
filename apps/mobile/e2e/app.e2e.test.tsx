@@ -2,7 +2,7 @@
 // screens), and a person drives it by what they see and press.
 import { act, fireEvent, screen, userEvent } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
-import { AppState, Dimensions, type AppStateStatus } from "react-native";
+import { AppState, Dimensions, Linking, Share, type AppStateStatus } from "react-native";
 import { designTokens } from "@jobhub/shared/design/tokens";
 import type { AppSession } from "../src/session/app-session";
 import type { fakeWebApp } from "../src/session/testing";
@@ -331,3 +331,42 @@ describe("Jobbbox app, signing in (#685)", () => {
   });
 });
 
+describe("Jobbbox app, on an iPad with a pointer", () => {
+  beforeEach(() => {
+    window(...IPAD_LANDSCAPE);
+    jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction", activityType: undefined });
+    jest.spyOn(Linking, "openURL").mockResolvedValue();
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  const rightClick = (name: string) => fireEvent(link(name), "pointerDown", { nativeEvent: { button: 2, pageX: 100, pageY: 200 } });
+  const item = (name: string) => screen.getByRole("menuitem", { name });
+
+  it("opens a Free conversation's context menu in the Sidebar by a right click, and shares its link", async () => {
+    await launch();
+    await rightClick("Me présenter en deux minutes");
+    await userEvent.setup().press(item("Partager le lien"));
+    expect(Share.share).toHaveBeenCalledWith(expect.objectContaining({ message: "https://jobbbox.ai/conversations/c1" }));
+  });
+
+  it("opens an Application's context menu in Mes candidatures by a long press, and « Ouvrir » opens it", async () => {
+    await launch("/candidatures");
+    const user = userEvent.setup();
+    await user.longPress(link("Aéroline · Responsable qualité"));
+    await user.press(item("Ouvrir"));
+    expect(screen).toHavePathname("/candidatures/a1");
+  });
+
+  it("opens a Job Offer's context menu in Recherches d'offres, « Voir l'annonce » opening the posting", async () => {
+    await launch("/recherches");
+    await rightClick("Responsable qualité · Aéroline");
+    await userEvent.setup().press(item("Voir l'annonce"));
+    expect(Linking.openURL).toHaveBeenCalledWith("https://www.example.com/offres/aeroline-responsable-qualite");
+  });
+
+  it("opens a Job Offer in the Work Pane when pressed", async () => {
+    await launch("/recherches");
+    await userEvent.setup().press(link("Responsable qualité · Aéroline"));
+    expect(screen.getByText(/L'offre s'ouvrira ici/)).toBeOnTheScreen();
+  });
+});

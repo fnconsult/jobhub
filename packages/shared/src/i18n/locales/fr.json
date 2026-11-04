@@ -5751,7 +5751,13 @@
       "activite": "Afficher ou masquer Activité",
       "closeWorkPane": "Fermer le Work Pane",
       "closePane": "Fermer le volet"
-    }
+    },
+    "rowMenu": {
+      "open": "Ouvrir",
+      "openPosting": "Voir l'annonce",
+      "shareLink": "Partager le lien"
+    },
+    "jobOfferPlaceholder": "L'offre s'ouvrira ici, avec son Match Score."
   },
   "coachProposals": {
     "fields": {

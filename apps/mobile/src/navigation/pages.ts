@@ -10,6 +10,7 @@ export const paths = {
   application: (id: string) => `/candidatures/${encodeURIComponent(id)}`,
   agenda: "/agenda",
   jobSearches: "/recherches",
+  jobOffer: (jobSearchId: string, id: string) => `/recherches/${encodeURIComponent(jobSearchId)}/offres/${encodeURIComponent(id)}`,
   jobDigests: "/job-digests",
   humanCoaches: "/coachs",
   conversation: (id: string) => `/conversations/${encodeURIComponent(id)}`,

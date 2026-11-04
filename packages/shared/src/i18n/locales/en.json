@@ -5751,7 +5751,13 @@
       "activite": "Show or hide Activity",
       "closeWorkPane": "Close the Work Pane",
       "closePane": "Close the pane"
-    }
+    },
+    "rowMenu": {
+      "open": "Open",
+      "openPosting": "View the posting",
+      "shareLink": "Share the link"
+    },
+    "jobOfferPlaceholder": "The job offer will open here, with its Match Score."
   },
   "coachProposals": {
     "fields": {

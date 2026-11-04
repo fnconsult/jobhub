@@ -1287,7 +1287,9 @@
       "atsScores": "ATS Scores",
       "enrichedContacts": "Contacts enrichis",
       "jobDigest": "Job Digest",
-      "jobSearches": "Recherches d'offres"
+      "jobSearches": "Recherches d'offres",
+      "coachContextMessages": "Mémoire du coach (messages lus)",
+      "coachContextTokens": "Taille du contexte du coach"
     },
     "jobDigest": {
       "none": "Non compris",
@@ -1696,6 +1698,14 @@
           "reason": "Raison",
           "candidates": "Candidats concernés"
         }
+      },
+      "coachContext": {
+        "title": "Contexte du coach IA",
+        "intro": "Ce que le coach IA lit à chaque réponse : les derniers messages de la conversation et, au plus, ce nombre de jetons (estimés) de contexte. Vide pour illimité. Sans valeur enregistrée, une offre lit 40 messages et 12 000 jetons. Une baisse est une baisse de quota.",
+        "messages": "Messages lus par le coach IA",
+        "messagesHelp": "Au moins 1, ou vide pour illimité",
+        "tokens": "Plafond du contexte (jetons estimés)",
+        "tokensHelp": "Nombre, ou vide pour illimité"
       }
     },
     "coupons": {
@@ -2690,7 +2700,10 @@
       "warnings": "Avertissements",
       "noTechnical": "Aucun détail technique enregistré.",
       "noReplyNotSent": "Aucune réponse : l'appel n'a pas été envoyé.",
-      "ofRun": "Les appels IA d'un run de recherche d'offres : ceux de son candidat, de son début à une minute après sa fin."
+      "ofRun": "Les appels IA d'un run de recherche d'offres : ceux de son candidat, de son début à une minute après sa fin.",
+      "context": "Contexte estimé / mesuré",
+      "contextValue": "{{estimate}} / {{measure}} ({{gap}})",
+      "noContext": "—"
     },
     "coachingPlaybooks": {
       "title": "Playbooks de coaching",

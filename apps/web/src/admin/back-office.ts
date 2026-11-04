@@ -22,7 +22,7 @@
  * operations record, not the Administrator's personal data export; they are kept
  * RETENTION_YEARS.
  */
-import { cleanTechnicalMessage, FREE_PLAN, PLAN_FEATURES, type FailureReason, type Plan, type PlanFeature, type PlanQuotas, type TechnicalReason } from "@jobhub/shared";
+import { cleanTechnicalMessage, FREE_PLAN, PLAN_FEATURES, type FailureReason, type CoachContextLimits, type Plan, type PlanFeature, type PlanLimits, type PlanQuotas, type TechnicalReason } from "@jobhub/shared";
 import type { Pool } from "pg";
 import type {
   Billing,
@@ -302,13 +302,14 @@ export interface BackOffice {
     direction: "up" | "down",
   ): Promise<PlanResult<{ before: number; after: number }>>;
   /**
-   * Replaces one Plan's quotas; nothing is recorded for an unknown Plan. Quotas lowered on a Plan Candidates pay for wait
-   * for `notice`'s effective date (a Quota Reduction, #514), recorded as `scheduled`; the rest applies at once.
+   * Replaces one Plan's quotas, and its Coach context limits when `quotas` names them (ADR-0078); nothing is recorded for an
+   * unknown Plan. Quotas and limits lowered on a Plan Candidates pay for wait for `notice`'s effective date (a Quota Reduction,
+   * #514), recorded as `scheduled`; the rest applies at once.
    */
   setPlanQuotas(
     actor: BackOfficeActor,
     plan: Plan,
-    quotas: PlanQuotas,
+    quotas: PlanQuotas & Partial<CoachContextLimits>,
     notice?: ReductionNotice | null,
   ): Promise<{ ok: true; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }>;
   /** Cancels a Quota Reduction before its effective date, recorded as `cancelled`; false when none waits by that id. */
@@ -446,8 +447,8 @@ const codeOf = (input: unknown): string => {
   return typeof code === "string" ? code.trim().toUpperCase() : "";
 };
 
-/** A Plan's quotas as recorded. */
-const recordedQuotas = (quotas: PlanQuotas): Recorded => ({ ...quotas });
+/** A Plan's quotas, and its Coach context limits, as recorded. */
+const recordedQuotas = (quotas: PlanQuotas & Partial<CoachContextLimits>): Recorded => ({ ...quotas });
 
 /** A Coupon's terms as recorded; its code is the entry's target too. */
 const recordedCoupon = (coupon: Coupon): { [key: string]: Recorded } => ({
@@ -682,7 +683,7 @@ export function createBackOffice(
     async setPlanQuotas(actor, plan, quotas, notice = null) {
       const changed = await record(
         actor,
-        async (within): Promise<{ ok: true; before: PlanQuotas; applied: PlanQuotas; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }> => {
+        async (within): Promise<{ ok: true; before: PlanLimits; applied: PlanQuotas & Partial<CoachContextLimits>; scheduled: QuotaReduction | null } | { ok: false; error: ReductionError }> => {
           if (deps.quotaReductions) return deps.quotaReductions.changeQuotas(plan, quotas, notice, within, actor);
           const before = await deps.billing.setPlanQuotas(plan, quotas, within);
           return before ? { ok: true, before, applied: quotas, scheduled: null } : { ok: false, error: "unknown_plan" };
@@ -690,9 +691,9 @@ export function createBackOffice(
         (result) =>
           result.ok
             ? [
-                ...((Object.keys(result.applied) as (keyof PlanQuotas)[]).every((key) => result.applied[key] === result.before[key]) && result.scheduled
+                ...((Object.keys(result.applied) as (keyof PlanLimits)[]).every((key) => result.applied[key] === result.before[key]) && result.scheduled
                   ? []
-                  : [{ section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(result.before), after: recordedQuotas(result.applied) } as const]),
+                  : [{ section: "plan_quotas", target: plan, action: "updated", before: recordedQuotas(result.before), after: recordedQuotas({ ...result.before, ...result.applied }) } as const]),
                 ...(result.scheduled ? [scheduledChange("plan_quotas", result.scheduled)] : []),
               ]
             : null,

@@ -2,6 +2,7 @@ import { getAgenda } from "@/agenda/server";
 import { getApplications } from "@/applications/server";
 import { getAtsScoring } from "@/ats-score/server";
 import { getBilling } from "@/billing/server";
+import { getCoachConversations } from "@/coach-conversations/server";
 import { getFollowUps } from "@/follow-ups/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getJobDigests } from "@/job-digests/server";
@@ -27,6 +28,7 @@ export function getCandidateReads(): CandidateReads {
     atsScoring: getAtsScoring(),
     tailoredCvs: getTailoredCvs(),
     tailoredDocuments: getTailoredDocuments(),
+    coachConversations: getCoachConversations(),
   });
   return instance;
 }

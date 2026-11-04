@@ -1,7 +1,13 @@
-import { agendaResponseSchema, applicationResponseSchema, applicationsResponseSchema, coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+import {
+  agendaResponseSchema,
+  applicationResponseSchema,
+  applicationsResponseSchema,
+  coachConversationResponseSchema,
+  coachConversationsResponseSchema,
+  coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
 import { createAiLayer } from "@jobhub/ai";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
-import type { MasterCvContent } from "@jobhub/shared";
+import { rulesProvenance, type MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { z } from "zod";
@@ -11,6 +17,7 @@ import { createAtsScoring, type AtsScoring } from "../ats-score";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling } from "../billing";
+import { createCoachConversations, type CoachConversations } from "../coach-conversations";
 import { createReceivedOffers } from "../email-intake/received-offers";
 import { createFollowUps } from "../follow-ups";
 import { createHumanCoaches, type HumanCoaches } from "../human-coaches";
@@ -68,6 +75,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let atsScoring: AtsScoring;
   let tailoredCvs: TailoredCvs;
   let tailoredDocuments: TailoredDocuments;
+  let conversations: CoachConversations;
   let reads: CandidateReads;
   let marie: string;
   let paul: string;
@@ -155,6 +163,11 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: writer })], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
     tailoredCvs = createTailoredCvs(database, { applications, profiles, ai });
     tailoredDocuments = createTailoredDocuments(database, { applications, profiles, ai });
+    // The AI Coach's reply, by rules in the tests: what is saved with it is what the app reads.
+    const coach = {
+      reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }) }),
+    };
+    conversations = createCoachConversations(database, { coach, profiles, now: () => NOW });
     reads = createCandidateReads({
       applications,
       followUps,
@@ -167,6 +180,7 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       atsScoring,
       tailoredCvs,
       tailoredDocuments,
+      coachConversations: conversations,
       now: () => NOW,
     });
     marie = await signIn("marie.dupont@example.fr");
@@ -482,6 +496,51 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       await tailoredDocuments.draft(marie, id, { document: "cover_letter" });
 
       expect(await reads.tailoredDocuments(paul, id)).toBeNull();
+    });
+  });
+
+  describe("Coach Conversations", () => {
+    async function send(owner: string, input: object) {
+      const sent = await conversations.send(owner, input);
+      if (!sent.ok) throw new Error(`fixture message refused: ${JSON.stringify(sent)}`);
+      return sent.conversation.id;
+    }
+
+    it("lists the Free conversations alone when asked for, the drawer's list", async () => {
+      const free = await send(marie, { message: "Comment négocier mon salaire ?" });
+      await send(marie, { subject: { kind: "menu", id: "agenda" }, message: "Mon agenda ?" });
+
+      const all = overHttp(coachConversationsResponseSchema, await reads.coachConversations(marie));
+      const drawer = overHttp(coachConversationsResponseSchema, await reads.coachConversations(marie, { free: true }));
+
+      expect(all.conversations).toHaveLength(2);
+      expect(drawer.conversations).toEqual([{ id: free, title: expect.stringContaining("Comment négocier"), subject: null, profile: null, lastMessageAt: NOW.toISOString() }]);
+    });
+
+    it("gives a Subject's conversation with its messages, null until its first message", async () => {
+      const subject = { kind: "menu", id: "applications" };
+      expect(overHttp(coachConversationResponseSchema, await reads.coachConversationOfSubject(marie, subject))).toEqual({ conversation: null });
+
+      const id = await send(marie, { subject, message: "Laquelle relancer ?" });
+      const { conversation } = overHttp(coachConversationResponseSchema, await reads.coachConversationOfSubject(marie, subject));
+
+      expect(conversation).toMatchObject({ id, subject: { kind: "menu", id: "applications" }, aiDisclosure: true, context: { messages: 2 } });
+      expect(conversation?.messages).toEqual([
+        { from: "candidate", text: "Laquelle relancer ?" },
+        expect.objectContaining({ from: "coach", text: "Voici mes conseils.", at: NOW.toISOString(), provenance: expect.objectContaining({ v: 1 }) }),
+      ]);
+      expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.id).toBe(id);
+    });
+
+    it("refuses a Subject it does not know, and never gives a Candidate another Candidate's conversation", async () => {
+      const id = await send(marie, { message: "Bonjour" });
+      const application = await saveApplication(marie, await createProfile(marie));
+      await send(marie, { subject: { kind: "application", id: application }, message: "Et celle-ci ?" });
+
+      expect(await reads.coachConversationOfSubject(marie, { kind: "menu", id: "nowhere" })).toEqual({ error: "invalid" });
+      expect(await reads.coachConversationOfSubject(paul, { kind: "application", id: application })).toEqual({ error: "not_found" });
+      expect(await reads.coachConversation(paul, id)).toBeNull();
+      expect(overHttp(coachConversationsResponseSchema, await reads.coachConversations(paul)).conversations).toEqual([]);
     });
   });
 });

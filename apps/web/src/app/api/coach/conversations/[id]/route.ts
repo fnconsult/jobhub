@@ -1,17 +1,19 @@
+import type { CoachConversationResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { getCandidateReads } from "@/candidate-reads/server";
 import { getCoachConversations } from "@/coach-conversations/server";
 
 type Context = { params: Promise<{ id: string }> };
 
 const notFound = () => NextResponse.json({ error: "not_found" }, { status: 404 });
 
-/** One of the Candidate's Coach Conversations, with its messages and its Context bar's figures (`context`, #607). 200 { conversation } · 401 · 404 */
+/** One of the Candidate's Coach Conversations, with its messages and its Context bar's figures (`context`, #607). 200 CoachConversationResponse · 401 · 404 */
 export async function GET(_request: Request, { params }: Context) {
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const conversation = await getCoachConversations().open(candidate.id, (await params).id);
-  return conversation ? NextResponse.json({ conversation }) : notFound();
+  const read = await getCandidateReads().coachConversation(candidate.id, (await params).id);
+  return read ? NextResponse.json<CoachConversationResponse>(read) : notFound();
 }
 
 /** Renames a Coach Conversation. Body: { title }. 200 { conversation } · 400 { error: "invalid" } · 401 · 403 · 404 */

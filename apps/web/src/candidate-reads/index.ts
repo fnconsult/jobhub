@@ -18,6 +18,9 @@ import type {
   AgendaResponse,
   ApplicationResponse,
   ApplicationsResponse,
+  CoachConversationRead,
+  CoachConversationResponse,
+  CoachConversationsResponse,
   CoachingResponse,
   InterviewRead,
   JobDigestsResponse,
@@ -35,6 +38,7 @@ import type { Applications, Interview } from "../applications";
 import type { ApplicationExportKind } from "../application-exports/kinds";
 import type { AtsScoring } from "../ats-score";
 import type { Billing } from "../billing";
+import type { CoachConversation, CoachConversations, CoachConversationSummary } from "../coach-conversations";
 import { applicationsMenu } from "../applications/menu";
 import type { FollowUps } from "../follow-ups";
 import type { HumanCoaches } from "../human-coaches";
@@ -68,6 +72,15 @@ export interface CandidateReads {
   profile(candidateId: string, profileId: string): Promise<ProfileResponse | null>;
   /** The Tailored Documents of one of the Candidate's Applications, with their download links; null when it is not theirs. */
   tailoredDocuments(candidateId: string, applicationId: string): Promise<TailoredDocumentsResponse | null>;
+  /** The Candidate's Coach Conversations, most recently active first; the Free conversations alone when `free`. */
+  coachConversations(candidateId: string, options?: { free?: boolean }): Promise<CoachConversationsResponse>;
+  /**
+   * The conversation of a Subject (`subject`: untrusted, { kind, id }) with its messages, null until its first message;
+   * `invalid` for a Subject that names nothing, `not_found` for an object that is not the Candidate's.
+   */
+  coachConversationOfSubject(candidateId: string, subject: unknown): Promise<CoachConversationResponse | { error: "invalid" | "not_found" }>;
+  /** One of the Candidate's Coach Conversations with its messages; null when it is not theirs. */
+  coachConversation(candidateId: string, conversationId: string): Promise<CoachConversationResponse | null>;
 }
 
 export interface CandidateReadsDeps {
@@ -82,6 +95,7 @@ export interface CandidateReadsDeps {
   atsScoring: Pick<AtsScoring, "latest">;
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
+  coachConversations: Pick<CoachConversations, "list" | "ofSubject" | "open">;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
 }
@@ -138,6 +152,28 @@ const agendaItem = (item: AgendaItem): AgendaItemRead =>
         changedBy: item.changedBy,
         reschedules: item.reschedules.map(reschedule),
       };
+
+const conversationSummary = (conversation: CoachConversationSummary): CoachConversationsResponse["conversations"][number] => ({
+  id: conversation.id,
+  title: conversation.title,
+  subject: conversation.subject && { kind: conversation.subject.kind, id: conversation.subject.id, name: conversation.subject.name },
+  profile: conversation.profile && { id: conversation.profile.id, name: conversation.profile.name },
+  lastMessageAt: iso(conversation.lastMessageAt),
+});
+
+const conversationRead = (conversation: CoachConversation): CoachConversationRead => ({
+  ...conversationSummary(conversation),
+  aiDisclosure: conversation.aiDisclosure,
+  messages: conversation.messages.map((message) => ({
+    from: message.from,
+    text: message.text,
+    ...(message.provenance !== undefined && { provenance: message.provenance }),
+    ...(message.at !== undefined && { at: message.at }),
+    ...(message.blocked && { blocked: message.blocked }),
+    ...(message.jobOffer && { jobOffer: message.jobOffer }),
+  })),
+  context: { messages: conversation.context.messages, tokens: conversation.context.tokens },
+});
 
 /** Where a Tailored Document is downloaded, as its Section offers it: with the first CV Template. */
 const EXPORT_PATHS: Record<ApplicationExportKind, string> = { tailored_cv: "tailored-cv", cover_letter: "cover-letter" };
@@ -340,6 +376,22 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           ...(outreachMessage ? [{ kind: "outreach_message" as const, language: outreachMessage.language, updatedAt: iso(outreachMessage.updatedAt), downloads: null }] : []),
         ],
       };
+    },
+
+    async coachConversations(candidateId, { free = false } = {}) {
+      const listed = await deps.coachConversations.list(candidateId);
+      return { conversations: listed.filter((conversation) => !free || conversation.subject === null).map(conversationSummary) };
+    },
+
+    async coachConversationOfSubject(candidateId, subject) {
+      const result = await deps.coachConversations.ofSubject(candidateId, subject);
+      if (!result.ok) return { error: result.error };
+      return { conversation: result.conversation && conversationRead(result.conversation) };
+    },
+
+    async coachConversation(candidateId, conversationId) {
+      const conversation = await deps.coachConversations.open(candidateId, conversationId);
+      return conversation && { conversation: conversationRead(conversation) };
     },
   };
 }

@@ -144,6 +144,19 @@ describe("Jobbbox app, on a phone", () => {
     expect(button("Menu")).toBeOnTheScreen();
   });
 
+  it("shows the Agenda as a list, « À planifier » first, and an Interview leads to its Application's Interviews Section", async () => {
+    await launch("/agenda");
+    expect(screen.getByRole("heading", { name: "À planifier" })).toBeOnTheScreen();
+    expect(button("Choisir mon créneau avec Paul Durand sur Cal.com")).toBeOnTheScreen();
+    expect(screen.getByText("Entretien annulé")).toBeOnTheScreen();
+    expect(screen.getByText("modifié par le coach")).toBeOnTheScreen();
+    expect(screen.getAllByRole("button", { name: /^Ajouter à mon calendrier/ })).toHaveLength(2);
+    const user = userEvent.setup();
+    await user.press(screen.getAllByRole("link", { name: /Responsable qualité/ })[0]!);
+    expect(screen).toHavePathname("/candidatures/a1/entretiens");
+    expect(screen.getByText("Entretiens")).toBeOnTheScreen();
+  });
+
   it("has no setting for the text size, and its controls are at least 44 pt", async () => {
     await launch();
     expect(screen.queryByText(/Taille du texte/)).toBeNull();

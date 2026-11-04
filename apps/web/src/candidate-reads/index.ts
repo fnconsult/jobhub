@@ -24,10 +24,16 @@ import type {
   JobOfferLine,
   JobSearchesResponse,
   JobSearchResponse,
+  ProfileResponse,
+  ProfilesResponse,
   RescheduleRead,
+  TailoredDocumentsResponse,
 } from "@jobhub/shared/reads";
+import { CV_TEMPLATES, EXPORT_FORMATS, type ExportFormat } from "../export/kinds";
 import type { Agenda, AgendaItem } from "../agenda";
 import type { Applications, Interview } from "../applications";
+import type { ApplicationExportKind } from "../application-exports/kinds";
+import type { AtsScoring } from "../ats-score";
 import type { Billing } from "../billing";
 import { applicationsMenu } from "../applications/menu";
 import type { FollowUps } from "../follow-ups";
@@ -38,6 +44,8 @@ import type { JobSearches } from "../job-searches";
 import { jobSearchesMenu } from "../job-searches/menu";
 import type { Profiles } from "../profiles";
 import type { Reschedule } from "../reschedules";
+import type { TailoredCvs } from "../tailored-cv";
+import type { TailoredDocuments } from "../tailored-documents";
 
 export interface CandidateReads {
   /** Mes candidatures' card, latest saved first; the Archived Applications only when `showArchived`. */
@@ -54,17 +62,26 @@ export interface CandidateReads {
   agenda(candidateId: string, options?: { past?: boolean }): Promise<AgendaResponse>;
   /** Mes coachs humains: the Human Coaches, the Candidate's Coaching Sessions and what one costs them. */
   coaching(candidateId: string): Promise<CoachingResponse>;
+  /** The Candidate's active Profiles, oldest first: an Archived Profile left out. */
+  profiles(candidateId: string): Promise<ProfilesResponse>;
+  /** One of the Candidate's Profiles to read, an archived one included; null when it is not theirs. */
+  profile(candidateId: string, profileId: string): Promise<ProfileResponse | null>;
+  /** The Tailored Documents of one of the Candidate's Applications, with their download links; null when it is not theirs. */
+  tailoredDocuments(candidateId: string, applicationId: string): Promise<TailoredDocumentsResponse | null>;
 }
 
 export interface CandidateReadsDeps {
   applications: Pick<Applications, "list" | "get" | "matchScores">;
   followUps: Pick<FollowUps, "notices">;
-  profiles: Pick<Profiles, "list">;
+  profiles: Pick<Profiles, "list" | "get">;
   jobSearches: Pick<JobSearches, "list" | "get">;
   jobDigests: Pick<JobDigests, "list" | "settings">;
   agenda: Pick<Agenda, "days" | "unscheduled">;
   humanCoaches: Pick<HumanCoaches, "list" | "accessGranted" | "sessions">;
   billing: Pick<Billing, "coachingSessionPrice">;
+  atsScoring: Pick<AtsScoring, "latest">;
+  tailoredCvs: Pick<TailoredCvs, "get">;
+  tailoredDocuments: Pick<TailoredDocuments, "get">;
   /** The clock « from now on » is read by (an Application's next deadline, the Agenda's today). Defaults to the real time. */
   now?: () => Date;
 }
@@ -121,6 +138,14 @@ const agendaItem = (item: AgendaItem): AgendaItemRead =>
         changedBy: item.changedBy,
         reschedules: item.reschedules.map(reschedule),
       };
+
+/** Where a Tailored Document is downloaded, as its Section offers it: with the first CV Template. */
+const EXPORT_PATHS: Record<ApplicationExportKind, string> = { tailored_cv: "tailored-cv", cover_letter: "cover-letter" };
+const downloads = (applicationId: string, document: ApplicationExportKind): Record<ExportFormat, string> => {
+  const path = `/api/applications/${encodeURIComponent(applicationId)}/${EXPORT_PATHS[document]}/export`;
+  const at = (format: ExportFormat) => `${path}?${new URLSearchParams({ format, template: CV_TEMPLATES[0] })}`;
+  return Object.fromEntries(EXPORT_FORMATS.map((format) => [format, at(format)])) as Record<ExportFormat, string>;
+};
 
 type JobOfferFacts = { id: string; title: string; employer?: string; location?: string; source?: { url?: string }; postedAt?: Date; expiredAt?: Date };
 
@@ -280,6 +305,40 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
           reschedules: session.reschedules.map(reschedule),
         })),
         price: price && { amount: price.amount, regularAmount: price.regularAmount, currency: price.currency },
+      };
+    },
+
+    async profiles(candidateId) {
+      return activeProfiles(candidateId);
+    },
+
+    async profile(candidateId, profileId) {
+      const profile = await deps.profiles.get(candidateId, profileId);
+      if (!profile) return null;
+      const atsScore = await deps.atsScoring.latest(candidateId, profile.id);
+      return {
+        id: profile.id,
+        name: profile.name,
+        archived: profile.archived,
+        searchCriteria: profile.searchCriteria,
+        masterCv: { version: profile.masterCv.version, content: profile.masterCv.content },
+        atsScore: atsScore?.score.score ?? null,
+      };
+    },
+
+    async tailoredDocuments(candidateId, applicationId) {
+      const [tailoredCv, drafts] = await Promise.all([deps.tailoredCvs.get(candidateId, applicationId), deps.tailoredDocuments.get(candidateId, applicationId)]);
+      if (!tailoredCv || !drafts) return null;
+      const { saved } = tailoredCv;
+      const { coverLetter, outreachMessage } = drafts;
+      return {
+        documentLanguage: drafts.documentLanguage,
+        // Only what the Candidate has: the saved Tailored CV (never a proposal under review), the drafts written.
+        documents: [
+          ...(saved ? [{ kind: "tailored_cv" as const, language: saved.language, updatedAt: iso(saved.savedAt), downloads: downloads(applicationId, "tailored_cv") }] : []),
+          ...(coverLetter ? [{ kind: "cover_letter" as const, language: coverLetter.language, updatedAt: iso(coverLetter.updatedAt), downloads: downloads(applicationId, "cover_letter") }] : []),
+          ...(outreachMessage ? [{ kind: "outreach_message" as const, language: outreachMessage.language, updatedAt: iso(outreachMessage.updatedAt), downloads: null }] : []),
+        ],
       };
     },
   };

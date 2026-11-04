@@ -1,10 +1,13 @@
-import { agendaResponseSchema, applicationResponseSchema, applicationsResponseSchema, coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema } from "@jobhub/shared/reads";
+import { agendaResponseSchema, applicationResponseSchema, applicationsResponseSchema, coachingResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema, profileResponseSchema, profilesResponseSchema, tailoredDocumentsResponseSchema } from "@jobhub/shared/reads";
+import { createAiLayer } from "@jobhub/ai";
+import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { createActionCards } from "../action-cards";
 import { createAgenda } from "../agenda";
+import { createAtsScoring, type AtsScoring } from "../ats-score";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createBilling } from "../billing";
@@ -16,6 +19,8 @@ import { createJobOffers, type JobOffers } from "../job-offers";
 import { createJobSearches, type JobSearches } from "../job-searches";
 import { migrateDatabase } from "../migrations";
 import { createProfiles, type Profiles } from "../profiles";
+import { createTailoredCvs, type TailoredCvs } from "../tailored-cv";
+import { createTailoredDocuments, type TailoredDocuments } from "../tailored-documents";
 import { createCandidateReads, type CandidateReads } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -30,6 +35,15 @@ const masterCv: MasterCvContent = {
   skills: ["IFRS", "SAP"],
   languages: [],
 };
+
+/** What the fake AI Coach writes: a Tailored CV when asked for one, a Cover Letter otherwise. */
+function writer(input: { system?: string; messages: { content: string }[] }): string {
+  const asked = `${input.system ?? ""}\n${input.messages.map((message) => message.content).join("\n")}`;
+  if (/"missing"/.test(asked)) {
+    return "```json\n" + JSON.stringify({ headline: "DAF groupe industriel", summary: "", experience: [], education: [], skills: ["IFRS", "SAP"], languages: [], missing: [] }) + "\n```";
+  }
+  return "Madame, Monsieur,\n\nVotre offre a retenu toute mon attention.";
+}
 
 /** Today, in the tests: a Wednesday in French winter time. */
 const NOW = new Date("2026-11-04T09:00:00.000Z");
@@ -51,6 +65,9 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let jobSearches: JobSearches;
   let jobDigests: JobDigests;
   let coaches: HumanCoaches;
+  let atsScoring: AtsScoring;
+  let tailoredCvs: TailoredCvs;
+  let tailoredDocuments: TailoredDocuments;
   let reads: CandidateReads;
   let marie: string;
   let paul: string;
@@ -134,7 +151,24 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
       now: () => NOW,
     });
     coaches = createHumanCoaches(database, { profiles, applications, tailoredDocuments: { get: async () => null }, tailoredCvs: { get: async () => null }, now: () => NOW });
-    reads = createCandidateReads({ applications, followUps, profiles, jobSearches, jobDigests, agenda: createAgenda(database), humanCoaches: coaches, billing, now: () => NOW });
+    atsScoring = createAtsScoring({ database, profiles, actionCards, now: () => NOW });
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: writer })], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+    tailoredCvs = createTailoredCvs(database, { applications, profiles, ai });
+    tailoredDocuments = createTailoredDocuments(database, { applications, profiles, ai });
+    reads = createCandidateReads({
+      applications,
+      followUps,
+      profiles,
+      jobSearches,
+      jobDigests,
+      agenda: createAgenda(database),
+      humanCoaches: coaches,
+      billing,
+      atsScoring,
+      tailoredCvs,
+      tailoredDocuments,
+      now: () => NOW,
+    });
     marie = await signIn("marie.dupont@example.fr");
     paul = await signIn("paul.martin@example.fr");
   }, 60_000); // A throwaway database each time: slow when the machine is busy.
@@ -363,6 +397,91 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
 
       expect(coaching.sessions).toEqual([]);
       expect(coaching.coaches).toEqual([expect.objectContaining({ name: "Sophie Martin", accessGranted: false })]);
+    });
+  });
+
+  describe("Profiles", () => {
+    it("lists the active Profiles, an Archived Profile left out", async () => {
+      const daf = await createProfile(marie);
+      await profiles.archive(marie, await createProfile(marie, "Contrôleur de gestion"));
+
+      expect(overHttp(profilesResponseSchema, await reads.profiles(marie))).toEqual([{ id: daf, name: "DAF" }]);
+    });
+
+    it("gives a Profile to read: its Search Criteria, its current Master CV and its ATS Score", async () => {
+      const daf = await createProfile(marie);
+      const scored = await atsScoring.analyse(marie, daf, "fr");
+      if (!scored.ok) throw new Error("fixture ATS Score refused");
+
+      const profile = overHttp(profileResponseSchema, await reads.profile(marie, daf));
+
+      expect(profile).toMatchObject({
+        id: daf,
+        name: "DAF",
+        archived: false,
+        searchCriteria: { targetRole: "DAF", locations: ["Lyon"], contractTypes: ["cdi"] },
+        masterCv: { version: 1, content: { headline: "Directrice financière", skills: ["IFRS", "SAP"] } },
+        atsScore: scored.atsScore.score.score,
+      });
+    });
+
+    it("says an Archived Profile is archived, and has no ATS Score before the first", async () => {
+      const archived = await createProfile(marie, "Contrôleur de gestion");
+      await profiles.archive(marie, archived);
+
+      expect(overHttp(profileResponseSchema, await reads.profile(marie, archived))).toMatchObject({ archived: true, atsScore: null });
+    });
+
+    it("never gives a Candidate another Candidate's Profile", async () => {
+      const daf = await createProfile(marie);
+
+      expect(await reads.profile(paul, daf)).toBeNull();
+      expect(await reads.profiles(paul)).toEqual([]);
+    });
+  });
+
+  describe("Tailored Documents", () => {
+    it("gives an Application's Tailored Documents with their download links, the Outreach Message without a file", async () => {
+      const id = await saveApplication(marie, await createProfile(marie));
+      const proposed = await tailoredCvs.propose(marie, id, {});
+      if (!proposed.ok) throw new Error(`fixture Tailored CV refused: ${JSON.stringify(proposed)}`);
+      const { revision, changes } = proposed.tailoredCv.proposal!;
+      await tailoredCvs.save(marie, id, { revision, accepted: changes.map((change) => change.id) });
+      await tailoredDocuments.draft(marie, id, { document: "cover_letter" });
+      await tailoredDocuments.draft(marie, id, { document: "outreach_message" });
+
+      const documents = overHttp(tailoredDocumentsResponseSchema, await reads.tailoredDocuments(marie, id));
+
+      expect(documents.documentLanguage).toBe("fr");
+      expect(documents.documents).toEqual([
+        {
+          kind: "tailored_cv",
+          language: "fr",
+          updatedAt: expect.any(String),
+          downloads: { pdf: `/api/applications/${id}/tailored-cv/export?format=pdf&template=classic`, docx: `/api/applications/${id}/tailored-cv/export?format=docx&template=classic` },
+        },
+        {
+          kind: "cover_letter",
+          language: "fr",
+          updatedAt: expect.any(String),
+          downloads: { pdf: `/api/applications/${id}/cover-letter/export?format=pdf&template=classic`, docx: `/api/applications/${id}/cover-letter/export?format=docx&template=classic` },
+        },
+        { kind: "outreach_message", language: "fr", updatedAt: expect.any(String), downloads: null },
+      ]);
+    });
+
+    it("gives none before the AI Coach wrote one, a Tailored CV still under review included", async () => {
+      const id = await saveApplication(marie, await createProfile(marie));
+      await tailoredCvs.propose(marie, id, {});
+
+      expect(overHttp(tailoredDocumentsResponseSchema, await reads.tailoredDocuments(marie, id)).documents).toEqual([]);
+    });
+
+    it("never gives a Candidate another Candidate's Tailored Documents", async () => {
+      const id = await saveApplication(marie, await createProfile(marie));
+      await tailoredDocuments.draft(marie, id, { document: "cover_letter" });
+
+      expect(await reads.tailoredDocuments(paul, id)).toBeNull();
     });
   });
 });

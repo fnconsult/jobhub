@@ -1,18 +1,19 @@
+import type { ProfilesResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { getCandidateReads } from "@/candidate-reads/server";
 import { profileResponse } from "@/profiles/http";
 import { getProfiles } from "@/profiles/server";
 
 /**
  * The signed-in Candidate's active Profiles (archived ones left out), oldest first:
- * what the extension offers to save a captured Job Offer with.
- * 200 { id, name }[] · 401
+ * what the extension offers to save a captured Job Offer with, and the app's Profiles (#684).
+ * 200 ProfilesResponse ({ id, name }[]) · 401
  */
 export async function GET() {
   const candidate = await getCurrentCandidate();
   if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const profiles = await getProfiles().list(candidate.id);
-  return NextResponse.json(profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name })));
+  return NextResponse.json<ProfilesResponse>(await getCandidateReads().profiles(candidate.id));
 }
 
 /**

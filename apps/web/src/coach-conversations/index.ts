@@ -18,7 +18,12 @@
  *  - `open` one with its messages; `rename` it; `delete` it;
  *  - `repliesAbout` a page's object: the replies whose focus it is, from any conversation, for AI Activity.
  * A conversation opened, and each `send`, say its Context bar's figures (#607, ADR-0070): its messages, and the jetons of the
- * context its latest reply was sent, as the AI Coach estimated them (kept with each reply; none for a reply sent no context).
+ * context its latest reply was sent, as the AI Coach estimated them (kept with each reply; none for a reply sent no context),
+ * split by category (#731), out of the Coach context limits of the Candidate's Plan (ADR-0078).
+ * Each reply reads the Candidate's Plan (`billing`) as it is then: the AI Coach is given the latest `coachContextMessages`
+ * messages and fits its context under `coachContextTokens`; a Candidate whose limits are lowered keeps their whole conversation,
+ * of which the AI Coach reads the latest part. Each reply keeps the AI call that wrote it (`ai_call_id`, #731), whose provider's
+ * counts AI Usage holds.
  * Every new conversation opens with the AI disclosure (#324, AI Act art. 50(1)): the AI Coach's fixed
  * first message saying it is an AI, not a person. It is fixed text, not an AI reply (no AI call, no
  * Plan Quota, no Coach Message Cost), so only the conversation records that it opened with it.
@@ -48,12 +53,12 @@
  * Coaches never read them: Coach Access covers Profiles and Applications only.
  */
 import { activityOf } from "@jobhub/ai";
-import { readProvenance, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
+import { DEFAULT_COACH_CONTEXT_LIMITS, readProvenance, type CoachContextLimits, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
-import { MAX_MESSAGE_LENGTH, MAX_MESSAGES, type CoachMessage, type ConversationContext, type JobOfferCard } from "../coach/conversation";
+import { MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ConversationContext, type ContextSplit, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
@@ -173,6 +178,8 @@ export interface ReplyAbout {
 export interface CoachConversationsDeps {
   coach: Pick<Coach, "reply">;
   profiles: Pick<Profiles, "get">;
+  /** The Candidate's Plan, for its Coach context limits (ADR-0078), read at each reply. Without it, a Plan's with none stored. */
+  billing?: { entitlements(candidateId: string): Promise<{ coachContext: CoachContextLimits }> };
   /** Where each reply is told, for the questions the help missed (#344). Without it, nothing is. */
   unansweredQuestions?: Pick<UnansweredQuestions, "notice">;
   /** When messages are sent. Default: the system clock. */
@@ -379,15 +386,24 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     const row = await findRow(candidateId, conversationId);
     return row ? summaryFrom(row) : null;
   }
-  /** Its Context bar's figures: its messages, and the jetons of the context its latest reply was sent (0 when none was kept). */
-  async function contextOf(conversationId: string): Promise<ConversationContext> {
-    const { rows } = await database.query<ConversationContext>(
+  /** The Coach context limits of the Candidate's Plan, now. */
+  async function limitsOf(candidateId: string): Promise<CoachContextLimits> {
+    return deps.billing ? (await deps.billing.entitlements(candidateId)).coachContext : { ...DEFAULT_COACH_CONTEXT_LIMITS };
+  }
+  /**
+   * Its Context bar's figures: its messages, the jetons of the context its latest reply was sent (0 when none was kept) and
+   * their split (null when none was kept), out of `limits`, the Candidate's Plan's.
+   */
+  async function contextOf(conversationId: string, limits: CoachContextLimits): Promise<ConversationContext> {
+    const { rows } = await database.query<{ messages: number; latest: { tokens: number; split: ContextSplit | null } | null }>(
       `SELECT count(*)::int AS messages,
-              coalesce((SELECT context_tokens FROM coach_message WHERE conversation_id = $1 AND context_tokens IS NOT NULL ORDER BY seq DESC LIMIT 1), 0) AS tokens
+              (SELECT jsonb_build_object('tokens', context_tokens, 'split', context_split) FROM coach_message
+                WHERE conversation_id = $1 AND context_tokens IS NOT NULL ORDER BY seq DESC LIMIT 1) AS latest
          FROM coach_message WHERE conversation_id = $1`,
       [conversationId],
     );
-    return rows[0] ?? { messages: 0, tokens: 0 };
+    const { messages = 0, latest = null } = rows[0] ?? {};
+    return { messages, tokens: latest?.tokens ?? 0, limits, split: latest?.split ?? null };
   }
   async function findOfSubject(candidateId: string, subject: SubjectRef): Promise<ConversationRow | null> {
     const { rows } = await database.query<ConversationRow>(`${SUMMARY} WHERE c.candidate_id = $1 AND c.subject_kind = $2 AND c.${SUBJECT_COLUMN[subject.kind]} = $3`, [
@@ -481,7 +497,9 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const ofSubject = subject ? await findOfSubject(candidateId, subject) : null;
         const existing = conversationId ? await find(candidateId, conversationId) : ofSubject ? summaryFrom(ofSubject) : null;
         if (conversationId && !existing) return { ok: false, error: "not_found" };
-        const history = existing ? await lastMessages(candidateId, existing.id, MAX_MESSAGES, true) : [];
+        // The Candidate's Plan as it is now (ADR-0078): the latest messages it lets the AI Coach read.
+        const limits = await limitsOf(candidateId);
+        const history = existing ? await lastMessages(candidateId, existing.id, limits.coachContextMessages, true) : [];
         const profile = existing ? null : owned ? owned.profile : await profileInView(candidateId, focus);
         const conversation: CoachConversationSummary = existing ?? { id, title: titleFrom(message), subject: owned?.subject ?? null, profile, lastMessageAt: now() };
         emit({ type: "conversation", conversation });
@@ -490,11 +508,11 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const answer = await deps.coach.reply(
           candidateId,
           {
-            messages: [...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate", text: message }],
+            messages: recentConversation([...withoutBlockedMessages(history).map(({ from, text }) => ({ from, text })), { from: "candidate" as const, text: message }], limits.coachContextMessages),
             ...(replyFocus ? { focus: replyFocus } : {}),
             ...(helpArticle ? { helpArticle: { id: helpArticle.id } } : {}),
           },
-          { ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
+          { limits, ...(options.language ? { language: options.language } : {}), ...(signal ? { signal } : {}), ...(onEvent ? { onEvent: emit } : {}) },
         );
         if (!answer.ok && answer.error !== "stopped") return answer;
         if (!answer.ok || signal?.aborted) {
@@ -503,7 +521,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           const passed = answer.ok ? answer.outcome === "replied" || answer.outcome === "blocked_reply" : answer.messagePassed;
           await save(candidateId, conversation, !existing, { message, blocked: false, unchecked: !passed }, null, now());
           const saved = await find(candidateId, conversation.id);
-          return saved ? { ok: false, error: "stopped", conversation: saved, context: await contextOf(saved.id) } : { ok: false, error: "not_found" };
+          return saved ? { ok: false, error: "stopped", conversation: saved, context: await contextOf(saved.id, limits) } : { ok: false, error: "not_found" };
         }
 
         const sentAt = now();
@@ -528,7 +546,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           provenance: answer.provenance,
           at: sentAt.toISOString(),
           couldNotAnswer: answer.couldNotAnswer === true,
-          context: await contextOf(saved.id),
+          context: await contextOf(saved.id, limits),
         };
       });
     },
@@ -543,7 +561,12 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     async open(candidateId, conversationId) {
       const row = await findRow(candidateId, conversationId);
       if (!row) return null;
-      return { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null), context: await contextOf(row.id) };
+      return {
+        ...summaryFrom(row),
+        aiDisclosure: row.ai_disclosure,
+        messages: await lastMessages(candidateId, row.id, null),
+        context: await contextOf(row.id, await limitsOf(candidateId)),
+      };
     },
 
     async ofSubject(candidateId, input) {
@@ -554,7 +577,12 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
       if (!row) return { ok: true, conversation: null };
       return {
         ok: true,
-        conversation: { ...summaryFrom(row), aiDisclosure: row.ai_disclosure, messages: await lastMessages(candidateId, row.id, null), context: await contextOf(row.id) },
+        conversation: {
+          ...summaryFrom(row),
+          aiDisclosure: row.ai_disclosure,
+          messages: await lastMessages(candidateId, row.id, null),
+          context: await contextOf(row.id, await limitsOf(candidateId)),
+        },
       };
     },
 
@@ -636,8 +664,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const { cost } = answer;
         await client.query(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
-                                     provenance, focus_kind, focus_id, context_tokens)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
           [
             id,
             answer.reply,
@@ -656,6 +684,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             reply.focus?.kind ?? null,
             reply.focus && reply.focus.kind !== "agenda" ? reply.focus.id : null,
             answer.contextTokens ?? null,
+            answer.contextSplit ? JSON.stringify(answer.contextSplit) : null,
+            answer.callId ?? null,
           ],
         );
       }
@@ -845,6 +875,12 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     -- The jetons of the context an AI Coach reply was sent, as the AI Coach estimated them (#607): its Context bar's; null
     -- on the Candidate's messages, on a reply sent no context (a Job Offer link's) and on replies saved before.
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS context_tokens integer;
+    -- That estimate split by category (#731, ADR-0078): { messages, instructions, profile, advice, sources }; null with it.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS context_split jsonb;
+    -- The AI call that wrote an AI Coach reply (#731): its ai_usage id, whose provider's counts are read beside the estimate.
+    -- No foreign key: AI Usage is recorded after the reply, and kept for its own time. Null on the Candidate's messages and before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS ai_call_id uuid;
+    CREATE INDEX IF NOT EXISTS coach_message_ai_call_idx ON coach_message (ai_call_id) WHERE ai_call_id IS NOT NULL;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;
     -- The conversations saved before they had a Subject are deleted, once, as it ships (ADR-0070): attached to a Profile with mixed

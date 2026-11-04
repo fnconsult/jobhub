@@ -44,8 +44,8 @@ const masterCv: MasterCvContent = {
 };
 
 /** What the fake AI Coach writes: a Tailored CV when asked for one, a Cover Letter otherwise. */
-function writer(input: { system?: string; messages: { content: string }[] }): string {
-  const asked = `${input.system ?? ""}\n${input.messages.map((message) => message.content).join("\n")}`;
+function writer(input: { system?: string; messages: { content: unknown }[] }): string {
+  const asked = `${input.system ?? ""}\n${input.messages.map((message) => (typeof message.content === "string" ? message.content : JSON.stringify(message.content))).join("\n")}`;
   if (/"missing"/.test(asked)) {
     return "```json\n" + JSON.stringify({ headline: "DAF groupe industriel", summary: "", experience: [], education: [], skills: ["IFRS", "SAP"], languages: [], missing: [] }) + "\n```";
   }

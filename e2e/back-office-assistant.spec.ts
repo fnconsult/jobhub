@@ -58,6 +58,8 @@ test.describe("Back Office Assistant", () => {
     await openAssistant(page);
     await expect(assistant(page)).toContainText(assistantTexts.welcome);
     await expect(assistant(page)).toContainText(assistantTexts.readOnly);
+    // « En savoir plus » beside the AI badge leads to « IA dans Jobbbox » (#338).
+    await expect(assistant(page).getByRole("link", { name: assistantTexts.learnMoreLabel })).toHaveAttribute("href", "/legal/confidentialite#ia");
     // It says it is an AI (#324): « Assistant IA » by the message box, and as the panel's title.
     await expect(assistant(page).locator("form").getByText(assistantTexts.badge, { exact: true })).toBeVisible();
     await expect(assistant(page).getByRole("heading", { level: 2, name: assistantTexts.title })).toBeVisible();

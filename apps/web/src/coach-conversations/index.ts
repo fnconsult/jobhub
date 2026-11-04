@@ -62,6 +62,7 @@ import { MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type Convers
 import type { GuardrailLanguage } from "../guardrails";
 import type { Profiles } from "../profiles";
 import type { UnansweredQuestions } from "../unanswered-questions";
+import { utcBefore } from "../database/before";
 
 /**
  * The Sidebar menus that are each one Coach Conversation per Candidate (ADR-0070), by their Sidebar key:
@@ -817,7 +818,7 @@ export const RETENTION_MONTHS = 12;
  * more at `now`, with their messages; returns how many. Safe to run again.
  */
 export async function purgeStaleCoachConversations(database: Pick<Pool, "query">, now: Date): Promise<number> {
-  const { rowCount } = await database.query(`DELETE FROM coach_conversation WHERE last_message_at <= $1::timestamptz - make_interval(months => $2)`, [
+  const { rowCount } = await database.query(`DELETE FROM coach_conversation WHERE last_message_at <= ${utcBefore("$1", "make_interval(months => $2)")}`, [
     now,
     RETENTION_MONTHS,
   ]);

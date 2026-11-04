@@ -37,6 +37,7 @@ import type { QuotaReduction, QuotaReductions, ReductionError, ReductionNotice }
 import { routes } from "../routes";
 import type { BackOfficeResource, Permission } from "./access";
 import { BACK_OFFICE_PAGES } from "./back-office-nav";
+import { utcBefore } from "../database/before";
 
 /** How long a Back Office Audit entry is kept. */
 export const RETENTION_YEARS = 3;
@@ -864,7 +865,7 @@ export async function purgeExpiredBackOfficeAudit(
   now: Date,
 ): Promise<number> {
   const { rowCount } = await database.query(
-    "DELETE FROM back_office_audit WHERE created_at <= $1::timestamptz - make_interval(years => $2)",
+    `DELETE FROM back_office_audit WHERE created_at <= ${utcBefore("$1", "make_interval(years => $2)")}`,
     [now, RETENTION_YEARS],
   );
   return rowCount ?? 0;

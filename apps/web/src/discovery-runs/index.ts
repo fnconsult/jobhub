@@ -30,6 +30,7 @@ import {
 import type { Pool } from "pg";
 import * as z from "zod";
 import type { BackOffice, BackOfficeActor } from "../admin/back-office";
+import { utcBefore } from "../database/before";
 
 /** How long a run's query texts, criteria and link to its Job Search are kept. */
 export const QUERY_RETENTION_DAYS = 30;
@@ -329,10 +330,10 @@ export async function discoveryRunsOf(database: Pool, candidateId: string): Prom
 export async function purgeExpiredDiscoveryRuns(database: Pick<Pool, "query">, now: Date = new Date()): Promise<{ queries: number; runs: number }> {
   const queries = await database.query(
     `DELETE FROM discovery_run_detail d USING discovery_run r
-      WHERE r.id = d.run_id AND r.started_at <= $1::timestamptz - make_interval(days => $2)`,
+      WHERE r.id = d.run_id AND r.started_at <= ${utcBefore("$1", "make_interval(days => $2)")}`,
     [now, QUERY_RETENTION_DAYS],
   );
-  const runs = await database.query(`DELETE FROM discovery_run WHERE started_at <= $1::timestamptz - make_interval(months => $2)`, [now, RETENTION_MONTHS]);
+  const runs = await database.query(`DELETE FROM discovery_run WHERE started_at <= ${utcBefore("$1", "make_interval(months => $2)")}`, [now, RETENTION_MONTHS]);
   return { queries: queries.rowCount ?? 0, runs: runs.rowCount ?? 0 };
 }
 

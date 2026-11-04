@@ -18,6 +18,7 @@
 import type { Message, UsageLog } from "@jobhub/ai";
 import { cleanTechnicalMessage, FAILURE_REASONS, scrubStoredText, type ExternalApiCall, type ExternalApiLog, type FailureReason, type Outcome } from "@jobhub/shared";
 import type { Pool } from "pg";
+import { utcBefore } from "../database/before";
 
 /** How long AI usage and external API calls are kept. */
 export const RETENTION_MONTHS = 24;
@@ -369,8 +370,8 @@ export async function aiUsageReport(database: Pick<Pool, "query">, period: AiUsa
  * its tools) and external API calls RETENTION_MONTHS old or more; says how many of each. Safe to run again.
  */
 export async function purgeExpiredAiUsage(database: Pick<Pool, "query">, now: Date): Promise<{ usage: number; externalApis: number; messageLogs: number }> {
-  const before = `$1::timestamptz - make_interval(months => $2)`;
-  const messageLogs = await database.query(`DELETE FROM ai_message_log WHERE at <= $1::timestamptz - make_interval(days => $2)`, [
+  const before = utcBefore("$1", "make_interval(months => $2)");
+  const messageLogs = await database.query(`DELETE FROM ai_message_log WHERE at <= ${utcBefore("$1", "make_interval(days => $2)")}`, [
     now,
     MESSAGE_LOG_RETENTION_DAYS,
   ]);

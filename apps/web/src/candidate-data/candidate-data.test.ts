@@ -22,6 +22,7 @@ import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
 import { createNouveautesEmails } from "../nouveautes-email";
+import { createCoachProposalsDisplays } from "../coach-proposals-display";
 import { createAcceptances } from "../acceptances";
 import { createFollowUps } from "../follow-ups";
 import { createJobOffers, type JobOffers } from "../job-offers";
@@ -347,6 +348,14 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const exported = (await candidateData.export(candidateId)).nouveautesEmail;
     expect(exported).toEqual({ subscribed: true, subscribedAt: at, sent: [{ version: "0.2.0", sentAt: at }] });
     expect(JSON.stringify(exported)).not.toMatch(/token/i);
+  });
+
+  it("the export holds the Candidate's « Propositions du coach » setting, « Carte » until they choose, and since when (#717)", async () => {
+    expect((await candidateData.export(candidateId)).coachProposalsDisplay).toEqual({ display: "card", chosenAt: null });
+    const at = new Date("2026-11-04T17:20:00Z");
+    await createCoachProposalsDisplays(database, { now: () => at }).choose(candidateId, "form");
+
+    expect((await candidateData.export(candidateId)).coachProposalsDisplay).toEqual({ display: "form", chosenAt: at });
   });
 
   it("the export holds the CGU and CGV versions the Candidate accepted, never the pseudonym nor the Checkout session (#510); deleting the account keeps them, nameless", async () => {

@@ -5,7 +5,7 @@
  * One deep module. Callers get `createCandidateData(database, deps)`:
  *  - `export` all the Candidate's personal data (GDPR art. 15 / 20, #171): what they made and
  *    what the app worked out or obtained about them. Their account (sign-in methods and
- *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
+ *    sessions), the CGU and CGV versions they accepted, Plan and Plan Quota use, EU AI consent, Two-step verification (its factors and dates, never a secret), the Legal Text notices emailed and privacy changes closed (#547), the « Propositions du coach » setting (#717), Email intake (Forwarding addresses, sending addresses and Received offer emails), Follow-up Delays, Appointment Reminder setting and the
  *    Appointment Reminders sent; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
@@ -46,6 +46,7 @@ import type { ChosenFrequency } from "../job-digests";
 import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers";
 import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
 import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
+import { coachProposalsDisplayOf, type ExportedCoachProposalsDisplay } from "../coach-proposals-display";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import type { MasterCvVersion, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
@@ -287,6 +288,8 @@ export interface CandidateDataExport {
   legalTextNotices: ExportedLegalTextNotices;
   /** The Candidate's Nouveautés email (#566): whether they ticked it, since when, and the Versions it told them of. */
   nouveautesEmail: ExportedNouveautesEmail;
+  /** The Candidate's « Propositions du coach » setting (#717): « card » (the default) or « form », and since when (null: never chosen). */
+  coachProposalsDisplay: ExportedCoachProposalsDisplay;
   /** The Candidate's Email intake (ADR-0051, #441): every Forwarding address given to them, with its activation date, and the sending addresses they added. */
   emailIntake: ExportedEmailIntake;
   /** The Follow-up Delays the Candidate set, or null while they keep the defaults. */
@@ -400,6 +403,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   privacy_change_seen: "legalTextNotices.privacyChangesSeen (the privacy policy changes closed, #547)",
   nouveautes_email_subscription: "nouveautesEmail.subscribed and subscribedAt (no unsubscribe token, #566)",
   nouveautes_email_sent: "nouveautesEmail.sent (the Version each Nouveautés email told of, #566)",
+  coach_proposals_display: "coachProposalsDisplay (« Propositions du coach » in Mon compte, #717)",
   profile: "profiles",
   master_cv_version: "profiles[].masterCvVersions (a version read from a file with what read it)",
   ats_score: "profiles[].atsScore",
@@ -732,7 +736,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
 
   return {
     async export(candidateId) {
-      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
+      const [account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, welcomeClosed, coachConversations, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers, profiles, applications] = await Promise.all([
         exportAccount(candidateId),
         acceptancesOf(database, candidateId),
         rowOf<NonNullable<CandidateDataExport["plan"]>>(
@@ -757,6 +761,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         twoStepStatusOf(database, candidateId),
         legalTextNoticesOf(database, candidateId),
         nouveautesEmailOf(database, candidateId),
+        coachProposalsDisplayOf(database, candidateId),
         emailIntakeOf(database, candidateId),
         rowOf<FollowUpDelays>(`SELECT after_applied AS "afterApplied", after_follow_up AS "afterFollowUp" FROM follow_up_delay WHERE candidate_id = $1`, candidateId),
         exportAppointmentReminders(candidateId),
@@ -811,7 +816,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
-      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
+      return { exportedAt: new Date(), account, acceptances, plan, quotaUsage, quotaReductionNotices, euAiConsent, twoStepVerification, legalTextNotices, nouveautesEmail, coachProposalsDisplay, emailIntake, followUpDelays, appointmentReminders, profiles, applications, coachConversations, coachWelcome: { closedAt: welcomeClosed?.closedAt ?? null }, backOfficeAssistantConversations, coachAccess, coachingSessions, actionCards, coachMemory, aiMessageLog, signalements, orders, withdrawals, privateJobOffers };
     },
 
     async delete(candidateId) {

@@ -109,6 +109,18 @@ describe("Crash reports, and nothing that follows anyone (#703)", () => {
     expect(dependencies.filter((name) => /tracking|analytics|ads|advertising|amplitude|mixpanel|segment|firebase|facebook|fbsdk|appsflyer|adjust|branch/i.test(name))).toEqual([]);
   });
 
+  // Sentry receives data from the device, not from the server: the register's own test only knows the Tool catalog
+  // (apps/web/src/tools/privacy-register.test.ts), so this one keeps the app's sub-processor from slipping past it.
+  it("has its entry in the privacy register, Sentry named as processor, the crash data stored in the EU", () => {
+    const entry = read("docs", "privacy", "register.md").split(/^## /m).find((section) => section.startsWith("Crash reports"));
+    expect(entry).toBeDefined();
+    const row = (name: string) => entry!.match(new RegExp(`^\\| ${name} \\| (.+) \\|$`, "m"))?.[1] ?? "";
+    for (const name of ["Purpose", "Legal basis", "Data", "Processors", "Storage", "Retention", "Security"]) expect(row(name)).not.toBe("");
+    expect(row("Legal basis")).toMatch(/6\(1\)\(f\)/);
+    expect(row("Processors")).toMatch(/Sentry/);
+    expect(row("Storage")).toMatch(/Frankfurt/);
+  });
+
   it("builds an Info.plist, every config plugin applied, without the tracking usage description the prompt needs", () => {
     const config = JSON.parse(
       execFileSync("npx", ["expo", "config", "--type", "introspect", "--json"], { cwd: join(ROOT, "apps", "mobile"), encoding: "utf8" }),

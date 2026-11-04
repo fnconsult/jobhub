@@ -13,6 +13,9 @@
  *      Score of the Profile's current Master CV against the Job Offer;
  *    - `change` its Application Status (only ever by the Candidate) or the Profile it uses,
  *      or report its Job Offer no longer published (Reported Unavailable), and undo it.
+ *      A status change applied from a Coach proposal (#715, ADR-0077) names the version it was proposed from
+ *      (`statusOf`, which every status change moves): one that moved on since is a `conflict`, nothing changed, never
+ *      merged; and it keeps its Origin, hidden (`statusOrigin`), until the Candidate changes the status themselves;
  *      An Application on an Expired Job Offer is flagged (its Job Offer's `expiredAt`),
  *      and so is one Reported Unavailable (`reportedUnavailableAt`, that Application
  *      only, never the shared Job Offer); either keeps its status: nothing changes
@@ -34,6 +37,7 @@ import { inTransaction } from "../database/pool";
 import type { JobOffers } from "../job-offers";
 import type { Profiles } from "../profiles";
 import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule } from "../reschedules";
+import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
 
 export type { FieldError as ApplicationFieldError } from "../validation";
@@ -71,6 +75,25 @@ export interface Application {
   matchScore: MatchScore;
   /** Set while the Candidate reports its Job Offer no longer published (Reported Unavailable): since when. */
   reportedUnavailableAt?: Date;
+  /** Set while its status is one a Coach proposal the Candidate applied gave it (#715): its Origin, shown only on demand. */
+  statusOrigin?: Origin;
+}
+
+/** The Application Status as a change applied from a Coach proposal sees it (#715): its version and its Origin. */
+export interface ApplicationStatusState {
+  status: ApplicationStatus;
+  /** Moves with every status change, and nothing else. */
+  version: string;
+  origin: Origin | null;
+}
+
+/**
+ * A change applied from a Coach proposal (#715): `version`, the Application Status's when it was proposed (or applied,
+ * for « Annuler »): moved on since, the change is a `conflict`; `origin`, what the status then keeps (none: the Candidate's own).
+ */
+export interface ApplicationChangeOptions {
+  version?: string;
+  origin?: Origin | null;
 }
 
 export type SaveApplicationResult =
@@ -101,7 +124,9 @@ export interface ApplicationSummary {
 export type ApplicationChangeResult =
   | { ok: true; application: Application }
   | { ok: false; errors: FieldError[] }
-  | { ok: false; error: "not_found" };
+  | { ok: false; error: "not_found" }
+  /** Its Application Status moved on from the version the change named (#715). */
+  | { ok: false; error: "conflict" };
 
 /** Interviews are added only to an Application at "Entretien" (`interview`). */
 export type AddInterviewResult = ApplicationChangeResult | { ok: false; error: "not_in_interview" };
@@ -120,7 +145,9 @@ export interface Applications {
    * no longer published (true) and undoes it (false).
    * `input`: { status }, { profileId } or { reportedUnavailable }.
    */
-  change(candidateId: string, applicationId: string, input: unknown): Promise<ApplicationChangeResult>;
+  change(candidateId: string, applicationId: string, input: unknown, options?: ApplicationChangeOptions): Promise<ApplicationChangeResult>;
+  /** The Application Status, its version and Origin (#715); null when the Application is not the Candidate's. */
+  statusOf(candidateId: string, applicationId: string): Promise<ApplicationStatusState | null>;
   /**
    * Adds a dated Interview. `input`: { scheduledAt (ISO 8601 date and time), note?, durationMinutes?,
    * format?, place?, moveToInterview? }. Refused ("not_in_interview") unless the Application is at
@@ -294,9 +321,12 @@ interface ApplicationRow {
   status_changed_at: Date;
   created_at: Date;
   reported_unavailable_at: Date | null;
+  status_origin?: unknown;
 }
 
-const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at";
+const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at, status_origin";
+/** The Application Status's version (#715): when it last changed, to the microsecond, as text. */
+const STATUS_VERSION = "(extract(epoch FROM status_changed_at) * 1000000)::bigint::text";
 
 export function createApplications(
   database: Pool,
@@ -366,6 +396,8 @@ export function createApplications(
       matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
     };
     if (row.reported_unavailable_at !== null) application.reportedUnavailableAt = row.reported_unavailable_at;
+    const origin = readOrigin(row.status_origin);
+    if (origin) application.statusOrigin = origin;
     return application;
   }
 
@@ -461,7 +493,17 @@ export function createApplications(
       return scores;
     },
 
-    async change(candidateId, applicationId, input) {
+    async statusOf(candidateId, applicationId) {
+      if (!UUID.test(applicationId)) return null;
+      const { rows } = await database.query<{ status: ApplicationStatus; version: string; status_origin: unknown }>(
+        `SELECT status, ${STATUS_VERSION} AS version, status_origin FROM application WHERE id = $1 AND candidate_id = $2`,
+        [applicationId, candidateId],
+      );
+      const row = rows[0];
+      return row ? { status: row.status, version: row.version, origin: readOrigin(row.status_origin) } : null;
+    },
+
+    async change(candidateId, applicationId, input, options = {}) {
       const parsed = parseChange(input);
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(applicationId)) return NOT_FOUND;
@@ -477,10 +519,22 @@ export function createApplications(
             WHERE id = $1 AND candidate_id = $2`,
           [applicationId, candidateId, change.reportedUnavailable],
         );
+      } else if (options.version !== undefined) {
+        // From a Coach proposal (#715): only from the version it was proposed from, never merged with a change since.
+        const { rows } = await database.query<{ changed: boolean }>(
+          `WITH seen AS (SELECT id, status, ${STATUS_VERSION} = $4 AS unchanged FROM application WHERE id = $1 AND candidate_id = $2 FOR UPDATE),
+                changed AS (
+                  UPDATE application a SET status = $3, status_changed_at = now(), status_origin = $5
+                    FROM seen WHERE a.id = seen.id AND seen.unchanged AND seen.status <> $3 RETURNING a.id)
+           SELECT seen.unchanged AS changed FROM seen`,
+          [applicationId, candidateId, change.status, options.version, options.origin ? JSON.stringify(options.origin) : null],
+        );
+        if (!rows[0]) return NOT_FOUND;
+        if (!rows[0].changed) return { ok: false, error: "conflict" };
       } else {
-        // Choosing the status it already has changes nothing, so its date is kept.
+        // Choosing the status it already has changes nothing, so its date is kept. The Candidate's own: no Origin.
         await database.query(
-          `UPDATE application SET status = $3, status_changed_at = now() WHERE id = $1 AND candidate_id = $2 AND status <> $3`,
+          `UPDATE application SET status = $3, status_changed_at = now(), status_origin = NULL WHERE id = $1 AND candidate_id = $2 AND status <> $3`,
           [applicationId, candidateId, change.status],
         );
       }
@@ -503,7 +557,7 @@ export function createApplications(
       try {
         await client.query("BEGIN");
         await client.query(
-          `UPDATE application SET status = 'interview', status_changed_at = now() WHERE id = $1 AND candidate_id = $2 AND status <> 'interview'`,
+          `UPDATE application SET status = 'interview', status_changed_at = now(), status_origin = NULL WHERE id = $1 AND candidate_id = $2 AND status <> 'interview'`,
           [applicationId, candidateId],
         );
         await client.query(
@@ -599,6 +653,9 @@ export async function migrateApplications(database: Pool): Promise<void> {
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS place text NOT NULL DEFAULT '';
     -- A Cancelled Interview stays, with the date it was cancelled (#250).
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
+    -- Where the Application Status came from (#715): { origin: "coach_proposal", cardId, appliedAt } while a Coach
+    -- proposal the Candidate applied gave it; null once they change it themselves.
+    ALTER TABLE application ADD COLUMN IF NOT EXISTS status_origin jsonb;
   `);
   await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
 }

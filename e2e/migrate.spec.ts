@@ -190,6 +190,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
       expect(references.rows).toEqual([
         { from_table: "account", from_column: "userId", to_table: "candidate" },
         { from_table: "action_card", from_column: "candidate_id", to_table: "candidate" },
+        // A card in a Coach Conversation (issue #715) goes with its reply.
+        { from_table: "action_card", from_column: "reply_seq", to_table: "coach_message" },
         // Back Office Roles (issue #204) go with their Administrator's account.
         { from_table: "administrator_role", from_column: "candidate_id", to_table: "candidate" },
         // issue #218: the AI Message Log goes with the Candidate's account and with its AI call; AI Usage names no Candidate.

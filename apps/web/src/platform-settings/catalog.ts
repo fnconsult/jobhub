@@ -343,6 +343,8 @@ export const ENV_ONLY_SETTINGS = {
   GITHUB_API_URL: { kind: "test", shown: false },
   // The e2e suite's server leaves a developer's repo-root .env unread (env/root-env.ts).
   JOBHUB_IGNORE_ROOT_ENV: { kind: "test", shown: false },
+  // The e2e suite's fake Coach Action (#715, coach-actions/e2e-catalog.ts), on a spec's own server: "1", with JOBHUB_TARGET=e2e.
+  E2E_FAKE_COACH_ACTIONS: { kind: "test", shown: false },
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
 
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;

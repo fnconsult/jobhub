@@ -97,7 +97,7 @@ function ApplicationCard({ data }: { data: ApplicationPageData }) {
         </div>
       </div>
       <dl className="props">
-        <ApplicationStatusSelect applicationId={application.id} status={application.status} property />
+        <ApplicationStatusSelect applicationId={application.id} status={application.status} property appliedFromCoach={application.statusOrigin?.appliedAt.toISOString() ?? null} />
         <div className="prop">
           <dt>{t("application.savedOnLabel")}</dt>
           <dd>{date.format(application.createdAt)}</dd>

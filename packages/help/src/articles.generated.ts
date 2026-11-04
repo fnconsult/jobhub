@@ -422,7 +422,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/candidatures/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nSes rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre. Une rubrique ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation. Tant qu'aucun entretien n'est noté, « Voir comment » y montre comment passer la candidature au statut « Entretien » pour pouvoir l'ajouter.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer. Mettez le statut à jour dans la fiche quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation."
+      "body": "La page d'une candidature est sa conversation avec votre coach IA : il a la candidature et son offre sous les yeux. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Préparer l'entretien », « Rédiger une relance », « Rédiger la lettre de motivation », « Pourquoi ce score ? ». La conversation est gardée avec la candidature et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, la candidature et ses documents restent.\n\nÀ droite, la fiche de la candidature : son statut et son profil, que vous changez sur place, sa correspondance, sa date d'enregistrement et le lien vers l'offre, puis trois groupes que vous repliez d'un clic sur leur titre, « Sections », « Activité » et « Résultats ». « Fiche », en haut de la page, l'ouvre ou la ferme ; « Activité » l'ouvre sur ce que l'IA a fait pour cette page.\n\nSes rubriques : Propositions, Documents, Correspondance, Entretiens, Avis des coachs, Dossier entreprise, Contacts et L'offre. Une rubrique ou un résultat (CV adapté, lettre de motivation, message d'approche, relance suggérée) s'ouvre à côté de la conversation, sans la cacher : vous y modifiez, téléchargez ou copiez, et rien n'est envoyé sans votre clic. « Fermer » ou la touche Échap le referme. Chaque rubrique garde son adresse : un lien vers « Entretiens » ouvre directement la rubrique à côté de la conversation. Tant qu'aucun entretien n'est noté, « Voir comment » y montre comment passer la candidature au statut « Entretien » pour pouvoir l'ajouter.\n\nCommencez par « Correspondance » pour voir ce qui colle et ce qui manque, puis préparez votre CV adapté et votre lettre de motivation dans « Documents ». Vous les vérifiez toujours avant de les enregistrer. Mettez le statut à jour dans la fiche quand vous avancez : « Postulée » quand vous avez envoyé votre candidature, « Entretien » pour noter vos entretiens. Si elle reste sans réponse, votre coach vous propose une relance. Quand votre coach vous propose de changer le statut, la proposition s'affiche sous sa réponse : vous l'appliquez, la modifiez avant ou l'ignorez, et « Origine », sous le statut, dit qu'il vient de sa proposition.\n\nSur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique ou un résultat aussi : « Fermer » les referme et vous ramène à la conversation."
     },
     {
       "id": "page-job-offer",
@@ -1419,6 +1419,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Une offre privée est une offre que vous seul voyez. C'est celle que Jobbbox tire du message d'un recruteur que vous lui transférez : ce message vous était adressé, et le poste n'est parfois jamais publié.\n\nElle se suit comme toute offre : score de correspondance, CV adapté, lettre de motivation, candidature. Mais elle n'est jamais montrée à un autre candidat, ni mêlée à la même offre trouvée ailleurs : si le poste est publié plus tard, il devient une autre offre, et l'offre privée reste telle quelle.\n\nElle est supprimée avec votre compte, et fait partie de vos données téléchargées. Une offre tirée d'une alerte d'un site d'emploi, elle, décrit une annonce publique : elle n'est pas privée."
+    },
+    {
+      "id": "glossary-coach-proposal",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Proposition du coach",
+      "synonyms": [
+        "proposition",
+        "proposé par votre coach ia",
+        "appliquer",
+        "annuler",
+        "origine",
+        "carte de proposition"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Une modification que votre coach IA prépare pendant une conversation, par exemple le statut d'une candidature. Elle s'affiche sous sa réponse, dans une carte « Proposé par votre coach IA » : ce qui change, avant et après, et l'élément concerné.\n\nVotre coach ne modifie jamais rien lui-même et ne supprime jamais rien : vous choisissez « Appliquer », « Modifier avant d'appliquer » ou « Ignorer ». Une proposition appliquée peut être annulée tant que l'élément n'a pas changé depuis. L'élément garde qu'il a été changé sur proposition de votre coach : « Origine » le dit."
     },
     {
       "id": "glossary-proposals",
@@ -2718,6 +2738,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Quand des candidats ajoutent pour eux seuls un expéditeur d'offres que la liste de la plateforme n'a pas, il vous est proposé. L'accepter fait lire ses emails pour tous les candidats. Il vous faut le rôle Technique ou Super-admin.\n\n1. Ouvrez Paramètres (menu Plateforme), onglet « Sources », puis la fiche de MTA Jobbbox (Haraka).\n2. Dans « Expéditeurs proposés », lisez le domaine ou l'adresse, le nombre de candidats (jamais lesquels) et le « Dernier ajout ».\n3. Vérifiez que l'expéditeur envoie bien des offres : l'alerte d'un site d'emploi ou d'un site carrière, pas un particulier. Dans le doute, n'acceptez pas.\n4. Saisissez son libellé dans « Libellé de … », sous la forme « plateforme ou entreprise – site », 120 caractères au plus.\n5. Cliquez sur « Accepter … ». La page affiche « Expéditeur ajouté à la liste de la plateforme. » et il apparaît dans « Expéditeurs reconnus ».\n\nPour ajouter vous-même un expéditeur, remplissez « Ajouter un expéditeur » : le « Domaine ou adresse de l'expéditeur », puis le « Libellé », et cliquez sur « Ajouter l'expéditeur ». Un expéditeur se désactive ou se supprime depuis la même liste. Chaque changement est inscrit dans Actions des administrateurs."
     },
     {
+      "id": "tutorial-accept-coach-proposal",
+      "locale": "fr",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Accepter une proposition de votre coach",
+      "synonyms": [
+        "proposition du coach",
+        "proposition",
+        "appliquer",
+        "modifier avant d'appliquer",
+        "ignorer",
+        "annuler",
+        "revenir en arrière",
+        "carte",
+        "origine",
+        "coach ia"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Dans une conversation, votre coach IA peut vous proposer une modification, par exemple changer le statut d'une candidature. Il ne modifie jamais rien lui-même : la proposition s'affiche sous sa réponse, dans une carte « Proposé par votre coach IA » qui dit ce qui change, avant et après, avec un lien vers l'élément concerné.\n\n1. Pour accepter la proposition telle quelle, cliquez sur « Appliquer » dans la carte. L'élément est modifié et la carte affiche « Appliqué par vous à … ».\n2. Pour l'ajuster d'abord, cliquez sur « Modifier avant d'appliquer » : le formulaire de la page s'ouvre à côté de la conversation, pré-rempli avec la proposition. Changez ce que vous voulez, puis cliquez sur « Appliquer ». Si vous fermez le volet avant, vos changements sont gardés : « Modifier avant d'appliquer » le rouvre tel que vous l'avez laissé.\n3. Pour revenir en arrière, cliquez sur « Annuler » dans la carte appliquée : l'élément reprend son état d'avant et la carte affiche « Annulé à … ». C'est possible tant que l'élément n'a pas changé depuis.\n4. Si la proposition ne vous convient pas, cliquez sur « Ignorer » : rien n'est modifié.\n\nSi l'élément a changé depuis la proposition, « Appliquer » est refusé : la carte affiche « L'objet a changé depuis la proposition » et rien n'est modifié. Un élément changé sur proposition de votre coach garde cette origine sans l'afficher : ouvrez « Origine », sous son statut, pour lire « Sur proposition de votre coach IA, appliqué par vous le … »."
+    },
+    {
       "id": "tutorial-admin-contact-enrichment",
       "locale": "fr",
       "kind": "tutorial",
@@ -3605,7 +3649,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/candidatures/[id]",
       "motion": null,
       "microAnimations": [],
-      "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
+      "body": "An application's page is its conversation with your AI coach: it has the application and its job offer in view. Until you have written anything, suggestions wait above the message box: « Prepare the interview », « Write a follow-up », « Write the cover letter », « Why this score? ». The conversation is kept with the application and comes back when you reopen the page; « Clear », at the top of the page, deletes all its messages, while the application and its documents stay.\n\nOn the right, the application's fiche: its status and profile, which you change in place, its match, the day you saved it and the link to the job offer, then three groups you fold with a click on their title, « Sections », « Activity » and « Results ». « Fiche », at the top of the page, opens or closes it; « Activity » opens it on what AI did for this page.\n\nIts sections: Suggestions, Documents, Match, Interviews, Coach reviews, Company dossier, Contacts and The job offer. A section or a result (Tailored CV, cover letter, outreach message, suggested follow-up) opens beside the conversation, without hiding it: you edit, download or copy there, and nothing is sent without your click. « Close » or the Escape key closes it. Each section keeps its address: a link to « Interviews » opens that section straight beside the conversation. While no interview is recorded, « Show me how » there shows how to move the application to the « Interview » status so you can add one.\n\nStart with « Match » to see what fits and what is missing, then prepare your Tailored CV and your cover letter in « Documents ». You always check them before saving. Update the status in the fiche as you go: « Applied » once you have sent your application, « Interview » to record your interviews. If it gets no answer, your coach suggests a follow-up. When your coach proposes to change the status, the proposal shows under its reply: you apply it, edit it first or ignore it, and « Origin », under the status, says it came from its proposal.\n\nOn a phone, the conversation takes the whole screen. « Fiche » opens the fiche over it, full screen, and so does a section or a result: « Close » closes them and brings you back to the conversation."
     },
     {
       "id": "page-admin-help",
@@ -4685,6 +4729,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The coach's memory is the key facts your AI coach remembers about you from one conversation to the next: your goals, your constraints, your decisions. Nothing goes into it without your consent: in a conversation, « What should my coach remember from this conversation? » has it suggest items, and only those you confirm with « Remember » are kept. It holds 30 items at most.\n\n« Coach memory » is under « Coach » in the menu: it opens beside the conversation, where you can edit or delete each item. « Close » or the Escape key closes it.\n\nClearing a conversation leaves the coach's memory untouched. It is deleted with your account."
+    },
+    {
+      "id": "glossary-coach-proposal",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Coach proposal",
+      "synonyms": [
+        "proposal",
+        "proposed by your ai coach",
+        "apply",
+        "undo",
+        "origin",
+        "proposal card"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "A change your AI coach prepares during a conversation, for instance an application's status. It shows under its reply, in a card « Proposed by your AI coach »: what changes, before and after, and the item it is about.\n\nYour coach never changes anything itself and never deletes anything: you choose « Apply », « Edit before applying » or « Ignore ». An applied proposal can be undone as long as the item has not changed since. The item keeps that it was changed on your coach's proposal: « Origin » says so."
     },
     {
       "id": "glossary-conversation-context",
@@ -6102,6 +6166,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Without an account, you use the extension as a guest. Your CV and the captured job offer stay in your browser, never in a Jobbbox account. Jobbbox reads your CV to compute the Match Score, without saving it.\n\nEverything is deleted at the latest 24 hours after your first analysis, even if you keep using the extension, and as soon as you close your browser. The panel shows the exact date: « Your data will be deleted by … ». After that, the job offer is no longer available: capture it again to analyse it.\n\nTo delete everything sooner, click « Delete my data now », in the extension's panel. Your CV and the job offer are deleted from this browser at once.\n\nTo keep your work, create your account before then, without closing your browser: your CV becomes your first profile and the job offer your first application. The tutorial « Create your account from the extension and keep your work » explains how."
+    },
+    {
+      "id": "tutorial-accept-coach-proposal",
+      "locale": "en",
+      "kind": "tutorial",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Accept a proposal from your coach",
+      "synonyms": [
+        "coach proposal",
+        "proposal",
+        "apply",
+        "edit before applying",
+        "ignore",
+        "undo",
+        "go back",
+        "card",
+        "origin",
+        "ai coach"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "In a conversation, your AI coach can propose a change, for instance moving an application to another status. It never changes anything itself: the proposal shows under its reply, in a card « Proposed by your AI coach » that says what changes, before and after, with a link to the item it is about.\n\n1. To accept the proposal as it is, click « Apply » in the card. The item is changed and the card shows « Applied by you at … ».\n2. To adjust it first, click « Edit before applying »: the page's form opens beside the conversation, filled in with the proposal. Change what you want, then click « Apply ». If you close the pane before, your changes are kept: « Edit before applying » opens it again as you left it.\n3. To go back, click « Undo » in the applied card: the item returns to how it was before and the card shows « Undone at … ». You can do so as long as the item has not changed since.\n4. If the proposal does not suit you, click « Ignore »: nothing is changed.\n\nIf the item has changed since the proposal, « Apply » is refused: the card shows « The item has changed since the proposal » and nothing is changed. An item changed on your coach's proposal keeps that origin without showing it: open « Origin », under its status, to read « Proposed by your AI coach, applied by you on … »."
     },
     {
       "id": "tutorial-admin-accept-sender",

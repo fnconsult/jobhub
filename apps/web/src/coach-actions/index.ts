@@ -23,6 +23,12 @@
  * sites), and one row of `external_api_usage` (provider: the group's id, operation: the action's name, its outcome),
  * never the Candidate, its arguments nor its result: those are in the AI Message Log, as the AI layer sends them.
  *
+ * A proposal becomes an Action Card in the thread (#715, ../coach-proposals) when its Coach Action prepares a
+ * ProposedChange (what changes, before → after, on which object, the page's form and the object's version seen) and
+ * declares `apply`: the Candidate's « Appliquer » runs it, through the domain module, from the version seen (moved on
+ * since: a `conflict`, never merged), the object keeping its Origin; it gives back what `undo` (« Annuler ») needs to put
+ * the state before back. A launched action (a Job Search, an AI document) declares no `undo`: it ends with Stop.
+ *
  * Guardrails (ADR-0022): a result is framed as data (`<donnees>`, DATA_RULE); each read is checked by the input
  * Guardrail for injection (`guard`), a blocked one never given to the model. The allow-list: while text the Candidate did
  * not write is In view (a Job Offer, a Company Dossier, an email received, an imported CV) or once a read brought some
@@ -33,7 +39,9 @@
 import type { ProvenanceRecorder, StepTool, ToolDefinition, ToolOutcome, ToolRun, ToolRunRecord } from "@jobhub/ai";
 import { LOCAL_ROUTE_GROUPS, localRouteTool, type ExternalApiLog, type LocalRouteGroup } from "@jobhub/shared";
 import * as z from "zod";
+import type { UpgradePrompt } from "../billing/upgrade-prompt";
 import { asData, type CoachFocus } from "../coach/context";
+import type { FieldError } from "../validation";
 
 /**
  * What In view carries text the Candidate did not write (ADR-0077): a Job Offer, and the Applications, Job Searches and
@@ -48,11 +56,75 @@ export const MAX_PROPOSALS_PER_REPLY = 3;
 /** `read`: reads an object of the Candidate; `propose`: prepares a change the Candidate applies, writing nothing. */
 export type CoachActionKind = "read" | "propose";
 
-/** Who a Coach Action runs for: the session's Candidate, never an id the model gave. */
+/** Who a Coach Action runs for: the session's Candidate, never an id the model gave; in their language, for what a card says. */
 export interface CoachActionCall {
   candidateId: string;
+  language: "fr" | "en";
   signal?: AbortSignal;
 }
+
+/** A field of the page's form, as « Modifier avant d'appliquer » shows it pre-filled in the Work Pane (#715). */
+export interface ProposalField {
+  /** Its key in `value`. */
+  name: string;
+  label: string;
+  type: "select" | "text" | "textarea";
+  options?: { value: string; label: string }[];
+}
+
+/**
+ * What a proposing Coach Action prepares, for its Action Card in the thread (#715), in the Candidate's language: the
+ * object it changes (its name and page), what changes on it, before → after, what applying it sends to the domain module
+ * (`value`, as the page's form sends it, and that form's `fields`), the object's version seen, and the Plan Quota it uses
+ * (what it will consume; `prompt`, the Upgrade prompt, when there is no room).
+ */
+export interface ProposedChange {
+  target: { kind: CoachFocus["kind"]; id: string; name: string; href: string };
+  what: string;
+  before: string;
+  after: string;
+  value: Record<string, string>;
+  fields: ProposalField[];
+  version: string;
+  quota?: { label: string; prompt?: UpgradePrompt };
+}
+
+export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
+  target: z.object({ kind: z.enum(["profile", "application", "job_offer", "job_search", "job_digest", "agenda"]), id: z.string(), name: z.string(), href: z.string() }),
+  what: z.string(),
+  before: z.string(),
+  after: z.string(),
+  value: z.record(z.string(), z.string()),
+  fields: z.array(
+    z.object({
+      name: z.string(),
+      label: z.string(),
+      type: z.enum(["select", "text", "textarea"]),
+      options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
+    }),
+  ),
+  version: z.string(),
+  quota: z
+    .object({
+      label: z.string(),
+      prompt: z.object({ title: z.string(), message: z.string(), upgradeTo: z.any(), action: z.string().nullable(), href: z.string() }).optional(),
+    })
+    .optional(),
+}) as unknown as z.ZodType<ProposedChange>;
+
+/** Who applies a proposal, and from which card: the object keeps it as its Origin. */
+export interface ProposalCall {
+  candidateId: string;
+  cardId: string;
+  at: Date;
+}
+
+/** `undo`: what « Annuler » needs to put the state before back; none for a launched action. */
+export type ApplyProposalResult =
+  | { ok: true; undo?: unknown }
+  | { ok: false; error: "conflict" | "not_found" }
+  | { ok: false; error: "invalid"; errors: FieldError[] };
+export type UndoProposalResult = { ok: true } | { ok: false; error: "conflict" | "not_found" };
 
 /**
  * What a Coach Action gives back: its data (what it read, or the change it proposes), the Candidate's pages it read (paths,
@@ -73,6 +145,13 @@ export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
   copiesText: boolean;
   /** Calls the domain module, for `call.candidateId` only. */
   run(args: z.output<Schema>, call: CoachActionCall): Promise<CoachActionResult>;
+  /**
+   * A proposing one's, for its card in the thread (#715): applies the ProposedChange `run` prepared, its `value` as the
+   * Candidate left it, through the domain module (the same validation as the page's route), from the version seen.
+   */
+  apply?(change: ProposedChange, call: ProposalCall): Promise<ApplyProposalResult>;
+  /** Puts the state before back from what `apply` gave back, while the object has not changed since. */
+  undo?(undo: unknown, call: ProposalCall): Promise<UndoProposalResult>;
 }
 
 /** A Coach Action, its arguments typed by its schema. */
@@ -109,6 +188,8 @@ export interface CoachActionsReplyOptions {
   untrustedInView: boolean;
   /** The input Guardrail on a read's result (#713): `blocked`, the model is not given it. Default: none. */
   guard?: (text: string) => Promise<"passed" | "blocked">;
+  /** The Candidate's language, what a proposal's card is written in (#715). Default French. */
+  language?: "fr" | "en";
 }
 
 /** The Coach Actions of one reply, for the AI layer's tool calling. */
@@ -139,6 +220,8 @@ export function coachActionCatalog(actions: readonly CoachAction[]): readonly Co
     if (names.has(action.name)) throw new Error(`Coach Action "${action.name}" is declared twice`);
     if (!action.description.trim()) throw new Error(`Coach Action "${action.name}" has no description`);
     toolOfGroup(action.group);
+    if (action.apply && action.kind !== "propose") throw new Error(`Coach Action "${action.name}" applies, but only a proposing Coach Action applies`);
+    if (action.undo && !action.apply) throw new Error(`Coach Action "${action.name}" undoes nothing it does not apply`);
     names.add(action.name);
   }
   return actions;
@@ -230,7 +313,9 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
 
         let result: CoachActionResult;
         try {
-          result = await recorder.step(stepOf(action), () => action.run(parsed.data, { candidateId, ...(context.signal ? { signal: context.signal } : {}) }));
+          result = await recorder.step(stepOf(action), () =>
+            action.run(parsed.data, { candidateId, language: options.language ?? "fr", ...(context.signal ? { signal: context.signal } : {}) }),
+          );
         } catch (error) {
           record(action, started, null);
           throw error;

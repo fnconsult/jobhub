@@ -8,6 +8,7 @@ import type { ApplicationFieldError } from "@/applications";
 import type { MatchScoreFigure, MatchScoreReason } from "@/components/job-search-words";
 import { EMPTY_INTERVIEW_DRAFT, InterviewFields, interviewBody, type InterviewDraft } from "@/components/InterviewFields";
 import { ProfileMatchScore } from "@/components/MatchScoreWhy";
+import { OriginDisclosure } from "@/components/OriginDisclosure";
 import { routes } from "@/routes";
 import { buttonClass } from "@/design/button-class";
 import "@/design/Field.css";
@@ -32,17 +33,21 @@ export async function send(url: string, method: "POST" | "PATCH" | "DELETE", bod
  * The Application Status, changed by hand by the Candidate. Saved as soon as it is chosen.
  * A labelled field, or with `property`, one property of a `<dl className="props">`: its label, then the value edited in place.
  * `labelHidden`: its label for screen readers only, where a column header already says it (the Candidatures list, #467).
+ * `appliedFromCoach`: when the Candidate applied the Coach proposal that gave it this status (#715), an ISO date: its
+ * « Origine » disclosure under it.
  */
 export function ApplicationStatusSelect({
   applicationId,
   status,
   property,
   labelHidden,
+  appliedFromCoach,
 }: {
   applicationId: string;
   status: ApplicationStatus;
   property?: boolean;
   labelHidden?: boolean;
+  appliedFromCoach?: string | null;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -80,6 +85,8 @@ export function ApplicationStatusSelect({
     </select>
   );
   const shownOutcome = <Outcome outcome={outcome} saved={t("application.statusSaved")} />;
+  // Its Origin is the status the page was given: changed here since, it is the Candidate's own.
+  const origin = value === status ? <OriginDisclosure appliedAt={appliedFromCoach} /> : null;
   if (property)
     return (
       <div className="prop">
@@ -87,6 +94,7 @@ export function ApplicationStatusSelect({
         <dd>
           {select}
           {shownOutcome}
+          {origin}
         </dd>
       </div>
     );
@@ -95,6 +103,7 @@ export function ApplicationStatusSelect({
       {label}
       {select}
       {shownOutcome}
+      {origin}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { CoachMessage, ConversationContext, JobOfferCard } from "@/coach/conversation";
 import type { ConversationSummary } from "@/components/CoachConversationList";
+import type { CoachProposalCard } from "@/coach-proposals/card";
 import type { Provenance } from "@jobhub/shared";
 
 /**
@@ -18,6 +19,8 @@ export type ServerMessage = {
   /** On a reply: what served it (#327), null when nothing was kept, and when it was saved. */
   provenance?: Provenance | null;
   at?: string;
+  /** On an AI Coach reply: its Coach proposals' Action Cards (#715). */
+  cards?: CoachProposalCard[];
 };
 
 /** A message as it is shown: the person's own, or the AI's reply. */
@@ -27,6 +30,7 @@ export const asShownMessage = (message: ServerMessage): CoachMessage => ({
   ...(message.blocked ? { blocked: true as const } : {}),
   ...(message.jobOffer ? { jobOffer: message.jobOffer } : {}),
   ...(message.at ? { provenance: message.provenance ?? null, at: message.at } : {}),
+  ...(Array.isArray(message.cards) && message.cards.length > 0 ? { cards: message.cards } : {}),
 });
 
 /** A saved conversation with its messages, as shown. */

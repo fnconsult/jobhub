@@ -4845,6 +4845,7 @@
     "invalid_verdict": "Verdict du contrôle illisible",
     "provider_error": "Erreur du fournisseur",
     "invalid_input": "Appel refusé : outil inconnu ou arguments invalides",
+    "device_token_invalid": "Jeton d'appareil invalide : appareil retiré",
     "other": "Erreur inattendue"
   },
   "agendaChanges": {

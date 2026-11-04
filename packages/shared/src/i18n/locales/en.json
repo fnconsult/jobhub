@@ -4845,6 +4845,7 @@
     "invalid_verdict": "Unreadable check verdict",
     "provider_error": "Provider error",
     "invalid_input": "Call refused: unknown tool or invalid arguments",
+    "device_token_invalid": "Invalid device token: device removed",
     "other": "Unexpected error"
   },
   "agendaChanges": {

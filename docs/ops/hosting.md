@@ -46,18 +46,18 @@ them: `docs/ops/motions.md`.
 | Database (Postgres, also holds the job queue) | RDS for PostgreSQL 17, encrypted, automated backups | eu-west-3 |
 | Files (uploaded CVs, exported documents) | S3, encrypted, versioned | eu-west-3 |
 | Transactional email (magic links, Job Digests) | SES | eu-west-3 |
-| Claude (default AI provider) | Bedrock (Claude Opus 5; bedrock-mantle is not served in eu-west-3) | eu-north-1 |
+| Claude (default AI provider) | Claude's direct API (Anthropic, outside the EU, after Redaction), not Bedrock: Bedrock was turned down (ADR-0007, amendment of 2026-10-28). The identity route under EU AI Consent and the `euOnly` tasks go to Mistral (`api.eu.mistral.ai`, EU). | — |
 | Logs and metrics | CloudWatch | eu-west-3 |
 
 Rules:
 - Every resource that stores or processes personal data (CVs, Profiles, Applications, Tailored Documents) is created in an EU region. No cross-region replication outside the EU.
 - Backups and snapshots stay in eu-west-3 (or another EU region for disaster recovery, e.g. eu-central-1).
-- Every AI call is redacted of the Candidate's identity before it leaves (ADR-0007, amendment of 2026-10-20); an AI provider may be outside the EU when an Administrator configures or chooses it. Web-search providers only receive search queries.
+- Every AI call is redacted of the Candidate's identity before it leaves (ADR-0007, amendment of 2026-10-20); Claude's direct API, the default for every task, is outside the EU (amendment of 2026-10-28), and the Recipient list (`/legal/destinataires`) names it with its safeguard. Web-search providers only receive search queries.
 - The browser extension is distributed through the Chrome Web Store; it holds no data beyond the session and talks only to the EU-hosted API.
 
 ## Staying portable
 
-The deployable units are two plain containers and a Postgres database, with no AWS-specific code in the apps. Moving to another EU provider (Scaleway fr-par, OVHcloud) means re-creating those three pieces there, plus switching Claude to Vertex AI EU or Mistral.
+The deployable units are two plain containers and a Postgres database, with no AWS-specific code in the apps. Moving to another EU provider (Scaleway fr-par, OVHcloud) means re-creating those three pieces there, Claude's direct API and Mistral are reached the same way from anywhere.
 
 ## Local equivalent
 

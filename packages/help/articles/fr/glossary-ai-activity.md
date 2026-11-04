@@ -18,4 +18,4 @@ Pendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs »,
 
 Si vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.
 
-Une action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne.
+Une action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité.

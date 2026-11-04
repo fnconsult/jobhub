@@ -68,6 +68,8 @@ describe("the Fiche (#603, ADR-0070)", () => {
     renderInFrench(<Page />);
 
     expect(within(fiche()).getByText(/Aucun contenu produit par l'IA sur cette page/)).toBeTruthy();
+    // « En savoir plus » leads to « IA dans Jobbbox » (#338).
+    expect(within(fiche()).getByRole("link", { name: "En savoir plus sur l'IA dans Jobbbox" }).getAttribute("href")).toBe("/legal/confidentialite#ia");
   });
 
   it("says so when there is no Result yet", () => {

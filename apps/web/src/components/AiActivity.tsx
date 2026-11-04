@@ -14,6 +14,7 @@ import type { ReplyInView } from "@/components/CoachConversationPage";
 import { useConversationFirst } from "@/components/conversation-first";
 import { Icons } from "@/components/icons";
 import { ExternalLink } from "@/components/ExternalLink";
+import { routes } from "@/routes";
 
 type Language = "fr" | "en";
 
@@ -361,7 +362,20 @@ function ActivityContent({ pane, live, stop }: { pane: AiActivityPane; live: Liv
     <>
       <LiveSections live={live} stop={stop} />
       {pane.elements.length > 0 ? <PaneSections pane={pane} /> : anyLive ? null : <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>}
+      <LearnMore />
     </>
+  );
+}
+
+/** « En savoir plus » (#338, #320 § 12): « IA dans Jobbbox », the privacy policy's section, which names no provider. */
+function LearnMore() {
+  const { t } = useTranslation();
+  return (
+    <p className="ai-activity-learn-more">
+      <Link href={routes.aiInJobbbox} aria-label={t("aiActivity.learnMoreLabel")}>
+        {t("aiActivity.learnMore")}
+      </Link>
+    </p>
   );
 }
 
@@ -372,7 +386,13 @@ function ActivityContent({ pane, live, stop }: { pane: AiActivityPane; live: Liv
 export function AiActivityContent() {
   const { t } = useTranslation();
   const control = useContext(AiActivityControl);
-  if (!control) return <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>;
+  if (!control)
+    return (
+      <>
+        <p className="ai-activity-empty">{t("aiActivity.noAi")}</p>
+        <LearnMore />
+      </>
+    );
   return (
     <div className="fiche-activity">
       <ActivityContent pane={control.pane} live={control.live} stop={control.stop} />

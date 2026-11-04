@@ -5,7 +5,7 @@ topic: utiliser
 title: Où lire les conditions et la politique de confidentialité ?
 synonyms: [CGU, CGV, conditions générales, conditions d'utilisation, conditions de vente, confidentialité, cookies, mentions légales, légal, version, historique]
 ---
-Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. Chaque texte se télécharge avec « Télécharger en PDF ».
+Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. « Destinataires des données » y nomme chaque service qui reçoit vos données. Chaque texte se télécharge avec « Télécharger en PDF ».
 
 Chaque texte porte sa date d'entrée en vigueur. Une version n'est jamais modifiée : une correction donne une nouvelle version. Le lien « Versions précédentes » mène à l'« Historique des versions » : chaque version, sa date, « Substantielle » ou « Mineure », et une ligne qui résume le changement.
 

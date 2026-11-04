@@ -18,4 +18,4 @@ While an AI action runs, on this page or « Running elsewhere », each step show
 
 If you asked your device for less motion, each glyph stays still.
 
-A stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting.
+A stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy.

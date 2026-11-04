@@ -94,7 +94,137 @@ export interface Tool {
    * (#318). None by default: AI Activity then names the Tool in text. Never a third-party favicon.
    */
   logo?: `/logos/${string}`;
+  /**
+   * What the Recipient list says of it (ADR-0064, #338), set for every Tool that receives personal data but one that
+   * runs on Jobbbox's own servers (`hostedBy`).
+   */
+  recipient?: RecipientFacts;
+  /** For a Tool that runs on Jobbbox's own servers, the Host it runs on: the Host is the recipient, not the Tool. */
+  hostedBy?: HostId;
 }
+
+/**
+ * What a recipient is sent, in the Recipient list's words (ADR-0064): after Redaction, queries only, identity under EU
+ * AI Consent, and what the other recipients are sent (RECIPIENT_DATA_TEXT).
+ */
+export const RECIPIENT_DATA = [
+  "redacted",
+  "queries_only",
+  "identity_under_eu_ai_consent",
+  "forwarded_emails",
+  "account",
+  "payment",
+  "emails_sent",
+  "sign_in",
+  "contact_search",
+  "hosted",
+] as const;
+export type RecipientData = (typeof RECIPIENT_DATA)[number];
+
+/**
+ * What a transfer outside the EU rests on (GDPR art. 45 and 46), in the Recipient list's words: none needed (it stays in
+ * the EU), an adequacy decision, the EU-U.S. Data Privacy Framework as the provider declares it, the Commission's
+ * standard contractual clauses, or not established.
+ */
+export const TRANSFER_SAFEGUARDS = ["none_needed", "adequacy", "dpf", "scc", "not_established"] as const;
+export type TransferSafeguard = (typeof TRANSFER_SAFEGUARDS)[number];
+
+/**
+ * A recipient's public facts (ADR-0064), from `docs/research/issue-522.md` (#522): its public name (the provider and the
+ * model family, never a model version; a text name, no logo), what it is for in plain words, what it is sent, the
+ * entity Jobbbox contracts with, where it processes the data and what a transfer outside the EU rests on.
+ */
+export interface RecipientFacts {
+  name: string;
+  purpose: Translated;
+  data: readonly RecipientData[];
+  entity: string | Translated;
+  place: Translated;
+  safeguards: readonly TransferSafeguard[];
+}
+
+/** The Recipient list's words for what a recipient is sent. */
+export const RECIPIENT_DATA_TEXT: Record<RecipientData, Translated> = {
+  redacted: {
+    fr: "Vos textes (CV, candidatures, messages au coach), sans votre nom, votre adresse, votre e-mail ni votre téléphone. Le reste, comme vos employeurs, vos postes et vos dates, part tel quel : ce sont encore des données personnelles, dites pseudonymisées.",
+    en: "Your texts (CV, applications, messages to the coach), without your name, address, email or phone number. The rest, such as your employers, positions and dates, goes as it is: it is still personal data, called pseudonymised.",
+  },
+  queries_only: {
+    fr: "Des requêtes seulement : un métier, un lieu ou le nom d'un employeur, jamais votre identité.",
+    en: "Queries only: a job, a place or an employer's name, never your identity.",
+  },
+  identity_under_eu_ai_consent: {
+    fr: "Votre identité (nom, coordonnées), seulement si vous avez donné votre consentement IA UE.",
+    en: "Your identity (name, contact details), only if you gave your EU AI Consent.",
+  },
+  forwarded_emails: {
+    fr: "Le texte des e-mails d'offres que vous transférez à Jobbbox, qui peut nommer un recruteur.",
+    en: "The text of the offer emails you forward to Jobbbox, which may name a recruiter.",
+  },
+  account: {
+    fr: "Votre adresse e-mail et l'identifiant de votre compte Jobbbox.",
+    en: "Your email address and your Jobbbox account's identifier.",
+  },
+  payment: {
+    fr: "Vos achats et vos paiements. Vous saisissez votre carte directement chez Stripe : Jobbbox ne la voit pas.",
+    en: "Your purchases and payments. You enter your card directly with Stripe: Jobbbox never sees it.",
+  },
+  emails_sent: {
+    fr: "Votre adresse e-mail, votre prénom et le contenu des e-mails que Jobbbox vous envoie.",
+    en: "Your email address, your first name and the content of the emails Jobbbox sends you.",
+  },
+  sign_in: {
+    fr: "Votre connexion : ce service vous identifie, puis transmet à Jobbbox votre adresse e-mail et votre nom.",
+    en: "Your sign-in: this service identifies you, then passes your email address and name to Jobbbox.",
+  },
+  contact_search: {
+    fr: "Le nom d'un employeur et des intitulés de poste ; il renvoie les coordonnées professionnelles d'un contact chez cet employeur.",
+    en: "An employer's name and job titles; it returns the work contact details of a person at that employer.",
+  },
+  hosted: {
+    fr: "Toutes les données de Jobbbox, stockées sur son serveur.",
+    en: "All of Jobbbox's data, stored on its server.",
+  },
+};
+
+/** The Recipient list's words for what a transfer rests on. */
+export const TRANSFER_SAFEGUARD_TEXT: Record<TransferSafeguard, Translated> = {
+  none_needed: { fr: "Aucun transfert hors UE.", en: "No transfer outside the EU." },
+  adequacy: { fr: "Décision d'adéquation de la Commission européenne.", en: "An adequacy decision of the European Commission." },
+  dpf: {
+    fr: "Data Privacy Framework UE–États-Unis, auquel le fournisseur déclare adhérer.",
+    en: "The EU–U.S. Data Privacy Framework, which the provider declares it adheres to.",
+  },
+  scc: { fr: "Clauses contractuelles types de la Commission européenne.", en: "The European Commission's standard contractual clauses." },
+  not_established: { fr: "Non établie à ce jour.", en: "Not established to date." },
+};
+
+/** Where Jobbbox itself runs: a recipient of everything it stores, listed whatever the Tools switched on. */
+export interface Host {
+  id: string;
+  residency: ToolResidency;
+  recipient: RecipientFacts;
+}
+
+/** The Hosts of Jobbbox (`docs/ops/hosting.md`): a new one, Scaleway for the motions (#568), is one more entry. */
+export const HOSTS = [
+  {
+    id: "hostinger",
+    residency: "eu",
+    recipient: {
+      name: "Hostinger",
+      purpose: {
+        fr: "Héberge Jobbbox : son serveur, sa base de données et la réception des e-mails que vous transférez.",
+        en: "Hosts Jobbbox: its server, its database and the reception of the emails you forward.",
+      },
+      data: ["hosted"],
+      entity: "Hostinger International Limited",
+      place: { fr: "Dans l'UE : centre de données de Paris (Hostinger International Limited est établie à Chypre).", en: "In the EU: Paris data centre (Hostinger International Limited is based in Cyprus)." },
+      safeguards: ["none_needed"],
+    },
+  },
+] as const satisfies readonly Host[];
+export type HostId = (typeof HOSTS)[number]["id"];
 
 const ANTHROPIC_MODULE = "packages/ai/src/providers/anthropic.ts";
 const CHAT_COMPLETIONS_MODULE = "packages/ai/src/providers/chat-completions.ts";
@@ -143,6 +273,41 @@ const SIGN_IN_PURPOSE = (name: string): Translated => ({
   en: `Sign-in with ${name}, for Candidates and Administrators.`,
 });
 
+const WEB_SEARCH_PUBLIC_PURPOSE: Translated = {
+  fr: "Recherche sur le web : trouve des offres d'emploi et des informations sur les employeurs.",
+  en: "Web search: finds job offers and information about employers.",
+};
+const JOB_DISCOVERY_PUBLIC_PURPOSE: Translated = {
+  fr: "Offres d'emploi : trouve les offres qui correspondent à vos critères de recherche.",
+  en: "Job offers: finds the offers that match your Search Criteria.",
+};
+const ENRICHMENT_PUBLIC_PURPOSE: Translated = {
+  fr: "Trouve les coordonnées professionnelles d'un contact chez un employeur, quand vous le demandez (offre Premium).",
+  en: "Finds a person's work contact details at an employer, when you ask for them (Premium).",
+};
+const BREVO_RECIPIENT: RecipientFacts = {
+  name: "Brevo",
+  purpose: {
+    fr: "Envoi des e-mails de Jobbbox : liens de connexion, sélections d'offres, rappels et avis.",
+    en: "Sends Jobbbox's emails: sign-in links, Job Digests, reminders and notices.",
+  },
+  data: ["emails_sent"],
+  entity: "Brevo SAS",
+  place: {
+    fr: "Dans l'UE (France et Belgique) ; le support et la diffusion des e-mails peuvent passer hors UE.",
+    en: "In the EU (France and Belgium); support and email delivery may go outside the EU.",
+  },
+  safeguards: ["dpf", "scc"],
+};
+const signInRecipient = (name: string, entity: string, safeguards: readonly TransferSafeguard[]): RecipientFacts => ({
+  name,
+  purpose: { fr: `Connexion à Jobbbox avec votre compte ${name}, si vous la choisissez.`, en: `Sign-in to Jobbbox with your ${name} account, if you choose it.` },
+  data: ["sign_in"],
+  entity,
+  place: { fr: "Hors UE : États-Unis et d'autres pays.", en: "Outside the EU: United States and other countries." },
+  safeguards,
+});
+
 export const TOOLS = [
   {
     id: "anthropic",
@@ -159,6 +324,20 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com", external: "anthropic" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Claude (Anthropic)",
+      purpose: {
+        fr: "Modèle d'IA : lit votre CV, calcule vos scores, rédige vos documents adaptés et répond dans vos conversations avec le coach IA.",
+        en: "AI model: reads your CV, works out your scores, writes your tailored documents and answers in your conversations with the AI Coach.",
+      },
+      data: ["redacted"],
+      entity: "Anthropic Ireland, Limited",
+      place: {
+        fr: "Hors UE : aux États-Unis, ou dans tout autre pays où Anthropic fait tourner ses modèles. Données gardées 30 jours, ou jusqu'à 2 ans si un contrôle de sécurité les signale ; jamais utilisées pour entraîner ses modèles.",
+        en: "Outside the EU: in the United States, or in any other country where Anthropic runs its models. Data kept 30 days, or up to 2 years if a safety check flags it; never used to train its models.",
+      },
+      safeguards: ["scc"],
+    },
   },
   {
     id: "anthropic-bedrock",
@@ -175,6 +354,17 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     residency: "eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Claude (AWS Bedrock)",
+      purpose: {
+        fr: "Modèle d'IA Claude, hébergé par Amazon Web Services : les mêmes tâches que Claude par l'API d'Anthropic.",
+        en: "The Claude AI model, hosted by Amazon Web Services: the same tasks as Claude through Anthropic's API.",
+      },
+      data: ["redacted", "identity_under_eu_ai_consent"],
+      entity: "Amazon Web Services EMEA SARL",
+      place: { fr: "Dans l'UE : une région européenne d'AWS.", en: "In the EU: a European AWS region." },
+      safeguards: ["none_needed"],
+    },
     residencyNote: { fr: "Dans l'UE dans une région eu-* (eu-north-1 par défaut).", en: "In the EU in an eu-* region (eu-north-1 by default)." },
   },
   {
@@ -192,6 +382,17 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "vertex " },
     residency: "eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Claude (Google Vertex AI)",
+      purpose: {
+        fr: "Modèle d'IA Claude, hébergé par Google Cloud : les mêmes tâches que Claude par l'API d'Anthropic.",
+        en: "The Claude AI model, hosted by Google Cloud: the same tasks as Claude through Anthropic's API.",
+      },
+      data: ["redacted", "identity_under_eu_ai_consent"],
+      entity: "Google Cloud EMEA Limited",
+      place: { fr: "Dans l'UE : une région européenne de Google Cloud.", en: "In the EU: a European Google Cloud region." },
+      safeguards: ["none_needed"],
+    },
     residencyNote: { fr: "Dans l'UE dans une région europe-* ou « eu » (europe-west1 par défaut).", en: "In the EU in a europe-* or \"eu\" region (europe-west1 by default)." },
   },
   {
@@ -209,6 +410,20 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
     residency: "eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Mistral AI",
+      purpose: {
+        fr: "Modèle d'IA hébergé dans l'UE : traite ce qui porte votre identité si vous avez donné votre consentement IA UE, et lit les e-mails d'offres que vous transférez.",
+        en: "AI model hosted in the EU: handles what carries your identity if you gave your EU AI Consent, and reads the offer emails you forward.",
+      },
+      data: ["identity_under_eu_ai_consent", "forwarded_emails"],
+      entity: "Mistral AI SAS",
+      place: {
+        fr: "Dans l'UE : centres de données de l'UE et de l'AELE (dont la Suisse, couverte par une décision d'adéquation), par le point d'accès européen de Mistral.",
+        en: "In the EU: data centres in the EU and EFTA (including Switzerland, covered by an adequacy decision), through Mistral's European endpoint.",
+      },
+      safeguards: ["none_needed", "adequacy"],
+    },
     residencyNote: { fr: "Dans l'UE (api.eu.mistral.ai, inférence régionale UE et AELE).", en: "In the EU (api.eu.mistral.ai, EU and EFTA regional inference)." },
   },
   {
@@ -226,6 +441,20 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "openai" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "OpenAI",
+      purpose: {
+        fr: "Modèle d'IA, pour les tâches que Jobbbox lui confie.",
+        en: "AI model, for the tasks Jobbbox gives it.",
+      },
+      data: ["redacted"],
+      entity: "OpenAI Ireland Limited",
+      place: {
+        fr: "Hors UE, sauf avec un projet OpenAI en région UE.",
+        en: "Outside the EU, unless with an OpenAI project in the EU region.",
+      },
+      safeguards: ["scc"],
+    },
     residencyNote: { fr: "Dans l'UE seulement avec un projet OpenAI en région UE.", en: "In the EU only with an OpenAI project in the EU region." },
   },
   {
@@ -240,6 +469,17 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Perplexity",
+      purpose: WEB_SEARCH_PUBLIC_PURPOSE,
+      data: ["queries_only"],
+      entity: "Perplexity AI, Inc.",
+      place: {
+        fr: "Hors UE : États-Unis. Ses clauses contractuelles types ne couvrent peut-être pas son API de recherche.",
+        en: "Outside the EU: United States. Its standard contractual clauses may not cover its search API.",
+      },
+      safeguards: ["not_established"],
+    },
   },
   {
     id: "brave",
@@ -253,6 +493,14 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "brave", external: "brave" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Brave Search",
+      purpose: WEB_SEARCH_PUBLIC_PURPOSE,
+      data: ["queries_only"],
+      entity: "Brave Software, Inc.",
+      place: { fr: "Hors UE : États-Unis. Requêtes gardées 90 jours au plus.", en: "Outside the EU: United States. Queries kept 90 days at most." },
+      safeguards: ["not_established"],
+    },
   },
   {
     id: "tavily",
@@ -266,6 +514,17 @@ export const TOOLS = [
     usage: { table: "ai_usage", provider: "tavily", external: "tavily" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Tavily",
+      purpose: WEB_SEARCH_PUBLIC_PURPOSE,
+      data: ["queries_only"],
+      entity: "AlphaAI Technologies Inc. (Tavily)",
+      place: {
+        fr: "Hors UE : États-Unis. Tavily peut réutiliser les requêtes pour améliorer son service.",
+        en: "Outside the EU: United States. Tavily may reuse the queries to improve its service.",
+      },
+      safeguards: ["not_established"],
+    },
   },
   {
     id: "france-travail",
@@ -281,8 +540,17 @@ export const TOOLS = [
     settings: JOB_DISCOVERY_BUDGET,
     usage: { table: "external_api_usage", provider: "france_travail" },
     residency: "eu",
-    receivesPersonalData: false,
-    residencyNote: { fr: "Service public français ; aucune donnée personnelle envoyée.", en: "French public service; no personal data sent." },
+    // Queries drawn from the Search Criteria, as web search's (ADR-0064): a recipient, in the EU.
+    receivesPersonalData: true,
+    recipient: {
+      name: "France Travail",
+      purpose: JOB_DISCOVERY_PUBLIC_PURPOSE,
+      data: ["queries_only"],
+      entity: { fr: "France Travail, opérateur public", en: "France Travail, public operator" },
+      place: { fr: "Dans l'UE : France.", en: "In the EU: France." },
+      safeguards: ["none_needed"],
+    },
+    residencyNote: { fr: "Service public français ; ne reçoit que le métier et le lieu des critères de recherche.", en: "French public service; receives only the Search Criteria's job and place." },
     // La Bonne Boite's terms ask for it where its companies are shown (#409); the owner's OK and its source are on #424.
     logo: "/logos/france-travail.svg",
   },
@@ -298,9 +566,22 @@ export const TOOLS = [
     runsIn: "worker",
     keys: ["FANTASTIC_JOBS_API_KEY"],
     usage: { table: "external_api_usage", provider: "fantastic_jobs" },
-    residency: "eu",
-    receivesPersonalData: false,
-    residencyNote: { fr: "Société néerlandaise ; aucune donnée personnelle envoyée.", en: "Dutch company; no personal data sent." },
+    // A Dutch company, but where it processes the queries was not found (#522): not established.
+    residency: "unknown",
+    // Queries drawn from the Search Criteria, as web search's (ADR-0064): a recipient.
+    receivesPersonalData: true,
+    recipient: {
+      name: "Fantastic.jobs",
+      purpose: JOB_DISCOVERY_PUBLIC_PURPOSE,
+      data: ["queries_only"],
+      entity: "Fantastic.jobs",
+      place: {
+        fr: "Non établi : société établie à Amsterdam, dont le lieu de traitement n'est pas publié.",
+        en: "Not established: a company based in Amsterdam, which does not publish where it processes data.",
+      },
+      safeguards: ["not_established"],
+    },
+    residencyNote: { fr: "Société néerlandaise ; lieu de traitement non publié. Ne reçoit que les critères de recherche.", en: "Dutch company; place of processing not published. Receives only Search Criteria." },
   },
   {
     id: "greenhouse",
@@ -399,6 +680,14 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "lusha" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Lusha",
+      purpose: ENRICHMENT_PUBLIC_PURPOSE,
+      data: ["contact_search"],
+      entity: "Lusha Systems, Inc.",
+      place: { fr: "Hors UE : Israël, avec un hébergement en Irlande.", en: "Outside the EU: Israel, hosted in Ireland." },
+      safeguards: ["adequacy", "scc"],
+    },
   },
   {
     id: "kaspr",
@@ -412,6 +701,17 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "kaspr" },
     residency: "unknown",
     receivesPersonalData: true,
+    recipient: {
+      name: "Kaspr",
+      purpose: ENRICHMENT_PUBLIC_PURPOSE,
+      data: ["contact_search"],
+      entity: "KASPR SAS",
+      place: {
+        fr: "Dans l'UE autant que possible, selon Kaspr ; le lieu n'est pas établi.",
+        en: "In the EU as far as possible, according to Kaspr; the place is not established.",
+      },
+      safeguards: ["scc"],
+    },
   },
   {
     id: "apollo",
@@ -425,6 +725,14 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "apollo" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Apollo",
+      purpose: ENRICHMENT_PUBLIC_PURPOSE,
+      data: ["contact_search"],
+      entity: "ZenLeads Inc. (Apollo.io)",
+      place: { fr: "Hors UE : États-Unis.", en: "Outside the EU: United States." },
+      safeguards: ["dpf", "scc"],
+    },
   },
   {
     id: "stripe",
@@ -441,6 +749,20 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "stripe" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: {
+      name: "Stripe",
+      purpose: {
+        fr: "Paiement de vos abonnements et de vos séances de coaching. Stripe traite aussi ces données pour ses propres obligations, comme la lutte contre la fraude et le blanchiment.",
+        en: "Payment of your subscriptions and coaching sessions. Stripe also processes this data for its own obligations, such as fighting fraud and money laundering.",
+      },
+      data: ["account", "payment"],
+      entity: "Stripe Payments Europe, Limited",
+      place: {
+        fr: "Hors UE : Stripe, LLC aux États-Unis, et d'autres pays.",
+        en: "Outside the EU: Stripe, LLC in the United States, and other countries.",
+      },
+      safeguards: ["dpf", "scc"],
+    },
   },
   {
     id: "brevo-api",
@@ -457,6 +779,7 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "brevo" },
     residency: "unknown",
     receivesPersonalData: true,
+    recipient: BREVO_RECIPIENT,
   },
   {
     id: "brevo-smtp",
@@ -473,6 +796,7 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "brevo_smtp" },
     residency: "unknown",
     receivesPersonalData: true,
+    recipient: BREVO_RECIPIENT,
   },
   {
     // Email intake (#442, #580): Jobbbox's own MTA (Haraka, apps/mta, on the VPS) receives each email sent to a
@@ -493,6 +817,7 @@ export const TOOLS = [
     usage: null,
     residency: "eu",
     receivesPersonalData: true,
+    hostedBy: "hostinger",
   },
   {
     id: "google",
@@ -506,6 +831,7 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "google" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: signInRecipient("Google", "Google Ireland Limited", ["dpf", "scc"]),
   },
   {
     id: "apple",
@@ -519,6 +845,7 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "apple" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: signInRecipient("Apple", "Apple Distribution International Limited", ["scc"]),
   },
   {
     id: "microsoft",
@@ -532,6 +859,7 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "microsoft" },
     residency: "outside_eu",
     receivesPersonalData: true,
+    recipient: signInRecipient("Microsoft", "Microsoft Ireland Operations Limited", ["dpf", "scc"]),
   },
   {
     id: "oidc",
@@ -548,6 +876,17 @@ export const TOOLS = [
     usage: { table: "external_api_usage", provider: "oidc" },
     residency: "unknown",
     receivesPersonalData: true,
+    recipient: {
+      name: "OpenID Connect",
+      purpose: {
+        fr: "Connexion par le fournisseur d'identité de votre organisation.",
+        en: "Sign-in through your organisation's identity provider.",
+      },
+      data: ["sign_in"],
+      entity: { fr: "Le fournisseur d'identité configuré.", en: "The identity provider configured." },
+      place: { fr: "Selon le fournisseur d'identité configuré ; non établi.", en: "Depends on the identity provider configured; not established." },
+      safeguards: ["not_established"],
+    },
     residencyNote: { fr: "Selon l'émetteur configuré.", en: "Depends on the configured issuer." },
   },
   {
@@ -659,6 +998,30 @@ export type AiUsageProvider = Extract<(typeof TOOLS)[number]["usage"], { table: 
  */
 export function isRecipientOutsideEu(tool: Tool): boolean {
   return tool.receivesPersonalData && tool.residency !== "eu";
+}
+
+/** A recipient as the Recipient list shows it (ADR-0064): a Host or a Tool, where it processes the data, and its facts. */
+export interface ListedRecipient {
+  id: string;
+  kind: "host" | "tool";
+  /** `unknown` counts as outside the EU (ADR-0007, ADR-0064). */
+  residency: ToolResidency;
+  facts: RecipientFacts;
+}
+
+/**
+ * The Recipient list (ADR-0064, #338): Jobbbox's Hosts, then each Tool `switchedOn` that receives personal data, or
+ * queries drawn from it, in the catalog's order, each recipient once. A Tool that runs on Jobbbox's own servers is its
+ * Host's.
+ */
+export function recipientList(switchedOn: (tool: Tool) => boolean): ListedRecipient[] {
+  const hosts = (HOSTS as readonly Host[]).map((host): ListedRecipient => ({ id: host.id, kind: "host", residency: host.residency, facts: host.recipient }));
+  const tools = (TOOLS as readonly Tool[])
+    .filter((tool) => tool.receivesPersonalData && tool.recipient && switchedOn(tool))
+    .map((tool): ListedRecipient => ({ id: tool.id, kind: "tool", residency: tool.residency, facts: tool.recipient! }));
+  // Two Tools of one recipient (Brevo's API and its SMTP relay) are listed once, as the first.
+  const named = new Set<string>();
+  return [...hosts, ...tools].filter((recipient) => !named.has(recipient.facts.name) && named.add(recipient.facts.name));
 }
 
 /** The Tool with this id; none for any other. */

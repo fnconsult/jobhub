@@ -167,6 +167,13 @@ export const routes = {
    * address. Public.
    */
   legal: (text: LegalTextId = "cgu", version?: string) => `/legal/${text}${version ? `/${version}` : ""}`,
+  /**
+   * The Recipient list (ADR-0064, #338), « Destinataires des données »: generated from the Tool catalog at each request.
+   * Linked from the privacy policy, never from the footer. Public.
+   */
+  recipients: "/legal/destinataires",
+  /** « IA dans Jobbbox », the privacy policy's section (ADR-0064), where « En savoir plus » leads (#338). */
+  aiInJobbbox: "/legal/confidentialite#ia",
   /** A Legal Text's version history: each version with its effective date, change and line. */
   legalVersions: (text: LegalTextId) => `/legal/${text}/versions`,
   /** A Legal Text Version as a PDF to download (« Télécharger en PDF »), in the page's language. */

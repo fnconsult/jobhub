@@ -3794,7 +3794,9 @@
       "requestFailed": "La demande n'a pas pu être envoyée. Réessayez dans quelques instants.",
       "openInBackOfficeHelp": "Ouvrir dans l'aide du back office",
       "openInBackOfficeHelpAbout": "Ouvrir dans l'aide du back office : {{title}}"
-    }
+    },
+    "learnMore": "En savoir plus",
+    "learnMoreLabel": "En savoir plus sur l'IA dans Jobbbox"
   },
   "applicationStatuses": {
     "to_apply": "À postuler",
@@ -5026,7 +5028,9 @@
           "tailored_documents": "Rédaction du document échouée"
         }
       }
-    }
+    },
+    "learnMore": "En savoir plus",
+    "learnMoreLabel": "En savoir plus sur l'IA dans Jobbbox"
   },
   "signalement": {
     "open": "Signalement",
@@ -5412,6 +5416,26 @@
     "pdf": "Télécharger en PDF",
     "notPublishedTitle": "Ce texte n'est pas encore publié",
     "notPublished": "L'équipe Jobbbox le rédige. Il paraîtra ici dès qu'il sera publié."
+  },
+  "recipientList": {
+    "title": "Destinataires des données",
+    "changed": "Dernière modification le {{date}}",
+    "policy": "IA dans Jobbbox, dans la politique de confidentialité",
+    "fromPolicy": "Destinataires des données : qui reçoit quoi, et où",
+    "intro": "Pour faire fonctionner Jobbbox, les services ci-dessous reçoivent des données personnelles, ou des requêtes qui en sont tirées. Cette liste est établie à chaque visite à partir des services activés sur Jobbbox : un service désactivé n'y figure pas.",
+    "outsideEu": "Quand le lieu de traitement d'un service n'est pas établi, nous le comptons hors UE.",
+    "copy": "Pour obtenir une copie des garanties d'un transfert hors UE, écrivez-nous :",
+    "contact": "Nous contacter",
+    "residency": {
+      "eu": "Dans l'UE",
+      "outside_eu": "Hors UE",
+      "unknown": "Compté hors UE"
+    },
+    "purpose": "À quoi il sert",
+    "data": "Ce qu'il reçoit",
+    "entity": "Entité contractante",
+    "place": "Lieu de traitement",
+    "safeguard": "Garantie du transfert"
   },
   "legalTextNotice": {
     "email": {

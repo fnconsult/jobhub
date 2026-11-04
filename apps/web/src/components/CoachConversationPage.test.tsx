@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
@@ -146,6 +146,8 @@ describe("a Sidebar menu's conversation as its page: Mes candidatures (ADR-0070,
     vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   });
   afterEach(() => {
+    // Unmounted before the stubs go: a reply's glyph left mounted would ask matchMedia after it is gone.
+    cleanup();
     vi.unstubAllGlobals();
     window.history.replaceState(null, "", "/");
   });

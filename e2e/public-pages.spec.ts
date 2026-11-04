@@ -119,7 +119,8 @@ test.describe("Légal", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.legal.texts.cgu);
     await expect(page.getByRole("heading", { name: fr.legal.notPublishedTitle })).toBeVisible();
     const documents = page.getByRole("navigation", { name: fr.legal.documentsNav });
-    await expect(documents.getByRole("link")).toHaveText(Object.values(fr.legal.texts) as string[]);
+    // The Legal Texts, then the Recipient list (#338).
+    await expect(documents.getByRole("link")).toHaveText([...(Object.values(fr.legal.texts) as string[]), fr.recipientList.title]);
     await expect(documents.getByRole("link", { name: fr.legal.texts.cgu })).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("navigation", { name: fr.publicSite.nav }).getByRole("link", { name: fr.publicSite.legal })).toHaveAttribute("aria-current", "page");
     expect(await axeViolations(page)).toEqual([]);

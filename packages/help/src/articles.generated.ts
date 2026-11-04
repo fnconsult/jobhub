@@ -97,7 +97,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/aide",
       "motion": null,
       "microAnimations": [],
-      "body": "L'aide du back office réunit les pages, tutoriels et questions fréquentes écrits par l'équipe Jobbbox pour les administrateurs. Elle n'est jamais publique : le centre d'aide (/aide), sa recherche et le plan du site ne la montrent pas, et seuls les administrateurs l'ouvrent, quels que soient leurs rôles.\n\nLes articles sont rangés par rubrique : « Fournisseurs et Tools » d'abord, puis une rubrique par groupe du menu du back office, puis « IA et conformité ». « Chercher dans l'aide du back office » trouve un article par ses mots, sans IA.\n\nChaque section du back office montre aussi son article dans l'assistant, sous « Sur cette page ». L'assistant répond à partir des articles qu'il trouve et les cite. S'il n'en trouve aucun, cliquez sur « Demander un tutoriel » sous sa réponse : les rédacteurs de l'aide verront la question dans « Questions sans réponse », sans votre nom."
+      "body": "L'aide du back office réunit les pages, tutoriels et questions fréquentes écrits par l'équipe Jobbbox pour les administrateurs. Elle n'est jamais publique : le centre d'aide (/aide), sa recherche et le plan du site ne la montrent pas, et seuls les administrateurs l'ouvrent, quels que soient leurs rôles.\n\nLes articles sont rangés par rubrique : « Fournisseurs et Tools » d'abord, puis une rubrique par groupe du menu du back office, puis « IA et conformité ». « Chercher dans l'aide du back office » trouve un article par ses mots, sans IA.\n\nChaque section du back office montre aussi son article dans l'assistant, sous « Sur cette page ». L'assistant répond à partir des articles qu'il trouve et les cite. S'il n'en trouve aucun, cliquez sur « Demander un tutoriel » sous sa réponse : les rédacteurs de l'aide verront la question dans « Questions sans réponse », sans votre nom. À côté du badge « Assistant IA », « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité : où passe chaque usage de l'IA."
     },
     {
       "id": "page-admin-human-coaches",
@@ -221,6 +221,35 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Le Dashboard est la première page du back office. Il montre ce que la plateforme consomme et comment se porte la recherche d'offres. Chaque bloc n'apparaît qu'aux rôles qui lisent sa rubrique : sans aucun, la page affiche « Aucun indicateur pour vos rôles : la barre latérale mène à vos rubriques. »\n\nLe bloc « Recherche d'offres : consommation et budget » donne, pour le mois en cours, la « Dépense recherche web du mois » face au seuil d'alerte, le « Coût moyen d'un run » face au « Budget par run », le « Coût par nouvelle offre », les « Runs », les « Runs passés au secours » (sur le fournisseur de secours) et les « Appels IA en échec ». Ses graphiques montrent la dépense quotidienne par Search provider, le « Cumul du mois et seuil d'alerte » avec la fin de mois estimée, « Pourquoi les runs s'arrêtent » et « Où va le coût d'un run (moyenne) ». « Vue tableau » donne les mêmes chiffres en tableau. « Tout le détail dans Consommation IA » ouvre la page suivante.\n\nConsommation IA (menu Plateforme) compte chaque appel à l'IA, toutes tâches comprises, les outils que les modèles utilisent et les appels aux API externes (France Travail, enrichissement de contacts, Stripe, Brevo, connexion…). Choisissez la « Période » (« 7 derniers jours », « 30 derniers jours », « 90 derniers jours » ou « 12 derniers mois, par mois ») puis cliquez sur « Afficher ». La page détaille ensuite les « Totaux », « Par fournisseur, point d'accès et modèle », « Par tâche », « Par jour » ou « Par mois », les « Outils » et les « API externes ».\n\n« Échecs et avertissements par raison » compte les appels échoués ou en avertissement par Failure Reason : le code et son libellé seulement, jamais la raison technique. Pour lire un appel précis, un super-admin passe par Activité › Appels IA.\n\nLes coûts sont des estimations aux prix publics des fournisseurs, en dollars convertis en euros, figées au moment de chaque appel. Un outil sans prix connu est compté 0 et signalé « prix inconnu ». Ce sont des agrégats : aucun candidat, aucun texte. Quand le seuil d'alerte mensuel de la recherche web est atteint, un bandeau le dit et les super-admins sont prévenus par e-mail ; rien n'est coupé. Le seuil et les prix se règlent dans Paramètres.\n\nLes super-admins, Technique et le Support lisent ces deux pages ; personne n'y modifie rien."
+    },
+    {
+      "id": "page-recipient-list",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Destinataires des données",
+      "synonyms": [
+        "destinataires",
+        "destinataires des données",
+        "sous-traitants",
+        "fournisseurs",
+        "hors ue",
+        "transfert",
+        "garantie",
+        "clauses contractuelles types",
+        "data privacy framework",
+        "hébergeur",
+        "anthropic",
+        "claude",
+        "mistral",
+        "stripe",
+        "brevo"
+      ],
+      "route": "/legal/destinataires",
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Destinataires des données », sur la page Légal, nomme chaque service qui reçoit des données personnelles, ou des requêtes qui en sont tirées, pour faire fonctionner Jobbbox : l'hébergeur, les modèles d'IA, la recherche web, les paiements, les e-mails et la connexion. Elle s'ouvre depuis la politique de confidentialité, sans compte.\n\nPour chacun, elle dit « À quoi il sert », « Ce qu'il reçoit » (par exemple vos textes après Redaction, ou des requêtes seulement), l'« Entité contractante », le « Lieu de traitement » et la « Garantie du transfert » quand les données sortent de l'UE. Un service dont le lieu de traitement n'est pas établi est marqué « Compté hors UE ». Pour obtenir une copie des garanties d'un transfert, le lien « Nous contacter » de la page mène à l'équipe Jobbbox.\n\nLa liste est établie à chaque visite à partir des services activés : un service désactivé n'y figure pas. « Dernière modification le » donne le jour où elle a changé pour la dernière fois. Le lien « IA dans Jobbbox, dans la politique de confidentialité » mène à la section qui explique où passe chaque usage de l'IA."
     },
     {
       "id": "page-admin-email-intake",
@@ -1088,7 +1117,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\nPendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Chaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : le pointeur qui touche une carte, quand le coach lit vos candidatures, votre agenda ou votre profil, ou vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne."
+      "body": "« Activité IA » est le bouton en haut de la page qui montre ce que l'IA a fait pour la page ouverte. Il ouvre « Cette page » : les modèles d'IA, avec où ils ont tourné, les sources (les sites lus) et les outils qui ont produit ce que la page affiche, au total puis « Par élément ».\n\nLes tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.\n\nPendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Chaque étape a son glyphe, qui bouge tant qu'elle tourne :\n\n- « Réflexion » et « Vérification » : le cerveau ; « Rédaction » : la plume ; « Réflexion puis rédaction » : l'un puis l'autre ;\n- « Recherche » : la loupe ; « Recherche web » : la loupe, le globe puis le livre ; « Lecture » : le livre qui tourne ses pages ;\n- « Calcul » : les coches qui apparaissent une à une, pour les règles de Jobbbox, sans IA ;\n- « Consulte vos données » et « Prépare une proposition » : le pointeur qui touche une carte, quand le coach lit vos candidatures, votre agenda ou votre profil, ou vous prépare une proposition à accepter, sans IA ni modèle ; l'outil (Candidatures, Agenda…) est nommé « Par élément ».\n\nSi vous avez demandé moins d'animations sur votre appareil, chaque glyphe reste immobile.\n\nUne action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité."
     },
     {
       "id": "glossary-ats-score",
@@ -2066,7 +2095,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. Chaque texte se télécharge avec « Télécharger en PDF ».\n\nChaque texte porte sa date d'entrée en vigueur. Une version n'est jamais modifiée : une correction donne une nouvelle version. Le lien « Versions précédentes » mène à l'« Historique des versions » : chaque version, sa date, « Substantielle » ou « Mineure », et une ligne qui résume le changement.\n\nUne ancienne version reste lisible à son adresse datée, marquée « Version archivée : » avec le lien « voir la version en vigueur ». Une version substantielle à venir s'y lit déjà, marquée « Version à venir » avec sa date d'entrée en vigueur : l'e-mail qui vous en prévient y mène. Le texte français fait foi ; la traduction anglaise le rappelle en tête."
+      "body": "Sur la page Légal, ouverte à tous, sans compte : les Conditions générales d'utilisation, les Conditions générales de vente, la Politique de confidentialité (avec ses sections sur les cookies et sur l'IA dans Jobbbox) et les Mentions légales. « Destinataires des données » y nomme chaque service qui reçoit vos données. Chaque texte se télécharge avec « Télécharger en PDF ».\n\nChaque texte porte sa date d'entrée en vigueur. Une version n'est jamais modifiée : une correction donne une nouvelle version. Le lien « Versions précédentes » mène à l'« Historique des versions » : chaque version, sa date, « Substantielle » ou « Mineure », et une ligne qui résume le changement.\n\nUne ancienne version reste lisible à son adresse datée, marquée « Version archivée : » avec le lien « voir la version en vigueur ». Une version substantielle à venir s'y lit déjà, marquée « Version à venir » avec sa date d'entrée en vigueur : l'e-mail qui vous en prévient y mène. Le texte français fait foi ; la traduction anglaise le rappelle en tête."
     },
     {
       "id": "faq-where-to-find-help",
@@ -2331,7 +2360,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox se sert de ce que vous lui confiez, votre CV, vos critères et vos candidatures, pour vous aider dans votre recherche d'emploi. Votre coach et plusieurs tâches, comme lire votre CV ou calculer un score de correspondance, font appel à l'IA ; votre coach dit toujours qu'il est une IA. L'aide, elle, n'utilise aucune IA.\n\nAvec votre accord, dans Mon compte, rubrique IA européenne, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. Vous pouvez retirer cet accord à tout moment.\n\nDans Mon compte, rubrique Mes données, vous téléchargez toutes vos données ou supprimez votre compte.\n\nLe détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia)."
+      "body": "Jobbbox se sert de ce que vous lui confiez, votre CV, vos critères et vos candidatures, pour vous aider dans votre recherche d'emploi. Votre coach et plusieurs tâches, comme lire votre CV ou calculer un score de correspondance, font appel à l'IA ; votre coach dit toujours qu'il est une IA. L'aide, elle, n'utilise aucune IA.\n\nAvec votre accord, dans Mon compte, rubrique IA européenne, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. Vous pouvez retirer cet accord à tout moment.\n\nDans Mon compte, rubrique Mes données, vous téléchargez toutes vos données ou supprimez votre compte.\n\nLe détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia). Les services qui reçoivent vos données, où ils les traitent et avec quelle garantie, sont nommés dans [Destinataires des données](/legal/destinataires)."
     },
     {
       "id": "faq-rescore-why-match-score",
@@ -3507,7 +3536,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/aide",
       "motion": null,
       "microAnimations": [],
-      "body": "The back office help gathers the pages, tutorials and frequent questions the Jobbbox team writes for Administrators. It is never public: the Help Centre (/aide), its search and the sitemap never show it, and only Administrators open it, whatever their roles.\n\nArticles are sorted by topic: « Providers and Tools » first, then one topic per group of the back office menu, then « AI and compliance ». « Search the back office help » finds an article by its words, without AI.\n\nEach back office section also shows its article in the assistant, under « On this page ». The assistant answers from the articles it finds and cites them. When it finds none, click « Request a tutorial » under its reply: the help editors will see the question in « Unanswered questions », without your name."
+      "body": "The back office help gathers the pages, tutorials and frequent questions the Jobbbox team writes for Administrators. It is never public: the Help Centre (/aide), its search and the sitemap never show it, and only Administrators open it, whatever their roles.\n\nArticles are sorted by topic: « Providers and Tools » first, then one topic per group of the back office menu, then « AI and compliance ». « Search the back office help » finds an article by its words, without AI.\n\nEach back office section also shows its article in the assistant, under « On this page ». The assistant answers from the articles it finds and cites them. When it finds none, click « Request a tutorial » under its reply: the help editors will see the question in « Unanswered questions », without your name. Beside the « AI Assistant » badge, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy: where each use of AI goes."
     },
     {
       "id": "page-subscription-reduction",
@@ -3623,6 +3652,36 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "The Dashboard is the back office's first page. It shows what the platform consumes and how Job discovery is doing. Each block shows only to the roles that read its section: with none, the page shows « No figures for your roles: the sidebar leads to your sections. »\n\nThe « Job discovery: consumption and budget » block gives, for the current month, the « Web search spend this month » against the alert threshold, the « Average cost of a run » against the « Budget per run », the « Cost per new Job Offer », the « Runs », the « Runs that fell back » (to the fallback provider) and the « Failed AI calls ». Its charts show the daily spend per Search provider, « Month to date against the alert threshold » with the month-end estimate, « Why runs stop » and « Where a run's cost goes (average) ». « Table view » gives the same figures as tables. « Every detail in AI consumption » opens the next page.\n\nAI consumption (Platform menu) counts every AI call, all tasks included, the tools the models use and the calls to external APIs (France Travail, contact enrichment, Stripe, Brevo, sign-in…). Choose the « Period » (« Last 7 days », « Last 30 days », « Last 90 days » or « Last 12 months, per month ») and click « Show ». The page then details the « Totals », « By provider, endpoint and model », « By task », « Per day » or « Per month », the « Tools » and the « External APIs ».\n\n« Failures and warnings per reason » counts the failed and warned calls per Failure Reason: the code and its wording only, never the technical reason. To read one call, a super-admin goes to Activity › AI calls.\n\nCosts are estimates at the providers' list prices, in dollars converted to euros, fixed when each call was made. A tool with no known price counts as 0 and shows « unknown price ». These are aggregates: no Candidate, no text. When web search reaches its monthly alert threshold, a banner says so and super-admins are emailed; nothing is cut. The threshold and the prices are set in Paramètres.\n\nSuper-admins, Technique and Support read both pages; no one changes anything there."
+    },
+    {
+      "id": "page-recipient-list",
+      "locale": "en",
+      "kind": "page",
+      "audience": "visitor",
+      "topic": "decouvrir",
+      "title": "Data recipients",
+      "synonyms": [
+        "recipients",
+        "data recipients",
+        "processors",
+        "sub-processors",
+        "providers",
+        "outside the eu",
+        "transfer",
+        "safeguard",
+        "standard contractual clauses",
+        "data privacy framework",
+        "host",
+        "anthropic",
+        "claude",
+        "mistral",
+        "stripe",
+        "brevo"
+      ],
+      "route": "/legal/destinataires",
+      "motion": null,
+      "microAnimations": [],
+      "body": "« Data recipients », on the Legal page, names each service that receives personal data, or queries drawn from it, to run Jobbbox: the host, the AI models, web search, payments, emails and sign-in. It opens from the privacy policy, without an account.\n\nFor each one, it says « What it is for », « What it receives » (for example your texts after Redaction, or queries only), the « Contracting entity », « Where it processes data » and the « Transfer safeguard » when the data leaves the EU. A service whose place of processing is not established is marked « Counted as outside the EU ». To get a copy of a transfer's safeguards, the page's « Contact us » link leads to the Jobbbox team.\n\nThe list is drawn up at each visit from the services switched on: a service switched off is not on it. « Last changed on » gives the day it last changed. The link « AI in Jobbbox, in the privacy policy » leads to the section that explains where each use of AI goes."
     },
     {
       "id": "page-admin-delivery",
@@ -4400,7 +4459,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\nWhile an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. Each step has its glyph, which moves while it runs:\n\n- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;\n- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;\n- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;\n- « Looking at your data » and « Preparing a proposal »: the pointer touching a card, when the coach reads your applications, your agenda or your profile, or prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».\n\nIf you asked your device for less motion, each glyph stays still.\n\nA stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting."
+      "body": "« AI activity » is the button at the top of the page that shows what AI did for the open page. It opens « This page »: the AI models, with where they ran, the sources (the sites read) and the tools that produced what the page shows, in total then « By item ».\n\nTokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.\n\nWhile an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. Each step has its glyph, which moves while it runs:\n\n- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;\n- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;\n- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;\n- « Looking at your data » and « Preparing a proposal »: the pointer touching a card, when the coach reads your applications, your agenda or your profile, or prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».\n\nIf you asked your device for less motion, each glyph stays still.\n\nA stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting. At the bottom, « Learn more » leads to the « AI in Jobbbox » section of the privacy policy."
     },
     {
       "id": "glossary-ai-coach",
@@ -5532,7 +5591,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Jobbbox uses what you entrust to it, your CV, your criteria and your applications, to help you with your job search. Your coach and several tasks, such as reading your CV or working out a match score, use AI; your coach always says it is an AI. The help, for its part, uses no AI.\n\nWith your consent, in My account, under European AI, each request to the AI that holds your identity data is handled by Mistral AI, a European AI provider. You can withdraw this consent at any time.\n\nIn My account, under My data, you download all your data or delete your account.\n\nThe details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
+      "body": "Jobbbox uses what you entrust to it, your CV, your criteria and your applications, to help you with your job search. Your coach and several tasks, such as reading your CV or working out a match score, use AI; your coach always says it is an AI. The help, for its part, uses no AI.\n\nWith your consent, in My account, under European AI, each request to the AI that holds your identity data is handled by Mistral AI, a European AI provider. You can withdraw this consent at any time.\n\nIn My account, under My data, you download all your data or delete your account.\n\nThe details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia). The services that receive your data, where they process it and with what safeguard, are named in [Data recipients](/legal/destinataires)."
     },
     {
       "id": "faq-company-dossier",
@@ -5653,7 +5712,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "On the Legal page, open to everyone, with no account: the Terms of use, the Terms of sale, the Privacy policy (with its sections on cookies and on AI in Jobbbox) and the Legal notice. Each text downloads with « Download as PDF ».\n\nEach text shows the date it took effect. A version is never changed: a correction makes a new version. The « Previous versions » link leads to the « Version history »: each version, its date, « Substantial » or « Minor », and a line that sums up the change.\n\nAn earlier version stays readable at its dated address, marked « Archived version: » with the link « see the version in effect ». An upcoming substantial version can already be read there, marked « Upcoming version » with the date it takes effect: the email telling you of it leads there. The French text prevails; the English translation says so at the top."
+      "body": "On the Legal page, open to everyone, with no account: the Terms of use, the Terms of sale, the Privacy policy (with its sections on cookies and on AI in Jobbbox) and the Legal notice. « Data recipients » there names each service that receives your data. Each text downloads with « Download as PDF ».\n\nEach text shows the date it took effect. A version is never changed: a correction makes a new version. The « Previous versions » link leads to the « Version history »: each version, its date, « Substantial » or « Minor », and a line that sums up the change.\n\nAn earlier version stays readable at its dated address, marked « Archived version: » with the link « see the version in effect ». An upcoming substantial version can already be read there, marked « Upcoming version » with the date it takes effect: the email telling you of it leads there. The French text prevails; the English translation says so at the top."
     },
     {
       "id": "faq-where-to-find-help",

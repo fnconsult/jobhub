@@ -7,6 +7,7 @@
  */
 import type { APIRequestContext } from "@playwright/test";
 import type { HelpLocale } from "@jobhub/help";
+import { applicationsResponseSchema, profilesResponseSchema } from "@jobhub/shared/reads";
 
 /** The demo Candidate's address: a reserved test domain, which nobody receives mail at. */
 export const DEMO_EMAIL = "claire.demo@motions.jobbbox.test";
@@ -42,10 +43,12 @@ export async function seedDemoCandidate(request: APIRequestContext, origin: stri
     return response;
   };
   await ok(await request.post("/api/auth/update-user", { headers, data: { interfaceLanguage: locale } }), "set the Interface Language");
-  const profiles = (await (await ok(await request.get("/api/profiles"), "list the Profiles")).json()) as { id: string }[];
+  // Read through the app's own read contract (@jobhub/shared/reads): a change of shape breaks the seed loudly, rather than
+  // leaving it a guard that never holds and re-saves the demo Applications on every run (#684).
+  const profiles = profilesResponseSchema.parse(await (await ok(await request.get("/api/profiles"), "list the Profiles")).json());
   const profileId = profiles[0]?.id ?? ((await (await ok(await request.post("/api/profiles", { headers, data: DEMO_PROFILE }), "create the Profile")).json()) as { id: string }).id;
-  const existing = (await (await ok(await request.get("/api/applications"), "list the Applications")).json()) as unknown[];
-  if (existing.length > 0) return;
+  const { applications } = applicationsResponseSchema.parse(await (await ok(await request.get("/api/applications"), "list the Applications")).json());
+  if (applications.length > 0) return;
   for (const [index, application] of DEMO_APPLICATIONS.entries()) {
     const offer = await ok(
       await request.post("/api/job-offers", {

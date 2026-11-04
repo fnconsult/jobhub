@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { applicationResponseSchema } from "@jobhub/shared/reads";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
@@ -255,7 +256,8 @@ test.describe("Expired Job Offers: confirmation, scope and Reported Unavailable"
     // The shared Job Offer is not expired, and the other Candidate's Application is not flagged.
     expect(await expiredAt(page.request, offerIds.stable)).toBeUndefined();
     const theirs = await other.request.get(`/api/applications/${otherApplicationId}`);
-    expect((await theirs.json()).jobOffer.expiredAt).toBeUndefined();
+    // GET /api/applications/:id answers an absent value as null (#684), the shape the app reads.
+    expect(applicationResponseSchema.parse(await theirs.json()).jobOffer.expiredAt).toBeNull();
     await other.goto(`/candidatures/${otherApplicationId}`);
     await expect(other.getByRole("heading", { level: 1 })).toHaveText(titleOf("stable"));
     await expect(other.getByText(fr.applications.expired, { exact: true })).toHaveCount(0);

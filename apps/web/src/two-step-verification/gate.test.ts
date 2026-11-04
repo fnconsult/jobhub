@@ -42,6 +42,23 @@ describe("what a session pending its second step reaches (ADR-0075)", () => {
     expect(pendingSessionGate(SECOND_STEP_ENDPOINT.replace("second-step", "other"), "POST")).toBe("refuse");
   });
 
+  it.each([
+    "/api/applications",
+    "/api/applications/0c7c2a49-3b7a-4c6e-9f5e-1d2a3b4c5d6e",
+    "/api/applications/0c7c2a49-3b7a-4c6e-9f5e-1d2a3b4c5d6e/documents",
+    "/api/job-searches",
+    "/api/job-searches/0c7c2a49-3b7a-4c6e-9f5e-1d2a3b4c5d6e",
+    "/api/job-digests",
+    "/api/agenda?periode=passes",
+    "/api/coaching",
+    "/api/profiles",
+    "/api/profiles/0c7c2a49-3b7a-4c6e-9f5e-1d2a3b4c5d6e",
+    "/api/coach/conversations?free=1",
+    "/api/coach/conversations?kind=menu&id=agenda",
+  ])("refuses the Jobbbox app's read %s with second_step_required (#684)", (path) => {
+    expect(pendingSessionGate(path, "GET")).toBe("refuse");
+  });
+
   it("still loads what the second step's page is drawn with: Next's files, the logos", () => {
     expect(pendingSessionGate("/_next/static/chunks/app.js", "GET")).toBe("open");
     expect(pendingSessionGate("/logos/jobbbox.svg", "GET")).toBe("open");

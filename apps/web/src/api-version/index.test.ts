@@ -1,4 +1,4 @@
-import { API_VERSION, API_VERSION_HEADER, EXTENSION_OUTDATED } from "@jobhub/shared";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { apiVersionRefusal, underApiContract } from ".";
 
@@ -70,5 +70,34 @@ describe("the API Version's guard (#564)", () => {
     let reads = 0;
     apiVersionRefusal("/api/job-offers", headers({ origin: EXTENSION, [API_VERSION_HEADER]: String(API_VERSION) }), () => (reads++, STORE));
     expect(reads).toBe(0);
+  });
+
+  describe("the Jobbbox app, a mobile client (#684, ADR-0076)", () => {
+    /** What the app sends on every call: no Origin and no Sec-Fetch headers (a native fetch), its client and its API Version. */
+    const app = (version?: string) => ({ [API_CLIENT_HEADER]: MOBILE_CLIENT, ...(version === undefined ? {} : { [API_VERSION_HEADER]: version }) });
+    /** The GETs the app reads its cards with, and a route it writes with. */
+    const APP_ROUTES = ["/api/applications", "/api/applications/abc", "/api/job-searches", "/api/job-digests", "/api/agenda", "/api/coaching", "/api/profiles", "/api/coach/conversations"];
+
+    it.each(APP_ROUTES)("knows the app's request to %s by its client header, as it knows the extension's by its origin", (route) => {
+      expect(underApiContract(route, headers(app()))).toBe(true);
+    });
+
+    it.each(APP_ROUTES)("serves %s to the app stating the current API Version", (route) => {
+      expect(refusal(route, app(String(API_VERSION)))).toBeNull();
+    });
+
+    it("answers an outdated app 426 with the app's own code, never the extension's store page", () => {
+      // The store pages of the app (App Store, Play) come with its builds (#704): none is named yet.
+      expect(refusal("/api/applications", app())).toEqual({ error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION });
+      expect(refusal("/api/agenda", app(String(API_VERSION - 1)))).toEqual({ error: APP_OUTDATED, storeUrl: null, apiVersion: API_VERSION });
+    });
+
+    it("leaves the app's sign-in, the health check and the webhooks out, as for the extension", () => {
+      for (const route of ["/api/health", "/api/auth/get-session", "/api/billing/webhook"]) expect(refusal(route, app())).toBeNull();
+    });
+
+    it("ignores a client header naming no client it knows", () => {
+      expect(underApiContract("/api/applications", headers({ [API_CLIENT_HEADER]: "desktop" }))).toBe(false);
+    });
   });
 });

@@ -50,12 +50,13 @@ export function mapTexts(messages: readonly TurnMessage[], map: (texts: string[]
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, each]) => [key, rebuild(each)]));
     return value;
   };
-  return messages.map(({ role, content }) => ({
-    role,
+  // Each message keeps its own fields: a call without tools sends what it always sent.
+  return messages.map((message) => ({
+    ...message,
     content:
-      typeof content === "string"
+      typeof message.content === "string"
         ? take()
-        : content.map((block): ContentBlock => {
+        : message.content.map((block): ContentBlock => {
             switch (block.type) {
               case "text":
                 return { ...block, text: take() };
@@ -66,4 +67,11 @@ export function mapTexts(messages: readonly TurnMessage[], map: (texts: string[]
             }
           }),
   }));
+}
+
+/** Every text the conversation holds, in the order `mapTexts` gives them. */
+export function textsIn(messages: readonly TurnMessage[]): string[] {
+  let texts: string[] = [];
+  mapTexts(messages, (all) => (texts = all));
+  return texts;
 }

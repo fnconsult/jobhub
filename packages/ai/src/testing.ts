@@ -14,6 +14,7 @@ import type {
   TextOutput,
   TokenUsage,
   ToolCall,
+  ToolCallBlock,
   UsageEntry,
   UsageLog,
 } from "./types";
@@ -45,9 +46,32 @@ export interface FakeProviderOptions {
   /** Thrown by every call (generation and search), after it is counted: a provider that fails, e.g. with an AiProviderError. */
   fail?: Error;
   /**
+   * Scripted turns of a call with tools (#712): each text call takes the next one, the last one repeating. A turn calls
+   * its `toolCalls` (each given the id `call_<n>`, counted across the fake's calls, unless it names one), only when the
+   * input offers tools it may call (`tools`, and not `toolChoice: "none"`), as a real model can; else it answers its
+   * `text` (default: `reply`). Default: no script, every call answers `reply`.
+   */
+  turns?: FakeTurn[];
+  /** Whether it declares tool calling (`AiProvider.toolCalling`). Default: it does, as every text provider does. */
+  toolCalling?: boolean;
+  /**
    * Every call, once counted, never answers: it waits for its signal to abort, then rejects with the signal's
    * reason, as `fetch` does (#325). Default: it answers at once.
    */
+  pending?: boolean;
+}
+
+/** One scripted turn of the fake model (`FakeProviderOptions.turns`). */
+export interface FakeTurn {
+  /** Its text. Default: none when it calls tools, else the fake's `reply`. */
+  text?: string;
+  /** The tools it calls, with their arguments; the id is `call_<n>` unless given. */
+  toolCalls?: { name: string; arguments: unknown; id?: string }[];
+  /** Its tokens. Default: the fake's `usage`. */
+  usage?: TokenUsage;
+  /** Thrown instead of answering. */
+  fail?: Error;
+  /** It waits for its signal to abort, as `pending` (default: the fake's). */
   pending?: boolean;
 }
 
@@ -66,10 +90,11 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
   const calls: TextInput[] = [];
   const queries: string[] = [];
   const searches: FakeProvider["searches"] = [];
+  let toolCallIds = 0;
   /** Settles with nothing, or rejects as `fetch` does once `signal` aborts (`pending` never settles otherwise). */
-  const answering = (signal: AbortSignal | undefined): Promise<void> => {
+  const answering = (signal: AbortSignal | undefined, pending = options.pending): Promise<void> => {
     if (signal?.aborted) return Promise.reject(signal.reason);
-    if (!options.pending) return Promise.resolve();
+    if (!pending) return Promise.resolve();
     return new Promise((_, reject) => signal?.addEventListener("abort", () => reject(signal.reason), { once: true }));
   };
   return {
@@ -78,6 +103,7 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
     defaultModel: `fake-${id}`,
     models: options.models ?? [`fake-${id}`],
     residency: options.residency ?? "eu",
+    toolCalling: options.toolCalling ?? true,
     calls,
     queries,
     searches,
@@ -95,10 +121,21 @@ export function createFakeProvider(options: FakeProviderOptions = {}): FakeProvi
       : {}),
     async generate(input): Promise<TextOutput> {
       calls.push(input);
-      await answering(input.signal);
-      if (options.fail) throw options.fail;
-      const reply = options.reply ?? "fake reply";
-      return { text: typeof reply === "function" ? reply(input) : reply, model: input.model ?? `fake-${id}`, usage, ...(options.tools ? { tools: options.tools } : {}) };
+      const turns = options.turns ?? [];
+      const turn = turns[Math.min(calls.length, turns.length) - 1];
+      await answering(input.signal, turn?.pending ?? options.pending);
+      if (turn?.fail ?? options.fail) throw turn?.fail ?? options.fail;
+      const mayCall = Boolean(input.tools?.length) && input.toolChoice !== "none";
+      const toolCalls: ToolCallBlock[] = mayCall ? (turn?.toolCalls ?? []).map((call) => ({ type: "tool_call", id: call.id ?? `call_${++toolCallIds}`, name: call.name, arguments: call.arguments })) : [];
+      // A turn that calls tools has no text unless scripted, as a model calling a tool often writes none.
+      const reply = turn?.text ?? (toolCalls.length > 0 ? "" : (options.reply ?? "fake reply"));
+      return {
+        text: typeof reply === "function" ? reply(input) : reply,
+        model: input.model ?? `fake-${id}`,
+        usage: turn?.usage ?? usage,
+        ...(options.tools ? { tools: options.tools } : {}),
+        ...(toolCalls.length > 0 ? { toolCalls } : {}),
+      };
     },
     async search(asked, { model, filters, page, signal }): Promise<SearchOutput> {
       const all = [asked].flat();

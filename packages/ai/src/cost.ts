@@ -155,10 +155,16 @@ export interface PricedCall {
   model: string;
   usage: TokenUsage;
   sources?: unknown[];
+  /** A text call with tools (#712): each of its turns, then priced one by one, its cost their sum. */
+  turns?: readonly Omit<PricedCall, "turns" | "sources">[];
 }
 
-/** The cost in € of one AI call's tokens (a `generate`, `searchWeb` or `searchCompany` result); a web search's adds one call's fee. */
+/**
+ * The cost in € of one AI call's tokens (a `generate`, `searchWeb` or `searchCompany` result); a web search's adds one call's
+ * fee. A text call with tools costs the sum of its turns (#712), each at its own provider's and model's price.
+ */
 export function costInEur(call: PricedCall, prices: Prices = LIST_PRICES): number {
+  if (call.turns?.length) return call.turns.reduce((sum, turn) => sum + costInEur(turn, prices), 0);
   const price = tokenPriceOf(call.provider, call.model);
   const { inputTokens, outputTokens, cachedInputTokens = 0, cacheWriteTokens = 0 } = call.usage;
   const input = (inputTokens + cacheWriteTokens * (CACHE_WRITE - 1) + cachedInputTokens * (price.cacheRead ?? CACHE_READ)) * price.input;

@@ -104,3 +104,19 @@ describe("Design tokens, Inter, Lucide and translations", () => {
     expect(createI18n("en").t("conversationFirst.newConversation")).not.toBe("Nouvelle conversation");
   });
 });
+
+describe("App lock (#702)", () => {
+  const plugin = (name: string) => expo.plugins.find((entry: unknown) => entry === name || (Array.isArray(entry) && entry[0] === name));
+
+  // Without NSFaceIDUsageDescription, an iPhone with Face ID would ask for the device's code instead.
+  it("gives iOS its reason for Face ID, so the lock asks for Face ID and not only the code", () => {
+    const localAuthentication = plugin("expo-local-authentication");
+    expect(Array.isArray(localAuthentication)).toBe(true);
+    expect(localAuthentication[1].faceIDPermission).toMatch(/Face ID/);
+  });
+
+  it("uses the SDK's own versions of the lock's native modules", () => {
+    const bundled = json("node_modules", "expo", "bundledNativeModules.json");
+    for (const name of ["expo-local-authentication", "expo-screen-capture", "expo-secure-store"]) expect(pkg.dependencies[name]).toBe(bundled[name]);
+  });
+});

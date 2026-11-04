@@ -20,6 +20,7 @@
       "expo-router",
       "expo-localization",
       "expo-screen-orientation",
+      ["expo-local-authentication", { "faceIDPermission": "Jobbbox utilise Face ID pour se déverrouiller quand « Verrouiller l'app » est activé dans ses réglages." }],
       ["expo-build-properties", { "android": { "minSdkVersion": 24 } }]
     ]
   }

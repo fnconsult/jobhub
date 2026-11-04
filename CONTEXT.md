@@ -746,6 +746,14 @@ What the page in the active tab of the Side Panel's window reads as: a Job Site'
 The native app for iOS, iPadOS and Android, phones and tablets, used by Candidates and Human Coaches (ADR-0076). A companion to the web app on the same API and the same session: the conversations, Applications, Job Offers, Agenda and Human Coaches are native, and Mon compte, the subscription, the Legal Texts and the Master CV open as web pages inside it. Its text follows the system's text size, not the Text Size.
 _Avoid_: Mobile site, PWA, native client
 
+**App settings** (« Réglages de l'app »):
+The device's own settings in the Jobbbox app, at the foot of the drawer below Mon compte, which holds the account's settings. Kept on that device only, never restored onto another and never sent to Jobbbox; the web app has no such page.
+_Avoid_: Preferences (that is Mon compte's Préférences)
+
+**App lock** (« Verrouiller l'app »):
+An App setting, off by default: the Jobbbox app asks Face ID, a fingerprint or the device's code when it starts and when it returns after 5 minutes or more in the background, and hides its content from the app switcher. The device's code is the fallback; if the device has none left, the lock turns itself off. Not a second step: the session and Two-step verification are unchanged (ADR-0081).
+_Avoid_: PIN, second factor
+
 **Disposition**:
 In the Jobbbox app, the decision of where the Sidebar, the Fiche, the Activité column and the Work Pane go, column or full page or drawer, from the window's width in rem (ADR-0070's thresholds, ADR-0076). Computed again whenever the window changes (rotation, Split View, Stage Manager, a foldable); a phone and a tablet differ only by it.
 

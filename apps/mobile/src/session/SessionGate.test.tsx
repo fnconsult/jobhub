@@ -9,6 +9,10 @@ import { fakeWebApp, memoryStorage, TEST_BASE_URL } from "./testing";
 
 const EMAIL = "marie.dupont@example.fr";
 
+// Typing an address and a code key by key, on a loaded CI runner, takes longer than Jest's 5 s (the first test also pays
+// for rendering the app cold).
+jest.setTimeout(30_000);
+
 function SignedInPage() {
   const { signOut } = useSession();
   return <><Text>La conversation</Text><Control label="Se déconnecter" onPress={signOut} /></>;

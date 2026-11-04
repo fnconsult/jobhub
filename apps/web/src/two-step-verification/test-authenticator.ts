@@ -36,8 +36,11 @@ export interface TestAuthenticator {
   readonly credentialId: string;
   /** The registration response to `options` (from /passkey/generate-register-options). */
   register(options: { challenge: string; rp: { id?: string } }): Record<string, unknown>;
-  /** The authentication response to `options` (from the second step's passkey challenge). */
-  authenticate(options: { challenge: string; rpId?: string }): Record<string, unknown>;
+  /**
+   * The authentication response to `options` (from the second step's passkey challenge), made at `origin`: by default the
+   * key's own, or another, as the native app's (an Android app's signing certificate, #688) for a passkey of the site.
+   */
+  authenticate(options: { challenge: string; rpId?: string }, origin?: string): Record<string, unknown>;
 }
 
 export function createTestAuthenticator({ origin, aaguid = new Uint8Array(16) }: { origin: string; aaguid?: Uint8Array }): TestAuthenticator {
@@ -46,7 +49,7 @@ export function createTestAuthenticator({ origin, aaguid = new Uint8Array(16) }:
   const id = randomBytes(16);
   let counter = 0;
   const rpIdOf = (rpId: string | undefined) => rpId ?? new URL(origin).hostname;
-  const clientData = (type: string, challenge: string) => Buffer.from(JSON.stringify({ type, challenge, origin, crossOrigin: false }));
+  const clientData = (type: string, challenge: string, at = origin) => Buffer.from(JSON.stringify({ type, challenge, origin: at, crossOrigin: false }));
   const counterBytes = () => {
     const bytes = Buffer.alloc(4);
     bytes.writeUInt32BE(++counter);
@@ -87,8 +90,8 @@ export function createTestAuthenticator({ origin, aaguid = new Uint8Array(16) }:
       };
     },
 
-    authenticate(options) {
-      const clientDataJSON = clientData("webauthn.get", options.challenge);
+    authenticate(options, at) {
+      const clientDataJSON = clientData("webauthn.get", options.challenge, at);
       const authenticatorData = Buffer.concat([sha256(rpIdOf(options.rpId)), Buffer.from([0x05]), counterBytes()]);
       const signature = sign("sha256", Buffer.concat([authenticatorData, sha256(clientDataJSON)]), privateKey);
       return {

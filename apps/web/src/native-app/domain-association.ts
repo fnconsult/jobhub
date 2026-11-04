@@ -46,6 +46,14 @@ function androidCertificates(env: Env): string[] {
     .filter(Boolean);
 }
 
+/**
+ * The origins the Android app's passkey answers carry (#688): `android:apk-key-hash:` and the SHA-256 of the certificate
+ * it is signed with, base64url, one per certificate of ANDROID_CERT_SHA256. The iOS app's carry the site's own origin.
+ */
+export function androidAppOrigins(env: Env): string[] {
+  return androidCertificates(env).map((fingerprint) => `android:apk-key-hash:${Buffer.from(fingerprint.replace(/:/g, ""), "hex").toString("base64url")}`);
+}
+
 /** The answer at `file`: its JSON (no redirect, as Apple and Android require), or 404 when not configured. */
 export function domainAssociationResponse(file: DomainAssociationFile, env: Env): Response {
   const body = domainAssociation(file, env);

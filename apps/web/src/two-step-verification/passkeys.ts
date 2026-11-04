@@ -4,18 +4,27 @@
  * check signs in, with no pending session to finish.
  */
 import { getAuthenticatorName } from "@better-auth/passkey";
+import { androidAppOrigins } from "../native-app/domain-association";
 import { generateAuthenticationOptions, verifyAuthenticationResponse, type AuthenticationResponseJSON, type PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/server";
 
-/** Who the passkeys are made for: the web app's host (WebAuthn's RP ID) and its origin. One per environment. */
+/**
+ * Who the passkeys are made for: the web app's host (WebAuthn's RP ID) and its origin. One per environment. The native
+ * app uses the same passkeys (#688): the iOS app's answers carry the web's origin, the Android app's its `appOrigins`.
+ */
 export interface RelyingParty {
   id: string;
   origin: string;
+  /** The Android app's origins, one per certificate it is signed with (androidAppOrigins): accepted for a second step. */
+  appOrigins?: readonly string[];
 }
 
-/** The relying party of the web app at `baseURL`: a passkey made on one host does not work on another. */
-export function relyingPartyOf(baseURL: string): RelyingParty {
+/**
+ * The relying party of the web app at `baseURL`: a passkey made on one host does not work on another. `env` names the
+ * Android app's signing certificates (ANDROID_CERT_SHA256), whose answers are taken too.
+ */
+export function relyingPartyOf(baseURL: string, env: Record<string, string | undefined> = {}): RelyingParty {
   const url = new URL(baseURL);
-  return { id: url.hostname, origin: url.origin };
+  return { id: url.hostname, origin: url.origin, appOrigins: androidAppOrigins(env) };
 }
 
 /** What the browser is asked to sign (WebAuthn's PublicKeyCredentialRequestOptions, as JSON). */
@@ -54,7 +63,7 @@ export async function checkedPasskey(relyingParty: RelyingParty, passkey: Stored
     const { verified, authenticationInfo } = await verifyAuthenticationResponse({
       response: response as AuthenticationResponseJSON,
       expectedChallenge: challenge,
-      expectedOrigin: relyingParty.origin,
+      expectedOrigin: [relyingParty.origin, ...(relyingParty.appOrigins ?? [])],
       expectedRPID: relyingParty.id,
       credential: { id: passkey.credentialID, publicKey: new Uint8Array(Buffer.from(passkey.publicKey, "base64")), counter: Number(passkey.counter), transports: transportsOf(passkey.transports) },
       requireUserVerification: false,

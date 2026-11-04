@@ -2,11 +2,25 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { migrateDatabase } from "../migrations";
+import { relyingPartyOf } from "./passkeys";
 import { createTwoStepVerification, RECENT_SECOND_STEP_MINUTES, resetTwoStepVerification, type TwoStepVerification } from "./index";
 import { addTestPasskey, createTestAuthenticator, type TestAuthenticator } from "./test-authenticator";
 import { totpAt } from "./totp";
 
 const SECRET = "test-secret-test-secret-test-secret-0123";
+/** Two certificates the Android app is signed with (ANDROID_CERT_SHA256), and the origin each signs its passkey answers with. */
+const ANDROID_CERT_SHA256 = "AA:BB:CC, 01:02:03:FB:FF";
+const ANDROID_ORIGINS = ["android:apk-key-hash:qrvM", "android:apk-key-hash:AQID-_8"];
+
+describe("who passkeys are made for (#664, #688)", () => {
+  it("is the web app's host, its passkeys used on its own origin", () => {
+    expect(relyingPartyOf("https://jobbbox.ai/")).toEqual({ id: "jobbbox.ai", origin: "https://jobbbox.ai", appOrigins: [] });
+  });
+
+  it("also takes them through the Android app, whose answers name its signing certificate, base64url, as their origin", () => {
+    expect(relyingPartyOf("https://staging.jobbbox.ai", { ANDROID_CERT_SHA256 })).toEqual({ id: "staging.jobbbox.ai", origin: "https://staging.jobbbox.ai", appOrigins: ANDROID_ORIGINS });
+  });
+});
 
 // Passkeys as the second step (#664, ADR-0075): added in Mon compte through @better-auth/passkey, checked by ours.
 describe.skipIf(!connectionString)("Two-step verification with passkeys (needs Postgres: DATABASE_URL)", () => {
@@ -121,6 +135,22 @@ describe.skipIf(!connectionString)("Two-step verification with passkeys (needs P
 
     for (let attempt = 1; attempt < 5; attempt++) expect(await secondStepWith(marie, elsewhere)).toEqual({ ok: false, error: "invalid_passkey" });
     expect(await secondStepWith(marie, elsewhere)).toEqual({ ok: false, error: "locked", retryAt: expect.any(Date) });
+  });
+
+  it("takes the site's passkey through the native app (#688): on Android, from an app signed with a listed certificate alone", async () => {
+    twoStep = createTwoStepVerification(database, { secret: SECRET, now: () => now, relyingParty: relyingPartyOf(BASE_URL, { ANDROID_CERT_SHA256 }) });
+    const { key } = await addPasskey(marie, "Téléphone");
+    await twoStep.enableWithPasskey(marie);
+    const next = await signedIn("marie.dupont@example.fr");
+    await pending(next.sessionId);
+
+    const otherApp = key.authenticate((await twoStep.passkeyChallenge(next))!, "android:apk-key-hash:AAAA");
+    expect(await twoStep.verifyPasskey(next, otherApp)).toEqual({ ok: false, error: "invalid_passkey" });
+    expect(await isPending(next.sessionId)).toBe(true);
+
+    const app = key.authenticate((await twoStep.passkeyChallenge(next))!, ANDROID_ORIGINS[1]);
+    expect(await twoStep.verifyPasskey(next, app)).toEqual({ ok: true, factor: "passkey" });
+    expect(await isPending(next.sessionId)).toBe(false);
   });
 
   it("still takes the backup codes when it was turned on with a passkey", async () => {

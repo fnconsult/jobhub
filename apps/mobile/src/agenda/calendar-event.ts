@@ -32,10 +32,13 @@ const WEB_ADDRESS = /https?:\/\/[^\s<>"]+/i;
 /** Punctuation that ends a sentence rather than an address. */
 const TRAILING_PUNCTUATION = /[.,;:!?)\]}'»]+$/;
 
-/** The first http or https web address in `value`, the sentence's punctuation after it left out. */
+/**
+ * The first http or https web address in `value`, the sentence's punctuation after it left out. Matched, not parsed:
+ * React Native's URL has no `canParse`.
+ */
 function webAddressIn(value: string | undefined): string | undefined {
   const address = value?.match(WEB_ADDRESS)?.[0].replace(TRAILING_PUNCTUATION, "");
-  return address && URL.canParse(address) ? address : undefined;
+  return address && /^https?:\/\/[^/?#]+/i.test(address) ? address : undefined;
 }
 
 /** Whether `item` can go to a calendar: every dated Agenda Item but a Cancelled one (no Calendar file for it). */

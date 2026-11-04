@@ -1,4 +1,5 @@
 import type { Agenda, AgendaItem } from "./agenda/agenda-read";
+import { frenchDay } from "./agenda/french-time";
 
 /**
  * Sample data, until the app reads the API (ADR-0076: the GETs added to `/api/*`): one Application and two Free
@@ -15,7 +16,6 @@ export const SAMPLE_JOB_OFFERS = [
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
-const FRENCH_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" });
 
 /**
  * A sample Agenda (`GET /api/agenda`'s shape, #684) around `now`: a session to schedule, the sample Application's
@@ -30,7 +30,7 @@ export function sampleAgenda(now: Date): Agenda {
   ];
   const days = new Map<string, AgendaItem[]>();
   for (const item of items) {
-    const day = FRENCH_DAY.format(new Date(item.scheduledAt));
+    const day = frenchDay(new Date(item.scheduledAt));
     days.set(day, [...(days.get(day) ?? []), item]);
   }
   return {

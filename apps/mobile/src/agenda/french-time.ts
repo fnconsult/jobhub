@@ -1,10 +1,13 @@
 /** French time, in which Agenda Items are entered and grouped by day (ADR-0028), whatever the device's zone. */
 export const FRENCH_TIME_ZONE = "Europe/Paris";
 
-const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: FRENCH_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+const DAY = new Intl.DateTimeFormat("en-GB", { timeZone: FRENCH_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
 
-/** The day `instant` falls on in French time, as an ISO date: "2026-10-22". */
-export const frenchDay = (instant: Date) => DAY.format(instant);
+/** The day `instant` falls on in French time, as an ISO date: "2026-10-22" (from its parts, whatever a locale's order). */
+export function frenchDay(instant: Date): string {
+  const parts = Object.fromEntries(DAY.formatToParts(instant).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
 
 /** A calendar day at noon UTC: always that same day in French time, so `Intl` writes it in Europe/Paris. */
 const noonOf = (day: string) => new Date(`${day}T12:00:00Z`);

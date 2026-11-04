@@ -117,4 +117,49 @@ describe("the app's session (ADR-0076, #685)", () => {
     web.setOffline(false);
     expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
   });
+
+  describe("signed in by the email's code (#686)", () => {
+    it("signs in with the code, the session kept in secure storage", async () => {
+      const { web, session, keptOnDevice } = setUp();
+      await session.askLink(EMAIL);
+
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "signedIn", email: EMAIL });
+
+      expect(keptOnDevice()).toBe(true);
+      expect(await session.current()).toEqual({ kind: "signedIn", email: EMAIL });
+    });
+
+    it("takes the code as typed, spaces included", async () => {
+      const { web, session } = setUp();
+      await session.askLink(EMAIL);
+      const code = web.codeFor(EMAIL);
+
+      expect(await session.enterCode(EMAIL, ` ${code.slice(0, 3)} ${code.slice(3)}`)).toEqual({ kind: "signedIn", email: EMAIL });
+    });
+
+    it("says why a code is refused: wrong, then too many tries", async () => {
+      const { web, session } = setUp();
+      await session.askLink(EMAIL);
+
+      for (let tries = 0; tries < 5; tries++) expect(await session.enterCode(EMAIL, "000000")).toEqual({ kind: "codeRefused", reason: "signIn.codeWrong" });
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "codeRefused", reason: "signIn.codeTooManyTries" });
+      expect(await session.current()).toEqual({ kind: "signedOut" });
+    });
+
+    it("leads to the second step for an account that has it", async () => {
+      const { web, session } = setUp();
+      web.withSecondStep(EMAIL);
+      await session.askLink(EMAIL);
+
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "secondStep" });
+    });
+
+    it("says when the web app cannot be reached", async () => {
+      const { web, session } = setUp();
+      await session.askLink(EMAIL);
+      web.setOffline(true);
+
+      expect(await session.enterCode(EMAIL, web.codeFor(EMAIL))).toEqual({ kind: "codeRefused", reason: "signIn.error" });
+    });
+  });
 });

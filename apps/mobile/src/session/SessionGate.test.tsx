@@ -16,7 +16,7 @@ function SignedInPage() {
 
 function setUp() {
   const web = fakeWebApp();
-  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
+  const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch, passkeys: web.deviceWithoutPasskey() });
   /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
   const opened = { current: null as string | null, listeners: new Set<() => void>() };
   const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));

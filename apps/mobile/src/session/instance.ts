@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { createAppSession, type SessionStorage } from "./app-session";
+import { devicePasskeys } from "./device-passkeys";
 
 /**
  * The web app the app signs in to and calls (ADR-0076): Production, or the Beta for TestFlight and Play internal
@@ -18,4 +19,4 @@ const storage: SessionStorage = {
 };
 
 /** The app's one session. */
-export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage });
+export const appSession = createAppSession({ baseURL: WEB_APP_URL, storage, passkeys: devicePasskeys });

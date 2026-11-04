@@ -247,29 +247,18 @@ async function play(page: Page, action: MotionAction, state: PlayState): Promise
  * filmed page: a recording holds one tab.
  */
 async function clickInPlace(page: Page, element: Locator): Promise<void> {
-  const context = page.context();
-  let tab: Page | null = null;
-  // A link opened with target="_blank" (rel="noopener": no opener to check) is a new page of the context; the
-  // extension's own Side Panel is none (Playwright does not report it).
-  const opened = (candidate: Page) => {
-    tab ??= candidate;
-  };
-  context.on("page", opened);
-  try {
-    await element.click({ timeout: ACTION_TIMEOUT });
-    await settle(page);
-  } finally {
-    context.off("page", opened);
-  }
-  const other = tab as Page | null;
-  if (!other) return;
-  await other.waitForURL(/^(?!about:blank)/, { timeout: ACTION_TIMEOUT }).catch(() => {});
-  const url = other.url();
-  await other.close();
-  if (url && url !== "about:blank") {
-    await page.goto(url, { timeout: 30_000 });
-    await settle(page);
-  }
+  // A link that opens a new tab says so (target="_blank"): only then is a tab awaited, however late it comes.
+  const newTab = (await element.getAttribute("target")) === "_blank";
+  const opened = newTab ? page.context().waitForEvent("page", { timeout: ACTION_TIMEOUT }) : null;
+  await element.click({ timeout: ACTION_TIMEOUT });
+  if (!opened) return settle(page);
+  const tab = await opened;
+  await tab.waitForURL(/^(?!about:blank)/, { timeout: ACTION_TIMEOUT }).catch(() => {});
+  const url = tab.url();
+  await tab.close();
+  if (url === "about:blank") throw new Error("the new tab opened no page");
+  await page.goto(url, { timeout: 30_000 });
+  await settle(page);
 }
 
 /**

@@ -76,5 +76,33 @@ export function readCoachActions(reader: CoachObjectReader): CoachAction[] {
       "profile",
       "Lit un profil actif du candidat par son id : ses critères de recherche et son CV de référence (sans son identité).",
     ),
+    readOne(
+      reader,
+      "read_application",
+      "application",
+      "applications",
+      "Lit une candidature du candidat par son id : son statut, ses entretiens, son score de correspondance avec ses raisons et l'offre d'emploi.",
+    ),
+    readOne(
+      reader,
+      "read_job_offer",
+      "job_offer",
+      "job_searches",
+      "Lit en entier une offre d'emploi par son id, si l'une des candidatures, recherches d'offres ou Job Digests du candidat la montre : son texte et son score de correspondance avec ses raisons.",
+    ),
+    readOne(
+      reader,
+      "read_job_search",
+      "job_search",
+      "job_searches",
+      "Lit une recherche d'offres du candidat par son id : les offres trouvées, meilleur score d'abord, chacune avec son id et les raisons de son score.",
+    ),
+    readOne(
+      reader,
+      "read_job_digest",
+      "job_digest",
+      "job_digests",
+      "Lit un Job Digest (sélection d'offres envoyée par e-mail) du candidat par son id : ses offres, meilleur score d'abord, chacune avec son id et les raisons de son score.",
+    ),
   ];
 }

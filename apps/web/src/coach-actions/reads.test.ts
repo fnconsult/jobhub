@@ -220,3 +220,118 @@ describe("read_profile (#714)", () => {
     expect(cut.content).toContain("(la suite est coupée)");
   });
 });
+
+describe("read_application (#714)", () => {
+  it("reads an Application in full: status, Interviews, Match Score with its reasons and Job Offer, marked untrusted", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_application", { id: airbus.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toContain("Responsable consolidation chez Airbus (Lyon)");
+    expect(content).toContain("Statut : Postulée depuis le 2026-10-28");
+    expect(content).toContain("avec la DAF");
+    expect(content).toMatch(/Score de correspondance : \d+\/100 ; compétences présentes : IFRS/);
+    expect(content).toContain("Rattaché au DG");
+    expect(content).toContain("Consultante finance");
+    // Text the Candidate did not write came back: the Coach Actions that copy text are no longer offered.
+    expect(reply.narrowed).toBe(true);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus"] }]);
+  });
+
+  it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
+    const { read, reply } = await setUp();
+
+    expect(await read("read_application", { id: archivedApplication.id })).toEqual(NOT_FOUND);
+    expect(await read("read_application", { id: "a-unknown" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_application", { id: airbus.id })).toEqual(NOT_FOUND);
+    expect(reply.narrowed).toBe(false);
+  });
+
+  it("cuts a posting too long for its room, keeping the status and Match Score before it", async () => {
+    const posting = offer("o-airbus", "Responsable consolidation", "Airbus", "Vous pilotez la consolidation. ".repeat(1_000));
+    const { read } = await setUp(workspace({ applications: [{ ...airbus, jobOffer: posting }] }));
+
+    const { content } = await read("read_application", { id: airbus.id });
+
+    expect(estimateTokens(content)).toBeLessThanOrEqual(COACH_ACTION_RESULT_MAX_TOKENS + 10);
+    expect(content).toContain("Statut : Postulée");
+    expect(content).toContain("Score de correspondance");
+    expect(content).toContain("(la suite est coupée)");
+  });
+});
+
+describe("read_job_search and read_job_digest (#714)", () => {
+  it("reads a Job Search: its Job Offers best first, each with its id, Match Score and reasons, marked untrusted", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_job_search", { id: jobSearch.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toContain("Recherche d'offres (id s1) lancée le 2026-11-01 pour le profil « Consultante finance » (terminée)");
+    expect(content).toMatch(/- \[offre o-found\] Directrice financière de transition chez Société Fictive \(Lyon\) : score \d+\/100 — compétences présentes : IFRS/);
+    expect(reply.narrowed).toBe(true);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/recherches/s1"] }]);
+  });
+
+  it("reads a Job Digest the same way", async () => {
+    const { read } = await setUp();
+
+    const { content } = await read("read_job_digest", { id: jobDigest.id });
+
+    expect(content).toContain("Job Digest (id d1) envoyé le 2026-11-03 pour le profil « Consultante finance »");
+    expect(content).toMatch(/- \[offre o-digest\] Manager de transition finance chez Exemple Conseil/);
+  });
+
+  it("is not_found for an Archived Profile's Job Search, another Candidate's or an unknown id", async () => {
+    const { read } = await setUp();
+
+    expect(await read("read_job_search", { id: archivedSearch.id })).toEqual(NOT_FOUND);
+    expect(await read("read_job_digest", { id: "d-unknown" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_job_search", { id: jobSearch.id })).toEqual(NOT_FOUND);
+  });
+
+  it("leaves out the worst Job Offers that do not fit its room, saying how many", async () => {
+    const many = Array.from({ length: 60 }, (_, index) => offer(`o-${index}`, `Poste numéro ${index} de directrice financière de transition`, `Employeur ${index}`));
+    const big: JobSearch = { ...jobSearch, results: many.map((jobOffer) => ({ jobOffer, matchScore: scored(jobOffer), applicationId: null })) };
+    const { read } = await setUp(workspace({ jobSearches: [big] }));
+
+    const { content } = await read("read_job_search", { id: big.id });
+
+    expect(estimateTokens(content)).toBeLessThanOrEqual(COACH_ACTION_RESULT_MAX_TOKENS + 10);
+    expect(content).toContain("[offre o-0]");
+    expect(content).toMatch(/\(\d+ autres offres, moins bien notées, ne sont pas montrées\.\)/);
+  });
+});
+
+describe("read_job_offer (#714)", () => {
+  it("reads a Job Offer of one of the Candidate's Job Searches in full, with its Match Score and reasons, marked untrusted", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_job_offer", { id: foundOffer.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toContain("trouvée par la recherche d'offres (id s1) du 2026-11-01, profil « Consultante finance »");
+    expect(content).toMatch(/Score de correspondance : \d+\/100 ; compétences présentes : IFRS/);
+    expect(content).toContain("Offre : Directrice financière de transition chez Société Fictive (Lyon)");
+    expect(content).toContain("Rattaché au DG");
+    expect(reply.narrowed).toBe(true);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/recherches/s1/offres/o-found"] }]);
+  });
+
+  it("finds it in an Application or a Job Digest too", async () => {
+    const { read } = await setUp();
+
+    expect((await read("read_job_offer", { id: airbusOffer.id })).content).toContain("enregistrée comme candidature (id a-airbus), profil « Consultante finance »");
+    expect((await read("read_job_offer", { id: digestOffer.id })).content).toContain("envoyée par le Job Digest (id d1) du 2026-11-03, profil « Consultante finance »");
+  });
+
+  it("is not_found for a Job Offer only an Archived Profile's objects show, one none of the Candidate's show, or another Candidate's", async () => {
+    const { read } = await setUp(workspace({ jobSearches: [archivedSearch] }));
+
+    expect(await read("read_job_offer", { id: foundOffer.id })).toEqual(NOT_FOUND);
+    expect(await read("read_job_offer", { id: oldOffer.id })).toEqual(NOT_FOUND);
+    expect(await read("read_job_offer", { id: "o-elsewhere" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_job_offer", { id: airbusOffer.id })).toEqual(NOT_FOUND);
+  });
+});

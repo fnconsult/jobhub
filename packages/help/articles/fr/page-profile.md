@@ -3,7 +3,7 @@ kind: page
 audience: candidate
 topic: utiliser
 title: La page d'un profil
-synonyms: [profil, métier, critères, versions, télécharger, archiver, dupliquer, entreprises cibles, La Bonne Boite, candidature spontanée, écarter une entreprise]
+synonyms: [profil, métier, critères, versions, télécharger, archiver, dupliquer, entreprises cibles, La Bonne Boite, candidature spontanée, écarter une entreprise, application, iphone, ipad, android]
 route: /profils/[id]
 ---
 La page d'un profil est sa conversation avec votre coach IA : il a sous les yeux son CV de référence et ses critères de recherche pour un métier. Tant que vous n'avez rien écrit, des suggestions vous attendent au-dessus de la zone de message : « Améliorer mon CV », « Comprendre mon ATS Score », « Affiner mes critères », « Quelles entreprises cibler ? ». La conversation est gardée avec le profil et revient quand vous rouvrez la page ; « Effacer », en haut de la page, en supprime tous les messages, le profil et son CV restent.
@@ -17,3 +17,5 @@ Commencez par l'ATS Score : il dit si les logiciels de recrutement liront bien v
 « Entreprises cibles » liste les entreprises que la recherche d'offres vise pour ce profil : celles que La Bonne Boite donne comme susceptibles de recruter pour votre métier et votre zone, avec leur potentiel d'embauche, et celles que vous ajoutez, marquées « Ajoutée par vous ». Pour en ajouter une, indiquez son nom ou son SIREN dans « Ajouter une entreprise » : elle passe avant celles de La Bonne Boite. Chaque entreprise indique les offres trouvées chez elle ; « Dossier entreprise », « Contacts enrichis » et « Préparer une candidature spontanée » ouvrent une candidature spontanée, ajoutée à vos candidatures « À postuler ». « Écarter » retire une entreprise pour de bon : elle ne reviendra plus pour ce profil.
 
 Sur téléphone, la conversation occupe tout l'écran. « Fiche » ouvre la fiche par-dessus, en plein écran, et une rubrique aussi : « Fermer » les referme et vous ramène à la conversation.
+
+Dans l'application Jobbbox (iPhone, iPad, Android), vos profils sont dans Mon compte, rubrique « Profils », et se lisent sans se modifier. La fiche d'un profil résume son positionnement, ses critères de recherche, la version courante de son CV de référence et son ATS Score. Pour changer quoi que ce soit, « Modifier le profil » ouvre la page du profil sur jobbbox.ai dans l'application : en plein écran sur téléphone, à côté de la conversation sur tablette ; « Fermer » vous ramène à la fiche.

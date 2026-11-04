@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { byRules, joinProvenance, readProvenance, replyActivity, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
+import { byRules, joinProvenance, readProvenance, readProvenanceEvent, replyActivity, rulesProvenance, type Provenance, type ProvenanceSite, type ProvenanceStep } from "./provenance";
 
 const aiStep: ProvenanceStep = {
   kind: "ai",
@@ -114,6 +114,12 @@ describe("a Provenance read from its jsonb column", () => {
 
   it("refuses a step said to propose that is not a Coach Action's (#726)", () => {
     expect(readProvenance({ ...provenance, steps: [{ ...toolStep, proposes: true }] })).toBeNull();
+  });
+
+  it("sends a Coach Action's step live as it starts, proposing or reading, and refuses one said to propose that is not (#726)", () => {
+    const started = { type: "step_started", id: 1, step: { kind: "tool", activity: "act", tool: "job-site", proposes: true, at: toolStep.at } };
+    expect(readProvenanceEvent(started)).toEqual(started);
+    expect(readProvenanceEvent({ ...started, step: { ...started.step, activity: "read" } })).toBeNull();
   });
 
   it("keeps a stopped step", () => {

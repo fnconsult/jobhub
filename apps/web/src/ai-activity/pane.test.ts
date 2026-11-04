@@ -111,6 +111,19 @@ describe("AI Activity's « Cette page » pane (#332)", () => {
     expect(aiActivityPane([activityElement("job_offer", scored)]).tools).toEqual([{ name: null, ms: 12, usedBy: [0] }]);
   });
 
+  it("names no model and counts no token for a Coach Action's step (`act`, #726), as for « Calcul »: its Tool by name, « Par élément » too", () => {
+    // A Routes locales Tool (a Coach Action's group) arrives with #713: any Tool of the catalog stands for it here.
+    const acted = (proposes?: true): ProvenanceStep => ({ kind: "tool", activity: "act", tool: "job-site", ms: 40, at, outcome: "ok", count: 1, ...(proposes ? { proposes } : {}) });
+    const answered = provenance([ai({}), acted(), acted(true)]);
+    const pane = aiActivityPane([activityElement("coach_reply", answered)]);
+
+    expect(pane.models.map(({ name, tokens }) => ({ name, tokens }))).toEqual([{ name: "Claude Opus 5", tokens: 1800 }]);
+    expect(pane.total.tokens).toBe(1800);
+    expect(pane.tools).toEqual([{ name: "Sites d'emploi", ms: 80, usedBy: [0] }]);
+    expect(pane.elements[0]!.served!.tools).toEqual([{ name: "Sites d'emploi", ms: 80 }]);
+    expect(pane.elements[0]!.served!.models.map(({ name }) => name)).toEqual(["Claude Opus 5"]);
+  });
+
   describe("each element's end state (#368)", () => {
     it("is stopped when one of its steps was stopped, ended when its action ended", () => {
       const stopped = provenance([ai({}), tool(600), ai({ activity: "read", task: "offer_analysis", outcome: "stopped", tokens: undefined, ms: 300 })], {

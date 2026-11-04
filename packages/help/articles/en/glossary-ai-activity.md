@@ -9,4 +9,13 @@ synonyms: [ai activity, activity, models, model, tokens, sources, tools, what th
 
 Tokens and time are « a technical measure, not counted against your quotas ». What comes from your own data or from Jobbbox's rules, without AI, is shown as such.
 
-While an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. A stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting.
+While an AI action runs, on this page or « Running elsewhere », each step shows live, and « Stop » interrupts it: what was finished is kept. Each step has its glyph, which moves while it runs:
+
+- « Thinking » and « Checking »: the brain; « Writing »: the feather; « Thinking, then writing »: one, then the other;
+- « Searching »: the magnifier; « Searching the web »: the magnifier, the globe, then the book; « Reading »: the book turning its pages;
+- « Computing »: the ticks appearing one by one, for Jobbbox's rules, without AI;
+- « Looking at your data » and « Preparing a proposal »: the pointer touching a card, when the coach reads your applications, your agenda or your profile, or prepares a proposal for you to accept, without AI or a model; the tool (Applications, Agenda…) is named « By item ».
+
+If you asked your device for less motion, each glyph stays still.
+
+A stopped or failed action is shown in words, with its reason when known. AI activity never shows a cost or an internal setting.

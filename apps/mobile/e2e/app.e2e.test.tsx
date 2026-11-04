@@ -443,7 +443,7 @@ describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldabl
     ["a half", HALF],
     ["two thirds", TWO_THIRDS],
   ])("lays out as a phone at %s of a landscape iPad, the Sidebar a drawer", async (_name, size) => {
-    window(...size);
+    window(size[0], size[1]);
     await launch();
     expect(sidebar()).toBeNull();
     expect(button("Menu")).toBeOnTheScreen();
@@ -458,8 +458,8 @@ describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldabl
     await user.press(button("Envoyer"));
     await user.press(button("Arrêter"));
     await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
-    for (const size of [THIRD, HALF, TWO_THIRDS, IPAD_LANDSCAPE] as const) {
-      await act(() => window(...size));
+    for (const size of [THIRD, HALF, TWO_THIRDS, IPAD_LANDSCAPE]) {
+      await act(() => window(size[0], size[1]));
       expect(screen.getByText("Bonjour")).toBeOnTheScreen();
       expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("Un brouillon");
     }
@@ -474,8 +474,8 @@ describe("Jobbbox app, in Split View, Slide Over, Stage Manager and on a foldabl
     await user.press(button("Envoyer"));
     await user.press(button("Arrêter"));
     await user.type(screen.getByLabelText("Votre message"), "Un brouillon");
-    for (const size of [UNFOLDED, FOLDED] as const) {
-      await act(() => window(...size));
+    for (const size of [UNFOLDED, FOLDED]) {
+      await act(() => window(size[0], size[1]));
       expect(screen.getByText("Bonjour")).toBeOnTheScreen();
       expect(screen.getByLabelText("Votre message")).toHaveDisplayValue("Un brouillon");
     }

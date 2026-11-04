@@ -138,6 +138,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
         "passkey", // issue #664: a Candidate's passkeys (Better Auth's plugin), their public keys, as a second step
         "plan", // issue #206: the Plans Administrators define
+        "plan_coach_context", // ADR-0078: a Plan's Coach context limits
         "plan_quota",
         "plan_quota_reduction", // issue #514: Quota Reductions, and the notice each paying subscriber is sent
         "plan_quota_reduction_notice",
@@ -284,6 +285,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Passkeys (issue #664) go with their Candidate.
         { from_table: "passkey", from_column: "userId", to_table: "candidate" },
         // A Plan's quotas belong to a Plan (issue #206), never deleted.
+        { from_table: "plan_coach_context", from_column: "plan", to_table: "plan" },
         { from_table: "plan_quota", from_column: "plan", to_table: "plan" },
         { from_table: "plan_quota_reduction", from_column: "plan", to_table: "plan" },
         { from_table: "plan_quota_reduction_notice", from_column: "candidate_id", to_table: "candidate" },

@@ -398,6 +398,43 @@ describe("talking with the AI Coach in the Coach Panel", () => {
     expect(result.contextTokens).toBe(estimateTokens(call.system!) + read);
   });
 
+  it("splits that estimate by category, adding up to it: Messages, Instructions du coach, Profil et CV, Conseils des agents, Sources (#731)", async () => {
+    const { coach, provider } = coachWith({
+      served: SERVED,
+      choose: '["interview-psychology"]',
+      advise: () => "Préparez trois exemples chiffrés [S24].",
+      workspace: { memory: ["Vise une PME familiale"] },
+    });
+    const messages = [
+      { from: "candidate" as const, text: "Bonjour" },
+      { from: "coach" as const, text: "Bonjour Marie" },
+      { from: "candidate" as const, text: "Comment préparer mon entretien ?" },
+    ];
+
+    const result = await coach.reply("marie", { messages });
+
+    if (!result.ok || !result.contextSplit) throw new Error("no split");
+    const { contextSplit: split } = result;
+    const system = contextOf(provider);
+    expect(split.messages).toBe(messages.reduce((sum, message) => sum + estimateTokens(message.text), 0));
+    expect(split.advice).toBe(estimateTokens(system.slice(system.indexOf("<avis-playbook"), system.indexOf("</avis-playbook>") + "</avis-playbook>".length)));
+    expect(split.sources).toBeGreaterThan(0);
+    expect(split.profile).toBeGreaterThan(0);
+    expect(split.instructions).toBeGreaterThan(split.profile);
+    expect(split.messages + split.instructions + split.profile + split.advice + split.sources).toBe(result.contextTokens);
+  });
+
+  it("names the AI call that wrote the reply, so its provider's counts can be read beside the estimate (#731)", async () => {
+    const { coach, usage } = coachWith();
+
+    const result = await coach.reply("marie", { messages: [{ from: "candidate", text: "Bonjour" }] });
+
+    if (!result.ok) throw new Error("no reply");
+    const call = usage.entries.at(-1)!;
+    expect(call.task).toBe("coaching");
+    expect(result.callId).toBe(call.id);
+  });
+
   it("sent no context for a reply it did not write: a Job Offer link's (#607)", async () => {
     const read = vi.fn(async (): Promise<JobOfferLinkResult> => ({ ok: true, jobOffer }));
     const { coach } = coachWith({ jobOfferLinks: { read } });

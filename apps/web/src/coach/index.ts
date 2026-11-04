@@ -54,7 +54,7 @@ import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../co
 import * as z from "zod";
 import { readReplyMarks, REPLY_MARKS_RULE } from "./reply-marks";
 import { asData, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
-import { MAX_MESSAGE_LENGTH, recentConversation } from "./conversation";
+import { MAX_MESSAGE_LENGTH, recentConversation, type ContextSplit } from "./conversation";
 import { AGENT_ADVICE_MAX_TOKENS, AGENT_TIMEOUT_MS, choosePlaybookAgents, consultPlaybookAgent, MAX_PLAYBOOK_AGENTS, type PlaybookAdvice } from "./playbook-agents";
 
 export { COACH_CONTEXT_MAX_TOKENS, COACH_FOCUS_KINDS, estimateTokens, type CoachFocus, type CoachMemorySource, type CoachSources } from "./context";
@@ -105,6 +105,9 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
  * `contextTokens`: the estimate (estimateTokens) of the context the reply was written from, its system text and the messages
  * the AI Coach read (#607), what the Context bar counts; null (or absent) when the AI Coach wrote none (a Job Offer link's reply).
+ * `contextSplit`: that estimate by category (#731, ADR-0078), adding up to it; null (or absent) with it.
+ * `callId`: the AI call that wrote the reply (its AI Usage id, #731), whose provider's counts are read beside the estimate;
+ * null (or absent) when the AI Coach wrote none.
  * `reason`: why it is `unavailable`, its Failure Reason (never the technical message).
  */
 export type CoachReply =
@@ -120,6 +123,8 @@ export type CoachReply =
       aboutJobbbox?: boolean;
       couldNotAnswer?: boolean;
       contextTokens?: number | null;
+      contextSplit?: ContextSplit | null;
+      callId?: string | null;
     }
   | { ok: false; error: "invalid" }
   | { ok: false; error: "stopped"; messagePassed: boolean }
@@ -230,6 +235,24 @@ function jobOfferLinkReply(result: JobOfferLinkResult, language: GuardrailLangua
   return t(result.reason === "forbidden_site" ? "coachPanel.jobOfferLink.forbiddenSite" : result.reason === "unreadable" ? "coachPanel.jobOfferLink.unreadable" : "coachPanel.jobOfferLink.notAJobOffer");
 }
 
+/**
+ * A reply's context split by category (#731), adding up to its estimate (the system text's and the messages'): what the AI Coach is told
+ * of the Candidate (`profile`), the advice, the Sources and the messages, each estimated on its own; the instructions are the rest of
+ * the system text (persona, rules, Core Digest, the Help Article read, and what joins the parts).
+ */
+function contextSplitOf(parts: { system: string; profile: string; advice: string[]; sources: string; messages: { content: string }[] }): ContextSplit {
+  const profile = estimateTokens(parts.profile);
+  const advice = parts.advice.reduce((sum, text) => sum + estimateTokens(text), 0);
+  const sources = estimateTokens(parts.sources);
+  return {
+    messages: parts.messages.reduce((sum, message) => sum + estimateTokens(message.content), 0),
+    instructions: Math.max(0, estimateTokens(parts.system) - profile - advice - sources),
+    profile,
+    advice,
+    sources,
+  };
+}
+
 const costOf = (calls: GenerateResult[]) => ({
   inputTokens: calls.reduce((sum, call) => sum + call.usage.inputTokens, 0),
   outputTokens: calls.reduce((sum, call) => sum + call.usage.outputTokens, 0),
@@ -299,13 +322,16 @@ export function createCoach(deps: CoachDeps): Coach {
             ),
           );
           const advice = consulted.filter((each): each is PlaybookAdvice => each !== null);
-          const knowledge = [...advice.map(adviceText), sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)])].filter(Boolean);
+          const advised = advice.map(adviceText);
+          const sources = sourcesText(served, [served.coreDigest?.content ?? "", ...advice.map((each) => each.advice)]);
+          const system = [instructions, ...advised, sources, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr")].filter(Boolean).join("\n\n");
           return {
             served,
             choice,
             advice,
             skipped,
-            system: [instructions, ...knowledge, context, helpArticleText(parsed.data.helpArticle, options.language ?? "fr")].filter(Boolean).join("\n\n"),
+            system,
+            split: contextSplitOf({ system, profile: context, advice: advised, sources, messages }),
             // What a reply must never copy: the AI Coach's rules and the coaching knowledge it was given.
             secrets: [PERSONA, GROUNDING_RULES, served.coreDigest?.content ?? "", ...choice.chosen.map((playbook) => playbook.content)],
           };
@@ -384,7 +410,9 @@ export function createCoach(deps: CoachDeps): Coach {
           aboutJobbbox: !link && marks.aboutJobbbox,
           // Only a reply the AI Coach wrote and the Candidate sees: never a Guardrail message.
           couldNotAnswer: !link && guarded.outcome === "replied" && marks.couldNotAnswer,
-          contextTokens: prepared ? estimateTokens(prepared.system) + messages.reduce((sum, message) => sum + estimateTokens(message.content), 0) : null,
+          contextTokens: prepared ? estimateTokens(prepared.system) + prepared.split.messages : null,
+          contextSplit: prepared?.split ?? null,
+          callId: written.at(-1)?.callId ?? null,
         };
       } catch (error) {
         if (signal?.aborted) return stopped();

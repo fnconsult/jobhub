@@ -53,6 +53,17 @@ export function estimateTokens(text: string): number {
 }
 
 /**
+ * What the context of an AI Coach reply is made of (ADR-0078), as the Context bar's breakdown names it: Messages (those the AI
+ * Coach read), Instructions du coach (its persona, rules and the Playbook digest), Profil et CV (what it is told of the Candidate),
+ * Conseils des agents (the Playbook Agents' advice) and Sources (those the knowledge cites).
+ */
+export const CONTEXT_CATEGORIES = ["messages", "instructions", "profile", "advice", "sources"] as const;
+export type ContextCategory = (typeof CONTEXT_CATEGORIES)[number];
+
+/** The estimate (estimateTokens) of a reply's context split by category: it adds up to the reply's whole estimate. */
+export type ContextSplit = Record<ContextCategory, number>;
+
+/**
  * What the server says of a Coach Conversation for its Context bar (#607): its `messages`, and `tokens`, the estimate
  * (estimateTokens) of the context sent with its latest reply: the AI Coach's system text and the messages it read.
  */

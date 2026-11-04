@@ -10,7 +10,8 @@ export const e2eExtensionDir = path.join(realpathSync("apps/extension"), ".outpu
 /**
  * Builds the extension against the e2e web server, whose EXTENSION_ORIGINS trusts exactly this build: once per run of
  * the suite (E2E_RUN_ID, playwright.config.ts), whichever spec asks first. The extension's specs and the motions'
- * captures (#570) run in parallel workers: a lock keeps one from rebuilding the files the other's browser has loaded.
+ * captures (#570) run in parallel workers of one run: a lock keeps one from rebuilding the files the other's browser has
+ * loaded. (Two runs of the suite at once share no more than they did: the port, the database, this build.)
  */
 export function buildE2eExtension(): void {
   const lock = `${e2eExtensionDir}.lock`;
@@ -21,10 +22,13 @@ export function buildE2eExtension(): void {
   for (;;) {
     try {
       mkdirSync(lock);
+      writeFileSync(path.join(lock, "pid"), String(process.pid));
       break;
     } catch {
-      if (Date.now() > until) throw new Error(`${lock} has been held for 5 minutes: remove it if no build is running`);
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+      // A lock whose builder is gone (a run killed while it built) is taken over.
+      if (!holderAlive(lock)) rmSync(lock, { recursive: true, force: true });
+      else if (Date.now() > until) throw new Error(`${lock} has been held for 5 minutes: remove it if no build is running`);
+      else Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
     }
   }
   try {
@@ -37,6 +41,22 @@ export function buildE2eExtension(): void {
     writeFileSync(marker, run);
   } finally {
     rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+/** Whether the process that took `lock` still runs (a lock just taken, its pid not yet written, counts as held). */
+function holderAlive(lock: string): boolean {
+  let pid: number;
+  try {
+    pid = Number(readFileSync(path.join(lock, "pid"), "utf8"));
+  } catch {
+    return existsSync(lock);
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
   }
 }
 

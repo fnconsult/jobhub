@@ -61,15 +61,21 @@ async function payInTestMode(page: Page, submit: Locator) {
 
 /** The services of a capture of `script`. */
 export function captureServices(script: MotionScript): CaptureServices {
+  const sentBefore: Record<string, number> = {};
   const services: CaptureServices = {
     files: { "cv-claire-demo.pdf": { name: "CV Claire Démo.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(DEMO_CV_LINES)) } },
     email: async (address, subject) => {
-      await expect.poll(() => emailsTo(address).length, { message: `an email to ${address}`, timeout: 30_000 }).toBeGreaterThan(0);
+      // Only an email sent since the address was typed: a database kept from an earlier run holds its old ones.
+      const before = sentBefore[address] ?? 0;
+      await expect.poll(() => emailsTo(address).length, { message: `an email to ${address}`, timeout: 30_000 }).toBeGreaterThan(before);
       const email = emailsTo(address).at(-1)!;
       if (email.subject !== subject) throw new Error(`the last email to ${address} is « ${email.subject} », not « ${subject} »`);
       // The sign-in email as it was sent (its language is the subject's); any other as its text.
       if (/\/api\/auth\/magic-link\/verify/.test(email.text)) return signInEmail(linkIn(email), script.locale).html;
       return `<!doctype html><meta charset="utf-8"><title>${escapeHtml(subject)}</title><pre style="font:16px/1.5 system-ui;margin:40px;white-space:pre-wrap">${escapeHtml(email.text)}</pre>`;
+    },
+    typed: (address) => {
+      sentBefore[address] = emailsTo(address).length;
     },
     pay: payInTestMode,
   };

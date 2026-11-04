@@ -60,6 +60,8 @@ export interface DemoFilePayload {
 export interface CaptureServices {
   /** The demo files an `upload` gives (`MOTION_DEMO_FILES`). */
   files?: Partial<Record<MotionDemoFile, DemoFilePayload>>;
+  /** An email address was typed (`fill`): `open-email` then shows an email sent to it after this. */
+  typed?: (address: string) => void;
   /** `open-email`: the HTML of the last email `address` received with `subject`, as a mail client shows it. */
   email?: (address: string, subject: string) => Promise<string>;
   /**
@@ -186,7 +188,10 @@ async function play(page: Page, action: MotionAction, state: PlayState): Promise
         await element.fill("");
         await element.pressSequentially(action.text, { delay: pace.typingDelay });
       }
-      if (/^[^\s@]+@[^\s@]+$/.test(action.text)) state.address = action.text;
+      if (/^[^\s@]+@[^\s@]+$/.test(action.text)) {
+        state.address = action.text;
+        services.typed?.(action.text);
+      }
       return;
     }
     case "select": {
@@ -240,16 +245,29 @@ async function play(page: Page, action: MotionAction, state: PlayState): Promise
  * filmed page: a recording holds one tab.
  */
 async function clickInPlace(page: Page, element: Locator): Promise<void> {
-  const opened = page.context().waitForEvent("page", { timeout: 2_000 }).catch(() => null);
-  await element.click({ timeout: ACTION_TIMEOUT });
-  const tab = await opened;
-  if (tab) {
-    await tab.waitForURL(/^(?!about:blank)/, { timeout: ACTION_TIMEOUT }).catch(() => {});
-    const url = tab.url();
-    await tab.close();
-    if (url && url !== "about:blank") await page.goto(url, { timeout: 30_000 });
+  const context = page.context();
+  let tab: Page | null = null;
+  // A link opened with target="_blank" (rel="noopener": no opener to check) is a new page of the context; the
+  // extension's own Side Panel is none (Playwright does not report it).
+  const opened = (candidate: Page) => {
+    tab ??= candidate;
+  };
+  context.on("page", opened);
+  try {
+    await element.click({ timeout: ACTION_TIMEOUT });
+    await settle(page);
+  } finally {
+    context.off("page", opened);
   }
-  await settle(page);
+  const other = tab as Page | null;
+  if (!other) return;
+  await other.waitForURL(/^(?!about:blank)/, { timeout: ACTION_TIMEOUT }).catch(() => {});
+  const url = other.url();
+  await other.close();
+  if (url && url !== "about:blank") {
+    await page.goto(url, { timeout: 30_000 });
+    await settle(page);
+  }
 }
 
 /**

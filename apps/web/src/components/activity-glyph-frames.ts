@@ -11,6 +11,7 @@
  *   web_search   magnifier → globe (it turns) → book (its pages turn)
  *   read         the book turning its pages
  *   compute      the ticks appearing one by one (rules, no AI)
+ *   act          the pointer touching a card: it comes closer, the card sinks, a check appears (a Coach Action, no AI)
  *
  * Pure: no DOM, so it is tested on its own.
  */
@@ -115,6 +116,28 @@ const COMPUTE: Frame[] = [
   { d: TASKS, ms: 260 },
 ];
 
+// The card, from (x0, y0) to (x1, y1), its corners rounded: an object of the Candidate (an Application, an Interview…).
+const card = (x0: number, y0: number, x1: number, y1: number) => {
+  const at = (value: number) => +value.toFixed(2);
+  return `M${at(x0 + 2)} ${at(y0)}h${at(x1 - x0 - 4)}a2 2 0 0 1 2 2v${at(y1 - y0 - 4)}a2 2 0 0 1-2 2H${at(x0 + 2)}a2 2 0 0 1-2-2V${at(y0 + 2)}a2 2 0 0 1 2-2z`;
+};
+const CARD = card(2.5, 4, 17.5, 15);
+// Pressed, it sinks: a little smaller, into the page.
+const CARD_PRESSED = card(3.1, 4.6, 16.9, 14.4);
+const CARD_CHECK = "M5.5 9.8l2 2 3.8-3.8";
+// The pointer, its tip at (x, y), drawn with relative commands, so it moves whole.
+const pointer = (x: number, y: number) => `M${x} ${y}v8.4l2.1-2 1.7 3.6 1.5-.7-1.7-3.5h2.9z`;
+const POINTER_TOUCHING = pointer(13, 10.5);
+// A Coach Action: the pointer comes closer, touches the card, the card sinks under it, then a check appears on it: it
+// reads or proposes on the Candidate's object. Each frame keeps the card, then the pointer, so each stroke morphs into
+// its own; the check grows in last.
+const ACT: Frame[] = [
+  { d: [CARD, pointer(16, 13.5)], ms: 140, morph: 320 },
+  { d: [CARD, POINTER_TOUCHING], ms: 60, morph: 140 },
+  { d: [CARD_PRESSED, pointer(13.3, 10.8)], ms: 80, morph: 180 },
+  { d: [CARD, POINTER_TOUCHING, CARD_CHECK], ms: 360, morph: 300 },
+];
+
 export const GLYPHS: Record<Activity, { frames: readonly Frame[]; still: readonly string[] }> = {
   think: { frames: BRAIN, still: BRAIN[0]!.d },
   // A model writes its text: the brain thinks, then the feather writes.
@@ -125,6 +148,8 @@ export const GLYPHS: Record<Activity, { frames: readonly Frame[]; still: readonl
   web_search: { frames: WEB_SEARCH, still: globe(6) },
   read: { frames: READ, still: BOOK_OPEN },
   compute: { frames: COMPUTE, still: TASKS },
+  // Still, the card checked under the pointer: what tells a Coach Action from compute's ticks.
+  act: { frames: ACT, still: ACT[3]!.d },
 };
 
 /** A frame's strokes: each of its paths split at every move, so each stroke is one line to sample. */

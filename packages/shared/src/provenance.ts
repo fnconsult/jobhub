@@ -17,9 +17,10 @@ import { TOOLS, type AiUsageProvider, type ToolId } from "./tools";
 
 /**
  * What one step of an AI action is doing: it picks the glyph AI Activity shows while the step runs.
- * `compute` is rules, no AI.
+ * `compute` is rules, no AI. `act` is a Coach Action (ADR-0077, #726): the app's own code reading or proposing on an
+ * object of the Candidate, no AI.
  */
-export const ACTIVITIES = ["think", "think_write", "write", "search", "web_search", "read", "compute"] as const;
+export const ACTIVITIES = ["think", "think_write", "write", "search", "web_search", "read", "compute", "act"] as const;
 export type Activity = (typeof ACTIVITIES)[number];
 
 /** The rules (no AI) a step can apply: Match Score, ATS Score, ATS Fixes, and a Job Search's freshness and duplicate checks. */
@@ -73,13 +74,17 @@ const toolStep = z.strictObject({
   kind: z.literal("tool"),
   ...stepBase,
   tool: z.custom<ToolId>((value) => typeof value === "string" && TOOL_IDS.has(value)),
+  /** A Coach Action's step (`act`) that proposed a change (an Action Card), not only read; absent for a read. */
+  proposes: z.literal(true).optional(),
 });
 const rulesStep = z.strictObject({
   kind: z.literal("rules"),
   ...stepBase,
   rule: z.enum(PROVENANCE_RULES),
 });
-const step = z.discriminatedUnion("kind", [aiStep, toolStep, rulesStep]);
+/** Only a Coach Action's step (`act`) proposes. */
+const proposesOnlyAsCoachAction = (step: { kind: string; activity: Activity; proposes?: true }) => step.kind !== "tool" || !step.proposes || step.activity === "act";
+const step = z.discriminatedUnion("kind", [aiStep, toolStep, rulesStep]).refine(proposesOnlyAsCoachAction);
 
 /** The links the link filter allows (as it gives them back): a web page on a web site, a path to one of their pages on the Candidate's. */
 const links = (kind: "web" | "candidate") =>
@@ -235,7 +240,7 @@ const startedStep = z.discriminatedUnion("kind", [
   aiStep.omit({ ...UNKNOWN_YET, provider: true, endpoint: true, model: true, tokens: true, euAiConsent: true }),
   toolStep.omit(UNKNOWN_YET),
   rulesStep.omit(UNKNOWN_YET),
-]);
+]).refine(proposesOnlyAsCoachAction);
 const eventId = z.number().int().positive();
 const provenanceEvent = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("step_started"), id: eventId, step: startedStep }),

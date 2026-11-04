@@ -6,9 +6,10 @@
  *   activityOf({ kind: "ai", task: "cv_parsing" })          the default for an AI task: "read"
  *   activityOf({ kind: "tool", tool: "france-travail" })    the default for a Tool: "search"
  *   activityOf({ kind: "rules", rule: "match_score" })      rules, no AI: "compute"
+ *   activityOf({ kind: "tool", tool: <a Routes locales Tool> })   a Coach Action, no AI: "act" (ADR-0077, #726)
  *   FEATURE_STEPS.read_job_page                             a feature step's own, over its task's: "read"
  */
-import type { Activity, ProvenanceRule, ToolId } from "@jobhub/shared";
+import type { Activity, ProvenanceRule, ToolId, TOOLS } from "@jobhub/shared";
 import type { AiTask } from "./types";
 
 /** Each AI task's default Activity. */
@@ -31,9 +32,17 @@ const TASK_STEPS = {
 } as const satisfies Record<AiTask, Activity>;
 
 /**
+ * The category of the Tools that are a Coach Action's groups (« Routes locales », ADR-0077): the app's own code, which
+ * reads or proposes on an object of the Candidate, no AI. Each of its Tools has the Activity `act`, a glyph of its own;
+ * `compute` stays the rules'. The category and its Tools arrive with #713.
+ */
+export const COACH_ACTION_TOOL_CATEGORY = "local_routes";
+type CoachActionTool = Extract<(typeof TOOLS)[number], { category: typeof COACH_ACTION_TOOL_CATEGORY }>["id"];
+
+/**
  * Each Tool's default Activity, or why it has none of its own: `by_task` for an AI model or web search, whose
  * step is the AI task it served; `not_a_step` for a Tool no AI action calls (billing, mail, sign-in, places,
- * reference data).
+ * reference data); `act` for a Coach Action's group, and only for one.
  */
 export const TOOL_STEPS = {
   anthropic: "by_task",
@@ -69,7 +78,7 @@ export const TOOL_STEPS = {
   "insee-naf": "not_a_step",
   "rome-open-data": "not_a_step",
   github: "not_a_step",
-} as const satisfies Record<ToolId, Activity | "by_task" | "not_a_step">;
+} as const satisfies Record<ToolId, Activity | "by_task" | "not_a_step"> & Record<CoachActionTool, "act">;
 
 /** A Tool that is a step of its own in an AI action. */
 export type StepTool = { [T in ToolId]: (typeof TOOL_STEPS)[T] extends Activity ? T : never }[ToolId];

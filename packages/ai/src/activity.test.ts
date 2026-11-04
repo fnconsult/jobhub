@@ -1,6 +1,6 @@
 import { ACTIVITIES, PROVENANCE_RULES, TOOLS, type Activity } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { activityOf, FEATURE_STEPS, TOOL_STEPS } from "./activity";
+import { activityOf, COACH_ACTION_TOOL_CATEGORY, FEATURE_STEPS, TOOL_STEPS, type StepTool } from "./activity";
 import { SEARCH_TASK, TEXT_TASKS, type AiTask } from "./types";
 
 const AI_TASKS: AiTask[] = [...(Object.keys(TEXT_TASKS) as AiTask[]), SEARCH_TASK];
@@ -22,6 +22,23 @@ describe("the Activity of a step", () => {
 
   it("is named by its AI task for a call to an AI model or a web search", () => {
     for (const tool of TOOLS.filter(({ category }) => category === "ai_model" || category === "web_search")) expect(TOOL_STEPS[tool.id], tool.id).toBe("by_task");
+  });
+
+  describe("of a Coach Action (ADR-0077, #726)", () => {
+    /** The Routes locales Tools, a Coach Action's groups (Candidatures, Agenda…): they arrive with #713. */
+    const localRoutes = TOOLS.filter(({ category }) => (category as string) === COACH_ACTION_TOOL_CATEGORY);
+
+    it("is `act`, a glyph of its own, for every Tool of the Routes locales category", () => {
+      expect(COACH_ACTION_TOOL_CATEGORY).toBe("local_routes");
+      for (const tool of localRoutes) expect(activityOf({ kind: "tool", tool: tool.id as StepTool }), tool.id).toBe("act");
+    });
+
+    it("is no other Tool's: `act` is a Coach Action's, `compute` stays the rules' (Provenance rule)", () => {
+      for (const tool of TOOLS) {
+        expect((TOOL_STEPS[tool.id] as string) === "act", tool.id).toBe(localRoutes.includes(tool));
+        expect(TOOL_STEPS[tool.id], tool.id).not.toBe("compute");
+      }
+    });
   });
 
   it("is set for every rule", () => {

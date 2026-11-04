@@ -1,6 +1,6 @@
 import { ACTIVITIES } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { GLYPHS, MAX_STROKES, mix, phaseAt, strokesOf, type Shape } from "./activity-glyph-frames";
+import { GLYPHS, MAX_STROKES, MORPH_MS, mix, phaseAt, strokesOf, type Frame, type Shape } from "./activity-glyph-frames";
 
 const BRAIN_OUTLINE = GLYPHS.think.frames[0]!.d[0]!;
 const isBrain = (d: readonly string[]) => d.includes(BRAIN_OUTLINE);
@@ -9,6 +9,19 @@ const isFeather = (d: readonly string[]) => d.some((path) => /^M[\d.]+ [\d.]+l-\
 const isLens = (d: readonly string[]) => d.some((path) => /^M[\d.]+ [\d.]+a6 6 0 1 0 0 12 6 6 0 0 0 0-12z$/.test(path));
 const isGlobe = (d: readonly string[]) => d.includes("M3 12h18");
 const isBook = (d: readonly string[]) => d.some((path) => path.startsWith("M3 5c3-1 6-1 9 1") || path.startsWith("M5 4h12"));
+/** The pointer's tip, drawn from it (`M x y v…`): null when the frame has none. */
+const pointerTip = (d: readonly string[]) => {
+  const tip = d.map((path) => /^M([\d.]+) ([\d.]+)v/.exec(path)).find(Boolean);
+  return tip ? [Number(tip[1]), Number(tip[2])] : null;
+};
+/** The card: a rounded rectangle, by its top left corner and its width. */
+const cardOf = (d: readonly string[]) => {
+  const card = d.map((path) => /^M([\d.]+) ([\d.]+)h([\d.]+)a/.exec(path)).find(Boolean);
+  return card ? { x: Number(card[1]), y: Number(card[2]), width: Number(card[3]) } : null;
+};
+/** The check: a tick drawn down then up (`M x y l+ +l+ -`). */
+const hasCheck = (d: readonly string[]) => d.some((path) => /^M[\d.]+ [\d.]+l[\d.]+ [\d.]+ [\d.]+-[\d.]+$/.test(path));
+const loopMs = (frames: readonly Frame[]) => frames.reduce((sum, frame) => sum + frame.ms + (frame.morph ?? MORPH_MS), 0);
 /** Runs of the same kind, in order: [brain, brain, feather] → [brain, feather]. */
 const runs = (kinds: string[]) => kinds.filter((kind, index) => kind !== kinds[index - 1]);
 
@@ -62,6 +75,50 @@ describe("the Activity glyph's frames (#314, ported from the prototype's glyph)"
     const frames = GLYPHS.read.frames.map((frame) => frame.d);
     expect(frames.every(isBook)).toBe(true);
     expect(new Set(frames.map((d) => d[2] ?? "")).size).toBeGreaterThanOrEqual(3);
+  });
+
+  describe("act: the pointer touching a card (a Coach Action, #726)", () => {
+    const frames = GLYPHS.act.frames.map((frame) => frame.d);
+
+    it("draws a card and a pointer in every frame, in at most three strokes, none cut off", () => {
+      for (const d of frames) {
+        expect(cardOf(d)).not.toBeNull();
+        expect(pointerTip(d)).not.toBeNull();
+        expect(strokesOf(d).length).toBeLessThanOrEqual(3);
+      }
+    });
+
+    it("the pointer comes closer, the card sinks under it, then a check appears", () => {
+      const [far, touching] = [pointerTip(frames[0]!)!, pointerTip(frames[1]!)!];
+      expect(touching[0]).toBeLessThan(far[0]!);
+      expect(touching[1]).toBeLessThan(far[1]!);
+      const widths = frames.map((d) => cardOf(d)!.width);
+      const pressed = widths.indexOf(Math.min(...widths));
+      expect(pressed).toBeGreaterThan(1);
+      expect(widths[0]).toBeGreaterThan(widths[pressed]!);
+      expect(frames.findIndex(hasCheck)).toBeGreaterThan(pressed);
+      expect(hasCheck(frames[0]!)).toBe(false);
+    });
+
+    it("holds the check longest, and loops in about as long as the other glyphs (1 to 2 s)", () => {
+      const checked = GLYPHS.act.frames.find((frame) => hasCheck(frame.d))!;
+      expect(Math.max(...GLYPHS.act.frames.map((frame) => frame.ms))).toBe(checked.ms);
+      expect(loopMs(GLYPHS.act.frames)).toBeGreaterThanOrEqual(1000);
+      expect(loopMs(GLYPHS.act.frames)).toBeLessThanOrEqual(2000);
+      for (const activity of ["search", "compute"] as const) expect(loopMs(GLYPHS[activity].frames)).toBeLessThanOrEqual(2000);
+    });
+
+    it("is still under reduced motion: the card, its check and the pointer touching it", () => {
+      const still = GLYPHS.act.still;
+      expect(cardOf(still)).not.toBeNull();
+      expect(hasCheck(still)).toBe(true);
+      expect(pointerTip(still)).toEqual(pointerTip(frames[1]!));
+    });
+
+    it("is a glyph of its own, not compute's ticks", () => {
+      expect(GLYPHS.act.still).not.toEqual(GLYPHS.compute.still);
+      for (const d of frames) expect(d.some((path) => GLYPHS.compute.still.includes(path))).toBe(false);
+    });
   });
 
   it("compute: the ticks appearing one by one", () => {

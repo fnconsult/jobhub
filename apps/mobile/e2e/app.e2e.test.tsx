@@ -12,6 +12,13 @@ jest.setTimeout(60_000);
 
 jest.mock("expo-localization", () => ({ getLocales: () => [{ languageCode: "fr" }] }));
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null] }));
+// The hardware keyboard at the native module's seam (modules/key-commands), as an iPad's would be.
+const mockKeyboard = { current: null as null | ReturnType<typeof import("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard> };
+jest.mock("../modules/key-commands", () => {
+  mockKeyboard.current = jest.requireActual("../src/keyboard/fake-hardware-keyboard").fakeHardwareKeyboard();
+  return { nativeHardwareKeyboard: mockKeyboard.current!.keyboard };
+});
+const keyboard = () => mockKeyboard.current!;
 
 // The web app the app signs in to (#685), as its endpoints answer, and the address the system opens the app with.
 // Built when the app first asks for its session, once Expo Linking is the app's (below).

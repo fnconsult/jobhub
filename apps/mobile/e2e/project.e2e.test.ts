@@ -172,3 +172,27 @@ describe("Multitasking and foldables (#700)", () => {
     expect(new Set(changes).size).toBe(changes.length);
   });
 });
+
+describe("The hardware keyboard's native module (#700)", () => {
+  const moduleDir = ["apps", "mobile", "modules", "key-commands"];
+  const config = () => json(...moduleDir, "expo-module.config.json");
+  const nameIn = (...path: string[]) => read(...moduleDir, ...path).match(/Name\("([^"]+)"\)/)?.[1];
+
+  it("is a local Expo module for iOS and Android, which Expo autolinks from modules/", () => {
+    expect(config().platforms).toEqual(["apple", "android"]);
+    expect(config().apple.modules).toEqual(["KeyCommandsModule"]);
+    expect(config().android.modules).toEqual(["ai.jobbbox.keycommands.KeyCommandsModule"]);
+  });
+
+  it("goes by the name the app asks for, on both platforms", () => {
+    const asked = read(...moduleDir, "index.ts").match(/requireOptionalNativeModule<\w+>\("([^"]+)"\)/)?.[1];
+    expect(asked).toBe("JobbboxKeyCommands");
+    expect(nameIn("ios", "KeyCommandsModule.swift")).toBe(asked);
+    expect(nameIn("android", "src", "main", "java", "ai", "jobbbox", "keycommands", "KeyCommandsModule.kt")).toBe(asked);
+  });
+
+  it("lists each shortcut under its title in the iPad's ⌘ panel and Android's Keyboard Shortcuts Helper", () => {
+    expect(read(...moduleDir, "ios", "KeyCommandsModule.swift")).toContain("discoverabilityTitle = title");
+    expect(read(...moduleDir, "android", "src", "main", "java", "ai", "jobbbox", "keycommands", "KeyCommandsModule.kt")).toContain("onProvideKeyboardShortcuts");
+  });
+});

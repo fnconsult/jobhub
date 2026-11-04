@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["KeyCommandsModule"] },
+  "android": { "modules": ["ai.jobbbox.keycommands.KeyCommandsModule"] }
+}

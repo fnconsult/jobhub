@@ -81,7 +81,9 @@ export function proposalCardOf(card: ActionCard): CoachProposalCard | null {
   if (card.kind !== COACH_PROPOSAL_CARD) return null;
   const payload = payloadOf(card);
   if (!payload) return null;
-  const { version: _seen, ...change } = payload.change;
+  // The version it saw stays on the server, which checks it.
+  const change: Omit<ProposedChange, "version"> = { ...payload.change };
+  delete (change as Partial<ProposedChange>).version;
   const edited = typeof card.edited === "object" && card.edited !== null ? editedValue(payload.change, card.edited) : null;
   return {
     id: card.id,

@@ -9,3 +9,9 @@ jest.mock("expo-constants", () => {
 });
 // AsyncStorage has no native module under Jest: its own in-memory mock stands in for the device's storage (#701).
 jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
+// Native views Jest has no binary for, drawn as a plain View with their props, for every test file.
+jest.mock("react-native-webview", () => {
+  const { createElement } = jest.requireActual("react");
+  const { View } = jest.requireActual("react-native");
+  return { WebView: (props) => createElement(View, { testID: "webview", accessibilityLabel: props.accessibilityLabel }) };
+});

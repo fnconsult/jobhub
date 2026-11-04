@@ -5773,7 +5773,17 @@
       "openPosting": "View the posting",
       "shareLink": "Share the link"
     },
-    "jobOfferPlaceholder": "The job offer will open here, with its Match Score."
+    "jobOfferPlaceholder": "The job offer will open here, with its Match Score.",
+    "profiles": {
+      "positioning": "Positioning",
+      "contracts": "Contracts",
+      "sectors": "Sectors",
+      "criterion": "{{label}}: {{value}}",
+      "masterCvVersion": "Version {{version}} · {{name}}",
+      "edit": "Edit the profile",
+      "editTitle": "Edit: {{name}}",
+      "editOnWeb": "The profile is changed on jobbbox.ai: “Edit the profile” opens its page."
+    }
   },
   "coachProposals": {
     "fields": {

@@ -1,7 +1,8 @@
 import { View } from "react-native";
 import type { DocumentReader } from "../documents/document-reader";
 import { TailoredDocuments } from "../documents/TailoredDocuments";
-import { SAMPLE_APPLICATIONS, SAMPLE_TAILORED_DOCUMENTS } from "../sample-data";
+import { ProfileSummary } from "../profiles/ProfileSummary";
+import { SAMPLE_APPLICATIONS, SAMPLE_PROFILES, SAMPLE_TAILORED_DOCUMENTS } from "../sample-data";
 import type { ShellPage } from "../shell/Shell";
 import { space } from "../theme/theme";
 import { PanePlaceholder } from "./PanePlaceholder";
@@ -18,6 +19,10 @@ export function PaneContent({ pathname, page, reader }: { pathname: string; page
         {application && documents ? <TailoredDocuments documents={documents} about={application.title} reader={reader} /> : null}
       </View>
     );
+  }
+  if (section === "profils" && id && page.pane === "fiche") {
+    const profile = SAMPLE_PROFILES.find((candidate) => candidate.id === id);
+    if (profile) return <ProfileSummary profile={profile} />;
   }
   return <PanePlaceholder pane={page.pane} />;
 }

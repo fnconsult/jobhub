@@ -134,7 +134,7 @@ describe("Tailored Documents, read only", () => {
     const user = userEvent.setup();
     for (const name of ["CV adapté", "Lettre de motivation", "Message d'approche"]) {
       await user.press(button(name));
-      const actions = screen.getAllByRole("button").map((control) => control.props["aria-label"] as string);
+      const actions = screen.getAllByRole("button").map((control) => control.props.accessibilityLabel as string);
       expect(actions.filter((label) => /modifier|rédiger|enregistrer|copier/i.test(label))).toEqual([]);
       expect(screen.getByText(/ils se modifient sur jobbbox\.ai/)).toBeOnTheScreen();
       await user.press(button("Fermer"));

@@ -1,4 +1,4 @@
-import type { TailoredDocumentsResponse } from "@jobhub/shared/reads";
+import type { ProfileResponse, TailoredDocumentsResponse } from "@jobhub/shared/reads";
 
 /**
  * Sample data, until the app reads the API (ADR-0076: the GETs added to `/api/*`): one Application and two Free
@@ -45,3 +45,42 @@ export const SAMPLE_TAILORED_DOCUMENTS: Readonly<Record<string, TailoredDocument
     ],
   },
 };
+
+const MARIE = {
+  fullName: "Marie Dupont",
+  email: "marie.dupont@example.fr",
+  phone: "",
+  location: "Toulouse",
+  experience: [{ title: "Responsable qualité", employer: "Aérostructures du Sud", location: "Toulouse", period: "2018 – 2026", description: "Certification EN 9100." }],
+  education: [],
+  languages: [],
+};
+
+/** The sample Candidate's Profiles, as `GET /api/profiles/:id` answers them (#684); `GET /api/profiles` names them. */
+export const SAMPLE_PROFILES: readonly ProfileResponse[] = [
+  {
+    id: "p1",
+    name: "Qualité aéronautique",
+    archived: false,
+    searchCriteria: {
+      targetRole: "Responsable qualité",
+      locations: ["Toulouse", "Bordeaux"],
+      minSalary: 55000,
+      contractTypes: ["cdi", "cdd"],
+      remoteWorkOptions: ["hybrid"],
+      sectors: ["Aéronautique"],
+      subsectors: [],
+      domains: [],
+    },
+    masterCv: { version: 3, content: { ...MARIE, headline: "Responsable qualité aéronautique, EN 9100 et Part 21", summary: "Huit ans de qualité en production aéronautique.", skills: ["EN 9100", "Part 21", "Audit"] } },
+    atsScore: 82,
+  },
+  {
+    id: "p2",
+    name: "Direction des opérations",
+    archived: false,
+    searchCriteria: { targetRole: "Directrice des opérations", locations: [], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+    masterCv: { version: 1, content: { ...MARIE, headline: "", summary: "", skills: [] } },
+    atsScore: null,
+  },
+];

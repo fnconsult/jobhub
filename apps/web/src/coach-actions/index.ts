@@ -42,6 +42,7 @@ import * as z from "zod";
 import type { UpgradePrompt } from "../billing/upgrade-prompt";
 import { asData, estimateTokens, type CoachFocus } from "../coach/context";
 import type { FieldError } from "../validation";
+import { fitted } from "./reads";
 
 /**
  * What In view carries text the Candidate did not write (ADR-0077): a Job Offer, and the Applications, Job Searches and
@@ -267,12 +268,6 @@ const REFUSED = {
 /** Below this room, a read is not run: its result would say nothing. */
 const MIN_READ_ROOM = 100;
 
-/** A result past `maxTokens`, cut (the safety net: each read already tells its object within its room). */
-function withinTokens(text: string, maxTokens: number): string {
-  if (estimateTokens(text) <= maxTokens) return text;
-  const cut = " […] (la suite est coupée)";
-  return text.slice(0, Math.max(0, maxTokens * 4 - cut.length)) + cut;
-}
 
 /** What the model is told after a proposal: it is prepared, never applied. */
 const PROPOSED = "Proposition préparée : le candidat la verra sous ta réponse et décidera de l'appliquer. Ne dis jamais qu'elle est appliquée.";
@@ -355,7 +350,8 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         record(action, started, 200);
         for (const page of result.pages ?? []) recorder.site(page);
         // Text (a read's object, as the Coach context tells it) goes as is; anything else as JSON.
-        const text = withinTokens(typeof result.data === "string" ? result.data : JSON.stringify(result.data ?? null), maxTokens);
+        // Cut past its room: the safety net, each read already telling its object within it.
+        const text = fitted([typeof result.data === "string" ? result.data : JSON.stringify(result.data ?? null)], maxTokens);
         if (action.kind === "read") readRoom -= estimateTokens(text);
         if (result.untrusted) narrowed = true;
         if (action.kind === "propose") {

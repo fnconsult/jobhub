@@ -99,7 +99,7 @@ const listObjects = (reader: CoachObjectReader): CoachAction =>
         (count) => `(${count} autres objets ne sont pas montrés : filtre par type ou par texte.)`,
       );
       // Only what is shown counts: a Job Offer's title or employer is text the Candidate did not write.
-      const lines = told.split("\n").length - 1;
+      const lines = told.split("\n").filter((line) => line.startsWith("- ")).length;
       return { ok: true, data: told, untrusted: shown.slice(0, lines).some((object) => object.untrusted) };
     },
   }) as unknown as CoachAction;

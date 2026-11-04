@@ -54,7 +54,7 @@ describe("calendarFileText", () => {
 
   it("folds lines at 75 octets without cutting a character", () => {
     const file = calendarFileText({ ...event, summary: "é".repeat(100) }, { now: NOW });
-    for (const line of file.split("\r\n")) expect(Buffer.byteLength(line, "utf8")).toBeLessThanOrEqual(75);
+    for (const line of file.split("\r\n")) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
     expect(property(file, "SUMMARY")).toBe(`SUMMARY:${"é".repeat(100)}`);
   });
 });

@@ -213,4 +213,51 @@ describe("Jobbbox app, locked by Face ID or fingerprint", () => {
     expect(message()).toBeVisible();
     expect(screen).toHavePathname("/conversations/nouvelle");
   });
+  const turnOn = async () => {
+    await launch("/reglages");
+    await act(async () => fireEvent(screen.getByRole("switch", { name: "Verrouiller l'app" }), "valueChange", true));
+  };
+
+  it("is a setting of the app, not of the account: absent from Mon compte, and nothing goes to the server", async () => {
+    const fetchSpy = jest.fn();
+    (globalThis as { fetch: unknown }).fetch = fetchSpy;
+    await launch("/compte");
+    expect(screen.queryByRole("switch", { name: "Verrouiller l'app" })).toBeNull();
+    await turnOn();
+    await awayFor(6);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("falls back on the device's code: with a code only it turns on, and the prompt leaves the code fallback enabled", async () => {
+    const { SecurityLevel } = jest.requireActual<typeof import("expo-local-authentication")>("expo-local-authentication");
+    fakeDevice.enrolledLevel = SecurityLevel.SECRET;
+    await turnOn();
+    expect(screen.getByRole("switch", { name: "Verrouiller l'app" })).toBeChecked();
+    expect(fakeDevice.authenticate).toHaveBeenCalled();
+    for (const [options] of fakeDevice.authenticate.mock.calls) expect(options?.disableDeviceFallback).toBeFalsy();
+  });
+
+  it("stays off, and says why, on a device with no Face ID, fingerprint or code", async () => {
+    const { SecurityLevel } = jest.requireActual<typeof import("expo-local-authentication")>("expo-local-authentication");
+    fakeDevice.enrolledLevel = SecurityLevel.NONE;
+    await turnOn();
+    expect(screen.getByRole("switch", { name: "Verrouiller l'app" })).not.toBeChecked();
+    expect(screen.getByText(/Définissez d'abord Face ID/)).toBeOnTheScreen();
+    expect(fakeDevice.contentProtected).toBe(false);
+  });
+
+  it("stays unlocked at any length of time away when the setting is off", async () => {
+    await launch("/");
+    await awayFor(30);
+    expect(message()).toBeVisible();
+    expect(screen.queryByText("Jobbbox est verrouillée")).toBeNull();
+  });
+
+  it("keeps the setting on the device only, and turning it off clears it and the app switcher protection", async () => {
+    await turnOn();
+    expect(fakeDevice.keychain.size).toBe(1);
+    await act(async () => fireEvent(screen.getByRole("switch", { name: "Verrouiller l'app" }), "valueChange", false));
+    expect(fakeDevice.keychain.size).toBe(0);
+    expect(fakeDevice.contentProtected).toBe(false);
+  });
 });

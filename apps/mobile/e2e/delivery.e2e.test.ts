@@ -71,3 +71,45 @@ describe("EAS Update", () => {
     );
   });
 });
+
+describe("The mobile.yml workflow, which runs EAS from GitHub", () => {
+  const workflow = () => read(".github", "workflows", "mobile.yml");
+  const triggers = () => workflow().split(/^jobs:/m)[0]!;
+
+  it("runs by hand (workflow_dispatch), never on a push", () => {
+    expect(triggers()).toMatch(/^\s+workflow_dispatch:/m);
+    expect(triggers()).not.toMatch(/^\s+push:/m);
+  });
+
+  it("builds or publishes an update for a profile: staging, or production", () => {
+    expect(workflow()).toMatch(/profile:[\s\S]*options: \[staging, production\]/);
+    expect(workflow()).toMatch(/eas build --profile "\$PROFILE"/);
+    expect(workflow()).toMatch(/--auto-submit-with-profile "\$PROFILE"/);
+    expect(workflow()).toMatch(/eas update --channel "\$PROFILE"/);
+  });
+
+  it("builds production only from a Version's tag, which only the Promotion pushes (ADR-0063)", () => {
+    expect(workflow()).toContain('[ "$PROFILE" = production ] && ! [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]');
+  });
+
+  it("reads EAS's token from the repository's secrets", () => {
+    expect(workflow()).toContain("EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}");
+  });
+
+  it("writes the stores' « Nouveautés » from the Version's Release Note", () => {
+    expect(workflow()).toContain("npm run store-whats-new -w @jobhub/help --");
+  });
+
+  it("is documented in docs/ops/mobile.md: builds, channels, the forced update", () => {
+    const doc = read("docs", "ops", "mobile.md");
+    for (const words of ["mobile.yml", "EXPO_TOKEN", "eas.json", "staging", "production", "fingerprint", "426", "Mettre à jour Jobbbox"]) expect(doc).toContain(words);
+  });
+});
+
+describe("The deploy-staging skill", () => {
+  it("mentions the app's staging build, and leaves launching it to the product owner", () => {
+    const skill = read(".claude", "skills", "deploy-staging", "SKILL.md");
+    expect(skill).toContain("mobile.yml");
+    expect(skill).toMatch(/ne la lance(z)? pas/i);
+  });
+});

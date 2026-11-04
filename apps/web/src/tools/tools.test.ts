@@ -265,6 +265,11 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
       ["proposer_candidature", "failed", "invalid_input", 422],
       ["lire_candidature", "ok", null, 200],
     ]);
+    // The Journal lists them with the other Tools' calls.
+    expect((await latestToolCalls(database, { ok: false })).map(({ tool: called, call }) => [called.id, call.operation, call.reason])).toEqual([
+      ["applications", "lire_candidature", null],
+      ["applications", "proposer_candidature", "invalid_input"],
+    ]);
   });
 
   it("lists at most the number of calls asked, and none for a Tool whose calls are not recorded", async () => {

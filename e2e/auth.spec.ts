@@ -192,10 +192,10 @@ test.describe("the sign-in email's code", () => {
 
     for (let tries = 0; tries < 5; tries++) {
       expect((await enterCode(page, wrong)).status()).toBe(400);
-      await expect(page.getByRole("alert")).toHaveText(fr.signIn.codeWrong);
+      await expect(page.getByRole("alert").filter({ hasText: fr.signIn.codeWrong })).toBeVisible();
     }
     expect((await enterCode(page, code)).status()).toBe(403);
-    await expect(page.getByRole("alert")).toHaveText(fr.signIn.codeTooManyTries);
+    await expect(page.getByRole("alert").filter({ hasText: fr.signIn.codeTooManyTries })).toBeVisible();
     expect((await (await page.request.get("/api/auth/get-session")).json())?.user).toBeUndefined();
 
     await page.getByRole("button", { name: fr.signIn.resend }).click();

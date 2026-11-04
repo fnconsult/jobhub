@@ -416,3 +416,18 @@ describe("list_objects (#714)", () => {
     expect(content).toMatch(/\(\d+ autres objets ne sont pas montrés : filtre par type ou par texte\.\)/);
   });
 });
+
+describe("the room of a reply's reads (#714)", () => {
+  it("keeps all the reads of one reply within COACH_ACTION_READS_MAX_TOKENS: past it, a read is not run and the AI Coach is told to answer with what it has", async () => {
+    const posting = "Vous pilotez la consolidation. ".repeat(1_000);
+    const { read } = await setUp(workspace({ applications: [{ ...airbus, jobOffer: offer("o-airbus", "Responsable consolidation", "Airbus", posting) }] }));
+
+    const results: ToolOutcome[] = [];
+    for (let index = 0; index < 5; index += 1) results.push(await read("read_application", { id: airbus.id }));
+
+    const given = results.filter((result) => !result.error);
+    expect(given.length).toBeGreaterThanOrEqual(2);
+    expect(given.reduce((sum, result) => sum + estimateTokens(result.content), 0)).toBeLessThanOrEqual(COACH_ACTION_READS_MAX_TOKENS + 30);
+    expect(results.at(-1)).toEqual({ content: expect.stringContaining("réponds avec ce que tu as déjà lu"), error: true });
+  });
+});

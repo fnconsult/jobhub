@@ -207,6 +207,8 @@ export interface CoachActionsForReply {
   tools: ToolDefinition[];
   maxToolRounds: number;
   runTool(call: ToolRun, context: { signal?: AbortSignal }): Promise<ToolOutcome>;
+  /** The room this reply's reads may take, in estimated tokens (#714): what the Coach context leaves free; 0 with no read offered. */
+  readonly readRoom: number;
   /** Whether the allow-list narrows the catalogue already: untrusted text In view, or read since. */
   readonly narrowed: boolean;
   /** Records the calls the AI layer refused without running them (an action not offered, arguments not an object). */
@@ -371,6 +373,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         tools: offered.map((action) => ({ name: action.name, description: action.description, parameters: parametersOf(action.schema) })),
         maxToolRounds,
         runTool,
+        readRoom: offered.some((action) => action.kind === "read") ? COACH_ACTION_READS_MAX_TOKENS : 0,
         get narrowed() {
           return narrowed;
         },

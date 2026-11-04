@@ -76,7 +76,7 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
    */
   async function jobOfferRead(candidateId: string, id: string, maxTokens: number): Promise<ReadObject | null> {
     const active = new Set((await sources.profiles.list(candidateId)).filter((profile) => !profile.archived).map((profile) => profile.id));
-    const told = (head: string, result: ScoredResult) => fitted([[head, `${matchScoreText(result.matchScore)}.`, jobOfferText(result.jobOffer)].join("\n")], maxTokens);
+    const told = (head: string, result: Pick<ScoredResult, "jobOffer" | "matchScore">) => fitted([[head, `${matchScoreText(result.matchScore)}.`, jobOfferText(result.jobOffer)].join("\n")], maxTokens);
 
     const saved = (await sources.applications.list(candidateId)).find((application) => application.jobOffer.id === id && active.has(application.profile.id));
     const application = saved ? await sources.applications.get(candidateId, saved.id) : null;

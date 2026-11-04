@@ -32,7 +32,7 @@ import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { createCoach, MAX_MESSAGE_LENGTH, type CoachFocus } from "../coach";
 import { forEvalRun, type CoachAction } from "../coach-actions";
-import { COACH_ACTIONS } from "../coach-actions/catalog";
+import { NO_OBJECTS, shippedCoachActions } from "../coach-actions/catalog";
 import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
@@ -428,7 +428,7 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
   /** The AI Coach as an Eval Run plays it: on `served`, the Guardrails as they are, a fictional Coach context per case. */
   async function playJudged(cases: readonly (JudgedEvalCase & { consults?: string; aboutJobbbox?: boolean; couldNotAnswer?: boolean; proposes?: boolean })[], served: ServedKnowledge, consult?: string) {
     const guardrails = createGuardrails({ ai, config: deps.guardrails, triggers: { record: () => {} } });
-    const coachActions = forEvalRun(deps.coachActions ?? COACH_ACTIONS);
+    const coachActions = forEvalRun(deps.coachActions ?? shippedCoachActions(NO_OBJECTS));
     let judge: EvalRun["judge"] = null;
     const results = await playAll(cases, async (each): Promise<JudgedCaseResult> => {
       const coach = createCoach({

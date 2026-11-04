@@ -13,7 +13,7 @@
  */
 import * as z from "zod";
 import { estimateTokens } from "../coach/context";
-import type { CoachAction, CoachActionResult } from "./index";
+import type { CoachAction, CoachActionCall, CoachActionResult } from "./index";
 
 /** What `list_objects` indexes. */
 export const INDEXED_OBJECT_TYPES = ["profile", "application", "job_search", "job_digest", "agenda_item"] as const;
@@ -86,7 +86,7 @@ const listObjects = (reader: CoachObjectReader): CoachAction =>
     group: "applications",
     kind: "read",
     copiesText: false,
-    async run(args: { type?: IndexedObjectType; text?: string }, call) {
+    async run(args: { type?: IndexedObjectType; text?: string }, call: CoachActionCall) {
       const text = folded(args.text?.trim() ?? "");
       const shown = (await reader.index(call.candidateId)).filter(
         (object) => (!args.type || object.type === args.type) && (!text || folded(`${object.title} ${object.status}`).includes(text)),
@@ -115,7 +115,7 @@ const readOne = (reader: CoachObjectReader, name: string, type: ReadObjectType, 
     group,
     kind: "read",
     copiesText: false,
-    run: async (args: { id: string }, call) => found(await reader.read(call.candidateId, type, args.id, call.maxTokens ?? Number.POSITIVE_INFINITY)),
+    run: async (args: { id: string }, call: CoachActionCall) => found(await reader.read(call.candidateId, type, args.id, call.maxTokens ?? Number.POSITIVE_INFINITY)),
   }) as unknown as CoachAction;
 
 /** The read Coach Actions, over `reader`. */

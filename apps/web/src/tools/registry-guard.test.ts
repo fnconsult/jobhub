@@ -10,7 +10,7 @@ import { PROVIDER_IDS, TEXT_TASKS } from "@jobhub/ai";
 import { externalApiProvidersOf, TOOLS, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
-import { COACH_ACTIONS } from "../coach-actions/catalog";
+import { NO_OBJECTS, shippedCoachActions } from "../coach-actions/catalog";
 import { coachActionCatalog, createCoachActions, defineCoachAction } from "../coach-actions";
 import { CONTACT_PROVIDERS } from "../enriched-contacts/providers/types";
 import { ENV_ONLY_SETTINGS, PLATFORM_SETTINGS, platformSetting } from "../platform-settings/catalog";
@@ -73,7 +73,7 @@ describe("the guard on the Tools", () => {
 
   it("finds the group of every Coach Action shipped among the Routes locales Tools, its calls recorded under it (#713)", () => {
     const localRoutes = TOOLS.filter((tool) => tool.category === "local_routes").flatMap((tool) => externalApiProvidersOf(tool));
-    expect(COACH_ACTIONS.filter((action) => !localRoutes.includes(action.group))).toEqual([]);
+    expect(shippedCoachActions(NO_OBJECTS).filter((action) => !localRoutes.includes(action.group))).toEqual([]);
   });
 
   it("refuses a Coach Action whose group no Routes locales Tool declares: its calls could not be recorded (#713)", async () => {

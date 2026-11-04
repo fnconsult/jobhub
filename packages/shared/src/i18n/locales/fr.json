@@ -5728,6 +5728,16 @@
     "openSampleSection": "Ouvrir une Section d'exemple",
     "sampleSection": "Section d'exemple",
     "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire.",
+    "documents": {
+      "title": "Documents",
+      "none": "Pas encore de document : demandez au coach un CV adapté ou une lettre de motivation.",
+      "updatedOn": "Modifié le {{date}}",
+      "open": "Ouvrir",
+      "share": "Partager",
+      "subject": "Objet : {{subject}}",
+      "readOnly": "Les documents se lisent, se partagent et se téléchargent dans l'app ; ils se modifient sur jobbbox.ai.",
+      "failed": "Le document n'a pas pu être ouvert. Vérifiez votre connexion et réessayez."
+    },
     "appSettings": "Réglages de l'app",
     "appLock": {
       "setting": "Verrouiller l'app",

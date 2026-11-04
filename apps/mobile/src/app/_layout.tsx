@@ -11,14 +11,16 @@ import { KeyboardAvoidingView, Platform } from "react-native";
 import { initialWindowMetrics } from "react-native-safe-area-context";
 import { AppLock } from "../app-lock/AppLock";
 import { AppProviders } from "../app-providers";
+import { createDocumentReader } from "../documents/document-reader";
+import { systemDocuments } from "../documents/system-documents";
 import { deviceI18n } from "../i18n";
 import { deviceNetwork, deviceStorage } from "../offline/device";
 import { NEW_CONVERSATION, pageFor, paths } from "../navigation/pages";
 import { Sidebar } from "../navigation/Sidebar";
 import { usePortraitOnPhones } from "../orientation";
-import { PanePlaceholder } from "../screens/PanePlaceholder";
 import { appSession } from "../session/instance";
 import { SessionGate } from "../session/SessionGate";
+import { PaneContent } from "../screens/PaneContent";
 import { Shell } from "../shell/Shell";
 
 const DEVICE = { storage: deviceStorage, network: deviceNetwork };
@@ -56,10 +58,12 @@ function AppShell() {
   const pathname = usePathname();
   const router = useRouter();
   const page = pageFor(pathname, t);
+  // The app's one reader of Tailored Documents: a file it downloaded is not downloaded again while it runs.
+  const reader = useMemo(() => createDocumentReader(systemDocuments), []);
   return (
     <Shell
       page={page}
-      paneContent={<PanePlaceholder pane={page.pane} />}
+      paneContent={<PaneContent pathname={pathname} page={page} reader={reader} />}
       sidebar={(closeDrawer) => <Sidebar onNavigate={closeDrawer} />}
       onNewConversation={() => router.navigate(paths.conversation(NEW_CONVERSATION))}
     >

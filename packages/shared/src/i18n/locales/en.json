@@ -5728,6 +5728,16 @@
     "openSampleSection": "Open a sample Section",
     "sampleSection": "Sample Section",
     "workPanePlaceholder": "The Work Pane will show a Section, a Result, a Help Article or a form here.",
+    "documents": {
+      "title": "Documents",
+      "none": "No document yet: ask the coach for a tailored CV or a cover letter.",
+      "updatedOn": "Changed on {{date}}",
+      "open": "Open",
+      "share": "Share",
+      "subject": "Subject: {{subject}}",
+      "readOnly": "In the app, documents are read, shared and downloaded; they are changed on jobbbox.ai.",
+      "failed": "The document could not be opened. Check your connection and try again."
+    },
     "appSettings": "App settings",
     "appLock": {
       "setting": "Lock the app",

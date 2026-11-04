@@ -13,8 +13,10 @@ import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-ser
 // COACH_ACTIONS_ENABLED on and the suite's fake Coach Action (E2E_FAKE_COACH_ACTIONS: an Application Status, proposed and
 // applied through the Applications module). The AI Coach is faked inside it (fake-mistral.mjs): a message holding
 // `E2E_COACH_TOOL=<name>:<json>` has it call that Coach Action.
+// Issue #717: « Propositions du coach : Formulaire » in Mon compte opens the proposal's form by itself in the Work Pane.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const texts = fr.coachProposals;
+const display = fr.coachProposalsDisplay;
 /** Inside the suite's own range of derived ports (e2e/support/ports.ts), apart from the other specs' servers. */
 const PORT_OFFSET = 715;
 const TITLE = "Responsable logistique (H/F)";
@@ -175,6 +177,36 @@ test.describe("a Coach proposal in the thread: « Appliquer », « Annuler », �
     await expect(cardOf(page).getByRole("status")).toHaveText(new RegExp(`^${tr(texts.applied, { time: "\\d\\d:\\d\\d" })}$`));
     await expect(statusSelect(page)).toHaveValue("offer_received");
     expect((await statusOf(id)).status).toBe("offer_received");
+  });
+
+  test("« Propositions du coach : Formulaire » in Mon compte → a proposal → the Work Pane opens by itself on its form (#717)", async ({ browser }) => {
+    const { page, id } = await withApplication(browser);
+    await page.goto("/compte/preferences");
+    const choice = page.getByRole("radiogroup", { name: display.label });
+    await expect(choice.getByRole("radio", { name: display.card, exact: true })).toHaveAttribute("aria-checked", "true");
+
+    await choice.getByRole("radio", { name: display.form, exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: display.saved.form })).toBeVisible();
+    // Kept with the account, and in its Data export.
+    await page.reload();
+    await expect(choice.getByRole("radio", { name: display.form, exact: true })).toHaveAttribute("aria-checked", "true");
+    const exported = await page.request.get("/api/account/export");
+    expect(exported.ok()).toBe(true);
+    expect((await exported.json()).coachProposalsDisplay).toMatchObject({ display: "form", chosenAt: expect.any(String) });
+
+    await page.goto(`/candidatures/${id}`);
+    await askForStatus(page, id, "interview");
+
+    const pane = page.getByRole("complementary", { name: tr(texts.editTitle, { what: texts.fields.applicationStatus }) });
+    await expect(pane).toBeVisible();
+    await expect(pane.getByRole("combobox", { name: texts.fields.applicationStatus })).toHaveValue("interview");
+    // The card keeps both buttons; nothing is applied until the Candidate applies it.
+    await expect(cardOf(page).getByRole("button")).toHaveText([texts.apply, texts.edit, texts.dismiss]);
+    expect((await statusOf(id)).status).toBe("to_apply");
+
+    await pane.getByRole("button", { name: texts.apply, exact: true }).click();
+    await expect(pane).toBeHidden();
+    await expect(statusSelect(page)).toHaveValue("interview");
   });
 
   test("the object changed since the proposal: « Appliquer » is refused as a conflict, never merged, the card still waits", async ({ browser }) => {

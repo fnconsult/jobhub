@@ -11,4 +11,4 @@ Avec votre accord, dans Mon compte, rubrique IA européenne, chaque demande à l
 
 Dans Mon compte, rubrique Mes données, vous téléchargez toutes vos données ou supprimez votre compte.
 
-Le détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia).
+Le détail est dans la politique de confidentialité, section [IA dans Jobbbox](/legal/confidentialite#ia). Les services qui reçoivent vos données, où ils les traitent et avec quelle garantie, sont nommés dans [Destinataires des données](/legal/destinataires).

@@ -11,4 +11,4 @@ With your consent, in My account, under European AI, each request to the AI that
 
 In My account, under My data, you download all your data or delete your account.
 
-The details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia).
+The details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia). The services that receive your data, where they process it and with what safeguard, are named in [Data recipients](/legal/destinataires).

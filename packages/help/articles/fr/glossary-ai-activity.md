@@ -9,4 +9,4 @@ synonyms: [activité ia, activité, modèles, modèle, tokens, jetons, sources, 
 
 Les tokens et la durée sont une « mesure technique, non décomptée de vos quotas ». Ce qui vient de vos propres données ou des règles de Jobbbox, sans IA, est dit comme tel.
 
-Pendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Une action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne.
+Pendant qu'une action de l'IA tourne, sur cette page ou « En cours ailleurs », chaque étape s'affiche en direct, et « Arrêter » l'interrompt : ce qui était terminé est gardé. Une action arrêtée ou en échec est signalée en clair, avec sa raison quand elle est connue. L'activité IA ne montre jamais de coût ni de réglage interne. En bas, « En savoir plus » mène à la section « IA dans Jobbbox » de la politique de confidentialité.

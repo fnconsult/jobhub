@@ -447,7 +447,8 @@ test.describe("Applications", () => {
     await signInWithMagicLink(page, newAddress("application-interview-api"));
     const applicationId = await saveApplication(page, await captureOffer(page), await createProfile(page, "DAF"));
     const base = `/api/applications/${applicationId}/interviews`;
-    const interviewsOf = async () => ((await (await page.request.get("/api/applications")).json()) as { id: string; interviews: { id: string; scheduledAt: string; note: string }[] }[]).find((a) => a.id === applicationId)!.interviews;
+    // One Application with its Interviews: GET /api/applications/[id] since #684 (the list is Mes candidatures' card, without them).
+    const interviewsOf = async () => ((await (await page.request.get(`/api/applications/${applicationId}`)).json()) as { interviews: { id: string; scheduledAt: string; note: string }[] }).interviews;
 
     await page.request.patch(`/api/applications/${applicationId}`, { data: { status: "interview" }, headers: { origin } });
     const added = await page.request.post(base, { data: { scheduledAt: "2026-11-12T14:30", note: "Avec le PDG" }, headers: { origin } });

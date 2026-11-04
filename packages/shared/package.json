@@ -10,7 +10,8 @@
     "./design": "./src/design/index.ts",
     "./design/tokens": "./src/design/tokens.ts",
     "./page-reading": "./src/page-reading/index.ts",
-    "./reads": "./src/reads/index.ts"
+    "./reads": "./src/reads/index.ts",
+    "./calendar-file": "./src/calendar-file.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

@@ -354,7 +354,9 @@ export function createCoach(deps: CoachDeps): Coach {
         const write = async (feedback: string | null) => {
           prepared ??= await prepare();
           // Offered afresh to each reply written: a reply written again proposes again, the first one's proposals dropped.
-          const offered = deps.coachActions ? await deps.coachActions.forReply(candidateId, { recorder, untrustedInView: untrustedInView(focus?.kind), ...(guard ? { guard } : {}) }) : null;
+          const offered = deps.coachActions
+            ? await deps.coachActions.forReply(candidateId, { recorder, untrustedInView: untrustedInView(focus?.kind), language: options.language ?? "fr", ...(guard ? { guard } : {}) })
+            : null;
           const rules = offered ? [COACH_ACTIONS_RULES, ...(offered.narrowed ? [NARROWED_RULE] : [])].join("\n\n") : "";
           const system = [prepared.system, rules, feedback ?? ""].filter(Boolean).join("\n\n");
           const result = await recorder.ai.generate({

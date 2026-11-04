@@ -24,7 +24,8 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * `provenance` says what served the reply (#327) and `at` when it was saved, for the line under it.
  * `couldNotAnswer`: the AI Coach could not answer the question (#345): the Coach Panel offers « Poser la question à l'équipe » at once.
  * `context`: the conversation's Context bar's figures once the message is saved (#607): { messages, tokens }.
- * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
+ * `cards`: the Action Cards of the Coach proposals the reply makes (#715), under it (CoachProposalCard); absent when none.
+ * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, couldNotAnswer, context, cards? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
  * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation, context }.
  *
  * Live (#328), with `Accept: application/x-ndjson`: 200, one JSON event per line as the reply runs:
@@ -54,8 +55,8 @@ export async function POST(request: Request) {
   return NextResponse.json(failureOf(result), { status: STATUS[result.error] });
 }
 
-function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer, context }: Extract<SendResult, { ok: true }>) {
-  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer, context };
+function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, couldNotAnswer, context, cards }: Extract<SendResult, { ok: true }>) {
+  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, couldNotAnswer, context, ...(cards ? { cards } : {}) };
 }
 
 function failureOf(result: Extract<SendResult, { ok: false }>) {

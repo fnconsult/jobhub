@@ -5733,5 +5733,10 @@
       "locked": "Jobbbox est verrouillée",
       "unlock": "Déverrouiller"
     }
+  },
+  "coachProposals": {
+    "fields": {
+      "applicationStatus": "Statut de la candidature"
+    }
   }
 }

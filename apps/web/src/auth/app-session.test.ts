@@ -84,6 +84,21 @@ describe.skipIf(!connectionString)("the native app's session (needs Postgres: DA
     expect(await sessionOf(web)).not.toBeNull();
   });
 
+  it("answers the app a link already used, or never valid, by a redirect carrying INVALID_TOKEN, no session in it", async () => {
+    const link = await appAsksLink("marie.dupont@example.fr");
+    const verify = `/api/auth/magic-link/verify?token=${link.searchParams.get("token")}`;
+    await testAuth.request(verify, { headers: FROM_APP });
+
+    for (const path of [verify, "/api/auth/magic-link/verify?token=never-valid"]) {
+      const refused = await testAuth.request(path, { headers: FROM_APP });
+
+      // What the app's fetch follows (app-session.ts tells a link no longer valid by the session missing from the answer).
+      expect(refused.status).toBe(302);
+      expect(new URL(refused.headers.get("location")!).searchParams.get("error")).toBe("INVALID_TOKEN");
+      expect(refused.headers.getSetCookie()).toEqual([]);
+    }
+  });
+
   it("revokes the session when the app signs out", async () => {
     const cookie = await appSignsIn("marie.dupont@example.fr");
 

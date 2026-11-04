@@ -47,6 +47,14 @@ describe("the app's session (ADR-0076, #685)", () => {
     expect(await session.openLink(link)).toEqual({ kind: "invalidLink" });
   });
 
+  it("says when the link is no longer valid on a device not signed in", async () => {
+    const { session, keptOnDevice } = setUp();
+
+    expect(await session.openLink(`${TEST_BASE_URL}${APP_SIGN_IN_PATH}?token=expired`)).toEqual({ kind: "invalidLink" });
+
+    expect(keptOnDevice()).toBe(false);
+  });
+
   it("leaves alone a link that is not a sign-in link", async () => {
     const { session } = setUp();
 

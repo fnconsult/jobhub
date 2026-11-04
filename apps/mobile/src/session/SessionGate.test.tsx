@@ -1,4 +1,5 @@
 import { act, screen, userEvent } from "@testing-library/react-native";
+import { useSyncExternalStore } from "react";
 import { AppState, Text } from "react-native";
 import { renderInApp } from "../testing";
 import { Control } from "../ui/Control";
@@ -16,14 +17,25 @@ function SignedInPage() {
 function setUp() {
   const web = fakeWebApp();
   const session = createAppSession({ baseURL: TEST_BASE_URL, storage: memoryStorage(), fetch: web.fetch });
-  const render = (link: string | null = null) =>
-    renderInApp(
+  /** The address the system last opened the app with, as Expo Linking's useLinkingURL gives it. */
+  const opened = { current: null as string | null, listeners: new Set<() => void>() };
+  const subscribe = (listener: () => void) => (opened.listeners.add(listener), () => void opened.listeners.delete(listener));
+  function App() {
+    const link = useSyncExternalStore(subscribe, () => opened.current);
+    return (
       <SessionGate session={session} link={link}>
         <SignedInPage />
-      </SessionGate>,
+      </SessionGate>
     );
-  return { web, session, render };
+  }
+  /** The app started, opened with `link` if any (a cold start). */
+  const render = (link: string | null = null) => ((opened.current = link), renderInApp(<App />));
+  /** The system opens the running app with `link`, as a universal link or an App Link does. */
+  const openWith = (link: string) => act(async () => ((opened.current = link), opened.listeners.forEach((listener) => listener())));
+  return { web, session, render, openWith };
 }
+
+const LINK_ERROR = "Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.";
 
 /** The app comes back to the foreground, as after reading the email or using the web. */
 async function backToForeground() {
@@ -79,8 +91,48 @@ describe("SessionGate (#685)", () => {
 
     await render(link);
 
-    expect(await screen.findByText("Ce lien de connexion n'est plus valable. Demandez-en un nouveau ci-dessous.")).toBeOnTheScreen();
+    expect(await screen.findByText(LINK_ERROR)).toBeOnTheScreen();
     expect(screen.getByLabelText("Votre adresse e-mail")).toBeOnTheScreen();
+  });
+
+  it("says when the link is no longer valid while waiting for it, and sends another with « Renvoyer le lien »", async () => {
+    const { web, session, render, openWith } = setUp();
+    await session.askLink(EMAIL);
+    const used = web.linkFor(EMAIL);
+    await session.openLink(used);
+    await session.signOut();
+    await render();
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Votre adresse e-mail"), EMAIL);
+    await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+    await screen.findByText("En attente du lien…");
+
+    await openWith(used);
+
+    expect(await screen.findByText(LINK_ERROR)).toBeOnTheScreen();
+    expect(screen.queryByText("La conversation")).toBeNull();
+    await user.press(screen.getByRole("button", { name: "Renvoyer le lien" }));
+    expect(web.emailed).toHaveLength(3);
+    expect(screen.queryByText(LINK_ERROR)).toBeNull();
+    await openWith(web.linkFor(EMAIL));
+    expect(await screen.findByText("La conversation")).toBeOnTheScreen();
+  });
+
+  it("no longer says a link is not valid once a new one is sent", async () => {
+    const { web, session, render } = setUp();
+    await session.askLink(EMAIL);
+    const used = web.linkFor(EMAIL);
+    await session.openLink(used);
+    await session.signOut();
+    await render(used);
+    await screen.findByText(LINK_ERROR);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Votre adresse e-mail"), EMAIL);
+    await user.press(screen.getByRole("button", { name: "Recevoir mon lien de connexion" }));
+
+    expect(await screen.findByText("En attente du lien…")).toBeOnTheScreen();
+    expect(screen.queryByText(LINK_ERROR)).toBeNull();
   });
 
   it("shows the second step as a step to take, from which one can sign out", async () => {

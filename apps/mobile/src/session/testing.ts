@@ -25,7 +25,8 @@ interface Session {
 /**
  * The web app's Better Auth endpoints the app calls, as they answer (apps/web/src/auth/app-session.test.ts proves the
  * real ones): the magic link asked from the app's origin alone, the session as a cookie, a session pending its second
- * step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read.
+ * step answered 401 `second_step_required` (ADR-0075), a revoked session no longer read, a link no longer valid
+ * redirected to the home page.
  */
 export function fakeWebApp() {
   const sessions = new Map<string, Session>();
@@ -59,7 +60,9 @@ export function fakeWebApp() {
     }
     if (path === "/magic-link/verify" && request.method === "GET") {
       const email = links.get(url.searchParams.get("token") ?? "");
-      if (!email) return json({ message: "INVALID_TOKEN" }, 401);
+      // Better Auth answers every failure with a redirect to its error address (the home page, `error=INVALID_TOKEN`),
+      // which React Native's fetch follows whatever `redirect` asks: what reaches the app is that page, a 200.
+      if (!email) return fetch(`${TEST_BASE_URL}/?error=INVALID_TOKEN`);
       links.delete(url.searchParams.get("token")!);
       const token = `session${++next}`;
       sessions.set(token, { email, pending: withSecondStep.has(email) });
@@ -76,6 +79,7 @@ export function fakeWebApp() {
       if (found) sessions.delete(found.token);
       return json({ success: true }, 200, cleared);
     }
+    if (url.pathname === "/") return new Response("<!doctype html><title>Jobbbox</title>", { status: 200, headers: { "content-type": "text/html" } });
     return json({ message: "Not found" }, 404);
   }
 

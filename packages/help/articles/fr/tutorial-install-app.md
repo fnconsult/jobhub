@@ -9,7 +9,7 @@ L'app Jobbbox, sur iPhone, iPad et Android, utilise le même compte que jobbbox.
 
 1. Installez l'app « Jobbbox » depuis l'App Store (iPhone, iPad) ou Google Play (Android), puis ouvrez-la.
 2. Sur l'écran « Se connecter à Jobbbox », saisissez « Votre adresse e-mail », puis touchez « Recevoir mon lien de connexion ».
-3. Sur ce même téléphone, ouvrez l'e-mail reçu et touchez le lien : l'app s'ouvre et vous êtes connecté. Le lien est valable 15 minutes et ne sert qu'une fois ; s'il n'est plus valable, l'app vous le dit et vous pouvez en demander un autre avec « Renvoyer le lien ».
+3. Sur ce même téléphone, ouvrez l'e-mail reçu et touchez le lien : l'app s'ouvre et vous êtes connecté. Le lien est valable 15 minutes et ne sert qu'une fois ; s'il n'est plus valable, l'app vous le dit : demandez-en un autre avec « Renvoyer le lien », ou avec « Recevoir mon lien de connexion » si l'app est revenue à l'écran « Se connecter à Jobbbox ».
 4. Si votre compte a la vérification en deux étapes, l'app affiche « Vérification en deux étapes » : elle arrive bientôt dans l'app. En attendant, touchez « Se déconnecter » ou connectez-vous sur jobbbox.ai.
 
 Si vous ouvrez le lien sur un appareil où l'app n'est pas installée, il vous connecte sur jobbbox.ai, dans le navigateur.

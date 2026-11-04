@@ -91,8 +91,11 @@ export function createAppSession({ baseURL, storage, fetch = globalThis.fetch }:
       const token = signInToken(url, baseURL);
       if (!token) return Promise.resolve(null);
       return serial(async () => {
-        const { error } = await client.magicLink.verify({ query: { token } });
-        if (error) return { kind: "invalidLink" } as const;
+        // Asked without a return address, the web app answers a valid link with its session, in JSON. It answers every
+        // other (used, expired, never valid) with a redirect to its error address, `error=INVALID_TOKEN`, which React
+        // Native's fetch follows to a page, a 200 without an error: the session missing from the answer is what tells.
+        const { data } = await client.magicLink.verify({ query: { token } });
+        if (!data?.token) return { kind: "invalidLink" } as const;
         return current();
       });
     },

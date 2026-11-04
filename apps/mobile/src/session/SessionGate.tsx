@@ -73,7 +73,7 @@ export function SessionGate({ session, link, children }: { session: AppSession; 
   if (!state) return null;
   return (
     <SessionContext.Provider value={value}>
-      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} />}
+      {state.kind === "signedIn" ? children : state.kind === "secondStep" ? <SecondStep onSignOut={value.signOut} /> : <SignIn session={session} linkInvalid={linkInvalid} onAskLink={() => setLinkInvalid(false)} />}
     </SessionContext.Provider>
   );
 }
@@ -114,8 +114,11 @@ const EMAIL_FIELD = {
   returnKeyType: "send",
 } as const;
 
-/** Sign-in by magic link: the email, « Recevoir mon lien de connexion », then waiting for the link. */
-function SignIn({ session, linkInvalid }: { session: AppSession; linkInvalid: boolean }) {
+/**
+ * Sign-in by magic link: the email, « Recevoir mon lien de connexion », then waiting for the link. A link no longer
+ * valid (`linkInvalid`) is said on either step, until another is asked (`onAskLink`).
+ */
+function SignIn({ session, linkInvalid, onAskLink }: { session: AppSession; linkInvalid: boolean; onAskLink: () => void }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [email, setEmail] = useState("");
@@ -124,6 +127,7 @@ function SignIn({ session, linkInvalid }: { session: AppSession; linkInvalid: bo
   const send = async () => {
     const address = email.trim();
     if (!address) return;
+    onAskLink();
     setStep(SENDING);
     setStep((await session.askLink(address)) ? { kind: "sent", email: address } : { kind: "form", error: true });
   };
@@ -131,6 +135,7 @@ function SignIn({ session, linkInvalid }: { session: AppSession; linkInvalid: bo
   if (step.kind === "sent") {
     return (
       <GateScreen title={t("signIn.title")}>
+        {linkInvalid ? <SignInError message={t("signIn.linkError")} /> : null}
         <View role="status">
           <AppText>{t("mobile.signIn.sent", { email: step.email })}</AppText>
         </View>
@@ -148,11 +153,7 @@ function SignIn({ session, linkInvalid }: { session: AppSession; linkInvalid: bo
   return (
     <GateScreen title={t("signIn.title")}>
       <AppText tone="secondary">{t("signIn.introWithoutProviders")}</AppText>
-      {error ? (
-        <View role="alert">
-          <AppText tone="danger">{error}</AppText>
-        </View>
-      ) : null}
+      {error ? <SignInError message={error} /> : null}
       <View style={{ gap: space[2] }}>
         <AppText weight="semiBold">{t("signIn.emailLabel")}</AppText>
         <TextInput
@@ -176,6 +177,15 @@ function SignIn({ session, linkInvalid }: { session: AppSession; linkInvalid: bo
       </View>
       <Control look="primary" label={sending ? t("signIn.sending") : t("signIn.submit")} onPress={() => void send()} />
     </GateScreen>
+  );
+}
+
+/** What went wrong with the sign-in, read out as it appears. */
+function SignInError({ message }: { message: string }) {
+  return (
+    <View role="alert">
+      <AppText tone="danger">{message}</AppText>
+    </View>
   );
 }
 

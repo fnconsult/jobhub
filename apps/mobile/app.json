@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Jobbbox",
+    "slug": "jobbbox",
+    "scheme": "jobbbox",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "ai.jobbbox.app",
+      "supportsTablet": true,
+      "deploymentTarget": "16.4",
+      "infoPlist": {
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"]
+      }
+    },
+    "android": {
+      "package": "ai.jobbbox.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-screen-orientation",
+      ["expo-build-properties", { "android": { "minSdkVersion": 24 } }]
+    ]
+  }
+}

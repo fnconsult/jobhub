@@ -27,6 +27,12 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-require-imports": "off" },
   },
   {
+    // The native app's Metro, Babel and Jest configurations (#683): CommonJS, as those tools load them.
+    files: ["apps/mobile/*.js"],
+    languageOptions: { sourceType: "commonjs" },
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
+  {
     files: ["**/*.tsx"],
     plugins: { "react-hooks": reactHooks },
     rules: reactHooks.configs.recommended.rules,

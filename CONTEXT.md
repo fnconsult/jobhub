@@ -985,6 +985,14 @@ _Avoid_: Audit page, changelog
 What every AI call cost Jobbbox, whatever its task (not only AI Coach replies): when, task, provider, endpoint, model, input, output and cached input tokens, estimated cost in euros at list prices (the same prices as the Coach Message Cost; a Tool's billed units at its Price), duration, Outcome (ok, warning or failed) and the Failure Reason's code, also for a call stopped before it was sent (missing configuration, data residency); with each tool its model used (a web search, priced per search) and every call to an external API (France Travail, the French company register, the job boards, contact enrichment: provider, operation, HTTP status, cost when known). No Candidate and no text: aggregates of no one, so outside the Data export and kept 24 months whatever happens to accounts. Super-admins and Support read it on the Back Office's Consommation IA page, per period, with failures and warnings counted per Failure Reason (also on Outils).
 _Avoid_: AI bill, token log, metering
 
+**Turn**:
+One AI call inside a call with tools (#712, ADR-0077): the AI layer sends the conversation, the model answers with text or tool calls, and the caller's code runs them. Each Turn is one line of AI Usage (same task) and one entry of the AI Message Log, its tool calls and results written as text after Redaction (`[appel d'outil <nom> #<id>]`, `[résultat d'outil #<id>]`, `[erreur d'outil #<id>]`); the warnings and the reply check are recorded on the last one, and the cost of the answer (Coach Message Cost) is the sum of its Turns, each at its own provider's price. A tool result is scanned for identity like any input: one that carries it sends the next Turns to the EU AI Consent route. Stopping between two Turns records `stopped` and sends no next Turn.
+_Avoid_: Step, iteration
+
+**Tool round**:
+One Turn of tool calls and its results. A call with tools allows 2 Tool rounds by default and never more than 4 (`maxToolRounds`); after the last, one final Turn keeps the tools but forbids them (`toolChoice: "none"`), so the model must answer in text. An unknown tool, or arguments that are not a JSON object, is never run: an error result goes back to the model. A provider that does not declare tool calling is called without tools and the result says `tools.supported: false`.
+_Avoid_: Loop count
+
 **Billed unit**:
 What a Tool charges for: a Perplexity Search API call (1 to 5 queries), a Brave request, a Tavily credit (2 for an advanced search). A call that bills several units is counted once per unit.
 _Avoid_: search count

@@ -9,7 +9,7 @@ import { conversationOf, toConversation } from "./support/conversation";
 // empty until each group's ticket, so in the running app the AI Coach is offered no tool whatever the switch says: with
 // COACH_ACTIONS_ENABLED off (the default) or on, a reply is the one it was before Coach Actions, and the Routes locales
 // Tools in Outils say whether the switch is on. The calls themselves (a fake Coach Action of each kind, scope, allow-list,
-// Provenance, external_api_usage, AI Message Log) are in ai-coach-actions.spec.ts. The AI is faked inside the server
+// Provenance, external_api_usage, AI Message Log) are in ai-actions-coach.spec.ts. The AI is faked inside the server
 // (fake-mistral.mjs): a message holding `E2E_COACH_TOOL=<name>:<json>` has the AI Coach call that tool when it was offered some.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
@@ -20,6 +20,9 @@ const SUPER_ADMIN = "coach-actions-office@e2e.jobbbox.test";
 const ENABLED = "COACH_ACTIONS_ENABLED";
 const ROUNDS = "COACH_TOOL_ROUNDS_MAX";
 const GROUPS = 6;
+/** A message asking the AI Coach to call a tool, and the plain reply it gets when it was offered none. */
+const PLAIN = "Réponse sans outil";
+const ASKING = `Où en est ma candidature ?\nE2E_COACH_TOOL=lire_candidature:{"id":"a1"}\nE2E_COACH_SAY=${PLAIN}`;
 
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
 const row = (page: Page, name: string) => page.locator(`tr[data-setting="${name}"]`);
@@ -66,10 +69,10 @@ test.describe("Coach Actions: the switch and the AI Coach's reply (#713)", () =>
     await page.context().clearCookies();
     await signInWithMagicLink(page, newAddress("coach-actions-off"));
     await toConversation(page);
-    await ask(page, 'Où en est ma candidature ? E2E_COACH_TOOL=lire_candidature:{"id":"a1"}');
+    await ask(page, ASKING);
     await expect(messagesOf(page)).toHaveCount(3);
     const reply = messagesOf(page).last();
-    await expect(reply).toContainText("fake reply");
+    await expect(reply).toContainText(PLAIN);
     await expect(reply).not.toContainText("Résultat de l'outil");
     // Its Provenance holds the one `coaching` call: no `act` step.
     await expect(reply.locator(".provenance-line")).toContainText("Mistral Large");
@@ -79,7 +82,7 @@ test.describe("Coach Actions: the switch and the AI Coach's reply (#713)", () =>
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto("/admin/parametres?tab=ia");
     const setting = row(page, ENABLED);
-    await setting.getByRole("textbox", { name: tr(texts.newValue, { name: ENABLED }) }).fill("true");
+    await setting.getByRole("combobox", { name: tr(texts.newValue, { name: ENABLED }) }).selectOption("true");
     await setting.getByRole("button", { name: texts.save }).click();
     await expect(page.getByRole("status").filter({ hasText: ENABLED })).toHaveText(tr(texts.notices.saved, { name: ENABLED }));
     await expect(setting.getByRole("cell").nth(0)).toHaveText("true");
@@ -103,9 +106,9 @@ test.describe("Coach Actions: the switch and the AI Coach's reply (#713)", () =>
     try {
       await signInWithMagicLink(candidatePage, newAddress("coach-actions-on"));
       await toConversation(candidatePage);
-      await ask(candidatePage, 'Où en est ma candidature ? E2E_COACH_TOOL=lire_candidature:{"id":"a1"}');
+      await ask(candidatePage, ASKING);
       await expect(messagesOf(candidatePage)).toHaveCount(3);
-      await expect(messagesOf(candidatePage).last()).toContainText("fake reply");
+      await expect(messagesOf(candidatePage).last()).toContainText(PLAIN);
       await expect(messagesOf(candidatePage).last()).not.toContainText("Résultat de l'outil");
     } finally {
       await candidate.close();

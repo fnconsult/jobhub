@@ -90,7 +90,7 @@ export default defineConfig({
     // Email intake's MTA image (#580), built and run in docker, driven over SMTP. Needs no web app.
     { name: "mta", testMatch: /email-intake-mta\.spec\.ts/ },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
-    { name: "ai", testMatch: /(ai|ai-tool-calls|ai-coach-actions|offer-email-reading)\.spec\.ts/ },
+    { name: "ai", testMatch: /(ai|ai-tool-calls|ai-actions-coach|offer-email-reading)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
     // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.

@@ -33,7 +33,14 @@
 import type { ProvenanceRecorder, StepTool, ToolDefinition, ToolOutcome, ToolRun, ToolRunRecord } from "@jobhub/ai";
 import { LOCAL_ROUTE_GROUPS, localRouteTool, type ExternalApiLog, type LocalRouteGroup } from "@jobhub/shared";
 import * as z from "zod";
-import { asData } from "../coach/context";
+import { asData, type CoachFocus } from "../coach/context";
+
+/**
+ * What In view carries text the Candidate did not write (ADR-0077): a Job Offer, and the Applications, Job Searches and
+ * Job Digests that show one. A Profile's Master CV and the Agenda are theirs.
+ */
+export const UNTRUSTED_IN_VIEW: readonly CoachFocus["kind"][] = ["job_offer", "application", "job_search", "job_digest"];
+export const untrustedInView = (kind: CoachFocus["kind"] | undefined): boolean => kind !== undefined && UNTRUSTED_IN_VIEW.includes(kind);
 
 /** How many changes one reply may propose at most. */
 export const MAX_PROPOSALS_PER_REPLY = 3;

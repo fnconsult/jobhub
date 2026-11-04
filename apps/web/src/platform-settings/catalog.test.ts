@@ -198,6 +198,8 @@ describe("the Platform Settings catalog", () => {
   it("takes as the help videos' origin an https origin, or http on this machine, kept without its slash (#568)", () => {
     const origin = platformSetting("HELP_MEDIA_ORIGIN")!;
     expect(origin.default).toBe("https://media.jobbbox.ai");
+    // Set from the Back Office (Paramètres, « Environnement »), never by editing an environment's .env.
+    expect(isEditable(origin)).toBe(true);
     expect(parseSetting(origin, " https://media.jobbbox.ai/ ")).toEqual({ ok: true, value: "https://media.jobbbox.ai" });
     expect(parseSetting(origin, "http://127.0.0.1:4567")).toEqual({ ok: true, value: "http://127.0.0.1:4567" });
     expect(parseSetting(origin, "http://media.jobbbox.ai")).toMatchObject({ ok: false, error: expect.stringContaining("an https origin") });

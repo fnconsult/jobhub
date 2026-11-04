@@ -7,7 +7,7 @@
  *   const origin = helpMediaOrigin(settings);                    // "https://media.jobbbox.ai"
  *   contentSecurityPolicy(origin);                               // "media-src https://media.jobbbox.ai"
  *   const video = publishedVideo(manifest, "retrouver-une-candidature", "fr", origin);   // its URLs and duration, or null
- *   videoDuration(video.duration, "fr");                         // "1 min 05 s"
+ *   videoDuration(video.duration);                               // "1 min 05 s"
  */
 import { MOTION_MEDIA_ORIGIN, plainNarration, type MotionScript } from "@jobhub/help/motion-scripts";
 import { parseSetting, platformSetting } from "../platform-settings/catalog";
@@ -16,7 +16,6 @@ import type { PlatformSettingsSnapshot } from "../platform-settings/resolver";
 export { isoDuration, VIDEO_ANCHOR, videoDuration } from "./format";
 
 type Locale = "fr" | "en";
-
 
 /** The bucket's origin in use: the Back Office's, else env's, else https://media.jobbbox.ai; the default when one is refused. */
 export function helpMediaOrigin(settings: Pick<PlatformSettingsSnapshot, "setting">): string {

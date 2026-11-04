@@ -133,7 +133,7 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), maintenance (#542)
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), the help videos' origin (#568), maintenance (#542)
  * (« Conversation au centre », #601, was one until it became the only layout, #608).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
@@ -147,6 +147,7 @@ const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
   "job_discovery",
   "enriched_contacts",
   "extension",
+  "help_centre",
   "maintenance",
 ];
 

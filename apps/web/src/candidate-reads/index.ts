@@ -13,10 +13,24 @@
  * `second_step_required` (ADR-0075), and getCurrentCandidate gives no Candidate for it.
  */
 import { matchScoreReliability, type MatchScore } from "@jobhub/shared";
-import type { ApplicationResponse, ApplicationsResponse, InterviewRead, JobOfferLine, RescheduleRead } from "@jobhub/shared/reads";
+import type {
+  ApplicationResponse,
+  ApplicationsResponse,
+  InterviewRead,
+  JobDigestsResponse,
+  JobOfferLine,
+  JobSearchesResponse,
+  JobSearchResponse,
+  RescheduleRead,
+} from "@jobhub/shared/reads";
 import type { Applications, Interview } from "../applications";
 import { applicationsMenu } from "../applications/menu";
 import type { FollowUps } from "../follow-ups";
+import type { JobDigests } from "../job-digests";
+import { jobDigestsMenu } from "../job-digests/menu";
+import type { JobSearches } from "../job-searches";
+import { jobSearchesMenu } from "../job-searches/menu";
+import type { Profiles } from "../profiles";
 import type { Reschedule } from "../reschedules";
 
 export interface CandidateReads {
@@ -24,11 +38,20 @@ export interface CandidateReads {
   applications(candidateId: string, options?: { showArchived?: boolean }): Promise<ApplicationsResponse>;
   /** One of the Candidate's Applications with its Interviews; null when it is not theirs. */
   application(candidateId: string, applicationId: string): Promise<ApplicationResponse | null>;
+  /** Recherches d'offres' card: each active Profile, in their order, with its Job Searches, most recent first. */
+  jobSearches(candidateId: string): Promise<JobSearchesResponse>;
+  /** One of the Candidate's Job Searches and its Job Offers, best Match Score first; null when it is not theirs. */
+  jobSearch(candidateId: string, jobSearchId: string): Promise<JobSearchResponse | null>;
+  /** The Job Digests' card: each active Profile, its Job Digest's frequency and those sent, newest first. */
+  jobDigests(candidateId: string): Promise<JobDigestsResponse>;
 }
 
 export interface CandidateReadsDeps {
   applications: Pick<Applications, "list" | "get" | "matchScores">;
   followUps: Pick<FollowUps, "notices">;
+  profiles: Pick<Profiles, "list">;
+  jobSearches: Pick<JobSearches, "list" | "get">;
+  jobDigests: Pick<JobDigests, "list" | "settings">;
   /** The clock « from now on » is read by (an Application's next deadline). Defaults to the real time. */
   now?: () => Date;
 }
@@ -70,8 +93,16 @@ const jobOfferLine = (offer: JobOfferFacts): JobOfferLine => ({
   expiredAt: isoOrNull(offer.expiredAt),
 });
 
+/** The menus' cards name no day: the app writes it in the Candidate's language from the instant. */
+const NO_DAY_LABEL = () => "";
+
 export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
   const now = deps.now ?? (() => new Date());
+
+  /** The Candidate's active Profiles, in their order: the cards leave an Archived Profile out. */
+  async function activeProfiles(candidateId: string) {
+    return (await deps.profiles.list(candidateId)).filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
+  }
 
   return {
     async applications(candidateId, { showArchived = false } = {}) {
@@ -117,6 +148,55 @@ export function createCandidateReads(deps: CandidateReadsDeps): CandidateReads {
         matchScore: figure(application.matchScore),
         reportedUnavailableAt: isoOrNull(application.reportedUnavailableAt),
         interviews: application.interviews.map(interview),
+      };
+    },
+
+    async jobSearches(candidateId) {
+      const [profiles, searches] = await Promise.all([activeProfiles(candidateId), deps.jobSearches.list(candidateId)]);
+      const menu = jobSearchesMenu({ profiles, searches, dateLabel: NO_DAY_LABEL });
+      return {
+        profiles: menu.groups.map(({ profile, searches: ofProfile }) => ({
+          profile,
+          searches: ofProfile.map((search) => ({ id: search.id, status: search.status, startedAt: iso(search.startedAt), found: search.found, unseen: search.unseen })),
+        })),
+        unseen: menu.unseen,
+      };
+    },
+
+    async jobSearch(candidateId, jobSearchId) {
+      const search = await deps.jobSearches.get(candidateId, jobSearchId);
+      if (!search) return null;
+      return {
+        id: search.id,
+        profile: { id: search.profile.id, name: search.profile.name },
+        status: search.status,
+        failure: search.failure,
+        startedAt: iso(search.startedAt),
+        jobOffers: search.results.map((result) => ({
+          jobOffer: jobOfferLine(result.jobOffer),
+          matchScore: figure(result.matchScore),
+          // Kept: saved as an Application. Dismissing comes with the app's « Écarter » (#692).
+          decision: result.applicationId ? ("kept" as const) : null,
+          applicationId: result.applicationId,
+        })),
+      };
+    },
+
+    async jobDigests(candidateId) {
+      const [profiles, digests] = await Promise.all([activeProfiles(candidateId), deps.jobDigests.list(candidateId)]);
+      const settings = new Map(await Promise.all(profiles.map(async (profile) => [profile.id, await deps.jobDigests.settings(candidateId, profile.id)] as const)));
+      const menu = jobDigestsMenu({ profiles, digests, dateLabel: NO_DAY_LABEL });
+      return {
+        profiles: menu.groups.map(({ profile, digests: sent }) => {
+          const jobDigest = settings.get(profile.id);
+          return {
+            profile,
+            frequency: jobDigest?.frequency ?? "none",
+            chosenFrequency: jobDigest?.chosenFrequency ?? null,
+            planFrequency: jobDigest?.planFrequency ?? "none",
+            digests: sent.map((digest) => ({ id: digest.id, sentAt: iso(digest.sentAt), count: digest.count })),
+          };
+        }),
       };
     },
   };

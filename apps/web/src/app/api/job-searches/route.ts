@@ -1,8 +1,21 @@
+import type { JobSearchesResponse } from "@jobhub/shared/reads";
 import { NextResponse } from "next/server";
 import { getCurrentCandidate, isFromTrustedOrigin } from "@/auth/server";
+import { getCandidateReads } from "@/candidate-reads/server";
 import { quotaExceededResponse } from "@/billing/upgrade-prompt";
 import { getRequestLocale } from "@/i18n/server";
 import { getJobSearches } from "@/job-searches/server";
+
+/**
+ * Recherches d'offres' card (#684): each active Profile of the signed-in Candidate (an Archived Profile left out) with
+ * its Job Searches, most recent first, where each stands, how many Job Offers it found and whether it is unseen.
+ * 200 JobSearchesResponse · 401
+ */
+export async function GET() {
+  const candidate = await getCurrentCandidate();
+  if (!candidate) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  return NextResponse.json<JobSearchesResponse>(await getCandidateReads().jobSearches(candidate.id));
+}
 
 /**
  * Asks the AI Coach to search for Job Offers for one of the Candidate's Profiles.

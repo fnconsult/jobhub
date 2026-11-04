@@ -1,4 +1,4 @@
-import { applicationResponseSchema, applicationsResponseSchema } from "@jobhub/shared/reads";
+import { applicationResponseSchema, applicationsResponseSchema, jobDigestsResponseSchema, jobSearchesResponseSchema, jobSearchResponseSchema } from "@jobhub/shared/reads";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -6,8 +6,12 @@ import type { z } from "zod";
 import { createActionCards } from "../action-cards";
 import { createApplications, type Applications } from "../applications";
 import { BASE_URL, connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { createBilling } from "../billing";
+import { createReceivedOffers } from "../email-intake/received-offers";
 import { createFollowUps } from "../follow-ups";
+import { createJobDigests, type JobDigests } from "../job-digests";
 import { createJobOffers, type JobOffers } from "../job-offers";
+import { createJobSearches, type JobSearches } from "../job-searches";
 import { migrateDatabase } from "../migrations";
 import { createProfiles, type Profiles } from "../profiles";
 import { createCandidateReads, type CandidateReads } from "./index";
@@ -42,6 +46,8 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let profiles: Profiles;
   let jobOffers: JobOffers;
   let applications: Applications;
+  let jobSearches: JobSearches;
+  let jobDigests: JobDigests;
   let reads: CandidateReads;
   let marie: string;
   let paul: string;
@@ -73,6 +79,19 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     return captured.jobOffer.id;
   }
 
+  /** A Job Search of the Profile that found `jobOfferIds`, as Job discovery reports it. */
+  async function searched(owner: string, profileId: string, jobOfferIds: string[]) {
+    const started = await jobSearches.start(owner, { profileId });
+    if (!started.ok) throw new Error(`fixture Job Search refused: ${JSON.stringify(started)}`);
+    await jobSearches.record(started.jobSearch.id, { jobOfferIds });
+    return started.jobSearch.id;
+  }
+
+  /** Puts the Candidate on a Plan, as the Stripe webhook would. */
+  async function onPlan(owner: string, plan: string) {
+    await database.query(`INSERT INTO candidate_plan (candidate_id, plan) VALUES ($1, $2) ON CONFLICT (candidate_id) DO UPDATE SET plan = $2`, [owner, plan]);
+  }
+
   async function saveApplication(owner: string, profileId: string, title?: string) {
     const saved = await applications.save(owner, { jobOfferId: await captureOffer(title), profileId });
     if (!saved.ok) throw new Error("fixture Application refused");
@@ -89,7 +108,19 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     applications = createApplications(database, { jobOffers, profiles });
     const actionCards = createActionCards(database);
     const followUps = createFollowUps(database, { actionCards, applications, mailer: { send: async () => {} }, appUrl: BASE_URL, now: () => NOW });
-    reads = createCandidateReads({ applications, followUps, now: () => NOW });
+    const billing = createBilling({ database, baseURL: BASE_URL, now: () => NOW });
+    jobSearches = createJobSearches(database, { profiles, jobOffers, applications, quotas: billing, queue: { send: async () => {} }, now: () => NOW });
+    jobDigests = createJobDigests(database, {
+      profiles,
+      jobOffers,
+      applications,
+      billing,
+      receivedOffers: createReceivedOffers(database, { jobOffers, profiles, applications }),
+      mailer: { send: async () => {} },
+      baseURL: BASE_URL,
+      now: () => NOW,
+    });
+    reads = createCandidateReads({ applications, followUps, profiles, jobSearches, jobDigests, now: () => NOW });
     marie = await signIn("marie.dupont@example.fr");
     paul = await signIn("paul.martin@example.fr");
   }, 60_000); // A throwaway database each time: slow when the machine is busy.
@@ -163,6 +194,82 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
 
       expect(await reads.application(paul, marieApplication)).toBeNull();
       expect(overHttp(applicationsResponseSchema, await reads.applications(paul)).applications.map((row) => row.id)).not.toContain(marieApplication);
+    });
+  });
+
+  describe("Recherches d'offres", () => {
+    it("gives each active Profile's Job Searches, an Archived Profile's left out, as the card does", async () => {
+      const daf = await createProfile(marie);
+      const archived = await createProfile(marie, "Contrôleur de gestion");
+      await onPlan(marie, "premium");
+      const search = await searched(marie, daf, [await captureOffer()]);
+      await searched(marie, archived, [await captureOffer("Contrôleur de gestion")]);
+      await profiles.archive(marie, archived);
+
+      const card = overHttp(jobSearchesResponseSchema, await reads.jobSearches(marie));
+
+      expect(card.profiles).toEqual([
+        { profile: { id: daf, name: "DAF" }, searches: [{ id: search, status: "done", startedAt: NOW.toISOString(), found: 1, unseen: true }] },
+      ]);
+      expect(card.unseen).toBe(1);
+    });
+
+    it("gives a Job Search's Job Offers with their Match Score, kept once saved as an Application", async () => {
+      const daf = await createProfile(marie);
+      const kept = await captureOffer();
+      const undecided = await captureOffer("Directeur financier");
+      const search = await searched(marie, daf, [kept, undecided]);
+      const saved = await applications.save(marie, { jobOfferId: kept, profileId: daf });
+      if (!saved.ok) throw new Error("fixture Application refused");
+
+      const read = overHttp(jobSearchResponseSchema, await reads.jobSearch(marie, search));
+
+      expect(read).toMatchObject({ id: search, profile: { id: daf, name: "DAF" }, status: "done", failure: null });
+      expect(read.jobOffers).toHaveLength(2);
+      expect(read.jobOffers.find((found) => found.jobOffer.id === kept)).toMatchObject({ decision: "kept", applicationId: saved.application.id, matchScore: expect.any(Number) });
+      expect(read.jobOffers.find((found) => found.jobOffer.id === undecided)).toMatchObject({ decision: null, applicationId: null, jobOffer: { title: "Directeur financier", employer: "Acme Industrie" } });
+    });
+
+    it("never gives a Candidate another Candidate's Job Search", async () => {
+      const search = await searched(marie, await createProfile(marie), [await captureOffer()]);
+      await createProfile(paul);
+
+      expect(await reads.jobSearch(paul, search)).toBeNull();
+      expect(overHttp(jobSearchesResponseSchema, await reads.jobSearches(paul)).profiles.flatMap((group) => group.searches)).toEqual([]);
+    });
+  });
+
+  describe("Job Digests", () => {
+    it("gives each active Profile's frequency and the Job Digests sent, as the card does", async () => {
+      await onPlan(marie, "standard");
+      const daf = await createProfile(marie);
+      const subscribed = await jobDigests.subscribe(marie, daf, "weekly");
+      if (!subscribed.ok) throw new Error("fixture subscription refused");
+      const found = await captureOffer();
+      const delivered = await jobDigests.deliver(marie, daf, async () => ({ jobOfferIds: [found], provenance: null }));
+      if (!delivered.digest) throw new Error("fixture Job Digest not sent");
+
+      const card = overHttp(jobDigestsResponseSchema, await reads.jobDigests(marie));
+
+      expect(card.profiles).toEqual([
+        {
+          profile: { id: daf, name: "DAF" },
+          frequency: "weekly",
+          chosenFrequency: "weekly",
+          planFrequency: "weekly",
+          digests: [{ id: delivered.digest.id, sentAt: expect.any(String), count: delivered.digest.results.length }],
+        },
+      ]);
+    });
+
+    it("leaves out an Archived Profile, and says « none » for a Profile not opted in", async () => {
+      const daf = await createProfile(marie);
+      const archived = await createProfile(marie, "Contrôleur de gestion");
+      await profiles.archive(marie, archived);
+
+      const card = overHttp(jobDigestsResponseSchema, await reads.jobDigests(marie));
+
+      expect(card.profiles).toEqual([{ profile: { id: daf, name: "DAF" }, frequency: "none", chosenFrequency: null, planFrequency: "none", digests: [] }]);
     });
   });
 });

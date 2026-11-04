@@ -33,9 +33,11 @@ function hourOf(at: string, language: string): string {
  * what is changed there is kept while the pane is closed, and the button opens it again. Once decided it says how
  * (« Appliqué par vous à 18:20 », « Ignoré », « Annulé à 18:25 »), politely announced, and an applied one offers
  * « Annuler » while its object has not changed since. Refused, it says why (« L'objet a changé depuis la proposition »)
- * and stays as it was. `onChange`: the card as the server now has it.
+ * and stays as it was. `onChange`: the card as the server now has it. `openOnArrival`: the card has just arrived under
+ * « Propositions du coach : Formulaire » (#717, formOpenedOnArrival): its form opens by itself as it mounts, as the
+ * button would open it, and nothing is applied; once only, since the card mounts once in the thread.
  */
-export function CoachProposalCard({ card, onChange }: { card: Card; onChange: (card: Card) => void }) {
+export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
@@ -45,9 +47,9 @@ export function CoachProposalCard({ card, onChange }: { card: Card; onChange: (c
   const [problem, setProblem] = useState<Problem | null>(null);
   // What the Candidate changed in the form, kept while the Work Pane is closed; each opening mounts it afresh.
   const [edits, setEdits] = useState<Record<string, string>>(() => ({ ...card.change.value, ...card.edited }));
-  const [opening, setOpening] = useState(0);
+  const [opening, setOpening] = useState(() => (openOnArrival && pane ? 1 : 0));
   // Without a Work Pane (« Conversation au centre » off), the form opens in the card.
-  const [inlineForm, setInlineForm] = useState(false);
+  const [inlineForm, setInlineForm] = useState(() => openOnArrival && !pane);
   const editButton = useRef<HTMLButtonElement>(null);
   const { change } = card;
   const formHref = `${pathname}#proposition-${card.id}`;

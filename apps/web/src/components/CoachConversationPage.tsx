@@ -8,6 +8,7 @@ import type { CoachFocus } from "@/coach";
 import type { CoachMessage, ConversationContext, JobOfferCard as JobOfferCardData } from "@/coach/conversation";
 import type { SubjectRef } from "@/coach-conversations";
 import type { CoachProposalCard as ProposalCard } from "@/coach-proposals/card";
+import { formOpenedOnArrival, readCoachProposalsDisplay } from "@/coach-proposals-display/choice";
 import { helpArticle, helpLocale, helpSuggestions, MIN_SUGGESTION_LENGTH, type HelpArticle } from "@/coach-help";
 import { ActivityGlyph } from "@/components/ActivityGlyph";
 import { useAiActivityLive, type RequestActionLive } from "@/components/AiActivityLive";
@@ -73,9 +74,10 @@ type StoppedReply = { from: "stopped"; tokens: number; ms: number };
 
 /**
  * A message as the page shows it, with what this browser alone knows of an AI Coach reply (#345, never saved):
- * `couldNotAnswer`, the AI Coach marked the question as one it could not answer; `satisfied`, the Candidate's « Oui » or « Non ».
+ * `couldNotAnswer`, the AI Coach marked the question as one it could not answer; `satisfied`, the Candidate's « Oui » or « Non »;
+ * `openForm`, the card whose form opened by itself as the reply arrived (« Propositions du coach : Formulaire », #717).
  */
-type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean };
+type ShownMessage = CoachMessage & { couldNotAnswer?: true; satisfied?: boolean; openForm?: string };
 
 /** What the thread lists: the saved messages and the replies stopped since the page opened. */
 type ThreadMessage = ShownMessage | StoppedReply;
@@ -109,7 +111,13 @@ type ReplyBody = {
   context?: ConversationContext;
   /** The Action Cards of the Coach proposals the reply makes (#715). */
   cards?: ProposalCard[];
+  /** With `cards`, the Candidate's « Propositions du coach » (#717): « form » opens the first one's form by itself. */
+  proposalsDisplay?: string;
 };
+
+/** Below this width the Work Pane covers the conversation, full screen (#608): a phone. */
+const WIDE = "(width >= 64rem)";
+const onPhone = () => typeof window.matchMedia === "function" && !window.matchMedia(WIDE).matches;
 
 /** The same change proposed again: the same thing on the same object. */
 const sameChange = (a: ProposalCard, b: ProposalCard) => a.change.target.kind === b.change.target.kind && a.change.target.id === b.change.target.id && a.change.what === b.change.what;
@@ -476,6 +484,9 @@ export function CoachConversationPage(page: PagePlacement) {
       // A Blocked message (#228): the Guardrail is never named, only that the message or the reply was blocked.
       const blocked = body.blocked;
       const cards = Array.isArray(body.cards) ? body.cards : [];
+      // « Formulaire » (#717): the first proposal's form opens by itself, never over the box on a phone while the
+      // Candidate types (what they typed since sending is in the box).
+      const openForm = formOpenedOnArrival(readCoachProposalsDisplay(body.proposalsDisplay), cards, { phone: onPhone(), typing: (input.current?.value ?? "").trim() !== "" });
       setMessages([
         ...withdrawnBy(before, cards),
         { from: "candidate", text, ...(blocked?.message ? { blocked: true as const } : {}) },
@@ -487,6 +498,7 @@ export function CoachConversationPage(page: PagePlacement) {
           ...(typeof body.at === "string" ? { provenance: body.provenance ?? null, at: body.at } : {}),
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
           ...(cards.length > 0 ? { cards } : {}),
+          ...(openForm ? { openForm } : {}),
         },
       ]);
       const at = body.at;
@@ -662,7 +674,9 @@ export function CoachConversationPage(page: PagePlacement) {
                   {message.from === "coach" && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}
                   {/* Its Coach proposals (#715), each an Action Card, after its Provenance line. */}
                   {message.from === "coach" && message.cards?.length
-                    ? message.cards.map((card) => <CoachProposalCard key={card.id} card={card} onChange={(changed) => cardChanged(index, changed)} />)
+                    ? message.cards.map((card) => (
+                        <CoachProposalCard key={card.id} card={card} onChange={(changed) => cardChanged(index, changed)} openOnArrival={message.openForm === card.id} />
+                      ))
                     : null}
                   {openSignalement && message.from === "coach" && !message.blocked && !message.jobOffer ? (
                     <ReplyFeedback

@@ -7,7 +7,7 @@
  * « Mettre à jour Jobbbox » in place of the app, with the link to its store, and the call rejects with AppOutdatedError.
  * The app is never let back in until it is updated: a newer build is a new install.
  */
-import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, MOBILE_CLIENT } from "@jobhub/shared/api-version";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
 import Constants from "expo-constants";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { Platform } from "react-native";
@@ -74,10 +74,14 @@ export function useApi(): ApiFetch {
   return api;
 }
 
-/** The store page a 426's body names (`storeUrl`), if it names one. */
+/**
+ * The store page a 426's body names (`storeUrl`), if it names one for the app: only under APP_OUTDATED. Any other code
+ * (the extension's, EXTENSION_OUTDATED) names another client's store page, which the app never opens.
+ */
 async function namedStorePage(response: Response): Promise<string | null> {
   try {
-    const body = (await response.json()) as { storeUrl?: unknown };
+    const body = (await response.json()) as { error?: unknown; storeUrl?: unknown };
+    if (body.error !== APP_OUTDATED) return null;
     return typeof body.storeUrl === "string" && /^https:\/\//.test(body.storeUrl) ? body.storeUrl : null;
   } catch {
     return null;

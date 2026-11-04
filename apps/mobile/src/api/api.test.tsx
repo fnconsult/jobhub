@@ -1,4 +1,4 @@
-import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
+import { API_CLIENT_HEADER, API_VERSION, API_VERSION_HEADER, APP_OUTDATED, EXTENSION_OUTDATED, MOBILE_CLIENT } from "@jobhub/shared/api-version";
 import { screen, userEvent } from "@testing-library/react-native";
 import { Linking, Pressable, Text } from "react-native";
 import { renderInApp } from "../testing";
@@ -72,5 +72,14 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
     await read(server(426, { error: APP_OUTDATED, storeUrl: named, apiVersion: API_VERSION + 2 }).fetch);
     await userEvent.setup().press(screen.getByRole("link", { name: "Ouvrir l'App Store" }));
     expect(openURL).toHaveBeenCalledWith(named);
+  });
+
+  it("never send the person to a store page named for another client, such as the extension's", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    const extensionStore = "https://chromewebstore.google.com/detail/jobbbox/abcdefghijklmnopabcdefghijklmnop";
+    await read(server(426, { error: EXTENSION_OUTDATED, storeUrl: extensionStore, apiVersion: API_VERSION + 2 }).fetch);
+    expect(screen.getByRole("heading", { name: "Mettre à jour Jobbbox" })).toBeOnTheScreen();
+    await userEvent.setup().press(screen.getByRole("link", { name: "Ouvrir l'App Store" }));
+    expect(openURL).toHaveBeenCalledWith(APP_STORE);
   });
 });

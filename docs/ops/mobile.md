@@ -40,7 +40,7 @@ Le workflow les écrit à chaque exécution, dans son résumé et dans l'artefac
 
 Chaque appel de l'app passe par `useApi()` (`apps/mobile/src/api/api.tsx`), qui envoie l'API Version qu'elle parle (`Jobbbox-Api-Version`) et se nomme (`Jobbbox-Client: mobile`). Quand la plateforme ne sert plus cette API Version (elle sert la courante et la précédente, `docs/ops/extension-api-version.md`), elle répond **426 Upgrade Required** avec le code `app_outdated`. L'app affiche alors, à la place de tout le reste, « **Mettre à jour Jobbbox** », avec un bouton vers son store :
 
-- le lien que nomme la réponse (`storeUrl`), s'il y en a un ;
+- le lien que nomme une réponse `app_outdated` (`storeUrl`), s'il y en a un : la plateforme n'en nomme aucun pour l'instant (`apps/web/src/api-version/index.ts`), et l'app ignore celui d'une réponse à un autre code, comme le lien du Chrome Web Store qu'`extension_outdated` donne à l'extension ;
 - sinon celui de la build : Google Play pour le paquet `ai.jobbbox.app`, l'App Store pour l'identifiant Apple de l'app (`extra.appStoreId` de `apps/mobile/app.json`), ou la recherche « Jobbbox » de l'App Store tant que cet identifiant n'est pas renseigné.
 
 Monter l'API Version coupe donc les apps qui parlent l'avant-dernière : suivre l'ordre de `docs/ops/extension-api-version.md`, et attendre que les stores aient servi la build qui parle la nouvelle.

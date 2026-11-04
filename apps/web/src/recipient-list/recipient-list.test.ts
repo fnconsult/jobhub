@@ -14,7 +14,7 @@ describe("the Recipient list's recipients (ADR-0064, #338)", () => {
   it("are the Hosts and each Tool that can be called and receives personal data, as Outils reads them", () => {
     const ids = recipientsSwitchedOn(stateOf({ ANTHROPIC_API_KEY: "sk", MISTRAL_API_KEY: "mk", PERPLEXITY_API_KEY: "pk", STRIPE_SECRET_KEY: "s", STRIPE_WEBHOOK_SECRET: "w" }, ["google"])).map((recipient) => recipient.id);
     expect(ids).toEqual(expect.arrayContaining(["hostinger", "anthropic", "mistral", "perplexity", "stripe", "google"]));
-    expect(ids[0]).toBe("hostinger");
+    expect(ids.slice(0, 2)).toEqual(["hostinger", "scaleway"]);
     // A Tool without its key, a Sign-in Provider not enabled, a Tool that receives no personal data: none listed.
     expect(ids).not.toContain("brave");
     expect(ids).not.toContain("apple");

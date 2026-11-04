@@ -219,6 +219,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
     if (type.kind === "choice") return t("admin.platformSettings.rules.choice", { values: type.values.join(", ") });
     if (type.kind === "text") return t("admin.platformSettings.rules.text");
     if (type.kind === "url") return t("admin.platformSettings.rules.url");
+    if (type.kind === "origin") return t("admin.platformSettings.rules.origin");
     if (type.kind === "sender") return t("admin.platformSettings.rules.sender");
     if (type.kind === "country") return t("admin.platformSettings.rules.country");
     if (type.kind === "domain") return t("admin.platformSettings.rules.domain");

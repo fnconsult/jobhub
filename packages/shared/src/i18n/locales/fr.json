@@ -1090,7 +1090,9 @@
         "tutorial": "Tutoriel"
       },
       "openInHelpCentre": "Ouvrir dans le centre d'aide",
-      "openInHelpCentreAbout": "Ouvrir dans le centre d'aide : {{title}}"
+      "openInHelpCentreAbout": "Ouvrir dans le centre d'aide : {{title}}",
+      "watchVideo": "Voir la vidéo ({{duration}})",
+      "watchVideoAbout": "Voir la vidéo ({{duration}}) dans le centre d'aide : {{title}}"
     },
     "team": {
       "answered": "Cela répond à votre question ?",
@@ -2046,6 +2048,7 @@
         "job_discovery": "Recherche d'offres",
         "enriched_contacts": "Contacts enrichis",
         "extension": "Extension du navigateur",
+        "help_centre": "Centre d'aide",
         "maintenance": "Maintenance"
       },
       "setting": "Réglage",
@@ -2112,6 +2115,7 @@
         "text": "du texte",
         "model": "un modèle de {{provider}}, choisi dans la liste ou saisi ; il est testé par un appel à l'enregistrement",
         "url": "une URL en https",
+        "origin": "une origine en https, sans chemin, par exemple https://media.jobbbox.ai",
         "sender": "un expéditeur d'e-mail, par exemple Jobbbox <hello@jobbbox.ai>",
         "country": "un code pays à deux lettres, par exemple FR",
         "domain": "un nom de domaine, par exemple alertes.jobbbox.ai"
@@ -2277,6 +2281,7 @@
         "CONTACT_ENRICHMENT_PROVIDER": "Fournisseur des contacts enrichis",
         "CONTACT_ENRICHMENT_DPA_SIGNED": "Accord de traitement (DPA) signé",
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
+        "HELP_MEDIA_ORIGIN": "Origine des vidéos d'aide (Explainer Videos du centre d'aide)",
         "MAINTENANCE_MODE": "Maintenance en cours (toutes les pages hors Back Office répondent 503)",
         "MAINTENANCE_MESSAGE_FR": "Message de maintenance en français",
         "MAINTENANCE_MESSAGE_EN": "Message de maintenance en anglais",
@@ -5568,7 +5573,19 @@
     "writtenBy": "Écrit par l'équipe Jobbbox",
     "related": "Articles liés",
     "breadcrumb": "Fil d'Ariane",
-    "inTopic": "Les articles de la rubrique"
+    "inTopic": "Les articles de la rubrique",
+    "video": {
+      "title": "La vidéo",
+      "duration": "Durée :",
+      "voice": "voix de synthèse, sous-titrée en français",
+      "captions": {
+        "fr": "Français",
+        "en": "Anglais"
+      },
+      "unsupported": "Votre navigateur ne lit pas cette vidéo : la transcription ci-dessous en reprend tout le contenu.",
+      "transcript": "Lire la transcription",
+      "syntheticVoice": "Voix de synthèse. La transcription reprend tout ce que la vidéo dit et montre."
+    }
   },
   "release": {
     "line": "Version de Jobbbox : {{version}}"

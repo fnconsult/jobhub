@@ -25,7 +25,7 @@ test.describe("Destinataires des données (#338)", () => {
     await expect(page.getByText(/^Dernière modification le \d{1,2} \S+ \d{4}$/)).toBeVisible();
 
     const names = await page.getByRole("heading", { level: 2 }).evaluateAll((all) => all.map((heading) => heading.firstChild?.textContent));
-    expect(names[0]).toBe("Hostinger");
+    expect(names.slice(0, 2)).toEqual(["Hostinger", "Scaleway"]);
     expect(names).toEqual(expect.arrayContaining(["Mistral AI", "Perplexity", "Stripe", "Google"]));
     // No Claude key on the suite's server: Claude cannot be called, so it is not a recipient; nor GitHub, which receives no personal data.
     expect(names).not.toContain("Claude (Anthropic)");
@@ -39,6 +39,11 @@ test.describe("Destinataires des données (#338)", () => {
     await expect(perplexity.getByText(fr.recipientList.residency.outside_eu, { exact: true })).toBeVisible();
     await expect(perplexity).toContainText("Des requêtes seulement : un métier, un lieu ou le nom d'un employeur, jamais votre identité.");
     await expect(perplexity).toContainText("Non établie à ce jour.");
+    // Scaleway hosts the help videos (#568): an EU host, which sees the address of whoever displays or plays one.
+    const scaleway = recipient(page, "Scaleway");
+    await expect(scaleway.getByText(fr.recipientList.residency.eu, { exact: true })).toBeVisible();
+    await expect(scaleway).toContainText("Scaleway SAS");
+    await expect(scaleway).toContainText("Votre adresse IP et les informations techniques de votre navigateur, quand vous affichez ou lancez une vidéo d'aide.");
 
     // Marked as Légal's page in its left column; the way back to « IA dans Jobbbox ».
     await expect(page.getByRole("navigation", { name: fr.legal.documentsNav }).getByRole("link", { name: fr.recipientList.title })).toHaveAttribute("aria-current", "page");

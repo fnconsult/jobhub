@@ -12,6 +12,8 @@
  * Provider Secret (a test scans the code for them).
  */
 import { AI_ROUTING_SETTINGS, PRICE_SETTINGS } from "@jobhub/ai";
+// The light module, not the package's index: the proxy reads this catalog, and must not bundle every Help Article.
+import { MOTION_MEDIA_ORIGIN } from "@jobhub/help/motion-scripts";
 import { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/sender";
 import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
@@ -21,7 +23,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "maintenance"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "help_centre", "maintenance"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -33,6 +35,8 @@ export type PlatformSettingType =
   | { kind: "text" }
   /** An https URL (#303): a page people are sent to, never over plain http. */
   | { kind: "url" }
+  /** An origin (scheme and host, no path), kept as `URL.origin` gives it: https, or http on this machine (development, tests). */
+  | { kind: "origin" }
   /** An email sender our mailers send as: "Jobbbox <hello@jobbbox.ai>", or a bare address. */
   | { kind: "sender" }
   /** "true" or "false". */
@@ -111,6 +115,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "CONTACT_ENRICHMENT_DPA_SIGNED", group: "enriched_contacts", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The browser extension's Chrome Web Store page; empty: "coming soon".
   { name: "EXTENSION_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
+  // Where the Help Centre's Explainer Videos are played from (ADR-0066, #568): the Scaleway bucket's origin, whose
+  // manifest.json says which video each Tutorial shows; the pages' CSP `media-src` allows it and nothing else.
+  { name: "HELP_MEDIA_ORIGIN", group: "help_centre", type: { kind: "origin" }, default: MOTION_MEDIA_ORIGIN },
   // Maintenance (#542): on, every page but the Back Office's answers 503 and the worker's jobs wait.
   // Its message in each language (empty: the standard text) and how long it should last, from when it was switched on.
   { name: "MAINTENANCE_MODE", group: "maintenance", type: { kind: "boolean" }, default: "false" },
@@ -130,7 +137,7 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), maintenance (#542)
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), the help videos' origin (#568), maintenance (#542)
  * (« Conversation au centre », #601, was one until it became the only layout, #608).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
@@ -145,6 +152,7 @@ const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
   "job_discovery",
   "enriched_contacts",
   "extension",
+  "help_centre",
   "maintenance",
 ];
 
@@ -171,6 +179,8 @@ function rule(type: PlatformSettingType): string {
       return "some text";
     case "url":
       return "an https URL";
+    case "origin":
+      return "an https origin, such as https://media.jobbbox.ai";
     case "sender":
       return "an email sender, such as Jobbbox <hello@jobbbox.ai>";
     case "boolean":
@@ -195,6 +205,18 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+/** `value`'s origin when it is one: https, or http on localhost or 127.0.0.1 (development and the e2e suite); no path, query nor fragment. */
+function originOf(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const local = url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+    if ((url.protocol !== "https:" && !local) || url.username || url.password || url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) return null;
+    return /^[a-z]+:\/\/[^/]+\/?$/i.test(value) ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /** `raw` (trimmed) as `setting` takes it, or why not. An empty value is not one: env leaving it empty means it is not set. */
 export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetting {
   const value = raw.trim();
@@ -215,6 +237,10 @@ export function parseSetting(setting: PlatformSetting, raw: string): ParsedSetti
       return { ok: true, value };
     case "url":
       return isHttpsUrl(value) ? { ok: true, value } : refused;
+    case "origin": {
+      const origin = originOf(value);
+      return origin ? { ok: true, value: origin } : refused;
+    }
     case "sender":
       return isSender(value) ? { ok: true, value } : refused;
     case "boolean":

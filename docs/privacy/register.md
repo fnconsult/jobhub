@@ -11,6 +11,7 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Recipient | Entries |
 | --- | --- |
 | `hostinger` | Hosting |
+| `scaleway` | Help videos (#568) |
 | `anthropic` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Coach Memory and Guardrails; Back Office Assistant; Job Searches, Job discovery and Job Digests; Enriched Contacts; Guest session in the browser extension |
 | `anthropic-bedrock` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
 | `anthropic-vertex` | Master CV, Profiles and CV reading; Applications and their documents; Coach Conversations; Back Office Assistant |
@@ -344,6 +345,25 @@ Every Tool of the catalog that receives personal data, or queries drawn from it,
 | Storage | The VPS in Paris (EU). |
 | Retention | That of each processing. |
 | Security | Secrets in the hosting's secret manager, Provider Secrets encrypted (ADR-0020); the database is reachable from the VPS only. |
+
+## Help videos (#568)
+
+_Explainer Videos of the Help Centre (ADR-0066). Scaleway is an EU host: a minor change under ADR-0064._
+
+| | |
+| --- | --- |
+| Purpose | Play the Help Centre's Explainer Videos: the bucket that holds them sends the poster when a Tutorial's page shows its player, then the video and its captions when the reader presses play. |
+| Legal basis | Legitimate interest (GDPR art. 6(1)(f)): serving a file the reader asks for, which a server cannot do without their address; the video is under the Tutorial, which reads complete without it. |
+| People concerned | Anyone who opens a Tutorial page that has a video (Visitors, Candidates, Guests, Human Coaches). |
+| Data | The reader's IP address, the request (the file asked for, its time) and what their browser sends with it (user agent, language, the page's address as `Referer`). Nothing from a Jobbbox account: no cookie, no identifier, no Jobbbox session goes to the bucket (another domain, `media.jobbbox.ai`). |
+| Source | The reader's browser. Before play, only the poster is asked for (`preload="none"`, captions added at the first play: `e2e/help-centre-videos.spec.ts`). The Coach Panel plays nothing: « Voir la vidéo » opens the Help Centre. Jobbbox's own server reads the bucket's `manifest.json` (no personal data). |
+| Processors | Scaleway SAS (France): Object Storage in `fr-par`, served at `https://media.jobbbox.ai` through Scaleway Edge Services (`docs/ops/motions.md`). The Edge Services' points of presence are not documented publicly: to be confirmed with Scaleway by the product owner. Listed on the Recipient list as an EU host (`HOSTS` in `packages/shared/src/tools.ts`). |
+| Who can read it | Scaleway, in its access logs, if logging is on for the bucket. Jobbbox does not switch on the bucket's access logs and keeps nothing. |
+| Storage | Nothing stored by Jobbbox. Scaleway's logs per its DPA. |
+| Retention | Scaleway's, per its DPA (not read); none at Jobbbox. |
+| Rights | Nothing is kept by Jobbbox to give access to; objection by not playing the videos: the Tutorial's text and the transcript say all of it. |
+| Security | The bucket holds public files only (videos rendered from demo data, `packages/motions`); the pages' Content-Security-Policy `media-src` allows that origin and nothing else (HELP_MEDIA_ORIGIN, a Platform Setting). |
+| Trackers | None: no cookie, no analytics, no autoplay. The « Cookies et traceurs » section has nothing to add. |
 
 ## Candidate accounts and sign-in (ADR-0011)
 

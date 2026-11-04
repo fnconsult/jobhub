@@ -2,6 +2,7 @@ import { fillContactEmail, helpCentreArticle, relatedArticles } from "@jobhub/he
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HelpArticleText } from "@/components/HelpArticleText";
+import { TutorialVideo } from "@/components/TutorialVideo";
 import { PublicSite } from "@/design/PublicSite";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { publicContactEmail } from "@/public-pages/contact-email";
@@ -28,7 +29,7 @@ export async function generateMetadata(props: Params): Promise<Metadata> {
 
 /**
  * A Help Article in the Help Centre (#549): its topic, its kind, its text (a tutorial's numbered steps as a numbered
- * list, its links to this site and its contact address kept, #552; its « Voir comment », #569), « Écrit par l'équipe Jobbbox » (ADR-0065: an agent drafts, a person reviews and merges), then its related
+ * list, its links to this site and its contact address kept, #552; its « Voir comment », #569), a Tutorial's Explainer Video under its text, when one is published (#568), « Écrit par l'équipe Jobbbox » (ADR-0065: an agent drafts, a person reviews and merges), then its related
  * articles. Open to everyone; in English under /en/aide/… (src/proxy.ts).
  */
 export default async function HelpArticlePage(props: Params) {
@@ -50,6 +51,7 @@ export default async function HelpArticlePage(props: Params) {
           <div className="help-centre__body">
             <HelpArticleText article={article} text={fillContactEmail(article.body, publicContactEmail(), article.locale)} links={await helpArticleLinks()} />
           </div>
+          <TutorialVideo article={article} />
         </article>
         {related.length > 0 ? (
           <section className="help-centre__section" aria-labelledby="help-related">

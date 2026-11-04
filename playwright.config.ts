@@ -118,7 +118,7 @@ export default defineConfig({
     // the same with a CGV version, for the Order page's CGV box; recipients-outside-eu (#548) writes a privacy policy
     // version naming an unknown Tool and checks the build refuses it.
     // Projects run in parallel with each other, so they share this one.
-    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|acceptances|order|help-content-package|privacy-change|recipients-outside-eu)\.spec\.ts/, workers: 1 },
+    { name: "root-env", testMatch: /(root-env|worker-env|dev-servers|plan-prices-dev|legal-shell|acceptances|order|help-content-package|privacy-change|recipients-outside-eu|help-centre-videos)\.spec\.ts/, workers: 1 },
   ],
   webServer: process.env.E2E_NO_WEB_SERVER ? undefined : {
     command: "node e2e/support/web-server.mjs",

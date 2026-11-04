@@ -16,14 +16,14 @@ export function AppText({
   variant = "body",
   weight,
   tone = "text",
-  align,
+  centered = false,
   lines,
   children,
 }: {
   variant?: Variant;
   weight?: keyof typeof INTER;
   tone?: keyof Colors;
-  align?: TextStyle["textAlign"];
+  centered?: boolean;
   /** At most this many lines, then an ellipsis. */
   lines?: number;
   children: ReactNode;
@@ -35,7 +35,7 @@ export function AppText({
     fontSize: size,
     lineHeight: Math.round(size * (HEADING.has(variant) ? 1.25 : type.lineHeight)),
     color: colors[tone],
-    textAlign: align,
+    textAlign: centered ? "center" : undefined,
   };
   return (
     <Text style={style} numberOfLines={lines}>

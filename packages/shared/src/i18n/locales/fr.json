@@ -5665,5 +5665,16 @@
       "to": "À",
       "send": "Envoyer"
     }
+  },
+  "mobile": {
+    "attach": "Joindre un lien ou un document",
+    "send": "Envoyer",
+    "emptyScreen": "Cet écran arrive bientôt dans l'app.",
+    "homeTitle": "Accueil",
+    "fichePlaceholder": "La Fiche montrera ici l'objet de la page, ses Sections, son Activité et ses Résultats.",
+    "activityPlaceholder": "Activité montrera ici la barre de contexte et l'Activité IA de la page.",
+    "openSampleSection": "Ouvrir une Section d'exemple",
+    "sampleSection": "Section d'exemple",
+    "workPanePlaceholder": "Le Work Pane montrera ici une Section, un Résultat, un article d'aide ou un formulaire."
   }
 }

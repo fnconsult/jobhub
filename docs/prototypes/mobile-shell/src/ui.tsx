@@ -1,9 +1,8 @@
 // PROTOTYPE (throwaway, branch prototype/mobile-shell). Shared pieces of the shell: no tests, no polish.
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Easing,
-  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -230,66 +229,39 @@ function Glyph() {
   );
 }
 
-// ——— Sheet with two detents (phone) ———
+// ——— A pane opened full screen (below 64rem): slides up, title and « Fermer », nothing behind it reachable ———
 
-const DETENTS = [0.55, 0.92];
-
-export function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+export function FullPane({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
   const { c } = useTheme();
   const { height } = useWindowDimensions();
-  const [detent, setDetent] = useState(0);
   const y = useRef(new Animated.Value(height)).current;
-  const start = useRef(0);
-  const top = (d: number) => height * (1 - DETENTS[d]);
-  const animate = (to: number, done?: () => void) =>
-    Animated.timing(y, { toValue: to, duration: duration.slow, easing: Easing.out(Easing.cubic), useNativeDriver: useNative }).start(done);
-
+  const [mounted, setMounted] = useState(open);
+  const [shownTitle, setShownTitle] = useState(title);
   useEffect(() => {
-    if (open) setDetent(0);
-    animate(open ? top(0) : height);
-  }, [open, height]);
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
-        onPanResponderGrant: () => y.stopAnimation((v) => (start.current = v)),
-        onPanResponderMove: (_, g) => y.setValue(Math.max(top(1), start.current + g.dy)),
-        onPanResponderRelease: (_, g) => {
-          const v = start.current + g.dy;
-          if (v > height * 0.72) return onClose();
-          const d = Math.abs(v - top(0)) < Math.abs(v - top(1)) ? 0 : 1;
-          setDetent(d);
-          animate(top(d));
-        },
-      }),
-    [height, onClose],
-  );
-
-  const go = (d: number) => {
-    setDetent(d);
-    animate(top(d));
-  };
-
+    if (open) {
+      setMounted(true);
+      setShownTitle(title);
+    }
+    Animated.timing(y, { toValue: open ? 0 : height, duration: duration.slow, easing: Easing.out(Easing.cubic), useNativeDriver: useNative }).start(() => {
+      if (!open) setMounted(false);
+    });
+  }, [open, height, title]);
+  if (!mounted) return null;
   return (
-    <View pointerEvents={open ? "auto" : "none"} style={StyleSheet.absoluteFill}>
-      {open ? <Pressable accessibilityLabel="Fermer" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} /> : null}
-      <Animated.View
-        accessibilityViewIsModal
-        style={{ position: "absolute", left: 0, right: 0, top: 0, height: height * DETENTS[1], transform: [{ translateY: y }], backgroundColor: c.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 24, elevation: 12 }}
-      >
-        <View {...pan.panHandlers} style={{ paddingTop: 8, paddingBottom: 4, paddingHorizontal: 8 }}>
-          <View style={{ alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: c.borderStrong, marginBottom: 6 }} />
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Btn kind="ghost" small label={detent === 0 ? "Agrandir" : "Réduire"} onPress={() => go(detent === 0 ? 1 : 0)} />
-            <Text style={{ flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: c.text }}>{title}</Text>
-            <Btn kind="ghost" small label="✕ Fermer" onPress={onClose} />
-          </View>
+    <Animated.View
+      accessibilityViewIsModal
+      pointerEvents={open ? "auto" : "none"}
+      style={[StyleSheet.absoluteFill, { transform: [{ translateY: y }], backgroundColor: c.background, zIndex: 10 }]}
+    >
+      <View style={{ minHeight: 56, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }}>
+        <View style={{ width: 96 }} />
+        <Text accessibilityRole="header" numberOfLines={1} style={{ flex: 1, textAlign: "center", fontSize: 17, fontWeight: "600", color: c.text }}>{shownTitle}</Text>
+        <View style={{ width: 96, alignItems: "flex-end" }}>
+          <Btn kind="ghost" small label="✕ Fermer" onPress={onClose} />
         </View>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 16 + height * (DETENTS[1] - DETENTS[detent]) }}>{children}</ScrollView>
-      </Animated.View>
-    </View>
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>{children}</ScrollView>
+    </Animated.View>
   );
 }
 

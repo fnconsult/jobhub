@@ -23,7 +23,7 @@ The pink bar at the bottom is the prototype's, not the design: ‹ › switch va
 | **B · Onglets** | Bottom tabs: Accueil, Candidatures, Offres, Agenda, Coach; Mon compte top right | A labelled rail on the left |
 | **C · Sans chrome** | No menu at all: destinations are chips above the composer, ⌂ goes home | Same |
 
-Try: open « Aéroline » → **Fiche** (drag the handle between the two heights, or « Agrandir »), « Changer le statut », a suggestion (the reply streams; ■ stops it), the iPad in landscape, portrait and Split View, and the system's largest text size (the layout falls back to the phone one as rem grows).
+Try: open « Aéroline » → **Fiche**, then a Section (the Work Pane), « Activité » on the home page, « Changer le statut », a suggestion (the reply streams; ■ stops it), the iPad in landscape, portrait and Split View, and the system's largest text size (the layout falls back to the phone one as rem grows).
 
 ## Not in the prototype
 
@@ -32,3 +32,5 @@ Icons are text glyphs (Lucide in the real app), the font is the system one (Inte
 ## Verdict (2026-11-04)
 
 **Variant A · Tiroir (Claude) wins**, tried by the product owner on an iPhone in Expo Go. A drawer on a phone, the Sidebar as a column from 64rem, the Fiche as a sheet with two detents below 64rem and a column from 64rem, by the window width in rem. B (bottom tabs) and C (chips above the composer) are dropped. Recorded in ADR-0076.
+
+**Amended the same day:** below 64rem the Fiche, the Activité column and the Work Pane open **full screen** (title, « ✕ Fermer »), as on the web phone (ADR-0070), instead of a Sheet with two detents. The Work Pane opens over the Fiche, and closing it returns to the Fiche.

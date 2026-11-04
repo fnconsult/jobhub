@@ -14,6 +14,7 @@ export type Ctx = {
   offerState: Record<string, "saved" | "dismissed">;
   setOffer: (id: string, s: "saved" | "dismissed") => void;
   alert: (text: string) => void;
+  openWork: (item: string) => void;
 };
 
 export const MENUS: { key: Screen; label: string; icon: string }[] = [
@@ -152,7 +153,7 @@ export function FicheContent({ app, ctx }: { app: Application; ctx: Ctx }) {
       </View>
       <Card title="Sections">
         {["Entretiens (1)", "CV adapté", "Lettre de motivation", "Relances", "Dossier entreprise"].map((s) => (
-          <Row key={s} title={s} onPress={() => ctx.alert(`« ${s} » s'ouvre dans le Work Pane`)} />
+          <Row key={s} title={s} onPress={() => ctx.openWork(s)} />
         ))}
       </Card>
       <Card title="Activité">
@@ -204,6 +205,45 @@ export function WebViewStandIn({ url }: { url: string }) {
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 10, backgroundColor: c.surface }}>
       <T size="h3" weight="700">WebView</T>
       <T color={c.secondary} style={{ textAlign: "center" }}>{`Ici, la page web ${url}, avec le cookie de session posé pour jobbbox.ai seulement.`}</T>
+    </View>
+  );
+}
+
+export function ActiviteContent() {
+  const { c } = useTheme();
+  return (
+    <View style={{ gap: 12 }}>
+      <Card title="Contexte">
+        <View style={{ padding: 14, gap: 6 }}>
+          <T size="meta" color={c.secondary}>4 messages sur 40 · 6 k jetons sur 120 k</T>
+          <View style={{ height: 6, borderRadius: 3, backgroundColor: c.surface }}>
+            <View style={{ width: "5%", height: 6, borderRadius: 3, backgroundColor: c.accent }} />
+          </View>
+        </View>
+      </Card>
+      <Card title="Activité IA">
+        <Row title="Réponse du coach" sub="Aujourd'hui, 09:12 · Recherche dans vos candidatures" />
+        <Row title="Match Score calculé" sub="Hier, 18:40 · Hélice Industries" />
+      </Card>
+    </View>
+  );
+}
+
+export function WorkContent({ item, ctx }: { item: string; ctx: Ctx }) {
+  const { c } = useTheme();
+  return (
+    <View style={{ gap: 12 }}>
+      <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+        <Btn small label="Modifier" onPress={() => ctx.alert("Modifier")} />
+        <Btn small label="Télécharger" onPress={() => ctx.alert("Feuille de partage du système")} />
+        <Btn small kind="primary" label="Demander au coach" onPress={() => ctx.alert("Revient à la conversation, la question pré-remplie")} />
+      </View>
+      <T color={c.secondary}>{`« ${item} » s'ouvre ici, dans le Work Pane : un élément à la fois, ses actions en tête, ✕ pour revenir.`}</T>
+      <Card title="Aperçu">
+        <View style={{ padding: 14, gap: 8 }}>
+          {[0.9, 0.75, 0.82, 0.6, 0.7].map((w, i) => <View key={i} style={{ height: 10, width: `${w * 100}%`, borderRadius: 5, backgroundColor: c.surface }} />)}
+        </View>
+      </Card>
     </View>
   );
 }

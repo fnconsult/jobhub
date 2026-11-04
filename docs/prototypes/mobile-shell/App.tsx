@@ -4,7 +4,7 @@
 //   A · Tiroir (Claude)   — the agreed design: a drawer on a phone, a Sidebar column on a wide screen.
 //   B · Onglets           — a bottom tab bar on a phone, a labelled rail on a wide screen.
 //   C · Sans chrome       — no drawer, no tabs: destinations as chips above the composer.
-// All three share the conversation-as-the-page (ADR-0070) and the Fiche: a sheet with two detents below 64rem,
+// All three share the conversation-as-the-page (ADR-0070) and the panes (Fiche, Activité, Work Pane): full screen below 64rem,
 // a column beside the conversation from 64rem, decided by the window width in rem (OS text size included).
 import { StatusBar } from "expo-status-bar";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -12,9 +12,9 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { applications, replies, Status } from "./src/data";
 import { COL, Layout, useLayout } from "./src/layout";
-import { appOf, Ctx, FicheContent, MENUS, NavList, pageOf, parentOf, Screen, titleOf, WebViewStandIn } from "./src/screens";
+import { ActiviteContent, appOf, Ctx, FicheContent, MENUS, WorkContent, NavList, pageOf, parentOf, Screen, titleOf, WebViewStandIn } from "./src/screens";
 import { colorsFor, ThemeContext, useTheme } from "./src/theme";
-import { Btn, Conversation, Drawer, Msg, Sheet, TopBar } from "./src/ui";
+import { Btn, Conversation, Drawer, FullPane, Msg, TopBar } from "./src/ui";
 
 type Variant = "A" | "B" | "C";
 const VARIANTS: { key: Variant; name: string }[] = [
@@ -50,7 +50,8 @@ function Root() {
   const [screen, setScreen] = useState<Screen>("home");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarWanted, setSidebarWanted] = useState(true);
-  const [ficheWanted, setFicheWanted] = useState(false);
+  const [pane, setPane] = useState<PaneKind | null>(null);
+  const [work, setWork] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, Status>>(() => Object.fromEntries(applications.map((a) => [a.id, a.status])));
   const [offerState, setOfferState] = useState<Record<string, "saved" | "dismissed">>({});
   const [toast, setToast] = useState<string | null>(null);
@@ -64,8 +65,9 @@ function Root() {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const app = appOf(screen);
-  const ficheOpen = !!app && ficheWanted;
-  const layout = useLayout({ sidebarWanted, ficheOpen, hasSidebar: variant === "A" });
+  const isConversation = !("webview" in pageOf(screen, { go: () => {}, statuses: {}, setStatus: () => {}, offerState: {}, setOffer: () => {}, alert: () => {}, openWork: () => {} }));
+  const paneShown: PaneKind | null = pane === "fiche" && !app ? null : pane === "activite" && !isConversation ? null : pane;
+  const layout = useLayout({ sidebarWanted, ficheOpen: !!paneShown || !!work, hasSidebar: variant === "A" });
 
   const setVariant = (v: Variant) => {
     setVariantState(v);
@@ -77,7 +79,8 @@ function Root() {
   const go = (s: Screen) => {
     setScreen(s);
     setDrawerOpen(false);
-    if (!layout.wide) setFicheWanted(false);
+    setWork(null);
+    if (!layout.wide) setPane(null);
   };
   const alert = (text: string) => {
     setToast(text);
@@ -118,8 +121,9 @@ function Root() {
       const typing = el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === "\\") { e.preventDefault(); layout.wide ? setSidebarWanted((v) => !v) : setDrawerOpen((v) => !v); }
-      else if (mod && e.key.toLowerCase() === "i") { e.preventDefault(); if (app) setFicheWanted((v) => !v); }
-      else if (e.key === "Escape") { setDrawerOpen(false); if (!layout.ficheAsColumn) setFicheWanted(false); }
+      else if (mod && e.key.toLowerCase() === "i") { e.preventDefault(); setPane((v) => (v ? null : app ? "fiche" : "activite")); }
+      else if (mod && e.key.toLowerCase() === "w") { e.preventDefault(); setWork(null); }
+      else if (e.key === "Escape") { setDrawerOpen(false); if (work) setWork(null); else if (!layout.ficheAsColumn) setPane(null); }
       else if (!typing && e.key === "ArrowLeft") cycle(-1);
       else if (!typing && e.key === "ArrowRight") cycle(1);
     };
@@ -134,9 +138,10 @@ function Root() {
     offerState,
     setOffer: (id, s) => setOfferState((p) => ({ ...p, [id]: s })),
     alert,
+    openWork: (item) => setWork(item),
   };
 
-  const shell: Shell = { screen, go, ctx, layout, app, ficheOpen, setFicheWanted, drawerOpen, setDrawerOpen, sidebarWanted, setSidebarWanted, newConversation, convs, streamingKey, send, stop };
+  const shell: Shell = { screen, go, ctx, layout, app, isConversation, pane: paneShown, setPane, work, setWork, drawerOpen, setDrawerOpen, sidebarWanted, setSidebarWanted, newConversation, convs, streamingKey, send, stop };
 
   return (
     <ThemeContext.Provider value={{ c, scheme }}>
@@ -159,7 +164,7 @@ function Root() {
           setSchemePref={setSchemePref}
           showState={showState}
           setShowState={setShowState}
-          state={`${Math.round(layout.width)}pt × échelle texte ${layout.fontScale.toFixed(2)} = ${layout.widthRem.toFixed(1)}rem · ${layout.why} · Fiche : ${app ? (ficheOpen ? (layout.ficheAsColumn ? "colonne" : "feuille") : "fermée") : "—"} · thème ${scheme}`}
+          state={`${Math.round(layout.width)}pt × échelle texte ${layout.fontScale.toFixed(2)} = ${layout.widthRem.toFixed(1)}rem · ${layout.why} · volet : ${work ? "Work Pane" : paneShown ?? "aucun"}${work || paneShown ? (layout.ficheAsColumn ? " en colonne" : " en pleine page") : ""} · thème ${scheme}`}
           bottomInset={insets.bottom}
         />
       </View>
@@ -173,8 +178,11 @@ type Shell = {
   ctx: Ctx;
   layout: Layout;
   app: ReturnType<typeof appOf>;
-  ficheOpen: boolean;
-  setFicheWanted: (f: (v: boolean) => boolean) => void;
+  isConversation: boolean;
+  pane: PaneKind | null;
+  setPane: (p: PaneKind | null | ((v: PaneKind | null) => PaneKind | null)) => void;
+  work: string | null;
+  setWork: (w: string | null) => void;
   drawerOpen: boolean;
   setDrawerOpen: (f: boolean | ((v: boolean) => boolean)) => void;
   sidebarWanted: boolean;
@@ -211,32 +219,49 @@ function Page({ s, above }: { s: Shell; above?: ReactNode }) {
         readingWidth={44 * s.layout.rem}
       />
     );
-  const close = () => s.setFicheWanted(() => false);
+  const wide = s.layout.ficheAsColumn;
+  const column = s.work ? "work" : s.pane;
   return (
     <View style={{ flex: 1, flexDirection: "row" }}>
       <View style={{ flex: 1 }}>{body}</View>
-      {s.app && s.ficheOpen && s.layout.ficheAsColumn ? (
+      {wide && column ? (
         <View style={{ width: COL.fiche * s.layout.rem, marginLeft: COL.gutter * s.layout.rem, backgroundColor: c.nav }}>
           <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, minHeight: 48 }}>
-            <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: c.text }}>Fiche</Text>
-            <Btn kind="ghost" small label="✕" a11y="Fermer la Fiche" onPress={close} />
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: "700", color: c.text }}>{paneTitle(s, column)}</Text>
+            <Btn kind="ghost" small label="✕" a11y="Fermer" onPress={() => (s.work ? s.setWork(null) : s.setPane(null))} />
           </View>
-          <ScrollView contentContainerStyle={{ padding: 14 }}>
-            <FicheContent app={s.app} ctx={s.ctx} />
-          </ScrollView>
+          <ScrollView contentContainerStyle={{ padding: 14 }}>{paneBody(s, column)}</ScrollView>
         </View>
-      ) : null}
-      {s.app && !s.layout.ficheAsColumn ? (
-        <Sheet open={s.ficheOpen} title="Fiche" onClose={close}>
-          <FicheContent app={s.app} ctx={s.ctx} />
-        </Sheet>
       ) : null}
     </View>
   );
 }
 
-const ficheButton = (s: Shell) =>
-  s.app ? <Btn small kind={s.ficheOpen ? "primary" : "secondary"} label="Fiche" onPress={() => s.setFicheWanted((v) => !v)} /> : null;
+type PaneKind = "fiche" | "activite";
+const paneTitle = (s: Shell, k: PaneKind | "work") => (k === "work" ? s.work ?? "" : k === "fiche" ? "Fiche" : "Activité");
+const paneBody = (s: Shell, k: PaneKind | "work") =>
+  k === "work" ? <WorkContent item={s.work ?? ""} ctx={s.ctx} /> : k === "fiche" && s.app ? <FicheContent app={s.app} ctx={s.ctx} /> : <ActiviteContent />;
+
+// Below 64rem: the Fiche, the Activité column and the Work Pane open full screen over the page, the Top Bar included.
+function PhonePanes({ s }: { s: Shell }) {
+  if (s.layout.ficheAsColumn) return null;
+  return (
+    <>
+      <FullPane open={!!s.pane} title={s.pane ? paneTitle(s, s.pane) : ""} onClose={() => s.setPane(null)}>
+        {s.pane ? paneBody(s, s.pane) : null}
+      </FullPane>
+      <FullPane open={!!s.work} title={s.work ?? ""} onClose={() => s.setWork(null)}>
+        {s.work ? paneBody(s, "work") : null}
+      </FullPane>
+    </>
+  );
+}
+
+const ficheButton = (s: Shell) => {
+  if (!s.isConversation) return null;
+  const kind: PaneKind = s.app ? "fiche" : "activite";
+  return <Btn small kind={s.pane === kind ? "primary" : "secondary"} label={s.app ? "Fiche" : "Activité"} onPress={() => s.setPane((v) => (v === kind ? null : kind))} />;
+};
 const titlePress = (s: Shell) => {
   const parent = parentOf(s.screen);
   return parent ? () => s.go(parent) : undefined;
@@ -262,6 +287,7 @@ function VariantA({ s }: { s: Shell }) {
         />
         <Page s={s} />
       </View>
+      <PhonePanes s={s} />
       {!s.layout.sidebarPinned ? (
         <Drawer open={s.drawerOpen} onClose={() => s.setDrawerOpen(false)} width={Math.min(s.layout.width * 0.86, COL.sidebar * s.layout.rem + 32)}>
           {nav}
@@ -311,6 +337,7 @@ function VariantB({ s }: { s: Shell }) {
           {top}
           <Page s={s} />
         </View>
+        <PhonePanes s={s} />
       </View>
     );
   return (
@@ -318,6 +345,7 @@ function VariantB({ s }: { s: Shell }) {
       {top}
       <Page s={s} />
       <View style={{ flexDirection: "row", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, backgroundColor: c.nav }}>{TABS.map((t) => tab(t, false))}</View>
+      <PhonePanes s={s} />
     </View>
   );
 }
@@ -346,6 +374,7 @@ function VariantC({ s }: { s: Shell }) {
         right={ficheButton(s)}
       />
       <Page s={s} above={chips} />
+      <PhonePanes s={s} />
     </View>
   );
 }

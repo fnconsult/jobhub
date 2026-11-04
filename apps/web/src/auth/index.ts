@@ -14,8 +14,9 @@
  * Who may sign in through which provider, which ones link by email, and how each
  * session was signed in are decided here, on every OAuth callback (see signInHooks).
  */
-import type { ExternalApiLog } from "@jobhub/shared";
+import { APP_ORIGIN, type ExternalApiLog } from "@jobhub/shared";
 import { DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES } from "@jobhub/shared/i18n";
+import { expo } from "@better-auth/expo";
 import { passkey } from "@better-auth/passkey";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getOAuthState } from "better-auth/api";
@@ -25,6 +26,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import type { Pool } from "pg";
 import * as z from "zod";
 import { routes } from "../routes";
+import { emailedMagicLink } from "./app-sign-in";
 import { withDiscoveryDocuments } from "./discovery-documents";
 import { signInEmail } from "./sign-in-email";
 import { recordingSignInCalls } from "./sign-in-calls";
@@ -304,8 +306,9 @@ function authOptions(config: AuthConfig) {
     database: config.database,
     baseURL: config.baseURL,
     secret: config.secret,
-    // Apple posts its callback from its own origin.
-    trustedOrigins: [...(config.extensionOrigins ?? []), ...providers.trustedOrigins],
+    // Apple posts its callback from its own origin. The native app's scheme covers its origin and its return addresses
+    // (ADR-0076); the Expo plugin adds `exp://` itself, under NODE_ENV=development alone (Expo Go).
+    trustedOrigins: [...(config.extensionOrigins ?? []), ...providers.trustedOrigins, APP_ORIGIN],
     // Sign-in failures Better Auth redirects for (a refused consent, an OAuth state it
     // cannot match, a provider for Administrators only) come back to our sign-in page,
     // translated, rather than to its own English /api/auth/error page.
@@ -352,6 +355,9 @@ function authOptions(config: AuthConfig) {
       },
     },
     plugins: [
+      // The native app's session (ADR-0076): the same session, its cookie kept in the Keychain or Keystore and sent back
+      // by the app; its `expo-origin` stands for the Origin a native request lacks. No bearer or JWT plugin (ADR-0011).
+      expo(),
       magicLink({
         expiresIn: MAGIC_LINK_MINUTES * 60,
         storeToken: "hashed",
@@ -359,7 +365,9 @@ function authOptions(config: AuthConfig) {
           // A returning Candidate reads the email in their Interface Language.
           const found = await ctx?.context.internalAdapter.findUserByEmail(email);
           const language = (found?.user as Record<string, unknown> | undefined)?.interfaceLanguage;
-          await config.mailer.send({ to: email, ...signInEmail({ url, minutes: MAGIC_LINK_MINUTES }, isSupportedLocale(language) ? language : DEFAULT_LOCALE) });
+          // Asked from the native app: a link the app opens, by a universal link or an App Link (app-sign-in.ts).
+          const link = emailedMagicLink(url, config.baseURL);
+          await config.mailer.send({ to: email, ...signInEmail({ url: link, minutes: MAGIC_LINK_MINUTES }, isSupportedLocale(language) ? language : DEFAULT_LOCALE) });
         },
       }),
       // Passkeys (#664, ADR-0075), added in Mon compte as a second step: never a way to sign in (PASSKEY_PATHS_REFUSED).
